@@ -292,6 +292,13 @@ button { touch-action:none; font-family:inherit; }
 .cpOpt b { color:#f0d97a; font-size:16px; }
 .cpOpt span { color:#bdb293; font-size:12px; }
 
+/* ---------- zone map ---------- */
+#mapCanvas {
+  width:100%; max-width:520px; display:block; margin:0 auto;
+  border:1px solid #6b5a33; border-radius:8px; background:#11150e;
+}
+#mapLegend { margin-top:8px; font-size:12px; line-height:1.6; text-align:center; }
+
 .hidden { display:none !important; }
 
 /* ---------- responsive: small portrait ---------- */
