@@ -89,3 +89,20 @@ NODE_PATH=/path/to/node_modules node test/shot.js  # renders battlefield PNGs of
 - `js/ui.js` — DOM screens, hand interaction, the action timeline player,
   floaters, and a tiny WebAudio synth (mutable in the menu).
 - `js/main.js` — boot + requestAnimationFrame loop.
+
+## Single-file build
+
+`voidspire.html` is the whole game bundled into one file (handy for playing
+from a download or a raw-file URL). Regenerate it after changing any source:
+
+```sh
+node -e "
+const fs = require('fs');
+let html = fs.readFileSync('index.html', 'utf8');
+html = html.replace(/<link rel=\"stylesheet\"[^>]*>/, '<style>\n' + fs.readFileSync('css/style.css', 'utf8') + '\n</style>');
+let js = '';
+for (const s of ['balance','cards','artifacts','enemies','events','engine','render','ui','main']) js += '\n' + fs.readFileSync('js/' + s + '.js', 'utf8');
+html = html.replace(/(\s*<script src=[^>]*><\/script>)+/, '\n<script>\n' + js.replace(/<\/script>/g, '<\\\\/script>') + '\n</script>\n');
+fs.writeFileSync('voidspire.html', html);
+"
+```
