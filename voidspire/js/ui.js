@@ -328,6 +328,24 @@
       (c.exhaust.length ? '<span>EXH ' + c.exhaust.length + '</span>' : '');
   }
 
+  /* ---- shared card markup ---------------------------------------------- */
+  var TYPE_ICONS = {
+    attack: '<svg viewBox="0 0 14 14"><path d="M2 12 L9 3 L11 7 L6 12 Z"/><path d="M9 9 L12 12"/></svg>',
+    skill: '<svg viewBox="0 0 14 14"><path d="M7 1 L12 4 L12 9 L7 13 L2 9 L2 4 Z"/><path d="M7 4 L7 10"/></svg>',
+    power: '<svg viewBox="0 0 14 14"><path d="M2 8 L7 3 L12 8"/><path d="M2 12 L7 7 L12 12"/></svg>',
+    curse: '<svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.5"/><path d="M4 4 L10 10 M10 4 L4 10"/></svg>',
+  };
+
+  function cardInner(name, cost, type, rarity, desc, unplayable) {
+    var r = rarity === 3 ? 'r3' : rarity === 2 ? 'r2' : 'r1';
+    return '<div class="cost">' + (unplayable ? '✕' : cost) + '</div>' +
+      '<div class="cicon">' + (TYPE_ICONS[type] || '') + '</div>' +
+      '<div class="cname">' + esc(name) + '</div>' +
+      '<div class="rline ' + r + '"></div>' +
+      '<div class="ctype">' + type + (rarity === 3 ? ' · rare' : rarity === 2 ? ' · unc' : '') + '</div>' +
+      '<div class="cdesc">' + esc(desc) + '</div>';
+  }
+
   function renderHand() {
     $hand.innerHTML = '';
     var c = E.combat;
@@ -338,11 +356,7 @@
         (info.cost > c.energy && !info.unplayable ? ' unaffordable' : '') +
         (info.unplayable ? ' unplayable-curse' : '') +
         (i === selected ? ' selected' : ''));
-      d.innerHTML =
-        '<div class="cost">' + (info.unplayable ? '✕' : info.cost) + '</div>' +
-        '<div class="cname">' + esc(info.name) + '</div>' +
-        '<div class="ctype">' + info.type + '</div>' +
-        '<div class="cdesc">' + esc(info.desc) + '</div>';
+      d.innerHTML = cardInner(info.name, info.cost, info.type, info.rarity, info.desc, info.unplayable);
       d.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
         startCardDrag(d, i, ev);
@@ -694,11 +708,8 @@
     var def = ns.CARDS[cid];
     var ctx = E.run ? { attrs: { might: E.attr('might'), tech: E.attr('tech'), psi: E.attr('psi') }, statuses: null } : null;
     var d = el('div', 'card type-' + def.type);
-    d.innerHTML =
-      '<div class="cost">' + (def.unplayable ? '✕' : ns.cardCost(def, up)) + '</div>' +
-      '<div class="cname">' + esc(def.name + (up ? '+' : '')) + '</div>' +
-      '<div class="ctype">' + def.type + (def.rarity === 3 ? ' · RARE' : def.rarity === 2 ? ' · UNC' : '') + '</div>' +
-      '<div class="cdesc">' + esc(ns.cardDesc(def, up, ctx)) + '</div>';
+    d.innerHTML = cardInner(def.name + (up ? '+' : ''), ns.cardCost(def, up), def.type, def.rarity,
+      ns.cardDesc(def, up, ctx), def.unplayable);
     return d;
   }
 

@@ -185,26 +185,100 @@
     }
   };
 
-  /* ---- background ---------------------------------------------------------- */
+  /* ---- background scenes -------------------------------------------------- */
+  // One scene per faction territory (plus a neutral menu scene). Static
+  // elements are generated once per faction so nothing flickers.
+  var scene = null, sceneKey = null;
+
+  var THEME = {
+    menu:      { rgb: '93,255,136',  grid: 'rgba(93, 255, 136, 0.10)' },
+    hierarchy: { rgb: '200,107,255', grid: 'rgba(200, 107, 255, 0.09)' },
+    rust:      { rgb: '255,150,40',  grid: 'rgba(255, 150, 40, 0.09)' },
+    voidspawn: { rgb: '93,255,136',  grid: 'rgba(93, 255, 136, 0.10)' },
+  };
+
+  function ensureScene() {
+    var k = (ns.engine.run && ns.engine.run.faction) ? ns.engine.run.faction : 'menu';
+    if (k === sceneKey && scene) return;
+    sceneKey = k;
+    scene = buildScene(k);
+  }
+
+  function buildScene(k) {
+    var s = { kind: k, theme: THEME[k] || THEME.menu, nebula: [], ships: [], towers: [], lights: [], spores: [], tendrils: [] };
+    var i;
+    for (i = 0; i < 4; i++) {
+      s.nebula.push({ x: Math.random(), y: Math.random() * 0.45, r: 0.22 + Math.random() * 0.3, a: 0.05 + Math.random() * 0.06 });
+    }
+    if (k === 'hierarchy' || k === 'menu') {
+      for (i = 0; i < 3; i++) {
+        s.ships.push({ x: Math.random(), y: 0.08 + Math.random() * 0.22, v: 0.002 + Math.random() * 0.004, s: 0.5 + Math.random() * 0.8, dir: Math.random() < 0.5 ? -1 : 1 });
+      }
+    }
+    if (k === 'rust') {
+      var x = 0;
+      while (x < 1.05) {
+        var w = 0.04 + Math.random() * 0.08;
+        var h = 0.03 + Math.random() * 0.10;
+        var chimney = Math.random() < 0.45;
+        s.towers.push({ x: x, w: w, h: h, c: chimney });
+        if (Math.random() < 0.6) s.lights.push({ x: x + w * Math.random(), y: h * (0.3 + Math.random() * 0.6), ph: Math.random() * 6, sp: 1 + Math.random() * 2 });
+        x += w + 0.01 + Math.random() * 0.04;
+      }
+    }
+    if (k === 'voidspawn') {
+      for (i = 0; i < 14; i++) {
+        s.spores.push({ x: Math.random(), y: Math.random(), v: 0.004 + Math.random() * 0.008, ph: Math.random() * 6, r: 1 + Math.random() * 2 });
+      }
+      for (i = 0; i < 4; i++) {
+        s.tendrils.push({ x: 0.06 + Math.random() * 0.88, len: 0.10 + Math.random() * 0.14, ph: Math.random() * 6, seg: 4 + Math.floor(Math.random() * 3) });
+      }
+      s.rift = { x: 0.62 + Math.random() * 0.2, pts: [] };
+      var rx = 0;
+      for (i = 0; i <= 6; i++) s.rift.pts.push([(Math.random() - 0.5) * 0.10, 0.06 + i * 0.045]);
+    }
+    return s;
+  }
+
   function drawBackground(dt) {
+    ensureScene();
+    var th = scene.theme;
+
+    // nebula blobs
+    scene.nebula.forEach(function (n) {
+      var nx = n.x * W, ny = n.y * H, nr = n.r * Math.min(W, H) * 1.3;
+      var g = ctx.createRadialGradient(nx, ny, 0, nx, ny, nr);
+      g.addColorStop(0, 'rgba(' + th.rgb + ',' + n.a.toFixed(3) + ')');
+      g.addColorStop(1, 'rgba(' + th.rgb + ',0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(nx - nr, ny - nr, nr * 2, nr * 2);
+    });
+
+    if (scene.kind === 'hierarchy' || scene.kind === 'menu') drawHierarchySky(dt);
+    if (scene.kind === 'rust') drawRustSky();
+    if (scene.kind === 'voidspawn') drawVoidSky();
+
     // stars
     for (var i = 0; i < stars.length; i++) {
       var s = stars[i];
       s.y += dt * 0.006 * s.z;
       if (s.y > 1) { s.y -= 1; s.x = Math.random(); }
       var a = 0.25 + 0.5 * s.z * (0.6 + 0.4 * Math.sin(t * 2 + s.tw));
-      ctx.fillStyle = 'rgba(120, 200, 160, ' + a.toFixed(3) + ')';
+      ctx.fillStyle = 'rgba(150, 210, 190, ' + a.toFixed(3) + ')';
       var sz = s.z > 0.75 ? 1.6 : 1;
       ctx.fillRect(s.x * W, s.y * H, sz, sz);
     }
+
+    if (scene.kind === 'rust') drawRustSkyline();
+
     // perspective grid floor under the battlefield
     var gy = baseY() + Math.min(W, H) * 0.13;
-    ctx.strokeStyle = 'rgba(93, 255, 136, 0.10)';
+    ctx.strokeStyle = th.grid;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, gy); ctx.lineTo(W, gy);
-    for (var g = 1; g <= 4; g++) {
-      var yy = gy + g * g * 9;
+    for (var g2 = 1; g2 <= 4; g2++) {
+      var yy = gy + g2 * g2 * 9;
       if (yy > H) break;
       ctx.moveTo(0, yy); ctx.lineTo(W, yy);
     }
@@ -214,6 +288,161 @@
       ctx.lineTo(cx + vx * W * 0.30, Math.min(H, gy + 160));
     }
     ctx.stroke();
+  }
+
+  /* Hierarchy / menu: ringed gas giant, a vast orbital ring, drifting warships */
+  function drawHierarchySky(dt) {
+    var th = scene.theme;
+    var px = W * 0.80, py = H * 0.15, pr = W * 0.26;
+    // planet disc
+    var g = ctx.createRadialGradient(px - pr * 0.3, py - pr * 0.3, pr * 0.1, px, py, pr);
+    g.addColorStop(0, 'rgba(' + th.rgb + ',0.16)');
+    g.addColorStop(1, 'rgba(' + th.rgb + ',0.02)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(px, py, pr, 0, 7); ctx.fill();
+    ctx.strokeStyle = 'rgba(' + th.rgb + ',0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(px, py, pr, 0, 7); ctx.stroke();
+    // cloud bands
+    ctx.strokeStyle = 'rgba(' + th.rgb + ',0.18)';
+    ctx.beginPath();
+    ctx.arc(px, py, pr * 0.72, 2.5, 3.9);
+    ctx.moveTo(px + pr * 0.5, py + pr * 0.35);
+    ctx.arc(px, py, pr * 0.6, 0.5, 1.3);
+    ctx.stroke();
+    // planet ring
+    ctx.strokeStyle = 'rgba(' + th.rgb + ',0.30)';
+    ctx.beginPath(); ctx.ellipse(px, py, pr * 1.5, pr * 0.34, -0.28, 3.0, 6.55); ctx.stroke();
+    // the great orbital ring spanning the sky (our Halo)
+    ctx.strokeStyle = 'rgba(' + th.rgb + ',0.22)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(W / 2, H * 2.7, H * 2.52, -Math.PI / 2 - 0.4, -Math.PI / 2 + 0.4); ctx.stroke();
+    ctx.beginPath(); ctx.arc(W / 2, H * 2.7, H * 2.52 + 7, -Math.PI / 2 - 0.4, -Math.PI / 2 + 0.4); ctx.stroke();
+    // ring struts
+    ctx.strokeStyle = 'rgba(' + th.rgb + ',0.14)';
+    for (var k = -3; k <= 3; k++) {
+      var a = -Math.PI / 2 + k * 0.11;
+      var x1 = W / 2 + Math.cos(a) * H * 2.52, y1 = H * 2.7 + Math.sin(a) * H * 2.52;
+      var x2 = W / 2 + Math.cos(a) * (H * 2.52 + 7), y2 = H * 2.7 + Math.sin(a) * (H * 2.52 + 7);
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    }
+    // drifting warships (angular silhouettes)
+    ctx.strokeStyle = 'rgba(' + th.rgb + ',0.40)';
+    ctx.lineWidth = 1;
+    scene.ships.forEach(function (sh) {
+      sh.x += sh.v * sh.dir * dt;
+      if (sh.x > 1.15) sh.x = -0.15;
+      if (sh.x < -0.15) sh.x = 1.15;
+      var sx = sh.x * W, sy = sh.y * H, sc = 14 * sh.s, d = sh.dir;
+      ctx.beginPath();
+      ctx.moveTo(sx - sc * d, sy);
+      ctx.lineTo(sx + sc * 0.4 * d, sy - sc * 0.28);
+      ctx.lineTo(sx + sc * d, sy - sc * 0.05);
+      ctx.lineTo(sx + sc * 0.5 * d, sy + sc * 0.22);
+      ctx.closePath();
+      ctx.stroke();
+    });
+  }
+
+  /* Rust: dim red sun with occlusion slats, smog bands, industrial skyline */
+  function drawRustSky() {
+    var sx = W * 0.24, sy = H * 0.17, sr = W * 0.13;
+    var g = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr * 2.4);
+    g.addColorStop(0, 'rgba(255, 90, 40, 0.30)');
+    g.addColorStop(0.45, 'rgba(255, 120, 40, 0.10)');
+    g.addColorStop(1, 'rgba(255, 120, 40, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(sx - sr * 2.4, sy - sr * 2.4, sr * 4.8, sr * 4.8);
+    ctx.fillStyle = 'rgba(255, 96, 40, 0.32)';
+    ctx.beginPath(); ctx.arc(sx, sy, sr, 0, 7); ctx.fill();
+    // retro occlusion slats
+    ctx.fillStyle = '#04080a';
+    for (var i = 0; i < 4; i++) {
+      var yy = sy + sr * (0.1 + i * 0.24);
+      ctx.fillRect(sx - sr - 4, yy, sr * 2 + 8, 2 + i * 1.5);
+    }
+    // smog bands
+    ctx.fillStyle = 'rgba(255, 140, 60, 0.045)';
+    ctx.fillRect(0, H * 0.25, W, H * 0.035);
+    ctx.fillRect(0, H * 0.33, W, H * 0.02);
+  }
+
+  function drawRustSkyline() {
+    var gy = baseY() + Math.min(W, H) * 0.13;
+    ctx.fillStyle = 'rgba(4, 8, 10, 0.9)';
+    ctx.strokeStyle = 'rgba(255, 150, 40, 0.30)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, gy);
+    scene.towers.forEach(function (tw) {
+      var x0 = tw.x * W, x1 = (tw.x + tw.w) * W, hh = tw.h * H;
+      ctx.lineTo(x0, gy);
+      ctx.lineTo(x0, gy - hh);
+      if (tw.c) {
+        var cx0 = x0 + (x1 - x0) * 0.3, cx1 = x0 + (x1 - x0) * 0.55;
+        ctx.lineTo(cx0, gy - hh); ctx.lineTo(cx0, gy - hh - 10);
+        ctx.lineTo(cx1, gy - hh - 10); ctx.lineTo(cx1, gy - hh);
+      }
+      ctx.lineTo(x1, gy - hh);
+      ctx.lineTo(x1, gy);
+    });
+    ctx.lineTo(W, gy);
+    ctx.fill();
+    ctx.stroke();
+    // blinking hazard lights
+    scene.lights.forEach(function (l) {
+      var a = 0.25 + 0.5 * (0.5 + 0.5 * Math.sin(t * l.sp + l.ph));
+      ctx.fillStyle = 'rgba(255, 150, 40, ' + a.toFixed(3) + ')';
+      ctx.fillRect(l.x * W - 1, gy - l.y * H - 1, 2, 2);
+    });
+  }
+
+  /* Voidspawn: a torn rift in space, hanging tendrils, drifting spores */
+  function drawVoidSky() {
+    var gy = baseY();
+    // the rift
+    var rx = scene.rift.x * W;
+    var pulse = 0.5 + 0.35 * Math.sin(t * 1.3);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(93, 255, 136, ' + (0.30 + 0.25 * pulse).toFixed(3) + ')';
+    ctx.shadowColor = '#5dff88';
+    ctx.shadowBlur = 12 * pulse + 4;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    scene.rift.pts.forEach(function (p, i) {
+      var x = rx + p[0] * W, y = p[1] * H;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    ctx.lineWidth = 0.8;
+    ctx.strokeStyle = 'rgba(230, 255, 240, ' + (0.25 + 0.3 * pulse).toFixed(3) + ')';
+    ctx.stroke();
+    ctx.restore();
+
+    // hanging tendrils, swaying
+    ctx.strokeStyle = 'rgba(93, 255, 136, 0.22)';
+    ctx.lineWidth = 1.2;
+    scene.tendrils.forEach(function (td) {
+      var x = td.x * W;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      for (var i = 1; i <= td.seg; i++) {
+        var p = i / td.seg;
+        ctx.lineTo(x + Math.sin(t * 0.8 + td.ph + p * 3) * 8 * p, td.len * H * p);
+      }
+      ctx.stroke();
+    });
+
+    // drifting spores
+    scene.spores.forEach(function (sp) {
+      sp.y -= sp.v * 0.016;
+      if (sp.y < -0.02) { sp.y = 1.02; sp.x = Math.random(); }
+      var a = 0.10 + 0.14 * (0.5 + 0.5 * Math.sin(t * 1.5 + sp.ph));
+      ctx.fillStyle = 'rgba(93, 255, 136, ' + a.toFixed(3) + ')';
+      ctx.beginPath();
+      ctx.arc(sp.x * W + Math.sin(t + sp.ph) * 6, sp.y * Math.min(gy + 60, H), sp.r, 0, 7);
+      ctx.fill();
+    });
   }
 
   /* ---- entity drawing -------------------------------------------------------- */
