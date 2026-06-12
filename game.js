@@ -23,6 +23,31 @@ const OUTPOST={x:13.5*TILE,y:78*TILE,r:7.5*TILE};
 const SHRINE={x:16*TILE,y:75*TILE};
 const CAMP={x:78*TILE,y:20*TILE,r:8*TILE};
 
+/* ---------------- settings & persistence ---------------- */
+const SETTINGS={quality:'medium', zoom:'normal', vignette:true};
+const QUAL_DPR={low:1.0, medium:1.3, high:1.6};
+const CAMVIEWS={close:{h:190,back:165,look:-18}, normal:{h:250,back:215,look:-25}, far:{h:330,back:290,look:-32}};
+const SAVE_KEY='eldervale.save.v1', SET_KEY='eldervale.settings.v1';
+const hasLS=(()=>{try{return typeof localStorage!=='undefined';}catch(e){return false;}})();
+function loadSettings(){
+  if(!hasLS) return;
+  try{ const s=JSON.parse(localStorage.getItem(SET_KEY)); if(s) Object.assign(SETTINGS,s); }catch(e){}
+}
+function saveSettings(){ if(hasLS) try{ localStorage.setItem(SET_KEY,JSON.stringify(SETTINGS)); }catch(e){} }
+let saveTimer=0;
+function saveGame(){
+  if(!hasLS||!player) return;
+  try{
+    localStorage.setItem(SAVE_KEY,JSON.stringify({
+      cls:player.cls, lvl:player.lvl, xp:player.xp, gold:player.gold, dp:player.dp,
+      attrs:player.attrs, attrPts:player.attrPts, equip:player.equip, inv:player.inv,
+      builds:player.builds||[], quest:{stage:quest.stage,kills:quest.kills},
+    }));
+  }catch(e){}
+}
+function loadSaveData(){ if(!hasLS) return null; try{ return JSON.parse(localStorage.getItem(SAVE_KEY)); }catch(e){ return null; } }
+function wipeSave(){ if(hasLS) try{ localStorage.removeItem(SAVE_KEY); }catch(e){} }
+
 /* ---------------- map ---------------- */
 const map=new Uint8Array(MAPW*MAPH);
 const T=(x,y)=>(x<0||y<0||x>=MAPW||y>=MAPH)?G_ROCK:map[y*MAPW+x];
@@ -807,7 +832,12 @@ const matCache={};
 
 function mat(c,extra){
   const key=c+JSON.stringify(extra||{});
-  if(!matCache[key]) matCache[key]=new THREE.MeshPhongMaterial({color:c,flatShading:true,shininess:6,...(extra||{})});
+  if(!matCache[key]){
+    const e=extra||{};
+    matCache[key]=new THREE.MeshStandardMaterial({
+      color:c, flatShading:e.flat!==false, roughness:e.roughness??0.82, metalness:e.metalness??0.0,
+      emissive:e.emissive??0x000000, emissiveIntensity:e.emissiveIntensity??1, side:e.side, transparent:e.transparent, opacity:e.opacity});
+  }
   return matCache[key];
 }
 function prim(geo,c,extra){return new THREE.Mesh(geo,mat(c,extra));}
@@ -869,14 +899,31 @@ function buildTerrain(){
   geo.rotateX(-Math.PI/2);
   geo.translate(W/2,0,W/2);
   geo.computeVertexNormals();
-  terrainMesh=new THREE.Mesh(geo,new THREE.MeshPhongMaterial({vertexColors:true,flatShading:true,shininess:2}));
+  terrainMesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,flatShading:true,roughness:0.94,metalness:0.0}));
+  terrainMesh.receiveShadow=true;
   scene.add(terrainMesh);
 
-  // water
-  const wgeo=new THREE.PlaneGeometry(W,W,1,1);
+  // animated water (subdivided, gentle swell)
+  const seg=48;
+  const wgeo=new THREE.PlaneGeometry(W,W,seg,seg);
   wgeo.rotateX(-Math.PI/2); wgeo.translate(W/2,-5,W/2);
-  waterMesh=new THREE.Mesh(wgeo,new THREE.MeshPhongMaterial({color:0x2a9aa0,transparent:true,opacity:0.8,shininess:90,specular:0xaaddcc}));
+  waterBase=Float32Array.from(wgeo.attributes.position.array);
+  waterMesh=new THREE.Mesh(wgeo,new THREE.MeshStandardMaterial({
+    color:0x2aa3a6, transparent:true, opacity:0.86, roughness:0.16, metalness:0.45,
+    emissive:0x06343a, emissiveIntensity:0.35}));
+  waterMesh.receiveShadow=true;
   scene.add(waterMesh);
+}
+let waterBase;
+function animateWater(){
+  if(!waterMesh) return;
+  const p=waterMesh.geometry.attributes.position, a=p.array, t=now;
+  for(let i=0;i<a.length;i+=3){
+    const x=waterBase[i], z=waterBase[i+2];
+    a[i+1]=waterBase[i+1]+Math.sin(x*0.03+t*1.4)*1.5+Math.cos(z*0.045+t*1.1)*1.5;
+  }
+  p.needsUpdate=true;
+  waterMesh.geometry.computeVertexNormals();
 }
 
 function buildProps(){
@@ -968,6 +1015,27 @@ function buildProps(){
   const fire=cone3(6,12,0xff8830,5); fire.material=new THREE.MeshPhongMaterial({color:0xff8830,emissive:0xff5510,emissiveIntensity:1,flatShading:true});
   fire.position.set(78*TILE,6,20*TILE); scene.add(fire);
   const fireLight=new THREE.PointLight(0xff7020,1.1,240); fireLight.position.set(78*TILE,22,20*TILE); scene.add(fireLight);
+
+  // grass tufts for foreground richness (one instanced draw call)
+  const grassP=[];
+  for(let y=2;y<MAPH-2;y++)for(let x=2;x<MAPW-2;x++){
+    if(T(x,y)===G_GRASS&&vr()<0.22) grassP.push([(x+vr())*TILE,(y+vr())*TILE]);
+  }
+  const blade=new THREE.ConeGeometry(2.2,9,4); blade.translate(0,4.5,0);
+  const gmesh=new THREE.InstancedMesh(blade,new THREE.MeshStandardMaterial({flatShading:true,roughness:1,color:0xffffff}),grassP.length);
+  const gcc=new THREE.Color();
+  grassP.forEach((p,i)=>{
+    const s=0.7+vr()*0.8; vS.set(s*(0.7+vr()*0.6),s,s); vP.set(p[0],heightAt(p[0],p[1]),p[1]);
+    q.setFromAxisAngle(up,vr()*6.28); m4.compose(vP,q,vS); gmesh.setMatrixAt(i,m4);
+    gcc.setHSL(0.18+vr()*0.10,0.45+vr()*0.2,0.30+vr()*0.10); gmesh.setColorAt(i,gcc);
+  });
+  if(gmesh.instanceColor) gmesh.instanceColor.needsUpdate=true;
+  scene.add(gmesh);
+
+  // tag larger props as shadow casters (used on High quality)
+  scene.traverse(o=>{
+    if(o.isMesh&&o!==terrainMesh&&o!==waterMesh&&o!==gmesh) o.userData.shadowCaster=true;
+  });
 
   // selection + move rings
   const ringGeo=new THREE.RingGeometry(0.82,1,28); ringGeo.rotateX(-Math.PI/2);
@@ -1082,6 +1150,8 @@ function makeAvatar(e){
     aura.rotation.x=-Math.PI/2; aura.position.y=0.6; g.add(aura);
     g.userData.aura=aura;
   }
+  const hi=SETTINGS.quality==='high';
+  g.traverse(o=>{ if(o.isMesh&&o!==sh&&!o.userData.aura){ o.userData.shadowCaster=true; o.castShadow=hi; } });
   scene.add(g);
   return g;
 }
@@ -1140,23 +1210,72 @@ const fxCanvas=document.getElementById('fx');
 const fctx=fxCanvas.getContext('2d');
 let VW=0,VH=0,DPR=1;
 
+let sunLight;
+const HAZE=0xe2d4ad;
 function initThree(){
   renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
   renderer.outputEncoding=THREE.sRGBEncoding;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure=1.08;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   scene=new THREE.Scene();
-  scene.background=new THREE.Color(0xd8cfae); // warm Istani haze
-  scene.fog=new THREE.Fog(0xd8cfae,650,1750);
-  camera=new THREE.PerspectiveCamera(50,1,10,2600);
+  scene.background=new THREE.Color(HAZE); // warm Istani haze
+  scene.fog=new THREE.Fog(HAZE,820,2050);
+  camera=new THREE.PerspectiveCamera(50,1,10,3400);
   raycaster=new THREE.Raycaster();
-  scene.add(new THREE.HemisphereLight(0xfff0d0,0x6a5a32,0.9));
-  const sun=new THREE.DirectionalLight(0xffe0a8,1.1);
-  sun.position.set(500,800,250); scene.add(sun);
+  scene.add(new THREE.HemisphereLight(0xfff2d6,0x5a5230,0.78));
+  const amb=new THREE.AmbientLight(0xfff0d8,0.18); scene.add(amb);
+  sunLight=new THREE.DirectionalLight(0xfff0c8,1.35);
+  sunLight.position.set(420,760,300);
+  sunLight.target.position.set(0,0,0); scene.add(sunLight.target);
+  // shadow camera follows the player (High quality only)
+  sunLight.shadow.mapSize.set(2048,2048);
+  sunLight.shadow.camera.near=10; sunLight.shadow.camera.far=1500;
+  const sc=sunLight.shadow.camera; sc.left=-480; sc.right=480; sc.top=480; sc.bottom=-480;
+  sunLight.shadow.bias=-0.0006;
+  scene.add(sunLight);
+  buildSky();
   buildTerrain();
   buildProps();
+  applyQuality();
+}
+
+function buildSky(){
+  const geo=new THREE.SphereGeometry(2900,18,12);
+  const pos=geo.attributes.position, cols=new Float32Array(pos.count*3), c=new THREE.Color();
+  const top=new THREE.Color(0x4f86c0), mid=new THREE.Color(0xa9c3cf), low=new THREE.Color(HAZE);
+  for(let i=0;i<pos.count;i++){
+    const h=clamp(pos.getY(i)/2900,-1,1);
+    if(h>0.18) c.copy(mid).lerp(top,clamp((h-0.18)/0.7,0,1));
+    else c.copy(low).lerp(mid,clamp((h+0.25)/0.43,0,1));
+    cols[i*3]=c.r; cols[i*3+1]=c.g; cols[i*3+2]=c.b;
+  }
+  geo.setAttribute('color',new THREE.BufferAttribute(cols,3));
+  const sky=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide,fog:false,depthWrite:false}));
+  scene.add(sky);
+  // sun disc
+  const disc=new THREE.Mesh(new THREE.CircleGeometry(120,24),
+    new THREE.MeshBasicMaterial({color:0xfff4d6,fog:false,transparent:true,opacity:0.9,depthWrite:false}));
+  disc.position.set(900,1500,650); disc.lookAt(0,0,0); scene.add(disc);
+}
+
+function applyQuality(){
+  if(!renderer) return;
+  const q=SETTINGS.quality;
+  const shadows=q==='high';
+  renderer.shadowMap.enabled=shadows;
+  if(sunLight) sunLight.castShadow=shadows;
+  scene.traverse(o=>{
+    if(o.isMesh){
+      if(o===terrainMesh||o===waterMesh) o.receiveShadow=shadows;
+      else if(o.userData.shadowCaster){ o.castShadow=shadows; o.receiveShadow=shadows; }
+    }
+  });
+  resize(); // re-applies pixel ratio for the quality tier
 }
 
 function resize(){
-  DPR=Math.min(1.5,window.devicePixelRatio||1); // cap fill cost on retina phones
+  DPR=Math.min(QUAL_DPR[SETTINGS.quality]||1.3,window.devicePixelRatio||1);
   VW=window.innerWidth; VH=window.innerHeight;
   fxCanvas.width=VW*DPR; fxCanvas.height=VH*DPR;
   fxCanvas.style.width=VW+'px'; fxCanvas.style.height=VH+'px';
@@ -1319,15 +1438,33 @@ function drawOverlay(){
     fctx.fillStyle=f.color; fctx.fillText(f.txt,p.x,p.y);
     fctx.globalAlpha=1;
   }
+  // cinematic vignette
+  if(SETTINGS.vignette){
+    if(!vignetteGrad||vignetteGrad._w!==VW||vignetteGrad._h!==VH){
+      vignetteGrad=fctx.createRadialGradient(VW/2,VH*0.46,Math.min(VW,VH)*0.35,VW/2,VH*0.5,Math.max(VW,VH)*0.72);
+      vignetteGrad.addColorStop(0,'rgba(0,0,0,0)');
+      vignetteGrad.addColorStop(1,'rgba(20,14,6,0.42)');
+      vignetteGrad._w=VW; vignetteGrad._h=VH;
+    }
+    fctx.fillStyle=vignetteGrad; fctx.fillRect(0,0,VW,VH);
+  }
 }
+let vignetteGrad=null;
 
 /* ---------------- main 3D render ---------------- */
 function render(){
   if(!HAS3D||!renderer) return;
-  // camera follows from the south, tilted down (fixed yaw — joystick up = north)
+  // camera follows from the south, tilted down (fixed yaw — up = north)
   const ph=heightAt(player.x,player.y);
-  camera.position.set(player.x,ph+250,player.y+215);
-  camera.lookAt(player.x,ph+5,player.y-25);
+  const cv=CAMVIEWS[SETTINGS.zoom]||CAMVIEWS.normal;
+  camera.position.set(player.x,ph+cv.h,player.y+cv.back);
+  camera.lookAt(player.x,ph+5,player.y+cv.look);
+  // sun + shadow frustum follow the player
+  if(sunLight){
+    sunLight.position.set(player.x+420,ph+760,player.y+300);
+    sunLight.target.position.set(player.x,ph,player.y);
+  }
+  if(frameNo%2===0) animateWater();
 
   for(const e of enemies) syncAvatar(e);
   syncAvatar(player); syncAvatar(hench); syncAvatar(npcAldra); syncAvatar(npcSuki);
@@ -1358,12 +1495,14 @@ function render(){
 let tapId=null, tapX=0, tapY=0, tapT=0;
 
 canvas.addEventListener('pointerdown',ev=>{
+  if(uiBlocking()) return;        // a menu/dialog is open — let the UI handle it
   ev.preventDefault();
   if(tapId===null){ tapId=ev.pointerId; tapX=ev.clientX; tapY=ev.clientY; tapT=performance.now(); }
 });
 window.addEventListener('pointerup',ev=>{
   if(ev.pointerId===tapId){
     tapId=null;
+    if(uiBlocking()) return;
     const moved=dist(ev.clientX,ev.clientY,tapX,tapY);
     if(moved<18&&performance.now()-tapT<500) handleTap(tapX,tapY);
   }
@@ -1416,16 +1555,44 @@ function handleTap(sx,sy){
 const $=id=>document.getElementById(id);
 const ui={
   pHp:$('pHp'),pEn:$('pEn'),pXp:$('pXp'),pLvl:$('pLvl'),pHpTxt:$('pHpTxt'),pEnTxt:$('pEnTxt'),
+  pAdr:$('pAdr'),pAdrBar:$('pAdrBar'),
   hHp:$('hHp'),henchFrame:$('henchFrame'),
   targetFrame:$('targetFrame'),tName:$('tName'),tLvl:$('tLvl'),tHp:$('tHp'),tConds:$('tConds'),
   quest:$('questTracker'),gold:$('goldTxt'),
   castbar:$('castbar'),castFill:$('castFill'),castName:$('castName'),
   dialog:$('dialog'),dlgName:$('dlgName'),dlgText:$('dlgText'),dlgBtn:$('dlgBtn'),
   banner:$('banner'),toast:$('toast'),death:$('deathOverlay'),deathSub:$('deathSub'),
-  skillInfo:$('skillInfo'),hero:$('heroPanel'),
   compass:$('compass'),
 };
 const skillBtns=[];
+
+/* ---------------- modal system ---------------- */
+const MODALS={
+  hero:    {el:$('heroPanel'),    body:$('heroBody'),    render:renderHero},
+  skills:  {el:$('skillsPanel'),  body:$('skillsBody'),  render:renderSkills},
+  inv:     {el:$('invPanel'),     body:$('invBody'),     render:renderInv},
+  quest:   {el:$('questPanel'),   body:$('questBody'),   render:renderQuestLog},
+  settings:{el:$('settingsPanel'),body:$('settingsBody'),render:renderSettings},
+};
+let openModalId=null;
+const backdrop=$('backdrop');
+function anyModalOpen(){ return openModalId!==null || !ui.dialog.classList.contains('hidden') || !$('classPick').classList.contains('hidden'); }
+function uiBlocking(){ return anyModalOpen(); }
+function closeModal(){
+  if(openModalId){ MODALS[openModalId].el.classList.add('hidden'); openModalId=null; }
+  ui.dialog.classList.add('hidden');
+  backdrop.classList.add('hidden');
+}
+function openModal(id){
+  closeModal();
+  const m=MODALS[id]; if(!m) return;
+  invSel=-1;
+  m.render();
+  m.el.classList.remove('hidden');
+  backdrop.classList.remove('hidden');
+  openModalId=id;
+}
+function closePanels(){ closeModal(); }
 
 function buildSkillbar(){
   const bar=$('skillbar');
@@ -1438,51 +1605,229 @@ function buildSkillbar(){
     bar.appendChild(b);
     skillBtns.push(b);
   });
-  if(buildSkillbar.wired) return;
-  buildSkillbar.wired=true;
-  $('skillInfoBtn').addEventListener('pointerdown',ev=>{
-    ev.stopPropagation();
-    ui.skillInfo.classList.toggle('hidden');
-    if(!ui.skillInfo.classList.contains('hidden')){
-      ui.skillInfo.innerHTML='<b style="color:#f0d97a">Skill Bar</b><br><br>'+SKILLS.map((s,i)=>
-        `<div class="sk"><b>${i+1}. ${s.icon} ${s.name}</b> <i>${s.en>0?s.en+'⚡':''} ${s.cast>0?s.cast+'s cast':''} ${s.rc}s recharge</i><br>${s.desc}</div>`).join('')
-        +'<div style="margin-top:6px;color:#9a8f6f">Drag left side: move · Tap foe: attack · Tap ground: walk there</div>';
-    }
+}
+
+let uiWired=false;
+function wireUI(){
+  if(uiWired) return; uiWired=true;
+  // menu buttons
+  document.querySelectorAll('.menuBtn').forEach(b=>{
+    b.addEventListener('pointerdown',ev=>{
+      ev.stopPropagation();
+      const id=b.getAttribute('data-modal');
+      if(openModalId===id) closeModal(); else openModal(id);
+    });
   });
+  // backdrop taps close
+  backdrop.addEventListener('pointerdown',ev=>{ ev.stopPropagation(); closeModal(); });
+  // close buttons
+  document.querySelectorAll('[data-close]').forEach(b=>
+    b.addEventListener('pointerdown',ev=>{ ev.stopPropagation(); closeModal(); }));
+  // swallow taps inside any modal so they never reach the world
+  document.querySelectorAll('.modal').forEach(m=>
+    m.addEventListener('pointerdown',ev=>ev.stopPropagation()));
+  // dialog action button
   ui.dlgBtn.addEventListener('pointerdown',ev=>{
     ev.stopPropagation();
     if(currentDlg) currentDlg.act();
-    ui.dialog.classList.add('hidden');
+    closeModal();
   });
-  $('bagBtn').addEventListener('pointerdown',ev=>{
-    ev.stopPropagation();
-    const open=ui.hero.classList.contains('hidden');
-    closePanels();
-    if(open){ renderHero(); ui.hero.classList.remove('hidden'); }
+  // delegated handler for buttons inside panel bodies
+  for(const id of Object.keys(MODALS)){
+    MODALS[id].body.addEventListener('pointerdown',ev=>{ ev.stopPropagation(); onPanelTap(ev,id); });
+  }
+}
+
+function onPanelTap(ev,panel){
+  let t=ev.target;
+  while(t&&t!==ev.currentTarget&&!t.dataset?.act) t=t.parentElement;
+  if(!t||!t.dataset||!t.dataset.act) return;
+  const act=t.dataset.act, v=t.dataset.v;
+  if(act==='attr'&&player.attrPts>0&&(player.attrs[v]||0)<12){
+    player.attrs[v]=(player.attrs[v]||0)+1; player.attrPts--; saveGame(); renderHero();
+  } else if(act==='attrminus'&&(player.attrs[v]||0)>0){
+    player.attrs[v]--; player.attrPts++; saveGame(); renderHero();
+  } else if(act==='selitem'){
+    invSel=+v; renderInv();
+  } else if(act==='equip'){
+    equipItem(+v); saveGame(); renderInv();
+  } else if(act==='drop'){
+    player.inv.splice(+v,1); invSel=-1; saveGame(); renderInv();
+  } else if(act==='sellone'){
+    const it=player.inv[+v]; if(it){ player.gold+=Math.round(it.value*0.5); player.inv.splice(+v,1); invSel=-1; saveGame(); renderInv(); toast('Sold for '+Math.round(it.value*0.5)+'g'); }
+  } else if(act==='savebuild'){
+    saveBuild(); renderSkills();
+  } else if(act==='loadbuild'){
+    loadBuild(+v); renderSkills();
+  } else if(act==='delbuild'){
+    (player.builds||[]).splice(+v,1); saveGame(); renderSkills();
+  } else if(act==='respec'){
+    player.attrs={}; player.attrPts=3*(player.lvl-1); saveGame(); renderSkills(); toast('Attributes refunded');
+  } else if(act==='quality'){ SETTINGS.quality=v; applyQuality(); saveSettings(); renderSettings(); }
+  else if(act==='zoom'){ SETTINGS.zoom=v; saveSettings(); renderSettings(); }
+  else if(act==='vignette'){ SETTINGS.vignette=!SETTINGS.vignette; saveSettings(); renderSettings(); }
+  else if(act==='fullscreen'){ toggleFullscreen(); }
+  else if(act==='newgame'){ wipeSave(); location.reload(); }
+}
+
+function equipItem(i){
+  const it=player.inv[i]; if(!it) return;
+  if(it.kind==='weapon'){
+    if(it.wtype!==(player.cls==='warrior'?'sword':'wand')){ toast('Wrong weapon for your profession'); return; }
+    const old=player.equip.weapon; player.equip.weapon=it;
+    if(old&&old.value>0) player.inv[i]=old; else player.inv.splice(i,1);
+  } else if(it.kind==='off'){
+    if((it.otype==='shield')!==(player.cls==='warrior')){ toast("Can't use that off-hand"); return; }
+    const old=player.equip.off; player.equip.off=it;
+    if(old) player.inv[i]=old; else player.inv.splice(i,1);
+  } else { toast('That cannot be equipped'); return; }
+  player.en=Math.min(player.en,pMaxEn());
+  invSel=-1;
+}
+
+/* ---------------- panel renderers ---------------- */
+const rc=it=>RARITY_COLORS[it.rarity||0];
+const itemIcon=it=> it.kind==='weapon' ? (it.wtype==='sword'?'🗡️':'🪄')
+  : it.kind==='off' ? (it.otype==='shield'?'🛡️':'🔮') : '🦴';
+const itemStat=it=> it.kind==='weapon'?`${it.dmgMin}–${it.dmgMax} dmg`
+  : it.kind==='off'?(it.armor?'+'+it.armor+' armor':'+'+it.energy+' energy')
+  : `sells ~${Math.round(it.value*0.5)}g`;
+
+function renderHero(){
+  const c=CLASSES[player.cls], w=player.equip.weapon, o=player.equip.off;
+  const armor=((o&&o.armor)||0)+attr('Strength');
+  let h=`<div class="sectTitle">Kaelen — Level ${player.lvl} ${player.lvl>=10?'(max)':''}</div>`;
+  h+=`<div class="dim">${c.label} · ${player.gold} gold · XP ${Math.floor(player.xp)}/${xpNeed()}</div>`;
+  h+=`<div class="statGrid" style="margin-top:8px">
+      <div>Health <b>${pMaxHp()}</b></div><div>Energy <b>${pMaxEn()}</b></div>
+      <div>Armor <b>${armor}</b></div><div>Weapon <b>${w.dmgMin}–${w.dmgMax}</b></div></div>`;
+  if(player.dp>0) h+=`<div class="dim" style="color:#d98a6a">Death penalty −${Math.round(player.dp*100)}% (cleared on level-up / quest turn-in)</div>`;
+
+  h+=`<div class="sectTitle">Attributes — <span style="color:#f0d97a">${player.attrPts}</span> points</div>`;
+  for(const a of CLASS_ATTRS[player.cls]){
+    const r=attr(a);
+    h+=`<div class="attrRow"><span class="an">${a}</span>
+        ${r>0?`<button class="mini" data-act="attrminus" data-v="${a}">−</button>`:''}
+        <span class="av">${r}</span>
+        ${player.attrPts>0&&r<12?`<button class="mini" data-act="attr" data-v="${a}">+</button>`:''}</div>
+        <div class="attrDesc">${ATTR_DESC[a]}</div>`;
+  }
+  h+=`<div class="sectTitle">Equipment</div><div class="equipRow">
+      <div class="eqSlot"><div class="el">WEAPON</div><span style="color:${rc(w)}">${itemIcon(w)} ${w.name}</span><br><span class="dim">${itemStat(w)}</span></div>
+      <div class="eqSlot"><div class="el">OFF-HAND</div>${o?`<span style="color:${rc(o)}">${itemIcon(o)} ${o.name}</span><br><span class="dim">${itemStat(o)}</span>`:'<span class="dim">empty</span>'}</div>
+      </div><div class="dim">Equip and swap gear in the Inventory (🎒).</div>`;
+  MODALS.hero.body.innerHTML=h;
+}
+
+let invSel=-1;
+function renderInv(){
+  let h=`<div class="dim">${player.inv.length}/20 slots · tap an item</div><div class="invGrid">`;
+  for(let i=0;i<20;i++){
+    const it=player.inv[i];
+    if(it) h+=`<div class="invSlot${invSel===i?' sel':''}" data-act="selitem" data-v="${i}"><span class="rq" style="--rc:${rc(it)}"></span>${itemIcon(it)}</div>`;
+    else h+=`<div class="invSlot empty">·</div>`;
+  }
+  h+=`</div><div class="itemDetail">`;
+  const sel=player.inv[invSel];
+  if(sel){
+    const equippable=sel.kind==='weapon'||sel.kind==='off';
+    h+=`<b style="color:${rc(sel)}">${itemIcon(sel)} ${sel.name}</b><br><span class="dim">${itemStat(sel)}${sel.rarity?' · '+['common','uncommon','rare','unique'][sel.rarity]:''}</span>`;
+    h+=`<div class="btnRow">`;
+    if(equippable) h+=`<button class="btn sm" data-act="equip" data-v="${invSel}">Equip</button>`;
+    h+=`<button class="btn sm" data-act="sellone" data-v="${invSel}">Sell ${Math.round(sel.value*0.5)}g</button>`;
+    h+=`<button class="btn sm dn" data-act="drop" data-v="${invSel}">Drop</button></div>`;
+  } else h+=`<span class="dim">Trophies sell to Merchant Suki at the outpost for full value.</span>`;
+  h+=`</div>`;
+  MODALS.inv.body.innerHTML=h;
+}
+
+function renderSkills(){
+  const govern=player.cls==='warrior'
+    ? {melee:'Swordsmanship'} : {ranged:'Fire Magic'};
+  let h=`<div class="sectTitle">${CLASSES[player.cls].label} — skill bar</div>`;
+  SKILLS.forEach((s,i)=>{
+    const cost=s.adr?`${s.adr} adrenaline`:(s.en>0?`${s.en} energy`:'no cost');
+    h+=`<div class="skRow"><div class="si">${s.icon}</div><div class="sd">
+        <b>${i+1}. ${s.name}</b> <i>${cost}${s.cast?` · ${s.cast}s cast`:''} · ${s.rc}s recharge</i><br>
+        <span class="dim">${s.desc}</span></div></div>`;
   });
-  ui.hero.addEventListener('pointerdown',ev=>{
-    ev.stopPropagation();
-    const t=ev.target;
-    if(!t||!t.getAttribute) return;
-    const a=t.getAttribute('data-attr');
-    if(a&&player.attrPts>0){
-      player.attrs[a]=(player.attrs[a]||0)+1; player.attrPts--;
-      renderHero(); return;
-    }
-    const eq=t.getAttribute('data-eq');
-    if(eq!==null){
-      const i=+eq, it=player.inv[i]; if(!it) return;
-      if(it.kind==='weapon'){
-        const old=player.equip.weapon; player.equip.weapon=it;
-        if(old.value>0) player.inv[i]=old; else player.inv.splice(i,1); // drop training gear
-      } else {
-        const old=player.equip.off; player.equip.off=it;
-        if(old) player.inv[i]=old; else player.inv.splice(i,1);
-      }
-      player.en=Math.min(player.en,pMaxEn());
-      renderHero();
-    }
+  h+=`<div class="sectTitle">Builds</div>
+      <button class="btn sm" data-act="savebuild">💾 Save current build</button>
+      <button class="btn sm" data-act="respec">↺ Refund attributes</button>`;
+  const builds=player.builds||[];
+  if(builds.length){
+    h+=`<div style="margin-top:8px">`;
+    builds.forEach((b,i)=>{
+      h+=`<div class="attrRow"><span class="an">${b.name}</span>
+          <button class="mini" data-act="loadbuild" data-v="${i}">Load</button>
+          <button class="mini" data-act="delbuild" data-v="${i}">✕</button></div>`;
+    });
+    h+=`</div>`;
+  } else h+=`<div class="dim" style="margin-top:6px">No saved builds yet. A build stores your attribute spread.</div>`;
+  MODALS.skills.body.innerHTML=h;
+}
+
+function renderQuestLog(){
+  const N=QUESTS.length, s=quest.stage;
+  let h=`<div class="sectTitle">The Sunward Reach</div>`;
+  QUESTS.forEach((q,i)=>{
+    const done=s>2*i+2 || (s===2*i+2);
+    const turnedIn=s>2*i+2;
+    const active=s===2*i+1;
+    const ready=s===2*i+2;
+    let status,col;
+    if(turnedIn){status='✓ complete';col='#7ac77a';}
+    else if(ready){status='→ return to Aldra';col='#f0d97a';}
+    else if(active){status=q.need>1?`${quest.kills}/${q.need}`:'in progress';col='#f0d97a';}
+    else {status='locked';col='#7a715a';}
+    h+=`<div class="attrRow"><span class="an" style="color:${active||ready?'#e8dfc8':'#9a8f6f'}">${i+1}. ${q.name}</span>
+        <span style="color:${col};font-size:12px">${status}</span></div>`;
+    if(active||ready) h+=`<div class="attrDesc">${q.offer}</div>`;
   });
+  if(s>2*N) h+=`<div class="dim" style="margin-top:8px">The Reach is cleansed. You are a Sunspear Cadet.</div>`;
+  MODALS.quest.body.innerHTML=h;
+}
+
+function renderSettings(){
+  const chip=(act,v,label,on)=>`<button class="chip${on?' on':''}" data-act="${act}" data-v="${v}">${label}</button>`;
+  let h=`<div class="sectTitle">Graphics quality</div><div class="btnRow">
+      ${chip('quality','low','Low',SETTINGS.quality==='low')}
+      ${chip('quality','medium','Medium',SETTINGS.quality==='medium')}
+      ${chip('quality','high','High + shadows',SETTINGS.quality==='high')}</div>
+      <div class="dim">Higher quality adds resolution, dynamic shadows and richer light. Lower it if the frame rate dips.</div>`;
+  h+=`<div class="sectTitle">Camera</div><div class="btnRow">
+      ${chip('zoom','close','Close',SETTINGS.zoom==='close')}
+      ${chip('zoom','normal','Normal',SETTINGS.zoom==='normal')}
+      ${chip('zoom','far','Far',SETTINGS.zoom==='far')}</div>`;
+  h+=`<div class="sectTitle">Display</div><div class="btnRow">
+      ${chip('vignette','x','Vignette: '+(SETTINGS.vignette?'on':'off'),SETTINGS.vignette)}
+      <button class="chip" data-act="fullscreen">⛶ Fullscreen</button></div>
+      <div class="dim">Rotate your device freely — the layout adapts to portrait or landscape.</div>`;
+  h+=`<div class="sectTitle">Character</div>
+      <button class="btn sm dn" data-act="newgame">Delete save & restart</button>
+      <div class="dim">Progress auto-saves to this device.</div>`;
+  MODALS.settings.body.innerHTML=h;
+}
+
+function saveBuild(){
+  player.builds=player.builds||[];
+  if(player.builds.length>=6){ toast('Build slots full'); return; }
+  player.builds.push({name:`${CLASSES[player.cls].icon} Build ${player.builds.length+1}`, cls:player.cls, attrs:{...player.attrs}});
+  saveGame(); toast('Build saved');
+}
+function loadBuild(i){
+  const b=(player.builds||[])[i]; if(!b) return;
+  if(b.cls!==player.cls){ toast('That build is for a different profession'); return; }
+  const spent=Object.values(b.attrs).reduce((a,c)=>a+c,0);
+  if(spent>3*(player.lvl-1)){ toast('Not enough points for that build yet'); return; }
+  player.attrs={...b.attrs}; player.attrPts=3*(player.lvl-1)-spent;
+  saveGame(); toast('Build loaded');
+}
+function toggleFullscreen(){
+  try{
+    if(!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+  }catch(e){}
 }
 function applyClass(key){
   const c=CLASSES[key];
@@ -1502,6 +1847,7 @@ function applyClass(key){
   buildSkillbar();
   if(player.av&&HAS3D&&scene){ scene.remove(player.av); player.av=null; }
   const nameEl=$('pName'); if(nameEl) nameEl.textContent='Kaelen '+c.icon;
+  ui.pAdrBar.style.display=SKILLS.some(s=>s.adr)?'block':'none';
 }
 
 function showClassPick(){
@@ -1515,17 +1861,18 @@ function showClassPick(){
     b.addEventListener('pointerdown',ev=>{
       ev.stopPropagation(); ev.preventDefault();
       applyClass(key);
+      saveGame();
       el.classList.add('hidden');
       banner('ELDERVALE','the sunward reach');
       setTimeout(()=>toast('Tap the ground to move · tap a foe to attack'),1000);
-      setTimeout(()=>toast('Speak with Captain Aldra (gold dot on the compass)'),4800);
+      setTimeout(()=>toast('Use the ⚙️ menu for graphics, builds and inventory'),4600);
+      setTimeout(()=>toast('Speak with Captain Aldra (gold dot on the compass)'),8200);
     });
     el.appendChild(b);
   }
   el.classList.remove('hidden');
 }
 
-function closePanels(){ui.dialog.classList.add('hidden');ui.skillInfo.classList.add('hidden');ui.hero.classList.add('hidden');}
 let currentDlg=null;
 function openDialog(n){
   n=n||npcAldra;
@@ -1533,40 +1880,18 @@ function openDialog(n){
     const tro=player.inv.filter(i=>i.kind==='trophy');
     const sum=tro.reduce((s,i)=>s+i.value,0);
     currentDlg=tro.length
-      ? {text:`Salvage, traveler? I pay honest coin. You carry ${tro.length} trophies worth ${sum} gold.`,
-         btn:`Sell trophies (+${sum}g)`,
-         act(){ player.inv=player.inv.filter(i=>i.kind!=='trophy'); player.gold+=sum; toast('+'+sum+' gold'); }}
+      ? {text:`Salvage, traveler? I pay honest coin. You carry ${tro.length} ${tro.length===1?'trophy':'trophies'} worth ${sum} gold.`,
+         btn:`Sell all trophies (+${sum}g)`,
+         act(){ player.inv=player.inv.filter(i=>i.kind!=='trophy'); player.gold+=sum; saveGame(); toast('+'+sum+' gold'); }}
       : {text:'Skale fins, jackal pelts, corsair emblems — bring them to me and I pay coin for the lot.',
          btn:'Farewell', act(){}};
   } else currentDlg=aldraDialog();
+  closeModal();
   ui.dlgName.textContent=n.name;
   ui.dlgText.textContent=currentDlg.text;
   ui.dlgBtn.textContent=currentDlg.btn;
   ui.dialog.classList.remove('hidden');
-}
-
-/* ---------------- hero panel (attributes, equipment, inventory) ---------------- */
-function renderHero(){
-  const w=player.equip.weapon, o=player.equip.off;
-  const rar=it=>`style="color:${RARITY_COLORS[it.rarity]}"`;
-  let h=`<b style="color:#f0d97a">Kaelen — Lv ${player.lvl} ${CLASSES[player.cls].label}</b><br>`;
-  h+=`<span class="dim">XP ${Math.floor(player.xp)}/${xpNeed()} · ${player.gold} gold</span><br><br>`;
-  h+=`<b>Attributes</b> — points to spend: <b style="color:#f0d97a">${player.attrPts}</b><br>`;
-  for(const a of CLASS_ATTRS[player.cls]){
-    const r=attr(a);
-    h+=`<div class="attrRow">${a}: <b>${r}</b>${player.attrPts>0&&r<12?` <button class="mini" data-attr="${a}">+</button>`:''}<br><span class="dim">${ATTR_DESC[a]}</span></div>`;
-  }
-  h+=`<br><b>Equipped</b><br><span ${rar(w)}>${w.name}</span> <span class="dim">(${w.dmgMin}–${w.dmgMax} dmg)</span><br>`;
-  if(o) h+=`<span ${rar(o)}>${o.name}</span> <span class="dim">(${o.armor?'+'+o.armor+' armor':'+'+o.energy+' energy'})</span><br>`;
-  h+=`<br><b>Inventory</b> <span class="dim">${player.inv.length}/20</span><br>`;
-  player.inv.forEach((it,i)=>{
-    const stat=it.kind==='weapon'?`${it.dmgMin}–${it.dmgMax} dmg`:it.kind==='off'?(it.armor?'+'+it.armor+' armor':'+'+it.energy+' energy'):`sell ${it.value}g`;
-    const can=(it.kind==='weapon'&&it.wtype===(player.cls==='warrior'?'sword':'wand'))
-            ||(it.kind==='off'&&((it.otype==='shield')===(player.cls==='warrior')));
-    h+=`<div class="invRow"><span ${rar(it)}>${it.name}</span> <span class="dim">(${stat})</span>${can?` <button class="mini" data-eq="${i}">Equip</button>`:''}</div>`;
-  });
-  if(!player.inv.length) h+='<span class="dim">empty — slay foes for loot</span>';
-  ui.hero.innerHTML=h;
+  backdrop.classList.remove('hidden');
 }
 
 let toastTimer=null;
@@ -1594,8 +1919,10 @@ function syncUI(){
   ui.pXp.style.width=clamp(player.xp/xpNeed()*100,0,100)+'%';
   ui.pHpTxt.textContent=Math.ceil(Math.max(0,player.hp))+' / '+pMaxHp();
   ui.pEnTxt.textContent=Math.floor(player.en)+' / '+pMaxEn();
-  ui.pLvl.textContent='Lv '+player.lvl+(player.lvl>=10?' MAX':'')+(player.dp>0?` (−${Math.round(player.dp*100)}%)`:'')+(player.attrPts>0?' · 🎒+':'');
+  ui.pLvl.textContent='Lv '+player.lvl+(player.lvl>=10?' MAX':'')+(player.dp>0?` (−${Math.round(player.dp*100)}%)`:'');
   ui.gold.textContent=player.gold;
+  if(SKILLS.some(s=>s.adr)) ui.pAdr.style.width=clamp(player.adr/10*100,0,100)+'%';
+  if(heroBtn) heroBtn.style.boxShadow=player.attrPts>0?'0 0 10px #f0d97a, inset 0 1px 0 #ffffff14':'';
 
   ui.henchFrame.style.opacity=hench.dead?0.45:1;
   ui.hHp.style.width=(hench.dead?0:clamp(hench.hp/hench.maxHp*100,0,100))+'%';
@@ -1637,10 +1964,13 @@ function syncUI(){
       cd.style.height=Math.min(100,left/sk.rc*100)+'%';
       cdt.textContent=left>0.3?Math.ceil(left):'';
     } else { cd.style.height='0%'; cdt.textContent=''; }
-    b.classList.toggle('noEnergy',sk.adr?player.adr<sk.adr:player.en<sk.en);
+    const lack=sk.adr?player.adr<sk.adr:player.en<sk.en;
+    b.classList.toggle('noEnergy',lack);
+    b.classList.toggle('ready',!lack&&left<=0&&!cast);
     b.classList.toggle('casting',!!cast&&cast.idx===i);
   });
 }
+const heroBtn=document.querySelector('.menuBtn[data-modal="hero"]');
 
 /* ---------------- compass ---------------- */
 function drawCompass(){
@@ -1698,16 +2028,45 @@ function loop(tms){
   // HUD redraws don't need 60fps
   if(frameNo%3===0) drawCompass();
   if(frameNo%2===0) syncUI();
+  // autosave a few seconds after the last meaningful change
+  saveTimer+=dt;
+  if(saveTimer>8){ saveTimer=0; saveGame(); }
+}
+
+function applySave(s){
+  applyClass(s.cls||'warrior');
+  player.lvl=s.lvl||1; player.xp=s.xp||0; player.gold=s.gold||0; player.dp=s.dp||0;
+  player.baseHp=CLASSES[player.cls].baseHp+20*(player.lvl-1);
+  player.baseEn=CLASSES[player.cls].baseEn+2*(player.lvl-1);
+  player.attrs=s.attrs||{}; player.attrPts=s.attrPts??0;
+  player.inv=Array.isArray(s.inv)?s.inv:[];
+  player.builds=Array.isArray(s.builds)?s.builds:[];
+  if(s.equip&&s.equip.weapon) player.equip=s.equip;
+  if(s.quest){ quest.stage=s.quest.stage||0; quest.kills=s.quest.kills||0; }
+  if(quest.stage>7) spawnAvengers(); // restore the endgame wave
+  hench.lvl=player.lvl; hench.maxHp=110+18*Math.max(0,player.lvl-2); hench.hp=hench.maxHp;
+  hench.dmgMin=9+2*Math.max(0,player.lvl-2); hench.dmgMax=hench.dmgMin+5;
+  player.hp=pMaxHp(); player.en=pMaxEn();
+  ui.pAdrBar.style.display=SKILLS.some(sk=>sk.adr)?'block':'none';
 }
 
 /* ---------------- boot ---------------- */
+loadSettings();
 buildMap();
 buildMinimap();
 player=makePlayer();
 hench=makeHench();
 spawnAll();
 if(HAS3D) initThree();
+wireUI();
 buildSkillbar();
 resize();
-showClassPick();
+const _save=loadSaveData();
+if(_save&&_save.cls){
+  applySave(_save);
+  banner('ELDERVALE','the sunward reach');
+  setTimeout(()=>toast('Welcome back, '+CLASSES[player.cls].label.split(' ')[0]),1000);
+} else {
+  showClassPick();
+}
 requestAnimationFrame(loop);

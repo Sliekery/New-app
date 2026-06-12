@@ -1,15 +1,26 @@
-# Eldervale — Thornveil Reach
+# Eldervale — The Sunward Reach
 
 A **GW1-style MMO-lite prototype** for the phone — a full level 1–10 campaign in the
 spirit of Nightfall's Istan starting zone. Rendered
 in a **low-poly 3D** take on the GW1 art style — Three.js (vendored, r147), flat-shaded
 terrain and characters, no build step.
 
-Renderer notes: rolling vertex-colored terrain generated from the tile map, instanced
-low-poly trees/palisades/crags, primitive-built characters (sword/staff/bow/cleaver),
-tilted third-person camera with fog, and a 2D overlay for damage numbers, health bars,
-and the virtual joystick. If WebGL is unavailable the logic still runs headless (used
-by the test harness).
+Renderer (Three.js, vendored): ACES-filmic tone mapping, a gradient sky dome with a sun
+disc, warm directional sunlight with optional dynamic shadows, vertex-colored rolling
+terrain, animated swelling water, instanced palms/acacias/grass tufts/crags, adobe and
+tent props, primitive-built animated characters, and a cinematic vignette. Graphics
+quality (Low/Medium/High) is selectable in Settings. If WebGL is unavailable the game
+logic still runs headless (used by the 39-check test harness).
+
+## Controls & UI
+
+Tap-only, GW1 mouse-style. The left-edge menu opens full-screen panels:
+**🛡️ Hero** (stats, attributes, equipment), **✨ Skills & Builds** (skill bar reference,
+save/load attribute builds, refund), **🎒 Inventory** (item grid — equip / sell / drop),
+**📜 Quest Log**, and **⚙️ Settings** (graphics quality + shadows, camera zoom, vignette,
+fullscreen, delete save). Tapping a panel or an NPC dialog never moves your character;
+tap the dim backdrop to close. The layout adapts to portrait and landscape. Progress
+auto-saves to the device (localStorage) and reloads on return.
 
 ## Play it
 
@@ -24,17 +35,12 @@ Then open `http://<your-ip>:8080` on your phone (same Wi-Fi), or just open
 `index.html` directly in a browser. On iOS/Android, use "Add to Home Screen"
 for a fullscreen app feel.
 
-## Controls
-
-GW1 mouse-style — tap only, no drag:
-
 | Input | Action |
 |---|---|
 | Tap ground | Walk there (moving cancels casts, GW1-style) |
 | Tap a foe | Target it and engage auto-attack (your character chases into range) |
-| Tap Captain Aldra | Walk over and talk (quests) |
-| Skill buttons 1–8 | Use skills (energy cost top-left, recharge sweep when used) |
-| `?` button | Skill descriptions |
+| Tap an NPC | Walk over and talk (quests, merchant) |
+| Skill buttons 1–8 | Use skills (cost top-left, recharge sweep / adrenaline fill) |
 | Desktop | WASD to move, click to target, keys 1–8, Esc to drop target |
 
 ## What's GW1 about it
@@ -43,11 +49,11 @@ GW1 mouse-style — tap only, no drag:
 - **Adrenaline** for the Warrior: strikes build it, skills like Sever Artery → Gash →
   Final Thrust spend it (Final Thrust drains it all); it fades out of combat
 - **Conditions incl. Deep Wound** (−20% max HP), Bleeding, Burning, Crippled/Chilled
-- **Attributes**: +3 points per level, spent in the Hero panel (🎒) — Strength /
+- **Attributes**: +3 points per level, spent in the Hero panel (🛡️) — Strength /
   Swordsmanship / Tactics, or Energy Storage / Fire Magic / Storm Magic
 - **Items & inventory**: weapons, shields/foci and trophies drop with GW1 rarity
-  colors (white/blue/purple/gold); equip gear in the Hero panel, sell trophies to
-  Merchant Suki at the outpost
+  colors (white/blue/purple/gold); equip gear in the Inventory grid (🎒), sell
+  trophies to Merchant Suki at the outpost
 - **Level cap 10** with a 5-quest chain that carries you there
 - **Energy pips**: constant energy regen (~4 pips), health only regens out of combat
 - **Aggro bubble** on the compass (the white circle) — wander inside it and mobs charge
