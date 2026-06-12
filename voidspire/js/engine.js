@@ -1,0 +1,986 @@
+/* =========================================================================
+ * VOIDSPIRE — engine.js
+ * All game logic. No DOM access: state in, events out (ns.engine.events),
+ * so it can be driven by the UI or by a headless simulator.
+ * ========================================================================= */
+(function (ns) {
+  'use strict';
+
+  var B = ns.BALANCE;
+  var E = {};
+  ns.engine = E;
+
+  /* ---------------- RNG (seeded, persisted in the run) ----------------- */
+  var rngState = (Date.now() & 0xffffffff) >>> 0;
+  function rnd() {
+    rngState = (rngState + 0x6D2B79F5) >>> 0;
+    var t = rngState;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+  function ri(a, b) { return a + Math.floor(rnd() * (b - a + 1)); } // inclusive
+  function pick(arr) { return arr[Math.floor(rnd() * arr.length)]; }
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(rnd() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  function d20() { return ri(1, 20); }
+  E.seed = function (s) { rngState = s >>> 0; };
+
+  /* ---------------- Event queue (UI drains this) ----------------------- */
+  E.events = [];
+  function emit(type, data) {
+    var e = data || {}; e.type = type;
+    E.events.push(e);
+    if (E.onEvent) E.onEvent(e);
+  }
+
+  /* ---------------- Run state ------------------------------------------ */
+  E.run = null;
+  E.combat = null;
+  var uidCounter = 1;
+
+  function mkCard(id, up) { return { uid: uidCounter++, id: id, up: !!up }; }
+
+  E.newRun = function (clsId) {
+    var c = B.classes[clsId];
+    var deck = ns.STARTER_DECKS[clsId].map(function (id) { return mkCard(id, false); });
+    E.run = {
+      cls: clsId,
+      hp: c.hp, maxHp: c.hp,
+      attrs: { might: c.might, tech: c.tech, psi: c.psi },
+      credits: B.player.startCredits,
+      deck: deck,
+      artifacts: [],
+      sector: 1,
+      faction: pick(Object.keys(ns.FACTIONS)),
+      nodeIdx: -1,
+      phase: 'none',
+      nodeOptions: null,
+      usedEvents: [],
+      removeCost: B.shop.removeCost,
+      kills: 0, nodesCleared: 0,
+      pendingPick: null,
+      seenIntro: false,
+    };
+    E.combat = null;
+    E.nextStep();
+  };
+
+  /* Effective attribute incl. artifacts */
+  function attr(name) {
+    var v = E.run.attrs[name];
+    for (var i = 0; i < E.run.artifacts.length; i++) {
+      var a = ns.ARTIFACTS[E.run.artifacts[i]];
+      if (a.k === 'attr' && a.a === name) v += a.v;
+    }
+    return v;
+  }
+  E.attr = attr;
+  function art(k) { return ns.artifactSum(E.run.artifacts, k); }
+
+  E.score = function () {
+    var r = E.run;
+    return (r.sector - 1) * B.score.perSector + r.nodesCleared * B.score.perNode + r.kills * B.score.perKill;
+  };
+
+  /* ---------------- Node flow ------------------------------------------ */
+  E.nextStep = function () {
+    var r = E.run;
+    r.nodeIdx++;
+    var entry = B.sector.script[r.nodeIdx];
+    if (entry === 'choice') {
+      var pool = [];
+      Object.keys(B.sector.choiceWeights).forEach(function (k) {
+        for (var i = 0; i < B.sector.choiceWeights[k]; i++) pool.push(k);
+      });
+      var a = pick(pool), b = pick(pool), guard = 0;
+      while (b === a && guard++ < 50) b = pick(pool);
+      r.nodeOptions = [a, b];
+      r.phase = 'node-select';
+    } else {
+      E.startNode(entry);
+    }
+    E.save();
+  };
+
+  E.chooseNode = function (i) {
+    var t = E.run.nodeOptions[i];
+    E.run.nodeOptions = null;
+    E.startNode(t);
+  };
+
+  E.startNode = function (type) {
+    var r = E.run;
+    r.nodeType = type;
+    if (type === 'fight' || type === 'elite' || type === 'boss') startCombat(type);
+    else if (type === 'event') startEvent();
+    else if (type === 'shop') { buildShop(); r.phase = 'shop'; }
+    else if (type === 'rest') r.phase = 'rest';
+  };
+
+  function nodeComplete() {
+    var r = E.run;
+    r.nodesCleared++;
+    if (r.nodeType === 'boss') {
+      r.phase = 'levelup';
+      E.save();
+    } else {
+      E.nextStep();
+    }
+  }
+  E.nodeComplete = nodeComplete;
+
+  /* ---------------- Level up + new sector ------------------------------ */
+  E.levelUpOptions = function () {
+    return [
+      { id: 'might', label: '+' + B.levelUp.attrGain + ' MIGHT', desc: 'Weapon damage & feats of strength' },
+      { id: 'tech', label: '+' + B.levelUp.attrGain + ' TECH', desc: 'Shields & technology' },
+      { id: 'psi', label: '+' + B.levelUp.attrGain + ' PSI', desc: 'Psionic power & willpower' },
+      { id: 'hp', label: '+' + B.levelUp.maxHpGain + ' MAX HP', desc: 'Also heals ' + B.levelUp.maxHpGain + ' HP' },
+    ];
+  };
+
+  E.levelUp = function (id) {
+    var r = E.run;
+    if (id === 'hp') { r.maxHp += B.levelUp.maxHpGain; heal(B.levelUp.maxHpGain); }
+    else r.attrs[id] += B.levelUp.attrGain;
+    // boss artifact: pick one of three tier-2 relics (unowned ones preferred)
+    var pool = Object.keys(ns.ARTIFACTS).filter(function (k) {
+      return ns.ARTIFACTS[k].tier === 2 && E.run.artifacts.indexOf(k) < 0;
+    });
+    if (pool.length === 0) pool = Object.keys(ns.ARTIFACTS).filter(function (k) { return ns.ARTIFACTS[k].tier === 1 && E.run.artifacts.indexOf(k) < 0; });
+    shuffle(pool);
+    r.bossArtifacts = pool.slice(0, Math.min(3, pool.length));
+    r.phase = 'boss-artifact';
+    E.save();
+  };
+
+  E.takeBossArtifact = function (i) {
+    var r = E.run;
+    if (r.bossArtifacts[i]) addArtifact(r.bossArtifacts[i]);
+    r.bossArtifacts = null;
+    newSector();
+  };
+
+  function newSector() {
+    var r = E.run;
+    r.sector++;
+    var factions = Object.keys(ns.FACTIONS).filter(function (f) { return f !== r.faction; });
+    r.faction = pick(factions);
+    r.nodeIdx = -1;
+    var sh = art('sectorHeal');
+    if (sh > 0) heal(Math.round(r.maxHp * sh));
+    r.phase = 'sector-intro';
+    E.save();
+  }
+  E.beginSector = function () { E.nextStep(); };
+
+  /* ---------------- Combat: setup --------------------------------------- */
+  function scaledHp(base, s) { return Math.round(base * B.scaling.hpMul(s)); }
+  function scaledDmg(base, s) { return Math.round(base * B.scaling.dmgMul(s)); }
+
+  function mkEnemy(id) {
+    var def = ns.ENEMIES[id];
+    var s = E.run.sector;
+    var hp = scaledHp(def.hp, s);
+    var en = {
+      id: id, def: def, hp: hp, maxHp: hp, block: 0,
+      statuses: {}, moveIdx: 0, lastMove: -1, intent: null, alive: true,
+    };
+    var bonusStr = Math.floor((s - 1) / B.scaling.strEverySectors);
+    if (bonusStr > 0) en.statuses.str = bonusStr;
+    return en;
+  }
+
+  function startCombat(kind) {
+    var r = E.run;
+    var ids;
+    if (kind === 'boss') {
+      ids = [ns.BOSSES[r.faction]];
+    } else if (kind === 'elite') {
+      ids = [ns.ELITES[r.faction]];
+      if (r.sector >= 3 && rnd() < B.sector.eliteChance2Enemies) ids.push(ns.ELITE_MINIONS[r.faction]);
+    } else {
+      var packs = ns.PACKS[r.faction];
+      // earlier nodes in a sector lean toward easier packs
+      var prog = Math.min(1, r.nodeIdx / (B.sector.script.length - 1));
+      var lo = Math.floor(prog * (packs.length - 3));
+      ids = pick(packs.slice(Math.max(0, lo), Math.min(packs.length, lo + 4))).slice();
+    }
+    var c = E.combat = {
+      kind: kind,
+      enemies: ids.map(mkEnemy),
+      turn: 0,
+      energy: 0,
+      hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [],
+      player: { block: 0, statuses: {} },
+      over: false,
+    };
+    var ps = art('strStart');
+    if (ps > 0) c.player.statuses.str = ps;
+    c.player.block = art('blockStart');
+    r.phase = 'combat';
+    c.enemies.forEach(chooseIntent);
+    startPlayerTurn();
+  }
+
+  /* ---------------- Combat: turn structure ------------------------------ */
+  function maxEnergy() { return B.player.baseEnergy + art('energyEveryTurn') + (statN(E.combat.player, 'reactor')); }
+
+  function statN(ent, s) { return ent.statuses[s] || 0; }
+  function addStatus(ent, s, v) {
+    ent.statuses[s] = (ent.statuses[s] || 0) + v;
+    if (ent.statuses[s] <= 0) delete ent.statuses[s];
+  }
+
+  function startPlayerTurn() {
+    var c = E.combat, p = c.player;
+    c.turn++;
+    // block expiry
+    if (!statN(p, 'retain')) p.block = 0;
+    // per-turn passives
+    var plate = statN(p, 'plate') + art('plate');
+    if (plate > 0) p.block += plate;
+    var spt = statN(p, 'strPerTurn');
+    if (spt > 0) addStatus(p, 'str', spt);
+    var ht = art('healTurn');
+    if (ht > 0) heal(ht);
+    var aoe = art('aoeTurnStart');
+    c.energy = maxEnergy();
+    if (c.turn === 1) c.energy += art('energyTurn1');
+    var draws = B.player.drawPerTurn + (c.turn === 1 ? art('drawStart') : 0);
+    drawCards(draws);
+    emit('turnStart', { turn: c.turn });
+    if (aoe > 0) {
+      c.enemies.forEach(function (en, i) {
+        if (en.alive) dealToEnemy(en, i, aoe, { noCrit: true, src: 'Singularity' });
+      });
+      checkWin();
+    }
+  }
+
+  function drawCards(n) {
+    var c = E.combat;
+    for (var i = 0; i < n; i++) {
+      if (c.hand.length >= B.player.maxHand) return;
+      if (c.drawPile.length === 0) {
+        if (c.discard.length === 0) return;
+        c.drawPile = shuffle(c.discard);
+        c.discard = [];
+      }
+      c.hand.push(c.drawPile.pop());
+    }
+  }
+
+  function chooseIntent(en) {
+    var def = en.def, mv;
+    if (def.ai === 'cycle') {
+      mv = def.moves[en.moveIdx % def.moves.length];
+      en.moveIdx++;
+    } else {
+      var pool = [];
+      def.moves.forEach(function (m, i) {
+        if (i === en.lastMove && def.moves.length > 1) return;
+        for (var w = 0; w < (m.w || 1); w++) pool.push(i);
+      });
+      var idx = pick(pool);
+      en.lastMove = idx;
+      mv = def.moves[idx];
+    }
+    en.intent = mv;
+  }
+
+  /* Scaled intent values for display */
+  E.intentInfo = function (en) {
+    var m = en.intent, s = E.run.sector;
+    if (!m) return { icon: '?', label: '' };
+    if (m.t === 'attack') {
+      var d = scaledDmg(m.d, s) + statN(en, 'str');
+      if (statN(en, 'weak')) d = Math.floor(d * B.status.weakMult);
+      return { icon: 'atk', label: m.hits ? d + '×' + m.hits : '' + d };
+    }
+    if (m.t === 'drain') {
+      var dd = scaledDmg(m.d, s) + statN(en, 'str');
+      if (statN(en, 'weak')) dd = Math.floor(dd * B.status.weakMult);
+      return { icon: 'drain', label: '' + dd };
+    }
+    if (m.t === 'block') return { icon: 'block', label: '' + scaledDmg(m.b, s) };
+    if (m.t === 'buff') return { icon: 'buff', label: '' };
+    if (m.t === 'debuff') return { icon: 'debuff', label: '' };
+    if (m.t === 'curse') return { icon: 'curse', label: '' };
+    return { icon: '?', label: '' };
+  };
+
+  /* ---------------- Combat: playing cards ------------------------------- */
+  E.cardInfo = function (card) {
+    var def = ns.CARDS[card.id];
+    return {
+      def: def,
+      name: def.name + (card.up ? '+' : ''),
+      cost: ns.cardCost(def, card.up),
+      desc: ns.cardDesc(def, card.up, liveCtx()),
+      type: def.type,
+      needsTarget: ns.cardNeedsTarget(def, card.up),
+      unplayable: !!def.unplayable,
+      rarity: def.rarity,
+    };
+  };
+
+  function liveCtx() {
+    return {
+      attrs: { might: attr('might'), tech: attr('tech'), psi: attr('psi') },
+      statuses: E.combat ? E.combat.player.statuses : null,
+    };
+  }
+
+  function attackBonus(f) {
+    var p = E.combat.player;
+    var v = statN(p, 'str') + art('flatDmg');
+    if (f.scale === 'might') v += attr('might') * B.attrs.mightDmgPerPoint;
+    if (f.scale === 'tech') v += attr('tech');
+    if (f.scale === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * (f.scaleMul || 1) + statN(p, 'psiPow');
+    return v;
+  }
+
+  function dealToEnemy(en, idx, amount, opts) {
+    opts = opts || {};
+    var c = E.combat;
+    if (statN(c.player, 'weak') && !opts.noWeak) amount = Math.floor(amount * B.status.weakMult);
+    if (statN(en, 'vuln')) amount = Math.floor(amount * B.status.vulnMult);
+    if (opts.execute && en.hp <= en.maxHp * 0.30) amount *= 2;
+    if (opts.crit) amount = Math.floor(amount * B.dice.critMult);
+    var blocked = Math.min(en.block, amount);
+    en.block -= blocked;
+    var hpDmg = amount - blocked;
+    en.hp -= hpDmg;
+    emit('dmg', { who: 'enemy', idx: idx, amount: amount, hpDmg: hpDmg, crit: !!opts.crit, roll: opts.roll, hpAfter: Math.max(0, en.hp), blockAfter: en.block });
+    if (en.hp <= 0 && en.alive) {
+      en.alive = false;
+      E.run.kills++;
+      emit('die', { idx: idx });
+    }
+    return hpDmg;
+  }
+
+  function heal(n) {
+    var r = E.run;
+    var before = r.hp;
+    r.hp = Math.min(r.maxHp, r.hp + n);
+    if (r.hp !== before) emit('heal', { who: 'player', amount: r.hp - before, hpAfter: r.hp });
+  }
+  E.heal = heal;
+
+  function hurtPlayer(amount, opts) {
+    opts = opts || {};
+    var c = E.combat, r = E.run;
+    var p = c ? c.player : null;
+    if (p && statN(p, 'vuln') && !opts.pure) amount = Math.floor(amount * B.status.vulnMult);
+    var blocked = 0;
+    if (p && !opts.pure) {
+      blocked = Math.min(p.block, amount);
+      p.block -= blocked;
+    }
+    var hpDmg = amount - blocked;
+    r.hp -= hpDmg;
+    emit('dmg', { who: 'player', amount: amount, hpDmg: hpDmg, hpAfter: Math.max(0, r.hp), blockAfter: p ? p.block : 0 });
+    if (r.hp <= 0) playerDied();
+    return hpDmg;
+  }
+
+  function playerDied() {
+    var r = E.run;
+    if (r.phase === 'dead') return;
+    r.phase = 'dead';
+    if (E.combat) E.combat.over = true;
+    E.recordBest();
+    E.clearSave();
+    emit('lose', {});
+  }
+
+  function aliveEnemies() { return E.combat.enemies.filter(function (e) { return e.alive; }); }
+  E.aliveEnemies = aliveEnemies;
+
+  function checkWin() {
+    var c = E.combat;
+    if (c.over) return false;
+    if (aliveEnemies().length === 0) {
+      c.over = true;
+      winCombat();
+      return true;
+    }
+    return false;
+  }
+
+  E.canPlay = function (handIdx) {
+    var c = E.combat;
+    if (!c || c.over) return false;
+    var card = c.hand[handIdx];
+    if (!card) return false;
+    var info = E.cardInfo(card);
+    return !info.unplayable && info.cost <= c.energy;
+  };
+
+  E.playCard = function (handIdx, targetIdx) {
+    var c = E.combat, r = E.run;
+    if (!E.canPlay(handIdx)) return false;
+    var card = c.hand[handIdx];
+    var def = ns.CARDS[card.id];
+    var fx = ns.cardFx(def, card.up);
+    var cost = ns.cardCost(def, card.up);
+
+    // resolve target (default: first living enemy)
+    var tgt = c.enemies[targetIdx];
+    if (!tgt || !tgt.alive) {
+      targetIdx = c.enemies.findIndex(function (e) { return e.alive; });
+      tgt = c.enemies[targetIdx];
+    }
+
+    c.energy -= cost;
+    c.hand.splice(handIdx, 1);
+
+    var flags = {};
+    fx.forEach(function (f) { if (f.k === 'special') flags[f.id] = true; });
+
+    // one d20 per card play; only attacks can crit
+    var roll = null, crit = false;
+    if (def.type === 'attack') {
+      roll = d20();
+      crit = roll >= B.dice.critThreshold - art('critBonus');
+    }
+
+    var totalDealt = 0;
+
+    fx.forEach(function (f) {
+      if (c.over && f.k === 'dmg') return;
+      switch (f.k) {
+        case 'dmg': {
+          var base = f.v + attackBonus(f);
+          var hits = f.hits || 1;
+          for (var h = 0; h < hits; h++) {
+            var pool = aliveEnemies();
+            if (pool.length === 0) break;
+            var en, idx;
+            if (f.all) {
+              c.enemies.forEach(function (e, i) {
+                if (e.alive) totalDealt += dealToEnemy(e, i, base, { crit: crit, roll: roll, execute: flags.execute });
+              });
+              continue;
+            } else if (f.random) {
+              en = pick(pool); idx = c.enemies.indexOf(en);
+            } else {
+              en = (tgt && tgt.alive) ? tgt : pool[0];
+              idx = c.enemies.indexOf(en);
+            }
+            totalDealt += dealToEnemy(en, idx, base, { crit: crit, roll: roll, execute: flags.execute });
+          }
+          break;
+        }
+        case 'block': {
+          var b = f.v + (f.scale === 'tech' ? attr('tech') * B.attrs.techBlockPerPoint : 0);
+          c.player.block += b;
+          emit('block', { who: 'player', amount: b, blockAfter: c.player.block });
+          break;
+        }
+        case 'heal': heal(f.v); break;
+        case 'hploss': hurtPlayer(f.v, { pure: true }); break;
+        case 'draw': drawCards(f.v); break;
+        case 'energy': c.energy += f.v; break;
+        case 'status': {
+          if (f.who === 'self') {
+            addStatus(c.player, f.s, f.v);
+            emit('status', { who: 'player', s: f.s, v: f.v });
+          } else if (f.who === 'allEnemies') {
+            c.enemies.forEach(function (e, i) {
+              if (e.alive) { addStatus(e, f.s, f.v); emit('status', { who: 'enemy', idx: i, s: f.s, v: f.v }); }
+            });
+          } else {
+            var st = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            if (st) { addStatus(st, f.s, f.v); emit('status', { who: 'enemy', idx: c.enemies.indexOf(st), s: f.s, v: f.v }); }
+          }
+          break;
+        }
+        case 'special': {
+          if (f.id === 'shieldSlam' || f.id === 'shieldSlam15') {
+            var dmg = Math.floor(c.player.block * (f.id === 'shieldSlam15' ? 1.5 : 1)) + statN(c.player, 'str') + art('flatDmg');
+            var sEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            if (sEn && dmg > 0) totalDealt += dealToEnemy(sEn, c.enemies.indexOf(sEn), dmg, { crit: crit, roll: roll });
+          }
+          break;
+        }
+      }
+    });
+
+    if (flags.leech && totalDealt > 0) {
+      c.player.block += totalDealt;
+      emit('block', { who: 'player', amount: totalDealt, blockAfter: c.player.block });
+    }
+    if (flags.drain && totalDealt > 0) heal(Math.ceil(totalDealt / 2));
+
+    if (def.exhaust) c.exhaust.push(card);
+    else c.discard.push(card);
+
+    emit('cardPlayed', { id: card.id, crit: crit, roll: roll });
+    checkWin();
+    return true;
+  };
+
+  /* ---------------- Combat: enemy turn ----------------------------------- */
+  E.endTurn = function () {
+    var c = E.combat, r = E.run, p = c.player;
+    if (!c || c.over) return;
+
+    // end-of-turn: shrapnel curses in hand
+    c.hand.forEach(function (card) {
+      if (card.id === 'shrapnel') hurtPlayer(2, { pure: true });
+    });
+    if (r.phase === 'dead') return;
+
+    // discard hand
+    c.discard = c.discard.concat(c.hand);
+    c.hand = [];
+
+    // turret + entropy
+    var tv = statN(p, 'turret');
+    if (tv > 0 && !c.over) {
+      var pool = aliveEnemies();
+      if (pool.length) {
+        var en = pick(pool);
+        dealToEnemy(en, c.enemies.indexOf(en), tv + attr('tech'), { noCrit: true, noWeak: true });
+      }
+    }
+    var ev = statN(p, 'entropy');
+    if (ev > 0) {
+      c.enemies.forEach(function (e, i) {
+        if (e.alive) { addStatus(e, 'burn', ev); emit('status', { who: 'enemy', idx: i, s: 'burn', v: ev }); }
+      });
+    }
+    if (checkWin()) return;
+
+    // player status ticks
+    if (statN(p, 'burn')) { hurtPlayer(statN(p, 'burn'), { pure: true }); addStatus(p, 'burn', -B.status.burnTick); }
+    if (r.phase === 'dead') return;
+    if (statN(p, 'regen')) { heal(statN(p, 'regen')); addStatus(p, 'regen', -1); }
+    if (statN(p, 'vuln')) addStatus(p, 'vuln', -1);
+    if (statN(p, 'weak')) addStatus(p, 'weak', -1);
+
+    // enemies act
+    var s = r.sector;
+    c.enemies.forEach(function (en, idx) {
+      if (!en.alive || c.over || r.phase === 'dead') return;
+      // burn ticks before acting
+      if (statN(en, 'burn')) {
+        var bd = statN(en, 'burn');
+        en.hp -= bd;
+        emit('dmg', { who: 'enemy', idx: idx, amount: bd, hpDmg: bd, burn: true, hpAfter: Math.max(0, en.hp), blockAfter: en.block });
+        addStatus(en, 'burn', -B.status.burnTick);
+        if (en.hp <= 0) {
+          en.alive = false; r.kills++;
+          emit('die', { idx: idx });
+          return;
+        }
+      }
+      en.block = 0;
+      var m = en.intent;
+      emit('enemyMove', { idx: idx, move: m });
+      if (m.t === 'attack' || m.t === 'drain') {
+        var dmg = scaledDmg(m.d, s) + statN(en, 'str');
+        if (statN(en, 'weak')) dmg = Math.floor(dmg * B.status.weakMult);
+        var hits = m.hits || 1;
+        var totalToPlayer = 0;
+        for (var h = 0; h < hits; h++) {
+          if (r.phase === 'dead') break;
+          totalToPlayer += hurtPlayer(dmg);
+          var th = statN(p, 'thorns') + art('thorns');
+          if (th > 0 && en.alive) {
+            dealToEnemy(en, idx, th, { noCrit: true, noWeak: true });
+            if (!en.alive) break;
+          }
+        }
+        if (m.t === 'drain' && en.alive) {
+          en.hp = Math.min(en.maxHp, en.hp + dmg);
+          emit('heal', { who: 'enemy', idx: idx, amount: dmg, hpAfter: en.hp });
+        }
+      } else if (m.t === 'block') {
+        en.block += scaledDmg(m.b, s);
+        emit('block', { who: 'enemy', idx: idx, amount: en.block, blockAfter: en.block });
+      } else if (m.t === 'buff') {
+        addStatus(en, m.s, m.v);
+        emit('status', { who: 'enemy', idx: idx, s: m.s, v: m.v });
+      } else if (m.t === 'debuff') {
+        addStatus(p, m.s, m.v);
+        emit('status', { who: 'player', s: m.s, v: m.v });
+      } else if (m.t === 'curse') {
+        c.discard.push(mkCard(m.card, false));
+        emit('curse', { idx: idx, card: m.card });
+      }
+      // enemy debuff ticks after acting
+      if (statN(en, 'vuln')) addStatus(en, 'vuln', -1);
+      if (statN(en, 'weak')) addStatus(en, 'weak', -1);
+    });
+
+    if (r.phase === 'dead') return;
+    if (checkWin()) return;
+
+    c.enemies.forEach(function (en) { if (en.alive) chooseIntent(en); });
+    startPlayerTurn();
+  };
+
+  /* ---------------- Combat: victory & rewards ---------------------------- */
+  function creditRange(kind) {
+    var r = (kind === 'boss') ? B.rewards.creditsBoss : (kind === 'elite') ? B.rewards.creditsElite : B.rewards.creditsFight;
+    var v = ri(r[0], r[1]);
+    v = Math.round(v * (1 + (E.run.sector - 1) * B.rewards.creditsPerSectorMul));
+    v = Math.round(v * (1 + art('creditsMul')));
+    return v;
+  }
+
+  function rollRewardCard(rareBoost) {
+    var roll = rnd();
+    var rar = 1;
+    if (roll < B.rewards.rareChance + (rareBoost || 0)) rar = 3;
+    else if (roll < B.rewards.rareChance + (rareBoost || 0) + B.rewards.uncommonChance) rar = 2;
+    var pool = Object.keys(ns.CARDS).filter(function (k) {
+      var c = ns.CARDS[k];
+      return c.rarity === rar && (c.cls === E.run.cls || c.cls === 'any');
+    });
+    if (pool.length === 0) pool = Object.keys(ns.CARDS).filter(function (k) {
+      var c = ns.CARDS[k];
+      return c.rarity === 1 && (c.cls === E.run.cls || c.cls === 'any');
+    });
+    return pick(pool);
+  }
+  E.rollRewardCard = rollRewardCard;
+
+  function randomArtifact(tier) {
+    var pool = Object.keys(ns.ARTIFACTS).filter(function (k) {
+      return ns.ARTIFACTS[k].tier === tier && E.run.artifacts.indexOf(k) < 0;
+    });
+    if (pool.length === 0) return null;
+    return pick(pool);
+  }
+  E.randomArtifact = randomArtifact;
+
+  function addArtifact(id) {
+    var r = E.run;
+    r.artifacts.push(id);
+    var a = ns.ARTIFACTS[id];
+    if (a.k === 'maxHp') { r.maxHp += a.v; r.hp += a.v; }
+    emit('artifact', { id: id });
+  }
+  E.addArtifact = addArtifact;
+
+  function winCombat() {
+    var r = E.run, kind = E.combat.kind;
+    var credits = creditRange(kind);
+    r.credits += credits;
+    var hb = art('healAfterCombat');
+    if (hb > 0) heal(hb);
+    var rareBoost = (kind === 'elite' || kind === 'boss') ? B.rewards.eliteRareChance : 0;
+    var cards = [], seen = {};
+    for (var i = 0; i < B.rewards.cardChoices; i++) {
+      var cid = rollRewardCard(rareBoost), guard = 0;
+      while (seen[cid] && guard++ < 20) cid = rollRewardCard(rareBoost);
+      seen[cid] = true;
+      cards.push(cid);
+    }
+    var artifactDrop = (kind === 'elite') ? randomArtifact(1) : null;
+    if (artifactDrop) addArtifact(artifactDrop);
+    r.reward = { credits: credits, cards: cards, artifact: artifactDrop, cardTaken: false, kind: kind };
+    r.phase = 'reward';
+    emit('win', { kind: kind, credits: credits });
+    E.save();
+  }
+
+  E.takeRewardCard = function (i) {
+    var r = E.run;
+    if (!r.reward || r.reward.cardTaken) return;
+    var id = r.reward.cards[i];
+    if (!id) return;
+    r.deck.push(mkCard(id, false));
+    r.reward.cardTaken = true;
+  };
+
+  E.finishReward = function () {
+    var r = E.run;
+    r.reward = null;
+    E.combat = null;
+    nodeComplete();
+  };
+
+  /* ---------------- Events ------------------------------------------------ */
+  function startEvent() {
+    var r = E.run;
+    var pool = ns.EVENTS.filter(function (ev) { return r.usedEvents.indexOf(ev.id) < 0; });
+    if (pool.length === 0) { r.usedEvents = []; pool = ns.EVENTS.slice(); }
+    var ev = pick(pool);
+    r.usedEvents.push(ev.id);
+    r.currentEvent = ev.id;
+    r.eventResult = null;
+    r.phase = 'event';
+  }
+
+  E.getEvent = function () {
+    var r = E.run;
+    for (var i = 0; i < ns.EVENTS.length; i++) if (ns.EVENTS[i].id === r.currentEvent) return ns.EVENTS[i];
+    return null;
+  };
+
+  E.eventChoose = function (ci) {
+    var r = E.run;
+    var ev = E.getEvent();
+    var ch = ev.choices[ci];
+    if (!ch) return null;
+    if (ch.cost && r.credits < ch.cost) return null;
+
+    var res = { roll: null, pass: null, dc: null, bonus: 0 };
+    var out;
+    if (ch.check) {
+      var roll = d20();
+      var bonus = Math.floor(attr(ch.check.attr) / B.attrs.eventCheckBonusDiv) + art('checkBonus');
+      var pass = (roll + bonus >= ch.check.dc) || roll === 20;
+      if (roll === 1) pass = false;
+      res.roll = roll; res.bonus = bonus; res.dc = ch.check.dc; res.pass = pass;
+      res.attr = ch.check.attr;
+      out = pass ? ch.success : ch.fail;
+    } else {
+      out = ch.outcome;
+    }
+    res.text = out.text;
+    res.gained = applyOutcome(out.fx || {});
+    r.eventResult = res;
+    if (r.phase !== 'dead') r.phase = 'event-result';
+    E.save();
+    return res;
+  };
+
+  function applyOutcome(fx) {
+    var r = E.run, gained = [];
+    if (fx.credits) {
+      r.credits = Math.max(0, r.credits + fx.credits);
+      gained.push((fx.credits > 0 ? '+' : '') + fx.credits + ' credits');
+    }
+    if (fx.maxhp) {
+      r.maxHp += fx.maxhp; r.hp += fx.maxhp;
+      gained.push('+' + fx.maxhp + ' Max HP');
+    }
+    if (fx.healPct) {
+      var h = Math.round(r.maxHp * fx.healPct);
+      heal(h);
+      gained.push('+' + h + ' HP');
+    }
+    if (fx.hp) {
+      if (fx.hp < 0) {
+        r.hp += fx.hp;
+        gained.push(fx.hp + ' HP');
+        if (r.hp <= 0) { playerDied(); return gained; }
+      } else { heal(fx.hp); gained.push('+' + fx.hp + ' HP'); }
+    }
+    if (fx.attr) {
+      var a = fx.attr === 'random' ? pick(['might', 'tech', 'psi']) : fx.attr;
+      r.attrs[a] += 1;
+      gained.push('+1 ' + a.toUpperCase());
+    }
+    if (fx.card) {
+      var cid;
+      if (fx.card === 'random') cid = rollRewardCard(0);
+      else if (fx.card === 'rare') {
+        var rares = Object.keys(ns.CARDS).filter(function (k) {
+          var c = ns.CARDS[k];
+          return c.rarity === 3 && (c.cls === r.cls || c.cls === 'any');
+        });
+        cid = rares.length ? pick(rares) : rollRewardCard(0);
+      } else cid = fx.card;
+      r.deck.push(mkCard(cid, false));
+      gained.push('Card: ' + ns.CARDS[cid].name);
+    }
+    if (fx.artifact) {
+      var aid = randomArtifact(1);
+      if (aid) { addArtifact(aid); gained.push('Relic: ' + ns.ARTIFACTS[aid].name); }
+      else { r.credits += 40; gained.push('+40 credits'); }
+    }
+    if (fx.curse) {
+      r.deck.push(mkCard(fx.curse, false));
+      gained.push('CURSE: ' + ns.CARDS[fx.curse].name);
+    }
+    if (fx.pick) {
+      r.pendingPick = fx.pick;
+      gained.push(fx.pick === 'remove' ? 'Choose a card to remove' : fx.pick === 'upgrade' ? 'Choose a card to upgrade' : 'Choose a card to duplicate');
+    }
+    return gained;
+  }
+
+  E.finishEvent = function () {
+    var r = E.run;
+    if (r.pendingPick) return; // must resolve pick first
+    r.eventResult = null;
+    r.currentEvent = null;
+    nodeComplete();
+  };
+
+  /* Resolve a pending deck pick (remove / upgrade / dupe). deckIdx into run.deck */
+  E.applyPick = function (deckIdx) {
+    var r = E.run;
+    var t = r.pendingPick;
+    if (!t) return false;
+    var card = r.deck[deckIdx];
+    if (!card) return false;
+    if (t === 'remove') r.deck.splice(deckIdx, 1);
+    else if (t === 'upgrade') card.up = true;
+    else if (t === 'dupe') r.deck.push(mkCard(card.id, card.up));
+    r.pendingPick = null;
+    E.save();
+    return true;
+  };
+
+  E.cancelPick = function () { E.run.pendingPick = null; };
+
+  /* ---------------- Shop --------------------------------------------------- */
+  function buildShop() {
+    var r = E.run;
+    var cards = [], seen = {};
+    for (var i = 0; i < 3; i++) {
+      var cid = rollRewardCard(0.06), guard = 0;
+      while (seen[cid] && guard++ < 20) cid = rollRewardCard(0.06);
+      seen[cid] = true;
+      cards.push({ id: cid, cost: B.shop.cardCost[ns.CARDS[cid].rarity] || 35, sold: false });
+    }
+    var aid = randomArtifact(1);
+    r.shop = {
+      cards: cards,
+      artifact: aid ? { id: aid, cost: B.shop.artifactCost, sold: false } : null,
+      healUsed: false,
+      removeUsed: false,
+    };
+  }
+
+  E.shopBuyCard = function (i) {
+    var r = E.run, it = r.shop.cards[i];
+    if (!it || it.sold || r.credits < it.cost) return false;
+    r.credits -= it.cost; it.sold = true;
+    r.deck.push(mkCard(it.id, false));
+    E.save();
+    return true;
+  };
+  E.shopBuyArtifact = function () {
+    var r = E.run, it = r.shop.artifact;
+    if (!it || it.sold || r.credits < it.cost) return false;
+    r.credits -= it.cost; it.sold = true;
+    addArtifact(it.id);
+    E.save();
+    return true;
+  };
+  E.shopBuyHeal = function () {
+    var r = E.run;
+    if (r.shop.healUsed || r.credits < B.shop.healCost || r.hp >= r.maxHp) return false;
+    r.credits -= B.shop.healCost;
+    r.shop.healUsed = true;
+    heal(B.shop.healAmount);
+    E.save();
+    return true;
+  };
+  E.shopBuyRemove = function () {
+    var r = E.run;
+    if (r.shop.removeUsed || r.credits < r.removeCost) return false;
+    r.credits -= r.removeCost;
+    r.removeCost += B.shop.removeCostInc;
+    r.shop.removeUsed = true;
+    r.pendingPick = 'remove';
+    return true;
+  };
+  E.leaveShop = function () {
+    E.run.shop = null;
+    nodeComplete();
+  };
+
+  /* ---------------- Rest --------------------------------------------------- */
+  E.restHeal = function () {
+    heal(Math.round(E.run.maxHp * B.rewards.restHealPct));
+    nodeComplete();
+  };
+  E.restUpgrade = function () {
+    E.run.pendingPick = 'upgrade';
+  };
+  E.restFinishUpgrade = function (deckIdx) {
+    if (E.applyPick(deckIdx)) nodeComplete();
+  };
+
+  /* ---------------- Persistence -------------------------------------------- */
+  function store() {
+    try { return (typeof localStorage !== 'undefined') ? localStorage : null; } catch (e) { return null; }
+  }
+
+  E.save = function () {
+    var s = store();
+    if (!s || !E.run) return;
+    // only save at non-combat checkpoints; a run resumes at the current node
+    if (E.run.phase === 'combat' || E.run.phase === 'dead') return;
+    try {
+      s.setItem('voidspire_save', JSON.stringify({ run: E.run, rng: rngState, uid: uidCounter }));
+    } catch (e) { /* storage full / private mode */ }
+  };
+
+  E.load = function () {
+    var s = store();
+    if (!s) return false;
+    try {
+      var raw = s.getItem('voidspire_save');
+      if (!raw) return false;
+      var data = JSON.parse(raw);
+      if (!data.run || !data.run.deck) return false;
+      E.run = data.run;
+      rngState = data.rng >>> 0;
+      uidCounter = data.uid || 1000;
+      E.combat = null;
+      // if we saved mid-node-flow, re-enter the node cleanly
+      var p = E.run.phase;
+      if (p === 'reward' || p === 'event' || p === 'event-result') {
+        // restart node types that can't resume mid-way
+        if (E.run.nodeType === 'fight' || E.run.nodeType === 'elite' || E.run.nodeType === 'boss') {
+          E.startNode(E.run.nodeType);
+        }
+      }
+      return true;
+    } catch (e) { return false; }
+  };
+
+  E.hasSave = function () {
+    var s = store();
+    if (!s) return false;
+    try { return !!s.getItem('voidspire_save'); } catch (e) { return false; }
+  };
+
+  E.clearSave = function () {
+    var s = store();
+    if (s) { try { s.removeItem('voidspire_save'); } catch (e) {} }
+  };
+
+  E.recordBest = function () {
+    var s = store();
+    if (!s || !E.run) return;
+    try {
+      var best = JSON.parse(s.getItem('voidspire_best') || '{}');
+      var sc = E.score();
+      if (!best.score || sc > best.score) {
+        best = { score: sc, sector: E.run.sector, cls: E.run.cls };
+        s.setItem('voidspire_best', JSON.stringify(best));
+      }
+    } catch (e) {}
+  };
+
+  E.getBest = function () {
+    var s = store();
+    if (!s) return null;
+    try { return JSON.parse(s.getItem('voidspire_best') || 'null'); } catch (e) { return null; }
+  };
+
+  E.abandonRun = function () {
+    E.clearSave();
+    E.run = null;
+    E.combat = null;
+  };
+
+})(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
