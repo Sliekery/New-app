@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Eldervale — Thornveil Reach</title>
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -51,12 +51,16 @@
 
   <!-- Skill bar -->
   <div id="skillbarWrap">
+    <button id="bagBtn">🎒</button>
     <button id="skillInfoBtn">?</button>
     <div id="skillbar"></div>
   </div>
 
   <!-- Skill info panel -->
   <div id="skillInfo" class="panel hidden"></div>
+
+  <!-- Hero panel: attributes, equipment, inventory -->
+  <div id="heroPanel" class="panel hidden"></div>
 
   <!-- NPC dialog -->
   <div id="dialog" class="panel hidden">
@@ -77,7 +81,7 @@
   <div id="classPick" class="hidden"></div>
 </div>
 
-<script src="three.min.js?v=4"></script>
-<script src="game.js?v=4"></script>
+<script src="three.min.js?v=5"></script>
+<script src="game.js?v=5"></script>
 </body>
 </html>
