@@ -6,20 +6,21 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Eldervale — Thornveil Reach</title>
-<link rel="stylesheet" href="style.css?v=5">
+<title>Eldervale — The Sunward Reach</title>
+<link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 <canvas id="game"></canvas>
 <canvas id="fx"></canvas>
 
+<!-- ============ Non-interactive HUD ============ -->
 <div id="hud">
-  <!-- Party frames (top-left) -->
   <div id="party">
     <div class="frame" id="playerFrame">
       <div class="fname"><span id="pName">Kaelen</span> <span class="lvl" id="pLvl">Lv 1</span></div>
       <div class="bar hp"><div class="fill" id="pHp"></div><span class="btxt" id="pHpTxt"></span></div>
       <div class="bar en"><div class="fill" id="pEn"></div><span class="btxt" id="pEnTxt"></span></div>
+      <div class="bar adr" id="pAdrBar"><div class="fill" id="pAdr"></div></div>
       <div class="bar xp"><div class="fill" id="pXp"></div></div>
     </div>
     <div class="frame small" id="henchFrame">
@@ -28,60 +29,73 @@
     </div>
   </div>
 
-  <!-- Target frame (top-center) -->
   <div id="targetFrame" class="hidden">
     <div class="fname"><span id="tName"></span> <span class="lvl" id="tLvl"></span></div>
     <div class="bar hp foe"><div class="fill" id="tHp"></div></div>
     <div id="tConds"></div>
   </div>
 
-  <!-- Compass (top-right) -->
-  <div id="compassWrap">
-    <canvas id="compass" width="280" height="280"></canvas>
-  </div>
-
-  <!-- Quest tracker -->
+  <div id="compassWrap"><canvas id="compass" width="280" height="280"></canvas></div>
   <div id="questTracker"></div>
-
-  <!-- Gold -->
   <div id="goldBox">🪙 <span id="goldTxt">0</span></div>
-
-  <!-- Cast bar -->
   <div id="castbar" class="hidden"><div class="fill" id="castFill"></div><span id="castName"></span></div>
 
-  <!-- Skill bar -->
-  <div id="skillbarWrap">
-    <button id="bagBtn">🎒</button>
-    <button id="skillInfoBtn">?</button>
-    <div id="skillbar"></div>
-  </div>
-
-  <!-- Skill info panel -->
-  <div id="skillInfo" class="panel hidden"></div>
-
-  <!-- Hero panel: attributes, equipment, inventory -->
-  <div id="heroPanel" class="panel hidden"></div>
-
-  <!-- NPC dialog -->
-  <div id="dialog" class="panel hidden">
-    <div id="dlgName"></div>
-    <div id="dlgText"></div>
-    <button id="dlgBtn"></button>
-  </div>
-
-  <!-- Banner / toast / death -->
   <div id="banner" class="hidden"></div>
   <div id="toast" class="hidden"></div>
   <div id="deathOverlay" class="hidden">
     <div class="deathTitle">You have fallen…</div>
     <div class="deathSub" id="deathSub"></div>
   </div>
+</div>
 
-  <!-- Profession select -->
+<!-- ============ Interactive UI ============ -->
+<div id="ui">
+  <div id="menuBar">
+    <button class="menuBtn" data-modal="hero" title="Hero">🛡️</button>
+    <button class="menuBtn" data-modal="skills" title="Skills &amp; Builds">✨</button>
+    <button class="menuBtn" data-modal="inv" title="Inventory">🎒</button>
+    <button class="menuBtn" data-modal="quest" title="Quest Log">📜</button>
+    <button class="menuBtn" data-modal="settings" title="Settings">⚙️</button>
+  </div>
+
+  <div id="skillbarWrap"><div id="skillbar"></div></div>
+
+  <div id="backdrop" class="hidden"></div>
+
+  <div id="heroPanel" class="modal hidden">
+    <div class="modalHead"><span class="mt">Hero</span><button class="mx" data-close>✕</button></div>
+    <div class="modalBody" id="heroBody"></div>
+  </div>
+
+  <div id="skillsPanel" class="modal hidden">
+    <div class="modalHead"><span class="mt">Skills &amp; Builds</span><button class="mx" data-close>✕</button></div>
+    <div class="modalBody" id="skillsBody"></div>
+  </div>
+
+  <div id="invPanel" class="modal hidden">
+    <div class="modalHead"><span class="mt">Inventory</span><button class="mx" data-close>✕</button></div>
+    <div class="modalBody" id="invBody"></div>
+  </div>
+
+  <div id="questPanel" class="modal hidden">
+    <div class="modalHead"><span class="mt">Quest Log</span><button class="mx" data-close>✕</button></div>
+    <div class="modalBody" id="questBody"></div>
+  </div>
+
+  <div id="settingsPanel" class="modal hidden">
+    <div class="modalHead"><span class="mt">Settings</span><button class="mx" data-close>✕</button></div>
+    <div class="modalBody" id="settingsBody"></div>
+  </div>
+
+  <div id="dialog" class="modal hidden">
+    <div class="modalHead"><span class="mt" id="dlgName"></span><button class="mx" data-close>✕</button></div>
+    <div class="modalBody"><div id="dlgText"></div><button id="dlgBtn"></button></div>
+  </div>
+
   <div id="classPick" class="hidden"></div>
 </div>
 
-<script src="three.min.js?v=5"></script>
-<script src="game.js?v=5"></script>
+<script src="three.min.js?v=6"></script>
+<script src="game.js?v=6"></script>
 </body>
 </html>
