@@ -99,12 +99,15 @@
     $counts.id = 'deck-counts';
     $game.appendChild($counts);
 
-    $hint = el('div', '', 'TAP TARGET');
+    $hint = el('div', '', 'DROP ON A TARGET');
     $hint.id = 'target-hint';
     $hint.style.display = 'none';
     $game.appendChild($hint);
 
     document.getElementById('battlefield').addEventListener('pointerdown', onFieldTap);
+    document.addEventListener('pointermove', onDragMove);
+    document.addEventListener('pointerup', onDragEnd);
+    document.addEventListener('pointercancel', onDragCancel);
     U.refresh();
   };
 
@@ -252,7 +255,7 @@
     });
 
     var best = E.getBest();
-    var foot = 'TAP A CLASS TO DEPLOY · ONE FINGER IS ALL YOU NEED';
+    var foot = 'TAP A CLASS TO DEPLOY · SWIPE CARDS UP TO PLAY THEM';
     if (best) foot = 'BEST: SECTOR ' + best.sector + ' · SCORE ' + best.score + '<br><br>' + foot;
     s.appendChild(el('div', 'footer-note', foot));
   }
@@ -342,29 +345,109 @@
         '<div class="cdesc">' + esc(info.desc) + '</div>';
       d.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
-        onCardTap(i);
+        startCardDrag(d, i, ev);
       });
       $hand.appendChild(d);
     });
   }
 
-  function onCardTap(i) {
+  /* ---- swipe-to-play -------------------------------------------------- */
+  // Swipe a card up to play it; drag it onto an enemy to choose the target.
+  // A short tap (no movement) selects the card for reading instead.
+  var drag = null; // {el, idx, info, x0, y0, dx, dy, moved}
+
+  function startCardDrag(el, i, ev) {
+    if (locked || drag || !E.combat || E.combat.over) return;
+    var card = E.combat.hand[i];
+    if (!card) return;
+    drag = { el: el, idx: i, info: E.cardInfo(card), x0: ev.clientX, y0: ev.clientY, dx: 0, dy: 0, moved: false };
+    if (el.setPointerCapture && ev.pointerId !== undefined) {
+      try { el.setPointerCapture(ev.pointerId); } catch (e) { /* not supported */ }
+    }
+  }
+
+  function onDragMove(ev) {
+    if (!drag) return;
+    drag.dx = ev.clientX - drag.x0;
+    drag.dy = ev.clientY - drag.y0;
+    if (!drag.moved && Math.abs(drag.dx) + Math.abs(drag.dy) > 9) {
+      drag.moved = true;
+      drag.el.classList.add('dragging');
+      if (selected >= 0) { selected = -1; var s = $hand.querySelector('.card.selected'); if (s) s.classList.remove('selected'); }
+      var multi = E.aliveEnemies().length > 1;
+      if (drag.info.needsTarget && multi && !drag.info.unplayable) setTargeting(true);
+    }
+    if (drag.moved) {
+      var lift = Math.min(0, drag.dy);
+      drag.el.style.transform = 'translate(' + drag.dx + 'px,' + drag.dy + 'px) scale(' + (1 + Math.min(0.25, -lift / 400)) + ')';
+      var armed = canDropPlay(ev);
+      drag.el.classList.toggle('will-play', armed);
+    }
+  }
+
+  function canDropPlay(ev) {
+    if (!drag || !E.canPlay(drag.idx)) return false;
+    var multi = E.aliveEnemies().length > 1;
+    if (drag.info.needsTarget && multi) return enemyAtClient(ev) >= 0;
+    return -drag.dy > B.feel.swipeThreshold || enemyAtClient(ev) >= 0;
+  }
+
+  function enemyAtClient(ev) {
+    var rect = document.getElementById('battlefield').getBoundingClientRect();
+    return R.enemyAt(ev.clientX - rect.left, ev.clientY - rect.top);
+  }
+
+  function onDragEnd(ev) {
+    if (!drag) return;
+    var d = drag;
+    drag = null;
+    d.el.classList.remove('dragging');
+    d.el.classList.remove('will-play');
+    d.el.style.transform = '';
+
+    if (!d.moved) { cardTapped(d.idx); return; }
+
+    if (locked || !E.combat || E.combat.over) { setTargeting(false); return; }
+
+    var info = d.info;
+    if (info.unplayable) { setTargeting(false); toast('UNPLAYABLE — a curse weighs down your deck'); return; }
+    if (!E.canPlay(d.idx)) { setTargeting(false); toast('NOT ENOUGH ENERGY'); return; }
+
+    var multi = E.aliveEnemies().length > 1;
+    var tgt = enemyAtClient(ev);
+    if (info.needsTarget && multi) {
+      if (tgt >= 0) playCardAt(d.idx, tgt);
+      else {
+        setTargeting(false);
+        if (-d.dy > B.feel.swipeThreshold) toast('DROP THE CARD ON A TARGET');
+      }
+    } else {
+      if (tgt >= 0 || -d.dy > B.feel.swipeThreshold) playCardAt(d.idx, tgt);
+      else setTargeting(false);
+    }
+  }
+
+  function onDragCancel() {
+    if (!drag) return;
+    drag.el.classList.remove('dragging');
+    drag.el.classList.remove('will-play');
+    drag.el.style.transform = '';
+    drag = null;
+    setTargeting(false);
+  }
+
+  // tap = read the card (and arm it for tap-an-enemy targeting)
+  function cardTapped(i) {
     if (locked || !E.combat || E.combat.over) return;
-    var c = E.combat;
-    var card = c.hand[i];
+    var card = E.combat.hand[i];
     if (!card) return;
     var info = E.cardInfo(card);
-    if (info.unplayable) { toast('UNPLAYABLE — a curse weighs down your deck'); return; }
-    if (i === selected) {
-      // second tap: play on default target
-      playSelected(-1);
-      return;
-    }
-    if (info.cost > c.energy) { toast('NOT ENOUGH ENERGY'); SFX.tap(); return; }
+    if (i === selected) { selected = -1; setTargeting(false); renderHand(); return; }
     SFX.tap();
+    if (info.unplayable) toast('UNPLAYABLE — a curse weighs down your deck');
     selected = i;
     var multi = E.aliveEnemies().length > 1;
-    setTargeting(info.needsTarget && multi);
+    setTargeting(!info.unplayable && info.cost <= E.combat.energy && info.needsTarget && multi);
     renderHand();
   }
 
@@ -381,7 +464,8 @@
     var x = ev.clientX - rect.left, y = ev.clientY - rect.top;
     var idx = R.enemyAt(x, y);
     if (selected >= 0) {
-      if (idx >= 0) playSelected(idx);
+      var si = selected;
+      if (idx >= 0 && E.canPlay(si)) { selected = -1; playCardAt(si, idx); }
       else { selected = -1; setTargeting(false); renderHand(); }
     } else if (idx >= 0) {
       // inspect enemy
@@ -392,9 +476,7 @@
     }
   }
 
-  function playSelected(targetIdx) {
-    var i = selected;
-    selected = -1;
+  function playCardAt(i, targetIdx) {
     setTargeting(false);
     if (i < 0 || !E.canPlay(i)) { renderHand(); return; }
     E.events.length = 0;
@@ -966,7 +1048,7 @@
     var s = overlayScreen();
     s.appendChild(el('h2', 'screen-title', 'Field Manual'));
     var txt =
-      'TAP a card to select it. TAP it again to play it — or tap an enemy to choose your target.\n\n' +
+      'SWIPE a card up to play it — or drag it onto an enemy to choose your target. TAP a card to read it first.\n\n' +
       'ENERGY (⚡) limits your plays each turn. Unspent SHIELD (⬡) blocks damage but expires.\n\n' +
       'd20: every attack rolls a die. A high roll is a CRIT for double damage.\n\n' +
       'MIGHT boosts weapons, TECH boosts shields & tech, PSI boosts psionics. Attributes also decide skill checks at events.\n\n' +

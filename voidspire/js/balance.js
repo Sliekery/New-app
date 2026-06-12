@@ -96,6 +96,7 @@
       cardPlayDelay: 260,        // pause after playing a card
       floaterLife: 900,
       shakeMag: 7,
+      swipeThreshold: 64,        // px of upward drag needed to play a card
     },
 
     /* ---- Score ---------------------------------------------------------- */

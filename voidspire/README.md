@@ -22,10 +22,12 @@ Runs are auto-saved at every node — close the tab and continue later.
 
 ### Controls (one finger, always)
 
-- **Tap a card** to select it, **tap it again** to play it.
-- With multiple enemies, **tap an enemy** to choose the target.
-- Tap empty space to deselect; tap an enemy with no card selected to inspect
-  its intent. **END TURN** when you're done.
+- **Swipe a card up** to play it — or **drag it onto an enemy** to choose
+  the target.
+- **Tap a card** to enlarge and read it (tap again, or tap empty space, to
+  put it back). While a card is selected, tapping an enemy plays it there.
+- Tap an enemy with no card selected to inspect its intent.
+  **END TURN** when you're done.
 
 ## The game
 

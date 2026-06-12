@@ -65,6 +65,16 @@ setTimeout(function () {
   VS.ui.refresh();
   VS.render.targeting = true;
   snap('elite-targeting');
+  VS.render.targeting = false;
+
+  // one portrait per class
+  ['vanguard', 'technomancer', 'voidadept'].forEach(function (cls) {
+    E.newRun(cls);
+    E.run.faction = 'hierarchy';
+    E.startNode('fight');
+    VS.ui.refresh();
+    snap('class-' + cls);
+  });
 
   win.close();
   process.exit(0);

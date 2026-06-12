@@ -128,6 +128,7 @@ html, body {
 }
 .card {
   pointer-events: auto;
+  touch-action: none;
   position: relative;
   width: 88px; min-width: 0; height: 124px;
   margin: 0 -7px;
@@ -166,6 +167,15 @@ html, body {
   border-color: var(--green);
 }
 .card.unplayable-curse { filter: saturate(0.5) brightness(0.8); }
+.card.dragging {
+  transition: none;
+  z-index: 60;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.8);
+}
+.card.will-play {
+  border-color: var(--green);
+  box-shadow: 0 0 18px rgba(93, 255, 136, 0.55), 0 12px 30px rgba(0, 0, 0, 0.8);
+}
 
 /* ========================= COMBAT CONTROLS ========================= */
 #combat-controls {
@@ -456,6 +466,7 @@ h2.screen-title {
       cardPlayDelay: 260,        // pause after playing a card
       floaterLife: 900,
       shakeMag: 7,
+      swipeThreshold: 64,        // px of upward drag needed to play a card
     },
 
     /* ---- Score ---------------------------------------------------------- */
@@ -2627,23 +2638,75 @@ h2.screen-title {
 
   /* ---- player avatar ----------------------------------------------------------- */
   var CLASS_ART = {
-    vanguard: [
-      [0,-1, 0.35,-0.7, 0.3,-0.25, 0.45,0.1, 0.3,0.95, 0.08,0.95, 0.05,0.3, -0.05,0.3, -0.08,0.95, -0.3,0.95, -0.45,0.1, -0.3,-0.25, -0.35,-0.7, 0,-1],
-      [-0.22,-0.62, 0.22,-0.62],
-      [0.45,0.1, 0.85,-0.35, 0.9,-0.75],
-    ],
-    technomancer: [
-      [0,-0.9, 0.3,-0.6, 0.25,-0.2, 0.4,0.95, 0.1,0.95, 0.05,0.3, -0.05,0.3, -0.1,0.95, -0.4,0.95, -0.25,-0.2, -0.3,-0.6, 0,-0.9],
-      [0,-0.9, 0,-1.2],
-      [-0.1,-1.3, 0.1,-1.3, 0.1,-1.15, -0.1,-1.15, -0.1,-1.3],
-      [0.25,-0.2, 0.7,-0.1, 0.8,0.35],
-    ],
-    voidadept: [
-      [0,-1, 0.4,-0.5, 0.3,0.2, 0.45,0.95, -0.45,0.95, -0.3,0.2, -0.4,-0.5, 0,-1],
-      [-0.18,-0.5, 0.18,-0.5],
-      [0.4,-0.5, 0.75,-0.8],
-      [0.75,-0.8, 0.75,-1.05, 0.9,-0.92, 0.75,-0.8],
-    ],
+    vanguard: {
+      color: '#5dff88',
+      p: [
+        // helmet + visor
+        [-0.28,-1.05, 0.28,-1.05, 0.34,-0.72, 0.22,-0.6, -0.22,-0.6, -0.34,-0.72, -0.28,-1.05],
+        [-0.2,-0.84, 0.2,-0.84],
+        [0,-1.05, 0,-1.18],                              // comm fin
+        // torso + chest plate
+        [-0.4,-0.6, 0.4,-0.6, 0.46,-0.08, 0.3,0.18, -0.3,0.18, -0.46,-0.08, -0.4,-0.6],
+        [-0.16,-0.46, 0.16,-0.46, 0.16,-0.26, -0.16,-0.26, -0.16,-0.46],
+        [0,-0.26, 0,0.05],                               // sternum seam
+        // pauldrons
+        [-0.4,-0.6, -0.68,-0.66, -0.72,-0.34, -0.46,-0.28],
+        [0.4,-0.6, 0.68,-0.66, 0.72,-0.34, 0.46,-0.28],
+        // legs + knee plates
+        [-0.27,0.18, -0.32,0.55, -0.3,0.96, -0.08,0.96, -0.06,0.55, -0.04,0.3],
+        [0.27,0.18, 0.32,0.55, 0.3,0.96, 0.08,0.96, 0.06,0.55, 0.04,0.3],
+        [-0.33,0.52, -0.05,0.52], [0.05,0.52, 0.33,0.52],
+        // rifle, aimed at the enemy line
+        [-0.05,0.0, 0.12,-0.12, 0.92,-0.5],
+        [0.92,-0.5, 1.0,-0.6],
+        [0.4,-0.26, 0.44,-0.08],
+        [0.62,-0.36, 0.66,-0.5],
+      ],
+      e: [[-0.09,-0.84], [0.09,-0.84]],
+    },
+    technomancer: {
+      color: '#41d8ff',
+      p: [
+        // cowl
+        [0,-1.12, 0.27,-0.86, 0.2,-0.58, -0.2,-0.58, -0.27,-0.86, 0,-1.12],
+        // antenna + emitter
+        [0,-1.12, 0,-1.36],
+        [-0.07,-1.48, 0.07,-1.48, 0.07,-1.34, -0.07,-1.34, -0.07,-1.48],
+        // robe
+        [-0.42,-0.52, 0.42,-0.52, 0.52,0.96, -0.52,0.96, -0.42,-0.52],
+        [-0.52,0.74, 0.52,0.74],                          // hem band
+        // chest cog (diamond) + circuit traces
+        [0,-0.36, 0.13,-0.2, 0,-0.04, -0.13,-0.2, 0,-0.36],
+        [0,-0.04, 0,0.6],
+        [-0.24,-0.14, -0.24,0.55], [0.24,-0.14, 0.24,0.55],
+        [-0.24,0.2, -0.1,0.2], [0.24,0.36, 0.1,0.36],
+        // arm + power staff
+        [0.42,-0.4, 0.64,-0.44],
+        [0.64,-1.06, 0.64,0.9],
+        [0.54,-1.06, 0.74,-1.06, 0.74,-0.88, 0.54,-0.88, 0.54,-1.06],
+        [0.64,-1.2, 0.64,-1.06],
+      ],
+      e: [[-0.08,-0.74], [0.08,-0.74], [0,-0.2]],
+    },
+    voidadept: {
+      color: '#c86bff',
+      p: [
+        // hood
+        [0,-1.14, 0.3,-0.86, 0.23,-0.56, -0.23,-0.56, -0.3,-0.86, 0,-1.14],
+        [-0.13,-0.74, 0.13,-0.74],                        // face shadow
+        // third eye
+        [0,-0.97, 0.07,-0.89, 0,-0.81, -0.07,-0.89, 0,-0.97],
+        // tattered cloak
+        [-0.4,-0.5, 0.4,-0.5, 0.5,0.42, 0.42,0.96, 0.26,0.7, 0.1,0.96, -0.1,0.7, -0.26,0.96, -0.42,0.7, -0.5,0.42, -0.4,-0.5],
+        [-0.2,-0.3, -0.16,0.4], [0.2,-0.3, 0.16,0.4],     // robe folds
+        // outstretched casting arm + floating focus shard
+        [0.4,-0.42, 0.72,-0.3, 0.8,-0.42],
+        [0.86,-0.62, 0.93,-0.52, 0.86,-0.42, 0.79,-0.52, 0.86,-0.62],
+        // drifting void shards on the left
+        [-0.66,-0.92, -0.56,-0.82], [-0.78,-0.6, -0.66,-0.54], [-0.7,-0.3, -0.62,-0.36],
+      ],
+      e: [[-0.08,-0.74], [0.08,-0.74], [0,-0.89]],
+    },
   };
 
   function drawPlayer() {
@@ -2654,7 +2717,19 @@ h2.screen-title {
     var bob = Math.sin(t * 1.6) * 2;
     var flash = (t - R.player.flashT < 0.15);
     var art = CLASS_ART[r.cls] || CLASS_ART.vanguard;
-    strokePaths(art, p.x, p.y + bob, scale, flash ? '#ff4a5e' : '#5dff88', flash ? 14 : 9, 1);
+    strokePaths(art.p, p.x, p.y + bob, scale, flash ? '#ff4a5e' : art.color, flash ? 14 : 9, 1);
+
+    // glowing eye/visor points
+    ctx.save();
+    ctx.fillStyle = flash ? '#ffffff' : '#f2fff5';
+    ctx.shadowColor = art.color;
+    ctx.shadowBlur = 7;
+    (art.e || []).forEach(function (e) {
+      var px = p.x + e[0] * scale, py = p.y + bob + e[1] * scale;
+      var es = Math.max(1.5, scale * 0.055);
+      ctx.fillRect(px - es / 2, py - es / 2, es, es);
+    });
+    ctx.restore();
 
     // shield arc
     if (R.player.block > 0) {
@@ -2794,12 +2869,15 @@ h2.screen-title {
     $counts.id = 'deck-counts';
     $game.appendChild($counts);
 
-    $hint = el('div', '', 'TAP TARGET');
+    $hint = el('div', '', 'DROP ON A TARGET');
     $hint.id = 'target-hint';
     $hint.style.display = 'none';
     $game.appendChild($hint);
 
     document.getElementById('battlefield').addEventListener('pointerdown', onFieldTap);
+    document.addEventListener('pointermove', onDragMove);
+    document.addEventListener('pointerup', onDragEnd);
+    document.addEventListener('pointercancel', onDragCancel);
     U.refresh();
   };
 
@@ -2947,7 +3025,7 @@ h2.screen-title {
     });
 
     var best = E.getBest();
-    var foot = 'TAP A CLASS TO DEPLOY · ONE FINGER IS ALL YOU NEED';
+    var foot = 'TAP A CLASS TO DEPLOY · SWIPE CARDS UP TO PLAY THEM';
     if (best) foot = 'BEST: SECTOR ' + best.sector + ' · SCORE ' + best.score + '<br><br>' + foot;
     s.appendChild(el('div', 'footer-note', foot));
   }
@@ -3037,29 +3115,109 @@ h2.screen-title {
         '<div class="cdesc">' + esc(info.desc) + '</div>';
       d.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
-        onCardTap(i);
+        startCardDrag(d, i, ev);
       });
       $hand.appendChild(d);
     });
   }
 
-  function onCardTap(i) {
+  /* ---- swipe-to-play -------------------------------------------------- */
+  // Swipe a card up to play it; drag it onto an enemy to choose the target.
+  // A short tap (no movement) selects the card for reading instead.
+  var drag = null; // {el, idx, info, x0, y0, dx, dy, moved}
+
+  function startCardDrag(el, i, ev) {
+    if (locked || drag || !E.combat || E.combat.over) return;
+    var card = E.combat.hand[i];
+    if (!card) return;
+    drag = { el: el, idx: i, info: E.cardInfo(card), x0: ev.clientX, y0: ev.clientY, dx: 0, dy: 0, moved: false };
+    if (el.setPointerCapture && ev.pointerId !== undefined) {
+      try { el.setPointerCapture(ev.pointerId); } catch (e) { /* not supported */ }
+    }
+  }
+
+  function onDragMove(ev) {
+    if (!drag) return;
+    drag.dx = ev.clientX - drag.x0;
+    drag.dy = ev.clientY - drag.y0;
+    if (!drag.moved && Math.abs(drag.dx) + Math.abs(drag.dy) > 9) {
+      drag.moved = true;
+      drag.el.classList.add('dragging');
+      if (selected >= 0) { selected = -1; var s = $hand.querySelector('.card.selected'); if (s) s.classList.remove('selected'); }
+      var multi = E.aliveEnemies().length > 1;
+      if (drag.info.needsTarget && multi && !drag.info.unplayable) setTargeting(true);
+    }
+    if (drag.moved) {
+      var lift = Math.min(0, drag.dy);
+      drag.el.style.transform = 'translate(' + drag.dx + 'px,' + drag.dy + 'px) scale(' + (1 + Math.min(0.25, -lift / 400)) + ')';
+      var armed = canDropPlay(ev);
+      drag.el.classList.toggle('will-play', armed);
+    }
+  }
+
+  function canDropPlay(ev) {
+    if (!drag || !E.canPlay(drag.idx)) return false;
+    var multi = E.aliveEnemies().length > 1;
+    if (drag.info.needsTarget && multi) return enemyAtClient(ev) >= 0;
+    return -drag.dy > B.feel.swipeThreshold || enemyAtClient(ev) >= 0;
+  }
+
+  function enemyAtClient(ev) {
+    var rect = document.getElementById('battlefield').getBoundingClientRect();
+    return R.enemyAt(ev.clientX - rect.left, ev.clientY - rect.top);
+  }
+
+  function onDragEnd(ev) {
+    if (!drag) return;
+    var d = drag;
+    drag = null;
+    d.el.classList.remove('dragging');
+    d.el.classList.remove('will-play');
+    d.el.style.transform = '';
+
+    if (!d.moved) { cardTapped(d.idx); return; }
+
+    if (locked || !E.combat || E.combat.over) { setTargeting(false); return; }
+
+    var info = d.info;
+    if (info.unplayable) { setTargeting(false); toast('UNPLAYABLE — a curse weighs down your deck'); return; }
+    if (!E.canPlay(d.idx)) { setTargeting(false); toast('NOT ENOUGH ENERGY'); return; }
+
+    var multi = E.aliveEnemies().length > 1;
+    var tgt = enemyAtClient(ev);
+    if (info.needsTarget && multi) {
+      if (tgt >= 0) playCardAt(d.idx, tgt);
+      else {
+        setTargeting(false);
+        if (-d.dy > B.feel.swipeThreshold) toast('DROP THE CARD ON A TARGET');
+      }
+    } else {
+      if (tgt >= 0 || -d.dy > B.feel.swipeThreshold) playCardAt(d.idx, tgt);
+      else setTargeting(false);
+    }
+  }
+
+  function onDragCancel() {
+    if (!drag) return;
+    drag.el.classList.remove('dragging');
+    drag.el.classList.remove('will-play');
+    drag.el.style.transform = '';
+    drag = null;
+    setTargeting(false);
+  }
+
+  // tap = read the card (and arm it for tap-an-enemy targeting)
+  function cardTapped(i) {
     if (locked || !E.combat || E.combat.over) return;
-    var c = E.combat;
-    var card = c.hand[i];
+    var card = E.combat.hand[i];
     if (!card) return;
     var info = E.cardInfo(card);
-    if (info.unplayable) { toast('UNPLAYABLE — a curse weighs down your deck'); return; }
-    if (i === selected) {
-      // second tap: play on default target
-      playSelected(-1);
-      return;
-    }
-    if (info.cost > c.energy) { toast('NOT ENOUGH ENERGY'); SFX.tap(); return; }
+    if (i === selected) { selected = -1; setTargeting(false); renderHand(); return; }
     SFX.tap();
+    if (info.unplayable) toast('UNPLAYABLE — a curse weighs down your deck');
     selected = i;
     var multi = E.aliveEnemies().length > 1;
-    setTargeting(info.needsTarget && multi);
+    setTargeting(!info.unplayable && info.cost <= E.combat.energy && info.needsTarget && multi);
     renderHand();
   }
 
@@ -3076,7 +3234,8 @@ h2.screen-title {
     var x = ev.clientX - rect.left, y = ev.clientY - rect.top;
     var idx = R.enemyAt(x, y);
     if (selected >= 0) {
-      if (idx >= 0) playSelected(idx);
+      var si = selected;
+      if (idx >= 0 && E.canPlay(si)) { selected = -1; playCardAt(si, idx); }
       else { selected = -1; setTargeting(false); renderHand(); }
     } else if (idx >= 0) {
       // inspect enemy
@@ -3087,9 +3246,7 @@ h2.screen-title {
     }
   }
 
-  function playSelected(targetIdx) {
-    var i = selected;
-    selected = -1;
+  function playCardAt(i, targetIdx) {
     setTargeting(false);
     if (i < 0 || !E.canPlay(i)) { renderHand(); return; }
     E.events.length = 0;
@@ -3661,7 +3818,7 @@ h2.screen-title {
     var s = overlayScreen();
     s.appendChild(el('h2', 'screen-title', 'Field Manual'));
     var txt =
-      'TAP a card to select it. TAP it again to play it — or tap an enemy to choose your target.\n\n' +
+      'SWIPE a card up to play it — or drag it onto an enemy to choose your target. TAP a card to read it first.\n\n' +
       'ENERGY (⚡) limits your plays each turn. Unspent SHIELD (⬡) blocks damage but expires.\n\n' +
       'd20: every attack rolls a die. A high roll is a CRIT for double damage.\n\n' +
       'MIGHT boosts weapons, TECH boosts shields & tech, PSI boosts psionics. Attributes also decide skill checks at events.\n\n' +

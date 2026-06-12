@@ -23,6 +23,13 @@ var dom = new JSDOM(html, {
 var win = dom.window;
 win.addEventListener('error', function (e) { errors.push(e.message); });
 
+// give the canvas real dimensions so battlefield layout & hit-testing work
+var CW = 390, CH = 760;
+var bf = win.document.getElementById('battlefield');
+bf.getBoundingClientRect = function () {
+  return { width: CW, height: CH, top: 0, left: 0, right: CW, bottom: CH, x: 0, y: 0 };
+};
+
 ['balance', 'cards', 'artifacts', 'enemies', 'events', 'engine', 'render', 'ui', 'main'].forEach(function (f) {
   var src = fs.readFileSync(path.join(root, 'js', f + '.js'), 'utf8');
   try { win.eval(src); } catch (e) { throw new Error(f + '.js failed to eval: ' + e.message); }
@@ -31,7 +38,15 @@ win.addEventListener('error', function (e) { errors.push(e.message); });
 function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
 function tap(elm) {
   if (!elm) throw new Error('tap target missing');
-  elm.dispatchEvent(new win.Event('pointerdown', { bubbles: true }));
+  elm.dispatchEvent(new win.MouseEvent('pointerdown', { bubbles: true, clientX: 5, clientY: 5 }));
+  win.document.dispatchEvent(new win.MouseEvent('pointerup', { bubbles: true, clientX: 5, clientY: 5 }));
+}
+function swipe(elm, x0, y0, x1, y1) {
+  if (!elm) throw new Error('swipe target missing');
+  elm.dispatchEvent(new win.MouseEvent('pointerdown', { bubbles: true, clientX: x0, clientY: y0 }));
+  win.document.dispatchEvent(new win.MouseEvent('pointermove', { bubbles: true, clientX: (x0 + x1) / 2, clientY: (y0 + y1) / 2 }));
+  win.document.dispatchEvent(new win.MouseEvent('pointermove', { bubbles: true, clientX: x1, clientY: y1 }));
+  win.document.dispatchEvent(new win.MouseEvent('pointerup', { bubbles: true, clientX: x1, clientY: y1 }));
 }
 function q(sel) { return win.document.querySelector(sel); }
 function qa(sel) { return Array.prototype.slice.call(win.document.querySelectorAll(sel)); }
@@ -67,7 +82,15 @@ async function main() {
   if (VS.engine.run.phase !== 'combat') throw new Error('resume from menu failed');
   console.log('modals: OK');
 
-  // play through up to 30 nodes via UI taps
+  // tap selects (for reading), tap again deselects
+  var firstCard = qa('#hand .card')[0];
+  tap(firstCard); await sleep(20);
+  if (!qa('#hand .card.selected').length) throw new Error('tap did not select card');
+  tap(qa('#hand .card.selected')[0]); await sleep(20);
+  if (qa('#hand .card.selected').length) throw new Error('second tap did not deselect card');
+  console.log('tap select/deselect: OK');
+
+  // play through up to 30 nodes via swipe gestures
   var safety = 0;
   while (VS.engine.run && VS.engine.run.phase !== 'dead' && VS.engine.run.nodesCleared < 30 && safety++ < 3000) {
     var phase = VS.engine.run.phase;
@@ -76,9 +99,19 @@ async function main() {
       var cards = qa('#hand .card');
       for (var i = 0; i < cards.length; i++) {
         if (VS.engine.canPlay(i)) {
-          tap(cards[i]); await sleep(15);          // select
-          var sel = qa('#hand .card')[i];
-          if (sel) { tap(sel); await sleep(120); } // play (default target)
+          // swipe the card up onto the first living enemy; the UI ignores
+          // input while an action timeline plays, so retry like a human would
+          var uid = VS.engine.combat.hand[i].uid;
+          var gone = false;
+          for (var attempt = 0; attempt < 12 && !gone; attempt++) {
+            var ti = VS.engine.combat.enemies.findIndex(function (e) { return e.alive; });
+            var pos = VS.render.enemyPos(ti);
+            swipe(qa('#hand .card')[i], 200, 700, pos.x, pos.y);
+            await sleep(200);
+            gone = !VS.engine.combat || VS.engine.combat.over || VS.engine.run.phase !== 'combat' ||
+              !VS.engine.combat.hand.some(function (c) { return c.uid === uid; });
+          }
+          if (!gone) throw new Error('swipe did not play the card after retries');
           played = true;
           break;
         }
