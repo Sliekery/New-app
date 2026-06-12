@@ -238,8 +238,8 @@ function buildMinimap(){
   const m=miniCv.getContext('2d');
   for(let y=0;y<MAPH;y++)for(let x=0;x<MAPW;x++){
     const t=T(x,y);
-    m.fillStyle=t===G_WATER?'#1f6e86':t===G_PATH?'#b89a68':t===G_BRIDGE?'#a8845a':t===G_TREE?'#2d5224':
-      t===G_DIRT?'#8a7050':t===G_WALL?'#5a4020':t===G_ROCK?'#6a655c':t===G_SAND?'#d8c090':'#5a7a3c';
+    m.fillStyle=t===G_WATER?'#1a7ea0':t===G_PATH?'#c0a06a':t===G_BRIDGE?'#a8845a':t===G_TREE?'#2f5e22':
+      t===G_DIRT?'#96664a':t===G_WALL?'#5a4020':t===G_ROCK?'#75716a':t===G_SAND?'#e0cc9c':'#4f7c38';
     m.fillRect(x,y,1,1);
   }
 }
@@ -1433,7 +1433,7 @@ function grassCardTex(){ return canvasTex('grasscard',64,(c,s)=>{
     c.moveTo(x,s); c.quadraticCurveTo(x+Math.random()*10-5,s*0.5,x+Math.random()*16-8,s*0.1); c.stroke(); }
 }); }
 function adobeTex(){ return canvasTex('adobe',128,(c,s)=>{
-  c.fillStyle='#d8bd96'; c.fillRect(0,0,s,s);
+  c.fillStyle='#e8d0a2'; c.fillRect(0,0,s,s);
   c.globalAlpha=.12; for(let i=0;i<200;i++){ c.fillStyle=Math.random()<.5?'#8a6a40':'#fff2d8'; c.fillRect(Math.random()*s,Math.random()*s,2,2); } c.globalAlpha=1;
 }); }
 function tentTex(col){ return canvasTex('tent'+col,128,(c,s)=>{
@@ -1464,16 +1464,17 @@ function buildTerrain(){
     // color from the tile this vertex belongs to (painterly jitter)
     const t=T(Math.min(ix,MAPW-1),Math.min(iy,MAPH-1));
     const j=(vr()-0.5)*0.025; // tiny jitter only — big readable patches instead of speckle
-    if(t===G_PATH) col.setHSL(0.10,0.46,0.60+j);                // warm sandy road, clearly lighter
-    else if(t===G_DIRT) col.setHSL(0.08,0.42,0.44+j);           // packed earth
-    else if(t===G_WATER||t===G_BRIDGE) col.setHSL(0.52,0.60,0.14); // dark seabed → water reads instantly
-    else if(t===G_ROCK) col.setHSL(0.09,0.18,0.40+j);           // sun-baked crags
+    if(t===G_PATH) col.setHSL(0.085,0.52,0.56+j);               // ochre road, clearly lighter
+    else if(t===G_DIRT) col.setHSL(0.05,0.48,0.40+j);           // Istan red-brown earth
+    else if(t===G_WATER||t===G_BRIDGE) col.setHSL(0.55,0.62,0.13); // deep blue seabed
+    else if(t===G_ROCK) col.setHSL(0.08,0.10,0.46+j);           // grey crags, cool against the green
     else if(t===G_WALL) col.setHSL(0.09,0.45,0.36+j);
-    else if(t===G_SAND) col.setHSL(0.115,0.52,0.68+j);          // bright harbor sand
+    else if(t===G_SAND) col.setHSL(0.115,0.42,0.74+j);          // near-white harbor sand
     else {
       // savanna: smooth large-scale gold↔green patches (value noise, ~8-tile features)
-      const n=0.5+0.5*Math.sin(ix*0.16+Math.sin(iy*0.11)*2.2)*Math.cos(iy*0.13+Math.sin(ix*0.09)*1.8);
-      col.setHSL(lerp(0.26,0.135,n), lerp(0.45,0.58,n), lerp(0.34,0.46,n)+j);
+      const n0=0.5+0.5*Math.sin(ix*0.16+Math.sin(iy*0.11)*2.2)*Math.cos(iy*0.13+Math.sin(ix*0.09)*1.8);
+      const n=Math.pow(n0,1.7); // green-dominant: Istan is lush, gold is the accent
+      col.setHSL(lerp(0.295,0.145,n), lerp(0.52,0.58,n), lerp(0.36,0.47,n)+j);
       // darken grass that borders a road/sand — outlines the paths for readability
       let edge=false;
       for(const [dx2,dy2] of [[1,0],[-1,0],[0,1],[0,-1]]){
@@ -1500,8 +1501,8 @@ function buildTerrain(){
   wgeo.rotateX(-Math.PI/2); wgeo.translate(W/2,-5,W/2);
   waterBase=Float32Array.from(wgeo.attributes.position.array);
   waterMesh=new THREE.Mesh(wgeo,new THREE.MeshStandardMaterial({
-    color:0x18c4c0, transparent:true, opacity:0.88, roughness:0.07, metalness:0.5,
-    emissive:0x0a5a5a, emissiveIntensity:0.45,
+    color:0x1ea4cc, transparent:true, opacity:0.88, roughness:0.07, metalness:0.5,
+    emissive:0x06425e, emissiveIntensity:0.45,
     normalMap:bumpNormal('waterN',128,320,3,40)}));
   waterMesh.receiveShadow=true;
   worldGroup.add(waterMesh);
@@ -1551,17 +1552,17 @@ function buildProps(){
   inst(new THREE.CylinderGeometry(1.8,3.4,24,7),smat(barkTex(),{rough:0.95}),acaciaP,
     p=>heightAt(p[0],p[1])+12, ()=>0.9+vr()*0.35);
   const aGeo=new THREE.IcosahedronGeometry(18,2); aGeo.scale(1.4,0.42,1.4);
-  const aCan=inst(aGeo,smat(leafTex(0x86b05a),{rough:0.9}),acaciaP,
+  const aCan=inst(aGeo,smat(leafTex(0x6aa848),{rough:0.9}),acaciaP,
     p=>heightAt(p[0],p[1])+27, ()=>0.85+vr()*0.45);
-  acaciaP.forEach((p,i)=>{ cc.setHSL(0.24+vr()*0.06,0.35,0.55+vr()*0.18); aCan.setColorAt(i,cc); });
+  acaciaP.forEach((p,i)=>{ cc.setHSL(0.285+vr()*0.04,0.42,0.55+vr()*0.18); aCan.setColorAt(i,cc); });
   if(aCan.instanceColor) aCan.instanceColor.needsUpdate=true;
   // palm: slim pale trunk, bright spread fronds
   inst(new THREE.CylinderGeometry(1.4,2.4,28,7),smat(barkTex(),{color:0xddc8a8,rough:0.95}),palmP,
     p=>heightAt(p[0],p[1])+14, ()=>0.9+vr()*0.4);
   const pGeo=new THREE.IcosahedronGeometry(14,2); pGeo.scale(1.6,0.3,1.6);
-  const pCan=inst(pGeo,smat(leafTex(0x8cc060),{rough:0.85}),palmP,
+  const pCan=inst(pGeo,smat(leafTex(0x7cc455),{rough:0.85}),palmP,
     p=>heightAt(p[0],p[1])+29, ()=>0.9+vr()*0.4);
-  palmP.forEach((p,i)=>{ cc.setHSL(0.30+vr()*0.05,0.4,0.58+vr()*0.16); pCan.setColorAt(i,cc); });
+  palmP.forEach((p,i)=>{ cc.setHSL(0.315+vr()*0.04,0.48,0.60+vr()*0.16); pCan.setColorAt(i,cc); });
   if(pCan.instanceColor) pCan.instanceColor.needsUpdate=true;
   // palisade posts (rough timber)
   inst(new THREE.CylinderGeometry(3.4,4.2,30,7),smat(barkTex(),{color:0xc09868,rough:0.95}),wallP,
@@ -1590,7 +1591,7 @@ function buildProps(){
     const wall=new THREE.Mesh(new THREE.CylinderGeometry(26*s,28*s,24*s,14),adobeM); wall.position.set(ax,12*s,az); worldGroup.add(wall);
     const dome=new THREE.Mesh(new THREE.SphereGeometry(26*s,14,8,0,Math.PI*2,0,Math.PI/2),smat(adobeTex(),{color:0xe0b888,rough:0.95}));
     dome.position.set(ax,24*s,az); worldGroup.add(dome);
-    const door=box3(10*s,14*s,4,0x4a3420); door.position.set(ax,7*s,az+26*s); worldGroup.add(door);
+    const door=box3(10*s,14*s,4,0x1f6e7a); door.position.set(ax,7*s,az+26*s); worldGroup.add(door); // teal door, Kamadan accent
   };
   const flagpole=(x,z)=>{
     const pole=cyl3(1.5,1.5,46,0x3a2a14,5); pole.position.set(x,23,z); worldGroup.add(pole);
@@ -1624,7 +1625,7 @@ function buildProps(){
     const spout=cyl3(3,4,26,0x8a8698,8); spout.position.set(fx2,18,fz2); worldGroup.add(spout);
     // keep banner + market stalls + homes + the inn
     flagpole(48*TILE,13*TILE);
-    tent(12*TILE,45*TILE,0xa86a3a,0.8); tent(16*TILE,49.5*TILE,0x5a6a8a,0.8); tent(20*TILE,46*TILE,0x8a5a3a,0.8);
+    tent(12*TILE,45*TILE,0xc87838,0.8); tent(16*TILE,49.5*TILE,0x2a8a96,0.8); tent(20*TILE,46*TILE,0xd8b860,0.8);
     hut(30,35,0.8); hut(66,33,0.8); hut(72,61,0.8); hut(64,59,1.1); // the inn is the big one
     // dock crates
     for(const [cx,cz] of [[28,73],[31,74],[60,73],[26,70]]){
@@ -1657,7 +1658,7 @@ function buildProps(){
   grassP.forEach((p,i)=>{
     const s=0.7+vr()*0.8; vS.set(s*(0.7+vr()*0.6),s,s); vP.set(p[0],heightAt(p[0],p[1]),p[1]);
     q.setFromAxisAngle(up,vr()*6.28); m4.compose(vP,q,vS); gmesh.setMatrixAt(i,m4);
-    gcc.setHSL(0.18+vr()*0.10,0.45+vr()*0.2,0.30+vr()*0.10); gmesh.setColorAt(i,gcc);
+    gcc.setHSL(0.27+vr()*0.07,0.50,0.36+vr()*0.12); gmesh.setColorAt(i,gcc);
   });
   if(gmesh.instanceColor) gmesh.instanceColor.needsUpdate=true;
   worldGroup.add(gmesh);
@@ -1919,12 +1920,12 @@ const fctx=fxCanvas.getContext('2d');
 let VW=0,VH=0,DPR=1;
 
 let sunLight;
-const HAZE=0xe2d4ad;
+const HAZE=0xbdd4e6; // bluish atmospheric perspective, GW1-style
 function initThree(){
   renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
   renderer.outputEncoding=THREE.sRGBEncoding;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.18;
+  renderer.toneMappingExposure=1.12;
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   scene=new THREE.Scene();
   scene.background=new THREE.Color(HAZE); // warm Istani haze
@@ -1932,11 +1933,11 @@ function initThree(){
   camera=new THREE.PerspectiveCamera(50,1,10,3400);
   raycaster=new THREE.Raycaster();
   // stylized 3-point rig: warm sky / cool ground bounce, cool rim, warm key
-  scene.add(new THREE.HemisphereLight(0xffe7c2,0x4a6a52,0.72));
-  const amb=new THREE.AmbientLight(0xfff0d8,0.16); scene.add(amb);
+  scene.add(new THREE.HemisphereLight(0xcfe2ff,0x55684a,0.78)); // cool sky / green ground bounce
+  const amb=new THREE.AmbientLight(0xe8f0ff,0.14); scene.add(amb);
   const rim=new THREE.DirectionalLight(0x88b6ff,0.55); // cool back-rim to pop silhouettes
   rim.position.set(-360,420,-520); scene.add(rim);
-  sunLight=new THREE.DirectionalLight(0xfff0c0,1.5);
+  sunLight=new THREE.DirectionalLight(0xfff2d8,1.45); // warm key against the cool sky
   sunLight.position.set(420,760,300);
   sunLight.target.position.set(0,0,0); scene.add(sunLight.target);
   // shadow camera follows the player (High quality only)
@@ -1965,7 +1966,7 @@ function buildSky(){
   const geo=new THREE.SphereGeometry(2900,20,14);
   const pos=geo.attributes.position, cols=new Float32Array(pos.count*3), c=new THREE.Color();
   // deeper, more saturated stylized gradient
-  const top=new THREE.Color(0x2f6fc8), mid=new THREE.Color(0x9fc6dd), low=new THREE.Color(0xf3deb0);
+  const top=new THREE.Color(0x2c6cc4), mid=new THREE.Color(0x9fc8e8), low=new THREE.Color(0xe8f2f4);
   for(let i=0;i<pos.count;i++){
     const h=clamp(pos.getY(i)/2900,-1,1);
     if(h>0.14) c.copy(mid).lerp(top,Math.pow(clamp((h-0.14)/0.7,0,1),0.8));
@@ -2131,7 +2132,7 @@ function drawOverlay(){
   fctx.clearRect(0,0,VW,VH);
   // stylized warm color-grade wash over the 3D scene (HUD text is drawn after, stays crisp)
   if(SETTINGS.vignette){
-    fctx.fillStyle='rgba(255,186,96,0.07)'; fctx.fillRect(0,0,VW,VH);
+    fctx.fillStyle='rgba(255,228,190,0.035)'; fctx.fillRect(0,0,VW,VH);
   }
   // entity bars / labels
   const seen=[...enemies,hench];
