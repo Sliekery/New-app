@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Eldervale — Thornveil Reach</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <!-- Party frames (top-left) -->
+  <div id="party">
+    <div class="frame" id="playerFrame">
+      <div class="fname"><span id="pName">Kaelen</span> <span class="lvl" id="pLvl">Lv 1</span></div>
+      <div class="bar hp"><div class="fill" id="pHp"></div><span class="btxt" id="pHpTxt"></span></div>
+      <div class="bar en"><div class="fill" id="pEn"></div><span class="btxt" id="pEnTxt"></span></div>
+      <div class="bar xp"><div class="fill" id="pXp"></div></div>
+    </div>
+    <div class="frame small" id="henchFrame">
+      <div class="fname">Lyra <span class="lvl">Mender</span></div>
+      <div class="bar hp"><div class="fill" id="hHp"></div></div>
+    </div>
+  </div>
+
+  <!-- Target frame (top-center) -->
+  <div id="targetFrame" class="hidden">
+    <div class="fname"><span id="tName"></span> <span class="lvl" id="tLvl"></span></div>
+    <div class="bar hp foe"><div class="fill" id="tHp"></div></div>
+    <div id="tConds"></div>
+  </div>
+
+  <!-- Compass (top-right) -->
+  <div id="compassWrap">
+    <canvas id="compass" width="280" height="280"></canvas>
+  </div>
+
+  <!-- Quest tracker -->
+  <div id="questTracker"></div>
+
+  <!-- Gold -->
+  <div id="goldBox">🪙 <span id="goldTxt">0</span></div>
+
+  <!-- Cast bar -->
+  <div id="castbar" class="hidden"><div class="fill" id="castFill"></div><span id="castName"></span></div>
+
+  <!-- Skill bar -->
+  <div id="skillbarWrap">
+    <button id="skillInfoBtn">?</button>
+    <div id="skillbar"></div>
+  </div>
+
+  <!-- Skill info panel -->
+  <div id="skillInfo" class="panel hidden"></div>
+
+  <!-- NPC dialog -->
+  <div id="dialog" class="panel hidden">
+    <div id="dlgName"></div>
+    <div id="dlgText"></div>
+    <button id="dlgBtn"></button>
+  </div>
+
+  <!-- Banner / toast / death -->
+  <div id="banner" class="hidden"></div>
+  <div id="toast" class="hidden"></div>
+  <div id="deathOverlay" class="hidden">
+    <div class="deathTitle">You have fallen…</div>
+    <div class="deathSub" id="deathSub"></div>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
