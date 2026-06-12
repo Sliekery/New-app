@@ -86,24 +86,47 @@ Pick at character start, GW1 primary/secondary flavor:
 7. 🔥 **Fire Bolt** — 10e, 0.8s cast, 5s rc. 35 dmg + Burning (E secondary)
 8. 💫 **Restore Ally** — 0e, 3s cast, 90s rc. Resurrect Lyra
 
-## Zone: the Sunward Reach (levels 1–10)
+## The world (Nightfall-style town + explorable)
 
-Istan-savanna look: golden grass, sandy roads, turquoise river with palms,
-flat-top acacias, an adobe hut at the Sunspear outpost.
+**Sunmere Harbor** (town, Kamadan-inspired but smaller): docks and piers on the
+bay, central plaza with a fountain, market row, and the Sunspear keep. Fully
+safe. Six NPCs: Captain Aldra (story quests), Merchant Suki (buy/sell),
+Crafter Joska (materials + gold → gear), Master Henko (skill trainer),
+Fisher Dau and Innkeep Mirelle (side quests). The east gate leads out.
 
-Quest chain from Captain Aldra (turn-ins clear death penalty and pay XP/gold,
-some pay gear):
+**The Saltgrass Flats** (explorable, levels 1–10): populated GW1-style —
+small pulls of 2–4 with support casters. Skale groups along the river bring a
+**Skale Mystic** who heals its pack; corsair patrols bring a **Corsair
+Windcaller** throwing lightning and crippling gales. Four bosses roam the map,
+each with a ~35% chance at a **unique** drop: Greyfang (jackal alpha), Ssraja
+the Rivermaw, Korr Blackmaw, and Enforcer Veyd at the headwater spring.
 
-1. *Jackals at the Gates* — 4 Sand Jackals
-2. *Skale Infestation* — 5 Istani Skale by the river (rewards a blue weapon)
-3. *The Road East* — break the corsair patrol
-4. *The Blackmaw Gang* — kill boss **Korr Blackmaw** (telegraphed whirl AoE;
-   purple reward) — his **Avengers** (lvl 7 veterans) then land at the camp
-5. *Cleansing the Reach* — cut down 10 corsairs → **Sunspear Cadet** title
-   banner and a gold-rarity weapon
+## Story: Clear Water (grounded, no apocalypse)
 
-Avengers respawn, so you can farm the camp to hit the level 10 cap.
-Sell trophies (Skale Fins, Jackal Pelts, Corsair Emblems) to **Merchant Suki**.
+Sunmere's trade is dying — three weeks without a caravan. The river runs foul
+and corsairs choke the east road. A ledger page found on a patrol leads, via
+Suki, to **Vessa Marr**: a broker who lost her shipping license and decided
+that if her overland caravans were the only ones getting through, the town
+would pay anything she asked. Poison the spring, hire the corsairs, corner the
+market. Seven story quests (ending at the spring sluice and a town that trades
+again) plus six side quests: bounties, pelts for the inn's hearth, the
+trainer's proving, and more. Turn-ins pay XP/gold/skill points and clear
+death penalty.
+
+## Skills, the GW1 way
+
+You start knowing your 8 default skills. **Master Henko sells the rest**
+(5 more per profession — Cyclone Slash, Shield Bash, Frost Nova, Meteor,
+Chain Gale…) for gold + 1 skill point each; skill points come from leveling
+and quests. Compose your own 8-slot bar in ✨ Skills & Builds — **editable only
+in town**, the GW1 outpost rule. Builds save bar + attributes together.
+
+## Crafting & trade (Nightfall flavor)
+
+Beasts and corsairs drop materials — Tanned Hide, Skale Scale, Iron Shard.
+Joska crafts level-scaled rare gear from materials + gold (blade, scepter,
+tower shield, focus). Suki buys trophies at full value and stocks a small
+rotating selection of gear.
 
 ## Prototype scope / next steps
 

@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Eldervale — The Sunward Reach</title>
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -87,6 +87,21 @@
     <div class="modalBody" id="settingsBody"></div>
   </div>
 
+  <div id="craftPanel" class="modal hidden">
+    <div class="modalHead"><span class="mt">Crafting — Joska</span><button class="mx" data-close>✕</button></div>
+    <div class="modalBody" id="craftBody"></div>
+  </div>
+
+  <div id="merchPanel" class="modal hidden">
+    <div class="modalHead"><span class="mt">Wares — Suki</span><button class="mx" data-close>✕</button></div>
+    <div class="modalBody" id="merchBody"></div>
+  </div>
+
+  <div id="trainPanel" class="modal hidden">
+    <div class="modalHead"><span class="mt">Skill Trainer — Henko</span><button class="mx" data-close>✕</button></div>
+    <div class="modalBody" id="trainBody"></div>
+  </div>
+
   <div id="dialog" class="modal hidden">
     <div class="modalHead"><span class="mt" id="dlgName"></span><button class="mx" data-close>✕</button></div>
     <div class="modalBody"><div id="dlgText"></div><button id="dlgBtn"></button></div>
@@ -95,9 +110,9 @@
   <div id="classPick" class="hidden"></div>
 </div>
 
-<script src="three.min.js?v=9"></script>
-<script src="GLTFLoader.js?v=9"></script>
-<script src="SkeletonUtils.js?v=9"></script>
-<script src="game.js?v=9"></script>
+<script src="three.min.js?v=10"></script>
+<script src="GLTFLoader.js?v=10"></script>
+<script src="SkeletonUtils.js?v=10"></script>
+<script src="game.js?v=10"></script>
 </body>
 </html>
