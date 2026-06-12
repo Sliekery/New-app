@@ -746,9 +746,11 @@ function buildProps(){
   // border crags
   inst(new THREE.DodecahedronGeometry(16,0),mat(0x6a6a72),rockP,
     p=>heightAt(p[0],p[1])+6, ()=>0.8+vr()*1.6);
-  // bridge planks
-  for(const [wx,wz] of bridgeP){
-    const b=box3(TILE,3,TILE,0x7a5a30); b.position.set(wx,1.5,wz); scene.add(b);
+  // bridge planks (single instanced mesh)
+  if(bridgeP.length){
+    const bim=new THREE.InstancedMesh(new THREE.BoxGeometry(TILE,3,TILE),mat(0x7a5a30),bridgeP.length);
+    bridgeP.forEach((p,i)=>{ m4.makeTranslation(p[0],1.5,p[1]); bim.setMatrixAt(i,m4); });
+    scene.add(bim);
   }
 
   // tents
@@ -878,6 +880,8 @@ function makeAvatar(e){
 function syncAvatar(e){
   if(!e.av) e.av=makeAvatar(e);
   const g=e.av;
+  // distance cull: far-off characters cost draw calls but are lost in the fog anyway
+  if(e!==player&&dist(e.x,e.y,player.x,player.y)>1150){ g.visible=false; return; }
   // hide fully-faded corpses awaiting respawn
   if(e.kind==='enemy'&&e.dead&&now>=e.respawnAt-20){ g.visible=false; return; }
   g.visible=true;
@@ -917,7 +921,7 @@ const fctx=fxCanvas.getContext('2d');
 let VW=0,VH=0,DPR=1;
 
 function initThree(){
-  renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+  renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
   renderer.outputEncoding=THREE.sRGBEncoding;
   scene=new THREE.Scene();
   scene.background=new THREE.Color(0xb8cfdf);
@@ -932,7 +936,7 @@ function initThree(){
 }
 
 function resize(){
-  DPR=Math.min(2,window.devicePixelRatio||1);
+  DPR=Math.min(1.5,window.devicePixelRatio||1); // cap fill cost on retina phones
   VW=window.innerWidth; VH=window.innerHeight;
   fxCanvas.width=VW*DPR; fxCanvas.height=VH*DPR;
   fxCanvas.style.width=VW+'px'; fxCanvas.style.height=VH+'px';
@@ -1361,12 +1365,12 @@ function drawCompass(){
 }
 
 /* ---------------- main loop ---------------- */
-let lastT=performance.now();
+let lastT=performance.now(), frameNo=0;
 function loop(tms){
   requestAnimationFrame(loop);
   let dt=(tms-lastT)/1000; lastT=tms;
   dt=Math.min(dt,0.05);
-  now+=dt;
+  now+=dt; frameNo++;
 
   updatePlayer(dt);
   updateHench(dt);
@@ -1374,8 +1378,9 @@ function loop(tms){
   updateProjectiles(dt);
 
   render();
-  drawCompass();
-  syncUI();
+  // HUD redraws don't need 60fps
+  if(frameNo%3===0) drawCompass();
+  if(frameNo%2===0) syncUI();
 }
 
 /* ---------------- boot ---------------- */
