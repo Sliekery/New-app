@@ -137,56 +137,52 @@ const RES_SKILL={name:'Restore Ally', icon:'💫', en:0, rc:90, cast:3, type:'re
   }}};
 
 const WARRIOR_SKILLS=[
-  {name:'Sever Artery', icon:'🩸', en:5,  rc:4,  cast:0, type:'melee', desc:'Sword attack: +8 damage and inflicts Bleeding for 12s.',
-    fx(t){ meleeAttack(player,t,8,d=>{addCond(d,'bleed',12); ftext(d.x,d.y,'Bleeding!','#e05050',11);}); }},
-  {name:'Final Thrust', icon:'🗡️', en:10, rc:8,  cast:0, type:'melee', desc:'Sword attack: +18 damage; doubled bonus if the foe is below 50% health.',
-    fx(t){ meleeAttack(player,t,t.hp<maxHpOf(t)*0.5?36:18); }},
-  {name:'Cyclone Slash',icon:'🌀', en:8,  rc:10, cast:0, type:'pbaoe', desc:'Whirl your blade, striking all adjacent foes.',
-    fx(){
-      effects.push({type:'aoe',x:player.x,y:player.y,t:now,dur:0.35,r:78});
-      for(const e of enemies){
-        if(!e.dead&&dist(player.x,player.y,e.x,e.y)<78+e.r) applyDamage(player,e,rollDmg(player),'#ffd870');
-      }
-      player.nextAtk=now+player.atkInt;
-    }},
+  {name:'Sever Artery', icon:'🩸', en:0, adr:4, rc:1, cast:0, type:'melee', desc:'Adrenaline (4 strikes): sword attack, +5 damage, Bleeding for 15s.',
+    fx(t){ meleeAttack(player,t,strMod(5),d=>{addCond(d,'bleed',15); ftext(d.x,d.y,'Bleeding!','#e05050',11);}); }},
+  {name:'Gash',         icon:'🗡️', en:0, adr:6, rc:1, cast:0, type:'melee', desc:'Adrenaline (6): +7 damage. A Bleeding foe suffers a Deep Wound (−20% max HP, 15s).',
+    fx(t){ meleeAttack(player,t,strMod(7),d=>{
+      if(condActive(d,'bleed')){ addCond(d,'deepwound',15); ftext(d.x,d.y,'Deep Wound!','#b050d0',11); }
+    }); }},
+  {name:'Final Thrust', icon:'⚔️', en:0, adr:9, rc:1, cast:0, type:'melee', drainAll:true, desc:'Adrenaline (9): +20 damage, +40 if the foe is below half health. Drains ALL adrenaline.',
+    fx(t){ meleeAttack(player,t,strMod(t.hp<maxHpOf(t)*0.5?40:20)); }},
   {name:'Hamstring',    icon:'🦶', en:7,  rc:12, cast:0, type:'melee', desc:'Sword attack: +5 damage and Cripples the foe (slowed) for 8s.',
     fx(t){ meleeAttack(player,t,5,d=>{addCond(d,'cripple',8); ftext(d.x,d.y,'Crippled!','#e3a23c',11);}); }},
-  {name:'Healing Signet',icon:'✚', en:0,  rc:20, cast:2, type:'self',  desc:'Signet (2s): heal yourself for 45% of max health. Moving cancels it.',
+  {name:'Healing Signet',icon:'✚', en:0,  rc:20, cast:2, type:'self',  desc:'Signet (2s): heal for 45% of max health (more with Tactics). Moving cancels it.',
     fx(){
-      const heal=Math.round(pMaxHp()*0.45);
+      const heal=Math.round(pMaxHp()*(0.45+0.02*attr('Tactics')));
       player.hp=Math.min(pMaxHp(),player.hp+heal);
       ftext(player.x,player.y,'+'+heal,'#70e070',15);
       effects.push({type:'heal',x:player.x,y:player.y,t:now,dur:0.6});
     }},
-  {name:'Sprint',       icon:'💨', en:5,  rc:15, cast:0, type:'self',  desc:'Stance: move 40% faster for 6 seconds.',
-    fx(){ player.buffs.sprint=now+6; effects.push({type:'heal',x:player.x,y:player.y,t:now,dur:0.3}); }},
-  {name:'Fire Bolt',    icon:'🔥', en:10, rc:5,  cast:0.8, type:'ranged', range:300, desc:'Spell (0.8s): hurl fire for 35 damage and Burning for 3s.',
-    fx(t){ if(t&&!t.dead) fireProjectile(player,t,35,'#ff8830',d=>{addCond(d,'burn',3); ftext(d.x,d.y,'Burning!','#ff8830',11);}); }},
+  {name:'Frenzy',       icon:'😤', en:5,  rc:15, cast:0, type:'self',  desc:'Stance (6s): attack 33% faster, but you take double damage. GW1 classic.',
+    fx(){ player.buffs.frenzy=now+6; ftext(player.x,player.y,'Frenzy!','#ff9050',13); }},
+  {name:'Fire Bolt',    icon:'🔥', en:10, rc:5,  cast:0.8, type:'ranged', range:300, desc:'Spell (0.8s): hurl fire for 35 damage and Burning for 3s (Elementalist secondary).',
+    fx(t){ if(t&&!t.dead) fireProjectile(player,t,fireMod(35),'#ff8830',d=>{addCond(d,'burn',3); ftext(d.x,d.y,'Burning!','#ff8830',11);}); }},
   RES_SKILL,
 ];
 
 const ELE_SKILLS=[
   {name:'Flare',        icon:'🔥', en:5,  rc:2,  cast:1, type:'ranged', range:290, desc:'Spell (1s): bolt of fire for 26 damage. Your bread-and-butter — spam it.',
-    fx(t){ if(t&&!t.dead) fireProjectile(player,t,26,'#ff9840'); }},
+    fx(t){ if(t&&!t.dead) fireProjectile(player,t,fireMod(26),'#ff9840'); }},
   {name:'Fireball',     icon:'☄️', en:10, rc:7,  cast:2, type:'ranged', range:300, desc:'Spell (2s): explodes on your target for 45 damage to all foes near it.',
     fx(t){
       if(!t||t.dead) return;
       const cx=t.x, cy=t.y;
       effects.push({type:'aoe',x:cx,y:cy,t:now,dur:0.45,r:88,color:'#ff7030'});
       for(const e of enemies){
-        if(!e.dead&&dist(cx,cy,e.x,e.y)<88+e.r) applyDamage(player,e,45,'#ff9040');
+        if(!e.dead&&dist(cx,cy,e.x,e.y)<88+e.r) applyDamage(player,e,fireMod(45),'#ff9040');
       }
     }},
   {name:'Lightning Strike',icon:'⚡', en:5, rc:4, cast:0.75, type:'ranged', range:310, desc:'Spell (0.75s): instant lightning for 35 damage.',
     fx(t){
       if(!t||t.dead) return;
       effects.push({type:'beam',x:player.x,y:player.y,x2:t.x,y2:t.y,t:now,dur:0.25});
-      applyDamage(player,t,35,'#ffe860');
+      applyDamage(player,t,stormMod(35),'#ffe860');
     }},
   {name:'Ice Shard',    icon:'❄️', en:10, rc:8,  cast:1, type:'ranged', range:290, desc:'Spell (1s): 30 cold damage and Chills (slows) the foe for 6s.',
-    fx(t){ if(t&&!t.dead) fireProjectile(player,t,30,'#8ad8ff',d=>{addCond(d,'cripple',6); ftext(d.x,d.y,'Chilled!','#8ad8ff',11);}); }},
+    fx(t){ if(t&&!t.dead) fireProjectile(player,t,stormMod(30),'#8ad8ff',d=>{addCond(d,'cripple',6); ftext(d.x,d.y,'Chilled!','#8ad8ff',11);}); }},
   {name:'Immolate',     icon:'🌋', en:10, rc:6,  cast:1, type:'ranged', range:290, desc:'Spell (1s): 30 fire damage and Burning for 4s.',
-    fx(t){ if(t&&!t.dead) fireProjectile(player,t,30,'#ff7030',d=>{addCond(d,'burn',4); ftext(d.x,d.y,'Burning!','#ff8830',11);}); }},
+    fx(t){ if(t&&!t.dead) fireProjectile(player,t,fireMod(30),'#ff7030',d=>{addCond(d,'burn',4); ftext(d.x,d.y,'Burning!','#ff8830',11);}); }},
   {name:'Armor of Earth',icon:'🪨', en:10, rc:25, cast:0.75, type:'self', desc:'Spell: skin of stone — you take 40% less damage for 10 seconds.',
     fx(){
       player.buffs.stone=now+10;
@@ -214,15 +210,60 @@ const CLASSES={
 };
 let SKILLS=WARRIOR_SKILLS;
 
+/* ---------------- attributes & items (GW1-style) ---------------- */
+const CLASS_ATTRS={
+  warrior:['Strength','Swordsmanship','Tactics'],
+  elementalist:['Energy Storage','Fire Magic','Storm Magic'],
+};
+const ATTR_DESC={
+  'Strength':'+1.5% adrenaline skill damage and +1 armor per rank',
+  'Swordsmanship':'+2% sword damage per rank',
+  'Tactics':'Healing Signet heals +2% per rank',
+  'Energy Storage':'+3 maximum energy per rank',
+  'Fire Magic':'+4% fire spell & wand damage per rank',
+  'Storm Magic':'+4% lightning and cold damage per rank',
+};
+const attr=n=>player.attrs[n]||0;
+const fireMod=d=>Math.round(d*(1+0.04*attr('Fire Magic')));
+const stormMod=d=>Math.round(d*(1+0.04*attr('Storm Magic')));
+const strMod=d=>Math.round(d*(1+0.015*attr('Strength')));
+
+const RARITY_COLORS=['#e8e8e8','#7ab0ff','#c080ff','#ffd34d'];
+const RARITY_PREFIX=['Worn','Istani','Sunspear',"Blackmaw's"];
+function genW(wt,lvl,rar){
+  const base=wt==='sword'?['Sword','Cutlass','Blade']:['Wand','Scepter','Cane'];
+  const mn=Math.round((wt==='sword'?8:6)+1.8*lvl+2.5*rar);
+  return {kind:'weapon',wtype:wt,rarity:rar,name:RARITY_PREFIX[rar]+' '+base[irand(0,2)],
+    dmgMin:mn,dmgMax:mn+6+2*rar,value:12+6*lvl+25*rar};
+}
+function genOff(ot,lvl,rar){
+  if(ot==='shield') return {kind:'off',otype:'shield',rarity:rar,name:RARITY_PREFIX[rar]+' Shield',armor:8+2*lvl+4*rar,value:10+5*lvl+20*rar};
+  return {kind:'off',otype:'focus',rarity:rar,name:RARITY_PREFIX[rar]+' Focus',energy:4+Math.round(lvl/2)+3*rar,value:10+5*lvl+20*rar};
+}
+function makeEquip(lvl,rarity){
+  const rar=rarity!==undefined?rarity:(Math.random()<0.12?2:Math.random()<0.45?1:0);
+  const r=Math.random();
+  if(r<0.4) return genW(player.cls==='warrior'?'sword':'wand',lvl,rar); // bias to your class
+  if(r<0.65) return genW(Math.random()<0.5?'sword':'wand',lvl,rar);
+  return genOff(Math.random()<0.5?'shield':'focus',lvl,rar);
+}
+function makeTrophy(e){return {kind:'trophy',rarity:0,name:e.trophy,value:4+2*e.lvl};}
+function giveItem(it){
+  if(player.inv.length<20){ player.inv.push(it); toast('Received: '+it.name); }
+  else drops.push({x:player.x,y:player.y,item:it,t:now});
+}
+
 /* ---------------- entities ---------------- */
 const enemies=[], drops=[], projectiles=[], effects=[], ftexts=[];
-let player, hench, npcAldra;
+let player, hench, npcAldra, npcSuki;
 
 function makePlayer(){
   const p=findOpen(13,77);
   return {
     kind:'player', name:'Kaelen', team:0, x:p.x, y:p.y, r:13, face:0,
-    cls:'warrior', enRegen:1.33,
+    cls:'warrior', enRegen:1.33, adr:0,
+    inv:[], equip:{weapon:{kind:'weapon',wtype:'sword',rarity:0,name:'Training Sword',dmgMin:10,dmgMax:16,value:0}, off:null},
+    attrs:{}, attrPts:0,
     lvl:1, xp:0, gold:0, dp:0,
     baseHp:100, baseEn:30, hp:100, en:30,
     dmgMin:12, dmgMax:18, atkInt:1.2, range:MELEE_RANGE, speed:130,
@@ -232,7 +273,7 @@ function makePlayer(){
   };
 }
 const pMaxHp=()=>Math.round(player.baseHp*(1-player.dp));
-const pMaxEn=()=>Math.round(player.baseEn*(1-player.dp));
+const pMaxEn=()=>Math.round((player.baseEn+3*(player.attrs['Energy Storage']||0)+((player.equip.off&&player.equip.off.energy)||0))*(1-player.dp));
 
 function makeHench(){
   const p=findOpen(12,79);
@@ -244,11 +285,12 @@ function makeHench(){
 }
 
 const ENEMY_TYPES={
-  skale:  {name:'River Skale',   lvl:1, hp:55,  dmgMin:6, dmgMax:10, atkInt:1.6, range:MELEE_RANGE, speed:80,  r:12, color:'#3a8a7a', gold:[3,8]},
-  wolf:   {name:'Grey Wolf',     lvl:2, hp:80,  dmgMin:8, dmgMax:13, atkInt:1.1, range:MELEE_RANGE, speed:155, r:12, color:'#7a7d85', gold:[4,10]},
-  raider: {name:'Bandit Raider', lvl:3, hp:120, dmgMin:11,dmgMax:17, atkInt:1.3, range:MELEE_RANGE, speed:135, r:13, color:'#8a4a3a', gold:[8,18]},
-  archer: {name:'Bandit Archer', lvl:3, hp:90,  dmgMin:10,dmgMax:15, atkInt:1.8, range:265, speed:120, r:12, color:'#9a6a3a', gold:[8,18]},
-  chief:  {name:'Korr Blackmaw', lvl:5, hp:420, dmgMin:16,dmgMax:26, atkInt:1.4, range:MELEE_RANGE, speed:140, r:17, color:'#b03838', gold:[120,180], boss:true},
+  skale:  {name:'Istani Skale',   lvl:1, hp:55,  dmgMin:6, dmgMax:10, atkInt:1.6, range:MELEE_RANGE, speed:80,  r:12, color:'#3a8a7a', gold:[3,8],  trophy:'Skale Fin'},
+  wolf:   {name:'Sand Jackal',    lvl:2, hp:80,  dmgMin:8, dmgMax:13, atkInt:1.1, range:MELEE_RANGE, speed:155, r:12, color:'#b09a6a', gold:[4,10], trophy:'Jackal Pelt'},
+  raider: {name:'Corsair Raider', lvl:3, hp:120, dmgMin:11,dmgMax:17, atkInt:1.3, range:MELEE_RANGE, speed:135, r:13, color:'#8a4a3a', gold:[8,18], trophy:'Corsair Emblem'},
+  archer: {name:'Corsair Archer', lvl:3, hp:90,  dmgMin:10,dmgMax:15, atkInt:1.8, range:265, speed:120, r:12, color:'#9a6a3a', gold:[8,18], trophy:'Corsair Emblem'},
+  chief:  {name:'Korr Blackmaw',  lvl:6, hp:480, dmgMin:18,dmgMax:28, atkInt:1.4, range:MELEE_RANGE, speed:140, r:17, color:'#b03838', gold:[120,180], boss:true},
+  avenger:{name:'Blackmaw Avenger',lvl:7,hp:260, dmgMin:20,dmgMax:30, atkInt:1.2, range:MELEE_RANGE, speed:150, r:13, color:'#7a3050', gold:[20,40], trophy:'Corsair Emblem'},
 };
 
 function spawnEnemy(type,tx,ty){
@@ -275,33 +317,76 @@ function spawnAll(){
   spawnEnemy('raider',74,22); spawnEnemy('raider',82,22); spawnEnemy('raider',78,24);
   spawnEnemy('archer',75,17); spawnEnemy('archer',81,17);
   spawnEnemy('chief',78,20);
-  // NPC
+  // NPCs
   const np=findOpen(11,76);
   npcAldra={kind:'npc', name:'Captain Aldra', x:np.x, y:np.y, r:13, face:0.4};
+  const ns=findOpen(16,79);
+  npcSuki={kind:'npc', name:'Merchant Suki', style:'merchant', x:ns.x, y:ns.y, r:13, face:-2.2};
 }
 
-/* ---------------- quest ---------------- */
-const quest={stage:0, wolves:0};
-const QUEST_NEED_WOLVES=4;
+/* ---------------- quest chain (stage 2k+1 = quest k active, 2k+2 = turn-in ready) ---------------- */
+const quest={stage:0, kills:0};
+const QUESTS=[
+  {name:'Jackals at the Gates', need:4, match:e=>e.type==='wolf',
+   offer:'Sand jackals prowl right up to our gates — bold as corsairs. Thin the packs: slay four, then report back.',
+   turnin:'Four pelts — fine work, recruit.', xp:250, gold:100},
+  {name:'Skale Infestation', need:5, match:e=>e.type==='skale',
+   offer:'The river chokes with Istani skale; the fisherfolk won\'t cast a net. Cull five along the banks.',
+   turnin:'The river breathes again. Take this from the armory.', xp:300, gold:120, item:()=>makeEquip(3,1)},
+  {name:'The Road East', need:3, match:e=>e.type==='raider'||e.type==='archer',
+   offer:'Corsairs prey on the east road past the bridge. Break their patrol — three of them — and the caravans move again.',
+   turnin:'The road runs free. The Sunspears owe you.', xp:350, gold:150},
+  {name:'The Blackmaw Gang', need:1, match:e=>e.type==='chief',
+   offer:'Now the true rot: Korr Blackmaw squats in the palisade camp north-east. End him. Take Lyra — and when his cleaver spins, step away.',
+   turnin:'Blackmaw, dead?! Ha! Tonight the Reach sleeps easy.', xp:600, gold:300, item:()=>makeEquip(6,2), onTurnin(){spawnAvengers();}},
+  {name:'Cleansing the Reach', need:10, match:e=>e.type==='raider'||e.type==='archer'||e.type==='avenger'||e.type==='chief',
+   offer:'Blackmaw\'s avengers have landed at the camp — veterans, every one. Cut down ten corsairs and the Reach is truly ours. Do this, and you wear the Sunspear crest.',
+   turnin:'It is done. Kneel, recruit — rise, Sunspear Cadet of Eldervale!', xp:1000, gold:500, item:()=>makeEquip(9,3), final:true},
+];
+const activeQuest=()=>quest.stage%2===1&&quest.stage<2*QUESTS.length?QUESTS[(quest.stage-1)/2]:null;
+
+function spawnAvengers(){
+  for(const [x,y] of [[74,18],[78,16],[82,18],[75,23],[81,23],[78,21]]) spawnEnemy('avenger',x,y);
+  toast('Corsair sails on the horizon — avengers land at the camp!');
+}
+function questCredit(e){
+  const q=activeQuest(); if(!q||!q.match(e)) return;
+  quest.kills++;
+  if(quest.kills>=q.need){ quest.stage++; toast(q.name+' — return to Captain Aldra'); }
+  else toast(`${q.name}: ${quest.kills}/${q.need}`);
+}
+function questMarker(){
+  const s=quest.stage,N=QUESTS.length;
+  if(s===0||(s%2===0&&s>=2&&s<=2*N)) return '!';
+  if(s%2===1&&s<2*N) return '?';
+  return '';
+}
 function questTrackerText(){
-  switch(quest.stage){
-    case 0: return '<span class="qtitle">Thornveil Reach</span><br>Speak with Captain Aldra at the outpost.';
-    case 1: return `<span class="qtitle">Wolves at the Gates</span><br>Slay grey wolves: ${quest.wolves}/${QUEST_NEED_WOLVES}`;
-    case 2: return '<span class="qtitle">Wolves at the Gates</span><br>Return to Captain Aldra.';
-    case 3: return '<span class="qtitle">The Blackmaw Gang</span><br>Defeat Korr Blackmaw in the bandit camp (north-east, across the bridge).';
-    case 4: return '<span class="qtitle">The Blackmaw Gang</span><br>Korr is slain! Return to Captain Aldra.';
-    default: return '<span class="qtitle">Thornveil Reach</span><br>Zone complete. Explore at will, adventurer.';
-  }
+  const s=quest.stage,N=QUESTS.length;
+  if(s===0) return '<span class="qtitle">Sunward Reach</span><br>Speak with Captain Aldra at the outpost.';
+  if(s>2*N) return '<span class="qtitle">Sunward Reach</span><br>Zone cleansed, Sunspear Cadet. Explore at will.';
+  const q=QUESTS[Math.floor((s-1)/2)];
+  if(s%2===1) return `<span class="qtitle">${q.name}</span><br>${q.need>1?`Slain: ${quest.kills}/${q.need}`:'Defeat Korr Blackmaw (NE camp).'}`;
+  return `<span class="qtitle">${q.name}</span><br>Return to Captain Aldra.`;
 }
 function aldraDialog(){
-  switch(quest.stage){
-    case 0: return {text:'Welcome to Thornveil Reach, recruit. The wilds grow bolder by the day — grey wolves prowl right up to our road. Thin their numbers: slay four of them, then report back.', btn:'Accept: Wolves at the Gates', act(){quest.stage=1; toast('Quest accepted: Wolves at the Gates');}};
-    case 1: return {text:`The wolves still prowl. You've felled ${quest.wolves} of ${QUEST_NEED_WOLVES}. They roam the meadows along the road and beyond the river.`, btn:'I\'m on it', act(){}};
-    case 2: return {text:'Four pelts — fine work. But wolves are the least of it. The Blackmaw gang has dug into the old camp north-east, across the bridge. Their chief, Korr Blackmaw, must fall. Take Lyra and end him.', btn:'Turn in (+250 XP, +100g) & accept', act(){giveXp(250); player.gold+=100; clearDp(); quest.stage=3; toast('Quest accepted: The Blackmaw Gang');}};
-    case 3: return {text:'Korr Blackmaw still draws breath. His camp lies north-east along the road, past the bridge. Watch his cleaver — when he spins, step away.', btn:'For Eldervale!', act(){}};
-    case 4: return {text:'Blackmaw is dead?! Ha! The Reach breathes easier tonight, and your name will be known in Eldervale. Take this — you\'ve more than earned it.', btn:'Turn in (+600 XP, +300g)', act(){giveXp(600); player.gold+=300; clearDp(); quest.stage=5; banner('THORNVEIL REACH','zone complete');}};
-    default: return {text:'The Reach is quiet, thanks to you. Rest at the shrine, or wander where you will — the next gate to Eldervale opens soon.', btn:'Farewell', act(){}};
-  }
+  const s=quest.stage,N=QUESTS.length;
+  if(s===0) return {text:'Welcome to the Sunward Reach, recruit — Sunspear ground, barely held. '+QUESTS[0].offer,
+    btn:'Accept: '+QUESTS[0].name, act(){quest.stage=1;quest.kills=0;toast('Quest accepted: '+QUESTS[0].name);}};
+  if(s>2*N) return {text:'The Reach is quiet, Cadet — your doing. Rest at the shrine; the next gate to Eldervale opens soon.', btn:'Farewell', act(){}};
+  const qi=Math.floor((s-1)/2), q=QUESTS[qi];
+  if(s%2===1) return {text:q.offer, btn:`${q.name}: ${quest.kills}/${q.need}`, act(){}};
+  const next=QUESTS[qi+1];
+  return {text:q.turnin+(next?' — But listen: '+next.offer:''),
+    btn:`Turn in (+${q.xp} XP, +${q.gold}g)`+(next?' & accept':''),
+    act(){
+      giveXp(q.xp); player.gold+=q.gold; clearDp();
+      if(q.item) giveItem(q.item());
+      if(q.onTurnin) q.onTurnin();
+      quest.stage=s+1; quest.kills=0;
+      if(next) toast('Quest accepted: '+next.name);
+      else banner('SUNSPEAR CADET','the reach is cleansed');
+    }};
 }
 
 /* ---------------- combat ---------------- */
@@ -315,13 +400,31 @@ function speedOf(e){
   if(e===player&&(player.buffs.sprint||0)>now) s*=1.4;
   return s;
 }
-function maxHpOf(e){return e===player?pMaxHp():e.maxHp;}
+function maxHpOf(e){
+  let m=e===player?pMaxHp():e.maxHp;
+  if(condActive(e,'deepwound')) m=Math.round(m*0.8); // GW1 Deep Wound
+  return m;
+}
 
-function rollDmg(a){return irand(a.dmgMin,a.dmgMax);}
+function rollDmg(a){
+  if(a===player){
+    const w=player.equip.weapon;
+    const wAttr=player.cls==='warrior'?'Swordsmanship':'Fire Magic';
+    return Math.round(irand(w.dmgMin,w.dmgMax)*(1+0.02*attr(wAttr)));
+  }
+  return irand(a.dmgMin,a.dmgMax);
+}
 
 function applyDamage(src,e,amt,color){
   if(e.dead) return;
-  if(e===player&&(player.buffs.stone||0)>now) amt=Math.max(1,Math.round(amt*0.6)); // Armor of Earth
+  if(e===player){
+    if((player.buffs.frenzy||0)>now) amt*=2;            // Frenzy downside
+    if((player.buffs.stone||0)>now) amt*=0.6;           // Armor of Earth
+    const armor=((player.equip.off&&player.equip.off.armor)||0)+attr('Strength');
+    amt*=Math.max(0.45,1-armor/140);                    // shield + Strength armor
+    amt=Math.max(1,Math.round(amt));
+    player.adr=Math.min(10,player.adr+0.5);             // adrenaline when struck
+  }
   e.hp-=amt; e.lastCombat=now;
   if(src) src.lastCombat=now;
   ftext(e.x,e.y,'-'+amt,color||'#ff7050',14);
@@ -346,7 +449,9 @@ function aggro(e,target){
 
 function meleeAttack(a,d,bonus,onHit){
   a.face=Math.atan2(d.y-a.y,d.x-a.x);
-  a.nextAtk=now+a.atkInt;
+  const frenzied=a===player&&(player.buffs.frenzy||0)>now;
+  a.nextAtk=now+(frenzied?a.atkInt*0.67:a.atkInt);
+  if(a===player) player.adr=Math.min(10,player.adr+1); // adrenaline per strike
   const dmg=rollDmg(a)+(bonus||0);
   applyDamage(a,d,dmg, a.team===0?'#ffd870':'#ff7050');
   if(onHit&&!d.dead) onHit(d);
@@ -362,18 +467,16 @@ function die(e,src){
   e.dead=true; e.target=null; e.cond={};
   if(e.kind==='enemy'){
     e.respawnAt=now+(e.boss?120:30);
-    // quest credit
-    if(e.type==='wolf'&&quest.stage===1){
-      quest.wolves++;
-      toast(`Grey Wolf slain (${quest.wolves}/${QUEST_NEED_WOLVES})`);
-      if(quest.wolves>=QUEST_NEED_WOLVES) quest.stage=2;
-    }
-    if(e.type==='chief'&&quest.stage===3){ quest.stage=4; banner('KORR BLACKMAW','has been defeated'); }
-    // xp + gold
+    if(e.type==='chief'&&quest.stage===7) banner('KORR BLACKMAW','has been defeated');
+    questCredit(e);
+    // xp + loot
     giveXp(18+e.lvl*10);
     if(Math.random()<0.65||e.boss){
       drops.push({x:e.x+rand(-10,10),y:e.y+rand(-10,10),gold:irand(e.gold[0],e.gold[1]),t:now});
     }
+    if(e.boss) drops.push({x:e.x+rand(-14,14),y:e.y+rand(-14,14),item:makeEquip(e.lvl,2),t:now});
+    else if(e.trophy&&Math.random()<0.35) drops.push({x:e.x+rand(-14,14),y:e.y+rand(-14,14),item:makeTrophy(e),t:now});
+    else if(Math.random()<0.08) drops.push({x:e.x+rand(-14,14),y:e.y+rand(-14,14),item:makeEquip(e.lvl),t:now});
     if(player.target===e){player.target=null;player.engaged=false;}
   } else if(e===player){
     player.engaged=false; player.target=null; player.moveTo=null;
@@ -394,15 +497,21 @@ function die(e,src){
 }
 
 function giveXp(x){
+  if(player.lvl>=10){ player.xp=Math.min(player.xp+x,xpNeed()); return; } // GW1-style cap (10 for this campaign)
   player.xp+=x; ftext(player.x,player.y,'+'+x+' XP','#d8c069',12);
   let need=xpNeed();
-  while(player.xp>=need){
+  while(player.xp>=need&&player.lvl<10){
     player.xp-=need; player.lvl++;
-    player.baseHp+=20; player.baseEn+=2; player.dmgMin+=2; player.dmgMax+=2;
+    player.baseHp+=20; player.baseEn+=2;
+    player.attrPts+=3; // spend in the Hero panel (🎒)
+    // Lyra levels with you
+    hench.lvl=player.lvl;
+    hench.maxHp=110+18*Math.max(0,player.lvl-2);
+    hench.dmgMin=9+2*Math.max(0,player.lvl-2); hench.dmgMax=hench.dmgMin+5;
     clearDp(); player.hp=pMaxHp(); player.en=pMaxEn();
     effects.push({type:'levelup',x:player.x,y:player.y,t:now,dur:1.2});
     ftext(player.x,player.y,'LEVEL UP!','#ffe680',20);
-    banner('LEVEL '+player.lvl,'your power grows');
+    banner('LEVEL '+player.lvl,'+3 attribute points');
     need=xpNeed();
   }
 }
@@ -416,6 +525,7 @@ function useSkill(i){
   if(player.dead||cast) return;
   const sk=SKILLS[i];
   if(now<player.skillReady[i]){ return; }
+  if(sk.adr&&player.adr<sk.adr){ toast('Not enough adrenaline — keep swinging'); return; }
   if(player.en<sk.en){ toast('Not enough energy'); return; }
   const t=player.target;
   if(sk.type==='melee'){
@@ -431,6 +541,7 @@ function useSkill(i){
     if(dist(player.x,player.y,hench.x,hench.y)>220){ toast('Move closer to Lyra\'s body'); return; }
   }
   player.en-=sk.en;
+  if(sk.adr) player.adr=sk.drainAll?0:player.adr-sk.adr;
   if(sk.cast>0){
     cast={idx:i,t0:now,dur:sk.cast};
     return;
@@ -589,6 +700,8 @@ function updatePlayer(dt){
 
   // energy regen (GW1 pips; Elementalist gets extra, energy-storage flavor)
   player.en=Math.min(pMaxEn(),player.en+(player.enRegen||1.33)*dt);
+  // adrenaline fades out of combat
+  if(now-player.lastCombat>5) player.adr=Math.max(0,player.adr-1.5*dt);
   // out-of-combat hp regen; fast in outpost
   if(inSafeZone(player)) player.hp=Math.min(pMaxHp(),player.hp+15*dt);
   else if(now-player.lastCombat>6) player.hp=Math.min(pMaxHp(),player.hp+8*dt);
@@ -615,7 +728,7 @@ function updatePlayer(dt){
     else moveToward(player,player.moveTo.x,player.moveTo.y,dt);
   } else if(player.approach){
     const n=player.approach;
-    if(dist(player.x,player.y,n.x,n.y)<80){ player.approach=null; openDialog(); }
+    if(dist(player.x,player.y,n.x,n.y)<80){ player.approach=null; openDialog(n); }
     else moveToward(player,n.x,n.y,dt);
   }
 
@@ -645,14 +758,23 @@ function updatePlayer(dt){
     }
   }
 
-  // pick up gold
+  // pick up loot
   for(let i=drops.length-1;i>=0;i--){
     const g=drops[i];
     if(dist(player.x,player.y,g.x,g.y)<26){
-      player.gold+=g.gold;
-      ftext(player.x,player.y,'+'+g.gold+'g','#f0d97a',13);
+      if(g.gold){
+        player.gold+=g.gold;
+        ftext(player.x,player.y,'+'+g.gold+'g','#f0d97a',13);
+      } else if(g.item){
+        if(player.inv.length>=20){
+          if(!g.warned){ toast('Inventory full — sell trophies to Suki'); g.warned=true; }
+          continue;
+        }
+        player.inv.push(g.item);
+        ftext(player.x,player.y,g.item.name,RARITY_COLORS[g.item.rarity],13);
+      }
       drops.splice(i,1);
-    } else if(now-g.t>60) drops.splice(i,1);
+    } else if(now-g.t>90) drops.splice(i,1);
   }
 }
 
@@ -730,13 +852,17 @@ function buildTerrain(){
     pos.setZ(i,h);
     // color from the tile this vertex belongs to (painterly jitter)
     const t=T(Math.min(ix,MAPW-1),Math.min(iy,MAPH-1));
-    const j=(vr()-0.5)*0.05;
-    if(t===G_PATH) col.setRGB(0.55+j,0.45+j,0.30+j);
-    else if(t===G_DIRT) col.setRGB(0.45+j,0.36+j,0.24+j);
-    else if(t===G_WATER||t===G_BRIDGE) col.setRGB(0.16,0.25,0.22);
-    else if(t===G_ROCK) col.setRGB(0.34+j,0.34+j,0.36+j);
-    else if(t===G_WALL) col.setRGB(0.42+j,0.34+j,0.22+j);
-    else { const g=0.30+vr()*0.10; col.setRGB(g*0.55+j,g+j,g*0.5+j); } // grass / tree floor
+    const j=(vr()-0.5)*0.06;
+    if(t===G_PATH) col.setRGB(0.72+j,0.62+j,0.42+j);            // sandy road
+    else if(t===G_DIRT) col.setRGB(0.62+j,0.50+j,0.33+j);       // packed earth
+    else if(t===G_WATER||t===G_BRIDGE) col.setRGB(0.12,0.30,0.30); // seabed
+    else if(t===G_ROCK) col.setRGB(0.45+j,0.40+j,0.34+j);       // sun-baked crags
+    else if(t===G_WALL) col.setRGB(0.50+j,0.40+j,0.26+j);
+    else { // savanna: gold-green patchwork, Istan style
+      const g=0.34+vr()*0.16, gold=vr()<0.4;
+      if(gold) col.setRGB(g+0.22+j,g+0.10+j,0.18+j);
+      else col.setRGB(g*0.75+j,g+0.06+j,0.16+j);
+    }
     colors[i*3]=col.r; colors[i*3+1]=col.g; colors[i*3+2]=col.b;
   }
   geo.setAttribute('color',new THREE.BufferAttribute(colors,3));
@@ -749,7 +875,7 @@ function buildTerrain(){
   // water
   const wgeo=new THREE.PlaneGeometry(W,W,1,1);
   wgeo.rotateX(-Math.PI/2); wgeo.translate(W/2,-5,W/2);
-  waterMesh=new THREE.Mesh(wgeo,new THREE.MeshPhongMaterial({color:0x2e6e96,transparent:true,opacity:0.82,shininess:80,specular:0x88aacc}));
+  waterMesh=new THREE.Mesh(wgeo,new THREE.MeshPhongMaterial({color:0x2a9aa0,transparent:true,opacity:0.8,shininess:90,specular:0xaaddcc}));
   scene.add(waterMesh);
 }
 
@@ -778,15 +904,26 @@ function buildProps(){
     });
     scene.add(im); return im;
   };
-  // trunks + canopies
-  inst(new THREE.CylinderGeometry(2.6,4,16,5),mat(0x5a4020),treeP,
-    p=>heightAt(p[0],p[1])+8, ()=>0.9+vr()*0.4);
-  const canopies=inst(new THREE.IcosahedronGeometry(17,0),
-    new THREE.MeshPhongMaterial({flatShading:true,shininess:4,color:0xffffff}),treeP,
-    p=>heightAt(p[0],p[1])+26, ()=>0.85+vr()*0.5);
+  // trees: palms hug the river, flat-top acacias dot the savanna
+  const palmP=[], acaciaP=[];
+  for(const p of treeP) (Math.abs(p[0]/TILE-riverCX(p[1]/TILE))<11?palmP:acaciaP).push(p);
   const cc=new THREE.Color();
-  treeP.forEach((p,i)=>{ cc.setHSL(0.27+vr()*0.06,0.45+vr()*0.2,0.26+vr()*0.10); canopies.setColorAt(i,cc); });
-  if(canopies.instanceColor) canopies.instanceColor.needsUpdate=true;
+  // acacia: tall thin trunk, flattened umbrella canopy
+  inst(new THREE.CylinderGeometry(1.8,3.2,24,5),mat(0x6a4a26),acaciaP,
+    p=>heightAt(p[0],p[1])+12, ()=>0.9+vr()*0.35);
+  const aGeo=new THREE.IcosahedronGeometry(18,0); aGeo.scale(1.4,0.42,1.4);
+  const aCan=inst(aGeo,new THREE.MeshPhongMaterial({flatShading:true,shininess:4,color:0xffffff}),acaciaP,
+    p=>heightAt(p[0],p[1])+27, ()=>0.85+vr()*0.45);
+  acaciaP.forEach((p,i)=>{ cc.setHSL(0.22+vr()*0.06,0.42+vr()*0.2,0.25+vr()*0.08); aCan.setColorAt(i,cc); });
+  if(aCan.instanceColor) aCan.instanceColor.needsUpdate=true;
+  // palm: slim pale trunk, bright spread fronds
+  inst(new THREE.CylinderGeometry(1.4,2.2,28,5),mat(0x8a6a40),palmP,
+    p=>heightAt(p[0],p[1])+14, ()=>0.9+vr()*0.4);
+  const pGeo=new THREE.IcosahedronGeometry(14,0); pGeo.scale(1.6,0.3,1.6);
+  const pCan=inst(pGeo,new THREE.MeshPhongMaterial({flatShading:true,shininess:6,color:0xffffff}),palmP,
+    p=>heightAt(p[0],p[1])+29, ()=>0.9+vr()*0.4);
+  palmP.forEach((p,i)=>{ cc.setHSL(0.30+vr()*0.05,0.5+vr()*0.2,0.30+vr()*0.08); pCan.setColorAt(i,cc); });
+  if(pCan.instanceColor) pCan.instanceColor.needsUpdate=true;
   // palisade posts
   inst(new THREE.CylinderGeometry(3.4,4.2,30,5),mat(0x6a4a22),wallP,
     ()=>13, ()=>0.9+vr()*0.25);
@@ -805,7 +942,15 @@ function buildProps(){
     const t=cone3(26*(s||1),30*(s||1),c,4);
     t.position.set(x,heightAt(x,z)+14*(s||1),z); t.rotation.y=vr()*Math.PI; scene.add(t);
   };
-  tent(10*TILE,80*TILE,0x7a4a2a); tent(17*TILE,80.5*TILE,0x5a6a3a);
+  // adobe hut (Chahbek style) + tents
+  {
+    const hx=10*TILE, hz=80*TILE;
+    const wall=cyl3(26,28,24,0xd8c0a0,10); wall.position.set(hx,12,hz); scene.add(wall);
+    const dome=prim(new THREE.SphereGeometry(26,10,6,0,Math.PI*2,0,Math.PI/2),0xc8a070);
+    dome.position.set(hx,24,hz); scene.add(dome);
+    const door=box3(10,14,4,0x4a3420); door.position.set(hx,7,hz+26); scene.add(door);
+  }
+  tent(17*TILE,80.5*TILE,0xa86a3a);
   tent(75*TILE,17*TILE,0x5a4434); tent(81*TILE,17*TILE,0x5a4434); tent(81*TILE,23*TILE,0x4a3a44,1.15);
 
   // shrine: dais + pillar + glowing orb
@@ -883,9 +1028,9 @@ function humanoid(o){
   inner.scale.setScalar(s);
   return g;
 }
-function wolfAvatar(){
+function wolfAvatar(){ // sand jackal
   const g=new THREE.Group(); const inner=new THREE.Group(); g.add(inner); g.userData.inner=inner;
-  const c=0x7a7d85, cd=0x5d6068;
+  const c=0xb09a70, cd=0x8a7350;
   const body=box3(17,9,9,c); body.position.y=9.5; inner.add(body);
   const chest=box3(8,10,10,cd); chest.position.set(5,10,0); inner.add(chest);
   const head=box3(7,6.5,6.5,c); head.position.set(11.5,13,0); inner.add(head);
@@ -917,11 +1062,14 @@ function makeAvatar(e){
     ? humanoid({robe:0x8a3838,armor:0x6a2c2c,trim:0xe8b050,weapon:'staff'})
     : humanoid({armor:0x4a7ab5,trim:0x9aa8c0,pants:0x39414f,weapon:'sword',helm:true});
   else if(e.kind==='hench') g=humanoid({robe:0x3f8a62,armor:0x2f6a4a,trim:0x7ad0a0,weapon:'staff',hood:true});
-  else if(e.kind==='npc') g=humanoid({armor:0xb59a4a,trim:0xe8d290,pants:0x4a4438,weapon:'banner'});
+  else if(e.kind==='npc') g=e.style==='merchant'
+    ? humanoid({robe:0x6a4a8a,armor:0x5a3a7a,trim:0xd8b860,hood:true})
+    : humanoid({armor:0xb59a4a,trim:0xe8d290,pants:0x4a4438,weapon:'banner'});
   else if(e.type==='wolf') g=wolfAvatar();
   else if(e.type==='skale') g=skaleAvatar();
   else if(e.type==='archer') g=humanoid({armor:0x9a6a3a,trim:0x6a4a26,pants:0x4a3a28,weapon:'bow',hood:true,robe:0});
   else if(e.type==='chief') g=humanoid({armor:0x5a2e2e,trim:0xb03838,pants:0x3a2424,weapon:'cleaver',helm:true,scale:1.45});
+  else if(e.type==='avenger') g=humanoid({armor:0x6a2848,trim:0xb05070,pants:0x3a2030,weapon:'sword',hood:true,robe:0,scale:1.12});
   else g=humanoid({armor:0x8a4a3a,trim:0x5a3326,pants:0x42302a,weapon:'sword'});
   // blob shadow
   const sh=new THREE.Mesh(new THREE.CircleGeometry(e.r*0.95,14),
@@ -996,12 +1144,12 @@ function initThree(){
   renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
   renderer.outputEncoding=THREE.sRGBEncoding;
   scene=new THREE.Scene();
-  scene.background=new THREE.Color(0xb8cfdf);
-  scene.fog=new THREE.Fog(0xb8cfdf,650,1750);
+  scene.background=new THREE.Color(0xd8cfae); // warm Istani haze
+  scene.fog=new THREE.Fog(0xd8cfae,650,1750);
   camera=new THREE.PerspectiveCamera(50,1,10,2600);
   raycaster=new THREE.Raycaster();
-  scene.add(new THREE.HemisphereLight(0xd8e8ff,0x4a5a38,0.85));
-  const sun=new THREE.DirectionalLight(0xffe8c8,1.0);
+  scene.add(new THREE.HemisphereLight(0xfff0d0,0x6a5a32,0.9));
+  const sun=new THREE.DirectionalLight(0xffe0a8,1.1);
   sun.position.set(500,800,250); scene.add(sun);
   buildTerrain();
   buildProps();
@@ -1105,7 +1253,9 @@ function syncPools(){
   for(const [p,m] of projMeshes) if(!projectiles.includes(p)){ scene.remove(m); m.material.dispose(); projMeshes.delete(p); }
   for(const d of drops){
     if(!dropMeshes.has(d)){
-      const m=new THREE.Mesh(new THREE.IcosahedronGeometry(4.5,0),mat(0xf0d97a,{emissive:0x8a6d1f,emissiveIntensity:0.5}));
+      const m=d.item
+        ? new THREE.Mesh(new THREE.BoxGeometry(7,7,7),mat(parseInt(RARITY_COLORS[d.item.rarity].slice(1),16),{emissive:0x222222}))
+        : new THREE.Mesh(new THREE.IcosahedronGeometry(4.5,0),mat(0xf0d97a,{emissive:0x8a6d1f,emissiveIntensity:0.5}));
       scene.add(m); dropMeshes.set(d,m);
     }
     const m=dropMeshes.get(d);
@@ -1138,20 +1288,23 @@ function drawOverlay(){
     if(condActive(e,'bleed'))pip('#e02020');
     if(condActive(e,'burn'))pip('#ff8830');
     if(condActive(e,'cripple'))pip('#e3a23c');
+    if(condActive(e,'deepwound'))pip('#b050d0');
   }
-  // npc label + quest marker
-  {
-    const p=project(npcAldra.x,heightAt(npcAldra.x,npcAldra.y)+44,npcAldra.y);
-    if(!p.behind&&dist(npcAldra.x,npcAldra.y,player.x,player.y)<900){
-      const m=(quest.stage===0||quest.stage===2||quest.stage===4)?'!':(quest.stage===1||quest.stage===3)?'?':'';
-      fctx.textAlign='center';
+  // npc labels + quest marker
+  for(const n of [npcAldra,npcSuki]){
+    if(dist(n.x,n.y,player.x,player.y)>900) continue;
+    const p=project(n.x,heightAt(n.x,n.y)+44,n.y);
+    if(p.behind) continue;
+    fctx.textAlign='center';
+    if(n===npcAldra){
+      const m=questMarker();
       if(m){
         fctx.font='bold 22px Georgia'; fctx.fillStyle='#f0d97a';
         fctx.fillText(m,p.x,p.y-8-Math.abs(Math.sin(now*3))*5);
       }
-      fctx.font='12px Georgia'; fctx.fillStyle='#e8dfc8';
-      fctx.fillText('Captain Aldra',p.x,p.y+10);
     }
+    fctx.font='12px Georgia'; fctx.fillStyle='#e8dfc8';
+    fctx.fillText(n.name,p.x,p.y+10);
   }
   // floating combat text
   fctx.textAlign='center';
@@ -1177,7 +1330,7 @@ function render(){
   camera.lookAt(player.x,ph+5,player.y-25);
 
   for(const e of enemies) syncAvatar(e);
-  syncAvatar(player); syncAvatar(hench); syncAvatar(npcAldra);
+  syncAvatar(player); syncAvatar(hench); syncAvatar(npcAldra); syncAvatar(npcSuki);
 
   // selection ring
   const t=player.target;
@@ -1244,10 +1397,12 @@ function handleTap(sx,sy){
     return;
   }
   // npc?
-  if(dist(wx,wy,npcAldra.x,npcAldra.y)<45){
-    if(dist(player.x,player.y,npcAldra.x,npcAldra.y)<90) openDialog();
-    else { player.approach=npcAldra; player.target=null; player.engaged=false; }
-    return;
+  for(const n of [npcAldra,npcSuki]){
+    if(dist(wx,wy,n.x,n.y)<45){
+      if(dist(player.x,player.y,n.x,n.y)<90) openDialog(n);
+      else { player.approach=n; player.target=null; player.engaged=false; }
+      return;
+    }
   }
   // ground: move there (GW1 click-to-move)
   if(!blockedCircle(wx,wy,player.r)){
@@ -1267,7 +1422,7 @@ const ui={
   castbar:$('castbar'),castFill:$('castFill'),castName:$('castName'),
   dialog:$('dialog'),dlgName:$('dlgName'),dlgText:$('dlgText'),dlgBtn:$('dlgBtn'),
   banner:$('banner'),toast:$('toast'),death:$('deathOverlay'),deathSub:$('deathSub'),
-  skillInfo:$('skillInfo'),
+  skillInfo:$('skillInfo'),hero:$('heroPanel'),
   compass:$('compass'),
 };
 const skillBtns=[];
@@ -1278,7 +1433,7 @@ function buildSkillbar(){
   SKILLS.forEach((sk,i)=>{
     const b=document.createElement('button');
     b.className='skill';
-    b.innerHTML=`<span>${sk.icon}</span><span class="cost">${sk.en>0?sk.en:''}</span><span class="key">${i+1}</span><div class="cd"></div><div class="cdt"></div>`;
+    b.innerHTML=`<span>${sk.icon}</span><span class="cost${sk.adr?' adr':''}">${sk.adr?sk.adr:(sk.en>0?sk.en:'')}</span><span class="key">${i+1}</span><div class="cd"></div><div class="cdt"></div>`;
     b.addEventListener('pointerdown',ev=>{ev.stopPropagation();ev.preventDefault();useSkill(i);});
     bar.appendChild(b);
     skillBtns.push(b);
@@ -1296,8 +1451,37 @@ function buildSkillbar(){
   });
   ui.dlgBtn.addEventListener('pointerdown',ev=>{
     ev.stopPropagation();
-    const d=aldraDialog(); d.act();
+    if(currentDlg) currentDlg.act();
     ui.dialog.classList.add('hidden');
+  });
+  $('bagBtn').addEventListener('pointerdown',ev=>{
+    ev.stopPropagation();
+    const open=ui.hero.classList.contains('hidden');
+    closePanels();
+    if(open){ renderHero(); ui.hero.classList.remove('hidden'); }
+  });
+  ui.hero.addEventListener('pointerdown',ev=>{
+    ev.stopPropagation();
+    const t=ev.target;
+    if(!t||!t.getAttribute) return;
+    const a=t.getAttribute('data-attr');
+    if(a&&player.attrPts>0){
+      player.attrs[a]=(player.attrs[a]||0)+1; player.attrPts--;
+      renderHero(); return;
+    }
+    const eq=t.getAttribute('data-eq');
+    if(eq!==null){
+      const i=+eq, it=player.inv[i]; if(!it) return;
+      if(it.kind==='weapon'){
+        const old=player.equip.weapon; player.equip.weapon=it;
+        if(old.value>0) player.inv[i]=old; else player.inv.splice(i,1); // drop training gear
+      } else {
+        const old=player.equip.off; player.equip.off=it;
+        if(old) player.inv[i]=old; else player.inv.splice(i,1);
+      }
+      player.en=Math.min(player.en,pMaxEn());
+      renderHero();
+    }
   });
 }
 function applyClass(key){
@@ -1305,8 +1489,13 @@ function applyClass(key){
   player.cls=key;
   player.baseHp=c.baseHp+20*(player.lvl-1); player.baseEn=c.baseEn+2*(player.lvl-1);
   player.enRegen=c.enRegen;
-  player.dmgMin=c.dmgMin+2*(player.lvl-1); player.dmgMax=c.dmgMax+2*(player.lvl-1);
   player.atkInt=c.atkInt; player.range=c.range;
+  player.equip.weapon=key==='warrior'
+    ? {kind:'weapon',wtype:'sword',rarity:0,name:'Training Sword',dmgMin:10,dmgMax:16,value:0}
+    : {kind:'weapon',wtype:'wand', rarity:0,name:'Training Wand', dmgMin:7, dmgMax:12,value:0};
+  if(player.equip.off){ player.inv.push(player.equip.off); player.equip.off=null; }
+  player.attrs={}; player.attrPts=3*(player.lvl-1);
+  player.adr=0;
   player.hp=pMaxHp(); player.en=pMaxEn();
   player.skillReady.fill(0);
   SKILLS=c.skills;
@@ -1327,7 +1516,7 @@ function showClassPick(){
       ev.stopPropagation(); ev.preventDefault();
       applyClass(key);
       el.classList.add('hidden');
-      banner('ELDERVALE','thornveil reach');
+      banner('ELDERVALE','the sunward reach');
       setTimeout(()=>toast('Tap the ground to move · tap a foe to attack'),1000);
       setTimeout(()=>toast('Speak with Captain Aldra (gold dot on the compass)'),4800);
     });
@@ -1336,13 +1525,48 @@ function showClassPick(){
   el.classList.remove('hidden');
 }
 
-function closePanels(){ui.dialog.classList.add('hidden');ui.skillInfo.classList.add('hidden');}
-function openDialog(){
-  const d=aldraDialog();
-  ui.dlgName.textContent='Captain Aldra';
-  ui.dlgText.textContent=d.text;
-  ui.dlgBtn.textContent=d.btn;
+function closePanels(){ui.dialog.classList.add('hidden');ui.skillInfo.classList.add('hidden');ui.hero.classList.add('hidden');}
+let currentDlg=null;
+function openDialog(n){
+  n=n||npcAldra;
+  if(n===npcSuki){
+    const tro=player.inv.filter(i=>i.kind==='trophy');
+    const sum=tro.reduce((s,i)=>s+i.value,0);
+    currentDlg=tro.length
+      ? {text:`Salvage, traveler? I pay honest coin. You carry ${tro.length} trophies worth ${sum} gold.`,
+         btn:`Sell trophies (+${sum}g)`,
+         act(){ player.inv=player.inv.filter(i=>i.kind!=='trophy'); player.gold+=sum; toast('+'+sum+' gold'); }}
+      : {text:'Skale fins, jackal pelts, corsair emblems — bring them to me and I pay coin for the lot.',
+         btn:'Farewell', act(){}};
+  } else currentDlg=aldraDialog();
+  ui.dlgName.textContent=n.name;
+  ui.dlgText.textContent=currentDlg.text;
+  ui.dlgBtn.textContent=currentDlg.btn;
   ui.dialog.classList.remove('hidden');
+}
+
+/* ---------------- hero panel (attributes, equipment, inventory) ---------------- */
+function renderHero(){
+  const w=player.equip.weapon, o=player.equip.off;
+  const rar=it=>`style="color:${RARITY_COLORS[it.rarity]}"`;
+  let h=`<b style="color:#f0d97a">Kaelen — Lv ${player.lvl} ${CLASSES[player.cls].label}</b><br>`;
+  h+=`<span class="dim">XP ${Math.floor(player.xp)}/${xpNeed()} · ${player.gold} gold</span><br><br>`;
+  h+=`<b>Attributes</b> — points to spend: <b style="color:#f0d97a">${player.attrPts}</b><br>`;
+  for(const a of CLASS_ATTRS[player.cls]){
+    const r=attr(a);
+    h+=`<div class="attrRow">${a}: <b>${r}</b>${player.attrPts>0&&r<12?` <button class="mini" data-attr="${a}">+</button>`:''}<br><span class="dim">${ATTR_DESC[a]}</span></div>`;
+  }
+  h+=`<br><b>Equipped</b><br><span ${rar(w)}>${w.name}</span> <span class="dim">(${w.dmgMin}–${w.dmgMax} dmg)</span><br>`;
+  if(o) h+=`<span ${rar(o)}>${o.name}</span> <span class="dim">(${o.armor?'+'+o.armor+' armor':'+'+o.energy+' energy'})</span><br>`;
+  h+=`<br><b>Inventory</b> <span class="dim">${player.inv.length}/20</span><br>`;
+  player.inv.forEach((it,i)=>{
+    const stat=it.kind==='weapon'?`${it.dmgMin}–${it.dmgMax} dmg`:it.kind==='off'?(it.armor?'+'+it.armor+' armor':'+'+it.energy+' energy'):`sell ${it.value}g`;
+    const can=(it.kind==='weapon'&&it.wtype===(player.cls==='warrior'?'sword':'wand'))
+            ||(it.kind==='off'&&((it.otype==='shield')===(player.cls==='warrior')));
+    h+=`<div class="invRow"><span ${rar(it)}>${it.name}</span> <span class="dim">(${stat})</span>${can?` <button class="mini" data-eq="${i}">Equip</button>`:''}</div>`;
+  });
+  if(!player.inv.length) h+='<span class="dim">empty — slay foes for loot</span>';
+  ui.hero.innerHTML=h;
 }
 
 let toastTimer=null;
@@ -1370,7 +1594,7 @@ function syncUI(){
   ui.pXp.style.width=clamp(player.xp/xpNeed()*100,0,100)+'%';
   ui.pHpTxt.textContent=Math.ceil(Math.max(0,player.hp))+' / '+pMaxHp();
   ui.pEnTxt.textContent=Math.floor(player.en)+' / '+pMaxEn();
-  ui.pLvl.textContent='Lv '+player.lvl+(player.dp>0?` (−${Math.round(player.dp*100)}%)`:'');
+  ui.pLvl.textContent='Lv '+player.lvl+(player.lvl>=10?' MAX':'')+(player.dp>0?` (−${Math.round(player.dp*100)}%)`:'')+(player.attrPts>0?' · 🎒+':'');
   ui.gold.textContent=player.gold;
 
   ui.henchFrame.style.opacity=hench.dead?0.45:1;
@@ -1386,6 +1610,7 @@ function syncUI(){
     if(condActive(t,'bleed'))conds.push('Bleeding');
     if(condActive(t,'burn'))conds.push('Burning');
     if(condActive(t,'cripple'))conds.push('Crippled');
+    if(condActive(t,'deepwound'))conds.push('Deep Wound');
     ui.tConds.textContent=conds.join(' · ');
   } else ui.targetFrame.classList.add('hidden');
 
@@ -1404,11 +1629,15 @@ function syncUI(){
     const b=skillBtns[i];
     const left=player.skillReady[i]-now;
     const cd=b.children[3], cdt=b.children[4];
-    if(left>0){
+    if(sk.adr&&player.adr<sk.adr&&left<=0){
+      // adrenaline skills: overlay recedes as adrenaline builds
+      cd.style.height=((1-clamp(player.adr/sk.adr,0,1))*100)+'%';
+      cdt.textContent='';
+    } else if(left>0){
       cd.style.height=Math.min(100,left/sk.rc*100)+'%';
       cdt.textContent=left>0.3?Math.ceil(left):'';
     } else { cd.style.height='0%'; cdt.textContent=''; }
-    b.classList.toggle('noEnergy',player.en<sk.en);
+    b.classList.toggle('noEnergy',sk.adr?player.adr<sk.adr:player.en<sk.en);
     b.classList.toggle('casting',!!cast&&cast.idx===i);
   });
 }
@@ -1435,6 +1664,7 @@ function drawCompass(){
   };
   for(const e of enemies) if(!e.dead) dot(e.x,e.y,e.boss?'#ff3030':'#e05040',e.boss?8:5);
   dot(npcAldra.x,npcAldra.y,'#f0d97a',6);
+  dot(npcSuki.x,npcSuki.y,'#d8b860',5);
   dot(SHRINE.x,SHRINE.y,'#b8c8ff',5);
   if(!hench.dead) dot(hench.x,hench.y,'#50c878',5);
   // aggro bubble (the GW1 danger circle)

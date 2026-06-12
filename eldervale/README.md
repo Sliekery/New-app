@@ -1,6 +1,7 @@
 # Eldervale — Thornveil Reach
 
-A **GW1-style MMO-lite prototype** for the phone. High fantasy, first zone, rendered
+A **GW1-style MMO-lite prototype** for the phone — a full level 1–10 campaign in the
+spirit of Nightfall's Istan starting zone. Rendered
 in a **low-poly 3D** take on the GW1 art style — Three.js (vendored, r147), flat-shaded
 terrain and characters, no build step.
 
@@ -39,6 +40,15 @@ GW1 mouse-style — tap only, no drag:
 ## What's GW1 about it
 
 - **8-skill bar** with energy costs, activation (cast) times, and per-skill recharge
+- **Adrenaline** for the Warrior: strikes build it, skills like Sever Artery → Gash →
+  Final Thrust spend it (Final Thrust drains it all); it fades out of combat
+- **Conditions incl. Deep Wound** (−20% max HP), Bleeding, Burning, Crippled/Chilled
+- **Attributes**: +3 points per level, spent in the Hero panel (🎒) — Strength /
+  Swordsmanship / Tactics, or Energy Storage / Fire Magic / Storm Magic
+- **Items & inventory**: weapons, shields/foci and trophies drop with GW1 rarity
+  colors (white/blue/purple/gold); equip gear in the Hero panel, sell trophies to
+  Merchant Suki at the outpost
+- **Level cap 10** with a 5-quest chain that carries you there
 - **Energy pips**: constant energy regen (~4 pips), health only regens out of combat
 - **Aggro bubble** on the compass (the white circle) — wander inside it and mobs charge
 - **Henchman**: Lyra the Mender follows you, assists your target, and heals the party
@@ -61,23 +71,33 @@ Pick at character start, GW1 primary/secondary flavor:
 
 ## The Warrior skill bar
 
-1. 🩸 **Sever Artery** — 5e, 4s rc. +8 dmg, Bleeding 12s
-2. 🗡️ **Final Thrust** — 10e, 8s rc. +18 dmg, doubled below 50% HP
-3. 🌀 **Cyclone Slash** — 8e, 10s rc. Hits all adjacent foes
+1. 🩸 **Sever Artery** — 4 adrenaline. +5 dmg, Bleeding 15s
+2. 🗡️ **Gash** — 6 adrenaline. +7 dmg; Deep Wound (−20% max HP) on a Bleeding foe
+3. ⚔️ **Final Thrust** — 9 adrenaline, drains all. +20 dmg, +40 below half health
 4. 🦶 **Hamstring** — 7e, 12s rc. Cripples 8s
-5. ✚ **Healing Signet** — 0e, 2s cast, 20s rc. Heal 45% max HP
-6. 💨 **Sprint** — 5e, 15s rc. +40% speed 6s
-7. 🔥 **Fire Bolt** — 10e, 0.8s cast, 5s rc. 35 dmg + Burning (secondary-profession flavor)
+5. ✚ **Healing Signet** — 0e, 2s cast, 20s rc. Heal 45% max HP (+Tactics)
+6. 😤 **Frenzy** — 5e, 15s rc. Attack 33% faster, take double damage (6s)
+7. 🔥 **Fire Bolt** — 10e, 0.8s cast, 5s rc. 35 dmg + Burning (E secondary)
 8. 💫 **Restore Ally** — 0e, 3s cast, 90s rc. Resurrect Lyra
 
-## Zone: Thornveil Reach
+## Zone: the Sunward Reach (levels 1–10)
 
-- **Outpost** (SW): Captain Aldra (quests), resurrection shrine, safe zone
-- River with a bridge crossing; **River Skales** on the banks
-- **Grey Wolf** packs in the meadows (quest 1: *Wolves at the Gates*)
-- Bandit road patrol, then the palisaded **Blackmaw camp** (NE) with raiders, archers,
-  and the boss **Korr Blackmaw** — he has a telegraphed whirl AoE (quest 2: *The
-  Blackmaw Gang*; killing him completes the zone)
+Istan-savanna look: golden grass, sandy roads, turquoise river with palms,
+flat-top acacias, an adobe hut at the Sunspear outpost.
+
+Quest chain from Captain Aldra (turn-ins clear death penalty and pay XP/gold,
+some pay gear):
+
+1. *Jackals at the Gates* — 4 Sand Jackals
+2. *Skale Infestation* — 5 Istani Skale by the river (rewards a blue weapon)
+3. *The Road East* — break the corsair patrol
+4. *The Blackmaw Gang* — kill boss **Korr Blackmaw** (telegraphed whirl AoE;
+   purple reward) — his **Avengers** (lvl 7 veterans) then land at the camp
+5. *Cleansing the Reach* — cut down 10 corsairs → **Sunspear Cadet** title
+   banner and a gold-rarity weapon
+
+Avengers respawn, so you can farm the camp to hit the level 10 cap.
+Sell trophies (Skale Fins, Jackal Pelts, Corsair Emblems) to **Merchant Suki**.
 
 ## Prototype scope / next steps
 
