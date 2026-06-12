@@ -25,11 +25,12 @@ for a fullscreen app feel.
 
 ## Controls
 
+GW1 mouse-style — tap only, no drag:
+
 | Input | Action |
 |---|---|
-| Drag lower-left of screen | Virtual joystick — move (moving cancels casts, GW1-style) |
+| Tap ground | Walk there (moving cancels casts, GW1-style) |
 | Tap a foe | Target it and engage auto-attack (your character chases into range) |
-| Tap ground | Click-to-move |
 | Tap Captain Aldra | Walk over and talk (quests) |
 | Skill buttons 1–8 | Use skills (energy cost top-left, recharge sweep when used) |
 | `?` button | Skill descriptions |
@@ -48,7 +49,17 @@ for a fullscreen app feel.
 - **Called-shot flow**: select target → skills/auto-attack fire on that target
 - Outpost safe zone, leashing mobs that reset and heal, social aggro in mob groups
 
-## The skill bar (Sword Vanguard)
+## Professions
+
+Pick at character start, GW1 primary/secondary flavor:
+
+- ⚔️ **Warrior (W/E)** — melee sword bar below, fire support from the Elementalist secondary
+- 🔥 **Elementalist (E/Mo)** — ranged wand auto-attack, big energy pool with faster regen
+  (energy storage), and: Flare (spammable), Fireball (AoE), Lightning Strike (instant),
+  Ice Shard (chill), Immolate (burn), Armor of Earth (−40% damage taken), Aura of
+  Restoration (heal + energy, the Monk secondary), Restore Ally
+
+## The Warrior skill bar
 
 1. 🩸 **Sever Artery** — 5e, 4s rc. +8 dmg, Bleeding 12s
 2. 🗡️ **Final Thrust** — 10e, 8s rc. +18 dmg, doubled below 50% HP

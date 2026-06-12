@@ -126,17 +126,93 @@ function buildMinimap(){
   }
 }
 
-/* ---------------- skills ---------------- */
-const SKILLS=[
-  {name:'Sever Artery', icon:'🩸', en:5,  rc:4,  cast:0,   type:'melee', desc:'Sword attack: +8 damage and inflicts Bleeding for 12s.'},
-  {name:'Final Thrust', icon:'🗡️', en:10, rc:8,  cast:0,   type:'melee', desc:'Sword attack: +18 damage; doubled bonus if the foe is below 50% health.'},
-  {name:'Cyclone Slash',icon:'🌀', en:8,  rc:10, cast:0,   type:'pbaoe', desc:'Whirl your blade, striking all adjacent foes.'},
-  {name:'Hamstring',    icon:'🦶', en:7,  rc:12, cast:0,   type:'melee', desc:'Sword attack: +5 damage and Cripples the foe (slowed) for 8s.'},
-  {name:'Healing Signet',icon:'✚', en:0,  rc:20, cast:2,   type:'self',  desc:'Signet (2s): heal yourself for 45% of max health. Moving cancels it.'},
-  {name:'Sprint',       icon:'💨', en:5,  rc:15, cast:0,   type:'self',  desc:'Stance: move 40% faster for 6 seconds.'},
-  {name:'Fire Bolt',    icon:'🔥', en:10, rc:5,  cast:0.8, type:'ranged',range:300, desc:'Spell (0.8s): hurl fire for 35 damage and Burning for 3s.'},
-  {name:'Restore Ally', icon:'💫', en:0,  rc:90, cast:3,   type:'res',   desc:'Signet (3s): resurrect Lyra at 50% health. Stand near her body.'},
+/* ---------------- skills & professions (GW1-style) ---------------- */
+// Everyone carries a res signet, GW1 tradition.
+const RES_SKILL={name:'Restore Ally', icon:'💫', en:0, rc:90, cast:3, type:'res',
+  desc:'Signet (3s): resurrect Lyra at 50% health. Stand near her body.',
+  fx(){ if(hench.dead){
+    hench.dead=false; hench.hp=Math.round(hench.maxHp*0.5); hench.cond={};
+    effects.push({type:'res',x:hench.x,y:hench.y,t:now,dur:0.8});
+    ftext(hench.x,hench.y,'Restored!','#a0c8ff',14);
+  }}};
+
+const WARRIOR_SKILLS=[
+  {name:'Sever Artery', icon:'🩸', en:5,  rc:4,  cast:0, type:'melee', desc:'Sword attack: +8 damage and inflicts Bleeding for 12s.',
+    fx(t){ meleeAttack(player,t,8,d=>{addCond(d,'bleed',12); ftext(d.x,d.y,'Bleeding!','#e05050',11);}); }},
+  {name:'Final Thrust', icon:'🗡️', en:10, rc:8,  cast:0, type:'melee', desc:'Sword attack: +18 damage; doubled bonus if the foe is below 50% health.',
+    fx(t){ meleeAttack(player,t,t.hp<maxHpOf(t)*0.5?36:18); }},
+  {name:'Cyclone Slash',icon:'🌀', en:8,  rc:10, cast:0, type:'pbaoe', desc:'Whirl your blade, striking all adjacent foes.',
+    fx(){
+      effects.push({type:'aoe',x:player.x,y:player.y,t:now,dur:0.35,r:78});
+      for(const e of enemies){
+        if(!e.dead&&dist(player.x,player.y,e.x,e.y)<78+e.r) applyDamage(player,e,rollDmg(player),'#ffd870');
+      }
+      player.nextAtk=now+player.atkInt;
+    }},
+  {name:'Hamstring',    icon:'🦶', en:7,  rc:12, cast:0, type:'melee', desc:'Sword attack: +5 damage and Cripples the foe (slowed) for 8s.',
+    fx(t){ meleeAttack(player,t,5,d=>{addCond(d,'cripple',8); ftext(d.x,d.y,'Crippled!','#e3a23c',11);}); }},
+  {name:'Healing Signet',icon:'✚', en:0,  rc:20, cast:2, type:'self',  desc:'Signet (2s): heal yourself for 45% of max health. Moving cancels it.',
+    fx(){
+      const heal=Math.round(pMaxHp()*0.45);
+      player.hp=Math.min(pMaxHp(),player.hp+heal);
+      ftext(player.x,player.y,'+'+heal,'#70e070',15);
+      effects.push({type:'heal',x:player.x,y:player.y,t:now,dur:0.6});
+    }},
+  {name:'Sprint',       icon:'💨', en:5,  rc:15, cast:0, type:'self',  desc:'Stance: move 40% faster for 6 seconds.',
+    fx(){ player.buffs.sprint=now+6; effects.push({type:'heal',x:player.x,y:player.y,t:now,dur:0.3}); }},
+  {name:'Fire Bolt',    icon:'🔥', en:10, rc:5,  cast:0.8, type:'ranged', range:300, desc:'Spell (0.8s): hurl fire for 35 damage and Burning for 3s.',
+    fx(t){ if(t&&!t.dead) fireProjectile(player,t,35,'#ff8830',d=>{addCond(d,'burn',3); ftext(d.x,d.y,'Burning!','#ff8830',11);}); }},
+  RES_SKILL,
 ];
+
+const ELE_SKILLS=[
+  {name:'Flare',        icon:'🔥', en:5,  rc:2,  cast:1, type:'ranged', range:290, desc:'Spell (1s): bolt of fire for 26 damage. Your bread-and-butter — spam it.',
+    fx(t){ if(t&&!t.dead) fireProjectile(player,t,26,'#ff9840'); }},
+  {name:'Fireball',     icon:'☄️', en:10, rc:7,  cast:2, type:'ranged', range:300, desc:'Spell (2s): explodes on your target for 45 damage to all foes near it.',
+    fx(t){
+      if(!t||t.dead) return;
+      const cx=t.x, cy=t.y;
+      effects.push({type:'aoe',x:cx,y:cy,t:now,dur:0.45,r:88,color:'#ff7030'});
+      for(const e of enemies){
+        if(!e.dead&&dist(cx,cy,e.x,e.y)<88+e.r) applyDamage(player,e,45,'#ff9040');
+      }
+    }},
+  {name:'Lightning Strike',icon:'⚡', en:5, rc:4, cast:0.75, type:'ranged', range:310, desc:'Spell (0.75s): instant lightning for 35 damage.',
+    fx(t){
+      if(!t||t.dead) return;
+      effects.push({type:'beam',x:player.x,y:player.y,x2:t.x,y2:t.y,t:now,dur:0.25});
+      applyDamage(player,t,35,'#ffe860');
+    }},
+  {name:'Ice Shard',    icon:'❄️', en:10, rc:8,  cast:1, type:'ranged', range:290, desc:'Spell (1s): 30 cold damage and Chills (slows) the foe for 6s.',
+    fx(t){ if(t&&!t.dead) fireProjectile(player,t,30,'#8ad8ff',d=>{addCond(d,'cripple',6); ftext(d.x,d.y,'Chilled!','#8ad8ff',11);}); }},
+  {name:'Immolate',     icon:'🌋', en:10, rc:6,  cast:1, type:'ranged', range:290, desc:'Spell (1s): 30 fire damage and Burning for 4s.',
+    fx(t){ if(t&&!t.dead) fireProjectile(player,t,30,'#ff7030',d=>{addCond(d,'burn',4); ftext(d.x,d.y,'Burning!','#ff8830',11);}); }},
+  {name:'Armor of Earth',icon:'🪨', en:10, rc:25, cast:0.75, type:'self', desc:'Spell: skin of stone — you take 40% less damage for 10 seconds.',
+    fx(){
+      player.buffs.stone=now+10;
+      ftext(player.x,player.y,'Armor of Earth!','#c8a060',13);
+      effects.push({type:'aoe',x:player.x,y:player.y,t:now,dur:0.4,r:40,color:'#c8a060'});
+    }},
+  {name:'Aura of Restoration',icon:'💞', en:5, rc:20, cast:1.5, type:'self', desc:'Spell (1.5s): heal 40% of max health and gain 8 energy (Monk secondary).',
+    fx(){
+      const heal=Math.round(pMaxHp()*0.40);
+      player.hp=Math.min(pMaxHp(),player.hp+heal);
+      player.en=Math.min(pMaxEn(),player.en+8);
+      ftext(player.x,player.y,'+'+heal,'#70e070',15);
+      effects.push({type:'heal',x:player.x,y:player.y,t:now,dur:0.6});
+    }},
+  RES_SKILL,
+];
+
+const CLASSES={
+  warrior:{label:'Warrior (W/E)', icon:'⚔️',
+    blurb:'Heavy melee. Sword chains, conditions and a self-heal, with a touch of fire from your Elementalist secondary.',
+    skills:WARRIOR_SKILLS, baseHp:100, baseEn:30, enRegen:1.33, dmgMin:12, dmgMax:18, atkInt:1.2, range:MELEE_RANGE},
+  elementalist:{label:'Elementalist (E/Mo)', icon:'🔥',
+    blurb:'Glass-cannon caster. Fire, air and earth magic at range — a wand auto-attack, and Monk restoration as your secondary.',
+    skills:ELE_SKILLS, baseHp:90, baseEn:45, enRegen:1.75, dmgMin:8, dmgMax:13, atkInt:1.5, range:280},
+};
+let SKILLS=WARRIOR_SKILLS;
 
 /* ---------------- entities ---------------- */
 const enemies=[], drops=[], projectiles=[], effects=[], ftexts=[];
@@ -146,6 +222,7 @@ function makePlayer(){
   const p=findOpen(13,77);
   return {
     kind:'player', name:'Kaelen', team:0, x:p.x, y:p.y, r:13, face:0,
+    cls:'warrior', enRegen:1.33,
     lvl:1, xp:0, gold:0, dp:0,
     baseHp:100, baseEn:30, hp:100, en:30,
     dmgMin:12, dmgMax:18, atkInt:1.2, range:MELEE_RANGE, speed:130,
@@ -244,6 +321,7 @@ function rollDmg(a){return irand(a.dmgMin,a.dmgMax);}
 
 function applyDamage(src,e,amt,color){
   if(e.dead) return;
+  if(e===player&&(player.buffs.stone||0)>now) amt=Math.max(1,Math.round(amt*0.6)); // Armor of Earth
   e.hp-=amt; e.lastCombat=now;
   if(src) src.lastCombat=now;
   ftext(e.x,e.y,'-'+amt,color||'#ff7050',14);
@@ -346,7 +424,7 @@ function useSkill(i){
   }
   if(sk.type==='ranged'){
     if(!t||t.dead){ toast('Select a target first (tap a foe)'); return; }
-    if(dist(player.x,player.y,t.x,t.y)>sk.range){ toast('Out of range'); return; }
+    if(dist(player.x,player.y,t.x,t.y)>(sk.range||300)){ toast('Out of range'); return; }
   }
   if(sk.type==='res'){
     if(!hench.dead){ toast('Lyra is alive and well'); return; }
@@ -368,42 +446,7 @@ function cancelCast(){
 }
 
 function resolveSkill(i){
-  const t=player.target;
-  switch(i){
-    case 0: meleeAttack(player,t,8,d=>{addCond(d,'bleed',12); ftext(d.x,d.y,'Bleeding!','#e05050',11);}); break;
-    case 1:{
-      const low=t.hp<maxHpOf(t)*0.5;
-      meleeAttack(player,t,low?36:18);
-      break;
-    }
-    case 2:{
-      effects.push({type:'aoe',x:player.x,y:player.y,t:now,dur:0.35,r:78});
-      for(const e of enemies){
-        if(!e.dead&&dist(player.x,player.y,e.x,e.y)<78+e.r) applyDamage(player,e,rollDmg(player),'#ffd870');
-      }
-      player.nextAtk=now+player.atkInt;
-      break;
-    }
-    case 3: meleeAttack(player,t,5,d=>{addCond(d,'cripple',8); ftext(d.x,d.y,'Crippled!','#e3a23c',11);}); break;
-    case 4:{
-      const heal=Math.round(pMaxHp()*0.45);
-      player.hp=Math.min(pMaxHp(),player.hp+heal);
-      ftext(player.x,player.y,'+'+heal,'#70e070',15);
-      effects.push({type:'heal',x:player.x,y:player.y,t:now,dur:0.6});
-      break;
-    }
-    case 5: player.buffs.sprint=now+6; effects.push({type:'heal',x:player.x,y:player.y,t:now,dur:0.3}); break;
-    case 6:
-      if(t&&!t.dead) fireProjectile(player,t,35,'#ff8830',d=>{addCond(d,'burn',3); ftext(d.x,d.y,'Burning!','#ff8830',11);});
-      break;
-    case 7:
-      if(hench.dead){
-        hench.dead=false; hench.hp=Math.round(hench.maxHp*0.5); hench.cond={};
-        effects.push({type:'res',x:hench.x,y:hench.y,t:now,dur:0.8});
-        ftext(hench.x,hench.y,'Restored!','#a0c8ff',14);
-      }
-      break;
-  }
+  SKILLS[i].fx(player.target);
 }
 
 /* ---------------- AI ---------------- */
@@ -544,8 +587,8 @@ function updatePlayer(dt){
   if(player.dead) return;
   tickConds(player,dt); if(player.dead) return;
 
-  // energy regen (GW1: 4 pips ≈ 1.33/s)
-  player.en=Math.min(pMaxEn(),player.en+1.33*dt);
+  // energy regen (GW1 pips; Elementalist gets extra, energy-storage flavor)
+  player.en=Math.min(pMaxEn(),player.en+(player.enRegen||1.33)*dt);
   // out-of-combat hp regen; fast in outpost
   if(inSafeZone(player)) player.hp=Math.min(pMaxHp(),player.hp+15*dt);
   else if(now-player.lastCombat>6) player.hp=Math.min(pMaxHp(),player.hp+8*dt);
@@ -557,7 +600,7 @@ function updatePlayer(dt){
   if(input.keys['a']||input.keys['arrowleft'])kx-=1;
   if(input.keys['d']||input.keys['arrowright'])kx+=1;
 
-  let mx=input.active?input.jx:kx, my=input.active?input.jy:ky;
+  let mx=kx, my=ky; // keyboard only — touch is GW1-style tap-to-move
   const manual=Math.hypot(mx,my)>0.12;
 
   if(manual){
@@ -594,7 +637,11 @@ function updatePlayer(dt){
     if(d>reach){
       if(!manual) moveToward(player,t.x,t.y,dt);
     } else if(now>=player.nextAtk){
-      meleeAttack(player,t,0);
+      if(player.range>MELEE_RANGE){ // wand auto-attack (Elementalist)
+        player.nextAtk=now+player.atkInt;
+        player.face=Math.atan2(t.y-player.y,t.x-player.x);
+        fireProjectile(player,t,rollDmg(player),'#d8b8ff');
+      } else meleeAttack(player,t,0);
     }
   }
 
@@ -793,9 +840,13 @@ function humanoid(o){
   // legs / lower
   if(o.robe){
     const robe=cone3(8,17,o.robe,7); robe.position.y=8.5; inner.add(robe);
+    g.userData.robe=robe;
   } else {
-    const l1=box3(3.4,9,4,o.pants); l1.position.set(0,4.5,-2.6); inner.add(l1);
-    const l2=box3(3.4,9,4,o.pants); l2.position.set(0,4.5,2.6); inner.add(l2);
+    g.userData.legs=[];
+    for(const z of [-2.6,2.6]){ // pivot at the hip so they swing when walking
+      const l=box3(3.4,9,4,o.pants); l.geometry.translate(0,-4.5,0);
+      l.position.set(0,9,z); inner.add(l); g.userData.legs.push(l);
+    }
   }
   // torso
   const torso=box3(8,11,10,o.armor); torso.position.y=14.5; inner.add(torso);
@@ -825,6 +876,10 @@ function humanoid(o){
     const pole=cyl3(0.9,0.9,34,0x3a2a14,5); pole.position.y=0; arm.add(pole);
     const fl=prim(new THREE.PlaneGeometry(11,7),0xb03030,{side:THREE.DoubleSide}); fl.position.set(0,13,5.5); fl.rotation.y=Math.PI/2; arm.add(fl);
   }
+  // off-hand arm (pivot at the shoulder)
+  const offArm=new THREE.Group(); offArm.position.set(0,19.5,-6.5); inner.add(offArm);
+  const oa=box3(2.6,8,2.6,o.armor||o.robe||0x888888); oa.geometry.translate(0,-4,0); offArm.add(oa);
+  g.userData.offArm=offArm;
   inner.scale.setScalar(s);
   return g;
 }
@@ -838,8 +893,11 @@ function wolfAvatar(){
   const e1=cone3(1.5,3.4,cd,4); e1.position.set(10,17.4,-2.2); inner.add(e1);
   const e2=cone3(1.5,3.4,cd,4); e2.position.set(10,17.4,2.2); inner.add(e2);
   const tail=box3(8,2.4,2.4,cd); tail.position.set(-11,12,0); tail.rotation.z=0.5; inner.add(tail);
+  g.userData.tail=tail;
+  g.userData.legs=[];
   for(const [lx,lz] of [[5,-3],[5,3],[-5,-3],[-5,3]]){
-    const leg=box3(2.4,7,2.4,cd); leg.position.set(lx,3.5,lz); inner.add(leg);
+    const leg=box3(2.4,7,2.4,cd); leg.geometry.translate(0,-3.5,0);
+    leg.position.set(lx,7,lz); inner.add(leg); g.userData.legs.push(leg);
   }
   return g;
 }
@@ -849,12 +907,15 @@ function skaleAvatar(){
   const body=ico3(9,c,0); body.scale.set(1.35,0.75,1); body.position.y=7; inner.add(body);
   const head=cone3(4.5,9,cd,5); head.position.set(13,7,0); head.rotation.z=-Math.PI/2; inner.add(head);
   const tail=cone3(3.4,13,cd,5); tail.position.set(-13,6,0); tail.rotation.z=Math.PI/2; inner.add(tail);
+  g.userData.tail=tail;
   const fin=cone3(3,6,cd,4); fin.position.set(0,14,0); inner.add(fin);
   return g;
 }
 function makeAvatar(e){
   let g;
-  if(e.kind==='player') g=humanoid({armor:0x4a7ab5,trim:0x9aa8c0,pants:0x39414f,weapon:'sword',helm:true});
+  if(e.kind==='player') g=e.cls==='elementalist'
+    ? humanoid({robe:0x8a3838,armor:0x6a2c2c,trim:0xe8b050,weapon:'staff'})
+    : humanoid({armor:0x4a7ab5,trim:0x9aa8c0,pants:0x39414f,weapon:'sword',helm:true});
   else if(e.kind==='hench') g=humanoid({robe:0x3f8a62,armor:0x2f6a4a,trim:0x7ad0a0,weapon:'staff',hood:true});
   else if(e.kind==='npc') g=humanoid({armor:0xb59a4a,trim:0xe8d290,pants:0x4a4438,weapon:'banner'});
   else if(e.type==='wolf') g=wolfAvatar();
@@ -885,28 +946,39 @@ function syncAvatar(e){
   // hide fully-faded corpses awaiting respawn
   if(e.kind==='enemy'&&e.dead&&now>=e.respawnAt-20){ g.visible=false; return; }
   g.visible=true;
+  const ud=g.userData;
   const gy=heightAt(e.x,e.y);
-  const moved=dist(e.x,e.y,g.userData.lx??e.x,g.userData.ly??e.y);
-  g.userData.lx=e.x; g.userData.ly=e.y;
-  const inner=g.userData.inner;
-  if(e.dead){
-    g.position.set(e.x,gy+3,e.y);
-    inner.rotation.z=Math.PI/2; inner.position.y=2;
+  const moved=dist(e.x,e.y,ud.lx??e.x,ud.ly??e.y);
+  ud.lx=e.x; ud.ly=e.y;
+  const inner=ud.inner;
+  if(e.dead){ // topple over instead of snapping flat
+    ud.dk=Math.min(1,(ud.dk||0)+frameDt*2.5);
+    g.position.set(e.x,gy+1,e.y);
+    inner.rotation.z=ud.dk*Math.PI/2; inner.position.y=2*ud.dk;
     return;
   }
+  ud.dk=0;
   inner.rotation.z=0; inner.position.y=0;
-  const bob=moved>0.05?Math.abs(Math.sin(now*9+e.x))*1.8:0;
+  const mv=moved>0.05;
+  const ph=now*9+e.x*0.05; // gait phase, desynced per entity
+  const bob=mv?Math.abs(Math.sin(ph))*1.8:0;
   g.position.set(e.x,gy+bob,e.y);
   g.rotation.y=-e.face;
-  // walk lean
-  inner.rotation.x=moved>0.05?Math.sin(now*9+e.x)*0.06:0;
+  // walk: lean + leg/arm swing
+  inner.rotation.x=mv?Math.sin(ph)*0.06:0;
+  if(ud.legs) ud.legs.forEach((l,i)=>{ l.rotation.z=mv?Math.sin(ph+(i%2)*Math.PI)*0.55:0; });
+  if(ud.offArm) ud.offArm.rotation.z=mv?Math.sin(ph)*0.45:0;
+  if(ud.robe) ud.robe.rotation.x=mv?Math.sin(ph)*0.07:0;
+  if(ud.tail) ud.tail.rotation.y=Math.sin(now*6+e.x)*0.35; // idle tail wag
   // attack chop
-  const arm=g.userData.arm;
+  const arm=ud.arm;
   if(arm&&e.nextAtk){
     const sw=e.nextAtk-now-(e.atkInt-0.3);
     const k=sw>0?sw/0.3:0; // 1 → 0 right after the hit
     arm.rotation.z=-Math.sin(k*Math.PI)*1.5;
   }
+  // casting pose: weapon arm raised, trembling with power
+  if(e===player&&cast&&arm) arm.rotation.z=-2.2-Math.sin(now*12)*0.12;
   if(g.userData.aura){
     const p=0.5+Math.sin(now*4)*0.2;
     g.userData.aura.material.opacity=0.35*p+0.2;
@@ -1043,8 +1115,7 @@ function syncPools(){
   for(const [d,m] of dropMeshes) if(!drops.includes(d)){ scene.remove(m); dropMeshes.delete(d); }
 }
 
-/* ---------------- overlay (bars, names, floating text, joystick) ---------------- */
-let joyId=null, joyOX=0, joyOY=0;
+/* ---------------- overlay (bars, names, floating text) ---------------- */
 function drawOverlay(){
   fctx.clearRect(0,0,VW,VH);
   // entity bars / labels
@@ -1095,13 +1166,6 @@ function drawOverlay(){
     fctx.fillStyle=f.color; fctx.fillText(f.txt,p.x,p.y);
     fctx.globalAlpha=1;
   }
-  // joystick
-  if(input.active){
-    fctx.strokeStyle='rgba(255,255,255,.35)'; fctx.lineWidth=2;
-    fctx.beginPath(); fctx.arc(joyOX,joyOY,52,0,7); fctx.stroke();
-    fctx.fillStyle='rgba(255,255,255,.3)';
-    fctx.beginPath(); fctx.arc(joyOX+input.jx*52,joyOY+input.jy*52,22,0,7); fctx.fill();
-  }
 }
 
 /* ---------------- main 3D render ---------------- */
@@ -1137,37 +1201,21 @@ function render(){
   drawOverlay();
 }
 
-/* ---------------- input ---------------- */
+/* ---------------- input (GW1 mouse-style: tap only, no drag) ---------------- */
 let tapId=null, tapX=0, tapY=0, tapT=0;
 
 canvas.addEventListener('pointerdown',ev=>{
-  const x=ev.clientX,y=ev.clientY;
-  // touch in the lower-left zone drives the joystick; mouse always taps (WASD to move)
-  if(joyId===null&&ev.pointerType!=='mouse'&&x<VW*0.45&&y>VH*0.32){
-    joyId=ev.pointerId; joyOX=x; joyOY=y;
-    input.active=true; input.jx=0; input.jy=0;
-  } else if(tapId===null){
-    tapId=ev.pointerId; tapX=x; tapY=y; tapT=performance.now();
-  }
-});
-window.addEventListener('pointermove',ev=>{
-  if(ev.pointerId===joyId){
-    let dx=ev.clientX-joyOX, dy=ev.clientY-joyOY;
-    const m=Math.hypot(dx,dy), max=52;
-    if(m>max){dx=dx/m*max;dy=dy/m*max;joyOX=ev.clientX-dx;joyOY=ev.clientY-dy;}
-    input.jx=dx/max; input.jy=dy/max;
-  }
+  ev.preventDefault();
+  if(tapId===null){ tapId=ev.pointerId; tapX=ev.clientX; tapY=ev.clientY; tapT=performance.now(); }
 });
 window.addEventListener('pointerup',ev=>{
-  if(ev.pointerId===joyId){joyId=null;input.active=false;input.jx=0;input.jy=0;}
   if(ev.pointerId===tapId){
     tapId=null;
     const moved=dist(ev.clientX,ev.clientY,tapX,tapY);
-    if(moved<14&&performance.now()-tapT<400) handleTap(tapX,tapY);
+    if(moved<18&&performance.now()-tapT<500) handleTap(tapX,tapY);
   }
 });
 window.addEventListener('pointercancel',ev=>{
-  if(ev.pointerId===joyId){joyId=null;input.active=false;input.jx=0;input.jy=0;}
   if(ev.pointerId===tapId)tapId=null;
 });
 
@@ -1226,6 +1274,7 @@ const skillBtns=[];
 
 function buildSkillbar(){
   const bar=$('skillbar');
+  bar.innerHTML=''; skillBtns.length=0;
   SKILLS.forEach((sk,i)=>{
     const b=document.createElement('button');
     b.className='skill';
@@ -1234,6 +1283,8 @@ function buildSkillbar(){
     bar.appendChild(b);
     skillBtns.push(b);
   });
+  if(buildSkillbar.wired) return;
+  buildSkillbar.wired=true;
   $('skillInfoBtn').addEventListener('pointerdown',ev=>{
     ev.stopPropagation();
     ui.skillInfo.classList.toggle('hidden');
@@ -1249,6 +1300,42 @@ function buildSkillbar(){
     ui.dialog.classList.add('hidden');
   });
 }
+function applyClass(key){
+  const c=CLASSES[key];
+  player.cls=key;
+  player.baseHp=c.baseHp+20*(player.lvl-1); player.baseEn=c.baseEn+2*(player.lvl-1);
+  player.enRegen=c.enRegen;
+  player.dmgMin=c.dmgMin+2*(player.lvl-1); player.dmgMax=c.dmgMax+2*(player.lvl-1);
+  player.atkInt=c.atkInt; player.range=c.range;
+  player.hp=pMaxHp(); player.en=pMaxEn();
+  player.skillReady.fill(0);
+  SKILLS=c.skills;
+  buildSkillbar();
+  if(player.av&&HAS3D&&scene){ scene.remove(player.av); player.av=null; }
+  const nameEl=$('pName'); if(nameEl) nameEl.textContent='Kaelen '+c.icon;
+}
+
+function showClassPick(){
+  const el=$('classPick');
+  el.innerHTML='<div class="cpTitle">ELDERVALE</div><div class="cpSub">choose your profession</div>';
+  for(const key of Object.keys(CLASSES)){
+    const c=CLASSES[key];
+    const b=document.createElement('button');
+    b.className='cpOpt';
+    b.innerHTML=`<b>${c.icon} ${c.label}</b><br><span>${c.blurb}</span>`;
+    b.addEventListener('pointerdown',ev=>{
+      ev.stopPropagation(); ev.preventDefault();
+      applyClass(key);
+      el.classList.add('hidden');
+      banner('ELDERVALE','thornveil reach');
+      setTimeout(()=>toast('Tap the ground to move · tap a foe to attack'),1000);
+      setTimeout(()=>toast('Speak with Captain Aldra (gold dot on the compass)'),4800);
+    });
+    el.appendChild(b);
+  }
+  el.classList.remove('hidden');
+}
+
 function closePanels(){ui.dialog.classList.add('hidden');ui.skillInfo.classList.add('hidden');}
 function openDialog(){
   const d=aldraDialog();
@@ -1365,12 +1452,12 @@ function drawCompass(){
 }
 
 /* ---------------- main loop ---------------- */
-let lastT=performance.now(), frameNo=0;
+let lastT=performance.now(), frameNo=0, frameDt=1/60;
 function loop(tms){
   requestAnimationFrame(loop);
   let dt=(tms-lastT)/1000; lastT=tms;
   dt=Math.min(dt,0.05);
-  now+=dt; frameNo++;
+  now+=dt; frameNo++; frameDt=dt;
 
   updatePlayer(dt);
   updateHench(dt);
@@ -1392,8 +1479,5 @@ spawnAll();
 if(HAS3D) initThree();
 buildSkillbar();
 resize();
-banner('ELDERVALE','thornveil reach');
-setTimeout(()=>toast('Drag the left side of the screen to move'),1200);
-setTimeout(()=>toast('Tap a foe to attack · skills 1–8 below'),4600);
-setTimeout(()=>toast('Speak with Captain Aldra (gold dot on the compass)'),8200);
+showClassPick();
 requestAnimationFrame(loop);
