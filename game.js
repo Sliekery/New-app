@@ -28,7 +28,7 @@ let GATES=[];
 /* ---------------- settings & persistence ---------------- */
 const SETTINGS={quality:'medium', zoom:'normal', vignette:true};
 const QUAL_DPR={low:1.0, medium:1.3, high:1.6};
-const CAMVIEWS={close:{h:190,back:165,look:-18}, normal:{h:250,back:215,look:-25}, far:{h:330,back:290,look:-32}};
+const CAMVIEWS={close:{h:90,back:150,look:-60}, normal:{h:125,back:200,look:-80}, far:{h:185,back:275,look:-100}};
 const SAVE_KEY='eldervale.save.v2', SET_KEY='eldervale.settings.v1';
 const hasLS=(()=>{try{return typeof localStorage!=='undefined';}catch(e){return false;}})();
 function loadSettings(){
@@ -1426,11 +1426,17 @@ function leafTex(col){ return canvasTex('leaf'+col,128,(c,s)=>{
     c.beginPath(); c.ellipse(Math.random()*s,Math.random()*s,3+Math.random()*5,1.5+Math.random()*2,Math.random()*3,0,7); c.fill(); }
 },1); }
 // alpha grass card
-function grassCardTex(){ return canvasTex('grasscard',64,(c,s)=>{
+function grassCardTex(){ return canvasTex('grasscard',128,(c,s)=>{
   c.clearRect(0,0,s,s);
-  for(let b=0;b<7;b++){ const x=8+Math.random()*(s-16); const g=120+Math.random()*90|0;
-    c.strokeStyle=`rgb(${g*0.6|0},${g},${50})`; c.lineWidth=2+Math.random()*2; c.beginPath();
-    c.moveTo(x,s); c.quadraticCurveTo(x+Math.random()*10-5,s*0.5,x+Math.random()*16-8,s*0.1); c.stroke(); }
+  for(let b=0;b<18;b++){
+    const x=10+Math.random()*(s-20), h=s*(0.45+Math.random()*0.5);
+    const grad=c.createLinearGradient(0,s,0,s-h);
+    grad.addColorStop(0,'#2e5618'); grad.addColorStop(1,'#8cc455');
+    c.strokeStyle=grad; c.lineWidth=4+Math.random()*3; c.lineCap='round';
+    c.beginPath(); c.moveTo(x,s);
+    c.quadraticCurveTo(x+Math.random()*14-7,s-h*0.55,x+Math.random()*22-11,s-h);
+    c.stroke();
+  }
 }); }
 function adobeTex(){ return canvasTex('adobe',128,(c,s)=>{
   c.fillStyle='#e8d0a2'; c.fillRect(0,0,s,s);
@@ -1464,24 +1470,27 @@ function buildTerrain(){
     // color from the tile this vertex belongs to (painterly jitter)
     const t=T(Math.min(ix,MAPW-1),Math.min(iy,MAPH-1));
     const j=(vr()-0.5)*0.025; // tiny jitter only — big readable patches instead of speckle
-    if(t===G_PATH) col.setHSL(0.085,0.52,0.56+j);               // ochre road, clearly lighter
-    else if(t===G_DIRT) col.setHSL(0.05,0.48,0.40+j);           // Istan red-brown earth
+    if(t===G_PATH){
+      col.setHSL(0.09,0.46,0.50+j);                              // ochre road
+      if(MAPID==='town'&&((ix+iy)&1)) col.multiplyScalar(0.93);  // sandstone paving checker
+    }
+    else if(t===G_DIRT) col.setHSL(0.05,0.50,0.36+j);           // Istan red-brown earth
     else if(t===G_WATER||t===G_BRIDGE) col.setHSL(0.55,0.62,0.13); // deep blue seabed
-    else if(t===G_ROCK) col.setHSL(0.08,0.10,0.46+j);           // grey crags, cool against the green
+    else if(t===G_ROCK) col.setHSL(0.08,0.10,0.42+j);           // grey crags, cool against the green
     else if(t===G_WALL) col.setHSL(0.09,0.45,0.36+j);
-    else if(t===G_SAND) col.setHSL(0.115,0.42,0.74+j);          // near-white harbor sand
+    else if(t===G_SAND) col.setHSL(0.115,0.45,0.66+j);          // warm harbor sand
     else {
       // savanna: smooth large-scale gold↔green patches (value noise, ~8-tile features)
       const n0=0.5+0.5*Math.sin(ix*0.16+Math.sin(iy*0.11)*2.2)*Math.cos(iy*0.13+Math.sin(ix*0.09)*1.8);
       const n=Math.pow(n0,1.7); // green-dominant: Istan is lush, gold is the accent
-      col.setHSL(lerp(0.295,0.145,n), lerp(0.52,0.58,n), lerp(0.36,0.47,n)+j);
+      col.setHSL(lerp(0.30,0.14,n), lerp(0.55,0.60,n), lerp(0.30,0.42,n)+j);
       // darken grass that borders a road/sand — outlines the paths for readability
       let edge=false;
       for(const [dx2,dy2] of [[1,0],[-1,0],[0,1],[0,-1]]){
         const t2=T(Math.min(ix,MAPW-1)+dx2,Math.min(iy,MAPH-1)+dy2);
         if(t2===G_PATH||t2===G_SAND||t2===G_DIRT){edge=true;break;}
       }
-      if(edge) col.multiplyScalar(0.78);
+      if(edge) col.multiplyScalar(0.75);
     }
     colors[i*3]=col.r; colors[i*3+1]=col.g; colors[i*3+2]=col.b;
   }
@@ -1490,8 +1499,8 @@ function buildTerrain(){
   geo.translate(W/2,0,W/2);
   geo.computeVertexNormals();
   terrainMesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({
-    vertexColors:true, flatShading:false, roughness:0.93, metalness:0.0,
-    map:detailMap(), normalMap:bumpNormal('terrN',256,420,2.2,26)}));
+    vertexColors:true, flatShading:false, roughness:0.95, metalness:0.0,
+    normalMap:bumpNormal('terrN',256,900,0.7,40)})); // fine + faint: no visible blotches
   terrainMesh.receiveShadow=true;
   worldGroup.add(terrainMesh);
 
@@ -1548,21 +1557,29 @@ function buildProps(){
   const palmP=[], acaciaP=[];
   for(const p of treeP) (Math.abs(p[0]/TILE-riverCX(p[1]/TILE))<11?palmP:acaciaP).push(p);
   const cc=new THREE.Color();
+  const lumpify=(geo,amt)=>{ // displace canopy vertices for a foliage silhouette
+    const p=geo.attributes.position; const lr=mulberry32(4242);
+    for(let i=0;i<p.count;i++){
+      const m2=1+(lr()-0.5)*2*amt;
+      p.setXYZ(i,p.getX(i)*m2,p.getY(i)*m2,p.getZ(i)*m2);
+    }
+    geo.computeVertexNormals(); return geo;
+  };
   // acacia: textured bark trunk, dense flattened leaf canopy
   inst(new THREE.CylinderGeometry(1.8,3.4,24,7),smat(barkTex(),{rough:0.95}),acaciaP,
     p=>heightAt(p[0],p[1])+12, ()=>0.9+vr()*0.35);
-  const aGeo=new THREE.IcosahedronGeometry(18,2); aGeo.scale(1.4,0.42,1.4);
+  const aGeo=lumpify(new THREE.IcosahedronGeometry(18,2),0.22); aGeo.scale(1.4,0.45,1.4);
   const aCan=inst(aGeo,smat(leafTex(0x6aa848),{rough:0.9}),acaciaP,
     p=>heightAt(p[0],p[1])+27, ()=>0.85+vr()*0.45);
-  acaciaP.forEach((p,i)=>{ cc.setHSL(0.285+vr()*0.04,0.42,0.55+vr()*0.18); aCan.setColorAt(i,cc); });
+  acaciaP.forEach((p,i)=>{ cc.setHSL(0.285+vr()*0.04,0.48,0.44+vr()*0.14); aCan.setColorAt(i,cc); });
   if(aCan.instanceColor) aCan.instanceColor.needsUpdate=true;
   // palm: slim pale trunk, bright spread fronds
   inst(new THREE.CylinderGeometry(1.4,2.4,28,7),smat(barkTex(),{color:0xddc8a8,rough:0.95}),palmP,
     p=>heightAt(p[0],p[1])+14, ()=>0.9+vr()*0.4);
-  const pGeo=new THREE.IcosahedronGeometry(14,2); pGeo.scale(1.6,0.3,1.6);
+  const pGeo=lumpify(new THREE.IcosahedronGeometry(14,2),0.3); pGeo.scale(1.6,0.32,1.6);
   const pCan=inst(pGeo,smat(leafTex(0x7cc455),{rough:0.85}),palmP,
     p=>heightAt(p[0],p[1])+29, ()=>0.9+vr()*0.4);
-  palmP.forEach((p,i)=>{ cc.setHSL(0.315+vr()*0.04,0.48,0.60+vr()*0.16); pCan.setColorAt(i,cc); });
+  palmP.forEach((p,i)=>{ cc.setHSL(0.315+vr()*0.04,0.52,0.50+vr()*0.14); pCan.setColorAt(i,cc); });
   if(pCan.instanceColor) pCan.instanceColor.needsUpdate=true;
   // palisade posts (rough timber)
   inst(new THREE.CylinderGeometry(3.4,4.2,30,7),smat(barkTex(),{color:0xc09868,rough:0.95}),wallP,
@@ -1615,14 +1632,22 @@ function buildProps(){
     glow.rotation.x=-Math.PI/2; glow.position.set(g.x,py+0.7,g.y); worldGroup.add(glow);
   }
 
+  // resurrection shrine (the respawn point)
+  {
+    const dais=cyl3(26,30,6,0x7e7a86,12); dais.position.set(SHRINE.x,3,SHRINE.y); worldGroup.add(dais);
+    const pil=box3(8,30,8,0x6e6a7a); pil.position.set(SHRINE.x,21,SHRINE.y); worldGroup.add(pil);
+    const orb=ico3(6,0xcfe0ff,{emissive:0x88aaff,emissiveIntensity:0.9}); orb.position.set(SHRINE.x,42,SHRINE.y); worldGroup.add(orb);
+    const sl=new THREE.PointLight(0x88aaff,0.8,180); sl.position.set(SHRINE.x,46,SHRINE.y); worldGroup.add(sl);
+  }
+
   if(MAPID==='town'){
     // plaza fountain (on the blocked plinth tile)
     const fx2=48.5*TILE, fz2=52.5*TILE;
-    const basin=cyl3(22,25,8,0x9a96a8,12); basin.position.set(fx2,4,fz2); worldGroup.add(basin);
+    const basin=cyl3(22,25,8,0xc8a868,12); basin.position.set(fx2,4,fz2); worldGroup.add(basin);
     const waterDisc=new THREE.Mesh(new THREE.CircleGeometry(19,16),
-      new THREE.MeshStandardMaterial({color:0x2ab4c0,roughness:0.1,metalness:0.4,emissive:0x0a4a52,emissiveIntensity:0.5}));
+      new THREE.MeshStandardMaterial({color:0x1a8aa8,roughness:0.12,metalness:0.4,emissive:0x06323e,emissiveIntensity:0.5}));
     waterDisc.rotation.x=-Math.PI/2; waterDisc.position.set(fx2,8.4,fz2); worldGroup.add(waterDisc);
-    const spout=cyl3(3,4,26,0x8a8698,8); spout.position.set(fx2,18,fz2); worldGroup.add(spout);
+    const spout=cyl3(3,4,26,0x9a8458,8); spout.position.set(fx2,18,fz2); worldGroup.add(spout);
     // keep banner + market stalls + homes + the inn
     flagpole(48*TILE,13*TILE);
     tent(12*TILE,45*TILE,0xc87838,0.8); tent(16*TILE,49.5*TILE,0x2a8a96,0.8); tent(20*TILE,46*TILE,0xd8b860,0.8);
@@ -1649,7 +1674,7 @@ function buildProps(){
   // grass tufts for foreground richness (one instanced draw call)
   const grassP=[];
   for(let y=2;y<MAPH-2;y++)for(let x=2;x<MAPW-2;x++){
-    if(T(x,y)===G_GRASS&&vr()<0.22) grassP.push([(x+vr())*TILE,(y+vr())*TILE]);
+    if(T(x,y)===G_GRASS&&vr()<0.16) grassP.push([(x+vr())*TILE,(y+vr())*TILE]);
   }
   const blade=new THREE.PlaneGeometry(14,11); blade.translate(0,5,0);
   const gmesh=new THREE.InstancedMesh(blade,
@@ -1658,7 +1683,7 @@ function buildProps(){
   grassP.forEach((p,i)=>{
     const s=0.7+vr()*0.8; vS.set(s*(0.7+vr()*0.6),s,s); vP.set(p[0],heightAt(p[0],p[1]),p[1]);
     q.setFromAxisAngle(up,vr()*6.28); m4.compose(vP,q,vS); gmesh.setMatrixAt(i,m4);
-    gcc.setHSL(0.27+vr()*0.07,0.50,0.36+vr()*0.12); gmesh.setColorAt(i,gcc);
+    gcc.setHSL(0.27+vr()*0.06,0.35,0.55+vr()*0.12); gmesh.setColorAt(i,gcc);
   });
   if(gmesh.instanceColor) gmesh.instanceColor.needsUpdate=true;
   worldGroup.add(gmesh);
@@ -1925,7 +1950,7 @@ function initThree(){
   renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
   renderer.outputEncoding=THREE.sRGBEncoding;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.12;
+  renderer.toneMappingExposure=1.0;
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   scene=new THREE.Scene();
   scene.background=new THREE.Color(HAZE); // warm Istani haze
@@ -1933,11 +1958,11 @@ function initThree(){
   camera=new THREE.PerspectiveCamera(50,1,10,3400);
   raycaster=new THREE.Raycaster();
   // stylized 3-point rig: warm sky / cool ground bounce, cool rim, warm key
-  scene.add(new THREE.HemisphereLight(0xcfe2ff,0x55684a,0.78)); // cool sky / green ground bounce
-  const amb=new THREE.AmbientLight(0xe8f0ff,0.14); scene.add(amb);
+  scene.add(new THREE.HemisphereLight(0xcfe2ff,0x4a5a3c,0.5)); // kept low so the sun does the shaping
+  const amb=new THREE.AmbientLight(0xe8f0ff,0.08); scene.add(amb);
   const rim=new THREE.DirectionalLight(0x88b6ff,0.55); // cool back-rim to pop silhouettes
   rim.position.set(-360,420,-520); scene.add(rim);
-  sunLight=new THREE.DirectionalLight(0xfff2d8,1.45); // warm key against the cool sky
+  sunLight=new THREE.DirectionalLight(0xfff2d8,1.7); // strong warm key against the cool sky
   sunLight.position.set(420,760,300);
   sunLight.target.position.set(0,0,0); scene.add(sunLight.target);
   // shadow camera follows the player (High quality only)
@@ -2005,7 +2030,14 @@ const skyClouds=[];
 function applyQuality(){
   if(!renderer) return;
   const q=SETTINGS.quality;
-  const shadows=q==='high';
+  const shadows=q!=='low'; // shadows ground the scene, GW1-style
+  if(sunLight){
+    const ms=q==='high'?2048:1024;
+    if(sunLight.shadow.mapSize.x!==ms){
+      sunLight.shadow.mapSize.set(ms,ms);
+      if(sunLight.shadow.map){ sunLight.shadow.map.dispose(); sunLight.shadow.map=null; }
+    }
+  }
   renderer.shadowMap.enabled=shadows;
   if(sunLight) sunLight.castShadow=shadows;
   scene.traverse(o=>{
@@ -2212,7 +2244,7 @@ function render(){
   const ph=heightAt(player.x,player.y);
   const cv=CAMVIEWS[SETTINGS.zoom]||CAMVIEWS.normal;
   camera.position.set(player.x,ph+cv.h,player.y+cv.back);
-  camera.lookAt(player.x,ph+5,player.y+cv.look);
+  camera.lookAt(player.x,ph+26,player.y+cv.look); // chest height, slightly ahead
   // sun + shadow frustum follow the player
   if(sunLight){
     sunLight.position.set(player.x+420,ph+760,player.y+300);
