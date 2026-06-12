@@ -70,13 +70,16 @@
     R.combatVisible = true;
     R.views = c.enemies.map(function (en, i) {
       var old = R.views[i];
+      var same = old && old.en === en;
       return {
         def: en.def, en: en,
-        hp: en.hp, maxHp: en.maxHp, dispHp: old && old.en === en ? old.dispHp : en.hp,
+        hp: en.hp, maxHp: en.maxHp, dispHp: same ? old.dispHp : en.hp,
         block: en.block,
         alive: en.alive,
-        deathT: (old && old.en === en) ? old.deathT : -1,
-        flashT: -9, shakeT: -9,
+        deathT: same ? old.deathT : -1,
+        spawnT: same ? old.spawnT : t,         // warp-in animation
+        spawned: same ? old.spawned : false,
+        flashT: -9, shakeT: -9, lungeT: -9,
         intent: en.intent,
         x: 0, y: 0, r: 10,
       };
@@ -114,6 +117,11 @@
     screenShake = 1;
     var p = R.playerXY();
     burst(p.x, p.y, '#ff4a5e', 12);
+  };
+  R.playerLunge = function () { R.player.lungeT = t; };
+  R.enemyLunge = function (idx) {
+    var v = R.views[idx];
+    if (v) v.lungeT = t;
   };
   R.flash = function () { flashAlpha = 0.35; };
 
@@ -473,12 +481,26 @@
     var bob = Math.sin(t * 1.8 + idx * 1.7) * 3;
     var sx = 0;
     if (t - v.shakeT < 0.22) sx = (Math.random() - 0.5) * 8;
+    // lunge toward the player when attacking
+    var lu = (t - v.lungeT) / 0.3;
+    if (lu >= 0 && lu < 1) sx -= Math.sin(lu * Math.PI) * v.r * 0.35;
 
     var alpha = 1, scale = v.r;
     if (dying) {
       var dp = (t - v.deathT) / dieDur;
       alpha = 1 - dp;
       scale = v.r * (1 - dp * 0.5);
+    }
+    // warp-in on combat start
+    var su = (t - v.spawnT) / 0.5;
+    if (su >= 0 && su < 1) {
+      var eo = 1 - Math.pow(1 - su, 3);
+      scale *= eo + Math.sin(su * Math.PI) * 0.08;
+      alpha *= Math.min(1, su * 2);
+      if (!v.spawned && su > 0.12) {
+        v.spawned = true;
+        burst(v.x, v.y, factionColor(v.def), 14);
+      }
     }
 
     var color = factionColor(v.def);
@@ -720,8 +742,12 @@
     var scale = Math.min(W, H) * 0.082;
     var bob = Math.sin(t * 1.6) * 2;
     var flash = (t - R.player.flashT < 0.15);
+    // lunge toward the enemy line when attacking
+    var px = p.x;
+    var lu = (t - (R.player.lungeT || -9)) / 0.28;
+    if (lu >= 0 && lu < 1) px += Math.sin(lu * Math.PI) * 18;
     var art = CLASS_ART[r.cls] || CLASS_ART.vanguard;
-    strokePaths(art.p, p.x, p.y + bob, scale, flash ? '#ff4a5e' : art.color, flash ? 14 : 9, 1);
+    strokePaths(art.p, px, p.y + bob, scale, flash ? '#ff4a5e' : art.color, flash ? 14 : 9, 1);
 
     // glowing eye/visor points
     ctx.save();
@@ -729,9 +755,9 @@
     ctx.shadowColor = art.color;
     ctx.shadowBlur = 7;
     (art.e || []).forEach(function (e) {
-      var px = p.x + e[0] * scale, py = p.y + bob + e[1] * scale;
+      var ex = px + e[0] * scale, ey = p.y + bob + e[1] * scale;
       var es = Math.max(1.5, scale * 0.055);
-      ctx.fillRect(px - es / 2, py - es / 2, es, es);
+      ctx.fillRect(ex - es / 2, ey - es / 2, es, es);
     });
     ctx.restore();
 

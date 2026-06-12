@@ -51,7 +51,52 @@
     lose: function () { beep(220, 0.3, 'sawtooth', 0.05, -160); },
     dice: function () { beep(330 + Math.random() * 300, 0.03, 'square', 0.02); },
     coin: function () { beep(988, 0.06, 'square', 0.03); setTimeout(function () { beep(1319, 0.1, 'square', 0.03); }, 60); },
+    talk: function () { beep(700 + Math.random() * 380, 0.025, 'square', 0.012); },
   };
+
+  /* ====================== vector art -> inline SVG ====================== */
+  // Same polyline format as enemies: {p:[[x,y,...]], e:[[x,y]], m:[x,y,...]}
+  function artSVG(art, cls, color) {
+    function pts(arr) {
+      var o = [];
+      for (var i = 0; i < arr.length; i += 2) {
+        o.push(((arr[i] + 1.2) * 10).toFixed(2) + ',' + ((arr[i + 1] + 1.2) * 10).toFixed(2));
+      }
+      return o.join(' ');
+    }
+    var out = '<svg class="vec' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24"' +
+      (color ? ' style="color:' + color + '"' : '') + '>';
+    art.p.forEach(function (p) { out += '<polyline points="' + pts(p) + '"/>'; });
+    (art.e || []).forEach(function (e) {
+      out += '<circle class="eye" cx="' + ((e[0] + 1.2) * 10).toFixed(2) + '" cy="' + ((e[1] + 1.2) * 10).toFixed(2) + '" r="0.6"/>';
+    });
+    if (art.m) out += '<polyline class="mouth" points="' + pts(art.m) + '"/>';
+    return out + '</svg>';
+  }
+
+  /* ====================== typewriter ====================== */
+  var typerIv = null;
+  // Types text into elm; returns a finish() that completes it instantly.
+  function typeText(elm, text, done) {
+    clearInterval(typerIv);
+    var i = 0, ticks = 0;
+    elm.textContent = '';
+    function finish() {
+      if (!typerIv) return;
+      clearInterval(typerIv);
+      typerIv = null;
+      elm.textContent = text;
+      if (done) done();
+    }
+    typerIv = setInterval(function () {
+      i += 2;
+      elm.textContent = text.slice(0, i);
+      if (ticks++ % 3 === 0) SFX.talk();
+      if (i >= text.length) finish();
+    }, 26);
+    return finish;
+  }
+  function typing() { return !!typerIv; }
 
   /* ====================== helpers ====================== */
   function el(tag, cls, html) {
@@ -139,6 +184,13 @@
     combatChrome(false);
     var s = el('div', 'screen' + (clear ? ' clear' : ''));
     $overlay.appendChild(s);
+    // cascade-in for whatever the caller builds next
+    setTimeout(function () {
+      var kids = s.querySelectorAll('.panel-btn, .card-grid .card');
+      for (var i = 0; i < kids.length; i++) {
+        kids[i].style.setProperty('--d', Math.min(i * 55, 440) + 'ms');
+      }
+    }, 0);
     return s;
   }
   function hideOverlay() {
@@ -183,7 +235,7 @@
     if (r.artifacts.length) {
       html += '<div class="artifact-row">';
       r.artifacts.forEach(function (id, i) {
-        html += '<div class="artifact-chip" data-art="' + i + '">' + esc(ns.ARTIFACTS[id].name.charAt(0)) + '</div>';
+        html += '<div class="artifact-chip" data-art="' + i + '">' + artSVG(ns.ARTIFACTS[id].art, 'art-icon') + '</div>';
       });
       html += '</div>';
     }
@@ -298,7 +350,7 @@
     combatChrome(true);
     R.syncCombat();
     updateHUD();
-    renderHand();
+    renderHand(true);
     renderControls();
     updateEnergy();
     updateCounts();
@@ -346,7 +398,7 @@
       '<div class="cdesc">' + esc(desc) + '</div>';
   }
 
-  function renderHand() {
+  function renderHand(deal) {
     $hand.innerHTML = '';
     var c = E.combat;
     if (!c) return;
@@ -355,7 +407,9 @@
       var d = el('div', 'card type-' + info.type +
         (info.cost > c.energy && !info.unplayable ? ' unaffordable' : '') +
         (info.unplayable ? ' unplayable-curse' : '') +
+        (deal ? ' deal' : '') +
         (i === selected ? ' selected' : ''));
+      if (deal) d.style.setProperty('--d', (i * 60) + 'ms');
       d.innerHTML = cardInner(info.name, info.cost, info.type, info.rarity, info.desc, info.unplayable);
       d.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
@@ -493,16 +547,18 @@
   function playCardAt(i, targetIdx) {
     setTargeting(false);
     if (i < 0 || !E.canPlay(i)) { renderHand(); return; }
+    var wasAttack = ns.CARDS[E.combat.hand[i].id].type === 'attack';
     E.events.length = 0;
     var ok = E.playCard(i, targetIdx);
     if (!ok) { renderHand(); return; }
     SFX.play();
+    if (wasAttack) R.playerLunge();
     var evts = E.events.slice();
     E.events.length = 0;
     lock(true);
     playTimeline(evts, 70, function () {
       lock(false);
-      afterAction();
+      afterAction(false);
     });
     // hand & energy update immediately — feels snappy
     renderHand();
@@ -521,11 +577,11 @@
     playTimeline(evts, B.feel.enemyActDelay, function () {
       lock(false);
       R.refreshIntents();
-      afterAction();
+      afterAction(true);
     });
   }
 
-  function afterAction() {
+  function afterAction(deal) {
     var r = E.run;
     if (r.phase === 'dead') {
       SFX.lose();
@@ -534,7 +590,7 @@
       SFX.win();
       setTimeout(U.refresh, 650);
     } else if (r.phase === 'combat') {
-      renderHand();
+      renderHand(deal);
       updateEnergy();
       updateCounts();
       updateHUD();
@@ -553,6 +609,11 @@
       switch (e.type) {
         case 'enemyMove':
           delay += stepDelay;
+          if (e.move && (e.move.t === 'attack' || e.move.t === 'drain')) {
+            (function (e, d) {
+              setTimeout(function () { R.enemyLunge(e.idx); }, d);
+            })(e, delay);
+          }
           break;
         case 'dmg':
           (function (e, d) {
@@ -654,6 +715,7 @@
           }
           break;
         case 'win':
+          (function (d) { setTimeout(function () { R.flash(); }, d); })(delay);
           delay += 250;
           break;
       }
@@ -673,7 +735,7 @@
     s.appendChild(el('div', 'screen-sub', subParts.join(' · ')));
     if (rw.artifact) {
       var a = ns.ARTIFACTS[rw.artifact];
-      s.appendChild(el('div', 'gain-list', '<div>◆ ' + esc(a.name) + ' — ' + esc(a.desc) + '</div>'));
+      s.appendChild(el('div', 'gain-list', '<div><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + ' — ' + esc(a.desc) + '</div>'));
     }
 
     if (!rw.cardTaken) {
@@ -718,9 +780,22 @@
     updateHUD();
     var ev = E.getEvent();
     var s = overlayScreen();
+
+    var frame = el('div', 'comm-frame talking');
+    frame.innerHTML = artSVG(ev.art, 'portrait', ev.art.c) + '<div class="comm-scan"></div>';
+    s.appendChild(frame);
+
     s.appendChild(el('h2', 'screen-title', esc(ev.title)));
-    s.appendChild(el('div', 'screen-sub', 'SECTOR ' + E.run.sector + ' · ANOMALY'));
-    s.appendChild(el('div', 'event-text', esc(ev.text)));
+    s.appendChild(el('div', 'screen-sub', 'INCOMING TRANSMISSION · SECTOR ' + E.run.sector));
+
+    var p = el('div', 'event-text');
+    s.appendChild(p);
+    var finish = typeText(p, ev.text, function () { frame.classList.remove('talking'); });
+    // first tap anywhere completes the transmission instead of acting
+    s.addEventListener('pointerdown', function (e2) {
+      if (typing()) { finish(); e2.stopPropagation(); }
+    }, true);
+
     ev.choices.forEach(function (ch, i) {
       var sub = ch.sub ? '<div class="pb-sub">' + esc(ch.sub) + '</div>' : '';
       var disabled = ch.cost && E.run.credits < ch.cost;
@@ -745,6 +820,11 @@
     if (!res) { U.refresh(); return; }
     var s = overlayScreen();
     var ev = E.getEvent();
+    if (ev && ev.art) {
+      var mini = el('div', 'comm-frame mini');
+      mini.innerHTML = artSVG(ev.art, 'portrait', ev.art.c) + '<div class="comm-scan"></div>';
+      s.appendChild(mini);
+    }
     s.appendChild(el('h2', 'screen-title', esc(ev ? ev.title : 'OUTCOME')));
 
     var diceBox = null;
@@ -856,7 +936,7 @@
     if (sh.artifact) {
       var a = ns.ARTIFACTS[sh.artifact.id];
       var ab = el('div', 'panel-btn amber' + (sh.artifact.sold ? ' disabled' : ''),
-        '<div class="pb-title">◆ ' + esc(a.name) + ' — ¢' + sh.artifact.cost + '</div>' +
+        '<div class="pb-title"><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + ' — ¢' + sh.artifact.cost + '</div>' +
         '<div class="pb-desc">' + esc(a.desc) + '</div>');
       ab.addEventListener('pointerdown', function () {
         if (sh.artifact.sold) return;
@@ -942,7 +1022,7 @@
     (r.bossArtifacts || []).forEach(function (id, i) {
       var a = ns.ARTIFACTS[id];
       var btn = el('div', 'panel-btn amber',
-        '<div class="pb-title">◆ ' + esc(a.name) + '</div><div class="pb-desc">' + esc(a.desc) + '</div>');
+        '<div class="pb-title"><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + '</div><div class="pb-desc">' + esc(a.desc) + '</div>');
       btn.addEventListener('pointerdown', function () {
         SFX.coin();
         E.takeBossArtifact(i);

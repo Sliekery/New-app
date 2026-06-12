@@ -85,7 +85,8 @@ Optional (needs `npm i jsdom canvas` somewhere on `NODE_PATH`):
 
 ```sh
 NODE_PATH=/path/to/node_modules node test/dom.js   # boots the real UI and taps through a run
-NODE_PATH=/path/to/node_modules node test/shot.js  # renders battlefield PNGs of every faction
+NODE_PATH=/path/to/node_modules node test/shot.js   # renders battlefield PNGs of every faction
+NODE_PATH=/path/to/node_modules node test/sheet.js  # contact sheet of all enemy/event/artifact art
 ```
 
 ## Architecture

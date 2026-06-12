@@ -12,6 +12,7 @@
   ns.EVENTS = [
     {
       id: 'cryopod', title: 'DERELICT CRYOPOD',
+      art: { c: '#41d8ff', p: [[-0.55,-0.95, 0.55,-0.95, 0.7,-0.3, 0.7,0.7, -0.7,0.7, -0.7,-0.3, -0.55,-0.95], [-0.4,-0.7, 0.4,-0.7, 0.45,0.1, -0.45,0.1, -0.4,-0.7], [-0.18,-0.45, 0.18,-0.45, 0.22,-0.1, 0,0.02, -0.22,-0.1, -0.18,-0.45], [0.45,-0.55, 0.62,-0.6], [-0.45,-0.25, -0.62,-0.15], [-0.5,0.4, 0.5,0.4]], e: [[-0.08,-0.3],[0.08,-0.3]], m: [-0.07,-0.1, 0.07,-0.1] },
       text: 'A cracked cryopod hums in the wreckage of a troop carrier. Something — or someone — is still sealed inside. The lock panel sparks.',
       choices: [
         { label: 'Hack the lock', sub: 'TECH check, DC 12', check: { attr: 'tech', dc: 12 },
@@ -25,6 +26,7 @@
     },
     {
       id: 'wounded_marine', title: 'WOUNDED MARINE',
+      art: { c: '#5dff88', p: [[-0.55,-0.5, -0.45,-0.85, 0.45,-0.85, 0.55,-0.5, 0.55,0.0, 0.4,0.2, -0.4,0.2, -0.55,0.0, -0.55,-0.5], [-0.4,-0.5, 0.4,-0.5, 0.35,-0.15, -0.35,-0.15, -0.4,-0.5], [0.15,-0.85, 0.05,-0.5, 0.2,-0.32], [-0.85,0.7, -0.6,0.32, 0.6,0.32, 0.85,0.7], [-0.3,0.45, -0.1,0.45]], e: [[-0.15,-0.32],[0.15,-0.32]], m: [-0.1,0.0, 0.1,0.0] },
       text: 'A marine of the 9th Voidborne slumps against a bulkhead, suit breached, breath ragged. “Took six of them with me,” she rasps. “Take my rig. Make it count.”',
       choices: [
         { label: 'Stabilize her', sub: 'Costs 8 HP worth of supplies',
@@ -39,6 +41,7 @@
     },
     {
       id: 'void_altar', title: 'ALTAR OF THE VOID',
+      art: { c: '#c86bff', p: [[-0.7,0.7, -0.5,0.12, 0.5,0.12, 0.7,0.7, -0.7,0.7], [-0.25,0.12, -0.15,-0.85, 0.15,-0.85, 0.25,0.12], [0,-0.65, 0,-0.5], [-0.08,-0.35, 0.08,-0.35], [-0.55,-0.5, -0.45,-0.3], [0.5,-0.62, 0.6,-0.42], [0.35,-0.95, 0.45,-0.8]], e: [[0,-0.2]], m: [-0.06,-0.05, 0.06,-0.05] },
       text: 'An altar of black glass, older than the station around it. Symbols crawl when you stop looking at them. It wants something.',
       choices: [
         { label: 'Offer blood', sub: 'Lose 12 HP',
@@ -53,6 +56,7 @@
     },
     {
       id: 'smuggler_cache', title: 'SMUGGLER CACHE',
+      art: { c: '#ffb02e', p: [[-0.7,-0.4, 0.7,-0.4, 0.7,0.7, -0.7,0.7, -0.7,-0.4], [-0.7,-0.1, 0.7,-0.1], [-0.18,0.05, 0.18,0.05, 0.18,0.35, 0.08,0.45, -0.08,0.45, -0.18,0.35, -0.18,0.05], [-0.7,-0.25, -0.9,-0.45], [0.7,-0.25, 0.9,-0.45]], e: [[-0.08,0.2],[0.08,0.2]], m: [-0.06,0.45, 0.06,0.45] },
       text: 'Behind a false panel: a strongbox stenciled with a grinning skull. Tamper-wires run along the seam.',
       choices: [
         { label: 'Disarm and open', sub: 'TECH check, DC 13', check: { attr: 'tech', dc: 13 },
@@ -64,6 +68,7 @@
     },
     {
       id: 'rogue_ai', title: 'ROGUE AI TERMINAL',
+      art: { c: '#41d8ff', p: [[-0.75,-0.75, 0.75,-0.75, 0.75,0.55, -0.75,0.55, -0.75,-0.75], [-0.3,0.55, -0.4,0.8, 0.4,0.8, 0.3,0.55], [0.5,-0.58, 0.66,-0.58], [-0.66,-0.12, -0.5,-0.12], [-0.45,-0.42, -0.18,-0.42], [0.18,-0.42, 0.45,-0.42]], e: [[-0.3,-0.28],[0.3,-0.28]], m: [-0.25,0.15, 0,0.3, 0.25,0.15] },
       text: '“USER DETECTED,” the terminal announces, far too cheerfully. “I CAN OPTIMIZE YOUR COMBAT PROTOCOLS. PROBABLY. MOSTLY.”',
       choices: [
         { label: 'Let it optimize', sub: 'TECH check, DC 12', check: { attr: 'tech', dc: 12 },
@@ -76,6 +81,7 @@
     },
     {
       id: 'star_chapel', title: 'CHAPEL OF THE BURNT STAR',
+      art: { c: '#5dff88', p: [[-0.5,0.7, -0.5,-0.3, 0,-0.85, 0.5,-0.3, 0.5,0.7, -0.5,0.7], [0,-0.85, 0,0.7], [-0.5,0.2, 0.5,0.2], [-0.75,0.7, -0.75,0.35], [0.75,0.7, 0.75,0.4]], e: [[-0.75,0.27],[0.75,0.32],[0,-0.3]] },
       text: 'A quiet shrine tended by no one. Candles burn without fuel. For a moment, the war feels very far away.',
       choices: [
         { label: 'Rest and pray', outcome: { text: 'You wake with your wounds half-closed and your head clear.', fx: { healPct: 0.30 } } },
@@ -86,6 +92,7 @@
     },
     {
       id: 'gene_lab', title: 'ABANDONED GENE-LAB',
+      art: { c: '#5dff88', p: [[-0.45,-0.85, 0.45,-0.85, 0.45,0.6, -0.45,0.6, -0.45,-0.85], [-0.55,-0.85, 0.55,-0.85], [-0.55,0.6, 0.55,0.6, 0.5,0.82, -0.5,0.82, -0.55,0.6], [-0.15,-0.3, 0.1,-0.45, 0.25,-0.2, 0.1,0.1, -0.15,0.15, -0.25,-0.05, -0.15,-0.3], [0.45,-0.5, 0.7,-0.4, 0.7,0.2]], e: [[0.2,-0.62],[-0.15,-0.58],[0,0.38]], m: [-0.05,-0.08, 0.05,-0.08] },
       text: 'Rows of vats, most shattered. One intact dispenser blinks: AUGMENT READY. The label is scorched off.',
       choices: [
         { label: 'Inject it', sub: 'PSI check, DC 12 to control the change', check: { attr: 'psi', dc: 12 },
@@ -99,6 +106,7 @@
     },
     {
       id: 'captured_xeno', title: 'THE CAGED THING',
+      art: { c: '#c86bff', p: [[-0.8,-0.6, -0.8,-0.8, -0.6,-0.8], [0.6,-0.8, 0.8,-0.8, 0.8,-0.6], [0.8,0.6, 0.8,0.8, 0.6,0.8], [-0.6,0.8, -0.8,0.8, -0.8,0.6], [0,-0.5, 0.45,0, 0,0.5, -0.45,0, 0,-0.5], [0,-0.25, 0.22,0, 0,0.25, -0.22,0, 0,-0.25], [0.45,0, 0.7,-0.2], [-0.45,0, -0.7,-0.2]], e: [[0,0],[-0.12,-0.14],[0.12,-0.14]], m: [-0.05,0.12, 0.05,0.12] },
       text: 'A containment field holds a creature of folded light. It watches you with patient, plural eyes. An auction tag hangs on the cage.',
       choices: [
         { label: 'Speak with it', sub: 'PSI check, DC 13', check: { attr: 'psi', dc: 13 },
@@ -110,6 +118,7 @@
     },
     {
       id: 'time_anomaly', title: 'TEMPORAL SHEAR',
+      art: { c: '#41d8ff', p: [[0.6,0, 0.42,0.42, 0,0.6, -0.42,0.42, -0.6,0, -0.42,-0.42, 0,-0.6, 0.42,-0.42, 0.6,0], [0,0, 0,-0.4], [0,0, 0.25,0.15], [0.72,0.1, 0.5,0.52, 0.1,0.72], [-0.72,-0.1, -0.5,-0.52, -0.1,-0.72]], e: [[0,0]] },
       text: 'The corridor ahead exists twice, slightly out of sync. Your own footsteps arrive before you do.',
       choices: [
         { label: 'Echo a weapon', sub: 'Duplicate a card in your deck',
@@ -121,6 +130,7 @@
     },
     {
       id: 'mercenary', title: 'FREELANCE GUNHAND',
+      art: { c: '#ffb02e', p: [[-0.4,-0.3, -0.4,-0.7, -0.2,-0.9, 0.2,-0.9, 0.4,-0.7, 0.4,-0.3, 0.25,-0.1, -0.25,-0.1, -0.4,-0.3], [-0.05,-0.9, -0.05,-1.05, 0.05,-1.05, 0.05,-0.9], [-0.25,-0.55, 0.25,-0.55], [-0.8,0.7, -0.55,0.08, 0.55,0.08, 0.8,0.7], [-0.7,0.5, 0.75,0.15], [0.75,0.15, 0.92,0.1]], e: [[-0.12,-0.55],[0.12,-0.55]], m: [-0.1,-0.25, 0.1,-0.25] },
       text: 'A mercenary in mismatched power armor cleans a rifle that is absolutely not standard issue. “For the right price, I’ll teach you the trick to it.”',
       choices: [
         { label: 'Pay 40 credits', sub: 'Learn a rare technique', cost: 40,
@@ -133,6 +143,7 @@
     },
     {
       id: 'asteroid_mine', title: 'VEIN OF STARMETAL',
+      art: { c: '#ffb02e', p: [[-0.7,0.2, -0.45,-0.4, 0.1,-0.6, 0.6,-0.35, 0.75,0.2, 0.45,0.6, -0.2,0.65, -0.7,0.2], [-0.25,-0.1, -0.1,-0.2, 0,-0.05, -0.15,0.05, -0.25,-0.1], [0.6,-0.35, 0.85,-0.65], [0.75,-0.75, 0.95,-0.6, 0.85,-0.45]], e: [[0.3,0.1],[0.15,0.35],[-0.4,0.3]] },
       text: 'A raw vein of starmetal glitters in the asteroid wall. The mining rig nearby is dead, but a manual bore remains.',
       choices: [
         { label: 'Work the bore', sub: 'MIGHT check, DC 11', check: { attr: 'might', dc: 11 },
@@ -146,6 +157,7 @@
     },
     {
       id: 'rogue_trader', title: 'THE ROGUE TRADER',
+      art: { c: '#ffb02e', p: [[-0.6,0.7, -0.5,-0.1, -0.25,-0.35, 0.25,-0.35, 0.5,-0.1, 0.6,0.7], [-0.2,-0.35, -0.2,-0.75, 0.2,-0.75, 0.2,-0.35], [-0.35,-0.75, 0,-1.0, 0.35,-0.75], [-0.35,0.2, 0.35,0.2]], e: [[-0.1,-0.55],[0.1,-0.55],[0,-0.12],[-0.35,0.4],[0.35,0.4]], m: [-0.08,-0.42, 0.08,-0.42] },
       text: 'A baroque vessel drifts alongside, gilded and gun-heavy. Its master, draped in dead empires’ finery, spreads jeweled hands: “Everything is for sale, captain.”',
       choices: [
         { label: 'Buy a relic — 65c', cost: 65,

@@ -252,14 +252,37 @@ html, body {
   display: flex; flex-direction: column; align-items: center;
   padding: calc(env(safe-area-inset-top, 0px) + 26px) 18px calc(env(safe-area-inset-bottom, 0px) + 20px);
   overflow-y: auto;
-  animation: screenIn 0.25s ease-out;
+  animation: screenIn 0.34s cubic-bezier(0.2, 0.8, 0.3, 1);
 }
 .screen.clear { background: rgba(3, 7, 9, 0.78); }
-@keyframes screenIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes screenIn {
+  0% { opacity: 0; transform: translateY(16px) scale(0.985); filter: brightness(2) saturate(1.5); }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+/* CRT power-on sweep across each new screen */
+.screen::before {
+  content: ''; position: absolute; left: 0; right: 0; height: 26px; top: -10%;
+  background: linear-gradient(rgba(93, 255, 136, 0), rgba(93, 255, 136, 0.10), rgba(93, 255, 136, 0));
+  pointer-events: none;
+  animation: screenSweep 0.55s ease-out forwards;
+}
+@keyframes screenSweep { 0% { top: -10%; opacity: 1; } 100% { top: 105%; opacity: 0; } }
+/* cascade-in for menu panels & card grids (delay set per element via --d) */
+.screen .panel-btn, .screen .card-grid .card {
+  animation: riseIn 0.34s cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes riseIn { from { opacity: 0; transform: translateY(16px); } }
 
 .title-logo {
   font-size: 38px; letter-spacing: 8px; color: var(--green);
   text-shadow: 0 0 18px rgba(93,255,136,0.6); margin: 36px 0 4px; text-align: center;
+  animation: flickerOn 1.1s backwards;
+}
+@keyframes flickerOn {
+  0% { opacity: 0; } 8% { opacity: 0.7; } 12% { opacity: 0.15; }
+  20% { opacity: 1; } 26% { opacity: 0.4; } 34% { opacity: 1; }
+  44% { opacity: 0.8; } 52% { opacity: 1; }
 }
 .subtitle { font-size: 10px; letter-spacing: 4px; color: var(--text-dim); margin-bottom: 28px; text-align: center; }
 
@@ -325,10 +348,76 @@ h2.screen-title {
 .sector-banner {
   font-size: 22px; letter-spacing: 6px; color: var(--green); text-shadow: 0 0 16px rgba(93,255,136,0.65);
   margin: 40px 0 8px; text-align: center;
+  animation: bannerIn 0.85s cubic-bezier(0.2, 0.9, 0.25, 1) backwards;
+}
+@keyframes bannerIn {
+  0% { opacity: 0; letter-spacing: 28px; filter: blur(5px); }
+  100% { opacity: 1; letter-spacing: 6px; filter: none; }
 }
 .faction-tag { font-size: 11px; letter-spacing: 3px; margin-bottom: 30px; }
 
 .footer-note { margin-top: auto; padding-top: 14px; font-size: 9px; letter-spacing: 2px; color: var(--text-dim); text-align: center; }
+
+/* ========================= VECTOR SVG ART ========================= */
+svg.vec { display: block; }
+svg.vec polyline {
+  fill: none; stroke: currentColor; stroke-width: 1.4;
+  stroke-linejoin: round; stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite; }
+@keyframes blink { 0%, 90% { opacity: 1; } 93%, 96% { opacity: 0.1; } 100% { opacity: 1; } }
+
+.art-icon { width: 15px; height: 15px; color: var(--amber); }
+.artifact-chip { display: flex; align-items: center; justify-content: center; }
+.pb-icon { display: inline-block; width: 17px; height: 17px; vertical-align: -4px; margin-right: 7px; color: var(--amber); }
+.pb-icon svg { width: 100%; height: 100%; }
+
+/* ---- event comm-frame: the picture that talks ---- */
+.comm-frame {
+  position: relative; width: 132px; height: 132px; margin: 0 auto 14px;
+  border: 1px solid var(--green-dim);
+  background: rgba(5, 14, 11, 0.85);
+  clip-path: polygon(0 10px, 10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+  flex-shrink: 0;
+  animation: commOn 0.5s ease-out backwards;
+}
+@keyframes commOn {
+  0% { opacity: 0; transform: scaleY(0.05); filter: brightness(3); }
+  45% { opacity: 1; transform: scaleY(1.04); }
+  100% { transform: none; filter: none; }
+}
+.comm-frame svg.portrait {
+  position: absolute; inset: 8px; width: calc(100% - 16px); height: calc(100% - 16px);
+  filter: drop-shadow(0 0 5px currentColor);
+  animation: portraitBob 3.4s ease-in-out infinite;
+}
+@keyframes portraitBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(2px); } }
+.comm-scan {
+  position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.22) 0 1px, transparent 1px 3px);
+}
+.comm-frame::after {
+  content: ''; position: absolute; left: 0; right: 0; height: 16px; top: -15%;
+  background: linear-gradient(rgba(184, 230, 196, 0), rgba(184, 230, 196, 0.12), rgba(184, 230, 196, 0));
+  animation: scanSweep 3s linear infinite;
+  pointer-events: none;
+}
+@keyframes scanSweep { 0% { top: -15%; } 100% { top: 110%; } }
+.comm-frame .mouth { transform-box: fill-box; transform-origin: center; }
+.comm-frame.talking .mouth { animation: talk 0.18s infinite alternate; }
+@keyframes talk {
+  from { transform: translateY(-0.3px) scaleX(0.55) scaleY(0.4); stroke-width: 1.9; }
+  to { transform: translateY(0.4px) scaleX(1) scaleY(1.5); stroke-width: 1; }
+}
+.comm-frame.mini { width: 74px; height: 74px; margin-bottom: 10px; }
+
+/* hand deal-in */
+#hand .card.deal {
+  animation: dealIn 0.36s cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes dealIn { from { opacity: 0; transform: translateY(80px) rotate(5deg); } }
 
 /* ========================= TOAST ========================= */
 #toast {
