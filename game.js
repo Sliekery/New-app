@@ -882,16 +882,16 @@ function buildTerrain(){
     pos.setZ(i,h);
     // color from the tile this vertex belongs to (painterly jitter)
     const t=T(Math.min(ix,MAPW-1),Math.min(iy,MAPH-1));
-    const j=(vr()-0.5)*0.06;
-    if(t===G_PATH) col.setRGB(0.72+j,0.62+j,0.42+j);            // sandy road
-    else if(t===G_DIRT) col.setRGB(0.62+j,0.50+j,0.33+j);       // packed earth
-    else if(t===G_WATER||t===G_BRIDGE) col.setRGB(0.12,0.30,0.30); // seabed
-    else if(t===G_ROCK) col.setRGB(0.45+j,0.40+j,0.34+j);       // sun-baked crags
-    else if(t===G_WALL) col.setRGB(0.50+j,0.40+j,0.26+j);
-    else { // savanna: gold-green patchwork, Istan style
-      const g=0.34+vr()*0.16, gold=vr()<0.4;
-      if(gold) col.setRGB(g+0.22+j,g+0.10+j,0.18+j);
-      else col.setRGB(g*0.75+j,g+0.06+j,0.16+j);
+    const j=(vr()-0.5)*0.07;
+    if(t===G_PATH) col.setHSL(0.10,0.42,0.55+j);                // warm sandy road
+    else if(t===G_DIRT) col.setHSL(0.08,0.40,0.42+j);           // packed earth
+    else if(t===G_WATER||t===G_BRIDGE) col.setHSL(0.49,0.55,0.20); // seabed
+    else if(t===G_ROCK) col.setHSL(0.09,0.20,0.42+j);           // sun-baked crags
+    else if(t===G_WALL) col.setHSL(0.09,0.45,0.36+j);
+    else { // savanna: saturated gold-green patchwork, stylized
+      const gold=vr()<0.42;
+      if(gold) col.setHSL(0.14,0.62,0.46+j);                    // golden grass
+      else col.setHSL(0.27,0.52,0.36+j);                        // verdant clumps
     }
     colors[i*3]=col.r; colors[i*3+1]=col.g; colors[i*3+2]=col.b;
   }
@@ -909,8 +909,8 @@ function buildTerrain(){
   wgeo.rotateX(-Math.PI/2); wgeo.translate(W/2,-5,W/2);
   waterBase=Float32Array.from(wgeo.attributes.position.array);
   waterMesh=new THREE.Mesh(wgeo,new THREE.MeshStandardMaterial({
-    color:0x2aa3a6, transparent:true, opacity:0.86, roughness:0.16, metalness:0.45,
-    emissive:0x06343a, emissiveIntensity:0.35}));
+    color:0x18c4c0, transparent:true, opacity:0.88, roughness:0.1, metalness:0.55,
+    emissive:0x0a5a5a, emissiveIntensity:0.5}));
   waterMesh.receiveShadow=true;
   scene.add(waterMesh);
 }
@@ -1061,15 +1061,17 @@ function humanoid(o){
       l.position.set(0,9,z); inner.add(l); g.userData.legs.push(l);
     }
   }
-  // torso
-  const torso=box3(8,11,10,o.armor); torso.position.y=14.5; inner.add(torso);
-  // shoulders
-  const sh1=box3(4,3.5,4.5,o.trim); sh1.position.set(0,19.5,-6.5); inner.add(sh1);
-  const sh2=box3(4,3.5,4.5,o.trim); sh2.position.set(0,19.5,6.5); inner.add(sh2);
-  // head
-  const head=ico3(4.6,o.skin||0xd8b08a,1); head.position.y=24.5; inner.add(head);
-  if(o.helm){ const helm=cone3(5,6,o.trim,6); helm.position.y=28.6; inner.add(helm); }
-  if(o.hood){ const hood=cone3(5.4,8,o.robe,6); hood.position.y=27.5; inner.add(hood); }
+  // torso (slightly tapered, heroic)
+  const torso=box3(9,11,10.5,o.armor); torso.position.y=14.5; inner.add(torso);
+  const belt=box3(9.4,2,10.9,o.pants||o.robe||0x3a2f1c); belt.position.y=9.6; inner.add(belt);
+  // broad stylized shoulders
+  const sh1=box3(4.6,4,5,o.trim); sh1.position.set(0,20,-6.9); inner.add(sh1);
+  const sh2=box3(4.6,4,5,o.trim); sh2.position.set(0,20,6.9); inner.add(sh2);
+  // larger, more characterful head
+  const head=ico3(5.4,o.skin||0xd8b08a,1); head.position.y=25.2; inner.add(head);
+  if(o.helm){ const helm=cone3(5.8,7,o.trim,6); helm.position.y=29.6; inner.add(helm);
+    const crest=box3(1.4,5,7,o.trim); crest.position.y=32; inner.add(crest); }
+  if(o.hood){ const hood=cone3(6.2,9,o.robe,6); hood.position.y=28.4; inner.add(hood); }
   // weapon arm (pivot at shoulder, weapon hangs down then swings forward)
   const arm=new THREE.Group(); arm.position.set(2,19.5,6.5); inner.add(arm);
   g.userData.arm=arm;
@@ -1216,16 +1218,19 @@ function initThree(){
   renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
   renderer.outputEncoding=THREE.sRGBEncoding;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.08;
+  renderer.toneMappingExposure=1.18;
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   scene=new THREE.Scene();
   scene.background=new THREE.Color(HAZE); // warm Istani haze
-  scene.fog=new THREE.Fog(HAZE,820,2050);
+  scene.fog=new THREE.Fog(HAZE,900,2250);
   camera=new THREE.PerspectiveCamera(50,1,10,3400);
   raycaster=new THREE.Raycaster();
-  scene.add(new THREE.HemisphereLight(0xfff2d6,0x5a5230,0.78));
-  const amb=new THREE.AmbientLight(0xfff0d8,0.18); scene.add(amb);
-  sunLight=new THREE.DirectionalLight(0xfff0c8,1.35);
+  // stylized 3-point rig: warm sky / cool ground bounce, cool rim, warm key
+  scene.add(new THREE.HemisphereLight(0xffe7c2,0x4a6a52,0.72));
+  const amb=new THREE.AmbientLight(0xfff0d8,0.16); scene.add(amb);
+  const rim=new THREE.DirectionalLight(0x88b6ff,0.55); // cool back-rim to pop silhouettes
+  rim.position.set(-360,420,-520); scene.add(rim);
+  sunLight=new THREE.DirectionalLight(0xfff0c0,1.5);
   sunLight.position.set(420,760,300);
   sunLight.target.position.set(0,0,0); scene.add(sunLight.target);
   // shadow camera follows the player (High quality only)
@@ -1241,23 +1246,44 @@ function initThree(){
 }
 
 function buildSky(){
-  const geo=new THREE.SphereGeometry(2900,18,12);
+  const geo=new THREE.SphereGeometry(2900,20,14);
   const pos=geo.attributes.position, cols=new Float32Array(pos.count*3), c=new THREE.Color();
-  const top=new THREE.Color(0x4f86c0), mid=new THREE.Color(0xa9c3cf), low=new THREE.Color(HAZE);
+  // deeper, more saturated stylized gradient
+  const top=new THREE.Color(0x2f6fc8), mid=new THREE.Color(0x9fc6dd), low=new THREE.Color(0xf3deb0);
   for(let i=0;i<pos.count;i++){
     const h=clamp(pos.getY(i)/2900,-1,1);
-    if(h>0.18) c.copy(mid).lerp(top,clamp((h-0.18)/0.7,0,1));
-    else c.copy(low).lerp(mid,clamp((h+0.25)/0.43,0,1));
+    if(h>0.14) c.copy(mid).lerp(top,Math.pow(clamp((h-0.14)/0.7,0,1),0.8));
+    else c.copy(low).lerp(mid,clamp((h+0.22)/0.36,0,1));
     cols[i*3]=c.r; cols[i*3+1]=c.g; cols[i*3+2]=c.b;
   }
   geo.setAttribute('color',new THREE.BufferAttribute(cols,3));
   const sky=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide,fog:false,depthWrite:false}));
   scene.add(sky);
-  // sun disc
-  const disc=new THREE.Mesh(new THREE.CircleGeometry(120,24),
-    new THREE.MeshBasicMaterial({color:0xfff4d6,fog:false,transparent:true,opacity:0.9,depthWrite:false}));
-  disc.position.set(900,1500,650); disc.lookAt(0,0,0); scene.add(disc);
+  // bright stylized sun with a soft halo
+  const sunDir=new THREE.Vector3(820,1400,640);
+  const halo=new THREE.Mesh(new THREE.CircleGeometry(280,28),
+    new THREE.MeshBasicMaterial({map:spriteTexture('rgba(255,236,180,1)'),fog:false,transparent:true,opacity:0.85,depthWrite:false}));
+  halo.position.copy(sunDir); halo.lookAt(0,0,0); scene.add(halo);
+  const disc=new THREE.Mesh(new THREE.CircleGeometry(130,28),
+    new THREE.MeshBasicMaterial({color:0xfff6dc,fog:false,transparent:true,opacity:0.96,depthWrite:false}));
+  disc.position.copy(sunDir); disc.lookAt(0,0,0); scene.add(disc);
+  // a few flat stylized clouds drifting high
+  const cloudMat=new THREE.MeshBasicMaterial({color:0xfdf6e8,fog:false,transparent:true,opacity:0.9});
+  const cr=mulberry32(909);
+  for(let i=0;i<9;i++){
+    const cl=new THREE.Group();
+    const lobes=2+Math.floor(cr()*3);
+    for(let j=0;j<lobes;j++){
+      const lo=new THREE.Mesh(new THREE.IcosahedronGeometry(70+cr()*70,0),cloudMat);
+      lo.scale.set(1+cr(),0.4,0.7+cr()*0.5); lo.position.set(j*90-lobes*30,cr()*20,cr()*30);
+      cl.add(lo);
+    }
+    const ang=cr()*6.28, rad=1400+cr()*900;
+    cl.position.set(Math.cos(ang)*rad, 760+cr()*340, Math.sin(ang)*rad);
+    cl.rotation.y=cr()*6.28; scene.add(cl); skyClouds.push(cl);
+  }
 }
+const skyClouds=[];
 
 function applyQuality(){
   if(!renderer) return;
@@ -1387,6 +1413,10 @@ function syncPools(){
 /* ---------------- overlay (bars, names, floating text) ---------------- */
 function drawOverlay(){
   fctx.clearRect(0,0,VW,VH);
+  // stylized warm color-grade wash over the 3D scene (HUD text is drawn after, stays crisp)
+  if(SETTINGS.vignette){
+    fctx.fillStyle='rgba(255,186,96,0.07)'; fctx.fillRect(0,0,VW,VH);
+  }
   // entity bars / labels
   const seen=[...enemies,hench];
   for(const e of seen){
@@ -1465,6 +1495,7 @@ function render(){
     sunLight.target.position.set(player.x,ph,player.y);
   }
   if(frameNo%2===0) animateWater();
+  for(let i=0;i<skyClouds.length;i++){ const cl=skyClouds[i]; cl.position.x+=(6+i)*frameDt; if(cl.position.x>2600) cl.position.x=-2600; }
 
   for(const e of enemies) syncAvatar(e);
   syncAvatar(player); syncAvatar(hench); syncAvatar(npcAldra); syncAvatar(npcSuki);
