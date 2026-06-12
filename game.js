@@ -656,6 +656,7 @@ function updateEnemy(e,dt){
   // boss whirl
   if(e.boss&&now>=e.nextAoe&&d<110){
     e.nextAoe=now+8;
+    e.whirlT=now; // drives the spin animation
     effects.push({type:'aoe',x:e.x,y:e.y,t:now,dur:0.4,r:95,color:'#ff5030'});
     for(const f of [player,hench]){
       if(!f.dead&&dist(e.x,e.y,f.x,f.y)<95+f.r) applyDamage(e,f,30,'#ff5030');
@@ -829,6 +830,106 @@ let renderer, scene, camera, terrainMesh, waterMesh, raycaster;
 let selRing, moveRing;
 const heights=new Float32Array((MAPW+1)*(MAPH+1));
 const matCache={};
+
+/* ---------------- character models (KayKit Adventurers, CC0) ---------------- */
+const CHAR_MODELS={
+  knight:'models/Knight.glb', mage:'models/Mage.glb', barbarian:'models/Barbarian.glb',
+  rogue:'models/Rogue.glb', rogueh:'models/Rogue_Hooded.glb',
+};
+const charLib={};
+let modelsReady=false;
+function loadCharacterModels(){
+  if(!HAS3D||typeof THREE.GLTFLoader==='undefined') return;
+  const ldr=new THREE.GLTFLoader();
+  let left=Object.keys(CHAR_MODELS).length;
+  const done=()=>{ if(--left===0&&Object.keys(charLib).length){
+    modelsReady=true; refreshAvatars(); toast('High-detail characters loaded');
+  } };
+  for(const k of Object.keys(CHAR_MODELS)){
+    ldr.load(CHAR_MODELS[k],g=>{
+      const box=new THREE.Box3().setFromObject(g.scene);
+      charLib[k]={scene:g.scene, clips:g.animations, scale:30/Math.max(1e-3,box.max.y-box.min.y)};
+      done();
+    },undefined,done); // on error: that model just stays procedural
+  }
+}
+function refreshAvatars(){ // rebuild avatars so they pick up the loaded models
+  for(const e of [player,hench,npcAldra,npcSuki,...enemies]){
+    if(e&&e.av){ scene.remove(e.av); e.av=null; }
+  }
+}
+function gltfAvatar(key,tint,scaleMul){
+  const lib=charLib[key];
+  if(!lib||!THREE.SkeletonUtils) return null;
+  const root=THREE.SkeletonUtils.clone(lib.scene);
+  const g=new THREE.Group();
+  const inner=new THREE.Group(); g.add(inner); g.userData.inner=inner;
+  root.rotation.y=Math.PI/2; // KayKit faces +Z; our forward is +X
+  root.scale.setScalar(lib.scale*(scaleMul||1));
+  inner.add(root);
+  if(tint){
+    const t=new THREE.Color(tint);
+    root.traverse(o=>{ if(o.isMesh&&o.material){
+      o.material=o.material.clone();
+      if(o.material.color) o.material.color.lerp(t,0.35);
+    }});
+  }
+  const mixer=new THREE.AnimationMixer(root);
+  const find=res=>{ for(const r of res){ const c=lib.clips.find(c=>r.test(c.name)); if(c) return c; } return null; };
+  const acts={};
+  const def=(n,res)=>{ const c=find(res); if(c) acts[n]=mixer.clipAction(c); };
+  def('idle',[/^Idle$/i,/idle/i]);
+  def('walk',[/^Walking_A$/i,/walking/i]);
+  def('run',[/^Running_A$/i,/running/i]);
+  def('attack',[/1H_Melee_Attack_Slice_Diagonal/i,/1H_Melee_Attack/i,/Dualwield_Melee_Attack/i,/2H_Melee_Attack_Chop/i]);
+  def('shoot',[/1H_Ranged_Shoot$/i,/Ranged_Shoot/i,/Throw/i]);
+  def('cast',[/Spellcast_Shoot/i,/Spellcast_Long/i]);
+  def('castLoop',[/Spellcast_Raise/i,/Spellcasting/i]);
+  def('spin',[/2H_Melee_Attack_Spin$/i,/Spinning/i]);
+  def('death',[/^Death_A$/i,/Death/i]);
+  g.userData.gltf={mixer,acts,cur:null,curA:null};
+  return g;
+}
+function playAct(G2,name,once){
+  const a=G2.acts[name];
+  if(!a||G2.cur===name) return;
+  const prev=G2.curA;
+  a.reset();
+  a.setLoop(once?THREE.LoopOnce:THREE.LoopRepeat, once?1:Infinity);
+  a.clampWhenFinished=!!once;
+  a.play();
+  if(prev&&prev!==a) prev.crossFadeTo(a,0.18,false);
+  G2.cur=name; G2.curA=a;
+}
+function syncGltfAvatar(e,g,ud){
+  const gy=heightAt(e.x,e.y);
+  const moved=dist(e.x,e.y,ud.lx??e.x,ud.ly??e.y);
+  ud.lx=e.x; ud.ly=e.y;
+  g.position.set(e.x,gy,e.y);
+  g.rotation.y=-e.face;
+  const G2=ud.gltf;
+  let state;
+  const sw=e.nextAtk?e.nextAtk-now:0;
+  if(e.dead) state='death';
+  else if(e===player&&cast) state=G2.acts.castLoop?'castLoop':'cast';
+  else if(e.boss&&e.whirlT&&now-e.whirlT<0.9) state='spin';
+  else if(sw>0&&sw>e.atkInt-0.55&&now-e.lastCombat<2){
+    state=e.range>MELEE_RANGE
+      ? (e.kind==='enemy'&&G2.acts.shoot?'shoot':(G2.acts.cast?'cast':'attack'))
+      : 'attack';
+  } else {
+    const spd=moved/Math.max(frameDt,0.001);
+    state=spd>12?(spd>108?'run':'walk'):'idle';
+  }
+  if(!G2.acts[state]) state=G2.acts.idle?'idle':G2.cur;
+  if(state) playAct(G2,state,state==='death'||state==='attack'||state==='shoot'||state==='cast'||state==='spin');
+  G2.mixer.update(frameDt);
+  if(ud.aura){
+    const p=0.5+Math.sin(now*4)*0.2;
+    ud.aura.material.opacity=0.35*p+0.2;
+    ud.aura.scale.setScalar(1+Math.sin(now*4)*0.08);
+  }
+}
 
 function mat(c,extra){
   const key=c+JSON.stringify(extra||{});
@@ -1269,7 +1370,18 @@ function skaleAvatar(){
   return g;
 }
 function makeAvatar(e){
-  let g;
+  let g=null;
+  // real modeled + skeleton-animated characters once loaded (KayKit CC0)
+  if(modelsReady){
+    if(e.kind==='player') g=gltfAvatar(e.cls==='elementalist'?'mage':'knight',null);
+    else if(e.kind==='hench') g=gltfAvatar('mage',0x3f8a62);
+    else if(e.kind==='npc') g=e.style==='merchant'?gltfAvatar('rogueh',0x8a68c8):gltfAvatar('knight',0xd8b860);
+    else if(e.type==='raider') g=gltfAvatar('barbarian',0xb07050);
+    else if(e.type==='archer') g=gltfAvatar('rogue',0xa88858);
+    else if(e.type==='chief') g=gltfAvatar('barbarian',0xc03828,1.45);
+    else if(e.type==='avenger') g=gltfAvatar('rogueh',0x803048,1.12);
+  }
+  if(!g){
   if(e.kind==='player') g=e.cls==='elementalist'
     ? humanoid({robe:0x8a3838,armor:0x6a2c2c,trim:0xe8b050,weapon:'staff',hair:0x2a1c10})
     : humanoid({armor:0x4a7ab5,trim:0x9aa8c0,pants:0x39414f,weapon:'sword',helm:true,metalArmor:true});
@@ -1283,6 +1395,7 @@ function makeAvatar(e){
   else if(e.type==='chief') g=humanoid({armor:0x5a2e2e,trim:0xb03838,pants:0x3a2424,weapon:'cleaver',helm:true,scale:1.45,metalArmor:true});
   else if(e.type==='avenger') g=humanoid({armor:0x6a2848,trim:0xb05070,pants:0x3a2030,weapon:'sword',hood:true,robe:0,scale:1.12,metalArmor:true});
   else g=humanoid({armor:0x8a4a3a,trim:0x5a3326,pants:0x42302a,weapon:'sword',hair:0x201610});
+  }
   // blob shadow
   const sh=new THREE.Mesh(new THREE.CircleGeometry(e.r*0.95,14),
     new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.28,depthWrite:false}));
@@ -1309,6 +1422,7 @@ function syncAvatar(e){
   if(e.kind==='enemy'&&e.dead&&now>=e.respawnAt-20){ g.visible=false; return; }
   g.visible=true;
   const ud=g.userData;
+  if(ud.gltf){ syncGltfAvatar(e,g,ud); return; }
   const gy=heightAt(e.x,e.y);
   const moved=dist(e.x,e.y,ud.lx??e.x,ud.ly??e.y);
   ud.lx=e.x; ud.ly=e.y;
@@ -2230,7 +2344,7 @@ buildMinimap();
 player=makePlayer();
 hench=makeHench();
 spawnAll();
-if(HAS3D) initThree();
+if(HAS3D){ initThree(); loadCharacterModels(); }
 wireUI();
 buildSkillbar();
 resize();

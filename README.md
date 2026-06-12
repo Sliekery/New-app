@@ -120,3 +120,11 @@ all combat, AI, and quest logic runs client-side. Natural next steps:
 
 Headless logic tests (map gen, combat, skills, death/respawn, quests, henchman AI)
 run under Node with a DOM stub — see the repo history for the harness.
+
+## Character models
+
+Humanoid characters use the **KayKit Character Pack: Adventurers** (CC0, by Kay
+Lousberg — kaylousberg.com) loaded as glTF with full skeletal animation: idle,
+walk/run, sword attacks, ranged shots, spellcasting, the boss's spin, and
+deaths. Models load in the background (~18MB); until then (or offline) the game
+falls back to the procedural avatars. Jackals and skales remain procedural.
