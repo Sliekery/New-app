@@ -238,8 +238,8 @@ function buildMinimap(){
   const m=miniCv.getContext('2d');
   for(let y=0;y<MAPH;y++)for(let x=0;x<MAPW;x++){
     const t=T(x,y);
-    m.fillStyle=t===G_WATER?'#1e4a68':t===G_PATH||t===G_BRIDGE?'#8a7350':t===G_TREE?'#1d3a18':
-      t===G_DIRT?'#6e5a3e':t===G_WALL?'#4a3418':t===G_ROCK?'#555':t===G_SAND?'#c8b080':'#33502a';
+    m.fillStyle=t===G_WATER?'#1f6e86':t===G_PATH?'#b89a68':t===G_BRIDGE?'#a8845a':t===G_TREE?'#2d5224':
+      t===G_DIRT?'#8a7050':t===G_WALL?'#5a4020':t===G_ROCK?'#6a655c':t===G_SAND?'#d8c090':'#5a7a3c';
     m.fillRect(x,y,1,1);
   }
 }
@@ -1377,10 +1377,11 @@ function canvasTex(key,size,draw,rep){
 }
 // near-white grain that multiplies onto terrain vertex colors
 function detailMap(){ return canvasTex('detail',256,(c,s)=>{
+  // subtle: heavy speckle hurt readability
   c.fillStyle='#d8d8d8'; c.fillRect(0,0,s,s);
-  for(let i=0;i<3200;i++){ const v=170+Math.random()*80|0; c.fillStyle=`rgba(${v},${v},${v},.45)`;
+  for(let i=0;i<1400;i++){ const v=185+Math.random()*55|0; c.fillStyle=`rgba(${v},${v},${v},.28)`;
     c.fillRect(Math.random()*s,Math.random()*s,1+Math.random()*2,1+Math.random()*2); }
-  for(let i=0;i<360;i++){ c.strokeStyle='rgba(110,110,110,.22)'; c.beginPath();
+  for(let i=0;i<160;i++){ c.strokeStyle='rgba(120,120,120,.14)'; c.beginPath();
     const x=Math.random()*s,y=Math.random()*s; c.moveTo(x,y); c.lineTo(x+Math.random()*4-2,y-3-Math.random()*5); c.stroke(); }
 },22); }
 // tiling normal map from soft random bumps
@@ -1462,17 +1463,24 @@ function buildTerrain(){
     pos.setZ(i,h);
     // color from the tile this vertex belongs to (painterly jitter)
     const t=T(Math.min(ix,MAPW-1),Math.min(iy,MAPH-1));
-    const j=(vr()-0.5)*0.07;
-    if(t===G_PATH) col.setHSL(0.10,0.42,0.55+j);                // warm sandy road
-    else if(t===G_DIRT) col.setHSL(0.08,0.40,0.42+j);           // packed earth
-    else if(t===G_WATER||t===G_BRIDGE) col.setHSL(0.49,0.55,0.20); // seabed
-    else if(t===G_ROCK) col.setHSL(0.09,0.20,0.42+j);           // sun-baked crags
+    const j=(vr()-0.5)*0.025; // tiny jitter only — big readable patches instead of speckle
+    if(t===G_PATH) col.setHSL(0.10,0.46,0.60+j);                // warm sandy road, clearly lighter
+    else if(t===G_DIRT) col.setHSL(0.08,0.42,0.44+j);           // packed earth
+    else if(t===G_WATER||t===G_BRIDGE) col.setHSL(0.52,0.60,0.14); // dark seabed → water reads instantly
+    else if(t===G_ROCK) col.setHSL(0.09,0.18,0.40+j);           // sun-baked crags
     else if(t===G_WALL) col.setHSL(0.09,0.45,0.36+j);
-    else if(t===G_SAND) col.setHSL(0.11,0.48,0.64+j);           // harbor sand
-    else { // savanna: saturated gold-green patchwork, stylized
-      const gold=vr()<0.42;
-      if(gold) col.setHSL(0.14,0.62,0.46+j);                    // golden grass
-      else col.setHSL(0.27,0.52,0.36+j);                        // verdant clumps
+    else if(t===G_SAND) col.setHSL(0.115,0.52,0.68+j);          // bright harbor sand
+    else {
+      // savanna: smooth large-scale gold↔green patches (value noise, ~8-tile features)
+      const n=0.5+0.5*Math.sin(ix*0.16+Math.sin(iy*0.11)*2.2)*Math.cos(iy*0.13+Math.sin(ix*0.09)*1.8);
+      col.setHSL(lerp(0.26,0.135,n), lerp(0.45,0.58,n), lerp(0.34,0.46,n)+j);
+      // darken grass that borders a road/sand — outlines the paths for readability
+      let edge=false;
+      for(const [dx2,dy2] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const t2=T(Math.min(ix,MAPW-1)+dx2,Math.min(iy,MAPH-1)+dy2);
+        if(t2===G_PATH||t2===G_SAND||t2===G_DIRT){edge=true;break;}
+      }
+      if(edge) col.multiplyScalar(0.78);
     }
     colors[i*3]=col.r; colors[i*3+1]=col.g; colors[i*3+2]=col.b;
   }
@@ -1920,7 +1928,7 @@ function initThree(){
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   scene=new THREE.Scene();
   scene.background=new THREE.Color(HAZE); // warm Istani haze
-  scene.fog=new THREE.Fog(HAZE,900,2250);
+  scene.fog=new THREE.Fog(HAZE,1050,2400); // pushed out — nearby world stays crisp
   camera=new THREE.PerspectiveCamera(50,1,10,3400);
   raycaster=new THREE.Raycaster();
   // stylized 3-point rig: warm sky / cool ground bounce, cool rim, warm key
@@ -2331,7 +2339,72 @@ const MODALS={
   craft:   {el:$('craftPanel'),   body:$('craftBody'),   render:renderCraft},
   merch:   {el:$('merchPanel'),   body:$('merchBody'),   render:renderMerch},
   train:   {el:$('trainPanel'),   body:$('trainBody'),   render:renderTrain},
+  map:     {el:$('mapPanel'),     body:$('mapBody'),     render:renderMap},
 };
+
+/* ---------------- full-screen zone map ---------------- */
+const ZONE_LABELS={
+  town:[[48,50,'The Plaza'],[48,15,'Sunspear Keep'],[15,42,'Market Row'],[44,82,'The Docks'],[88,45,'East Gate ⇢']],
+  wilds:[[55,46,'River Bridge'],[78,22,'Corsair Camp'],[84,6,'The Spring'],[6,45,'⇠ Town Gate'],[49,73,'South Pool'],[24,36,'Open Savanna']],
+};
+function renderMap(){
+  let cv=$('mapCanvas');
+  if(!cv) return;
+  const S=cv.width, sc=S/MAPW; // map canvas is square, 1 tile = sc px
+  const c=cv.getContext('2d');
+  c.clearRect(0,0,S,S);
+  // terrain
+  c.imageSmoothingEnabled=false;
+  c.drawImage(miniCv,0,0,S,S);
+  c.imageSmoothingEnabled=true;
+  // soft parchment wash
+  c.fillStyle='rgba(40,32,16,.18)'; c.fillRect(0,0,S,S);
+  const px=x=>x/TILE*sc, py=y=>y/TILE*sc;
+  // shrine + gates
+  c.font='bold 16px Georgia'; c.textAlign='center';
+  c.fillStyle='#b8c8ff'; c.fillText('✚',px(SHRINE.x),py(SHRINE.y)+5);
+  for(const g of GATES){
+    c.fillStyle='#9fd0ff';
+    c.beginPath(); c.arc(px(g.x),py(g.y),6,0,7); c.fill();
+  }
+  // enemies (only rough presence: dots, bosses as skull-rings)
+  for(const e of enemies){
+    if(e.dead) continue;
+    if(e.boss){
+      c.strokeStyle='#ff5040'; c.lineWidth=2;
+      c.beginPath(); c.arc(px(e.x),py(e.y),5.5,0,7); c.stroke();
+    } else {
+      c.fillStyle='rgba(224,80,64,.8)';
+      c.beginPath(); c.arc(px(e.x),py(e.y),2.4,0,7); c.fill();
+    }
+  }
+  // npcs with quest markers
+  for(const n of npcs){
+    c.fillStyle='#f0d97a';
+    c.beginPath(); c.arc(px(n.x),py(n.y),4,0,7); c.fill();
+    const m=npcMarker(n);
+    if(m){ c.font='bold 13px Georgia'; c.fillStyle='#fff4c0'; c.fillText(m,px(n.x),py(n.y)-6); }
+  }
+  // Lyra + player arrow
+  if(!hench.dead){ c.fillStyle='#50c878'; c.beginPath(); c.arc(px(hench.x),py(hench.y),3.5,0,7); c.fill(); }
+  c.save();
+  c.translate(px(player.x),py(player.y));
+  c.rotate(player.face+Math.PI/2);
+  c.fillStyle='#ffffff'; c.strokeStyle='#000'; c.lineWidth=2;
+  c.beginPath(); c.moveTo(0,-9); c.lineTo(6.5,7); c.lineTo(-6.5,7); c.closePath();
+  c.stroke(); c.fill();
+  c.restore();
+  // place names
+  c.font='bold 13px Georgia'; c.textAlign='center';
+  for(const [tx,ty,label] of (ZONE_LABELS[MAPID]||[])){
+    c.fillStyle='rgba(0,0,0,.75)'; c.fillText(label,tx*sc+1,ty*sc+1);
+    c.fillStyle='#f0e6c8'; c.fillText(label,tx*sc,ty*sc);
+  }
+  // legend
+  const mEl=$('mapLegend');
+  if(mEl) mEl.innerHTML=`<b style="color:#f0d97a">${ZONES[MAPID].name}</b> — ${ZONES[MAPID].sub}<br>
+    <span class="dim">▲ you · <span style="color:#50c878">●</span> Lyra · <span style="color:#f0d97a">●</span> people · <span style="color:#e05040">●</span> foes · <span style="color:#ff5040">○</span> bosses · <span style="color:#9fd0ff">●</span> gates · <span style="color:#b8c8ff">✚</span> shrine</span>`;
+}
 let openModalId=null;
 const backdrop=$('backdrop');
 function anyModalOpen(){ return openModalId!==null || !ui.dialog.classList.contains('hidden') || !$('classPick').classList.contains('hidden'); }
@@ -2892,6 +2965,7 @@ function loop(tms){
   // HUD redraws don't need 60fps
   if(frameNo%3===0) drawCompass();
   if(frameNo%2===0) syncUI();
+  if(openModalId==='map'&&frameNo%30===0) renderMap(); // live map while open
   // autosave a few seconds after the last meaningful change
   saveTimer+=dt;
   if(saveTimer>8){ saveTimer=0; saveGame(); }
