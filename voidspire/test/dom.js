@@ -92,8 +92,18 @@ async function main() {
 
   // play through up to 30 nodes via swipe gestures
   var safety = 0;
+  var stuckPhase = '', stuckCount = 0;
   while (VS.engine.run && VS.engine.run.phase !== 'dead' && VS.engine.run.nodesCleared < 30 && safety++ < 3000) {
     var phase = VS.engine.run.phase;
+    // if a screen isn't advancing (e.g. tapping an unaffordable shop item),
+    // bail out via its last button (DEPART / CONTINUE / etc.)
+    var stuckKey = phase + ':' + VS.engine.run.nodesCleared;
+    stuckCount = (stuckKey === stuckPhase) ? stuckCount + 1 : 0;
+    stuckPhase = stuckKey;
+    if (stuckCount > 5 && phase !== 'combat') {
+      var bail = qa('#overlay .btn').pop();
+      if (bail) { tap(bail); await sleep(400); continue; }
+    }
     if (phase === 'combat') {
       var played = false;
       var cards = qa('#hand .card');

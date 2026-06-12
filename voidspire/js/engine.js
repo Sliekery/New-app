@@ -141,12 +141,14 @@
       { id: 'tech', label: '+' + B.levelUp.attrGain + ' TECH', desc: 'Shields & technology' },
       { id: 'psi', label: '+' + B.levelUp.attrGain + ' PSI', desc: 'Psionic power & willpower' },
       { id: 'hp', label: '+' + B.levelUp.maxHpGain + ' MAX HP', desc: 'Also heals ' + B.levelUp.maxHpGain + ' HP' },
+      { id: 'heal', label: 'FIELD REPAIRS', desc: 'Heal ' + Math.round(B.rewards.bossHealPct * 100) + '% of your max HP' },
     ];
   };
 
   E.levelUp = function (id) {
     var r = E.run;
     if (id === 'hp') { r.maxHp += B.levelUp.maxHpGain; heal(B.levelUp.maxHpGain); }
+    else if (id === 'heal') heal(Math.round(r.maxHp * B.rewards.bossHealPct));
     else r.attrs[id] += B.levelUp.attrGain;
     // boss artifact: pick one of three tier-2 relics (unowned ones preferred)
     var pool = Object.keys(ns.ARTIFACTS).filter(function (k) {

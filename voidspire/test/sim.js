@@ -21,68 +21,269 @@ var RUNS = parseInt(process.argv[2] || '60', 10);
 var MAX_SECTOR = 10; // stop "endless" runs here for stats
 var rand = Math.random;
 
+/* ====================================================================
+ * "Decent player" bot: estimates incoming damage, blocks when needed,
+ * finishes kills, targets attackers, and makes sane meta choices.
+ * It is a proxy for a competent-but-not-expert human, used to calibrate
+ * the difficulty curve against Slay-the-Spire-like targets.
+ * ==================================================================== */
+
+function attrOf(scale) {
+  if (!scale) return 0;
+  return VS.engine.attr(scale);
+}
+
+function estCardDamage(card, target) {
+  var def = VS.CARDS[card.id];
+  var fx = VS.cardFx(def, card.up);
+  var c = VS.engine.combat;
+  var str = (c.player.statuses.str || 0);
+  var total = 0;
+  fx.forEach(function (f) {
+    if (f.k === 'dmg') {
+      var v = f.v + attrOf(f.scale) * (f.scaleMul || 1) + str;
+      if (f.scale === 'psi') v += (c.player.statuses.psiPow || 0);
+      var hits = f.hits || 1;
+      if (target && (target.statuses.vuln || 0) > 0) v = Math.floor(v * VS.BALANCE.status.vulnMult);
+      total += v * hits;
+    }
+    if (f.k === 'special' && (f.id === 'shieldSlam' || f.id === 'shieldSlam15')) {
+      total += Math.floor(c.player.block * (f.id === 'shieldSlam15' ? 1.5 : 1));
+    }
+  });
+  if ((c.player.statuses.weak || 0) > 0) total = Math.floor(total * VS.BALANCE.status.weakMult);
+  return total;
+}
+
+function estCardBlock(card) {
+  var def = VS.CARDS[card.id];
+  var fx = VS.cardFx(def, card.up);
+  var total = 0;
+  fx.forEach(function (f) {
+    if (f.k === 'block') total += f.v + (f.scale === 'tech' ? VS.engine.attr('tech') : 0);
+  });
+  return total;
+}
+
+function incomingDamage() {
+  var c = VS.engine.combat;
+  var total = 0;
+  c.enemies.forEach(function (en) {
+    if (!en.alive || !en.intent) return;
+    var m = en.intent;
+    if (m.t === 'attack' || m.t === 'drain') {
+      var info = VS.engine.intentInfo(en);
+      var d = parseInt(info.label, 10) || 0;
+      total += d * (m.hits || 1);
+    }
+  });
+  if ((c.player.statuses.vuln || 0) > 0) total = Math.floor(total * VS.BALANCE.status.vulnMult);
+  return total;
+}
+
+function aliveIdx() {
+  var out = [];
+  VS.engine.combat.enemies.forEach(function (e, i) { if (e.alive) out.push(i); });
+  return out;
+}
+
+function pickTarget() {
+  var c = VS.engine.combat;
+  var alive = aliveIdx();
+  // prefer killable lowest-hp, then attackers
+  alive.sort(function (a, b) { return c.enemies[a].hp - c.enemies[b].hp; });
+  return alive[0];
+}
+
 function botCombat() {
+  var E = VS.engine;
   var guard = 0;
   while (E.run.phase === 'combat' && guard++ < 400) {
     var c = E.combat;
     if (c.over) break;
-    // play any playable card, slight preference for attacks
     var playable = [];
     for (var i = 0; i < c.hand.length; i++) if (E.canPlay(i)) playable.push(i);
     if (playable.length === 0) { E.endTurn(); continue; }
-    playable.sort(function (a, b) {
-      var ta = VS.CARDS[c.hand[a].id].type === 'attack' ? 0 : 1;
-      var tb = VS.CARDS[c.hand[b].id].type === 'attack' ? 0 : 1;
-      return ta - tb;
+
+    var incoming = incomingDamage();
+    var needBlock = Math.max(0, incoming - c.player.block);
+    var hpDanger = E.run.hp < E.run.maxHp * 0.6 || needBlock >= E.run.hp * 0.25;
+    var choice = -1, target = pickTarget();
+
+    // 1. finish a kill if possible
+    var best = -1, bestOver = 1e9;
+    playable.forEach(function (idx) {
+      var card = c.hand[idx];
+      if (VS.CARDS[card.id].type !== 'attack') return;
+      var tEn = c.enemies[target];
+      var dmg = estCardDamage(card, tEn);
+      if (dmg >= tEn.hp + tEn.block && dmg - tEn.hp < bestOver) { best = idx; bestOver = dmg - tEn.hp; }
     });
-    var idx = playable[0];
-    var alive = [];
-    c.enemies.forEach(function (e, j) { if (e.alive) alive.push(j); });
-    // target lowest hp
-    alive.sort(function (a, b) { return c.enemies[a].hp - c.enemies[b].hp; });
-    var ok = E.playCard(idx, alive[0]);
+    if (best >= 0) choice = best;
+
+    // 2. block when meaningful damage is incoming
+    if (choice < 0 && needBlock > 3 && (hpDanger || needBlock > 8)) {
+      var bb = -1, bv = 0;
+      playable.forEach(function (idx) {
+        var v = estCardBlock(c.hand[idx]);
+        var cost = Math.max(1, E.cardInfo(c.hand[idx]).cost);
+        if (v > 0 && v / cost > bv) { bv = v / cost; bb = idx; }
+      });
+      if (bb >= 0) choice = bb;
+    }
+
+    // 3. powers early, then best attack, then anything
+    if (choice < 0) {
+      var pw = playable.filter(function (idx) { return VS.CARDS[c.hand[idx].id].type === 'power'; });
+      if (pw.length && c.turn <= 3) choice = pw[0];
+    }
+    if (choice < 0) {
+      var ba = -1, bd = -1;
+      playable.forEach(function (idx) {
+        if (VS.CARDS[c.hand[idx].id].type !== 'attack') return;
+        var dmg = estCardDamage(card0(c, idx), c.enemies[target]);
+        if (dmg > bd) { bd = dmg; ba = idx; }
+      });
+      if (ba >= 0) choice = ba;
+    }
+    if (choice < 0) {
+      // avoid pointless self-damage cards when low
+      var safe = playable.filter(function (idx) {
+        var fx = VS.cardFx(VS.CARDS[c.hand[idx].id], c.hand[idx].up);
+        var loses = fx.some(function (f) { return f.k === 'hploss'; });
+        return !(loses && E.run.hp < 20);
+      });
+      choice = (safe.length ? safe : playable)[0];
+    }
+
+    var ok = E.playCard(choice, target);
     if (!ok) E.endTurn();
   }
   if (guard >= 400) throw new Error('combat loop guard tripped (sector ' + E.run.sector + ')');
 }
+function card0(c, idx) { return c.hand[idx]; }
+
+var CLASS_ATTR = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
+
+function scoreRewardCard(cid) {
+  var def = VS.CARDS[cid];
+  var s = def.rarity * 3;
+  if (def.cls === VS.engine.run.cls) s += 2;
+  if (VS.engine.run.deck.length > 22 && def.rarity === 1) s -= 6;
+  return s;
+}
+
+function pickRemoveIdx() {
+  var deck = VS.engine.run.deck;
+  for (var i = 0; i < deck.length; i++) if (VS.CARDS[deck[i].id].type === 'curse') return i;
+  for (i = 0; i < deck.length; i++) if (deck[i].id === 'pulse_rifle' && !deck[i].up) return i;
+  for (i = 0; i < deck.length; i++) if (deck[i].id === 'combat_shield' && !deck[i].up) return i;
+  return 0;
+}
+
+function pickUpgradeIdx() {
+  var deck = VS.engine.run.deck;
+  // prefer un-upgraded class/rare cards, then anything un-upgraded
+  var bi = -1, bs = -1;
+  deck.forEach(function (card, i) {
+    var def = VS.CARDS[card.id];
+    if (card.up || def.type === 'curse') return;
+    var s = def.rarity * 2 + (def.cls === VS.engine.run.cls ? 1 : 0);
+    if (s > bs) { bs = s; bi = i; }
+  });
+  return bi < 0 ? 0 : bi;
+}
+
+function eventChoiceIdx(ev) {
+  var r = VS.engine.run;
+  var low = r.hp < r.maxHp * 0.45;
+  var bestI = 0, bestS = -1e9;
+  ev.choices.forEach(function (ch, i) {
+    if (ch.cost && r.credits < ch.cost) return;
+    var s = 0;
+    var out = ch.outcome || ch.success;
+    var fx = (out && out.fx) || {};
+    if (fx.artifact) s += 8;
+    if (fx.card) s += 5;
+    if (fx.attr) s += 6;
+    if (fx.maxhp) s += 5;
+    if (fx.credits > 0) s += fx.credits / 12;
+    if (fx.healPct) s += low ? 10 : 2;
+    if (fx.hp < 0) s += low ? -12 : fx.hp / 4;
+    if (fx.curse) s -= 8;
+    if (fx.pick === 'remove' || fx.pick === 'upgrade') s += 5;
+    if (ch.check) {
+      var bonus = VS.engine.attr(ch.check.attr);
+      var p = Math.max(0.05, Math.min(0.95, (21 - (ch.check.dc - bonus)) / 20));
+      var failFx = (ch.fail && ch.fail.fx) || {};
+      var failPenalty = (failFx.hp ? -failFx.hp / 3 : 0) + (failFx.curse ? 8 : 0);
+      s = s * p - failPenalty * (1 - p);
+      if (low && failFx.hp) s -= 4;
+    }
+    if (s > bestS) { bestS = s; bestI = i; }
+  });
+  return bestI;
+}
 
 function step() {
+  var E = VS.engine;
   var r = E.run;
   switch (r.phase) {
-    case 'node-select': E.chooseNode(rand() < 0.5 ? 0 : 1); break;
+    case 'node-select': {
+      // prefer rest when hurt, fights for value, events otherwise
+      var want = r.hp < r.maxHp * 0.55 ? 'rest' : 'fight';
+      var i = r.nodeOptions.indexOf(want);
+      E.chooseNode(i >= 0 ? i : (rand() < 0.5 ? 0 : 1));
+      break;
+    }
     case 'combat': botCombat(); break;
-    case 'reward':
-      if (rand() < 0.7) E.takeRewardCard(Math.floor(rand() * 3));
+    case 'reward': {
+      var bi = -1, bs = 0;
+      r.reward.cards.forEach(function (cid, i) {
+        var s = scoreRewardCard(cid);
+        if (s > bs) { bs = s; bi = i; }
+      });
+      if (bi >= 0) E.takeRewardCard(bi);
       E.finishReward();
       break;
+    }
     case 'event': {
       var ev = E.getEvent();
       if (!ev) throw new Error('no current event');
-      var valid = [];
-      ev.choices.forEach(function (ch, i) {
-        if (ch.cost && r.credits < ch.cost) return;
-        valid.push(i);
-      });
-      var res = E.eventChoose(valid[Math.floor(rand() * valid.length)]);
+      var res = E.eventChoose(eventChoiceIdx(ev));
       if (!res) throw new Error('eventChoose returned null');
       break;
     }
     case 'event-result':
-      if (r.pendingPick) E.applyPick(Math.floor(rand() * r.deck.length));
+      if (r.pendingPick) {
+        E.applyPick(r.pendingPick === 'remove' ? pickRemoveIdx() : r.pendingPick === 'upgrade' ? pickUpgradeIdx() : 0);
+      }
       E.finishEvent();
       break;
-    case 'shop':
-      if (rand() < 0.5) E.shopBuyCard(Math.floor(rand() * 3));
-      if (rand() < 0.3) E.shopBuyArtifact();
-      if (rand() < 0.3 && E.shopBuyRemove()) E.applyPick(Math.floor(rand() * r.deck.length));
+    case 'shop': {
+      if (E.shopBuyRemove()) E.applyPick(pickRemoveIdx());
+      if (r.shop.artifact && !r.shop.artifact.sold && r.credits >= r.shop.artifact.cost) E.shopBuyArtifact();
+      var cards = r.shop.cards.slice().sort(function (a, b) { return scoreRewardCard(b.id) - scoreRewardCard(a.id); });
+      cards.forEach(function (it) {
+        if (!it.sold && scoreRewardCard(it.id) >= 4 && r.credits >= it.cost) E.shopBuyCard(r.shop.cards.indexOf(it));
+      });
       if (r.hp < r.maxHp * 0.6) E.shopBuyHeal();
       E.leaveShop();
       break;
+    }
     case 'rest':
       if (r.hp < r.maxHp * 0.65) E.restHeal();
-      else { E.restUpgrade(); E.restFinishUpgrade(Math.floor(rand() * r.deck.length)); }
+      else { E.restUpgrade(); E.restFinishUpgrade(pickUpgradeIdx()); }
       break;
-    case 'levelup': E.levelUp(['might', 'tech', 'psi', 'hp'][Math.floor(rand() * 4)]); break;
+    case 'levelup': {
+      var opts = E.levelUpOptions().map(function (o) { return o.id; });
+      var pick;
+      if (r.hp < r.maxHp * 0.5 && opts.indexOf('heal') >= 0) pick = 'heal';
+      else if (r.maxHp < 70) pick = 'hp';
+      else pick = CLASS_ATTR[r.cls];
+      E.levelUp(opts.indexOf(pick) >= 0 ? pick : opts[0]);
+      break;
+    }
     case 'boss-artifact': E.takeBossArtifact(0); break;
     case 'sector-intro': E.beginSector(); break;
     default:
@@ -160,14 +361,33 @@ for (var run = 0; run < RUNS; run++) {
 }
 
 console.log('\n=== ' + RUNS + ' bot runs (capped at sector ' + MAX_SECTOR + ') ===');
+var allSectors = [], allDeaths = {}, s1Deaths = 0, nodeDeaths = {};
 classes.forEach(function (c) {
   var s = stats[c].sectors;
+  allSectors = allSectors.concat(s);
   var avg = s.reduce(function (a, b) { return a + b; }, 0) / s.length;
   var max = Math.max.apply(null, s);
   console.log(c + ': avg sector ' + avg.toFixed(2) + ', best ' + max);
   var deaths = stats[c].deaths;
   Object.keys(deaths).sort().forEach(function (k) {
     console.log('   died at ' + k + ': ' + deaths[k]);
+    var m = k.match(/sector (\d+) \/ (\w+)/);
+    if (m) {
+      if (m[1] === '1') s1Deaths += deaths[k];
+      nodeDeaths[m[2]] = (nodeDeaths[m[2]] || 0) + deaths[k];
+      allDeaths[m[1]] = (allDeaths[m[1]] || 0) + deaths[k];
+    }
   });
 });
+
+allSectors.sort(function (a, b) { return a - b; });
+var median = allSectors[Math.floor(allSectors.length / 2)];
+var totalDeaths = Object.keys(allDeaths).reduce(function (a, k) { return a + allDeaths[k]; }, 0);
+var spikeDeaths = (nodeDeaths.elite || 0) + (nodeDeaths.boss || 0);
+var reach5 = allSectors.filter(function (s) { return s >= 5; }).length;
+console.log('\n--- difficulty profile (StS targets in brackets) ---');
+console.log('sector-1 death rate: ' + Math.round(100 * s1Deaths / RUNS) + '%   [<= ~15%]');
+console.log('median sector reached: ' + median + '   [~3-4]');
+console.log('reached sector 5+: ' + Math.round(100 * reach5 / RUNS) + '%   [~15-30%]');
+if (totalDeaths) console.log('deaths at elites/bosses: ' + Math.round(100 * spikeDeaths / totalDeaths) + '%   [>= ~55%]');
 console.log('\nALL TESTS PASSED');

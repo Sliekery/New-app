@@ -18,8 +18,8 @@
     /* ---- Classes ---------------------------------------------------- */
     classes: {
       vanguard:  { hp: 80, might: 2, tech: 0, psi: 0 },
-      technomancer: { hp: 72, might: 0, tech: 2, psi: 0 },
-      voidadept: { hp: 74, might: 0, tech: 0, psi: 2 },
+      technomancer: { hp: 68, might: 0, tech: 2, psi: 0 },
+      voidadept: { hp: 75, might: 0, tech: 0, psi: 2 },
     },
 
     /* ---- Attribute scaling ------------------------------------------ */
@@ -48,7 +48,7 @@
       hpMul:  function (s) { return 1 + 0.30 * (s - 1) + 0.045 * (s - 1) * (s - 1); },
       dmgMul: function (s) { return 1 + 0.20 * (s - 1) + 0.030 * (s - 1) * (s - 1); },
       // extra flat strength enemies gain every N sectors (late-game pressure)
-      strEverySectors: 4,
+      strEverySectors: 3,
     },
 
     /* ---- Sector / node structure ------------------------------------ */

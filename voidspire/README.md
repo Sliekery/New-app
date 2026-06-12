@@ -65,13 +65,21 @@ Content is data-driven too:
 ### Validate your tweaks headlessly
 
 ```sh
-node test/sim.js 200        # bot plays 200 full runs; prints avg sector reached
-                            # and death locations per class — a quick balance read
+node test/sim.js 300        # bot plays full runs; prints avg sector reached,
+                            # death locations, and a difficulty profile
 ```
 
-The bot is deliberately dumb, so treat its numbers as a floor; what matters
-is the *relative* movement when you change values, and that classes stay
-roughly comparable.
+The bot plays like a competent-but-not-expert human (blocks lethal damage,
+finishes kills, picks sensible rewards). The difficulty curve is calibrated
+against Slay-the-Spire-shaped targets, printed with every run:
+
+- sector-1 death rate ≤ ~15% (Act 1 is learnable, not free)
+- median sector reached ~3-4 (a typical good run ≈ beating Act 3)
+- sector 5+ reached by ~15-30% of runs (deep endless is earned)
+- ≥ ~55% of deaths at elites/bosses (spikes kill you, not hallways)
+
+If you tweak `balance.js`, re-run the sim and keep the profile inside those
+brackets to preserve the feel.
 
 Optional (needs `npm i jsdom canvas` somewhere on `NODE_PATH`):
 
