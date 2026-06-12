@@ -6,6 +6,7 @@ html,body {
   user-select:none; -webkit-user-select:none;
 }
 #game { position:fixed; inset:0; display:block; }
+#fx { position:fixed; inset:0; display:block; pointer-events:none; }
 
 #hud { position:fixed; inset:0; pointer-events:none; }
 #hud > * { pointer-events:none; }

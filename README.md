@@ -1,7 +1,14 @@
 # Eldervale — Thornveil Reach
 
-A **GW1-style MMO-lite prototype** for the phone. High fantasy, first zone, built with
-vanilla HTML5 canvas + JS — zero dependencies, no build step.
+A **GW1-style MMO-lite prototype** for the phone. High fantasy, first zone, rendered
+in a **low-poly 3D** take on the GW1 art style — Three.js (vendored, r147), flat-shaded
+terrain and characters, no build step.
+
+Renderer notes: rolling vertex-colored terrain generated from the tile map, instanced
+low-poly trees/palisades/crags, primitive-built characters (sword/staff/bow/cleaver),
+tilted third-person camera with fog, and a 2D overlay for damage numbers, health bars,
+and the virtual joystick. If WebGL is unavailable the logic still runs headless (used
+by the test harness).
 
 ## Play it
 
