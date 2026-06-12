@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Eldervale — Art Style Comparison</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{background:#0b0e0a;color:#e8dfc8;font-family:Georgia,serif;overflow:hidden;height:100%;position:fixed;width:100%}
+  .half{position:relative;width:100vw;height:50vh}
+  canvas{display:block;width:100%;height:100%}
+  .label{position:absolute;top:8px;left:0;right:0;text-align:center;pointer-events:none}
+  .label b{color:#f0d97a;font-size:15px;letter-spacing:1px;text-shadow:0 1px 3px #000}
+  .label span{display:block;font-size:11px;color:#cdbf95;margin-top:2px;text-shadow:0 1px 3px #000}
+  #load2{position:absolute;top:50%;left:0;right:0;text-align:center;color:#cdbf95;font-size:13px}
+  #back{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);z-index:9;font-size:12px;
+    color:#f0d97a;background:rgba(14,12,8,.85);border:1px solid #8a754a;border-radius:8px;
+    padding:7px 14px;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="half">
+  <canvas id="cvA"></canvas>
+  <div class="label"><b>OPTION 1 — Cel-shaded (no assets)</b>
+  <span>banded toon light + ink outlines on our procedural models · zero download</span></div>
+</div>
+<div class="half">
+  <canvas id="cvB"></canvas>
+  <div class="label"><b>OPTION 2 — glTF pipeline (real models)</b>
+  <span>modeled + skeleton-animated character (CC0 stand-in) · swap in GW1-style fantasy assets later</span></div>
+  <div id="load2">loading model…</div>
+</div>
+<a id="back" href="../">← back to Eldervale</a>
+
+<script src="../three.min.js"></script>
+<script src="GLTFLoader.js"></script>
+<script>
+'use strict';
+const DPR=Math.min(1.5,window.devicePixelRatio||1);
+
+function makePanel(id,bg){
+  const cv=document.getElementById(id);
+  const r=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+  r.outputEncoding=THREE.sRGBEncoding;
+  const sc=new THREE.Scene(); sc.background=new THREE.Color(bg);
+  const cam=new THREE.PerspectiveCamera(45,1,1,2000);
+  cam.position.set(0,52,125); cam.lookAt(0,26,0);
+  function size(){
+    const w=cv.clientWidth||window.innerWidth, h=cv.clientHeight||window.innerHeight/2;
+    r.setPixelRatio(DPR); r.setSize(w,h,false);
+    cam.aspect=w/h; cam.updateProjectionMatrix();
+  }
+  size(); window.addEventListener('resize',size);
+  return {r,sc,cam};
+}
+
+/* ============== OPTION 1: cel-shaded ============== */
+const A=makePanel('cvA',0x8fc4e8);
+A.sc.add(new THREE.HemisphereLight(0xffffff,0x88aa66,0.55));
+const sunA=new THREE.DirectionalLight(0xffffff,0.9); sunA.position.set(300,500,200); A.sc.add(sunA);
+
+// 4-step toon ramp
+const rampData=new Uint8Array([90,90,90,255, 140,140,140,255, 210,210,210,255, 255,255,255,255]);
+const ramp=new THREE.DataTexture(rampData,4,1,THREE.RGBAFormat);
+ramp.magFilter=ramp.minFilter=THREE.NearestFilter; ramp.needsUpdate=true;
+const toon=c=>new THREE.MeshToonMaterial({color:c,gradientMap:ramp});
+const inkMat=new THREE.MeshBasicMaterial({color:0x16120c,side:THREE.BackSide});
+function ink(mesh,fat){ // inverted-hull outline
+  const o=new THREE.Mesh(mesh.geometry,inkMat);
+  o.position.copy(mesh.position); o.rotation.copy(mesh.rotation);
+  o.scale.copy(mesh.scale).multiplyScalar(fat||1.055);
+  mesh.parent.add(o); return o;
+}
+const CAPg=(r,l)=>THREE.CapsuleGeometry?new THREE.CapsuleGeometry(r,l,6,12):new THREE.CylinderGeometry(r,r,l+r*2,12);
+
+// ground + toon trees
+{
+  const gnd=new THREE.Mesh(new THREE.CircleGeometry(420,40),toon(0xa8b34a));
+  gnd.rotation.x=-Math.PI/2; A.sc.add(gnd);
+  for(let i=0;i<7;i++){
+    const a=i/7*6.28, d=150+(i%3)*60;
+    const grp=new THREE.Group(); grp.position.set(Math.cos(a)*d,0,Math.sin(a)*d-60);
+    const tr=new THREE.Mesh(new THREE.CylinderGeometry(3,5,30,8),toon(0x7a5530)); tr.position.y=15; grp.add(tr);
+    const can=new THREE.Mesh(new THREE.IcosahedronGeometry(22,2),toon(0x5aa844));
+    can.scale.set(1.35,0.55,1.35); can.position.y=34; grp.add(can);
+    A.sc.add(grp); ink(tr,1.07); ink(can,1.05);
+  }
+}
+// cel warrior (our capsule build, toon-shaded + outlined)
+const heroA=new THREE.Group(); A.sc.add(heroA);
+const legsA=[];
+{
+  const add=(geo,c,x,y,z)=>{const m=new THREE.Mesh(geo,toon(c));m.position.set(x,y,z);heroA.add(m);ink(m);return m;};
+  for(const z of [-2.7,2.7]){
+    const lg=CAPg(2,6.5); lg.translate(0,-5,0);
+    const l=add(lg,0x39414f,0,10,z); legsA.push(l);
+  }
+  const torso=add(CAPg(5.5,7.5),0x4a7ab5,0,15,0); torso.scale.set(1,1,0.82);
+  add(new THREE.CylinderGeometry(5.1,5.5,2.2,14),0xc8a850,0,9.9,0);
+  for(const z of [-6.6,6.6]){ const s=add(new THREE.SphereGeometry(3.3,10,8),0x9aa8c0,0,20.4,z); s.scale.set(1.15,0.85,1.15); }
+  add(new THREE.SphereGeometry(4.9,14,12),0xd8b08a,0,25.4,0);
+  for(const z of [-1.7,1.7]) add(new THREE.SphereGeometry(0.55,6,6),0x1a1410,4.2,26.2,z);
+  const helm=add(new THREE.SphereGeometry(5.35,12,8,0,6.29,0,1.95),0x9aa8c0,0,25.9,0);
+  add(new THREE.BoxGeometry(1.2,4.5,8),0xa83030,0,31.2,0);
+  const bl=add(new THREE.BoxGeometry(1.2,16,2.6),0xdde2ec,3,16,8.5);
+}
+
+/* ============== OPTION 2: glTF animated model ============== */
+const B=makePanel('cvB',0xd8cfae);
+B.sc.fog=new THREE.Fog(0xd8cfae,300,900);
+B.sc.add(new THREE.HemisphereLight(0xffe7c2,0x4a6a52,0.8));
+const sunB=new THREE.DirectionalLight(0xfff0c0,1.3); sunB.position.set(300,500,200); B.sc.add(sunB);
+{
+  const g=new THREE.CircleGeometry(420,40);
+  const cols=new Float32Array(g.attributes.position.count*3), c=new THREE.Color();
+  for(let i=0;i<g.attributes.position.count;i++){
+    c.setHSL(Math.random()<0.4?0.14:0.27,0.55,0.36+Math.random()*0.1);
+    cols[i*3]=c.r;cols[i*3+1]=c.g;cols[i*3+2]=c.b;
+  }
+  g.setAttribute('color',new THREE.BufferAttribute(cols,3));
+  const gnd=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.95}));
+  gnd.rotation.x=-Math.PI/2; B.sc.add(gnd);
+}
+let mixer=null, heroB=null;
+new THREE.GLTFLoader().load('soldier.glb',gltf=>{
+  document.getElementById('load2').style.display='none';
+  heroB=gltf.scene; heroB.scale.setScalar(24);
+  B.sc.add(heroB);
+  mixer=new THREE.AnimationMixer(heroB);
+  const walk=gltf.animations.find(a=>/walk/i.test(a.name))||gltf.animations[0];
+  mixer.clipAction(walk).play();
+},undefined,()=>{document.getElementById('load2').textContent='model failed to load — check connection';});
+
+/* ============== shared loop ============== */
+let last=performance.now();
+function loop(t){
+  requestAnimationFrame(loop);
+  const dt=Math.min(0.05,(t-last)/1000); last=t;
+  const ph=t/1000*7;
+  heroA.rotation.y+=dt*0.7;
+  legsA.forEach((l,i)=>{ l.rotation.x=Math.sin(ph+i*Math.PI)*0.5; });
+  heroA.position.y=Math.abs(Math.sin(ph))*1.4;
+  if(heroB) heroB.rotation.y+=dt*0.7;
+  if(mixer) mixer.update(dt);
+  A.r.render(A.sc,A.cam);
+  B.r.render(B.sc,B.cam);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
