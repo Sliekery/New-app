@@ -1892,8 +1892,9 @@ function makeAvatar(e){
 function syncAvatar(e){
   if(!e.av) e.av=makeAvatar(e);
   const g=e.av;
-  // distance cull: far-off characters cost draw calls but are lost in the fog anyway
-  if(e!==player&&dist(e.x,e.y,player.x,player.y)>1150){ g.visible=false; return; }
+  // distance cull: far-off characters cost draw calls but are lost in the fog anyway.
+  // The low GW1 camera sees much farther north, so cull a bit later to avoid pop-in.
+  if(e!==player&&dist(e.x,e.y,player.x,player.y)>1450){ g.visible=false; return; }
   // hide fully-faded corpses awaiting respawn
   if(e.kind==='enemy'&&e.dead&&now>=e.respawnAt-20){ g.visible=false; return; }
   g.visible=true;
@@ -2074,6 +2075,13 @@ function screenToWorld(sx,sy){
   if(hit.length) return {x:hit[0].point.x,y:hit[0].point.z};
   const o=raycaster.ray.origin,d=raycaster.ray.direction;
   const t=-o.y/d.y;
+  // low camera: a tap toward/above the horizon gives a near-horizontal or upward
+  // ray (t<=0 or absurdly large) — don't send the player behind the camera; walk
+  // that compass direction a capped distance instead.
+  if(!(t>0&&t<4000)){
+    const hl=Math.hypot(d.x,d.z)||1;
+    return {x:player.x+d.x/hl*600, y:player.y+d.z/hl*600};
+  }
   return {x:o.x+d.x*t,y:o.z+d.z*t};
 }
 
@@ -2270,8 +2278,11 @@ function render(){
     moveRing.position.set(player.moveTo.x,heightAt(player.moveTo.x,player.moveTo.y)+0.7,player.moveTo.y);
     moveRing.scale.setScalar(9+Math.sin(now*6)*2);
   } else moveRing.visible=false;
-  // sprint shimmer: tilt the inner model slightly forward
-  if(player.av) player.av.userData.inner.rotation.x+=((player.buffs.sprint||0)>now?0.12:0);
+  // sprint shimmer: a slight forward lean (procedural avatar only — syncAvatar
+  // resets its inner.rotation.x each frame; glTF avatars don't, so adding there
+  // would accumulate and tip the model face-down).
+  if(player.av&&!player.av.userData.gltf&&(player.buffs.sprint||0)>now)
+    player.av.userData.inner.rotation.x+=0.12;
 
   syncPools();
   updateEffects();
