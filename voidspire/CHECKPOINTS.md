@@ -10,9 +10,14 @@ GitHub forever, so it can't be lost even if later changes break something. The
 
 | Checkpoint | Commit | Date | What's in it |
 |---|---|---|---|
+| **v1.3-mapart** | `2f8ea51` | 2026-06-14 | Restyles the star-chart map to the CRT/space aesthetic: translucent live backdrop, glowing hex nodes, sonar-ping reachable rings, constellation flight-path edges. |
 | **v1.2-map** | `1acede5` | 2026-06-14 | Branching star-chart map per sector (pick your path through fights/events/shops/rests/elites/treasure to the boss), with distinct node icons. Retuned to hold the StS difficulty. |
 | **v1.1-builds** | `316d309` | 2026-06-14 | Adds Slay-the-Spire-style build archetypes (Might/Exhaust, Shield/Echo, Burn/spam) and build-defining rares for "god runs". Fixes the power-reuse bug (powers are now consumed). |
 | **v1.0-stable** | `9583880` | 2026-06-14 | Swipe-to-play combat, Slay-the-Spire-tuned balance, faction world-building, animated screen transitions, talking event portraits, artifact icons. First fully-polished version. |
+
+### v1.3-mapart
+- **Play (frozen):** https://rawcdn.githack.com/Sliekery/New-app/2f8ea51464485eb2667a8dfac5871e92377d6127/voidspire/voidspire.html
+- **Restore command (for reference):** `git checkout 2f8ea51 -- voidspire`
 
 ### v1.2-map
 - **Play (frozen):** https://rawcdn.githack.com/Sliekery/New-app/1acede579558862244bf3587df8cbabc2bb180fa/voidspire/voidspire.html
