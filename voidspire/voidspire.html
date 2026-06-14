@@ -109,6 +109,10 @@ html, body {
   border: 1px solid var(--amber); color: var(--amber); text-shadow: var(--glow-a);
   background: rgba(35, 25, 5, 0.7); cursor: pointer;
 }
+/* quest relic: dashed border while in progress, glowing when complete */
+#hud .artifact-chip.quest { border-style: dashed; border-color: var(--text-dim); color: var(--text-dim); text-shadow: none; }
+#hud .artifact-chip.quest-done { border-color: var(--green); color: var(--green); text-shadow: var(--glow-g); animation: questGlow 1.8s ease-in-out infinite; }
+@keyframes questGlow { 0%, 100% { box-shadow: 0 0 0 rgba(93,255,136,0); } 50% { box-shadow: 0 0 7px rgba(93,255,136,0.55); } }
 #hud .status-row { margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap; }
 .status-chip {
   font-size: 9px; letter-spacing: 1px; padding: 2px 5px;
@@ -731,6 +735,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     reactor: 'Reactor', retain: 'Phase Lock',
     feelNoPain: 'Resolve', darkEmbrace: 'Salvage', thousandCuts: 'Blade Array',
     afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
+    platedArmor: 'Plated Armor',
   };
   ns.STATUS_NAMES = STATUS_NAMES;
 
@@ -1191,6 +1196,64 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       art: { p: [[0.7,0, 0.5,0.5, 0,0.7, -0.5,0.5, -0.7,0, -0.45,-0.45, 0,-0.55, 0.35,-0.3, 0.4,0, 0.2,0.25, 0,0.28, -0.18,0.12, -0.15,-0.1, 0,-0.15]], e: [[0,0]] } },
     omega_visor:     { name: 'Omega Visor',       tier: 2, k: 'critBonus',       v: 4,    desc: 'Crit on a d20 roll of 16 or higher.',
       art: { p: [[-0.6,0.8, -0.25,0.8, -0.25,0.55, -0.55,0.3, -0.6,-0.2, -0.3,-0.65, 0.3,-0.65, 0.6,-0.2, 0.55,0.3, 0.25,0.55, 0.25,0.8, 0.6,0.8]], e: [[-0.2,-0.2],[0.2,-0.2]] } },
+
+    /* ============ Special passive relics ============ */
+    static_capacitor: { name: 'Static Capacitor', tier: 1, k: 'shieldThorns', v: 2,
+      desc: 'Whenever you gain Shield, deal 2 damage to a random enemy.',
+      art: { p: [[-0.1,-0.75, -0.35,-0.05, 0.02,-0.05, -0.15,0.75, 0.4,-0.1, 0.04,-0.1, 0.28,-0.75, -0.1,-0.75]], e: [] } },
+    reaper_protocol: { name: 'Reaper Protocol', tier: 1, k: 'healOnKill', v: 2,
+      desc: 'Whenever you kill an enemy, heal 2 HP.',
+      art: { p: [[0.45,-0.75, 0.45,0.75], [0.45,-0.7, 0.05,-0.6, -0.4,-0.25, -0.62,0.25], [-0.62,0.25, -0.2,0.05, 0.15,-0.2, 0.45,-0.5]], e: [] } },
+    hoarfrost_cell: { name: 'Hoarfrost Cell', tier: 1, k: 'weakStart', v: 2,
+      desc: 'At the start of each combat, apply 2 Weak to all enemies.',
+      art: { p: [[0,-0.82, 0,0.82], [-0.71,-0.41, 0.71,0.41], [-0.71,0.41, 0.71,-0.41], [0,-0.82, -0.18,-0.6], [0,-0.82, 0.18,-0.6], [0,0.82, -0.18,0.6], [0,0.82, 0.18,0.6], [0.71,-0.41, 0.5,-0.5], [-0.71,0.41, -0.5,0.5]], e: [] } },
+    bloodlust_engine: { name: 'Bloodlust Engine', tier: 2, k: 'strOnKill', v: 1,
+      desc: 'Whenever an enemy dies, gain 1 Might for the rest of combat.',
+      art: { p: [[-0.42,0.6, -0.42,-0.2], [-0.62,0.0, -0.42,-0.42, -0.22,0.0], [0.42,0.6, 0.42,-0.2], [0.22,0.0, 0.42,-0.42, 0.62,0.0], [0,0.5, 0,-0.55], [-0.2,-0.15, 0,-0.62, 0.2,-0.15]], e: [] } },
+    overflow_reactor: { name: 'Overflow Reactor', tier: 2, k: 'energyCarry', v: 1,
+      desc: 'Unused Energy carries over to your next turn.',
+      art: { p: [[-0.5,-0.5, 0.5,-0.5, 0.5,0.6, -0.5,0.6, -0.5,-0.5], [-0.22,-0.5, -0.22,-0.72, 0.22,-0.72, 0.22,-0.5], [-0.22,0.15, 0.02,-0.22, 0.02,0.05, 0.26,-0.32]], e: [] } },
+    glass_cannon: { name: 'Glass Cannon', tier: 2, k: 'dmgMult', v: 0.5, special: 'glassCannon',
+      desc: 'Deal 50% more damage — but your Max HP is permanently reduced by 25%.',
+      art: { p: [[0.6,0, 0.42,0.42, 0,0.6, -0.42,0.42, -0.6,0, -0.42,-0.42, 0,-0.6, 0.42,-0.42, 0.6,0], [-0.72,0, 0.72,0], [0,-0.72, 0,0.72], [0.16,-0.6, 0.0,-0.2, 0.2,0.1, 0.0,0.5]], e: [] } },
+
+    /* ============ Quest relics (complete the task → unlock the reward) ============ */
+    offline_shield: { name: 'Offline Shield', tier: 2,
+      quest: { track: 'noShieldWin', goal: 3, label: 'Win 3 combats without gaining any Shield' },
+      done: { k: 'platedArmorStart', v: 7 },
+      doneDesc: 'Start each combat with 7 Plated Armor (each turn gain Shield equal to it, then it drops by 1).',
+      desc: 'QUEST — Win 3 combats without gaining any Shield. → Start each combat with 7 Plated Armor.',
+      art: { p: [[0,-0.85, 0.7,-0.45, 0.7,0.35, 0,0.85, -0.7,0.35, -0.7,-0.45, 0,-0.85], [0,-0.5, 0,-0.08], [-0.28,-0.05, -0.32,0.28, 0,0.45, 0.32,0.28, 0.28,-0.05]], e: [] } },
+    berserker_pact: { name: "Berserker's Pact", tier: 1,
+      quest: { track: 'kills', goal: 15, label: 'Kill 15 enemies' },
+      done: { k: 'strStart', v: 2 },
+      doneDesc: 'Start each combat with 2 Might.',
+      desc: 'QUEST — Kill 15 enemies. → Start each combat with 2 Might.',
+      art: { p: [[0,-0.72, 0,0.72], [0,-0.62, 0.52,-0.72, 0.62,-0.2, 0.0,-0.1], [0,-0.62, -0.52,-0.72, -0.62,-0.2, 0.0,-0.1]], e: [] } },
+    pacifist_doctrine: { name: 'Pacifist Doctrine', tier: 1,
+      quest: { track: 'rewardSkip', goal: 3, label: 'Skip 3 card rewards' },
+      done: { k: 'drawTurn', v: 1 },
+      doneDesc: 'Draw 1 additional card each turn.',
+      desc: 'QUEST — Skip 3 card rewards. → Draw 1 extra card every turn.',
+      art: { p: [[0,0.7, 0,-0.7], [0,-0.7, -0.5,-0.3, -0.55,0.2], [0,-0.7, 0.5,-0.3, 0.55,0.2], [-0.3,-0.45, -0.45,-0.1], [0.3,-0.45, 0.45,-0.1]], e: [] } },
+    flawless_protocol: { name: 'Flawless Protocol', tier: 2,
+      quest: { track: 'flawlessWin', goal: 2, label: 'Win 2 combats without losing any HP' },
+      done: { k: 'blockStart', v: 12 },
+      doneDesc: 'Start each combat with 12 Shield.',
+      desc: 'QUEST — Win 2 combats without losing any HP. → Start each combat with 12 Shield.',
+      art: { p: [[0,-0.7, 0.6,-0.2, 0,0.8, -0.6,-0.2, 0,-0.7], [-0.6,-0.2, 0.6,-0.2], [-0.3,-0.7, -0.2,-0.2, 0,0.8], [0.3,-0.7, 0.2,-0.2, 0,0.8], [0,-0.7, 0,-0.2]], e: [] } },
+    soul_ledger: { name: 'Soul Ledger', tier: 2,
+      quest: { track: 'burnTotal', goal: 60, label: 'Apply 60 Burn to enemies' },
+      done: { k: 'burnGrow', v: 1 },
+      doneDesc: 'At the start of your turn, all Burn on enemies grows by 1.',
+      desc: 'QUEST — Apply 60 Burn to enemies. → Each turn, all enemy Burn grows by 1.',
+      art: { p: [[0,0.6, -0.45,0.2, -0.28,-0.22, 0.02,0.1, 0.12,-0.55, 0.32,-0.1, 0.42,0.25, 0,0.6], [-0.52,0.55, -0.52,-0.6], [-0.68,0.42, -0.68,-0.45]], e: [] } },
+    war_chest: { name: 'War Chest', tier: 1,
+      quest: { track: 'creditsAtOnce', goal: 220, label: 'Hold 220 credits at once' },
+      done: { k: 'energyEveryTurn', v: 1 },
+      doneDesc: '+1 Energy every turn.',
+      desc: 'QUEST — Hold 220 credits at once. → +1 Energy every turn.',
+      art: { p: [[-0.6,-0.05, 0.6,-0.05, 0.6,0.55, -0.6,0.55, -0.6,-0.05], [-0.6,-0.05, -0.5,-0.45, 0.5,-0.45, 0.6,-0.05], [-0.12,0.12, 0.12,0.12, 0.12,0.32, -0.12,0.32, -0.12,0.12], [0,-0.72, 0.18,-0.57, 0,-0.42, -0.18,-0.57, 0,-0.72]], e: [[0,-0.57]] } },
   };
 
   // Sum of v over owned artifacts matching hook k.
@@ -1673,6 +1736,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       removeCost: B.shop.removeCost,
       kills: 0, nodesCleared: 0,
       pendingPick: null,
+      quests: {}, questDone: {},
     };
     E.combat = null;
     E.run.map = generateMap(1);
@@ -1690,7 +1754,43 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return v;
   }
   E.attr = attr;
-  function art(k) { return ns.artifactSum(E.run.artifacts, k); }
+  // Sum of hook k over owned artifacts, including quest "done" hooks once the
+  // artifact's quest has been completed.
+  function art(k) {
+    var t = 0, owned = E.run.artifacts;
+    for (var i = 0; i < owned.length; i++) {
+      var a = ns.ARTIFACTS[owned[i]];
+      if (a.k === k) t += a.v;
+      if (a.done && a.done.k === k && E.run.questDone && E.run.questDone[owned[i]]) t += a.done.v;
+    }
+    return t;
+  }
+  E.art = art;
+
+  /* ---------------- Quest artifacts ------------------------------------ */
+  function questProgress(track, amount) {
+    var r = E.run;
+    if (!r.quests) return;
+    Object.keys(r.quests).forEach(function (id) {
+      var a = ns.ARTIFACTS[id];
+      if (!a || !a.quest || a.quest.track !== track || r.questDone[id]) return;
+      if (track === 'creditsAtOnce') r.quests[id] = Math.max(r.quests[id], amount);
+      else r.quests[id] += amount;
+      if (r.quests[id] >= a.quest.goal) {
+        r.quests[id] = a.quest.goal;
+        r.questDone[id] = true;
+        // some completed quests apply a one-time max-HP change
+        if (a.done && a.done.k === 'maxHp') { r.maxHp += a.done.v; r.hp += a.done.v; }
+        emit('questDone', { id: id });
+      }
+    });
+  }
+  E.questProgress = questProgress;
+  E.questState = function (id) {
+    var a = ns.ARTIFACTS[id];
+    if (!a || !a.quest) return null;
+    return { goal: a.quest.goal, progress: (E.run.quests && E.run.quests[id]) || 0, done: !!(E.run.questDone && E.run.questDone[id]) };
+  };
 
   E.score = function () {
     var r = E.run;
@@ -1941,14 +2041,38 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
       player: { block: 0, statuses: {} },
       echoReady: false,
+      gainedShield: false,
+      startHp: r.hp,
       over: false,
     };
     var ps = art('strStart');
     if (ps > 0) c.player.statuses.str = ps;
-    c.player.block = art('blockStart');
+    var pa = art('platedArmorStart');
+    if (pa > 0) c.player.statuses.platedArmor = pa;
+    var bs = art('blockStart');
+    if (bs > 0) { c.player.block = bs; c.gainedShield = true; }
+    var ws = art('weakStart');
+    if (ws > 0) c.enemies.forEach(function (en, i) { addStatus(en, 'weak', ws); });
+    var sd = art('combatStartDamage');
+    if (sd > 0) hurtPlayer(sd, { pure: true });
     r.phase = 'combat';
     c.enemies.forEach(chooseIntent);
     startPlayerTurn();
+  }
+
+  // All player Shield gains route through here so relics that react to gaining
+  // Shield (and the "no Shield" quest) see every source.
+  function gainBlock(n) {
+    var c = E.combat, p = c.player;
+    if (n <= 0) return;
+    p.block += n;
+    c.gainedShield = true;
+    emit('block', { who: 'player', amount: n, blockAfter: p.block });
+    var st = art('shieldThorns');
+    if (st > 0 && !c.over) {
+      var pool = aliveEnemies();
+      if (pool.length) { var en = pick(pool); dealToEnemy(en, c.enemies.indexOf(en), st, { noCrit: true, noWeak: true }); }
+    }
   }
 
   /* ---------------- Combat: turn structure ------------------------------ */
@@ -1962,20 +2086,26 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   function startPlayerTurn() {
     var c = E.combat, p = c.player;
+    var leftover = c.energy;
     c.turn++;
     // block expiry
     if (!statN(p, 'retain')) p.block = 0;
+    // energy (with optional carry-over from Overflow Reactor)
+    c.energy = maxEnergy() + (art('energyCarry') > 0 ? leftover : 0);
+    if (c.turn === 1) c.energy += art('energyTurn1');
     // per-turn passives
     var plate = statN(p, 'plate') + art('plate');
-    if (plate > 0) p.block += plate;
+    if (plate > 0) gainBlock(plate);
+    var padv = statN(p, 'platedArmor');
+    if (padv > 0) { gainBlock(padv); addStatus(p, 'platedArmor', -1); } // Plated Armor: shield = stacks, then decays
     var spt = statN(p, 'strPerTurn');
     if (spt > 0) addStatus(p, 'str', spt);
     var ht = art('healTurn');
     if (ht > 0) heal(ht);
+    var bg = art('burnGrow');
+    if (bg > 0) c.enemies.forEach(function (en, i) { if (en.alive && statN(en, 'burn') > 0) { addStatus(en, 'burn', bg); emit('status', { who: 'enemy', idx: i, s: 'burn', v: bg }); } });
     var aoe = art('aoeTurnStart');
-    c.energy = maxEnergy();
-    if (c.turn === 1) c.energy += art('energyTurn1');
-    var draws = B.player.drawPerTurn + (c.turn === 1 ? art('drawStart') : 0);
+    var draws = B.player.drawPerTurn + art('drawTurn') + (c.turn === 1 ? art('drawStart') : 0);
     drawCards(draws);
     c.echoReady = statN(p, 'echo') > 0;   // Echo Core: first attack each turn plays twice
     emit('turnStart', { turn: c.turn });
@@ -1983,8 +2113,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       c.enemies.forEach(function (en, i) {
         if (en.alive) dealToEnemy(en, i, aoe, { noCrit: true, src: 'Singularity' });
       });
-      checkWin();
     }
+    // turn-start effects (Plated Armor / Static Capacitor / Contagion / Singularity)
+    // can finish off enemies, so resolve victory here too
+    checkWin();
   }
 
   function drawCards(n) {
@@ -2084,6 +2216,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function dealToEnemy(en, idx, amount, opts) {
     opts = opts || {};
     var c = E.combat;
+    var dm = art('dmgMult');
+    if (dm > 0) amount = Math.round(amount * (1 + dm));
     if (statN(c.player, 'weak') && !opts.noWeak) amount = Math.floor(amount * B.status.weakMult);
     if (statN(en, 'vuln')) amount = Math.floor(amount * B.status.vulnMult);
     if (opts.execute && en.hp <= en.maxHp * 0.30) amount *= 2;
@@ -2096,6 +2230,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (en.hp <= 0 && en.alive) {
       en.alive = false;
       E.run.kills++;
+      questProgress('kills', 1);
+      var hk = art('healOnKill'); if (hk > 0) heal(hk);
+      var sk = art('strOnKill'); if (sk > 0) { addStatus(c.player, 'str', sk); emit('status', { who: 'player', s: 'str', v: sk }); }
       emit('die', { idx: idx });
     }
     return hpDmg;
@@ -2164,10 +2301,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var c = E.combat, p = c.player;
     c.exhaust.push(card);
     var fnp = statN(p, 'feelNoPain');
-    if (fnp > 0) { p.block += fnp; emit('block', { who: 'player', amount: fnp, blockAfter: p.block }); }
+    if (fnp > 0) gainBlock(fnp);
     var de = statN(p, 'darkEmbrace');
     if (de > 0) drawCards(de);
   }
+
+  // Burn applied to an enemy by the player (for the Burn quest).
+  function trackBurn(n) { questProgress('burnTotal', n); }
 
   // Resolve a card's effects once. Echo can call this twice. ctx carries the
   // shared roll/crit/target and an appliedBurn flag for Contagion.
@@ -2202,8 +2342,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         }
         case 'block': {
           var b = f.v + (f.scale === 'tech' ? attr('tech') * B.attrs.techBlockPerPoint : 0);
-          p.block += b;
-          emit('block', { who: 'player', amount: b, blockAfter: p.block });
+          gainBlock(b);
           break;
         }
         case 'heal': heal(f.v); break;
@@ -2215,16 +2354,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             addStatus(p, f.s, f.v);
             emit('status', { who: 'player', s: f.s, v: f.v });
           } else if (f.who === 'allEnemies') {
+            var hit = 0;
             c.enemies.forEach(function (e, i) {
-              if (e.alive) { addStatus(e, f.s, f.v); emit('status', { who: 'enemy', idx: i, s: f.s, v: f.v }); }
+              if (e.alive) { addStatus(e, f.s, f.v); emit('status', { who: 'enemy', idx: i, s: f.s, v: f.v }); hit++; }
             });
-            if (f.s === 'burn') ctx.appliedBurn = true;
+            if (f.s === 'burn') { ctx.appliedBurn = true; trackBurn(f.v * hit); }
           } else {
             var st = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             if (st) {
               addStatus(st, f.s, f.v);
               emit('status', { who: 'enemy', idx: c.enemies.indexOf(st), s: f.s, v: f.v });
-              if (f.s === 'burn') ctx.appliedBurn = true;
+              if (f.s === 'burn') { ctx.appliedBurn = true; trackBurn(f.v); }
             }
           }
           break;
@@ -2238,23 +2378,20 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             var s = statN(p, 'str');
             if (s > 0) { addStatus(p, 'str', s); emit('status', { who: 'player', s: 'str', v: s }); }
           } else if (f.id === 'doubleBlock') {
-            if (p.block > 0) { var add = p.block; p.block += add; emit('block', { who: 'player', amount: add, blockAfter: p.block }); }
+            if (p.block > 0) gainBlock(p.block);
           } else if (f.id === 'catalyst' || f.id === 'catalyst3') {
             var ce = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             if (ce) {
               var cur = statN(ce, 'burn');
               var mul = (f.id === 'catalyst3') ? 2 : 1; // extra stacks added
-              if (cur > 0) { addStatus(ce, 'burn', cur * mul); emit('status', { who: 'enemy', idx: c.enemies.indexOf(ce), s: 'burn', v: cur * mul }); }
+              if (cur > 0) { addStatus(ce, 'burn', cur * mul); emit('status', { who: 'enemy', idx: c.enemies.indexOf(ce), s: 'burn', v: cur * mul }); trackBurn(cur * mul); }
             }
           }
           break;
         }
       }
     });
-    if (flags.leech && totalDealt > 0) {
-      p.block += totalDealt;
-      emit('block', { who: 'player', amount: totalDealt, blockAfter: p.block });
-    }
+    if (flags.leech && totalDealt > 0) gainBlock(totalDealt);
     if (flags.drain && totalDealt > 0) heal(Math.ceil(totalDealt / 2));
     return totalDealt;
   }
@@ -2304,12 +2441,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var tc = statN(p, 'thousandCuts');
       if (tc > 0) c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, tc, { noCrit: true, noWeak: true }); });
       var ai = statN(p, 'afterImage');
-      if (ai > 0) { p.block += ai; emit('block', { who: 'player', amount: ai, blockAfter: p.block }); }
+      if (ai > 0) gainBlock(ai);
     }
     // Contagion: applying Burn spreads it to all enemies
     if (ctx.appliedBurn && statN(p, 'plague') > 0 && !c.over) {
-      var pl = statN(p, 'plague');
-      c.enemies.forEach(function (e, i) { if (e.alive) { addStatus(e, 'burn', pl); emit('status', { who: 'enemy', idx: i, s: 'burn', v: pl }); } });
+      var pl = statN(p, 'plague'), spread = 0;
+      c.enemies.forEach(function (e, i) { if (e.alive) { addStatus(e, 'burn', pl); emit('status', { who: 'enemy', idx: i, s: 'burn', v: pl }); spread++; } });
+      trackBurn(pl * spread);
     }
 
     // route the played card: powers are consumed, exhaust cards (and skills
@@ -2353,9 +2491,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
     var ev = statN(p, 'entropy');
     if (ev > 0) {
+      var espread = 0;
       c.enemies.forEach(function (e, i) {
-        if (e.alive) { addStatus(e, 'burn', ev); emit('status', { who: 'enemy', idx: i, s: 'burn', v: ev }); }
+        if (e.alive) { addStatus(e, 'burn', ev); emit('status', { who: 'enemy', idx: i, s: 'burn', v: ev }); espread++; }
       });
+      trackBurn(ev * espread);
     }
     if (checkWin()) return;
 
@@ -2465,17 +2605,24 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   function addArtifact(id) {
     var r = E.run;
+    if (r.artifacts.indexOf(id) >= 0) return; // no duplicates
     r.artifacts.push(id);
     var a = ns.ARTIFACTS[id];
     if (a.k === 'maxHp') { r.maxHp += a.v; r.hp += a.v; }
+    if (a.special === 'glassCannon') { var lose = Math.round(r.maxHp * 0.25); r.maxHp -= lose; r.hp = Math.min(r.hp, r.maxHp); }
+    if (a.quest && !r.questDone[id]) r.quests[id] = r.quests[id] || 0;
     emit('artifact', { id: id });
   }
   E.addArtifact = addArtifact;
 
   function winCombat() {
-    var r = E.run, kind = E.combat.kind;
+    var r = E.run, kind = E.combat.kind, cc = E.combat;
+    // quest credit: combats won without ever gaining Shield / without losing HP
+    if (!cc.gainedShield) questProgress('noShieldWin', 1);
+    if (r.hp >= cc.startHp) questProgress('flawlessWin', 1);
     var credits = creditRange(kind);
     r.credits += credits;
+    questProgress('creditsAtOnce', r.credits);
     var hb = art('healAfterCombat');
     if (hb > 0) heal(hb);
     var rareBoost = (kind === 'elite' || kind === 'boss') ? B.rewards.eliteRareChance : 0;
@@ -2505,6 +2652,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   E.finishReward = function () {
     var r = E.run;
+    if (r.reward && !r.reward.cardTaken) questProgress('rewardSkip', 1);
     r.reward = null;
     E.combat = null;
     nodeComplete();
@@ -2560,6 +2708,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var r = E.run, gained = [];
     if (fx.credits) {
       r.credits = Math.max(0, r.credits + fx.credits);
+      if (fx.credits > 0) questProgress('creditsAtOnce', r.credits);
       gained.push((fx.credits > 0 ? '+' : '') + fx.credits + ' credits');
     }
     if (fx.maxhp) {
@@ -3753,8 +3902,28 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     document.addEventListener('pointermove', onDragMove);
     document.addEventListener('pointerup', onDragEnd);
     document.addEventListener('pointercancel', onDragCancel);
+
+    // global listener for quest completions (can fire any time)
+    E.onEvent = function (e) {
+      if (e.type === 'questDone') {
+        var a = ns.ARTIFACTS[e.id];
+        toast('QUEST COMPLETE — ' + a.name.toUpperCase() + '!  ' + a.doneDesc, 3400);
+        SFX.win();
+      }
+    };
     U.refresh();
   };
+
+  // Tooltip text for an artifact chip, including live quest progress.
+  function artifactTip(id) {
+    var a = ns.ARTIFACTS[id];
+    if (a.quest) {
+      var qs = E.questState(id);
+      if (qs.done) return a.name + ' ✓ COMPLETE — ' + a.doneDesc;
+      return a.name + ' — QUEST ' + qs.progress + '/' + qs.goal + ': ' + a.quest.label;
+    }
+    return a.name + ' — ' + a.desc;
+  }
 
   /* ====================== phase router ====================== */
   U.refresh = function () {
@@ -3836,7 +4005,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (r.artifacts.length) {
       html += '<div class="artifact-row">';
       r.artifacts.forEach(function (id, i) {
-        html += '<div class="artifact-chip" data-art="' + i + '">' + artSVG(ns.ARTIFACTS[id].art, 'art-icon') + '</div>';
+        var a = ns.ARTIFACTS[id], cls = 'artifact-chip';
+        if (a.quest) {
+          var qs = E.questState(id);
+          cls += qs.done ? ' quest-done' : ' quest';
+        }
+        html += '<div class="' + cls + '" data-art="' + i + '">' + artSVG(a.art, 'art-icon') + '</div>';
       });
       html += '</div>';
     }
@@ -3856,8 +4030,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $hud.querySelectorAll('[data-art]').forEach(function (chip) {
       chip.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
-        var a = ns.ARTIFACTS[r.artifacts[+chip.dataset.art]];
-        toast(a.name + ': ' + a.desc, 2400);
+        toast(artifactTip(r.artifacts[+chip.dataset.art]), 2800);
       });
     });
     var deckBtn = $hud.querySelector('[data-act="deck"]');
@@ -4042,8 +4215,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         '<svg viewBox="0 0 48 48">' + mapIconPaths(ic, 24, 24, 17) + '</svg></span>' + esc(NODE_LABEL[t]) + '</span>';
     });
     s.appendChild(legend);
-    var cbar = makeConfirmBar();
-    s.appendChild(cbar.el);
 
     wrap.addEventListener('pointerdown', function (ev) {
       var g = ev.target.closest ? ev.target.closest('.mapnode') : null;
@@ -4051,16 +4222,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var row = +g.getAttribute('data-row'), col = +g.getAttribute('data-col');
       var node = (row >= m.ROWS) ? m.boss : null;
       if (!node) { m.rows[row].forEach(function (n) { if (n.col === col) node = n; }); }
-      if (!node) return;
-      // tapping the already-aimed node confirms the jump (double-tap shortcut)
-      if (g.classList.contains('aim')) { cbar.hide(); if (E.enterNode(node)) { SFX.play(); U.refresh(); } return; }
-      Array.prototype.forEach.call(wrap.querySelectorAll('.mapnode.aim'), function (e) { e.classList.remove('aim'); });
-      g.classList.add('aim');
-      SFX.tap();
-      var t = node.type;
-      cbar.show('Jump to <b>' + esc(NODE_LABEL[t]) + '</b>?<span class="cb-note">' + esc(NODE_DESC[t]) + '</span>',
-        function () { if (E.enterNode(node)) { SFX.play(); U.refresh(); } },
-        function () { g.classList.remove('aim'); }, (t === 'elite' || t === 'boss') ? 'red' : '');
+      if (node && E.enterNode(node)) { SFX.play(); U.refresh(); }
     });
 
     // scroll so the active frontier is in view (bottom on entry, current node later)

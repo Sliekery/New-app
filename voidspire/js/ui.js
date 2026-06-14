@@ -153,8 +153,28 @@
     document.addEventListener('pointermove', onDragMove);
     document.addEventListener('pointerup', onDragEnd);
     document.addEventListener('pointercancel', onDragCancel);
+
+    // global listener for quest completions (can fire any time)
+    E.onEvent = function (e) {
+      if (e.type === 'questDone') {
+        var a = ns.ARTIFACTS[e.id];
+        toast('QUEST COMPLETE — ' + a.name.toUpperCase() + '!  ' + a.doneDesc, 3400);
+        SFX.win();
+      }
+    };
     U.refresh();
   };
+
+  // Tooltip text for an artifact chip, including live quest progress.
+  function artifactTip(id) {
+    var a = ns.ARTIFACTS[id];
+    if (a.quest) {
+      var qs = E.questState(id);
+      if (qs.done) return a.name + ' ✓ COMPLETE — ' + a.doneDesc;
+      return a.name + ' — QUEST ' + qs.progress + '/' + qs.goal + ': ' + a.quest.label;
+    }
+    return a.name + ' — ' + a.desc;
+  }
 
   /* ====================== phase router ====================== */
   U.refresh = function () {
@@ -236,7 +256,12 @@
     if (r.artifacts.length) {
       html += '<div class="artifact-row">';
       r.artifacts.forEach(function (id, i) {
-        html += '<div class="artifact-chip" data-art="' + i + '">' + artSVG(ns.ARTIFACTS[id].art, 'art-icon') + '</div>';
+        var a = ns.ARTIFACTS[id], cls = 'artifact-chip';
+        if (a.quest) {
+          var qs = E.questState(id);
+          cls += qs.done ? ' quest-done' : ' quest';
+        }
+        html += '<div class="' + cls + '" data-art="' + i + '">' + artSVG(a.art, 'art-icon') + '</div>';
       });
       html += '</div>';
     }
@@ -256,8 +281,7 @@
     $hud.querySelectorAll('[data-art]').forEach(function (chip) {
       chip.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
-        var a = ns.ARTIFACTS[r.artifacts[+chip.dataset.art]];
-        toast(a.name + ': ' + a.desc, 2400);
+        toast(artifactTip(r.artifacts[+chip.dataset.art]), 2800);
       });
     });
     var deckBtn = $hud.querySelector('[data-act="deck"]');
@@ -442,8 +466,6 @@
         '<svg viewBox="0 0 48 48">' + mapIconPaths(ic, 24, 24, 17) + '</svg></span>' + esc(NODE_LABEL[t]) + '</span>';
     });
     s.appendChild(legend);
-    var cbar = makeConfirmBar();
-    s.appendChild(cbar.el);
 
     wrap.addEventListener('pointerdown', function (ev) {
       var g = ev.target.closest ? ev.target.closest('.mapnode') : null;
@@ -451,16 +473,7 @@
       var row = +g.getAttribute('data-row'), col = +g.getAttribute('data-col');
       var node = (row >= m.ROWS) ? m.boss : null;
       if (!node) { m.rows[row].forEach(function (n) { if (n.col === col) node = n; }); }
-      if (!node) return;
-      // tapping the already-aimed node confirms the jump (double-tap shortcut)
-      if (g.classList.contains('aim')) { cbar.hide(); if (E.enterNode(node)) { SFX.play(); U.refresh(); } return; }
-      Array.prototype.forEach.call(wrap.querySelectorAll('.mapnode.aim'), function (e) { e.classList.remove('aim'); });
-      g.classList.add('aim');
-      SFX.tap();
-      var t = node.type;
-      cbar.show('Jump to <b>' + esc(NODE_LABEL[t]) + '</b>?<span class="cb-note">' + esc(NODE_DESC[t]) + '</span>',
-        function () { if (E.enterNode(node)) { SFX.play(); U.refresh(); } },
-        function () { g.classList.remove('aim'); }, (t === 'elite' || t === 'boss') ? 'red' : '');
+      if (node && E.enterNode(node)) { SFX.play(); U.refresh(); }
     });
 
     // scroll so the active frontier is in view (bottom on entry, current node later)

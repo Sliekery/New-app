@@ -69,13 +69,10 @@ async function main() {
   if (!qa('#overlay .mapnode.reachable').length) throw new Error('map has no reachable start nodes');
   console.log('map boot: OK, ' + qa('#overlay .mapnode.reachable').length + ' start nodes');
 
-  // enter the first node (row 0 is always a fight): tap selects, confirm jumps
+  // enter the first node (row 0 is always a fight): a single tap jumps
   tap(qa('#overlay .mapnode.reachable')[0]);
-  await sleep(50);
-  if (!q('#overlay .confirm-bar.show')) throw new Error('map node tap did not arm the confirm bar');
-  tap(q('#overlay .confirm-bar.show .cb-ok'));
   await sleep(80);
-  if (VS.engine.run.phase !== 'combat') throw new Error('expected combat after confirming a fight node, got ' + VS.engine.run.phase);
+  if (VS.engine.run.phase !== 'combat') throw new Error('expected combat after entering a fight node, got ' + VS.engine.run.phase);
   if (!qa('#hand .card').length) throw new Error('hand did not render');
   console.log('combat boot: OK, hand size ' + qa('#hand .card').length);
 
@@ -144,7 +141,7 @@ async function main() {
         await sleep(400);
       }
     } else if (phase === 'map') {
-      // star-chart: tap a reachable node (arms confirm), then confirm the jump
+      // star-chart: a single tap on a reachable node jumps to it
       var node = null;
       for (var mtries = 0; mtries < 40 && !node; mtries++) {
         node = qa('#overlay .mapnode.reachable')[0];
@@ -152,9 +149,6 @@ async function main() {
       }
       if (!node) throw new Error('no reachable map node');
       tap(node);
-      await sleep(60);
-      var jok = q('#overlay .confirm-bar.show .cb-ok');
-      if (jok) tap(jok);
       await sleep(140);
     } else {
       // overlay phase: tap the first actionable element (it may render after

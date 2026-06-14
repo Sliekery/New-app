@@ -64,6 +64,7 @@
       removeCost: B.shop.removeCost,
       kills: 0, nodesCleared: 0,
       pendingPick: null,
+      quests: {}, questDone: {},
     };
     E.combat = null;
     E.run.map = generateMap(1);
@@ -81,7 +82,43 @@
     return v;
   }
   E.attr = attr;
-  function art(k) { return ns.artifactSum(E.run.artifacts, k); }
+  // Sum of hook k over owned artifacts, including quest "done" hooks once the
+  // artifact's quest has been completed.
+  function art(k) {
+    var t = 0, owned = E.run.artifacts;
+    for (var i = 0; i < owned.length; i++) {
+      var a = ns.ARTIFACTS[owned[i]];
+      if (a.k === k) t += a.v;
+      if (a.done && a.done.k === k && E.run.questDone && E.run.questDone[owned[i]]) t += a.done.v;
+    }
+    return t;
+  }
+  E.art = art;
+
+  /* ---------------- Quest artifacts ------------------------------------ */
+  function questProgress(track, amount) {
+    var r = E.run;
+    if (!r.quests) return;
+    Object.keys(r.quests).forEach(function (id) {
+      var a = ns.ARTIFACTS[id];
+      if (!a || !a.quest || a.quest.track !== track || r.questDone[id]) return;
+      if (track === 'creditsAtOnce') r.quests[id] = Math.max(r.quests[id], amount);
+      else r.quests[id] += amount;
+      if (r.quests[id] >= a.quest.goal) {
+        r.quests[id] = a.quest.goal;
+        r.questDone[id] = true;
+        // some completed quests apply a one-time max-HP change
+        if (a.done && a.done.k === 'maxHp') { r.maxHp += a.done.v; r.hp += a.done.v; }
+        emit('questDone', { id: id });
+      }
+    });
+  }
+  E.questProgress = questProgress;
+  E.questState = function (id) {
+    var a = ns.ARTIFACTS[id];
+    if (!a || !a.quest) return null;
+    return { goal: a.quest.goal, progress: (E.run.quests && E.run.quests[id]) || 0, done: !!(E.run.questDone && E.run.questDone[id]) };
+  };
 
   E.score = function () {
     var r = E.run;
@@ -332,14 +369,38 @@
       hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
       player: { block: 0, statuses: {} },
       echoReady: false,
+      gainedShield: false,
+      startHp: r.hp,
       over: false,
     };
     var ps = art('strStart');
     if (ps > 0) c.player.statuses.str = ps;
-    c.player.block = art('blockStart');
+    var pa = art('platedArmorStart');
+    if (pa > 0) c.player.statuses.platedArmor = pa;
+    var bs = art('blockStart');
+    if (bs > 0) { c.player.block = bs; c.gainedShield = true; }
+    var ws = art('weakStart');
+    if (ws > 0) c.enemies.forEach(function (en, i) { addStatus(en, 'weak', ws); });
+    var sd = art('combatStartDamage');
+    if (sd > 0) hurtPlayer(sd, { pure: true });
     r.phase = 'combat';
     c.enemies.forEach(chooseIntent);
     startPlayerTurn();
+  }
+
+  // All player Shield gains route through here so relics that react to gaining
+  // Shield (and the "no Shield" quest) see every source.
+  function gainBlock(n) {
+    var c = E.combat, p = c.player;
+    if (n <= 0) return;
+    p.block += n;
+    c.gainedShield = true;
+    emit('block', { who: 'player', amount: n, blockAfter: p.block });
+    var st = art('shieldThorns');
+    if (st > 0 && !c.over) {
+      var pool = aliveEnemies();
+      if (pool.length) { var en = pick(pool); dealToEnemy(en, c.enemies.indexOf(en), st, { noCrit: true, noWeak: true }); }
+    }
   }
 
   /* ---------------- Combat: turn structure ------------------------------ */
@@ -353,20 +414,26 @@
 
   function startPlayerTurn() {
     var c = E.combat, p = c.player;
+    var leftover = c.energy;
     c.turn++;
     // block expiry
     if (!statN(p, 'retain')) p.block = 0;
+    // energy (with optional carry-over from Overflow Reactor)
+    c.energy = maxEnergy() + (art('energyCarry') > 0 ? leftover : 0);
+    if (c.turn === 1) c.energy += art('energyTurn1');
     // per-turn passives
     var plate = statN(p, 'plate') + art('plate');
-    if (plate > 0) p.block += plate;
+    if (plate > 0) gainBlock(plate);
+    var padv = statN(p, 'platedArmor');
+    if (padv > 0) { gainBlock(padv); addStatus(p, 'platedArmor', -1); } // Plated Armor: shield = stacks, then decays
     var spt = statN(p, 'strPerTurn');
     if (spt > 0) addStatus(p, 'str', spt);
     var ht = art('healTurn');
     if (ht > 0) heal(ht);
+    var bg = art('burnGrow');
+    if (bg > 0) c.enemies.forEach(function (en, i) { if (en.alive && statN(en, 'burn') > 0) { addStatus(en, 'burn', bg); emit('status', { who: 'enemy', idx: i, s: 'burn', v: bg }); } });
     var aoe = art('aoeTurnStart');
-    c.energy = maxEnergy();
-    if (c.turn === 1) c.energy += art('energyTurn1');
-    var draws = B.player.drawPerTurn + (c.turn === 1 ? art('drawStart') : 0);
+    var draws = B.player.drawPerTurn + art('drawTurn') + (c.turn === 1 ? art('drawStart') : 0);
     drawCards(draws);
     c.echoReady = statN(p, 'echo') > 0;   // Echo Core: first attack each turn plays twice
     emit('turnStart', { turn: c.turn });
@@ -374,8 +441,10 @@
       c.enemies.forEach(function (en, i) {
         if (en.alive) dealToEnemy(en, i, aoe, { noCrit: true, src: 'Singularity' });
       });
-      checkWin();
     }
+    // turn-start effects (Plated Armor / Static Capacitor / Contagion / Singularity)
+    // can finish off enemies, so resolve victory here too
+    checkWin();
   }
 
   function drawCards(n) {
@@ -475,6 +544,8 @@
   function dealToEnemy(en, idx, amount, opts) {
     opts = opts || {};
     var c = E.combat;
+    var dm = art('dmgMult');
+    if (dm > 0) amount = Math.round(amount * (1 + dm));
     if (statN(c.player, 'weak') && !opts.noWeak) amount = Math.floor(amount * B.status.weakMult);
     if (statN(en, 'vuln')) amount = Math.floor(amount * B.status.vulnMult);
     if (opts.execute && en.hp <= en.maxHp * 0.30) amount *= 2;
@@ -487,6 +558,9 @@
     if (en.hp <= 0 && en.alive) {
       en.alive = false;
       E.run.kills++;
+      questProgress('kills', 1);
+      var hk = art('healOnKill'); if (hk > 0) heal(hk);
+      var sk = art('strOnKill'); if (sk > 0) { addStatus(c.player, 'str', sk); emit('status', { who: 'player', s: 'str', v: sk }); }
       emit('die', { idx: idx });
     }
     return hpDmg;
@@ -555,10 +629,13 @@
     var c = E.combat, p = c.player;
     c.exhaust.push(card);
     var fnp = statN(p, 'feelNoPain');
-    if (fnp > 0) { p.block += fnp; emit('block', { who: 'player', amount: fnp, blockAfter: p.block }); }
+    if (fnp > 0) gainBlock(fnp);
     var de = statN(p, 'darkEmbrace');
     if (de > 0) drawCards(de);
   }
+
+  // Burn applied to an enemy by the player (for the Burn quest).
+  function trackBurn(n) { questProgress('burnTotal', n); }
 
   // Resolve a card's effects once. Echo can call this twice. ctx carries the
   // shared roll/crit/target and an appliedBurn flag for Contagion.
@@ -593,8 +670,7 @@
         }
         case 'block': {
           var b = f.v + (f.scale === 'tech' ? attr('tech') * B.attrs.techBlockPerPoint : 0);
-          p.block += b;
-          emit('block', { who: 'player', amount: b, blockAfter: p.block });
+          gainBlock(b);
           break;
         }
         case 'heal': heal(f.v); break;
@@ -606,16 +682,17 @@
             addStatus(p, f.s, f.v);
             emit('status', { who: 'player', s: f.s, v: f.v });
           } else if (f.who === 'allEnemies') {
+            var hit = 0;
             c.enemies.forEach(function (e, i) {
-              if (e.alive) { addStatus(e, f.s, f.v); emit('status', { who: 'enemy', idx: i, s: f.s, v: f.v }); }
+              if (e.alive) { addStatus(e, f.s, f.v); emit('status', { who: 'enemy', idx: i, s: f.s, v: f.v }); hit++; }
             });
-            if (f.s === 'burn') ctx.appliedBurn = true;
+            if (f.s === 'burn') { ctx.appliedBurn = true; trackBurn(f.v * hit); }
           } else {
             var st = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             if (st) {
               addStatus(st, f.s, f.v);
               emit('status', { who: 'enemy', idx: c.enemies.indexOf(st), s: f.s, v: f.v });
-              if (f.s === 'burn') ctx.appliedBurn = true;
+              if (f.s === 'burn') { ctx.appliedBurn = true; trackBurn(f.v); }
             }
           }
           break;
@@ -629,23 +706,20 @@
             var s = statN(p, 'str');
             if (s > 0) { addStatus(p, 'str', s); emit('status', { who: 'player', s: 'str', v: s }); }
           } else if (f.id === 'doubleBlock') {
-            if (p.block > 0) { var add = p.block; p.block += add; emit('block', { who: 'player', amount: add, blockAfter: p.block }); }
+            if (p.block > 0) gainBlock(p.block);
           } else if (f.id === 'catalyst' || f.id === 'catalyst3') {
             var ce = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             if (ce) {
               var cur = statN(ce, 'burn');
               var mul = (f.id === 'catalyst3') ? 2 : 1; // extra stacks added
-              if (cur > 0) { addStatus(ce, 'burn', cur * mul); emit('status', { who: 'enemy', idx: c.enemies.indexOf(ce), s: 'burn', v: cur * mul }); }
+              if (cur > 0) { addStatus(ce, 'burn', cur * mul); emit('status', { who: 'enemy', idx: c.enemies.indexOf(ce), s: 'burn', v: cur * mul }); trackBurn(cur * mul); }
             }
           }
           break;
         }
       }
     });
-    if (flags.leech && totalDealt > 0) {
-      p.block += totalDealt;
-      emit('block', { who: 'player', amount: totalDealt, blockAfter: p.block });
-    }
+    if (flags.leech && totalDealt > 0) gainBlock(totalDealt);
     if (flags.drain && totalDealt > 0) heal(Math.ceil(totalDealt / 2));
     return totalDealt;
   }
@@ -695,12 +769,13 @@
       var tc = statN(p, 'thousandCuts');
       if (tc > 0) c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, tc, { noCrit: true, noWeak: true }); });
       var ai = statN(p, 'afterImage');
-      if (ai > 0) { p.block += ai; emit('block', { who: 'player', amount: ai, blockAfter: p.block }); }
+      if (ai > 0) gainBlock(ai);
     }
     // Contagion: applying Burn spreads it to all enemies
     if (ctx.appliedBurn && statN(p, 'plague') > 0 && !c.over) {
-      var pl = statN(p, 'plague');
-      c.enemies.forEach(function (e, i) { if (e.alive) { addStatus(e, 'burn', pl); emit('status', { who: 'enemy', idx: i, s: 'burn', v: pl }); } });
+      var pl = statN(p, 'plague'), spread = 0;
+      c.enemies.forEach(function (e, i) { if (e.alive) { addStatus(e, 'burn', pl); emit('status', { who: 'enemy', idx: i, s: 'burn', v: pl }); spread++; } });
+      trackBurn(pl * spread);
     }
 
     // route the played card: powers are consumed, exhaust cards (and skills
@@ -744,9 +819,11 @@
     }
     var ev = statN(p, 'entropy');
     if (ev > 0) {
+      var espread = 0;
       c.enemies.forEach(function (e, i) {
-        if (e.alive) { addStatus(e, 'burn', ev); emit('status', { who: 'enemy', idx: i, s: 'burn', v: ev }); }
+        if (e.alive) { addStatus(e, 'burn', ev); emit('status', { who: 'enemy', idx: i, s: 'burn', v: ev }); espread++; }
       });
+      trackBurn(ev * espread);
     }
     if (checkWin()) return;
 
@@ -856,17 +933,24 @@
 
   function addArtifact(id) {
     var r = E.run;
+    if (r.artifacts.indexOf(id) >= 0) return; // no duplicates
     r.artifacts.push(id);
     var a = ns.ARTIFACTS[id];
     if (a.k === 'maxHp') { r.maxHp += a.v; r.hp += a.v; }
+    if (a.special === 'glassCannon') { var lose = Math.round(r.maxHp * 0.25); r.maxHp -= lose; r.hp = Math.min(r.hp, r.maxHp); }
+    if (a.quest && !r.questDone[id]) r.quests[id] = r.quests[id] || 0;
     emit('artifact', { id: id });
   }
   E.addArtifact = addArtifact;
 
   function winCombat() {
-    var r = E.run, kind = E.combat.kind;
+    var r = E.run, kind = E.combat.kind, cc = E.combat;
+    // quest credit: combats won without ever gaining Shield / without losing HP
+    if (!cc.gainedShield) questProgress('noShieldWin', 1);
+    if (r.hp >= cc.startHp) questProgress('flawlessWin', 1);
     var credits = creditRange(kind);
     r.credits += credits;
+    questProgress('creditsAtOnce', r.credits);
     var hb = art('healAfterCombat');
     if (hb > 0) heal(hb);
     var rareBoost = (kind === 'elite' || kind === 'boss') ? B.rewards.eliteRareChance : 0;
@@ -896,6 +980,7 @@
 
   E.finishReward = function () {
     var r = E.run;
+    if (r.reward && !r.reward.cardTaken) questProgress('rewardSkip', 1);
     r.reward = null;
     E.combat = null;
     nodeComplete();
@@ -951,6 +1036,7 @@
     var r = E.run, gained = [];
     if (fx.credits) {
       r.credits = Math.max(0, r.credits + fx.credits);
+      if (fx.credits > 0) questProgress('creditsAtOnce', r.credits);
       gained.push((fx.credits > 0 ? '+' : '') + fx.credits + ' credits');
     }
     if (fx.maxhp) {

@@ -21,6 +21,7 @@
     reactor: 'Reactor', retain: 'Phase Lock',
     feelNoPain: 'Resolve', darkEmbrace: 'Salvage', thousandCuts: 'Blade Array',
     afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
+    platedArmor: 'Plated Armor',
   };
   ns.STATUS_NAMES = STATUS_NAMES;
 

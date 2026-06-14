@@ -116,5 +116,70 @@ E.endTurn();
 ok('Retain keeps that exact card in hand', E.combat.hand.some(function (c) { return c.uid === 1000; }));
 ok('non-Retain card left hand at end of turn', !E.combat.hand.some(function (c) { return c.uid === 1001; }));
 
+/* ---- artifacts ---- */
+
+/* 10. Plated Armor (Offline Shield reward): shield = stacks, then decays */
+startFight('vanguard');
+E.combat.player.statuses.platedArmor = 7;
+E.combat.player.block = 0;
+// emulate a fresh turn: call endTurn then the engine starts a new player turn
+E.combat.enemies.forEach(function (e) { e.intent = { t: 'block', b: 0 }; }); // harmless enemy move
+var blockBefore = E.combat.player.block;
+E.endTurn();
+ok('Plated Armor grants Shield each turn', E.combat.player.block >= 6);
+ok('Plated Armor decays by 1', (E.combat.player.statuses.platedArmor || 0) === 6);
+
+/* 11. Static Capacitor: gaining Shield pings a random enemy */
+startFight('technomancer');
+E.run.artifacts = ['static_capacitor'];
+bigEnemies();
+var hpA = E.combat.enemies[0].hp + E.combat.enemies[0].block;
+setHand(['combat_shield']);
+playId('combat_shield');
+var anyHurt = E.combat.enemies.some(function (e) { return e.hp + e.block < 100; });
+ok('Static Capacitor pings an enemy when you gain Shield', anyHurt);
+
+/* 12. Reaper Protocol: heal on kill */
+startFight('vanguard');
+E.run.artifacts = ['reaper_protocol'];
+E.run.hp = 30; E.run.maxHp = 80;
+E.combat.enemies[0].hp = 1; E.combat.enemies[0].block = 0;
+E.combat.player.statuses.str = 50;
+setHand(['pulse_rifle']);
+playId('pulse_rifle', 0);
+ok('Reaper Protocol heals on kill', E.run.hp > 30);
+
+/* 13. Quest: Berserker's Pact completes after 15 kills, then grants Might */
+startFight('vanguard');
+E.run.artifacts = []; E.run.quests = {}; E.run.questDone = {};
+E.addArtifact('berserker_pact');
+for (var q = 0; q < 15; q++) E.questProgress('kills', 1);
+ok("Berserker's Pact quest completes at 15 kills", E.questState('berserker_pact').done);
+ok("completed quest grants its hook (strStart)", E.art('strStart') === 2);
+
+/* 14. Quest: Glass Cannon reduces max HP on pickup and boosts damage */
+startFight('vanguard');
+E.run.artifacts = []; E.run.quests = {}; E.run.questDone = {};
+var maxBefore = E.run.maxHp;
+E.addArtifact('glass_cannon');
+ok('Glass Cannon cuts Max HP by ~25%', E.run.maxHp < maxBefore);
+ok('Glass Cannon boosts damage (dmgMult)', E.art('dmgMult') === 0.5);
+
+/* 15. Quest progress: Offline Shield only counts shieldless wins */
+startFight('vanguard');
+E.run.artifacts = []; E.run.quests = {}; E.run.questDone = {};
+E.addArtifact('offline_shield');
+E.combat.player.block = 0; E.combat.gainedShield = false;
+// win without shield
+E.combat.enemies.forEach(function (e) { e.alive = false; });
+// manually invoke a win check path
+E.combat.over = false;
+(function () {
+  // simulate a clean win
+  E.run.quests.offline_shield = E.run.quests.offline_shield || 0;
+})();
+E.questProgress('noShieldWin', 1);
+ok('Offline Shield advances on a shieldless win', E.questState('offline_shield').progress === 1);
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

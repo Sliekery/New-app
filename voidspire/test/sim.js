@@ -100,7 +100,7 @@ function botCombat() {
   var guard = 0;
   while (E.run.phase === 'combat' && guard++ < 400) {
     var c = E.combat;
-    if (c.over) break;
+    if (c.over || aliveIdx().length === 0) break;
     var playable = [];
     for (var i = 0; i < c.hand.length; i++) if (E.canPlay(i)) playable.push(i);
     if (playable.length === 0) { E.endTurn(); continue; }
@@ -291,7 +291,17 @@ function step() {
       E.levelUp(opts.indexOf(pick) >= 0 ? pick : opts[0]);
       break;
     }
-    case 'boss-artifact': E.takeBossArtifact(0); break;
+    case 'boss-artifact': {
+      // a competent player avoids the downside relic when its drawback isn't earned
+      var opts = r.bossArtifacts || [];
+      var idx = 0;
+      for (var bi = 0; bi < opts.length; bi++) {
+        if (VS.ARTIFACTS[opts[bi]].special === 'glassCannon') continue;
+        idx = bi; break;
+      }
+      E.takeBossArtifact(idx);
+      break;
+    }
     case 'sector-intro': E.beginSector(); break;
     default:
       throw new Error('unknown phase: ' + r.phase);
