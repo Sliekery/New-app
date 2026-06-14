@@ -64,10 +64,12 @@
     },
     hierophant: {
       name: 'HIEROPHANT KA’RETH', faction: 'hierarchy', hp: 92, size: 1.3, boss: true, ai: 'cycle',
+      // SIGNATURE — The Covenant Answers: it summons reinforcements mid-fight,
+      // so you must manage the adds while it hexes and strikes.
       moves: [
         { t: 'debuff', s: 'weak', v: 2 },
         { t: 'attack', d: 13 },
-        { t: 'block', b: 12 },
+        { t: 'summon', id: 'drone_skirmisher', n: 1 },
         { t: 'attack', d: 7, hits: 2 },
         { t: 'curse', card: 'void_taint' },
         { t: 'attack', d: 16 },
@@ -118,14 +120,16 @@
       // butcher mech: horned head, vented chest, pauldrons, cleaver arm, hook arm
       art: { p: [[-0.18,-1.0, 0.18,-1.0, 0.24,-0.78, -0.24,-0.78, -0.18,-1.0], [-0.18,-1.0, -0.35,-1.2], [0.18,-1.0, 0.35,-1.2], [-0.5,-0.75, 0.5,-0.75, 0.6,-0.1, 0.42,0.35, -0.42,0.35, -0.6,-0.1, -0.5,-0.75], [-0.25,-0.55, 0.25,-0.55], [-0.2,-0.42, 0.2,-0.42], [-0.5,-0.75, -0.85,-0.85, -0.95,-0.45, -0.62,-0.35], [0.5,-0.75, 0.85,-0.85, 0.95,-0.45, 0.62,-0.35], [0.85,-0.45, 0.93,-0.12], [0.86,-0.12, 1.1,-0.05, 1.05,0.55, 0.85,0.5, 0.86,-0.12], [1.04,0.0, 0.99,0.45], [-0.85,-0.45, -0.9,-0.05, -0.74,0.1, -0.85,0.27], [-0.42,0.35, -0.5,0.95, -0.15,0.95, -0.12,0.45], [0.42,0.35, 0.5,0.95, 0.15,0.95, 0.12,0.45]], e: [[-0.08,-0.88],[0.08,-0.88]] },
     },
-    forge_tyrant: { grounded: true,
-      name: 'THE FORGE TYRANT', faction: 'rust', hp: 105, size: 1.35, boss: true, ai: 'cycle',
+    forge_tyrant: { grounded: true, enrage: 1,
+      name: 'THE FORGE TYRANT', faction: 'rust', hp: 92, size: 1.35, boss: true, ai: 'cycle',
+      // SIGNATURE — Enrage: gains 2 Strength whenever you damage it, and it
+      // reforges (heals) itself, so chipping it away only makes it angrier.
       moves: [
         { t: 'block', b: 14 },
         { t: 'attack', d: 15 },
         { t: 'debuff', s: 'burn', v: 4 },
         { t: 'attack', d: 6, hits: 3 },
-        { t: 'buff', s: 'str', v: 2 },
+        { t: 'heal', v: 9 },
         { t: 'attack', d: 18 },
       ],
       // furnace titan: chimneys, glowing grate mouth, colossal pauldrons, crane claw
@@ -173,8 +177,11 @@
       // tentacled mass: lumpy bulk, toothed maw, curling tentacles, eye cluster
       art: { p: [[-0.65,0.05, -0.45,-0.45, -0.1,-0.65, 0.3,-0.6, 0.6,-0.3, 0.7,0.1, 0.5,0.5, 0,0.62, -0.5,0.5, -0.65,0.05], [-0.3,0.1, -0.2,0.26, -0.1,0.1, 0,0.26, 0.1,0.1, 0.2,0.26, 0.3,0.1], [-0.65,0.05, -1.0,-0.15, -1.1,-0.45, -0.95,-0.55], [-0.5,0.5, -0.85,0.7, -1.0,0.6], [0.7,0.1, 1.05,-0.05, 1.1,-0.35, 0.95,-0.5], [0.5,0.5, 0.85,0.72, 1.0,0.6], [-0.15,0.62, -0.25,0.92, -0.1,1.02], [0.15,0.62, 0.2,0.92, 0.35,0.98], [-0.1,-0.65, -0.2,-0.98, -0.08,-1.08], [0.3,-0.6, 0.45,-0.92, 0.6,-0.98]], e: [[-0.25,-0.25],[0,-0.35],[0.25,-0.2],[-0.05,-0.1]] },
     },
-    devourer: {
-      name: 'THE DEVOURER', faction: 'voidspawn', hp: 98, size: 1.35, boss: true, ai: 'cycle',
+    devourer: { regen: 3,
+      name: 'THE DEVOURER', faction: 'voidspawn', hp: 84, size: 1.35, boss: true, ai: 'cycle',
+      // SIGNATURE — It Knits Itself Whole: regenerates every turn and drains
+      // your life, so a slow fight loses; you must out-pace its healing (Burn
+      // ignores it, so poison builds shine here).
       moves: [
         { t: 'buff', s: 'str', v: 2 },
         { t: 'attack', d: 8, hits: 2 },
@@ -185,20 +192,85 @@
       // gravemind: vast head, double rows of teeth, crown spikes, spore sac, tentacles
       art: { p: [[-0.85,-0.1, -0.55,-0.65, -0.15,-0.9, 0.3,-0.85, 0.7,-0.55, 0.9,-0.1, 0.7,0.4, 0.2,0.65, -0.4,0.6, -0.75,0.35, -0.85,-0.1], [-0.55,0.0, -0.4,0.18, -0.25,0.0, -0.1,0.18, 0.05,0.0, 0.2,0.18, 0.35,0.0, 0.5,0.18, 0.6,0.0], [-0.45,0.42, -0.3,0.28, -0.15,0.42, 0,0.28, 0.15,0.42, 0.3,0.28, 0.45,0.42], [-0.55,-0.65, -0.7,-0.95], [-0.15,-0.9, -0.2,-1.2], [0.3,-0.85, 0.45,-1.15], [-0.5,-0.4, -0.42,-0.32, -0.5,-0.24, -0.58,-0.32, -0.5,-0.4], [-0.85,-0.1, -1.12,-0.3, -1.2,-0.05], [-0.75,0.35, -1.05,0.55, -1.15,0.45], [0.9,-0.1, 1.15,-0.27, 1.2,0.0], [0.7,0.4, 1.0,0.6, 1.1,0.5], [-0.2,0.62, -0.3,0.92, -0.15,1.02], [0.25,0.62, 0.35,0.88, 0.5,0.93]], e: [[-0.35,-0.45],[0,-0.55],[0.35,-0.4],[-0.62,-0.15],[0.64,-0.2]] },
     },
+    /* ============ NEW MECHANIC ENEMIES ============ */
+    // Iron Zealot (Hierarchy) — ENRAGE: gains Strength whenever you damage it.
+    iron_zealot: { grounded: true, enrage: 1,
+      name: 'Iron Zealot', faction: 'hierarchy', hp: 22, size: 0.88, ai: 'random',
+      moves: [
+        { t: 'attack', d: 7, w: 4 },
+        { t: 'attack', d: 10, w: 2 },
+        { t: 'buff', s: 'str', v: 1, w: 1 },
+      ],
+      art: { p: [[0,-1.0, 0.15,-0.88, 0.12,-0.7, -0.12,-0.7, -0.15,-0.88, 0,-1.0], [-0.3,-0.65, 0.3,-0.65, 0.4,-0.1, 0.25,0.15, -0.25,0.15, -0.4,-0.1, -0.3,-0.65], [-0.18,-0.5, 0,-0.36, 0.18,-0.5], [-0.4,-0.5, -0.7,-0.7, -0.86,-1.02], [-0.78,-0.92, -0.92,-1.05], [0.4,-0.5, 0.72,-0.3, 0.96,-0.52], [-0.2,0.15, -0.28,0.6, -0.12,0.62, -0.25,0.95, -0.06,0.95, -0.02,0.6], [0.2,0.15, 0.28,0.6, 0.12,0.62, 0.25,0.95, 0.06,0.95, 0.02,0.6]], e: [[-0.06,-0.84],[0.06,-0.84]] },
+    },
+    // Dominus (Hierarchy) — SUMMON: calls drone reinforcements.
+    dominus: {
+      name: 'Dominus', faction: 'hierarchy', hp: 20, size: 0.82, ai: 'random',
+      moves: [
+        { t: 'summon', id: 'drone_skirmisher', n: 1, w: 2 },
+        { t: 'attack', d: 6, w: 3 },
+        { t: 'debuff', s: 'weak', v: 1, w: 2 },
+      ],
+      art: { p: [[0,-0.92, 0.18,-0.74, 0.15,-0.55, -0.15,-0.55, -0.18,-0.74, 0,-0.92], [-0.34,-0.5, 0.34,-0.5, 0.46,0.85, -0.46,0.85, -0.34,-0.5], [-0.4,0.12, 0.4,0.12], [0,-0.5, 0,0.8], [-0.36,-0.32, -0.62,-0.56, -0.52,-0.72], [0.36,-0.32, 0.62,-0.56, 0.52,-0.72], [0,-1.32, 0.18,-1.14, 0,-0.98, -0.18,-1.14, 0,-1.32], [0,-1.14, 0,-0.92]], e: [[-0.07,-0.7],[0.07,-0.7],[0,-1.13]] },
+    },
+    // Rust Sentinel (Rust) — THORNS: retaliates when you attack it.
+    rust_sentinel: { grounded: true, thorns: 2,
+      name: 'Rust Sentinel', faction: 'rust', hp: 24, size: 0.92, ai: 'random',
+      moves: [
+        { t: 'block', b: 8, w: 3 },
+        { t: 'attack', d: 7, w: 3 },
+        { t: 'attack', d: 5, w: 2 },
+      ],
+      art: { p: [[-0.5,-0.6, 0.5,-0.6, 0.55,0.48, -0.55,0.48, -0.5,-0.6], [-0.3,-0.84, 0.3,-0.84, 0.3,-0.6, -0.3,-0.6], [-0.3,-0.2, 0.3,-0.2], [-0.3,0.08, 0.3,0.08], [-0.55,-0.4, -0.86,-0.46, -0.82,0.3, -0.5,0.24], [0.55,-0.4, 0.86,-0.46, 0.82,0.3, 0.5,0.24], [-0.26,0.48, -0.32,0.9, -0.06,0.9], [0.26,0.48, 0.32,0.9, 0.06,0.9]], e: [[-0.13,-0.72],[0.13,-0.72]] },
+    },
+    // Forge Acolyte (Rust) — REPAIR: heals all its allies each turn.
+    forge_acolyte: { grounded: true,
+      name: 'Forge Acolyte', faction: 'rust', hp: 16, size: 0.74, ai: 'random',
+      moves: [
+        { t: 'heal', v: 6, all: true, w: 2 },
+        { t: 'attack', d: 6, w: 3 },
+        { t: 'block', b: 6, w: 2 },
+      ],
+      art: { p: [[-0.22,-0.6, 0.22,-0.6, 0.32,-0.4, -0.32,-0.4, -0.22,-0.6], [-0.3,-0.4, 0.3,-0.4, 0.4,0.62, -0.4,0.62, -0.3,-0.4], [-0.1,-0.6, 0,-0.96, 0.1,-0.6], [0,-0.96, 0,-0.6], [0.3,-0.2, 0.6,-0.36, 0.72,-0.1], [0.62,-0.32, 0.62,-0.62], [-0.3,0.2, -0.56,0.36], [-0.12,-0.12, 0.12,-0.12]], e: [[-0.08,-0.5],[0.08,-0.5]] },
+    },
+    // Brood Maw (Voidspawn) — SUMMON: spawns void larvae.
+    brood_maw: {
+      name: 'Brood Maw', faction: 'voidspawn', hp: 20, size: 0.86, ai: 'random',
+      moves: [
+        { t: 'summon', id: 'void_larva', n: 1, w: 2 },
+        { t: 'attack', d: 6, w: 3 },
+        { t: 'attack', d: 3, hits: 2, w: 2 },
+      ],
+      art: { p: [[-0.7,-0.1, -0.5,-0.55, 0,-0.7, 0.5,-0.55, 0.7,-0.1, 0.55,0.45, 0,0.6, -0.55,0.45, -0.7,-0.1], [-0.5,-0.08, -0.4,0.12, -0.3,-0.08, -0.2,0.14, -0.1,-0.08, 0,0.14, 0.1,-0.08, 0.2,0.14, 0.3,-0.08, 0.4,0.12, 0.5,-0.08], [-0.6,-0.4, -0.86,-0.56], [0.6,-0.4, 0.86,-0.56], [-0.2,-0.55, -0.1,-0.78, 0.05,-0.6]], e: [[-0.28,-0.28],[0.28,-0.28]] },
+    },
+    // Revenant (Voidspawn) — REGEN: heals itself every turn and drains you.
+    revenant: { regen: 2,
+      name: 'Revenant', faction: 'voidspawn', hp: 22, size: 0.82, ai: 'random',
+      moves: [
+        { t: 'drain', d: 5, w: 3 },
+        { t: 'attack', d: 7, w: 2 },
+        { t: 'debuff', s: 'weak', v: 1, w: 2 },
+      ],
+      art: { p: [[0,-0.85, 0.4,-0.45, 0.32,0.2, 0.46,0.55, 0.2,0.45, 0.3,0.85, 0,0.6, -0.3,0.85, -0.2,0.45, -0.46,0.55, -0.32,0.2, -0.4,-0.45, 0,-0.85], [-0.2,-0.5, 0,-0.66, 0.2,-0.5, 0.15,-0.24, -0.15,-0.24, -0.2,-0.5], [-0.4,-0.3, -0.72,-0.2], [0.4,-0.3, 0.72,-0.2], [-0.06,-0.18, 0,-0.1, 0.06,-0.18]], e: [[-0.1,-0.42],[0.1,-0.42]] },
+    },
+
     /* ============ THE FINALE ============ */
     // Faction-less cosmic entity that ends the descent. No PACK / no scaling
     // faction; uses its own `color`. Spawned only as the boss of the finale
     // sector (see BALANCE.run.finale).
-    unmaker: {
+    unmaker: { enrage: 1,
       name: 'THE UNMAKER', color: '#b8ecff', hp: 110, size: 1.4, boss: true, final: true, ai: 'cycle',
+      // SIGNATURE — The Unmaking: every cycle it ERASES your Shield, jams a
+      // curse into your deck, knits itself whole and grows in power. You can't
+      // turtle the finale — you have to race it down. (It also Enrages.)
       moves: [
         { t: 'attack', d: 14 },
         { t: 'debuff', s: 'vuln', v: 2 },
         { t: 'attack', d: 8, hits: 2 },
-        { t: 'buff', s: 'str', v: 3 },
+        { t: 'unmake', v: 16, str: 2 },
         { t: 'block', b: 18 },
-        { t: 'curse', card: 'void_taint' },
         { t: 'attack', d: 10, hits: 2 },
+        { t: 'buff', s: 'str', v: 3 },
         { t: 'attack', d: 24 },
       ],
       // void seraph: haloed monolith body, spread wings of light, crown spikes,
@@ -227,27 +299,27 @@
       ['zealot_warrior'],
       ['plasma_acolyte', 'drone_skirmisher'],
       ['zealot_warrior', 'drone_skirmisher'],
-      ['plasma_acolyte', 'zealot_warrior'],
-      ['zealot_warrior', 'zealot_warrior'],
-      ['plasma_acolyte', 'zealot_warrior', 'drone_skirmisher'],
+      ['iron_zealot', 'drone_skirmisher'],
+      ['dominus', 'zealot_warrior'],
+      ['dominus', 'iron_zealot', 'drone_skirmisher'],
     ],
     rust: [
       ['scrap_hound', 'scrap_hound'],
       ['rust_cultist', 'scrap_hound'],
       ['forge_walker'],
       ['forge_walker', 'scrap_hound'],
-      ['rust_cultist', 'forge_walker'],
-      ['scrap_hound', 'scrap_hound', 'rust_cultist'],
-      ['forge_walker', 'rust_cultist', 'scrap_hound'],
+      ['rust_sentinel', 'scrap_hound'],
+      ['forge_acolyte', 'forge_walker'],
+      ['rust_sentinel', 'forge_acolyte', 'scrap_hound'],
     ],
     voidspawn: [
       ['void_larva', 'void_larva', 'void_larva'],
       ['husk_stalker'],
       ['husk_stalker', 'void_larva'],
-      ['psy_wraith', 'void_larva', 'void_larva'],
-      ['psy_wraith', 'husk_stalker'],
-      ['husk_stalker', 'husk_stalker'],
-      ['psy_wraith', 'husk_stalker', 'void_larva'],
+      ['psy_wraith', 'void_larva'],
+      ['brood_maw', 'void_larva'],
+      ['revenant', 'husk_stalker'],
+      ['psy_wraith', 'revenant', 'void_larva'],
     ],
   };
 

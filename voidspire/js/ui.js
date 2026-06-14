@@ -1246,6 +1246,15 @@
           })(e, delay);
           delay += 100;
           break;
+        case 'summon':
+          (function (e, d) {
+            setTimeout(function () {
+              var en = E.combat && E.combat.enemies[e.idx];
+              if (en) { R.addEnemyView(en); SFX.play(); var pos = R.enemyPos(e.idx); R.burst(pos.x, pos.y, '#c86bff', 16); floater(pos.x, pos.y - 24, 'SUMMONED', 'status'); }
+            }, d);
+          })(e, delay);
+          delay += 160;
+          break;
         case 'cardPlayed':
           if (e.roll !== null && e.roll !== undefined) {
             (function (e, d) {

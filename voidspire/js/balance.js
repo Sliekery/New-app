@@ -45,8 +45,8 @@
 
     /* ---- Enemy scaling per sector (s = sector, 1-based) -------------- */
     scaling: {
-      hpMul:  function (s) { return 1 + 0.30 * (s - 1) + 0.038 * (s - 1) * (s - 1); },
-      dmgMul: function (s) { return 1 + 0.18 * (s - 1) + 0.020 * (s - 1) * (s - 1); },
+      hpMul:  function (s) { return 1 + 0.30 * (s - 1) + 0.034 * (s - 1) * (s - 1); },
+      dmgMul: function (s) { return 1 + 0.145 * (s - 1) + 0.015 * (s - 1) * (s - 1); },
       // extra flat strength enemies gain every N sectors (late-game pressure)
       strEverySectors: 3,
     },

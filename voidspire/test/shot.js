@@ -26,7 +26,7 @@ canvas.getBoundingClientRect = function () {
   return { width: CW, height: CH, top: 0, left: 0, right: CW, bottom: CH, x: 0, y: 0 };
 };
 
-['balance', 'cards', 'artifacts', 'augments', 'enemies', 'events', 'engine', 'render', 'ui', 'main'].forEach(function (f) {
+['balance', 'cards', 'cardart', 'artifacts', 'augments', 'potions', 'echoes', 'enemies', 'events', 'engine', 'render', 'ui', 'main'].forEach(function (f) {
   win.eval(fs.readFileSync(path.join(root, 'js', f + '.js'), 'utf8'));
 });
 

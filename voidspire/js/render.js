@@ -103,6 +103,17 @@
     R.player.block = c.player.block;
   };
 
+  // append a view for a summoned enemy (mid-combat) and re-layout, keeping the
+  // existing views' animation state intact
+  R.addEnemyView = function (en) {
+    R.views.push({
+      def: en.def, en: en, hp: en.hp, maxHp: en.maxHp, dispHp: en.hp,
+      block: en.block, alive: en.alive, deathT: -1, spawnT: t, spawned: false,
+      flashT: -9, shakeT: -9, lungeT: -9, intent: en.intent, x: 0, y: 0, r: 10,
+    });
+    layout();
+  };
+
   // staggered updates from the action timeline
   R.setEnemyView = function (idx, hp, block, alive) {
     var v = R.views[idx];
@@ -741,6 +752,30 @@
       ctx.arc(x - 6, y, 2.5, 2, 7.5);
       ctx.stroke();
       label = '✕';
+    } else if (info.icon === 'heal') {
+      col = '#5dff88';
+      ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.moveTo(x - 9, y); ctx.lineTo(x - 1, y);
+      ctx.moveTo(x - 5, y - 4); ctx.lineTo(x - 5, y + 4);
+      ctx.stroke();
+    } else if (info.icon === 'summon') {
+      col = '#c86bff';
+      ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 6;
+      ctx.beginPath(); ctx.arc(x - 10, y - 2, 2, 0, 7); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x - 4, y + 1, 2, 0, 7); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x - 9, y + 4, 1.6, 0, 7); ctx.stroke();
+      label = '+';
+    } else if (info.icon === 'unmake') {
+      col = '#b8ecff';
+      ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.moveTo(x - 10, y); ctx.lineTo(x - 2, y);
+      ctx.moveTo(x - 6, y - 5); ctx.lineTo(x - 6, y + 5);
+      ctx.moveTo(x - 10, y - 5); ctx.lineTo(x - 2, y + 5);
+      ctx.moveTo(x - 2, y - 5); ctx.lineTo(x - 10, y + 5);
+      ctx.stroke();
+      label = '!';
     }
     if (label) {
       ctx.fillStyle = col || '#b8e6c4';

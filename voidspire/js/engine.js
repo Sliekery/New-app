@@ -455,10 +455,13 @@
       if (r.sector >= 3 && rnd() < B.sector.eliteChance2Enemies) ids.push(ns.ELITE_MINIONS[r.faction]);
     } else {
       var packs = ns.PACKS[r.faction];
-      // earlier rows in a sector lean toward easier packs
+      // earlier rows in a sector lean toward easier packs; the harder packs
+      // (the new-mechanic enemies, slots 4+) are held back until sector 2+ so
+      // sector 1 stays a gentle on-ramp.
       var prog = Math.min(1, r.mapRow / Math.max(1, B.map.rows - 1));
-      var lo = Math.floor(prog * (packs.length - 3));
-      ids = pick(packs.slice(Math.max(0, lo), Math.min(packs.length, lo + 4))).slice();
+      var hi = (r.sector <= 1) ? 4 : packs.length;
+      var lo = Math.min(Math.floor(prog * (packs.length - 3)), hi - 1);
+      ids = pick(packs.slice(Math.max(0, lo), Math.min(hi, lo + 4))).slice();
     }
     var c = E.combat = {
       kind: kind,
@@ -611,8 +614,11 @@
     }
     if (m.t === 'block') return { icon: 'block', label: '' + scaledDmg(m.b, s) };
     if (m.t === 'buff') return { icon: 'buff', label: '' };
+    if (m.t === 'heal') return { icon: 'heal', label: '' + scaledDmg(m.v, s) };
+    if (m.t === 'summon') return { icon: 'summon', label: m.n ? '×' + m.n : '' };
     if (m.t === 'debuff') return { icon: 'debuff', label: '' };
     if (m.t === 'curse') return { icon: 'curse', label: '' };
+    if (m.t === 'unmake') return { icon: 'unmake', label: '' };
     return { icon: '?', label: '' };
   };
 
@@ -684,6 +690,13 @@
     var hpDmg = amount - blocked;
     en.hp -= hpDmg;
     emit('dmg', { who: 'enemy', idx: idx, amount: amount, hpDmg: hpDmg, crit: !!opts.crit, roll: opts.roll, hpAfter: Math.max(0, en.hp), blockAfter: en.block });
+    // enemy passives that react to being struck by a player ATTACK (not internal
+    // sources, which set noCrit): Enrage gains Strength, Thorns retaliates.
+    var byAttack = !opts.noCrit;
+    if (en.alive && hpDmg > 0 && byAttack) {
+      if (en.def.enrage) { addStatus(en, 'str', en.def.enrage); emit('status', { who: 'enemy', idx: idx, s: 'str', v: en.def.enrage }); }
+      if (en.def.thorns) hurtPlayer(en.def.thorns, { pure: true });
+    }
     if (en.hp <= 0 && en.alive) {
       en.alive = false;
       E.run.kills++;
@@ -1050,6 +1063,14 @@
           return;
         }
       }
+      // passive: regenerate health each turn
+      if (en.def.regen && en.alive) {
+        var rg = scaledDmg(en.def.regen, s);
+        en.hp = Math.min(en.maxHp, en.hp + rg);
+        emit('heal', { who: 'enemy', idx: idx, amount: rg, hpAfter: en.hp });
+      }
+      // passive: escalate Strength every turn
+      if (en.def.rampStr) { addStatus(en, 'str', en.def.rampStr); emit('status', { who: 'enemy', idx: idx, s: 'str', v: en.def.rampStr }); }
       en.block = 0;
       var m = en.intent;
       emit('enemyMove', { idx: idx, move: m });
@@ -1072,14 +1093,37 @@
           emit('heal', { who: 'enemy', idx: idx, amount: dmg, hpAfter: en.hp });
         }
       } else if (m.t === 'block') {
-        en.block += scaledDmg(m.b, s);
-        emit('block', { who: 'enemy', idx: idx, amount: en.block, blockAfter: en.block });
+        var bb = scaledDmg(m.b, s);
+        if (m.all) c.enemies.forEach(function (e, i) { if (e.alive) { e.block += bb; emit('block', { who: 'enemy', idx: i, amount: e.block, blockAfter: e.block }); } });
+        else { en.block += bb; emit('block', { who: 'enemy', idx: idx, amount: en.block, blockAfter: en.block }); }
       } else if (m.t === 'buff') {
-        addStatus(en, m.s, m.v);
-        emit('status', { who: 'enemy', idx: idx, s: m.s, v: m.v });
+        if (m.all) c.enemies.forEach(function (e, i) { if (e.alive) { addStatus(e, m.s, m.v); emit('status', { who: 'enemy', idx: i, s: m.s, v: m.v }); } });
+        else { addStatus(en, m.s, m.v); emit('status', { who: 'enemy', idx: idx, s: m.s, v: m.v }); }
+      } else if (m.t === 'heal') {
+        var hv = scaledDmg(m.v, s);
+        if (m.all) c.enemies.forEach(function (e, i) { if (e.alive) { e.hp = Math.min(e.maxHp, e.hp + hv); emit('heal', { who: 'enemy', idx: i, amount: hv, hpAfter: e.hp }); } });
+        else { en.hp = Math.min(en.maxHp, en.hp + hv); emit('heal', { who: 'enemy', idx: idx, amount: hv, hpAfter: en.hp }); }
+      } else if (m.t === 'summon') {
+        var room = 5 - aliveEnemies().length, add = Math.min(m.n || 1, Math.max(0, room));
+        for (var sm = 0; sm < add; sm++) {
+          var ne = mkEnemy(m.id);
+          chooseIntent(ne);
+          c.enemies.push(ne);
+          emit('summon', { idx: c.enemies.length - 1 });
+        }
       } else if (m.t === 'debuff') {
         addStatus(p, m.s, m.v);
         emit('status', { who: 'player', s: m.s, v: m.v });
+      } else if (m.t === 'unmake') {
+        // THE UNMAKER's signature: erase your defences, jam your deck, knit itself
+        if (p.block > 0) { p.block = 0; emit('block', { who: 'player', amount: 0, blockAfter: 0 }); }
+        c.discard.push(mkCard('void_taint', false));
+        emit('curse', { idx: idx, card: 'void_taint' });
+        var uh = scaledDmg(m.v || 12, s);
+        en.hp = Math.min(en.maxHp, en.hp + uh);
+        emit('heal', { who: 'enemy', idx: idx, amount: uh, hpAfter: en.hp });
+        addStatus(en, 'str', m.str || 2);
+        emit('status', { who: 'enemy', idx: idx, s: 'str', v: m.str || 2 });
       } else if (m.t === 'curse') {
         c.discard.push(mkCard(m.card, false));
         emit('curse', { idx: idx, card: m.card });
