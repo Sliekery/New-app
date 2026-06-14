@@ -10,8 +10,13 @@ GitHub forever, so it can't be lost even if later changes break something. The
 
 | Checkpoint | Commit | Date | What's in it |
 |---|---|---|---|
+| **v1.2-map** | `1acede5` | 2026-06-14 | Branching star-chart map per sector (pick your path through fights/events/shops/rests/elites/treasure to the boss), with distinct node icons. Retuned to hold the StS difficulty. |
 | **v1.1-builds** | `316d309` | 2026-06-14 | Adds Slay-the-Spire-style build archetypes (Might/Exhaust, Shield/Echo, Burn/spam) and build-defining rares for "god runs". Fixes the power-reuse bug (powers are now consumed). |
 | **v1.0-stable** | `9583880` | 2026-06-14 | Swipe-to-play combat, Slay-the-Spire-tuned balance, faction world-building, animated screen transitions, talking event portraits, artifact icons. First fully-polished version. |
+
+### v1.2-map
+- **Play (frozen):** https://rawcdn.githack.com/Sliekery/New-app/1acede579558862244bf3587df8cbabc2bb180fa/voidspire/voidspire.html
+- **Restore command (for reference):** `git checkout 1acede5 -- voidspire`
 
 ### v1.1-builds
 - **Play (frozen):** https://rawcdn.githack.com/Sliekery/New-app/316d30953976c376816e88644f137b8c926fe849/voidspire/voidspire.html
