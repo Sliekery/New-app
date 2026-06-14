@@ -967,15 +967,9 @@
     }
   }
 
-  // Per-class card-play flourish: the card dematerialises in place (class-styled),
-  // a class-coloured particle burst pops at the play point, and the pile it
-  // went to blinks. Vanguard ejects (squash), Technomancer deresolves (glitch),
-  // Void Adept implodes into the void.
-  var CLASS_FX = {
-    vanguard:     { color: '#ffb02e', demat: 'demat-van',  n: 18 },
-    technomancer: { color: '#41d8ff', demat: 'demat-tech', n: 22 },
-    voidadept:    { color: '#c86bff', demat: 'demat-void', n: 20 },
-  };
+  // Card-play flourish: the card DEMATERIALISES in place — it breaks into rising
+  // scan-lines (transporter / Gauss-flayer style) while a column of sparkles
+  // beams upward, then the pile it went to blinks. Tinted by the class colour.
   function blinkPile(pileEl, color) {
     if (!pileEl) return;
     var pc = pileEl.querySelector('.pile-card');
@@ -986,23 +980,26 @@
   }
   function cardPlayFx(rect, clone, card, def) {
     if (!rect) return;
-    var fx = CLASS_FX[E.run.cls] || CLASS_FX.vanguard;
+    var color = CLASS_COLOR[E.run.cls] || '#5dff88';
     var bf = document.getElementById('battlefield').getBoundingClientRect();
     var cx = rect.left + rect.width / 2 - bf.left, cy = rect.top + rect.height / 2 - bf.top;
     if (clone) {
-      clone.classList.add('card-ghost', fx.demat);
+      clone.classList.add('card-ghost', 'beam');
       clone.classList.remove('selected', 'dragging', 'deal', 'unaffordable');
       clone.style.position = 'fixed'; clone.style.margin = '0'; clone.style.transition = 'none'; clone.style.transform = 'none';
       clone.style.left = rect.left + 'px'; clone.style.top = rect.top + 'px';
       clone.style.width = rect.width + 'px'; clone.style.height = rect.height + 'px';
+      clone.style.setProperty('--beam', color);
       $game.appendChild(clone);
-      setTimeout(function () { clone.remove(); }, 520);
+      setTimeout(function () { clone.remove(); }, 600);
     }
-    R.burst(cx, cy, fx.color, fx.n);
+    // rising disintegration sparkles: class-tinted, plus a white transporter shimmer
+    R.beam(cx, cy, color, rect.width * 0.74, rect.height * 0.82, 24);
+    R.beam(cx, cy, '#e6fbff', rect.width * 0.6, rect.height * 0.7, 12);
     var c = E.combat;
     var consumed = !!c && (c.exhaust.some(function (x) { return x.uid === card.uid; }) ||
                            c.consumed.some(function (x) { return x.uid === card.uid; }));
-    blinkPile(consumed ? null : $discardPile, fx.color);
+    blinkPile(consumed ? null : $discardPile, color);
   }
 
   function playCardAt(i, targetIdx) {

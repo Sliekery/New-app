@@ -164,6 +164,18 @@
     }
   }
   R.burst = burst;
+  // Transporter/disintegrate sparkles: rise upward from a card-sized area and
+  // twinkle out (used by the card-play dematerialise effect).
+  R.beam = function (x, y, color, w, h, n) {
+    for (var i = 0; i < n; i++) {
+      var sp = 50 + Math.random() * 120;
+      particles.push({
+        x: x + (Math.random() - 0.5) * w, y: y + (Math.random() - 0.5) * h,
+        vx: (Math.random() - 0.5) * 50, vy: -sp,
+        life: 0.5 + Math.random() * 0.6, age: 0, color: color, size: 0.7 + Math.random() * 1.6,
+      });
+    }
+  };
   function deathBurst(v) {
     burst(v.x, v.y, factionColor(v.def), 26);
     burst(v.x, v.y, '#ffffff', 8);

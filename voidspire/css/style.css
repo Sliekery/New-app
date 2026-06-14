@@ -286,26 +286,23 @@ html, body {
   35% { box-shadow: 0 0 15px 3px var(--blink); border-color: var(--blink); }
 }
 
-/* per-class card dematerialisation (the clone keeps the .card face) */
+/* card dematerialisation — the clone (keeps the .card face) breaks into rising
+   scan-lines and beams upward, transporter / Gauss-flayer style */
 .card-ghost { position: fixed; z-index: 70; pointer-events: none; }
-@keyframes dematVan {
-  0% { opacity: 1; filter: none; }
-  22% { opacity: 1; filter: brightness(2.4) saturate(1.5); }
-  100% { opacity: 0; transform: scaleY(0.1) translateY(28px); filter: brightness(2.4); }
+.card-ghost.beam {
+  box-shadow: 0 0 16px 1px var(--beam, #9fe);
+  -webkit-mask-image: repeating-linear-gradient(0deg, #000 0 2px, rgba(0,0,0,0.08) 2px 5px);
+          mask-image: repeating-linear-gradient(0deg, #000 0 2px, rgba(0,0,0,0.08) 2px 5px);
+  -webkit-mask-size: 100% 220%; mask-size: 100% 220%;
+  animation: beamUp 0.56s ease-out forwards;
 }
-.card-ghost.demat-van { animation: dematVan 0.42s cubic-bezier(0.4, 0, 0.7, 1) forwards; transform-origin: center bottom; }
-@keyframes dematTech {
-  0% { opacity: 1; filter: none; }
-  30% { opacity: 0.85; filter: brightness(1.9) contrast(1.7) hue-rotate(-8deg); transform: translateX(2px); }
-  65% { opacity: 0.5; transform: translateX(-3px) scaleX(1.05); }
-  100% { opacity: 0; transform: scaleX(0.55) scaleY(1.04); filter: brightness(2.2) contrast(2.2); }
+@keyframes beamUp {
+  0%   { opacity: 1; filter: brightness(1) saturate(1);
+         transform: translateY(0) scaleY(1); -webkit-mask-position: 0 0; mask-position: 0 0; }
+  14%  { opacity: 1; filter: brightness(2.6) saturate(1.7); }
+  100% { opacity: 0; filter: brightness(3) saturate(2);
+         transform: translateY(-32px) scaleY(1.06); -webkit-mask-position: 0 -48px; mask-position: 0 -48px; }
 }
-.card-ghost.demat-tech { animation: dematTech 0.4s steps(7) forwards; }
-@keyframes dematVoid {
-  0% { opacity: 1; }
-  100% { opacity: 0; transform: scale(0.04) rotate(200deg); filter: brightness(1.6); }
-}
-.card-ghost.demat-void { animation: dematVoid 0.46s cubic-bezier(0.6, 0, 0.85, 1) forwards; }
 
 .btn {
   font-family: inherit;

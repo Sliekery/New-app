@@ -297,26 +297,23 @@ html, body {
   35% { box-shadow: 0 0 15px 3px var(--blink); border-color: var(--blink); }
 }
 
-/* per-class card dematerialisation (the clone keeps the .card face) */
+/* card dematerialisation — the clone (keeps the .card face) breaks into rising
+   scan-lines and beams upward, transporter / Gauss-flayer style */
 .card-ghost { position: fixed; z-index: 70; pointer-events: none; }
-@keyframes dematVan {
-  0% { opacity: 1; filter: none; }
-  22% { opacity: 1; filter: brightness(2.4) saturate(1.5); }
-  100% { opacity: 0; transform: scaleY(0.1) translateY(28px); filter: brightness(2.4); }
+.card-ghost.beam {
+  box-shadow: 0 0 16px 1px var(--beam, #9fe);
+  -webkit-mask-image: repeating-linear-gradient(0deg, #000 0 2px, rgba(0,0,0,0.08) 2px 5px);
+          mask-image: repeating-linear-gradient(0deg, #000 0 2px, rgba(0,0,0,0.08) 2px 5px);
+  -webkit-mask-size: 100% 220%; mask-size: 100% 220%;
+  animation: beamUp 0.56s ease-out forwards;
 }
-.card-ghost.demat-van { animation: dematVan 0.42s cubic-bezier(0.4, 0, 0.7, 1) forwards; transform-origin: center bottom; }
-@keyframes dematTech {
-  0% { opacity: 1; filter: none; }
-  30% { opacity: 0.85; filter: brightness(1.9) contrast(1.7) hue-rotate(-8deg); transform: translateX(2px); }
-  65% { opacity: 0.5; transform: translateX(-3px) scaleX(1.05); }
-  100% { opacity: 0; transform: scaleX(0.55) scaleY(1.04); filter: brightness(2.2) contrast(2.2); }
+@keyframes beamUp {
+  0%   { opacity: 1; filter: brightness(1) saturate(1);
+         transform: translateY(0) scaleY(1); -webkit-mask-position: 0 0; mask-position: 0 0; }
+  14%  { opacity: 1; filter: brightness(2.6) saturate(1.7); }
+  100% { opacity: 0; filter: brightness(3) saturate(2);
+         transform: translateY(-32px) scaleY(1.06); -webkit-mask-position: 0 -48px; mask-position: 0 -48px; }
 }
-.card-ghost.demat-tech { animation: dematTech 0.4s steps(7) forwards; }
-@keyframes dematVoid {
-  0% { opacity: 1; }
-  100% { opacity: 0; transform: scale(0.04) rotate(200deg); filter: brightness(1.6); }
-}
-.card-ghost.demat-void { animation: dematVoid 0.46s cubic-bezier(0.6, 0, 0.85, 1) forwards; }
 
 .btn {
   font-family: inherit;
@@ -4300,6 +4297,18 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
   }
   R.burst = burst;
+  // Transporter/disintegrate sparkles: rise upward from a card-sized area and
+  // twinkle out (used by the card-play dematerialise effect).
+  R.beam = function (x, y, color, w, h, n) {
+    for (var i = 0; i < n; i++) {
+      var sp = 50 + Math.random() * 120;
+      particles.push({
+        x: x + (Math.random() - 0.5) * w, y: y + (Math.random() - 0.5) * h,
+        vx: (Math.random() - 0.5) * 50, vy: -sp,
+        life: 0.5 + Math.random() * 0.6, age: 0, color: color, size: 0.7 + Math.random() * 1.6,
+      });
+    }
+  };
   function deathBurst(v) {
     burst(v.x, v.y, factionColor(v.def), 26);
     burst(v.x, v.y, '#ffffff', 8);
@@ -6057,15 +6066,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
   }
 
-  // Per-class card-play flourish: the card dematerialises in place (class-styled),
-  // a class-coloured particle burst pops at the play point, and the pile it
-  // went to blinks. Vanguard ejects (squash), Technomancer deresolves (glitch),
-  // Void Adept implodes into the void.
-  var CLASS_FX = {
-    vanguard:     { color: '#ffb02e', demat: 'demat-van',  n: 18 },
-    technomancer: { color: '#41d8ff', demat: 'demat-tech', n: 22 },
-    voidadept:    { color: '#c86bff', demat: 'demat-void', n: 20 },
-  };
+  // Card-play flourish: the card DEMATERIALISES in place — it breaks into rising
+  // scan-lines (transporter / Gauss-flayer style) while a column of sparkles
+  // beams upward, then the pile it went to blinks. Tinted by the class colour.
   function blinkPile(pileEl, color) {
     if (!pileEl) return;
     var pc = pileEl.querySelector('.pile-card');
@@ -6076,23 +6079,26 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
   function cardPlayFx(rect, clone, card, def) {
     if (!rect) return;
-    var fx = CLASS_FX[E.run.cls] || CLASS_FX.vanguard;
+    var color = CLASS_COLOR[E.run.cls] || '#5dff88';
     var bf = document.getElementById('battlefield').getBoundingClientRect();
     var cx = rect.left + rect.width / 2 - bf.left, cy = rect.top + rect.height / 2 - bf.top;
     if (clone) {
-      clone.classList.add('card-ghost', fx.demat);
+      clone.classList.add('card-ghost', 'beam');
       clone.classList.remove('selected', 'dragging', 'deal', 'unaffordable');
       clone.style.position = 'fixed'; clone.style.margin = '0'; clone.style.transition = 'none'; clone.style.transform = 'none';
       clone.style.left = rect.left + 'px'; clone.style.top = rect.top + 'px';
       clone.style.width = rect.width + 'px'; clone.style.height = rect.height + 'px';
+      clone.style.setProperty('--beam', color);
       $game.appendChild(clone);
-      setTimeout(function () { clone.remove(); }, 520);
+      setTimeout(function () { clone.remove(); }, 600);
     }
-    R.burst(cx, cy, fx.color, fx.n);
+    // rising disintegration sparkles: class-tinted, plus a white transporter shimmer
+    R.beam(cx, cy, color, rect.width * 0.74, rect.height * 0.82, 24);
+    R.beam(cx, cy, '#e6fbff', rect.width * 0.6, rect.height * 0.7, 12);
     var c = E.combat;
     var consumed = !!c && (c.exhaust.some(function (x) { return x.uid === card.uid; }) ||
                            c.consumed.some(function (x) { return x.uid === card.uid; }));
-    blinkPile(consumed ? null : $discardPile, fx.color);
+    blinkPile(consumed ? null : $discardPile, color);
   }
 
   function playCardAt(i, targetIdx) {
