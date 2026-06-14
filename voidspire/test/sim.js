@@ -195,23 +195,41 @@ function pickUpgradeIdx() {
   return bi < 0 ? 0 : bi;
 }
 
+function scoreFx(fx, low) {
+  fx = fx || {};
+  var s = 0;
+  if (fx.artifact) s += 8;
+  if (fx.card) s += 5;
+  if (fx.addCardChoice) s += 5;
+  if (fx.attr) s += 6;
+  if (fx.maxhp) s += 5;
+  if (fx.removeCurse) s += 4;
+  if (fx.credits > 0) s += fx.credits / 12;
+  if (fx.healPct) s += low ? 10 : 2;
+  if (fx.hp < 0) s += low ? -12 : fx.hp / 4;
+  if (fx.curse) s -= 8;
+  return s;
+}
+
 function eventChoiceIdx(ev) {
   var r = VS.engine.run;
   var low = r.hp < r.maxHp * 0.45;
   var bestI = 0, bestS = -1e9;
   ev.choices.forEach(function (ch, i) {
     if (ch.cost && r.credits < ch.cost) return;
+    if (!VS.engine.eventChoiceAvailable(ch)) return; // skip locked "blue" options
     var s = 0;
+    // gambles: average the outcomes so the bot weighs them reasonably
+    if (ch.gamble) {
+      var tot = 0, sum = 0;
+      ch.gamble.forEach(function (g) { var w = g.w || 1; tot += w; sum += w * scoreFx(g.fx, low); });
+      s = (tot ? sum / tot : 0) - (ch.cost ? ch.cost / 12 : 0);
+      if (s > bestS) { bestS = s; bestI = i; }
+      return;
+    }
     var out = ch.outcome || ch.success;
     var fx = (out && out.fx) || {};
-    if (fx.artifact) s += 8;
-    if (fx.card) s += 5;
-    if (fx.attr) s += 6;
-    if (fx.maxhp) s += 5;
-    if (fx.credits > 0) s += fx.credits / 12;
-    if (fx.healPct) s += low ? 10 : 2;
-    if (fx.hp < 0) s += low ? -12 : fx.hp / 4;
-    if (fx.curse) s -= 8;
+    s = scoreFx(fx, low);
     if (fx.pick === 'remove' || fx.pick === 'upgrade') s += 5;
     if (ch.check) {
       var bonus = VS.engine.attr(ch.check.attr);
@@ -263,6 +281,7 @@ function step() {
       break;
     }
     case 'event-result':
+      if (r.pendingAddCard) E.eventAddCard(r.pendingAddCard[0]);
       if (r.pendingPick) {
         E.applyPick(r.pendingPick === 'remove' ? pickRemoveIdx() : r.pendingPick === 'upgrade' ? pickUpgradeIdx() : 0);
       }
@@ -370,14 +389,15 @@ Object.keys(VS.STARTER_DECKS).forEach(function (cls) {
   });
 });
 VS.EVENTS.forEach(function (ev) {
+  if (!ev.art) throw new Error('event ' + ev.id + ' has no portrait art');
   ev.choices.forEach(function (ch) {
-    var outs = [ch.outcome, ch.success, ch.fail].filter(Boolean);
+    var outs = [ch.outcome, ch.success, ch.fail].filter(Boolean).concat(ch.gamble || []);
     if (outs.length === 0) throw new Error('event ' + ev.id + ' choice with no outcome');
     outs.forEach(function (o) {
       if (o.fx && o.fx.card && o.fx.card !== 'random' && o.fx.card !== 'rare' && !VS.CARDS[o.fx.card])
         throw new Error('event ' + ev.id + ' grants unknown card ' + o.fx.card);
       if (o.fx && o.fx.curse && !VS.CARDS[o.fx.curse])
-        throw new Error('event ' + ev.id + ' grants unknown curse');
+        throw new Error('event ' + ev.id + ' grants unknown curse ' + o.fx.curse);
     });
   });
 });

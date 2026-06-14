@@ -228,5 +228,57 @@ E.chooseAugment('reckless_overdrive');
 ok('Reckless Overdrive cuts Max HP', E.run.maxHp < mhpBefore);
 ok('Reckless Overdrive grants +1 Energy/turn', E.art('energyEveryTurn') === 1);
 
+/* ---- events ---- */
+
+function openEvent(id) {
+  E.seed(9); E.newRun('vanguard');
+  E.run.currentEvent = id; E.run.phase = 'event'; E.run.eventResult = null;
+}
+function evt(id) { return VS.EVENTS.filter(function (e) { return e.id === id; })[0]; }
+
+/* 22. cost is charged exactly once (no double-deduct via fx) */
+openEvent('rogue_trader');
+E.run.credits = 100;
+var ix = evt('rogue_trader').choices.findIndex(function (c) { return c.cost === 30; });
+E.eventChoose(ix);
+ok('event cost charged once (100 - 30 = 70)', E.run.credits === 70);
+
+/* 23. conditional "blue" option hidden without the requirement, shown with it */
+openEvent('mind_cleanser');
+ok('curse-gated option locked with no curse', !E.eventChoiceAvailable(evt('mind_cleanser').choices[0]));
+E.run.deck.push({ uid: 1, id: 'void_taint', up: false });
+ok('curse-gated option unlocked with a curse', E.eventChoiceAvailable(evt('mind_cleanser').choices[0]));
+
+/* 24. removeCurse purges curses from the deck */
+openEvent('mind_cleanser');
+E.run.credits = 50;
+E.run.deck.push({ uid: 2, id: 'void_taint', up: false });
+E.run.deck.push({ uid: 3, id: 'shrapnel', up: false });
+var curseBefore = E.run.deck.filter(function (c) { return VS.CARDS[c.id].type === 'curse'; }).length;
+E.eventChoose(0); // submit to the purge (removeCurse: true)
+var curseAfter = E.run.deck.filter(function (c) { return VS.CARDS[c.id].type === 'curse'; }).length;
+ok('removeCurse cleared all curses (' + curseBefore + ' -> ' + curseAfter + ')', curseBefore >= 2 && curseAfter === 0);
+
+/* 25. gamble resolves to one of its outcomes */
+openEvent('quantum_slots');
+E.run.credits = 100;
+var res = E.eventChoose(0); // feed 25, gamble
+ok('gamble produced a result', !!res && typeof res.text === 'string');
+
+/* 26. addCardChoice queues a card chooser */
+openEvent('arms_fabricator');
+E.run.credits = 100;
+E.eventChoose(0); // commission a weapon -> addCardChoice
+ok('addCardChoice offers cards to add', Array.isArray(E.run.pendingAddCard) && E.run.pendingAddCard.length > 0);
+ok('finishEvent blocks until a card is chosen', (E.finishEvent(), E.run.phase === 'event-result'));
+var deckN = E.run.deck.length;
+E.eventAddCard(E.run.pendingAddCard[0]);
+ok('eventAddCard adds the card and clears the pending state', E.run.deck.length === deckN + 1 && !E.run.pendingAddCard);
+
+/* 27. check odds are computed sensibly */
+E.seed(9); E.newRun('voidadept'); // psi 2
+var od = E.checkOdds({ attr: 'psi', dc: 12 });
+ok('check odds within 0-100 and reflect the bonus', od.pct >= 0 && od.pct <= 100 && od.bonus === E.attr('psi'));
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

@@ -996,6 +996,7 @@
 
     s.appendChild(el('h2', 'screen-title', esc(ev.title)));
     s.appendChild(el('div', 'screen-sub', 'INCOMING TRANSMISSION · SECTOR ' + E.run.sector));
+    s.appendChild(resourceLine());
 
     var p = el('div', 'event-text');
     s.appendChild(p);
@@ -1006,12 +1007,13 @@
     }, true);
 
     ev.choices.forEach(function (ch, i) {
+      if (!E.eventChoiceAvailable(ch)) return; // locked "blue option": hide it
+      var poor = ch.cost && E.run.credits < ch.cost;
       var sub = ch.sub ? '<div class="pb-sub">' + esc(ch.sub) + '</div>' : '';
-      var disabled = ch.cost && E.run.credits < ch.cost;
-      var btn = el('div', 'panel-btn' + (disabled ? ' disabled' : ''),
-        '<div class="pb-title">' + esc(ch.label) + '</div>' + sub);
+      var btn = el('div', 'panel-btn' + (poor ? ' disabled' : ''),
+        '<div class="pb-title">' + esc(ch.label) + '</div>' + sub + choicePreviewHTML(ch));
       btn.addEventListener('pointerdown', function () {
-        if (disabled) return;
+        if (poor) { toast('NOT ENOUGH CREDITS'); return; }
         SFX.tap();
         var res = E.eventChoose(i);
         if (!res) return;
@@ -1020,6 +1022,61 @@
       });
       s.appendChild(btn);
     });
+  }
+
+  // compact resource readout for overlay screens (events hide the HUD)
+  function resourceLine() {
+    var r = E.run;
+    var d = el('div', 'res-line');
+    d.innerHTML = '<span class="res-cr">¢ ' + r.credits + '</span>' +
+      '<span class="res-hp">♥ ' + Math.max(0, r.hp) + ' / ' + r.maxHp + '</span>';
+    return d;
+  }
+
+  // small reward/cost chips so a player can see what a choice does before taking it
+  function fxChips(fx) {
+    if (!fx) return '';
+    var out = [];
+    function chip(t, good) { out.push('<span class="fx-chip ' + (good ? 'good' : 'bad') + '">' + esc(t) + '</span>'); }
+    if (fx.credits) chip((fx.credits > 0 ? '+' : '') + fx.credits + '¢', fx.credits > 0);
+    if (fx.hp) chip((fx.hp > 0 ? '+' : '') + fx.hp + ' HP', fx.hp > 0);
+    if (fx.healPct) chip('+' + Math.round(fx.healPct * 100) + '% HP', true);
+    if (fx.maxhp) chip((fx.maxhp > 0 ? '+' : '') + fx.maxhp + ' Max HP', fx.maxhp > 0);
+    if (fx.attr) chip('+1 ' + (fx.attr === 'random' ? 'ATTR' : fx.attr.toUpperCase()), true);
+    if (fx.card) chip(fx.card === 'rare' ? 'Rare card' : 'Card', true);
+    if (fx.addCardChoice) chip('Choose a card', true);
+    if (fx.artifact) chip('Relic', true);
+    if (fx.removeCurse) chip('Cleanse', true);
+    if (fx.pick === 'remove') chip('Remove a card', true);
+    if (fx.pick === 'upgrade') chip('Upgrade a card', true);
+    if (fx.pick === 'dupe') chip('Duplicate a card', true);
+    if (fx.curse) chip('Curse', false);
+    return out.join('');
+  }
+
+  function choicePreviewHTML(ch) {
+    var pre = '';
+    if (ch.cost) pre += '<span class="fx-chip bad">−' + ch.cost + '¢</span>';
+    if (ch.check) {
+      var od = E.checkOdds(ch.check);
+      pre += '<span class="fx-chip check">' + ch.check.attr.toUpperCase() + ' DC ' + ch.check.dc +
+        ' · you +' + od.bonus + ' · ' + od.pct + '%</span>';
+      var win = fxChips(ch.success && ch.success.fx), lose = fxChips(ch.fail && ch.fail.fx);
+      if (win) pre += '<span class="pv-row">✓ ' + win + '</span>';
+      if (lose) pre += '<span class="pv-row">✗ ' + lose + '</span>';
+    } else if (ch.gamble) {
+      pre += '<span class="fx-chip check">⚄ GAMBLE</span>';
+      var seen = {}, gc = '';
+      ch.gamble.forEach(function (g) {
+        var c = fxChips(g.fx);
+        if (c && !seen[c]) { seen[c] = 1; gc += c; }
+      });
+      if (gc) pre += '<span class="pv-row">? ' + gc + '</span>';
+    } else if (ch.outcome) {
+      var oc = fxChips(ch.outcome.fx);
+      if (oc) pre += '<span class="pv-row">' + oc + '</span>';
+    }
+    return pre ? '<div class="pv">' + pre + '</div>' : '';
   }
 
   function showEventResult(animate) {
@@ -1035,6 +1092,7 @@
       s.appendChild(mini);
     }
     s.appendChild(el('h2', 'screen-title', esc(ev ? ev.title : 'OUTCOME')));
+    s.appendChild(resourceLine());
 
     var diceBox = null;
     if (res.roll !== null) {
@@ -1055,7 +1113,9 @@
     var btn = el('button', 'btn', 'CONTINUE');
     btn.addEventListener('pointerdown', function () {
       SFX.tap();
-      if (r.pendingPick) {
+      if (r.pendingAddCard) {
+        showEventAddCard(function () { E.finishEvent(); U.refresh(); });
+      } else if (r.pendingPick) {
         showPickModal(r.pendingPick, function () { E.finishEvent(); U.refresh(); });
       } else {
         E.finishEvent();
@@ -1277,6 +1337,23 @@
       grid.appendChild(d);
       selectConfirm(grid, d, cbar, 'Add <b>' + esc(ns.CARDS[cid].name) + '</b> to your deck?',
         function () { E.augmentAddCard(cid); done(); }, 'cyan');
+    });
+    s.appendChild(grid);
+    s.appendChild(cbar.el);
+  }
+
+  // card chooser for an event that grants "addCardChoice"
+  function showEventAddCard(done) {
+    var s = overlayScreen(true);
+    s.appendChild(el('h2', 'screen-title', 'Acquire a Card'));
+    s.appendChild(el('div', 'screen-sub', 'TAP A CARD TO PREVIEW · CONFIRM TO ADD'));
+    var grid = el('div', 'card-grid');
+    var cbar = makeConfirmBar();
+    (E.run.pendingAddCard || []).forEach(function (cid) {
+      var d = cardEl(cid, false);
+      grid.appendChild(d);
+      selectConfirm(grid, d, cbar, 'Add <b>' + esc(ns.CARDS[cid].name) + '</b> to your deck?',
+        function () { E.eventAddCard(cid); done(); }, 'cyan');
     });
     s.appendChild(grid);
     s.appendChild(cbar.el);

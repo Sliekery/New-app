@@ -63,7 +63,7 @@
       usedEvents: [],
       removeCost: B.shop.removeCost,
       kills: 0, nodesCleared: 0,
-      pendingPick: null,
+      pendingPick: null, pendingAddCard: null,
       quests: {}, questDone: {},
       augments: [], augmentDeckop: null, augmentOffer: null,
     };
@@ -1101,12 +1101,37 @@
     return null;
   };
 
+  // Is a choice available? `cond` gates "blue option" style choices.
+  E.eventChoiceAvailable = function (ch) {
+    var r = E.run, c = ch.cond;
+    if (!c) return true;
+    if (c.credits && r.credits < c.credits) return false;
+    if (c.attr) { for (var k in c.attr) if (attr(k) < c.attr[k]) return false; }
+    if (c.hasArtifact && r.artifacts.indexOf(c.hasArtifact) < 0) return false;
+    if (c.hasCurse && !r.deck.some(function (cd) { return ns.CARDS[cd.id].type === 'curse'; })) return false;
+    return true;
+  };
+
+  // Odds + modifier for a skill check (for the choice preview).
+  E.checkOdds = function (check) {
+    var bonus = Math.floor(attr(check.attr) / B.attrs.eventCheckBonusDiv) + art('checkBonus');
+    var passCount = 0;
+    for (var roll = 1; roll <= 20; roll++) {
+      var pass = (roll + bonus >= check.dc) || roll === 20;
+      if (roll === 1) pass = false;
+      if (pass) passCount++;
+    }
+    return { bonus: bonus, pct: Math.round(passCount / 20 * 100) };
+  };
+
   E.eventChoose = function (ci) {
     var r = E.run;
     var ev = E.getEvent();
     var ch = ev.choices[ci];
     if (!ch) return null;
+    if (!E.eventChoiceAvailable(ch)) return null;
     if (ch.cost && r.credits < ch.cost) return null;
+    if (ch.cost) r.credits = Math.max(0, r.credits - ch.cost); // pay the price up front
 
     var res = { roll: null, pass: null, dc: null, bonus: 0 };
     var out;
@@ -1118,6 +1143,11 @@
       res.roll = roll; res.bonus = bonus; res.dc = ch.check.dc; res.pass = pass;
       res.attr = ch.check.attr;
       out = pass ? ch.success : ch.fail;
+    } else if (ch.gamble) {
+      var bag = [];
+      ch.gamble.forEach(function (g, i) { for (var w = 0; w < (g.w || 1); w++) bag.push(i); });
+      out = ch.gamble[bag[Math.floor(rnd() * bag.length)]];
+      res.gamble = true;
     } else {
       out = ch.outcome;
     }
@@ -1179,6 +1209,17 @@
       r.deck.push(mkCard(fx.curse, false));
       gained.push('CURSE: ' + ns.CARDS[fx.curse].name);
     }
+    if (fx.removeCurse) {
+      var want = fx.removeCurse === true ? 99 : fx.removeCurse, removed = 0;
+      for (var ci2 = r.deck.length - 1; ci2 >= 0 && removed < want; ci2--) {
+        if (ns.CARDS[r.deck[ci2].id].type === 'curse') { r.deck.splice(ci2, 1); removed++; }
+      }
+      gained.push(removed ? 'Purged ' + removed + ' curse' + (removed > 1 ? 's' : '') : 'No curses to purge');
+    }
+    if (fx.addCardChoice) {
+      r.pendingAddCard = E.augmentAddOptions();
+      gained.push('Choose a card to add');
+    }
     if (fx.pick) {
       r.pendingPick = fx.pick;
       gained.push(fx.pick === 'remove' ? 'Choose a card to remove' : fx.pick === 'upgrade' ? 'Choose a card to upgrade' : 'Choose a card to duplicate');
@@ -1186,9 +1227,11 @@
     return gained;
   }
 
+  E.eventAddCard = function (cid) { E.run.deck.push(mkCard(cid, false)); E.run.pendingAddCard = null; };
+
   E.finishEvent = function () {
     var r = E.run;
-    if (r.pendingPick) return; // must resolve pick first
+    if (r.pendingPick || r.pendingAddCard) return; // must resolve pending picks first
     r.eventResult = null;
     r.currentEvent = null;
     nodeComplete();
