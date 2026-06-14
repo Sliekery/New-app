@@ -470,6 +470,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   -webkit-mask-image: linear-gradient(transparent, #000 22px, #000 calc(100% - 22px), transparent);
   mask-image: linear-gradient(transparent, #000 22px, #000 calc(100% - 22px), transparent);
 }
+/* landscape: the chart flows left->right and fits the box, so no scrolling */
+.map-wrap.land {
+  max-width: none; min-height: 0; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-mask-image: none; mask-image: none;
+}
+.map-wrap.land .starchart { width: auto; height: 100%; max-width: 100%; }
 .starchart { display: block; width: 100%; height: auto; overflow: visible; }
 
 /* ---- routes ---- */

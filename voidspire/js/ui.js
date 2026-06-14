@@ -460,12 +460,19 @@
     var started = r.mapRow >= 0;
     s.appendChild(el('div', 'screen-sub', esc(ns.FACTIONS[r.faction].name.toUpperCase()) + ' TERRITORY · ' + (started ? 'CHOOSE THE NEXT JUMP' : 'CHOOSE YOUR ENTRY POINT')));
 
-    var COLS = m.COLS, ROWS = m.ROWS, cellW = 100, rowH = 106;
-    var W = COLS * cellW, H = (ROWS + 1) * rowH;
+    var COLS = m.COLS, ROWS = m.ROWS;
+    var land = (orient === 'landscape');
+    var lane = 100, step = 106;        // lane = perpendicular spacing, step = progress spacing
+    var W = land ? (ROWS + 1) * step : COLS * lane;
+    var H = land ? COLS * lane : (ROWS + 1) * step;
     var reach = E.mapReachable(), cur = E.currentNode();
 
-    function cx(col) { return (col + 0.5) * cellW; }
-    function xy(node) { return { x: cx(node.col) + mapJit(node.row, node.col, 0), y: H - (node.row + 0.5) * rowH + mapJit(node.row, node.col, 1) }; }
+    // portrait flows bottom->top; landscape flows left->right (boss at the far end)
+    function xy(node) {
+      var jx = mapJit(node.row, node.col, 0), jy = mapJit(node.row, node.col, 1);
+      if (land) return { x: (node.row + 0.5) * step + jx, y: (node.col + 0.5) * lane + jy };
+      return { x: (node.col + 0.5) * lane + jx, y: H - (node.row + 0.5) * step + jy };
+    }
     function targetOf(node, tc) {
       if (tc === 'boss') return m.boss;
       var nr = m.rows[node.row + 1];
@@ -473,7 +480,8 @@
       return null;
     }
 
-    var svg = '<svg class="starchart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMin meet">';
+    var par = land ? 'xMinYMid meet' : 'xMidYMin meet';
+    var svg = '<svg class="starchart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="' + par + '">';
     // edges (drawn as glowing flight paths with a midpoint waypoint tick)
     for (var ri = 0; ri < ROWS; ri++) {
       m.rows[ri].forEach(function (node) {
@@ -513,7 +521,7 @@
     svg += nodeMarkup(m.boss);
     svg += '</svg>';
 
-    var wrap = el('div', 'map-wrap');
+    var wrap = el('div', 'map-wrap' + (land ? ' land' : ''));
     wrap.innerHTML = svg;
     s.appendChild(wrap);
 
@@ -534,8 +542,9 @@
       if (node && E.enterNode(node)) { SFX.play(); U.refresh(); }
     });
 
-    // scroll so the active frontier is in view (bottom on entry, current node later)
-    setTimeout(function () {
+    // portrait scrolls vertically to keep the active frontier in view; the
+    // landscape chart is sized to fit, so it needs no scrolling
+    if (!land) setTimeout(function () {
       var svgEl = wrap.querySelector('svg');
       if (!svgEl) return;
       var rect = svgEl.getBoundingClientRect();
