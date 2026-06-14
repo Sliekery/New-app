@@ -607,6 +607,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     regen: 'Regen', plate: 'Plating', thorns: 'Thorns', psiPow: 'Psi Focus',
     strPerTurn: 'Warlord', turret: 'Turret', entropy: 'Entropy',
     reactor: 'Reactor', retain: 'Phase Lock',
+    feelNoPain: 'Resolve', darkEmbrace: 'Salvage', thousandCuts: 'Blade Array',
+    afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
   };
   ns.STATUS_NAMES = STATUS_NAMES;
 
@@ -827,6 +829,91 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       up: { cost: 0 },
     },
 
+    /* ============ Archetype cards (Slay-the-Spire-style builds) ============ */
+
+    /* -- Vanguard: STRENGTH + EXHAUST berserker -- */
+    heavy_ordnance: {
+      name: 'Heavy Ordnance', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
+      fx: [{ k: 'dmg', v: 8, scale: 'might', scaleMul: 3 }],
+      text: 'MIGHT counts three times.',
+      up: { fx: [{ k: 'dmg', v: 12, scale: 'might', scaleMul: 3 }] },
+    },
+    limit_break: {
+      name: 'Limit Break', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1, exhaust: true,
+      fx: [{ k: 'special', id: 'limitBreak' }],
+      text: 'Double your Might.',
+      up: { cost: 0, fx: [{ k: 'special', id: 'limitBreak' }], text: 'Double your Might.' },
+    },
+    whirlwind: {
+      name: 'Whirlwind', cls: 'vanguard', type: 'attack', rarity: 2, cost: 0, xcost: true,
+      fx: [{ k: 'dmg', v: 5, all: true, scale: 'might', xcost: true }],
+      up: { fx: [{ k: 'dmg', v: 8, all: true, scale: 'might', xcost: true }] },
+    },
+    iron_resolve: {
+      name: 'Iron Resolve', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'feelNoPain', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'feelNoPain', v: 4, who: 'self' }] },
+    },
+    reckless_protocol: {
+      name: 'Reckless Protocol', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'corruption', v: 1, who: 'self' }],
+      up: { cost: 1, fx: [{ k: 'status', s: 'corruption', v: 1, who: 'self' }] },
+    },
+
+    /* -- Technomancer: SHIELD + ORB/TURRET + POWER stacking -- */
+    kinetic_discharge: {
+      name: 'Kinetic Discharge', cls: 'technomancer', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'special', id: 'shieldSlam' }],
+      text: 'Deal damage equal to your Shield.',
+      up: { fx: [{ k: 'special', id: 'shieldSlam15' }], text: 'Deal damage equal to 150% of your Shield.' },
+    },
+    entrench_field: {
+      name: 'Entrench Field', cls: 'technomancer', type: 'skill', rarity: 2, cost: 2,
+      fx: [{ k: 'special', id: 'doubleBlock' }],
+      text: 'Double your Shield.',
+      up: { cost: 1, fx: [{ k: 'special', id: 'doubleBlock' }], text: 'Double your Shield.' },
+    },
+    overload_capacitor: {
+      name: 'Overload Capacitor', cls: 'technomancer', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'afterImage', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'afterImage', v: 2, who: 'self' }] },
+    },
+    echo_core: {
+      name: 'Echo Core', cls: 'technomancer', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'echo', v: 1, who: 'self' }],
+      up: { cost: 1, fx: [{ k: 'status', s: 'echo', v: 1, who: 'self' }] },
+    },
+
+    /* -- Void Adept: BURN(POISON) + card-spam -- */
+    catalyst: {
+      name: 'Catalyst', cls: 'voidadept', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'special', id: 'catalyst' }],
+      text: 'Double the Burn on the target.',
+      up: { fx: [{ k: 'special', id: 'catalyst3' }], text: 'Triple the Burn on the target.' },
+    },
+    mind_array: {
+      name: 'Mind Array', cls: 'voidadept', type: 'power', rarity: 3, cost: 1,
+      fx: [{ k: 'status', s: 'thousandCuts', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'thousandCuts', v: 3, who: 'self' }] },
+    },
+    plague_engine: {
+      name: 'Plague Engine', cls: 'voidadept', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'plague', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'plague', v: 2, who: 'self' }] },
+    },
+
+    /* -- Neutral enablers -- */
+    salvage_protocol: {
+      name: 'Salvage Protocol', cls: 'any', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'darkEmbrace', v: 1, who: 'self' }],
+      up: { cost: 0, fx: [{ k: 'status', s: 'darkEmbrace', v: 1, who: 'self' }] },
+    },
+    guard_protocol: {
+      name: 'Guard Protocol', cls: 'any', type: 'skill', rarity: 2, cost: 1, retain: true,
+      fx: [{ k: 'block', v: 6, scale: 'tech' }],
+      up: { fx: [{ k: 'block', v: 9, scale: 'tech' }] },
+    },
+
     /* ---------------- Curses ---------------- */
     void_taint: {
       name: 'Void Taint', cls: 'curse', type: 'curse', rarity: -1, cost: 0, unplayable: true,
@@ -857,19 +944,21 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     fx.forEach(function (f) {
       if (f.k === 'dmg') {
         var v = f.v;
+        var mul = f.scaleMul || 1;
         if (ctx) {
-          if (f.scale === 'might') v += ctx.attrs.might * B.attrs.mightDmgPerPoint;
-          if (f.scale === 'tech') v += ctx.attrs.tech;
-          if (f.scale === 'psi') v += ctx.attrs.psi * B.attrs.psiDmgPerPoint * (f.scaleMul || 1);
+          if (f.scale === 'might') v += ctx.attrs.might * B.attrs.mightDmgPerPoint * mul;
+          if (f.scale === 'tech') v += ctx.attrs.tech * mul;
+          if (f.scale === 'psi') v += ctx.attrs.psi * B.attrs.psiDmgPerPoint * mul;
           if (ctx.statuses) {
             v += (ctx.statuses.str || 0);
             if (f.scale === 'psi') v += (ctx.statuses.psiPow || 0);
           }
         }
         var s = 'Deal ' + v + ' damage';
-        if (f.hits && f.hits > 1) s += ' ' + f.hits + ' times';
         if (f.all) s += ' to ALL enemies';
         if (f.random) s += ' to random enemies';
+        if (f.xcost) s += ', X times (X = current Energy)';
+        else if (f.hits && f.hits > 1) s += ' ' + f.hits + ' times';
         parts.push(s + '.');
       }
       if (f.k === 'block') {
@@ -888,6 +977,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         else if (f.s === 'reactor') parts.push('Gain +' + f.v + ' Energy at the start of each turn.');
         else if (f.s === 'retain') parts.push('Shield no longer expires.');
         else if (f.s === 'strPerTurn') parts.push('Gain ' + f.v + ' Might at the start of each turn.');
+        else if (f.s === 'feelNoPain') parts.push('Whenever a card is Exhausted, gain ' + f.v + ' Shield.');
+        else if (f.s === 'darkEmbrace') parts.push('Whenever a card is Exhausted, draw ' + f.v + ' card' + (f.v > 1 ? 's' : '') + '.');
+        else if (f.s === 'thousandCuts') parts.push('Whenever you play a card, deal ' + f.v + ' damage to ALL enemies.');
+        else if (f.s === 'afterImage') parts.push('Whenever you play a card, gain ' + f.v + ' Shield.');
+        else if (f.s === 'plague') parts.push('Whenever you apply Burn, apply ' + f.v + ' Burn to ALL enemies.');
+        else if (f.s === 'echo') parts.push('The first Attack you play each turn is played twice.');
+        else if (f.s === 'corruption') parts.push('Skills cost 0 this combat, but Exhaust when played.');
         else if (f.who === 'self') parts.push('Gain ' + f.v + ' ' + n + '.');
         else if (f.who === 'allEnemies') parts.push('Apply ' + f.v + ' ' + n + ' to ALL enemies.');
         else parts.push('Apply ' + f.v + ' ' + n + '.');
@@ -895,6 +991,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     });
     var text = (upgraded && def.up && def.up.text) ? def.up.text : def.text;
     if (text) parts.push(text);
+    if (def.retain) parts.push('Retain.');
     if (def.exhaust) parts.push('Exhaust.');
     return parts.join(' ');
   };
@@ -906,7 +1003,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var f = fx[i];
       if (f.k === 'dmg' && !f.all && !f.random) return true;
       if (f.k === 'status' && f.who === 'target') return true;
-      if (f.k === 'special' && (f.id === 'shieldSlam' || f.id === 'shieldSlam15')) return true;
+      if (f.k === 'special' && (f.id === 'shieldSlam' || f.id === 'shieldSlam15' || f.id === 'catalyst' || f.id === 'catalyst3')) return true;
     }
     return false;
   };
@@ -1608,8 +1705,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       enemies: ids.map(mkEnemy),
       turn: 0,
       energy: 0,
-      hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [],
+      hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
       player: { block: 0, statuses: {} },
+      echoReady: false,
       over: false,
     };
     var ps = art('strStart');
@@ -1646,6 +1744,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (c.turn === 1) c.energy += art('energyTurn1');
     var draws = B.player.drawPerTurn + (c.turn === 1 ? art('drawStart') : 0);
     drawCards(draws);
+    c.echoReady = statN(p, 'echo') > 0;   // Echo Core: first attack each turn plays twice
     emit('turnStart', { turn: c.turn });
     if (aoe > 0) {
       c.enemies.forEach(function (en, i) {
@@ -1713,7 +1812,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return {
       def: def,
       name: def.name + (card.up ? '+' : ''),
-      cost: ns.cardCost(def, card.up),
+      cost: effCost(def, card.up),
+      xcost: !!def.xcost,
       desc: ns.cardDesc(def, card.up, liveCtx()),
       type: def.type,
       needsTarget: ns.cardNeedsTarget(def, card.up),
@@ -1721,6 +1821,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       rarity: def.rarity,
     };
   };
+
+  // Effective energy cost: X-cost cards read as 0; under Corruption, Skills cost 0.
+  function effCost(def, up) {
+    if (def.xcost) return 0;
+    var c = ns.cardCost(def, up);
+    if (E.combat && def.type === 'skill' && statN(E.combat.player, 'corruption') > 0) return 0;
+    return c;
+  }
+  E.effCost = effCost;
 
   function liveCtx() {
     return {
@@ -1731,10 +1840,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   function attackBonus(f) {
     var p = E.combat.player;
+    var mul = f.scaleMul || 1;
     var v = statN(p, 'str') + art('flatDmg');
-    if (f.scale === 'might') v += attr('might') * B.attrs.mightDmgPerPoint;
-    if (f.scale === 'tech') v += attr('tech');
-    if (f.scale === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * (f.scaleMul || 1) + statN(p, 'psiPow');
+    if (f.scale === 'might') v += attr('might') * B.attrs.mightDmgPerPoint * mul;
+    if (f.scale === 'tech') v += attr('tech') * mul;
+    if (f.scale === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * mul + statN(p, 'psiPow');
     return v;
   }
 
@@ -1816,42 +1926,28 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return !info.unplayable && info.cost <= c.energy;
   };
 
-  E.playCard = function (handIdx, targetIdx) {
-    var c = E.combat, r = E.run;
-    if (!E.canPlay(handIdx)) return false;
-    var card = c.hand[handIdx];
-    var def = ns.CARDS[card.id];
-    var fx = ns.cardFx(def, card.up);
-    var cost = ns.cardCost(def, card.up);
+  // Push a card to the exhaust pile, triggering Exhaust-synergy powers.
+  function exhaustCard(card) {
+    var c = E.combat, p = c.player;
+    c.exhaust.push(card);
+    var fnp = statN(p, 'feelNoPain');
+    if (fnp > 0) { p.block += fnp; emit('block', { who: 'player', amount: fnp, blockAfter: p.block }); }
+    var de = statN(p, 'darkEmbrace');
+    if (de > 0) drawCards(de);
+  }
 
-    // resolve target (default: first living enemy)
-    var tgt = c.enemies[targetIdx];
-    if (!tgt || !tgt.alive) {
-      targetIdx = c.enemies.findIndex(function (e) { return e.alive; });
-      tgt = c.enemies[targetIdx];
-    }
-
-    c.energy -= cost;
-    c.hand.splice(handIdx, 1);
-
-    var flags = {};
-    fx.forEach(function (f) { if (f.k === 'special') flags[f.id] = true; });
-
-    // one d20 per card play; only attacks can crit
-    var roll = null, crit = false;
-    if (def.type === 'attack') {
-      roll = d20();
-      crit = roll >= B.dice.critThreshold - art('critBonus');
-    }
-
+  // Resolve a card's effects once. Echo can call this twice. ctx carries the
+  // shared roll/crit/target and an appliedBurn flag for Contagion.
+  function applyCardFx(fx, ctx) {
+    var c = E.combat, p = c.player;
+    var tgt = ctx.tgt, crit = ctx.crit, roll = ctx.roll, flags = ctx.flags;
     var totalDealt = 0;
-
     fx.forEach(function (f) {
       if (c.over && f.k === 'dmg') return;
       switch (f.k) {
         case 'dmg': {
           var base = f.v + attackBonus(f);
-          var hits = f.hits || 1;
+          var hits = f.xcost ? ctx.xval : (f.hits || 1);
           for (var h = 0; h < hits; h++) {
             var pool = aliveEnemies();
             if (pool.length === 0) break;
@@ -1873,8 +1969,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         }
         case 'block': {
           var b = f.v + (f.scale === 'tech' ? attr('tech') * B.attrs.techBlockPerPoint : 0);
-          c.player.block += b;
-          emit('block', { who: 'player', amount: b, blockAfter: c.player.block });
+          p.block += b;
+          emit('block', { who: 'player', amount: b, blockAfter: p.block });
           break;
         }
         case 'heal': heal(f.v); break;
@@ -1883,36 +1979,110 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         case 'energy': c.energy += f.v; break;
         case 'status': {
           if (f.who === 'self') {
-            addStatus(c.player, f.s, f.v);
+            addStatus(p, f.s, f.v);
             emit('status', { who: 'player', s: f.s, v: f.v });
           } else if (f.who === 'allEnemies') {
             c.enemies.forEach(function (e, i) {
               if (e.alive) { addStatus(e, f.s, f.v); emit('status', { who: 'enemy', idx: i, s: f.s, v: f.v }); }
             });
+            if (f.s === 'burn') ctx.appliedBurn = true;
           } else {
             var st = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
-            if (st) { addStatus(st, f.s, f.v); emit('status', { who: 'enemy', idx: c.enemies.indexOf(st), s: f.s, v: f.v }); }
+            if (st) {
+              addStatus(st, f.s, f.v);
+              emit('status', { who: 'enemy', idx: c.enemies.indexOf(st), s: f.s, v: f.v });
+              if (f.s === 'burn') ctx.appliedBurn = true;
+            }
           }
           break;
         }
         case 'special': {
           if (f.id === 'shieldSlam' || f.id === 'shieldSlam15') {
-            var dmg = Math.floor(c.player.block * (f.id === 'shieldSlam15' ? 1.5 : 1)) + statN(c.player, 'str') + art('flatDmg');
+            var dmg = Math.floor(p.block * (f.id === 'shieldSlam15' ? 1.5 : 1)) + statN(p, 'str') + art('flatDmg');
             var sEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             if (sEn && dmg > 0) totalDealt += dealToEnemy(sEn, c.enemies.indexOf(sEn), dmg, { crit: crit, roll: roll });
+          } else if (f.id === 'limitBreak') {
+            var s = statN(p, 'str');
+            if (s > 0) { addStatus(p, 'str', s); emit('status', { who: 'player', s: 'str', v: s }); }
+          } else if (f.id === 'doubleBlock') {
+            if (p.block > 0) { var add = p.block; p.block += add; emit('block', { who: 'player', amount: add, blockAfter: p.block }); }
+          } else if (f.id === 'catalyst' || f.id === 'catalyst3') {
+            var ce = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            if (ce) {
+              var cur = statN(ce, 'burn');
+              var mul = (f.id === 'catalyst3') ? 2 : 1; // extra stacks added
+              if (cur > 0) { addStatus(ce, 'burn', cur * mul); emit('status', { who: 'enemy', idx: c.enemies.indexOf(ce), s: 'burn', v: cur * mul }); }
+            }
           }
           break;
         }
       }
     });
-
     if (flags.leech && totalDealt > 0) {
-      c.player.block += totalDealt;
-      emit('block', { who: 'player', amount: totalDealt, blockAfter: c.player.block });
+      p.block += totalDealt;
+      emit('block', { who: 'player', amount: totalDealt, blockAfter: p.block });
     }
     if (flags.drain && totalDealt > 0) heal(Math.ceil(totalDealt / 2));
+    return totalDealt;
+  }
 
-    if (def.exhaust) c.exhaust.push(card);
+  E.playCard = function (handIdx, targetIdx) {
+    var c = E.combat, r = E.run, p = c.player;
+    if (!E.canPlay(handIdx)) return false;
+    var card = c.hand[handIdx];
+    var def = ns.CARDS[card.id];
+    var fx = ns.cardFx(def, card.up);
+    var cost = effCost(def, card.up);
+
+    // resolve target (default: first living enemy)
+    var tgt = c.enemies[targetIdx];
+    if (!tgt || !tgt.alive) {
+      targetIdx = c.enemies.findIndex(function (e) { return e.alive; });
+      tgt = c.enemies[targetIdx];
+    }
+
+    c.energy -= cost;
+    c.hand.splice(handIdx, 1);
+
+    var xval = 0;
+    if (def.xcost) { xval = c.energy; c.energy = 0; }
+
+    var flags = {};
+    fx.forEach(function (f) { if (f.k === 'special') flags[f.id] = true; });
+
+    // one d20 per card play; only attacks can crit
+    var roll = null, crit = false;
+    if (def.type === 'attack') {
+      roll = d20();
+      crit = roll >= B.dice.critThreshold - art('critBonus');
+    }
+
+    var ctx = { tgt: tgt, crit: crit, roll: roll, flags: flags, xval: xval, appliedBurn: false };
+    var times = 1;
+    if (def.type === 'attack' && c.echoReady) { c.echoReady = false; times = 2; }
+    var totalDealt = 0;
+    for (var rep = 0; rep < times; rep++) {
+      if (c.over) break;
+      totalDealt += applyCardFx(fx, ctx);
+    }
+
+    // on-play triggers (once per card played, not per echo repeat)
+    if (!c.over) {
+      var tc = statN(p, 'thousandCuts');
+      if (tc > 0) c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, tc, { noCrit: true, noWeak: true }); });
+      var ai = statN(p, 'afterImage');
+      if (ai > 0) { p.block += ai; emit('block', { who: 'player', amount: ai, blockAfter: p.block }); }
+    }
+    // Contagion: applying Burn spreads it to all enemies
+    if (ctx.appliedBurn && statN(p, 'plague') > 0 && !c.over) {
+      var pl = statN(p, 'plague');
+      c.enemies.forEach(function (e, i) { if (e.alive) { addStatus(e, 'burn', pl); emit('status', { who: 'enemy', idx: i, s: 'burn', v: pl }); } });
+    }
+
+    // route the played card: powers are consumed, exhaust cards (and skills
+    // under Corruption) exhaust, everything else discards
+    if (def.type === 'power') c.consumed.push(card);
+    else if (def.exhaust || (def.type === 'skill' && statN(p, 'corruption') > 0)) exhaustCard(card);
     else c.discard.push(card);
 
     emit('cardPlayed', { id: card.id, crit: crit, roll: roll });
@@ -1931,9 +2101,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     });
     if (r.phase === 'dead') return;
 
-    // discard hand
-    c.discard = c.discard.concat(c.hand);
-    c.hand = [];
+    // discard hand, but keep Retain cards in hand for next turn
+    var kept = [];
+    c.hand.forEach(function (card) {
+      if (ns.CARDS[card.id].retain) kept.push(card);
+      else c.discard.push(card);
+    });
+    c.hand = kept;
 
     // turret + entropy
     var tv = statN(p, 'turret');
@@ -3590,7 +3764,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         (deal ? ' deal' : '') +
         (i === selected ? ' selected' : ''));
       if (deal) d.style.setProperty('--d', (i * 60) + 'ms');
-      d.innerHTML = cardInner(info.name, info.cost, info.type, info.rarity, info.desc, info.unplayable);
+      d.innerHTML = cardInner(info.name, info.xcost ? 'X' : info.cost, info.type, info.rarity, info.desc, info.unplayable);
       d.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
         startCardDrag(d, i, ev);
@@ -3950,7 +4124,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var def = ns.CARDS[cid];
     var ctx = E.run ? { attrs: { might: E.attr('might'), tech: E.attr('tech'), psi: E.attr('psi') }, statuses: null } : null;
     var d = el('div', 'card type-' + def.type);
-    d.innerHTML = cardInner(def.name + (up ? '+' : ''), ns.cardCost(def, up), def.type, def.rarity,
+    d.innerHTML = cardInner(def.name + (up ? '+' : ''), def.xcost ? 'X' : ns.cardCost(def, up), def.type, def.rarity,
       ns.cardDesc(def, up, ctx), def.unplayable);
     return d;
   }

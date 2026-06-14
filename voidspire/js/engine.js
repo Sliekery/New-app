@@ -218,8 +218,9 @@
       enemies: ids.map(mkEnemy),
       turn: 0,
       energy: 0,
-      hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [],
+      hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
       player: { block: 0, statuses: {} },
+      echoReady: false,
       over: false,
     };
     var ps = art('strStart');
@@ -256,6 +257,7 @@
     if (c.turn === 1) c.energy += art('energyTurn1');
     var draws = B.player.drawPerTurn + (c.turn === 1 ? art('drawStart') : 0);
     drawCards(draws);
+    c.echoReady = statN(p, 'echo') > 0;   // Echo Core: first attack each turn plays twice
     emit('turnStart', { turn: c.turn });
     if (aoe > 0) {
       c.enemies.forEach(function (en, i) {
@@ -323,7 +325,8 @@
     return {
       def: def,
       name: def.name + (card.up ? '+' : ''),
-      cost: ns.cardCost(def, card.up),
+      cost: effCost(def, card.up),
+      xcost: !!def.xcost,
       desc: ns.cardDesc(def, card.up, liveCtx()),
       type: def.type,
       needsTarget: ns.cardNeedsTarget(def, card.up),
@@ -331,6 +334,15 @@
       rarity: def.rarity,
     };
   };
+
+  // Effective energy cost: X-cost cards read as 0; under Corruption, Skills cost 0.
+  function effCost(def, up) {
+    if (def.xcost) return 0;
+    var c = ns.cardCost(def, up);
+    if (E.combat && def.type === 'skill' && statN(E.combat.player, 'corruption') > 0) return 0;
+    return c;
+  }
+  E.effCost = effCost;
 
   function liveCtx() {
     return {
@@ -341,10 +353,11 @@
 
   function attackBonus(f) {
     var p = E.combat.player;
+    var mul = f.scaleMul || 1;
     var v = statN(p, 'str') + art('flatDmg');
-    if (f.scale === 'might') v += attr('might') * B.attrs.mightDmgPerPoint;
-    if (f.scale === 'tech') v += attr('tech');
-    if (f.scale === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * (f.scaleMul || 1) + statN(p, 'psiPow');
+    if (f.scale === 'might') v += attr('might') * B.attrs.mightDmgPerPoint * mul;
+    if (f.scale === 'tech') v += attr('tech') * mul;
+    if (f.scale === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * mul + statN(p, 'psiPow');
     return v;
   }
 
@@ -426,42 +439,28 @@
     return !info.unplayable && info.cost <= c.energy;
   };
 
-  E.playCard = function (handIdx, targetIdx) {
-    var c = E.combat, r = E.run;
-    if (!E.canPlay(handIdx)) return false;
-    var card = c.hand[handIdx];
-    var def = ns.CARDS[card.id];
-    var fx = ns.cardFx(def, card.up);
-    var cost = ns.cardCost(def, card.up);
+  // Push a card to the exhaust pile, triggering Exhaust-synergy powers.
+  function exhaustCard(card) {
+    var c = E.combat, p = c.player;
+    c.exhaust.push(card);
+    var fnp = statN(p, 'feelNoPain');
+    if (fnp > 0) { p.block += fnp; emit('block', { who: 'player', amount: fnp, blockAfter: p.block }); }
+    var de = statN(p, 'darkEmbrace');
+    if (de > 0) drawCards(de);
+  }
 
-    // resolve target (default: first living enemy)
-    var tgt = c.enemies[targetIdx];
-    if (!tgt || !tgt.alive) {
-      targetIdx = c.enemies.findIndex(function (e) { return e.alive; });
-      tgt = c.enemies[targetIdx];
-    }
-
-    c.energy -= cost;
-    c.hand.splice(handIdx, 1);
-
-    var flags = {};
-    fx.forEach(function (f) { if (f.k === 'special') flags[f.id] = true; });
-
-    // one d20 per card play; only attacks can crit
-    var roll = null, crit = false;
-    if (def.type === 'attack') {
-      roll = d20();
-      crit = roll >= B.dice.critThreshold - art('critBonus');
-    }
-
+  // Resolve a card's effects once. Echo can call this twice. ctx carries the
+  // shared roll/crit/target and an appliedBurn flag for Contagion.
+  function applyCardFx(fx, ctx) {
+    var c = E.combat, p = c.player;
+    var tgt = ctx.tgt, crit = ctx.crit, roll = ctx.roll, flags = ctx.flags;
     var totalDealt = 0;
-
     fx.forEach(function (f) {
       if (c.over && f.k === 'dmg') return;
       switch (f.k) {
         case 'dmg': {
           var base = f.v + attackBonus(f);
-          var hits = f.hits || 1;
+          var hits = f.xcost ? ctx.xval : (f.hits || 1);
           for (var h = 0; h < hits; h++) {
             var pool = aliveEnemies();
             if (pool.length === 0) break;
@@ -483,8 +482,8 @@
         }
         case 'block': {
           var b = f.v + (f.scale === 'tech' ? attr('tech') * B.attrs.techBlockPerPoint : 0);
-          c.player.block += b;
-          emit('block', { who: 'player', amount: b, blockAfter: c.player.block });
+          p.block += b;
+          emit('block', { who: 'player', amount: b, blockAfter: p.block });
           break;
         }
         case 'heal': heal(f.v); break;
@@ -493,36 +492,110 @@
         case 'energy': c.energy += f.v; break;
         case 'status': {
           if (f.who === 'self') {
-            addStatus(c.player, f.s, f.v);
+            addStatus(p, f.s, f.v);
             emit('status', { who: 'player', s: f.s, v: f.v });
           } else if (f.who === 'allEnemies') {
             c.enemies.forEach(function (e, i) {
               if (e.alive) { addStatus(e, f.s, f.v); emit('status', { who: 'enemy', idx: i, s: f.s, v: f.v }); }
             });
+            if (f.s === 'burn') ctx.appliedBurn = true;
           } else {
             var st = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
-            if (st) { addStatus(st, f.s, f.v); emit('status', { who: 'enemy', idx: c.enemies.indexOf(st), s: f.s, v: f.v }); }
+            if (st) {
+              addStatus(st, f.s, f.v);
+              emit('status', { who: 'enemy', idx: c.enemies.indexOf(st), s: f.s, v: f.v });
+              if (f.s === 'burn') ctx.appliedBurn = true;
+            }
           }
           break;
         }
         case 'special': {
           if (f.id === 'shieldSlam' || f.id === 'shieldSlam15') {
-            var dmg = Math.floor(c.player.block * (f.id === 'shieldSlam15' ? 1.5 : 1)) + statN(c.player, 'str') + art('flatDmg');
+            var dmg = Math.floor(p.block * (f.id === 'shieldSlam15' ? 1.5 : 1)) + statN(p, 'str') + art('flatDmg');
             var sEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             if (sEn && dmg > 0) totalDealt += dealToEnemy(sEn, c.enemies.indexOf(sEn), dmg, { crit: crit, roll: roll });
+          } else if (f.id === 'limitBreak') {
+            var s = statN(p, 'str');
+            if (s > 0) { addStatus(p, 'str', s); emit('status', { who: 'player', s: 'str', v: s }); }
+          } else if (f.id === 'doubleBlock') {
+            if (p.block > 0) { var add = p.block; p.block += add; emit('block', { who: 'player', amount: add, blockAfter: p.block }); }
+          } else if (f.id === 'catalyst' || f.id === 'catalyst3') {
+            var ce = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            if (ce) {
+              var cur = statN(ce, 'burn');
+              var mul = (f.id === 'catalyst3') ? 2 : 1; // extra stacks added
+              if (cur > 0) { addStatus(ce, 'burn', cur * mul); emit('status', { who: 'enemy', idx: c.enemies.indexOf(ce), s: 'burn', v: cur * mul }); }
+            }
           }
           break;
         }
       }
     });
-
     if (flags.leech && totalDealt > 0) {
-      c.player.block += totalDealt;
-      emit('block', { who: 'player', amount: totalDealt, blockAfter: c.player.block });
+      p.block += totalDealt;
+      emit('block', { who: 'player', amount: totalDealt, blockAfter: p.block });
     }
     if (flags.drain && totalDealt > 0) heal(Math.ceil(totalDealt / 2));
+    return totalDealt;
+  }
 
-    if (def.exhaust) c.exhaust.push(card);
+  E.playCard = function (handIdx, targetIdx) {
+    var c = E.combat, r = E.run, p = c.player;
+    if (!E.canPlay(handIdx)) return false;
+    var card = c.hand[handIdx];
+    var def = ns.CARDS[card.id];
+    var fx = ns.cardFx(def, card.up);
+    var cost = effCost(def, card.up);
+
+    // resolve target (default: first living enemy)
+    var tgt = c.enemies[targetIdx];
+    if (!tgt || !tgt.alive) {
+      targetIdx = c.enemies.findIndex(function (e) { return e.alive; });
+      tgt = c.enemies[targetIdx];
+    }
+
+    c.energy -= cost;
+    c.hand.splice(handIdx, 1);
+
+    var xval = 0;
+    if (def.xcost) { xval = c.energy; c.energy = 0; }
+
+    var flags = {};
+    fx.forEach(function (f) { if (f.k === 'special') flags[f.id] = true; });
+
+    // one d20 per card play; only attacks can crit
+    var roll = null, crit = false;
+    if (def.type === 'attack') {
+      roll = d20();
+      crit = roll >= B.dice.critThreshold - art('critBonus');
+    }
+
+    var ctx = { tgt: tgt, crit: crit, roll: roll, flags: flags, xval: xval, appliedBurn: false };
+    var times = 1;
+    if (def.type === 'attack' && c.echoReady) { c.echoReady = false; times = 2; }
+    var totalDealt = 0;
+    for (var rep = 0; rep < times; rep++) {
+      if (c.over) break;
+      totalDealt += applyCardFx(fx, ctx);
+    }
+
+    // on-play triggers (once per card played, not per echo repeat)
+    if (!c.over) {
+      var tc = statN(p, 'thousandCuts');
+      if (tc > 0) c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, tc, { noCrit: true, noWeak: true }); });
+      var ai = statN(p, 'afterImage');
+      if (ai > 0) { p.block += ai; emit('block', { who: 'player', amount: ai, blockAfter: p.block }); }
+    }
+    // Contagion: applying Burn spreads it to all enemies
+    if (ctx.appliedBurn && statN(p, 'plague') > 0 && !c.over) {
+      var pl = statN(p, 'plague');
+      c.enemies.forEach(function (e, i) { if (e.alive) { addStatus(e, 'burn', pl); emit('status', { who: 'enemy', idx: i, s: 'burn', v: pl }); } });
+    }
+
+    // route the played card: powers are consumed, exhaust cards (and skills
+    // under Corruption) exhaust, everything else discards
+    if (def.type === 'power') c.consumed.push(card);
+    else if (def.exhaust || (def.type === 'skill' && statN(p, 'corruption') > 0)) exhaustCard(card);
     else c.discard.push(card);
 
     emit('cardPlayed', { id: card.id, crit: crit, roll: roll });
@@ -541,9 +614,13 @@
     });
     if (r.phase === 'dead') return;
 
-    // discard hand
-    c.discard = c.discard.concat(c.hand);
-    c.hand = [];
+    // discard hand, but keep Retain cards in hand for next turn
+    var kept = [];
+    c.hand.forEach(function (card) {
+      if (ns.CARDS[card.id].retain) kept.push(card);
+      else c.discard.push(card);
+    });
+    c.hand = kept;
 
     // turret + entropy
     var tv = statN(p, 'turret');

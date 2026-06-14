@@ -39,6 +39,20 @@ Runs are auto-saved at every node — close the tab and continue later.
   your score is how deep you go.
 - **Progression** — card rewards & upgrades, ~20 passive artifacts,
   level-ups after every boss (+attribute or +max HP), credits, deck purges.
+- **Build archetypes** (Slay-the-Spire-inspired) — each class has a keyword
+  to draft around, with build-defining rares that go exponential when the RNG
+  cooperates ("god runs"):
+  - **Vanguard — Might & Exhaust:** Heavy Ordnance (MIGHT ×3), Limit Break
+    (double Might), Whirlwind (X-cost), Iron Resolve (Shield on Exhaust),
+    Reckless Protocol (Corruption: Skills cost 0 but Exhaust).
+  - **Technomancer — Shields, Turrets & Powers:** Kinetic Discharge (damage =
+    Shield), Entrench (double Shield), Overload Capacitor (Shield per card),
+    Echo Core (first attack each turn plays twice).
+  - **Void Adept — Burn & card-spam:** Catalyst (double a target's Burn),
+    Plague Engine (Burn spreads to all), Mind Array (deal to all on every card).
+  - **Keywords:** Powers are **consumed** when played (one use per combat);
+    **Exhaust** removes a card for the combat (with payoff cards); **Retain**
+    keeps a card across turns; **X-cost** spends all your Energy.
 - **DnD flavor** — every attack rolls a visible d20 (high roll = crit ×2;
   artifacts widen the crit range). Events offer choices with attribute
   checks (`TECH check, DC 12`), natural 1 always fails, natural 20 always
@@ -67,6 +81,8 @@ Content is data-driven too:
 ```sh
 node test/sim.js 300        # bot plays full runs; prints avg sector reached,
                             # death locations, and a difficulty profile
+node test/mechanics.js      # unit tests for the build-defining keywords
+                            # (power consumption, Echo, Corruption, Catalyst, …)
 ```
 
 The bot plays like a competent-but-not-expert human (blocks lethal damage,

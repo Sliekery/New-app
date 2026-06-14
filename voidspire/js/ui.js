@@ -410,7 +410,7 @@
         (deal ? ' deal' : '') +
         (i === selected ? ' selected' : ''));
       if (deal) d.style.setProperty('--d', (i * 60) + 'ms');
-      d.innerHTML = cardInner(info.name, info.cost, info.type, info.rarity, info.desc, info.unplayable);
+      d.innerHTML = cardInner(info.name, info.xcost ? 'X' : info.cost, info.type, info.rarity, info.desc, info.unplayable);
       d.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
         startCardDrag(d, i, ev);
@@ -770,7 +770,7 @@
     var def = ns.CARDS[cid];
     var ctx = E.run ? { attrs: { might: E.attr('might'), tech: E.attr('tech'), psi: E.attr('psi') }, statuses: null } : null;
     var d = el('div', 'card type-' + def.type);
-    d.innerHTML = cardInner(def.name + (up ? '+' : ''), ns.cardCost(def, up), def.type, def.rarity,
+    d.innerHTML = cardInner(def.name + (up ? '+' : ''), def.xcost ? 'X' : ns.cardCost(def, up), def.type, def.rarity,
       ns.cardDesc(def, up, ctx), def.unplayable);
     return d;
   }
