@@ -1699,6 +1699,8 @@ const matCache={};
 const CHAR_MODELS={
   knight:'models/Knight.glb', mage:'models/Mage.glb', barbarian:'models/Barbarian.glb',
   rogue:'models/Rogue.glb', rogueh:'models/Rogue_Hooded.glb',
+  // KayKit Skeletons (CC0) — animated undead for Necromancer minions
+  skeleton:'models/Skeleton_Minion.glb', skeletonWarrior:'models/Skeleton_Warrior.glb',
 };
 const charLib={};
 let modelsReady=false;
@@ -1718,7 +1720,7 @@ function loadCharacterModels(){
   }
 }
 function refreshAvatars(){ // rebuild avatars so they pick up the loaded models
-  for(const e of [player,hench,...npcs,...enemies]){
+  for(const e of [player,hench,...npcs,...enemies,...allies]){
     if(e&&e.av){ scene.remove(e.av); e.av=null; }
   }
 }
@@ -2443,7 +2445,10 @@ function makeAvatar(e){
       ? humanoid({robe:0x6a4a8a,armor:0x5a3a7a,trim:0xd8b860,hood:true})
       : humanoid({armor:0xb59a4a,trim:0xe8d290,pants:0x4a4438,weapon:'banner',metalArmor:true});
   }
-  if(!g&&e.kind==='ally'&&e.minion){ g=humanoid({armor:0xcfc8b0,trim:0x9a9080,pants:0xbfb6a0,weapon:'sword',skin:0xe8e2d0}); g.userData.inner.scale.multiplyScalar(0.85); }
+  if(!g&&e.kind==='ally'&&e.minion){
+    if(modelsReady) g=gltfAvatar(e.name==='Bone Horror'?'skeletonWarrior':'skeleton',null,e.name==='Bone Horror'?1.1:0.85);
+    if(!g){ g=humanoid({armor:0xcfc8b0,trim:0x9a9080,pants:0xbfb6a0,weapon:'sword',skin:0xe8e2d0}); g.userData.inner.scale.multiplyScalar(0.85); }
+  }
   if(!g&&e.kind==='ally'&&e.pet){ g=wolfAvatar(); }
   if(!g){ // creatures of the Dunereach — always procedural
     const fam=e.family, bs=e.boss;
