@@ -57,17 +57,18 @@
       artifacts: [],
       sector: 1,
       faction: pick(Object.keys(ns.FACTIONS)),
-      nodeIdx: -1,
+      map: null,
+      mapRow: -1, mapCol: 0,
       phase: 'none',
-      nodeOptions: null,
       usedEvents: [],
       removeCost: B.shop.removeCost,
       kills: 0, nodesCleared: 0,
       pendingPick: null,
-      seenIntro: false,
     };
     E.combat = null;
-    E.nextStep();
+    E.run.map = generateMap(1);
+    E.run.phase = 'map';
+    E.save();
   };
 
   /* Effective attribute incl. artifacts */
@@ -87,30 +88,130 @@
     return (r.sector - 1) * B.score.perSector + r.nodesCleared * B.score.perNode + r.kills * B.score.perKill;
   };
 
-  /* ---------------- Node flow ------------------------------------------ */
-  E.nextStep = function () {
-    var r = E.run;
-    r.nodeIdx++;
-    var entry = B.sector.script[r.nodeIdx];
-    if (entry === 'choice') {
-      var pool = [];
-      Object.keys(B.sector.choiceWeights).forEach(function (k) {
-        for (var i = 0; i < B.sector.choiceWeights[k]; i++) pool.push(k);
-      });
-      var a = pick(pool), b = pick(pool), guard = 0;
-      while (b === a && guard++ < 50) b = pick(pool);
-      r.nodeOptions = [a, b];
-      r.phase = 'node-select';
-    } else {
-      E.startNode(entry);
+  /* ---------------- Map generation (branching star chart) -------------- */
+  // A planar DAG woven by random walks on a fixed column grid, so paths
+  // branch and merge without edge crossings. Boss sits above the top row.
+  function generateMap(sector) {
+    var M = B.map, ROWS = M.rows, COLS = M.cols;
+    var rowObjs = [];
+    for (var i = 0; i < ROWS; i++) rowObjs.push({});
+
+    function getNode(rr, col) {
+      if (!rowObjs[rr][col]) rowObjs[rr][col] = { row: rr, col: col, type: null, edges: [], parents: [], visited: false };
+      return rowObjs[rr][col];
     }
-    E.save();
+    var gaps = [];
+    for (i = 0; i < ROWS - 1; i++) gaps.push({});
+    function addEdge(rr, c, c2) {
+      // avoid X-crossings: if the opposing diagonal exists in this gap, straighten
+      var g = gaps[rr];
+      if (c2 === c + 1 && g[(c + 1) + '>' + c]) c2 = c;
+      else if (c2 === c - 1 && g[(c - 1) + '>' + c]) c2 = c;
+      c2 = Math.max(0, Math.min(COLS - 1, c2));
+      var a = getNode(rr, c), b = getNode(rr + 1, c2);
+      if (a.edges.indexOf(c2) < 0) a.edges.push(c2);
+      if (b.parents.indexOf(c) < 0) b.parents.push(c);
+      g[c + '>' + c2] = true;
+      return c2;
+    }
+
+    // weave several paths bottom -> top
+    for (var p = 0; p < M.paths; p++) {
+      var c = ri(0, COLS - 1);
+      getNode(0, c);
+      for (var rr = 0; rr < ROWS - 1; rr++) {
+        var nc = c + ri(-1, 1);
+        c = addEdge(rr, c, nc);
+      }
+    }
+
+    // rows as sorted arrays
+    var rows = rowObjs.map(function (obj) {
+      return Object.keys(obj).map(function (k) { return obj[k]; }).sort(function (x, y) { return x.col - y.col; });
+    });
+
+    // boss node above the top content row
+    var boss = { row: ROWS, col: Math.floor((COLS - 1) / 2), type: 'boss', edges: [], parents: [], visited: false };
+    rows[ROWS - 1].forEach(function (n) { n.edges = ['boss']; });
+
+    assignTypes(rows, sector);
+    return { rows: rows, boss: boss, ROWS: ROWS, COLS: COLS };
+  }
+
+  function weightedType(weights) {
+    var pool = [];
+    Object.keys(weights).forEach(function (t) { for (var i = 0; i < weights[t]; i++) pool.push(t); });
+    return pick(pool);
+  }
+
+  function assignTypes(rows, sector) {
+    var M = B.map, ROWS = M.rows;
+    for (var r = 0; r < ROWS; r++) {
+      var isFirst = (r === 0), isLast = (r === ROWS - 1), isTreasure = (r === M.treasureRow);
+      rows[r].forEach(function (node) {
+        if (isFirst) { node.type = 'fight'; return; }
+        if (isLast && M.restBeforeBoss) { node.type = 'rest'; return; }
+        if (isTreasure) { node.type = 'treasure'; return; }
+        var t = weightedType(M.typeWeights), tries = 0;
+        while (tries++ < 16) {
+          if (t === 'elite' && r < M.eliteFromRow) { t = weightedType(M.typeWeights); continue; }
+          if ((t === 'shop' || t === 'rest') && r < M.shopRestFromRow) { t = weightedType(M.typeWeights); continue; }
+          if (t === 'shop' || t === 'rest' || t === 'elite') {
+            var clash = node.parents.some(function (pc) {
+              var pn = rows[r - 1].find(function (x) { return x.col === pc; });
+              return pn && pn.type === t;
+            });
+            if (clash) { t = weightedType(M.typeWeights); continue; }
+          }
+          break;
+        }
+        node.type = t;
+      });
+    }
+  }
+
+  /* ---------------- Map navigation ------------------------------------- */
+  function currentNode() {
+    var r = E.run, m = r.map;
+    if (!m || r.mapRow < 0) return null;
+    if (r.mapRow >= m.ROWS) return m.boss;
+    var row = m.rows[r.mapRow];
+    for (var i = 0; i < row.length; i++) if (row[i].col === r.mapCol) return row[i];
+    return null;
+  }
+  E.currentNode = currentNode;
+
+  E.mapReachable = function () {
+    var r = E.run, m = r.map;
+    if (!m) return [];
+    if (r.mapRow < 0) return m.rows[0].slice();        // choose any starting node
+    if (r.mapRow >= m.ROWS) return [];                 // already at the boss
+    if (r.mapRow === m.ROWS - 1) return [m.boss];      // top content row -> boss
+    var node = currentNode();
+    if (!node) return [];
+    var nextRow = m.rows[r.mapRow + 1];
+    var out = [];
+    node.edges.forEach(function (col) {
+      for (var i = 0; i < nextRow.length; i++) if (nextRow[i].col === col) out.push(nextRow[i]);
+    });
+    return out;
   };
 
-  E.chooseNode = function (i) {
-    var t = E.run.nodeOptions[i];
-    E.run.nodeOptions = null;
+  function resolveRandomNode() {
+    return weightedType({ fight: 30, event: 34, shop: 16, rest: 20 });
+  }
+
+  E.enterNode = function (node) {
+    var reach = E.mapReachable();
+    if (reach.indexOf(node) < 0) return false;
+    var r = E.run;
+    r.mapRow = node.row; r.mapCol = node.col;
+    node.visited = true;
+    var t = node.type;
+    if (t === 'random') { t = resolveRandomNode(); node.resolved = t; }
     E.startNode(t);
+    E.save();
+    return true;
   };
 
   E.startNode = function (type) {
@@ -120,17 +221,26 @@
     else if (type === 'event') startEvent();
     else if (type === 'shop') { buildShop(); r.phase = 'shop'; }
     else if (type === 'rest') r.phase = 'rest';
+    else if (type === 'treasure') startTreasure();
   };
+
+  function startTreasure() {
+    var r = E.run;
+    var aid = randomArtifact(1);
+    if (aid) { r.treasure = aid; addArtifact(aid); }
+    else { r.treasure = null; r.credits += 40; }
+    r.phase = 'treasure';
+    E.save();
+  }
+  E.finishTreasure = function () { E.run.treasure = null; nodeComplete(); };
 
   function nodeComplete() {
     var r = E.run;
     r.nodesCleared++;
-    if (r.nodeType === 'boss') {
-      r.phase = 'levelup';
-      E.save();
-    } else {
-      E.nextStep();
-    }
+    var node = currentNode();
+    if (node && node.type === 'boss') r.phase = 'levelup';
+    else r.phase = 'map';
+    E.save();
   }
   E.nodeComplete = nodeComplete;
 
@@ -173,13 +283,14 @@
     r.sector++;
     var factions = Object.keys(ns.FACTIONS).filter(function (f) { return f !== r.faction; });
     r.faction = pick(factions);
-    r.nodeIdx = -1;
+    r.map = generateMap(r.sector);
+    r.mapRow = -1; r.mapCol = 0;
     var sh = art('sectorHeal');
     if (sh > 0) heal(Math.round(r.maxHp * sh));
     r.phase = 'sector-intro';
     E.save();
   }
-  E.beginSector = function () { E.nextStep(); };
+  E.beginSector = function () { E.run.phase = 'map'; E.save(); };
 
   /* ---------------- Combat: setup --------------------------------------- */
   function scaledHp(base, s) { return Math.round(base * B.scaling.hpMul(s)); }
@@ -208,8 +319,8 @@
       if (r.sector >= 3 && rnd() < B.sector.eliteChance2Enemies) ids.push(ns.ELITE_MINIONS[r.faction]);
     } else {
       var packs = ns.PACKS[r.faction];
-      // earlier nodes in a sector lean toward easier packs
-      var prog = Math.min(1, r.nodeIdx / (B.sector.script.length - 1));
+      // earlier rows in a sector lean toward easier packs
+      var prog = Math.min(1, r.mapRow / Math.max(1, B.map.rows - 1));
       var lo = Math.floor(prog * (packs.length - 3));
       ids = pick(packs.slice(Math.max(0, lo), Math.min(packs.length, lo + 4))).slice();
     }

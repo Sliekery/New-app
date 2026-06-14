@@ -164,7 +164,8 @@
     if (!r) return showTitle();
     switch (r.phase) {
       case 'combat': return showCombat();
-      case 'node-select': return showNodeSelect();
+      case 'map': return showMap();
+      case 'treasure': return showTreasure();
       case 'reward': return showReward();
       case 'event': return showEvent();
       case 'event-result': return showEventResult(false);
@@ -226,7 +227,7 @@
       '<span class="attr">MGT <b>' + E.attr('might') + '</b></span>' +
       '<span class="attr">TEC <b>' + E.attr('tech') + '</b></span>' +
       '<span class="attr">PSI <b>' + E.attr('psi') + '</b></span>' +
-      '<span class="attr" style="color:' + fac.color + '">S' + r.sector + ':' + (r.nodeIdx + 1) + '/' + B.sector.script.length + '</span>' +
+      '<span class="attr" style="color:' + fac.color + '">S' + r.sector + ' ▴' + Math.max(0, r.mapRow + 1) + '/' + (B.map.rows + 1) + '</span>' +
       '<span class="spacer"></span>' +
       '<button class="icon-btn" data-act="deck">DECK ' + r.deck.length + '</button>' +
       '<button class="icon-btn" data-act="menu">≡</button>' +
@@ -312,36 +313,129 @@
     s.appendChild(el('div', 'footer-note', foot));
   }
 
-  /* ====================== NODE SELECT ====================== */
-  var NODE_INFO = {
-    fight: { title: '⌖ HOSTILE CONTACT', cls: '', desc: 'Enemy signatures ahead. Clear them out for salvage and gear.' },
-    event: { title: '? UNKNOWN SIGNAL', cls: 'magenta', desc: 'Something unexpected. Could be fortune. Could be teeth.' },
-    shop: { title: '¢ FREE TRADER', cls: 'amber', desc: 'Cards, relics and repairs — for a price.' },
-    rest: { title: '+ FIELD CAMP', cls: 'cyan', desc: 'A quiet moment. Patch wounds or refine a card.' },
+  /* ====================== STAR-CHART MAP ====================== */
+  var NODE_LABEL = {
+    fight: 'Hostile contact', elite: 'Mini-boss (elite)', boss: 'Sector boss',
+    event: 'Unknown signal', random: 'Uncharted', shop: 'Free trader',
+    rest: 'Field camp', treasure: 'Supply cache',
   };
 
-  function showNodeSelect() {
+  function mapJit(row, col, axis) { return ((row * 13 + col * 7 + axis * 5) % 7 - 3) * 4; }
+
+  function mapIconPaths(icon, cx, cy, s) {
+    var out = '';
+    icon.p.forEach(function (poly) {
+      var pts = [];
+      for (var i = 0; i < poly.length; i += 2) pts.push((cx + poly[i] * s).toFixed(1) + ',' + (cy + poly[i + 1] * s).toFixed(1));
+      out += '<polyline points="' + pts.join(' ') + '"/>';
+    });
+    (icon.e || []).forEach(function (e) {
+      out += '<circle class="gdot" cx="' + (cx + e[0] * s).toFixed(1) + '" cy="' + (cy + e[1] * s).toFixed(1) + '" r="' + (s * 0.12).toFixed(1) + '"/>';
+    });
+    return out;
+  }
+
+  function showMap() {
+    updateHUD();
+    var r = E.run, m = r.map;
+    var s = overlayScreen(true);
+    s.appendChild(el('h2', 'screen-title', 'Sector ' + r.sector + ' · Star Chart'));
+    var started = r.mapRow >= 0;
+    s.appendChild(el('div', 'screen-sub', esc(ns.FACTIONS[r.faction].name.toUpperCase()) + ' TERRITORY · ' + (started ? 'CHOOSE THE NEXT JUMP' : 'CHOOSE YOUR ENTRY POINT')));
+
+    var COLS = m.COLS, ROWS = m.ROWS, cellW = 100, rowH = 92;
+    var W = COLS * cellW, H = (ROWS + 1) * rowH;
+    var reach = E.mapReachable(), cur = E.currentNode();
+
+    function cx(col) { return (col + 0.5) * cellW; }
+    function xy(node) { return { x: cx(node.col) + mapJit(node.row, node.col, 0), y: H - (node.row + 0.5) * rowH + mapJit(node.row, node.col, 1) }; }
+    function targetOf(node, tc) {
+      if (tc === 'boss') return m.boss;
+      var nr = m.rows[node.row + 1];
+      for (var i = 0; i < nr.length; i++) if (nr[i].col === tc) return nr[i];
+      return null;
+    }
+
+    var svg = '<svg class="starchart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMin meet">';
+    // edges
+    for (var ri = 0; ri < ROWS; ri++) {
+      m.rows[ri].forEach(function (node) {
+        node.edges.forEach(function (tc) {
+          var t = targetOf(node, tc); if (!t) return;
+          var a = xy(node), b = xy(t);
+          var cls = (node === cur && reach.indexOf(t) >= 0) ? 'live' : (node.visited && t.visited) ? 'trav' : 'dim';
+          svg += '<line class="edge ' + cls + '" x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) + '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1) + '"/>';
+        });
+      });
+    }
+    // nodes
+    function nodeMarkup(node) {
+      var p = xy(node), icon = ns.MAP_ICONS[node.type] || ns.MAP_ICONS.fight;
+      var isBoss = node.type === 'boss';
+      var ring = isBoss ? 28 : 20, size = isBoss ? 24 : 16;
+      var reachable = reach.indexOf(node) >= 0;
+      var state = node === cur ? 'current' : node.visited ? 'visited' : reachable ? 'reachable' : 'locked';
+      return '<g class="mapnode ' + state + '" data-row="' + node.row + '" data-col="' + node.col + '">' +
+        '<circle class="ring" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + ring + '"/>' +
+        '<g class="glyph" style="color:' + icon.color + '">' + mapIconPaths(icon, p.x, p.y, size) + '</g>' +
+        '<circle class="hit" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + (ring + 9) + '"/>' +
+        '</g>';
+    }
+    m.rows.forEach(function (row) { row.forEach(function (n) { svg += nodeMarkup(n); }); });
+    svg += nodeMarkup(m.boss);
+    svg += '</svg>';
+
+    var wrap = el('div', 'map-wrap');
+    wrap.innerHTML = svg;
+    s.appendChild(wrap);
+
+    var legend = el('div', 'map-legend');
+    ['fight', 'elite', 'event', 'random', 'shop', 'rest', 'treasure', 'boss'].forEach(function (t) {
+      var ic = ns.MAP_ICONS[t];
+      legend.innerHTML += '<span class="leg"><span class="leg-ic" style="color:' + ic.color + '">' +
+        '<svg viewBox="0 0 48 48">' + mapIconPaths(ic, 24, 24, 17) + '</svg></span>' + esc(NODE_LABEL[t]) + '</span>';
+    });
+    s.appendChild(legend);
+
+    wrap.addEventListener('pointerdown', function (ev) {
+      var g = ev.target.closest ? ev.target.closest('.mapnode') : null;
+      if (!g || !g.classList.contains('reachable')) return;
+      var row = +g.getAttribute('data-row'), col = +g.getAttribute('data-col');
+      var node = (row >= m.ROWS) ? m.boss : null;
+      if (!node) { m.rows[row].forEach(function (n) { if (n.col === col) node = n; }); }
+      if (node && E.enterNode(node)) { SFX.play(); U.refresh(); }
+    });
+
+    // scroll so the active frontier is in view (bottom on entry, current node later)
+    setTimeout(function () {
+      var svgEl = wrap.querySelector('svg');
+      if (!svgEl) return;
+      var rect = svgEl.getBoundingClientRect();
+      var scale = rect.height / H;
+      var focusY = cur ? xy(cur).y * scale : H * scale;
+      wrap.scrollTop = Math.max(0, focusY - wrap.clientHeight * 0.62);
+    }, 0);
+  }
+
+  /* ====================== TREASURE ====================== */
+  function showTreasure() {
     updateHUD();
     var r = E.run;
     var s = overlayScreen(true);
-    s.appendChild(el('h2', 'screen-title', 'Choose Your Path'));
-    s.appendChild(el('div', 'screen-sub', 'SECTOR ' + r.sector + ' · ' + esc(ns.FACTIONS[r.faction].name.toUpperCase()) + ' TERRITORY'));
-    r.nodeOptions.forEach(function (opt, i) {
-      var ni = NODE_INFO[opt];
-      var btn = el('div', 'panel-btn ' + ni.cls,
-        '<div class="pb-title">' + ni.title + '</div><div class="pb-desc">' + esc(ni.desc) + '</div>');
-      btn.addEventListener('pointerdown', function () {
-        SFX.tap();
-        E.chooseNode(i);
-        U.refresh();
-      });
-      s.appendChild(btn);
-    });
-    // upcoming nodes preview
-    var up = B.sector.script.slice(r.nodeIdx + 1).map(function (n) {
-      return n === 'boss' ? 'BOSS' : n === 'elite' ? 'ELITE' : '·';
-    }).join(' ');
-    if (up) s.appendChild(el('div', 'footer-note', 'AHEAD: ' + up));
+    s.appendChild(el('h2', 'screen-title', 'Supply Cache'));
+    s.appendChild(el('div', 'screen-sub', 'A SEALED CACHE, LONG FORGOTTEN'));
+    if (r.treasure) {
+      var a = ns.ARTIFACTS[r.treasure];
+      var fr = el('div', 'comm-frame');
+      fr.innerHTML = artSVG(a.art, 'portrait', '#ffb02e');
+      s.appendChild(fr);
+      s.appendChild(el('div', 'gain-list', '<div>◆ ' + esc(a.name) + ' — ' + esc(a.desc) + '</div>'));
+    } else {
+      s.appendChild(el('div', 'gain-list', '<div>Relic vault already full — salvaged for +40 credits.</div>'));
+    }
+    var btn = el('button', 'btn', 'TAKE IT');
+    btn.addEventListener('pointerdown', function () { SFX.coin(); E.finishTreasure(); U.refresh(); });
+    s.appendChild(btn);
   }
 
   /* ====================== COMBAT ====================== */

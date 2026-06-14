@@ -65,7 +65,14 @@ async function main() {
   var btn = qa('#overlay .panel-btn').find(function (b) { return b.textContent.indexOf('VANGUARD') >= 0; });
   tap(btn);
   await sleep(50);
-  if (VS.engine.run.phase !== 'combat') throw new Error('expected combat after class pick, got ' + VS.engine.run.phase);
+  if (VS.engine.run.phase !== 'map') throw new Error('expected star-chart map after class pick, got ' + VS.engine.run.phase);
+  if (!qa('#overlay .mapnode.reachable').length) throw new Error('map has no reachable start nodes');
+  console.log('map boot: OK, ' + qa('#overlay .mapnode.reachable').length + ' start nodes');
+
+  // enter the first node (row 0 is always a fight) to reach combat
+  tap(qa('#overlay .mapnode.reachable')[0]);
+  await sleep(60);
+  if (VS.engine.run.phase !== 'combat') throw new Error('expected combat after entering a fight node, got ' + VS.engine.run.phase);
   if (!qa('#hand .card').length) throw new Error('hand did not render');
   console.log('combat boot: OK, hand size ' + qa('#hand .card').length);
 
@@ -131,6 +138,16 @@ async function main() {
         if (end) tap(end);
         await sleep(400);
       }
+    } else if (phase === 'map') {
+      // star-chart: tap a reachable node
+      var node = null;
+      for (var mtries = 0; mtries < 40 && !node; mtries++) {
+        node = qa('#overlay .mapnode.reachable')[0];
+        if (!node) await sleep(40);
+      }
+      if (!node) throw new Error('no reachable map node');
+      tap(node);
+      await sleep(120);
     } else {
       // overlay phase: tap the first actionable element (it may render after
       // a victory/defeat delay, so poll briefly)

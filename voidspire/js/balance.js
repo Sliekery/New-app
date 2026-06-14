@@ -51,13 +51,21 @@
       strEverySectors: 3,
     },
 
-    /* ---- Sector / node structure ------------------------------------ */
+    /* ---- Sector / encounters ---------------------------------------- */
     sector: {
-      // node script per sector; 'choice' = player picks one of two random nodes
-      script: ['fight', 'choice', 'fight', 'choice', 'elite', 'choice', 'choice', 'boss'],
-      // weighted pool used for 'choice' slots (two distinct options are offered)
-      choiceWeights: { fight: 38, event: 30, shop: 12, rest: 20 },
       eliteChance2Enemies: 0.35, // chance an elite brings a minion (sector 3+)
+    },
+
+    /* ---- Branching map (Slay-the-Spire-style star chart) ------------- */
+    map: {
+      rows: 7,             // content rows per sector (the boss sits above them)
+      cols: 4,             // max horizontal lanes
+      paths: 6,            // random-walk paths used to weave the chart
+      typeWeights: { fight: 50, event: 16, random: 11, shop: 6, rest: 6, elite: 14, treasure: 5 },
+      eliteFromRow: 2,     // no elite (mini-boss) nodes before this row (0-based)
+      shopRestFromRow: 1,  // no shop/rest nodes before this row
+      treasureRow: -1,     // -1 = no dedicated treasure row (treasure is an occasional node)
+      restBeforeBoss: false, // rest is a routing choice with opportunity cost, not a freebie
     },
 
     /* ---- Rewards ------------------------------------------------------ */

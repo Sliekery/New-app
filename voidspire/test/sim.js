@@ -229,13 +229,20 @@ function step() {
   var E = VS.engine;
   var r = E.run;
   switch (r.phase) {
-    case 'node-select': {
-      // prefer rest when hurt, fights for value, events otherwise
-      var want = r.hp < r.maxHp * 0.55 ? 'rest' : 'fight';
-      var i = r.nodeOptions.indexOf(want);
-      E.chooseNode(i >= 0 ? i : (rand() < 0.5 ? 0 : 1));
+    case 'map': {
+      var reach = E.mapReachable();
+      var hurt = r.hp < r.maxHp * 0.5;
+      var find = function (t) { return reach.filter(function (n) { return n.type === t; })[0]; };
+      var node = null;
+      if (hurt) node = find('rest');               // heal up when low
+      if (!node) node = find('treasure');          // free relics are great
+      if (!node && hurt) node = reach.filter(function (n) { return n.type !== 'elite'; })[0]; // dodge elites when low
+      if (!node) node = find('shop') || find('event');
+      if (!node) node = reach[Math.floor(rand() * reach.length)];
+      E.enterNode(node);
       break;
     }
+    case 'treasure': E.finishTreasure(); break;
     case 'combat': botCombat(); break;
     case 'reward': {
       var bi = -1, bs = 0;
