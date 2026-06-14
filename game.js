@@ -45,7 +45,9 @@ function saveGame(){
       attrs:player.attrs, equip:player.equip, inv:player.inv,
       builds:player.builds||[], known:player.known, bars:player.bars, skillPts:player.skillPts,
       promo:player.promo||0, bounty:player.bounty||null, vault:player.vault||[],
-      hero:{recruited:hench&&hench.recruited, stance:hench&&hench.stance},
+      hero:{recruited:hench&&hench.recruited},
+      partyStance:player.partyStance||'guard',
+      party:allies.filter(a=>!a.minion).map(a=>a.pet?'pet':a.role),
       zone:MAPID, qs,
     }));
   }catch(e){}
@@ -215,9 +217,13 @@ function travelTo(zid,fromId){
     for(const f of effects) fxKill(f);
     for(const e of enemies) if(e.av){ scene.remove(e.av); e.av=null; }
     for(const n of npcs) if(n.av){ scene.remove(n.av); n.av=null; }
+    for(const a of allies) if(a.av){ scene.remove(a.av); a.av=null; }
   }
   effects.length=0; ftexts.length=0; projectiles.length=0; drops.length=0;
   enemies.length=0; npcs.length=0;
+  // minions don't travel between zones; henchmen & pet do (revived)
+  for(let i=allies.length-1;i>=0;i--){ if(allies[i].minion) allies.splice(i,1); else { allies[i].dead=false; allies[i].hp=allies[i].maxHp; } }
+  player.partyFlag=null;
   MAPID=zid;
   buildZone();
   buildMinimap();
@@ -229,8 +235,9 @@ function travelTo(zid,fromId){
   player.moveTo=null; player.target=null; player.engaged=false; player.approach=null;
   cancelCast();
   if(ZONES[zid].safe){ resetMorale(); player.hp=pMaxHp(); player.en=pMaxEn(); player.skillReady.fill(0); player.adr=0; } // GW1: a town clears morale & recharges
-  hench.dead=false; hench.hp=hench.maxHp; hench.flag=null;
+  hench.dead=false; hench.hp=hench.maxHp;
   const hp2=findOpen(ent[0],ent[1]+1); hench.x=hp2.x; hench.y=hp2.y;
+  for(const a of allies){ const ap=findOpen(ent[0],ent[1]); a.x=ap.x+rand(-20,20); a.y=ap.y+rand(-20,20); a.target=null; }
   banner(ZONES[zid].name.toUpperCase(),ZONES[zid].sub);
   saveGame();
 }
@@ -275,12 +282,14 @@ function buildMinimap(){
    bought from the skill trainer (gold + skill points), and you compose your
    own 8-slot bar — editable only in town, GW1 outpost rule. ---------------- */
 // Everyone carries a res signet, GW1 tradition.
-const RES_SKILL={id:'res', name:'Restore Ally', icon:'💫', en:0, rc:90, cast:3, type:'res',
-  desc:'Signet (3s): resurrect Lyra at 50% health. Stand near her body.',
-  fx(){ if(hench.dead){
-    hench.dead=false; hench.hp=Math.round(hench.maxHp*0.5); hench.cond={};
-    effects.push({type:'res',x:hench.x,y:hench.y,t:now,dur:0.8});
-    ftext(hench.x,hench.y,'Restored!','#a0c8ff',14);
+function deadCompanions(){ const d=[]; if(hench.recruited&&hench.dead) d.push(hench); for(const a of allies) if(a.dead&&!a.minion) d.push(a); return d; }
+function nearestDeadCompanion(){ let best=null,bd=240; for(const c of deadCompanions()){ const dd=dist(player.x,player.y,c.x,c.y); if(dd<bd){best=c;bd=dd;} } return best; }
+const RES_SKILL={id:'res', name:'Restore Ally', icon:'💫', en:0, rc:30, cast:3, type:'res',
+  desc:'Signet (3s): resurrect a fallen companion at 50% health. Stand near their body.',
+  fx(){ const c=nearestDeadCompanion(); if(c){
+    c.dead=false; c.hp=Math.round(c.maxHp*0.5); c.cond={};
+    effects.push({type:'res',x:c.x,y:c.y,t:now,dur:0.8});
+    ftext(c.x,c.y,'Restored!','#a0c8ff',14);
   }}};
 
 const WARRIOR_POOL=[
@@ -407,7 +416,65 @@ ELE_POOL.push(
       effects.push({type:'heal',x:low.x,y:low.y,t:now,dur:0.6});
     }},
 );
-// Signet of Capture + the three capturable boss elites (any profession may slot them).
+
+const RANGER_POOL=[
+  {id:'r_power', name:'Power Shot', icon:'🎯', en:5, rc:2, cast:0, type:'ranged', range:330, desc:'Bow attack: a strong shot for +12 damage.',
+    fx(t){ if(t&&!t.dead) fireProjectile(player,t,markMod(rollDmg(player)+12),'#d8e0a0'); }},
+  {id:'r_poison', name:'Poison Arrow', icon:'🏹', en:10, rc:6, cast:0, type:'ranged', range:330, desc:'Bow attack that strikes for +6 and inflicts Poison for 10s.',
+    fx(t){ if(t&&!t.dead) fireProjectile(player,t,markMod(rollDmg(player)+6),'#9ad860',d=>{addCond(d,'poison',10); ftext(d.x,d.y,'Poisoned!','#7ac84a',11);}); }},
+  {id:'r_pin', name:'Pin Down', icon:'📌', en:8, rc:10, cast:0, type:'ranged', range:330, desc:'Bow attack: +5 damage and Cripples the foe for 10s.',
+    fx(t){ if(t&&!t.dead) fireProjectile(player,t,markMod(rollDmg(player)+5),'#d8e0a0',d=>{addCond(d,'cripple',10); ftext(d.x,d.y,'Crippled!','#e3a23c',11);}); }},
+  {id:'r_savage', name:'Savage Shot', icon:'💢', en:6, rc:4, cast:0, type:'ranged', range:330, desc:'Bow attack: +10 damage and Dazes — interrupts a casting foe.',
+    fx(t){ if(t&&!t.dead) fireProjectile(player,t,markMod(rollDmg(player)+10),'#ffd0a0',d=>{addCond(d,'dazed',4); ftext(d.x,d.y,'Interrupt!','#d0a0ff',11);}); }},
+  {id:'r_troll', name:'Troll Salve', icon:'🌿', en:5, rc:12, cast:1.5, type:'self', desc:'Skill (1.5s): a healing balm — regenerate health quickly for 8s.',
+    fx(){ player.buffs.regen=now+8; ftext(player.x,player.y,'Troll Salve','#70e070',12); }},
+  {id:'r_whirl', name:'Whirling Defense', icon:'🌀', en:10, rc:20, cast:0, type:'self', desc:'Stance (8s): deflect attacks — you take 40% less damage.',
+    fx(){ player.buffs.stone=now+8; ftext(player.x,player.y,'Whirling Defense','#c8e0b0',12); }},
+  {id:'r_pet', name:'Call Companion', icon:'🐾', en:10, rc:20, cast:2, type:'self', desc:'Spell (2s): call your animal companion to your side (or heal it if present).',
+    fx(){ summonPet(); }},
+  RES_SKILL,
+];
+RANGER_POOL.push(
+  {id:'r_barrage', name:'Barrage', icon:'☄️', en:5, rc:1, cast:0, type:'pbaoe', desc:'Bow attack: loose arrows at every foe within range of your target.',
+    fx(t){ if(!t||t.dead) return; const ox=t.x,oy=t.y;
+      for(const e of enemies) if(!e.dead&&dist(ox,oy,e.x,e.y)<150) fireProjectile(player,e,markMod(rollDmg(player)),'#d8e0a0');
+      player.nextAtk=now+player.atkInt; }},
+  {id:'r_dist', name:'Distracting Shot', icon:'🎇', en:5, rc:8, cast:0, type:'ranged', range:330, desc:'Bow attack: +4 damage and Dazes the foe for 6s.',
+    fx(t){ if(t&&!t.dead) fireProjectile(player,t,markMod(rollDmg(player)+4),'#ffe0b0',d=>{addCond(d,'dazed',6); ftext(d.x,d.y,'Dazed!','#d0a0ff',11);}); }},
+  {id:'r_apply', name:'Apply Poison', icon:'🧪', en:10, rc:12, cast:0, type:'self', desc:'Preparation (24s): your arrows inflict Poison for the next 24 seconds.',
+    fx(){ player.buffs.applypoison=now+24; ftext(player.x,player.y,'Apply Poison','#9ad860',12); }},
+);
+
+const NECRO_POOL=[
+  {id:'n_bolt', name:'Dark Bolt', icon:'🌑', en:5, rc:2, cast:1, type:'ranged', range:290, desc:'Spell (1s): a bolt of shadow for 24 damage.',
+    fx(t){ if(t&&!t.dead) fireProjectile(player,t,bloodMod(24),'#9a50c8'); }},
+  {id:'n_vamp', name:'Vampiric Gaze', icon:'🩸', en:10, rc:4, cast:1, type:'ranged', range:280, desc:'Spell (1s): steal 30 life from the foe — they lose it, you gain it.',
+    fx(t){ if(!t||t.dead) return; const dmg=bloodMod(30); applyDamage(player,t,dmg,'#c83060');
+      player.hp=Math.min(pMaxHp(),player.hp+Math.round(dmg*0.7)); ftext(player.x,player.y,'+'+Math.round(dmg*0.7),'#c83060',13);
+      effects.push({type:'beam',x:t.x,y:t.y,x2:player.x,y2:player.y,t:now,dur:0.3}); }},
+  {id:'n_siphon', name:'Life Siphon', icon:'🔻', en:10, rc:8, cast:1, type:'ranged', range:300, desc:'Hex Spell (1s): the foe bleeds life to you — Poison on them, health to you over time.',
+    fx(t){ if(!t||t.dead) return; addCond(t,'poison',12); player.buffs.regen=now+12; ftext(t.x,t.y,'Siphoned','#c83060',11); }},
+  {id:'n_weak', name:'Enfeeble', icon:'🦴', en:5, rc:5, cast:1, type:'ranged', range:300, desc:'Hex Spell (1s): afflict the foe with Weakness for 15s.',
+    fx(t){ if(t&&!t.dead){ addCond(t,'weak',15); ftext(t.x,t.y,'Weakened!','#c0a060',11); } }},
+  {id:'n_rot', name:'Rotting Touch', icon:'☠️', en:10, rc:6, cast:1, type:'ranged', range:280, desc:'Spell (1s): 18 damage and Poison the foe for 12s.',
+    fx(t){ if(t&&!t.dead) fireProjectile(player,t,bloodMod(18),'#7ac84a',d=>{addCond(d,'poison',12); ftext(d.x,d.y,'Rot!','#7ac84a',11);}); }},
+  {id:'n_minion', name:'Animate Bone Minion', icon:'💀', en:15, rc:3, cast:2, type:'corpse', desc:'Spell (2s): raise a Bone Minion from a nearby corpse to fight for you. It decays over time.',
+    fx(){ summonMinion(); }},
+  {id:'n_well', name:'Well of Blood', icon:'🟥', en:10, rc:20, cast:2, type:'self', desc:'Spell (2s): a well of blood heals you and your allies near you for 60.',
+    fx(){ effects.push({type:'aoe',x:player.x,y:player.y,t:now,dur:0.5,r:90,color:'#c83060'});
+      for(const a of party()){ if(dist(a.x,a.y,player.x,player.y)<90){ a.hp=Math.min(maxHpOf(a),a.hp+60); ftext(a.x,a.y,'+60','#70e070',12); } }
+      for(const a of allies){ if(!a.dead&&dist(a.x,a.y,player.x,player.y)<90){ a.hp=Math.min(a.maxHp,a.hp+60); } } }},
+  RES_SKILL,
+];
+NECRO_POOL.push(
+  {id:'n_barbs', name:'Barbs', icon:'🌵', en:10, rc:8, cast:1, type:'ranged', range:300, desc:'Hex Spell (1s): for 20s, the hexed foe takes +10 damage whenever it is struck.',
+    fx(t){ if(t&&!t.dead){ addCond(t,'barbs',20); ftext(t.x,t.y,'Barbs','#c83060',11); } }},
+  {id:'n_horror', name:'Animate Bone Horror', icon:'👹', en:15, rc:5, cast:3, type:'corpse', desc:'Spell (3s): raise a stronger Bone Horror from a corpse. Scales with Death Magic.',
+    fx(){ summonMinion(1.8); }},
+  {id:'n_blood', name:'Blood Renewal', icon:'❤️‍🔥', en:5, rc:10, cast:1, type:'self', desc:'Spell (1s): sacrifice a little health now to regenerate a lot over 8s.',
+    fx(){ player.hp=Math.max(1,player.hp-20); player.buffs.regen=now+8; ftext(player.x,player.y,'Blood Renewal','#c83060',12); }},
+);
+
 const EXTRA_SKILLS=[
   {id:'cap', name:'Signet of Capture', icon:'📜', en:0, rc:2, cast:2, type:'capture',
     desc:'Signet (2s): used beside a slain boss, learn its elite skill. Slot the elite at the trainer afterward.',
@@ -425,10 +492,11 @@ const EXTRA_SKILLS=[
     fx(t){ meleeAttack(player,t,strMod(24),d=>{ addCond(d,'bleed',12); addCond(d,'deepwound',12); ftext(d.x,d.y,'Rake!','#b050d0',12); }); }},
 ];
 const SKILL_BY_ID={};
-for(const s of [...WARRIOR_POOL,...ELE_POOL,RES_SKILL,...EXTRA_SKILLS]) SKILL_BY_ID[s.id]=s;
+for(const s of [...WARRIOR_POOL,...ELE_POOL,...RANGER_POOL,...NECRO_POOL,RES_SKILL,...EXTRA_SKILLS]) SKILL_BY_ID[s.id]=s;
 const DEFAULT_BARS={
   warrior:['w_sever','w_gash','w_final','w_ham','w_sig','w_frenzy','w_fbolt','res'],
-  elementalist:['e_flare','e_fball','e_light','e_ice','e_immo','e_earth','e_aura','res'],
+  ranger:['r_power','r_poison','r_pin','r_savage','r_troll','r_whirl','r_pet','res'],
+  necromancer:['n_bolt','n_vamp','n_siphon','n_weak','n_rot','n_minion','n_well','res'],
 };
 const skillCost=()=>100+60*Math.max(0,(player.known[player.cls]||[]).length-8);
 function learnSkill(id){
@@ -465,24 +533,34 @@ function setBarSlot(slot,id){
   return true;
 }
 const CLASSES={
-  warrior:{label:'Warrior (W/E)', icon:'⚔️',
-    blurb:'Heavy melee. Sword chains, conditions and a self-heal, with a touch of fire from your Elementalist secondary.',
-    pool:WARRIOR_POOL, baseHp:100, baseEn:30, enRegen:1.33, dmgMin:12, dmgMax:18, atkInt:1.2, range:MELEE_RANGE},
-  elementalist:{label:'Elementalist (E/Mo)', icon:'🔥',
-    blurb:'Glass-cannon caster. Fire, air and earth magic at range — a wand auto-attack, and Monk restoration as your secondary.',
-    pool:ELE_POOL, baseHp:90, baseEn:45, enRegen:1.75, dmgMin:8, dmgMax:13, atkInt:1.5, range:280},
+  warrior:{label:'Warrior', icon:'⚔️', wtype:'sword',
+    blurb:'Heavy melee. Sword chains, adrenaline skills, conditions and a self-heal. Highest armour.',
+    pool:WARRIOR_POOL, baseHp:100, baseEn:25, enRegen:1.0, dmgMin:12, dmgMax:18, atkInt:1.2, range:MELEE_RANGE},
+  ranger:{label:'Ranger', icon:'🏹', wtype:'bow',
+    blurb:'Precise ranged bow. Poison and cripple, interrupts, a self-heal, and an animal companion.',
+    pool:RANGER_POOL, baseHp:90, baseEn:35, enRegen:1.33, dmgMin:10, dmgMax:16, atkInt:1.3, range:330},
+  necromancer:{label:'Necromancer', icon:'💀', wtype:'wand',
+    blurb:'Dark caster. Life-steal, hexes and conditions — and raise the slain as minions. Soul Reaping fuels your energy.',
+    pool:NECRO_POOL, baseHp:90, baseEn:40, enRegen:1.5, dmgMin:8, dmgMax:13, atkInt:1.5, range:280},
 };
 let SKILLS=DEFAULT_BARS.warrior.map(id=>SKILL_BY_ID[id]); // rebound by applyBar()
 
 /* ---------------- attributes & items (GW1-style) ---------------- */
 const CLASS_ATTRS={
   warrior:['Strength','Swordsmanship','Tactics'],
-  elementalist:['Energy Storage','Fire Magic','Storm Magic'],
+  ranger:['Expertise','Marksmanship','Wilderness Survival'],
+  necromancer:['Soul Reaping','Blood Magic','Death Magic'],
 };
 const ATTR_DESC={
-  'Strength':'+1.5% adrenaline skill damage and +1 armor per rank',
+  'Strength':'+1.5% adrenaline skill damage and +1 armour per rank',
   'Swordsmanship':'+2% sword damage per rank',
   'Tactics':'Healing Signet heals +2% per rank',
+  'Expertise':'−4% energy cost of your skills per rank',
+  'Marksmanship':'+4% bow damage per rank',
+  'Wilderness Survival':'+ self-heal & survival skill strength per rank',
+  'Soul Reaping':'+2 energy per rank when a creature dies near you',
+  'Blood Magic':'+4% dark/life-steal damage per rank',
+  'Death Magic':'stronger, longer-lived minions per rank',
   'Energy Storage':'+3 maximum energy per rank',
   'Fire Magic':'+4% fire spell & wand damage per rank',
   'Storm Magic':'+4% lightning and cold damage per rank',
@@ -491,6 +569,8 @@ const attr=n=>player.attrs[n]||0;
 const fireMod=d=>Math.round(d*(1+0.04*attr('Fire Magic')));
 const stormMod=d=>Math.round(d*(1+0.04*attr('Storm Magic')));
 const strMod=d=>Math.round(d*(1+0.015*attr('Strength')));
+const markMod=d=>Math.round(d*(1+0.04*attr('Marksmanship')));
+const bloodMod=d=>Math.round(d*(1+0.04*attr('Blood Magic')));
 
 // GW1-style attribute point economy: raising an attribute costs progressively
 // more, from a pool that grows as you level. You can master one or two lines.
@@ -508,14 +588,20 @@ const SKILL_ATTR={
   e_flare:'Fire Magic',e_fball:'Fire Magic',e_immo:'Fire Magic',e_meteor:'Fire Magic',
   e_light:'Storm Magic',e_ice:'Storm Magic',e_chain:'Storm Magic',e_nova:'Storm Magic',
   e_earth:'Energy Storage',e_aura:'Energy Storage',e_stone:'Energy Storage',e_mend:'Energy Storage',
+  r_power:'Marksmanship',r_poison:'Wilderness Survival',r_pin:'Marksmanship',r_savage:'Expertise',
+  r_troll:'Wilderness Survival',r_whirl:'Expertise',r_pet:'Wilderness Survival',r_barrage:'Marksmanship',
+  r_dist:'Expertise',r_apply:'Wilderness Survival',
+  n_bolt:'Blood Magic',n_vamp:'Blood Magic',n_siphon:'Blood Magic',n_weak:'Death Magic',
+  n_rot:'Death Magic',n_minion:'Death Magic',n_well:'Blood Magic',n_barbs:'Death Magic',
+  n_horror:'Death Magic',n_blood:'Blood Magic',
   el_aegis:'Strength',el_storm:'Storm Magic',el_rake:'Swordsmanship',
 };
 
 const RARITY_COLORS=['#e8e8e8','#7ab0ff','#c080ff','#ffd34d'];
 const RARITY_PREFIX=['Worn','Istani','Sunspear',"Blackmaw's"];
 function genW(wt,lvl,rar){
-  const base=wt==='sword'?['Sword','Cutlass','Blade']:['Wand','Scepter','Cane'];
-  const mn=Math.round((wt==='sword'?8:6)+1.8*lvl+2.5*rar);
+  const base=wt==='sword'?['Sword','Cutlass','Blade']:wt==='bow'?['Bow','Longbow','Recurve']:['Wand','Scepter','Cane'];
+  const mn=Math.round((wt==='sword'?8:wt==='bow'?7:6)+1.8*lvl+2.5*rar);
   return {kind:'weapon',wtype:wt,rarity:rar,name:RARITY_PREFIX[rar]+' '+base[irand(0,2)],
     dmgMin:mn,dmgMax:mn+6+2*rar,value:12+6*lvl+25*rar};
 }
@@ -523,12 +609,15 @@ function genOff(ot,lvl,rar){
   if(ot==='shield') return {kind:'off',otype:'shield',rarity:rar,name:RARITY_PREFIX[rar]+' Shield',armor:8+2*lvl+4*rar,value:10+5*lvl+20*rar};
   return {kind:'off',otype:'focus',rarity:rar,name:RARITY_PREFIX[rar]+' Focus',energy:4+Math.round(lvl/2)+3*rar,value:10+5*lvl+20*rar};
 }
+const ALL_WTYPES=['sword','bow','wand'];
 function makeEquip(lvl,rarity){
   const rar=rarity!==undefined?rarity:(Math.random()<0.12?2:Math.random()<0.45?1:0);
+  const myW=CLASSES[player.cls]?CLASSES[player.cls].wtype:'sword';
   const r=Math.random();
-  if(r<0.4) return genW(player.cls==='warrior'?'sword':'wand',lvl,rar); // bias to your class
-  if(r<0.65) return genW(Math.random()<0.5?'sword':'wand',lvl,rar);
-  return genOff(Math.random()<0.5?'shield':'focus',lvl,rar);
+  if(r<0.45) return genW(myW,lvl,rar);                                   // bias to your class weapon
+  if(r<0.65) return genW(ALL_WTYPES[irand(0,2)],lvl,rar);
+  const off=CLASS_OFFHAND[player.cls];                                   // an off-hand you can use
+  return genOff(off==='shield'?'shield':'focus',lvl,rar);
 }
 function makeTrophy(e){return {kind:'trophy',rarity:0,name:e.trophy,value:4+2*e.lvl};}
 function makeMat(name){return {kind:'mat',rarity:0,name,value:6};}
@@ -580,9 +669,9 @@ function makePlayer(){
     cls:'warrior', enRegen:1.33, adr:0,
     inv:[], equip:{weapon:{kind:'weapon',wtype:'sword',rarity:0,name:'Training Sword',dmgMin:10,dmgMax:16,value:0}, off:null},
     attrs:{}, skillPts:1,
-    promo:0, bounty:null, vault:[],
-    known:{warrior:[...DEFAULT_BARS.warrior,'cap'], elementalist:[...DEFAULT_BARS.elementalist,'cap']},
-    bars:{warrior:[...DEFAULT_BARS.warrior], elementalist:[...DEFAULT_BARS.elementalist]},
+    promo:0, bounty:null, vault:[], partyStance:'guard', partyFlag:null,
+    known:Object.fromEntries(Object.keys(DEFAULT_BARS).map(c=>[c,[...DEFAULT_BARS[c],'cap']])),
+    bars:Object.fromEntries(Object.keys(DEFAULT_BARS).map(c=>[c,[...DEFAULT_BARS[c]]])),
     lvl:1, xp:0, gold:0, morale:0,
     baseHp:100, baseEn:30, hp:100, en:30,
     dmgMin:12, dmgMax:18, atkInt:1.2, range:MELEE_RANGE, speed:130,
@@ -617,17 +706,83 @@ function playerArmor(){
 function makeHench(){
   const p=findOpen(12,79);
   return {
-    kind:'hench', name:'Lyra', team:0, x:p.x, y:p.y, r:12, face:0, lvl:2,
-    maxHp:110, hp:110, dmgMin:9, dmgMax:14, atkInt:1.5, range:240, speed:145,
+    kind:'hench', role:'healer', heal:true, name:'Lyra', team:0, x:p.x, y:p.y, r:12, face:0, lvl:2,
+    maxHp:110, hp:110, dmgMin:9, dmgMax:14, atkInt:1.5, range:260, speed:145, armor:60,
     nextAtk:0, nextHeal:0, target:null, cond:{}, dead:false, deadAt:0, lastCombat:-99,
-    recruited:false,        // joins as a Hero during the primary chain
-    stance:'guard',         // guard | aggressive | passive
-    flag:null,              // {x,y} hold-position flag, or null to follow
+    recruited:false,        // joins as your lead Healer during the primary chain
   };
 }
 const heroActive=()=>hench.recruited&&!hench.dead;
 const heroOrPlayer=f=>f===player||(f===hench&&hench.recruited&&!hench.dead);
-const party=()=>heroActive()?[player,hench]:[player];
+const party=()=>{ const a=[player]; if(heroActive()) a.push(hench); for(const m of allies) if(!m.dead) a.push(m); return a; };
+
+/* ---------------- party: Kamadan-style henchmen, minions & pets ---------------- */
+const allies=[];               // extra companions beyond Lyra (the lead Healer = hench)
+const PARTY_CAP=4;             // player + up to 3 companions (minions & pets don't count)
+// the henchman roster you can hire in town — role-based AI, original names
+const HENCH_ROSTER=[
+  {role:'fighter',name:'Ohru',  icon:'⚔️',model:'knight',tint:0x9a9aa8,range:MELEE_RANGE,atkInt:1.2,hp:1.35,dmg:1.1,armor:80,color:'#b0c8ff',blurb:'Fighter — a sword-arm to hold the line.'},
+  {role:'prot',   name:'Casmir',icon:'🛡️',model:'mage',  tint:0x8aa0d0,range:260,atkInt:1.6,hp:1.05,dmg:0.6,armor:60,color:'#9fd0ff',blurb:'Protector — wards allies and strips conditions.'},
+  {role:'mage',   name:'Pyra',  icon:'🔥',model:'mage',  tint:0xc86a3a,range:300,atkInt:1.7,hp:0.85,dmg:1.35,armor:60,color:'#ff9840',blurb:'Mage — fire from afar.'},
+  {role:'archer', name:'Nari',  icon:'🏹',model:'rogue', tint:0x6a8a4a,range:325,atkInt:1.3,hp:0.95,dmg:1.0,armor:65,color:'#d8e0a0',blurb:'Archer — poisons at range.'},
+  {role:'necro',  name:'Vael',  icon:'💀',model:'rogueh',tint:0x6a4a8a,range:280,atkInt:1.6,hp:0.95,dmg:0.95,armor:60,color:'#9a50c8',blurb:'Necromancer — curses and raises the dead.'},
+];
+const ROSTER_BY=Object.fromEntries(HENCH_ROSTER.map(s=>[s.role,s]));
+const allyStance=()=>player.partyStance||'guard';
+function partyCount(){ return (heroActive()?1:0)+allies.filter(a=>!a.minion&&!a.pet&&!a.dead).length; }
+
+function makeAlly(spec){
+  const lv=Math.max(2,player.lvl), hp=Math.round((90+18*lv)*spec.hp);
+  return {kind:'ally', role:spec.role, name:spec.name, spec, team:0, x:player.x, y:player.y, r:12, face:0, lvl:lv,
+    maxHp:hp, hp, dmgMin:Math.round((6+1.6*lv)*spec.dmg), dmgMax:Math.round((11+1.8*lv)*spec.dmg),
+    atkInt:spec.atkInt, range:spec.range, speed:150, armor:spec.armor,
+    heal:spec.role==='healer'||spec.role==='prot', nextAtk:0, nextHeal:0, target:null, cond:{}, dead:false, deadAt:0, lastCombat:-99};
+}
+function makeMinion(scale,x,y){
+  const lv=Math.max(2,player.lvl), dm=1+0.06*attr('Death Magic'), s=scale||1, hp=Math.round((40+12*lv)*s*dm);
+  return {kind:'ally', role:'minion', minion:true, name:s>1?'Bone Horror':'Bone Minion', team:0, x,y, r:11, face:0, lvl:lv,
+    maxHp:hp, hp, dmgMin:Math.round((5+1.4*lv)*s*dm), dmgMax:Math.round((9+1.6*lv)*s*dm), atkInt:1.1, range:MELEE_RANGE,
+    speed:150, armor:60, decay:now+(26+4*attr('Death Magic')), nextAtk:0, target:null, cond:{}, dead:false, lastCombat:-99, color:'#d8e0d0'};
+}
+function makePet(){
+  const lv=Math.max(2,player.lvl), hp=Math.round(95+22*lv);
+  return {kind:'ally', role:'pet', pet:true, name:'Companion', team:0, x:player.x, y:player.y, r:12, face:0, lvl:lv,
+    maxHp:hp, hp, dmgMin:Math.round(8+1.8*lv), dmgMax:Math.round(13+2*lv), atkInt:1.0, range:MELEE_RANGE,
+    speed:175, armor:65, nextAtk:0, target:null, cond:{}, dead:false, lastCombat:-99, color:'#b09a6a'};
+}
+function summonMinion(scale){
+  let best=null,bd=220;
+  for(const e of enemies){ if(e.dead&&!e.consumed&&now<e.respawnAt){ const d=dist(player.x,player.y,e.x,e.y); if(d<bd){best=e;bd=d;} } }
+  if(!best){ toast('No fresh corpse nearby to animate'); return false; }
+  best.consumed=true; best.respawnAt=now;              // the corpse is spent
+  const m=makeMinion(scale,best.x,best.y); allies.push(m);
+  effects.push({type:'res',x:m.x,y:m.y,t:now,dur:0.8}); toast('A minion rises to serve!'); return true;
+}
+function summonPet(){
+  let pet=allies.find(a=>a.pet);
+  if(pet){ pet.dead=false; pet.hp=pet.maxHp; pet.x=player.x; pet.y=player.y; effects.push({type:'res',x:pet.x,y:pet.y,t:now,dur:0.7}); toast('Your companion is at your side'); return true; }
+  pet=makePet(); allies.push(pet); effects.push({type:'res',x:pet.x,y:pet.y,t:now,dur:0.8}); toast('Your companion joins you'); return true;
+}
+function addHench(role){
+  if(!ROSTER_BY[role]) return;
+  if(!ZONES[MAPID].safe){ toast('Hire companions in town'); return; }
+  if(allies.some(a=>a.role===role&&!a.minion&&!a.pet)){ toast('Already in your party'); return; }
+  if(partyCount()>=PARTY_CAP-1){ toast('Party is full'); return; }
+  allies.push(makeAlly(ROSTER_BY[role])); saveGame();
+}
+function removeHench(role){
+  const i=allies.findIndex(a=>a.role===role&&!a.minion&&!a.pet);
+  if(i>=0){ if(HAS3D&&allies[i].av&&scene) scene.remove(allies[i].av); allies.splice(i,1); saveGame(); }
+}
+function updateAllies(dt){
+  for(let i=allies.length-1;i>=0;i--){
+    const a=allies[i];
+    if(a.minion){ if(!a.dead&&now>a.decay){ a.dead=true; } a.maxHp&&!a.dead&&(a.hp-=2*dt); if(a.hp<=0) a.dead=true; }
+    if(a.dead&&(a.minion||a.pet)&&!a.deadAt) a.deadAt=now;
+    if(a.dead&&a.minion&&now-a.deadAt>3){ if(HAS3D&&a.av&&scene) scene.remove(a.av); allies.splice(i,1); continue; }
+    runAllyAI(a,dt);
+  }
+}
 
 /* Plains-of-Jarin bestiary, grouped into GW1 creature families.
    family is used by Sunward Hunt bounties and collectors. */
@@ -798,7 +953,7 @@ function completeQuest(q){
   saveGame();
 }
 function recruitHero(){
-  hench.recruited=true; hench.dead=false; hench.hp=hench.maxHp; hench.stance='guard';
+  hench.recruited=true; hench.dead=false; hench.hp=hench.maxHp; player.partyStance=player.partyStance||'guard';
   const p=findOpen(Math.floor(player.x/TILE),Math.floor(player.y/TILE)+1);
   hench.x=p.x; hench.y=p.y;
   toast('Lyra has joined you as a Hero — set her stance in the Party panel (👥).');
@@ -933,7 +1088,7 @@ function tryCapture(){
   if(!best){ toast('No fallen boss near enough to capture from'); return false; }
   best.captured=true;
   const id=best.elite, sk=SKILL_BY_ID[id];
-  for(const cls of ['warrior','elementalist']) if(!player.known[cls].includes(id)) player.known[cls].push(id);
+  for(const cls of Object.keys(DEFAULT_BARS)) if(player.known[cls]&&!player.known[cls].includes(id)) player.known[cls].push(id);
   effects.push({type:'res',x:player.x,y:player.y,t:now,dur:0.9});
   banner('ELITE CAPTURED',sk.name);
   toast('Learned elite: '+sk.name+' — slot it in town (✨ Skills).');
@@ -957,10 +1112,11 @@ function maxHpOf(e){
   return m;
 }
 
+const WEAPON_ATTR={warrior:'Swordsmanship',ranger:'Marksmanship',necromancer:'Blood Magic',elementalist:'Fire Magic'};
 function rollDmg(a){
   if(a===player){
     const w=player.equip.weapon;
-    const wAttr=player.cls==='warrior'?'Swordsmanship':'Fire Magic';
+    const wAttr=WEAPON_ATTR[player.cls]||'Swordsmanship';
     return Math.round(irand(w.dmgMin,w.dmgMax)*(1+0.02*attr(wAttr)));
   }
   return irand(a.dmgMin,a.dmgMax);
@@ -977,7 +1133,9 @@ function applyDamage(src,e,amt,color){
     player.adr=Math.min(10,player.adr+0.5);             // adrenaline when struck
     if(cast&&condActive(player,'dazed')){ cancelCast(); toast('Interrupted!'); } // Dazed: hits interrupt your casting
   } else if(e.kind==='enemy'){
-    amt*=armorMult(e.armor); amt=Math.max(1,Math.round(amt));
+    amt*=armorMult(e.armor);
+    if(condActive(e,'barbs')&&src&&src.team===0) amt+=10; // Necro hex: +damage when struck
+    amt=Math.max(1,Math.round(amt));
   }
   e.hp-=amt; e.lastCombat=now;
   if(src) src.lastCombat=now;
@@ -986,7 +1144,7 @@ function applyDamage(src,e,amt,color){
   if(e.kind==='enemy'&&src&&src.team===0){
     if(e.state==='idle'||!e.target) aggro(e,src);
   }
-  if(e.kind==='hench'&&src) e.target=src;
+  if((e.kind==='hench'||e.kind==='ally')&&src) e.target=src;
   if(e===player&&src&&!player.target){ player.target=src; }
   if(e.hp<=0) die(e,src);
 }
@@ -1017,6 +1175,10 @@ function meleeAttack(a,d,bonus,onHit){
 function fireProjectile(a,d,dmg,color,onHit){
   a.face=Math.atan2(d.y-a.y,d.x-a.x);
   a.nextAtk=Math.max(a.nextAtk,now); // keep lunge anim sane
+  // Ranger "Apply Poison" preparation: every arrow also poisons
+  if(a===player&&player.cls==='ranger'&&(player.buffs.applypoison||0)>now){
+    const base=onHit; onHit=t=>{ if(base) base(t); if(!t.dead){ addCond(t,'poison',8); } };
+  }
   projectiles.push({x:a.x,y:a.y,target:d,src:a,dmg,color,speed:380,onHit});
 }
 // signature conditions a creature inflicts on hit (GW1-flavoured by family)
@@ -1037,6 +1199,12 @@ function die(e,src){
       if(e.elite&&!e.captured) toast('It carried an elite form — strike it with Signet of Capture (📜).'); }
     questCredit(e);
     bountyCredit(e);
+    // Necromancer Soul Reaping: energy whenever a creature dies near you
+    if(player.cls==='necromancer'&&!player.dead&&dist(player.x,player.y,e.x,e.y)<700){
+      const sr=1+Math.round(attr('Soul Reaping')*0.7);
+      player.en=Math.min(pMaxEn(),player.en+sr);
+      ftext(player.x,player.y-20,'+'+sr+' en','#9a50c8',11);
+    }
     // xp + loot
     giveXp(18+e.lvl*10);
     if(Math.random()<0.65||e.boss){
@@ -1065,7 +1233,10 @@ function die(e,src){
     },4000);
   } else if(e===hench){
     hench.deadAt=now;
-    toast('Lyra has fallen! Use Restore Ally (💫) near her body.');
+    toast('Lyra has fallen! Restore her at a shrine, a town, or with a res skill.');
+  } else if(e.kind==='ally'){
+    e.deadAt=now; e.target=null;
+    if(!e.minion&&!e.pet) toast(e.name+' has fallen.');
   }
 }
 
@@ -1101,8 +1272,10 @@ function useSkill(i){
   if(now<(player.aftercast||0)) return;   // GW1 aftercast lockout
   const sk=SKILLS[i];
   if(now<player.skillReady[i]){ return; }
+  // Ranger Expertise reduces the energy cost of your skills
+  const eCost=player.cls==='ranger'?Math.max(1,Math.round(sk.en*(1-0.04*attr('Expertise')))):sk.en;
   if(sk.adr&&player.adr<sk.adr){ toast('Not enough adrenaline — keep swinging'); return; }
-  if(player.en<sk.en){ toast('Not enough energy'); return; }
+  if(player.en<eCost){ toast('Not enough energy'); return; }
   const t=player.target;
   if(sk.type==='melee'){
     if(!t||t.dead){ toast('Select a target first (tap a foe)'); return; }
@@ -1113,10 +1286,10 @@ function useSkill(i){
     if(dist(player.x,player.y,t.x,t.y)>(sk.range||300)){ toast('Out of range'); return; }
   }
   if(sk.type==='res'){
-    if(!hench.dead){ toast('Lyra is alive and well'); return; }
-    if(dist(player.x,player.y,hench.x,hench.y)>220){ toast('Move closer to Lyra\'s body'); return; }
+    if(!deadCompanions().length){ toast('No fallen companion to restore'); return; }
+    if(!nearestDeadCompanion()){ toast('Move closer to a fallen companion'); return; }
   }
-  player.en-=sk.en;
+  player.en-=eCost;
   if(sk.adr) player.adr=sk.drainAll?0:player.adr-sk.adr;
   if(sk.cast>0){
     cast={idx:i,t0:now,dur:sk.cast};
@@ -1274,71 +1447,77 @@ function updateEnemy(e,dt){
   }
 }
 
-function updateHench(dt){
-  if(!hench.recruited) return;       // joins as a Hero during the primary chain
-  if(hench.dead){
-    // a fallen Hero recovers when you reach a safe zone (or use Restore Ally)
-    if(inSafeZone(player)&&now-hench.deadAt>3){
-      hench.dead=false; hench.hp=hench.maxHp;
-      const p=findOpen(Math.floor(player.x/TILE),Math.floor(player.y/TILE)+1);
-      hench.x=p.x; hench.y=p.y;
-      effects.push({type:'res',x:hench.x,y:hench.y,t:now,dur:0.8});
+function updateHench(dt){ if(hench.recruited) runAllyAI(hench,dt); }   // Lyra is the lead Healer
+
+// Generic companion AI for Lyra, hired henchmen, minions and pets — role-aware, GW1 henchman-style.
+function runAllyAI(a,dt){
+  if(a.dead){
+    // henchmen & pet recover in a safe zone; minions stay dead (removed by updateAllies)
+    if(!a.minion&&inSafeZone(player)&&now-(a.deadAt||0)>3){
+      a.dead=false; a.hp=a.maxHp;
+      const p=findOpen(Math.floor(player.x/TILE),Math.floor(player.y/TILE)+1); a.x=p.x; a.y=p.y;
+      effects.push({type:'res',x:a.x,y:a.y,t:now,dur:0.7});
     }
     return;
   }
-  tickConds(hench,dt); if(hench.dead) return;
+  tickConds(a,dt); if(a.dead) return;
+  const stance=allyStance();
+  const flag=player.partyFlag, ax=flag?flag.x:player.x, ay=flag?flag.y:player.y;
 
-  // heal (priority — Lyra is a Mender, regardless of stance she always heals)
-  if(now>=hench.nextHeal){
-    let low=null,lowPct=0.7;
-    for(const a of [player,hench]){
-      if(a.dead) continue;
-      const pct=a.hp/maxHpOf(a);
-      if(pct<lowPct&&dist(hench.x,hench.y,a.x,a.y)<260){low=a;lowPct=pct;}
-    }
+  // support roles act first (Healer always heals; Protector heals + cleanses, regardless of stance)
+  if(a.heal&&now>=(a.nextHeal||0)){
+    let low=null,lowPct=0.72;
+    for(const m of party()){ if(m.dead) continue; const pct=m.hp/maxHpOf(m); if(pct<lowPct&&dist(a.x,a.y,m.x,m.y)<320){low=m;lowPct=pct;} }
     if(low){
-      hench.nextHeal=now+7;
-      const heal=50;
+      a.nextHeal=now+(a.role==='prot'?5:6.5);
+      const heal=a.role==='prot'?38:56;
       low.hp=Math.min(maxHpOf(low),low.hp+heal);
-      ftext(low.x,low.y,'+'+heal,'#70e070',14);
+      ftext(low.x,low.y,'+'+heal,'#70e070',13);
       effects.push({type:'heal',x:low.x,y:low.y,t:now,dur:0.6});
-      effects.push({type:'beam',x:hench.x,y:hench.y,x2:low.x,y2:low.y,t:now,dur:0.35});
+      effects.push({type:'beam',x:a.x,y:a.y,x2:low.x,y2:low.y,t:now,dur:0.3});
+      if(a.role==='prot'&&low.cond){ low.cond={}; }    // Protector strips conditions
+      a.nextAtk=Math.max(a.nextAtk,now+0.8);
     }
   }
 
-  // anchor: a flag holds position; otherwise the Hero follows the player
-  const anchor=hench.flag||player;
-  const ax=hench.flag?hench.flag.x:player.x, ay=hench.flag?hench.flag.y:player.y;
-
-  // pick target per AI stance (GW1 Hero behaviour)
+  // choose a foe (offense roles, or any companion in aggressive stance / when threatened)
   let t=null;
-  if(hench.stance!=='passive'){
-    if(player.engaged&&player.target&&!player.target.dead) t=player.target;          // assist the player's called target
-    else if(hench.target&&!hench.target.dead&&hench.target.kind==='enemy') t=hench.target;
-    else if(hench.stance==='aggressive'){                                            // hunt the nearest foe
-      let best=null,bd=AGGRO_R;
-      for(const e of enemies){ if(e.dead||e.hidden) continue; const d=dist(hench.x,hench.y,e.x,e.y); if(d<bd){best=e;bd=d;} }
-      t=best;
+  const offense=!a.heal;
+  if(stance!=='passive'){
+    if(player.engaged&&player.target&&!player.target.dead) t=player.target;        // assist your called target
+    else if(a.target&&!a.target.dead&&a.target.kind==='enemy') t=a.target;
+    else if(stance==='aggressive'||a.minion||a.pet){
+      let best=null,bd=AGGRO_R; for(const e of enemies){ if(e.dead||e.hidden) continue; const d=dist(a.x,a.y,e.x,e.y); if(d<bd){best=e;bd=d;} } t=best;
     }
-    // guard/aggressive won't chase far from their anchor
-    if(t&&dist(t.x,t.y,ax,ay)>(hench.stance==='aggressive'?LEASH_R:300)) t=null;
+    if(t&&dist(t.x,t.y,ax,ay)>((stance==='aggressive'||a.minion||a.pet)?LEASH_R:320)) t=null;
+    if(a.heal&&t&&!(player.engaged&&player.target===t)) t=null; // healers only fight your called target
   }
-  hench.target=t;
+  a.target=t;
 
   if(t){
-    const d=dist(hench.x,hench.y,t.x,t.y);
-    if(d>hench.range) moveToward(hench,t.x,t.y,dt);
-    else if(now>=hench.nextAtk){
-      hench.nextAtk=now+hench.atkInt;
-      fireProjectile(hench,t,rollDmg(hench),'#a0c8ff');
+    const d=dist(a.x,a.y,t.x,t.y), reach=a.range+t.r;
+    if(d>reach) moveToward(a,t.x,t.y,dt);
+    else if(now>=a.nextAtk){
+      a.nextAtk=now+a.atkInt;
+      if(a.range>MELEE_RANGE){
+        a.face=Math.atan2(t.y-a.y,t.x-a.x);
+        const col=a.role==='mage'?'#ff9840':a.role==='archer'?'#d8e0a0':a.role==='necro'?'#9a50c8':a.spec&&a.spec.color||'#a0c8ff';
+        fireProjectile(a,t,rollDmg(a),col,d2=>{
+          if(a.role==='archer'&&Math.random()<0.5){ addCond(d2,'poison',8); }
+          if(a.role==='mage'&&Math.random()<0.4){ addCond(d2,'burn',4); }
+          if(a.role==='necro'&&Math.random()<0.4){ addCond(d2,'weak',8); }
+        });
+        if(a.role==='mage'&&now>=(a.nextNova||0)){ a.nextNova=now+9; // occasional fireball
+          effects.push({type:'aoe',x:t.x,y:t.y,t:now,dur:0.4,r:70,color:'#ff7030'});
+          for(const e of enemies) if(!e.dead&&dist(t.x,t.y,e.x,e.y)<70+e.r) applyDamage(a,e,rollDmg(a),'#ff9040'); }
+      } else meleeAttack(a,t,0);
     }
     return;
   }
-  // move to anchor (flag or player)
-  const dp=dist(hench.x,hench.y,ax,ay);
-  if(dp>(hench.flag?14:90)) moveToward(hench,ax+(hench.flag?0:rand(-20,20)),ay+(hench.flag?0:rand(-20,20)),dt);
-  // out-of-combat regen
-  if(now-hench.lastCombat>6) hench.hp=Math.min(hench.maxHp,hench.hp+8*dt);
+  // follow the anchor (flag or player) when idle
+  const dp=dist(a.x,a.y,ax,ay);
+  if(dp>(flag?14:90)) moveToward(a,ax+(flag?0:rand(-22,22)),ay+(flag?0:rand(-22,22)),dt);
+  if(now-a.lastCombat>6&&!a.minion) a.hp=Math.min(a.maxHp,a.hp+8*dt);
 }
 
 /* ---------------- player update ---------------- */
@@ -1355,6 +1534,8 @@ function updatePlayer(dt){
   // out-of-combat hp regen; fast in outpost
   if(inSafeZone(player)) player.hp=Math.min(pMaxHp(),player.hp+15*dt);
   else if(now-player.lastCombat>6) player.hp=Math.min(pMaxHp(),player.hp+8*dt);
+  // active regeneration buff (Troll Salve / Life Siphon / Blood Renewal)
+  if((player.buffs.regen||0)>now) player.hp=Math.min(pMaxHp(),player.hp+14*dt);
 
   // keyboard
   let kx=0,ky=0;
@@ -2177,23 +2358,38 @@ const NPC_STYLES={
   fisher:{m:'rogue',tint:0x4a88b8},   inn:{m:'mage',tint:0xc86a78},
   scout:{m:'rogue',tint:0xd8b860},
 };
+const PLAYER_MODEL={warrior:'knight',ranger:'rogue',necromancer:'rogueh',elementalist:'mage'};
+const ALLY_MODEL={fighter:'knight',healer:'mage',prot:'mage',mage:'mage',archer:'rogue',necro:'rogueh'};
+const isHumanAlly=e=>e.kind==='ally'&&!e.minion&&!e.pet;
 function makeAvatar(e){
   let g=null;
-  // humanoids (player / Hero / NPCs) use the modeled+animated characters once loaded
+  // humanoids (player / companions / NPCs) use the modeled+animated characters once loaded
   if(modelsReady){
-    if(e.kind==='player') g=gltfAvatar(e.cls==='elementalist'?'mage':'knight',null);
+    if(e.kind==='player') g=gltfAvatar(PLAYER_MODEL[e.cls]||'knight',null);
     else if(e.kind==='hench') g=gltfAvatar('mage',0x3f8a62);
+    else if(isHumanAlly(e)) g=gltfAvatar(ALLY_MODEL[e.role]||'knight', e.spec?e.spec.tint:0x9aa0b0);
     else if(e.kind==='npc'){ const s=NPC_STYLES[e.style]||NPC_STYLES.aldra; g=gltfAvatar(s.m,s.tint); }
   }
-  if(!g&&(e.kind==='player'||e.kind==='hench'||e.kind==='npc')){
-    if(e.kind==='player') g=e.cls==='elementalist'
-      ? humanoid({robe:0x8a3838,armor:0x6a2c2c,trim:0xe8b050,weapon:'staff',hair:0x2a1c10})
-      : humanoid({armor:0x4a7ab5,trim:0x9aa8c0,pants:0x39414f,weapon:'sword',helm:true,metalArmor:true});
+  if(!g&&(e.kind==='player'||e.kind==='hench'||isHumanAlly(e)||e.kind==='npc')){
+    if(e.kind==='player') g=e.cls==='warrior'
+      ? humanoid({armor:0x4a7ab5,trim:0x9aa8c0,pants:0x39414f,weapon:'sword',helm:true,metalArmor:true})
+      : e.cls==='ranger'
+      ? humanoid({armor:0x4a6a3a,trim:0x8aac6a,pants:0x39412f,weapon:'bow',hood:true,robe:0})
+      : humanoid({robe:0x4a3a5a,armor:0x3a2c4a,trim:0xb070d0,weapon:'staff',hood:true});
     else if(e.kind==='hench') g=humanoid({robe:0x3f8a62,armor:0x2f6a4a,trim:0x7ad0a0,weapon:'staff',hood:true});
+    else if(isHumanAlly(e)){
+      const r=e.role;
+      g = r==='fighter' ? humanoid({armor:0x6a6a78,trim:0xa0b0c0,pants:0x39414f,weapon:'sword',helm:true,metalArmor:true})
+        : r==='archer'  ? humanoid({armor:0x4a6a3a,trim:0x8aac6a,pants:0x39412f,weapon:'bow',hood:true,robe:0})
+        : r==='necro'   ? humanoid({robe:0x4a3a5a,armor:0x3a2c4a,trim:0xb070d0,weapon:'staff',hood:true})
+        :                 humanoid({robe:0x3a6a8a,armor:0x2f5a6a,trim:0x9fd0ff,weapon:'staff',hood:true});
+    }
     else g=(e.style==='merchant'||e.style==='inn'||e.style==='crafter')
       ? humanoid({robe:0x6a4a8a,armor:0x5a3a7a,trim:0xd8b860,hood:true})
       : humanoid({armor:0xb59a4a,trim:0xe8d290,pants:0x4a4438,weapon:'banner',metalArmor:true});
   }
+  if(!g&&e.kind==='ally'&&e.minion){ g=humanoid({armor:0xcfc8b0,trim:0x9a9080,pants:0xbfb6a0,weapon:'sword',skin:0xe8e2d0}); g.userData.inner.scale.multiplyScalar(0.85); }
+  if(!g&&e.kind==='ally'&&e.pet){ g=wolfAvatar(); }
   if(!g){ // creatures of the Dunereach — always procedural
     const fam=e.family, bs=e.boss;
     if(fam==='skale') g=skaleAvatar(bs?1.6:0);
@@ -2222,7 +2418,7 @@ function makeAvatar(e){
 
 function syncAvatar(e){
   // burrowed sand-stalkers, and the Hero before she's recruited, aren't shown
-  if(e.hidden||(e===hench&&!hench.recruited)){ if(e.av) e.av.visible=false; return; }
+  if(e.hidden||(e===hench&&!hench.recruited)||(e.kind==='ally'&&e.dead)){ if(e.av) e.av.visible=false; return; }
   if(!e.av) e.av=makeAvatar(e);
   const g=e.av;
   // distance cull: far-off characters cost draw calls but are lost in the fog anyway.
@@ -2508,7 +2704,7 @@ function drawOverlay(){
     fctx.fillStyle='rgba(255,228,190,0.035)'; fctx.fillRect(0,0,VW,VH);
   }
   // entity bars / labels
-  const seen=heroActive()?[...enemies,hench]:[...enemies];
+  const seen=[...enemies, ...(heroActive()?[hench]:[]), ...allies.filter(a=>!a.dead)];
   for(const e of seen){
     if(e.dead||e.hidden) continue;
     if(dist(e.x,e.y,player.x,player.y)>900) continue;
@@ -2603,6 +2799,7 @@ function render(){
   for(const e of enemies) syncAvatar(e);
   for(const n of npcs) syncAvatar(n);
   syncAvatar(player); syncAvatar(hench);
+  for(const a of allies) syncAvatar(a);
 
   // selection ring
   const t=player.target;
@@ -2933,8 +3130,10 @@ function onPanelTap(ev,panel){
   else if(act==='rebind'){ keyListen=v; renderSettings(); }
   else if(act==='resetkeys'){ SETTINGS.keys={}; keyListen=null; saveSettings(); renderSettings(); }
   else if(act==='newgame'){ wipeSave(); location.reload(); }
-  else if(act==='stance'){ hench.stance=v; saveGame(); renderParty(); }
-  else if(act==='flag'){ if(hench.flag){ hench.flag=null; } else { hench.flag={x:hench.x,y:hench.y}; } saveGame(); renderParty(); }
+  else if(act==='stance'){ player.partyStance=v; saveGame(); renderParty(); }
+  else if(act==='flag'){ player.partyFlag=player.partyFlag?null:{x:player.x,y:player.y}; saveGame(); renderParty(); }
+  else if(act==='hire'){ addHench(v); renderParty(); }
+  else if(act==='dismiss'){ removeHench(v); renderParty(); }
   else if(act==='hunt'){ startBounty(v); closeModal(); }
   else if(act==='collect'){ doCollect(+v); renderCollect(); }
   else if(act==='buymat'){ buyMat(v); renderTrade(); }
@@ -2943,14 +3142,15 @@ function onPanelTap(ev,panel){
   else if(act==='withdraw'){ moveFromVault(+v); renderVault(); }
 }
 
+const CLASS_OFFHAND={warrior:'shield', necromancer:'focus', ranger:null, elementalist:'focus'};
 function equipItem(i){
   const it=player.inv[i]; if(!it) return;
   if(it.kind==='weapon'){
-    if(it.wtype!==(player.cls==='warrior'?'sword':'wand')){ toast('Wrong weapon for your profession'); return; }
+    if(it.wtype!==CLASSES[player.cls].wtype){ toast('Wrong weapon for your profession'); return; }
     const old=player.equip.weapon; player.equip.weapon=it;
     if(old&&old.value>0) player.inv[i]=old; else player.inv.splice(i,1);
   } else if(it.kind==='off'){
-    if((it.otype==='shield')!==(player.cls==='warrior')){ toast("Can't use that off-hand"); return; }
+    if(it.otype!==CLASS_OFFHAND[player.cls]){ toast("Can't use that off-hand"); return; }
     const old=player.equip.off; player.equip.off=it;
     if(old) player.inv[i]=old; else player.inv.splice(i,1);
   } else { toast('That cannot be equipped'); return; }
@@ -3044,24 +3244,38 @@ function renderTrain(){
   MODALS.train.body.innerHTML=h;
 }
 
-/* ---------------- Party (Heroes), Bounties, Collector, Material trader, Vault ---------------- */
+/* ---------------- Party (Heroes & henchmen), Bounties, Collector, Material trader, Vault ---------------- */
+const ROLE_LABEL={healer:'Healer (Monk)',prot:'Protector (Monk)',fighter:'Fighter (Warrior)',mage:'Mage (Elementalist)',archer:'Archer (Ranger)',necro:'Necromancer'};
 function renderParty(){
-  let h=`<div class="sectTitle">Your party</div>`;
+  let h=`<div class="sectTitle">Your party (${1+partyCount()}/${PARTY_CAP})</div>`;
   if(!hench.recruited){
-    h+=`<div class="dim">You travel alone for now. Complete <b>Honing Your Skills</b> for Marshal Oyin to gain your first Hero.</div>`;
-  } else {
-    const flag=hench.flag?'Holding position':'Following you';
-    h+=`<div class="skRow"><div class="si">✚</div><div class="sd">
-        <b>Lyra</b> <i>Hero · Mender</i><br>
-        <span class="dim">Heals the party and fights to your orders. HP ${Math.ceil(hench.hp)}/${hench.maxHp}.</span></div></div>`;
-    h+=`<div class="sectTitle">AI stance</div><div class="btnRow">
-        <button class="chip${hench.stance==='aggressive'?' on':''}" data-act="stance" data-v="aggressive">Aggressive</button>
-        <button class="chip${hench.stance==='guard'?' on':''}" data-act="stance" data-v="guard">Guard</button>
-        <button class="chip${hench.stance==='passive'?' on':''}" data-act="stance" data-v="passive">Passive</button></div>
-        <div class="dim">Aggressive hunts nearby foes · Guard assists your target and stays close · Passive only heals.</div>`;
-    h+=`<div class="sectTitle">Position</div>
-        <button class="btn sm" data-act="flag">${hench.flag?'↩ Recall to my side':'⚑ Hold this position'}</button>
-        <div class="dim">Currently: ${flag}.</div>`;
+    h+=`<div class="dim">You travel alone for now. Complete <b>Honing Your Skills</b> for Marshal Oyin to gain Lyra, your first companion — then hire more here in town.</div>`;
+    MODALS.party.body.innerHTML=h; return;
+  }
+  const row=(icon,name,role,hp,max,extra,canDismiss)=>`<div class="attrRow"><span class="an">${icon} ${name} <span class="dim">${ROLE_LABEL[role]||role}${extra||''}</span><br>
+      <span class="dim">HP ${Math.ceil(hp)}/${max}</span></span>${canDismiss?`<button class="mini" data-act="dismiss" data-v="${role}">Dismiss</button>`:''}</div>`;
+  h+=row('✚','Lyra','healer',hench.hp,hench.maxHp,'',false);
+  for(const a of allies){ if(a.minion||a.pet) continue; h+=row(a.spec?a.spec.icon:'•',a.name,a.role,a.hp,a.maxHp,a.dead?' · fallen':'',ZONES[MAPID].safe); }
+  const pet=allies.find(a=>a.pet); if(pet) h+=`<div class="attrRow"><span class="an">🐾 Companion <span class="dim">pet · HP ${Math.ceil(pet.hp)}/${pet.maxHp}</span></span></div>`;
+  const minN=allies.filter(a=>a.minion&&!a.dead).length; if(minN) h+=`<div class="dim">💀 ${minN} minion${minN>1?'s':''} animated</div>`;
+
+  const st=allyStance();
+  h+=`<div class="sectTitle">Party stance</div><div class="btnRow">
+      <button class="chip${st==='aggressive'?' on':''}" data-act="stance" data-v="aggressive">Aggressive</button>
+      <button class="chip${st==='guard'?' on':''}" data-act="stance" data-v="guard">Guard</button>
+      <button class="chip${st==='passive'?' on':''}" data-act="stance" data-v="passive">Passive</button></div>
+      <div class="dim">Aggressive hunts nearby foes · Guard assists your called target & stays close · Passive holds (healers still heal).</div>`;
+  h+=`<div class="sectTitle">Position</div>
+      <button class="btn sm" data-act="flag">${player.partyFlag?'↩ Recall to my side':'⚑ Hold this position'}</button>
+      <div class="dim">Currently: ${player.partyFlag?'holding position':'following you'}.</div>`;
+
+  h+=`<div class="sectTitle">Hire henchmen ${ZONES[MAPID].safe?'':'<span class="dim">(in town only)</span>'}</div>`;
+  for(const s of HENCH_ROSTER){
+    if(s.role==='healer') continue; // Lyra fills the Healer slot
+    const have=allies.some(a=>a.role===s.role&&!a.minion&&!a.pet);
+    h+=`<div class="attrRow"><span class="an">${s.icon} ${s.name} <span class="dim">${ROLE_LABEL[s.role]}</span><br><span class="dim">${s.blurb}</span></span>
+        ${have?'<span class="dim" style="color:#7ac77a">in party</span>'
+              :ZONES[MAPID].safe?`<button class="mini" data-act="hire" data-v="${s.role}">Hire</button>`:'<span class="dim">—</span>'}</div>`;
   }
   MODALS.party.body.innerHTML=h;
 }
@@ -3323,9 +3537,9 @@ function applyClass(key){
   player.baseHp=c.baseHp+20*(player.lvl-1); player.baseEn=c.baseEn+2*(player.lvl-1);
   player.enRegen=c.enRegen;
   player.atkInt=c.atkInt; player.range=c.range;
-  player.equip.weapon=key==='warrior'
-    ? {kind:'weapon',wtype:'sword',rarity:0,name:'Training Sword',dmgMin:10,dmgMax:16,value:0}
-    : {kind:'weapon',wtype:'wand', rarity:0,name:'Training Wand', dmgMin:7, dmgMax:12,value:0};
+  const TRAIN={sword:['Training Sword',10,16],bow:['Training Bow',8,14],wand:['Training Wand',7,12]};
+  const tw=TRAIN[c.wtype];
+  player.equip.weapon={kind:'weapon',wtype:c.wtype,rarity:0,name:tw[0],dmgMin:tw[1],dmgMax:tw[2],value:0};
   if(player.equip.off){ player.inv.push(player.equip.off); player.equip.off=null; }
   player.attrs={};
   player.adr=0;
@@ -3480,6 +3694,7 @@ function drawCompass(){
   for(const g of GATES) dot(g.x,g.y,g.locked?'#888':'#9fd0ff',6);
   dot(SHRINE.x,SHRINE.y,'#b8c8ff',5);
   if(heroActive()) dot(hench.x,hench.y,'#50c878',5);
+  for(const a of allies) if(!a.dead) dot(a.x,a.y,a.minion?'#cfc8b0':a.pet?'#b09a6a':'#50c878',a.minion||a.pet?3.5:5);
   // aggro bubble (the GW1 danger circle)
   c.strokeStyle='rgba(255,255,255,.5)'; c.lineWidth=2;
   c.beginPath(); c.arc(R,R,AGGRO_R*W2S,0,7); c.stroke();
@@ -3504,6 +3719,7 @@ function loop(tms){
 
   updatePlayer(dt);
   updateHench(dt);
+  updateAllies(dt);
   for(const e of enemies) updateEnemy(e,dt);
   updateProjectiles(dt);
 
@@ -3521,7 +3737,7 @@ function applySave(s){
   if(s.known) player.known=s.known;
   if(s.bars) player.bars=s.bars;
   player.skillPts=s.skillPts??1;
-  applyClass(s.cls||'warrior');
+  applyClass(CLASSES[s.cls]?s.cls:'warrior'); // old/removed professions fall back to Warrior
   player.lvl=s.lvl||1; player.xp=s.xp||0; player.gold=s.gold||0; player.morale=s.morale||0;
   player.baseHp=CLASSES[player.cls].baseHp+20*(player.lvl-1);
   player.baseEn=CLASSES[player.cls].baseEn+2*(player.lvl-1);
@@ -3532,11 +3748,17 @@ function applySave(s){
   player.vault=Array.isArray(s.vault)?s.vault:[];
   if(s.equip&&s.equip.weapon) player.equip=s.equip;
   // everyone always knows the Signet of Capture
-  for(const cls of ['warrior','elementalist']) if(player.known[cls]&&!player.known[cls].includes('cap')) player.known[cls].push('cap');
+  for(const cls of Object.keys(DEFAULT_BARS)) if(player.known[cls]&&!player.known[cls].includes('cap')) player.known[cls].push('cap');
   if(s.qs) Object.assign(qs,s.qs);
   hench.lvl=player.lvl; hench.maxHp=110+18*Math.max(0,player.lvl-2); hench.hp=hench.maxHp;
   hench.dmgMin=9+2*Math.max(0,player.lvl-2); hench.dmgMax=hench.dmgMin+5;
-  if(s.hero){ hench.recruited=!!s.hero.recruited; hench.stance=s.hero.stance||'guard'; }
+  if(s.hero){ hench.recruited=!!s.hero.recruited; }
+  player.partyStance=s.partyStance||'guard';
+  allies.length=0;
+  if(Array.isArray(s.party)) for(const role of s.party){
+    if(role==='pet'){ allies.push(makePet()); }
+    else if(ROSTER_BY[role]&&partyCount()<PARTY_CAP-1) allies.push(makeAlly(ROSTER_BY[role]));
+  }
   player.hp=pMaxHp(); player.en=pMaxEn();
 }
 
