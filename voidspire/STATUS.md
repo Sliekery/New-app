@@ -29,9 +29,11 @@ The user dislikes the current Vanguard avatar and we're choosing a replacement.
   (batch 1: designs 1-5), `… 2` (batch 2: 6-10), `… 3` (batch 3: clean
   single-silhouette designs **A-E**, shown beside the real Technomancer & Void
   Adept for scale/quality comparison).
-- Batch 3 (the good one) options: **A Crusader (cape), B Guardian (planted),
-  C Spartan (sleek), D Heavy (broad), E Ranger (tabard)** — all in
-  `DESIGNS3` in `test/vanguard.js`.
+- Current board: `node test/vanguard.js out.png T` renders the two existing
+  classes + **10** vanguard candidates A-J in a grid: A Crusader(cape),
+  B Guardian(planted), C Spartan(sleek), D Heavy(broad), E Ranger(tabard),
+  F Sentinel(standard), G Stormbringer(aggro), H Warden(half-cloak),
+  I Reaper(cowl), J Centurion(plume). A-E in `DESIGNS3`, F-J in `MORE`.
 - KEY LESSON: the first attempts looked "weird/blocky" because they were built
   from disconnected limb segments. The fix (batch 3) builds each from ONE
   continuous body silhouette + a few detail lines + a clean weapon, matching how
