@@ -1288,12 +1288,16 @@ function updatePlayer(dt){
 
   // keyboard
   let kx=0,ky=0;
-  if(input.keys['w']||input.keys['arrowup'])ky-=1;
-  if(input.keys['s']||input.keys['arrowdown'])ky+=1;
-  if(input.keys['a']||input.keys['arrowleft'])kx-=1;
-  if(input.keys['d']||input.keys['arrowright'])kx+=1;
+  if(input.keys[keyFor('up')]||input.keys['arrowup'])ky-=1;
+  if(input.keys[keyFor('down')]||input.keys['arrowdown'])ky+=1;
+  if(input.keys[keyFor('left')]||input.keys['arrowleft'])kx-=1;
+  if(input.keys[keyFor('right')]||input.keys['arrowright'])kx+=1;
+  if(input.keys[keyFor('rotL')]) camYaw+=1.7*dt;     // keyboard camera rotate
+  if(input.keys[keyFor('rotR')]) camYaw-=1.7*dt;
 
-  let mx=kx, my=ky; // keyboard only — touch is GW1-style tap-to-move
+  // WASD is camera-relative so movement matches the rotated view
+  const cs=Math.sin(camYaw), cc=Math.cos(camYaw);
+  let mx=ky*cs+kx*cc, my=ky*cc-kx*cs; // keyboard only — touch is tap-to-move
   const manual=Math.hypot(mx,my)>0.12;
 
   if(manual){
@@ -1638,8 +1642,8 @@ function buildTerrain(){
     const t=T(Math.min(ix,MAPW-1),Math.min(iy,MAPH-1));
     const j=(vr()-0.5)*0.025; // tiny jitter only — big readable patches instead of speckle
     if(t===G_PATH){
-      col.setHSL(0.09,0.46,0.50+j);                              // ochre road
-      if(MAPID==='town'&&((ix+iy)&1)) col.multiplyScalar(0.93);  // sandstone paving checker
+      if(MAPID==='town'){ col.setHSL(0.10,0.16,0.66+j); if((ix+iy)&1) col.multiplyScalar(0.92); } // pale sandstone paving
+      else col.setHSL(0.09,0.46,0.50+j);                         // ochre desert road
     }
     else if(t===G_DIRT) col.setHSL(0.05,0.50,0.36+j);           // Istan red-brown earth
     else if(t===G_WATER||t===G_BRIDGE) col.setHSL(0.55,0.62,0.13); // deep blue seabed
@@ -1695,6 +1699,29 @@ function animateWater(){
   waterMesh.geometry.computeVertexNormals();
 }
 
+// Render the city's G_WALL tiles as sandstone: a continuous perimeter wall,
+// blocky buildings for the residential footprints, and domed roofs on the
+// interior of each block. Turns the "fenced lot" into a walled port city.
+function buildCity(wallP,m4,vr){
+  const sand=smat(adobeTex(),{rough:0.92});
+  const sandDk=smat(adobeTex(),{color:0xcaa676,rough:0.92});
+  const isW=(tx,ty)=>T(tx,ty)===G_WALL;
+  const perim=[], bldg=[], domes=[];
+  for(const [wx,wz] of wallP){
+    const tx=Math.floor(wx/TILE), ty=Math.floor(wz/TILE);
+    if(tx===46&&ty===46) continue;                       // fountain plinth handled separately
+    if(tx<=4||tx>=MAPW-5||ty<=4){ perim.push([wx,wz]); continue; }
+    bldg.push([wx,wz]);
+    if(isW(tx-1,ty)&&isW(tx+1,ty)&&isW(tx,ty-1)&&isW(tx,ty+1)) domes.push([wx,wz]);
+  }
+  const place=(list,geo,mat,y)=>{ if(!list.length) return; const im=new THREE.InstancedMesh(geo,mat,list.length);
+    list.forEach((p,i)=>{ m4.makeTranslation(p[0],y,p[1]); im.setMatrixAt(i,m4); }); worldGroup.add(im); return im; };
+  place(perim,new THREE.BoxGeometry(TILE+1,26,TILE+1),sand,13);          // city wall
+  place(bldg, new THREE.BoxGeometry(TILE+1,34,TILE+1),sandDk,17);        // building masses
+  place(domes,new THREE.SphereGeometry(TILE*0.82,12,7,0,Math.PI*2,0,Math.PI/2),
+    smat(adobeTex(),{color:0xd8b878,rough:0.9}),34);                     // domed roofs
+}
+
 function buildProps(){
   const W=MAPW*TILE;
   const vr=mulberry32(1234);
@@ -1748,8 +1775,9 @@ function buildProps(){
     p=>heightAt(p[0],p[1])+29, ()=>0.9+vr()*0.4);
   palmP.forEach((p,i)=>{ cc.setHSL(0.315+vr()*0.04,0.52,0.50+vr()*0.14); pCan.setColorAt(i,cc); });
   if(pCan.instanceColor) pCan.instanceColor.needsUpdate=true;
-  // palisade posts (rough timber)
-  inst(new THREE.CylinderGeometry(3.4,4.2,30,7),smat(barkTex(),{color:0xc09868,rough:0.95}),wallP,
+  // G_WALL: sandstone city walls & buildings in town; rough palisade timber elsewhere
+  if(MAPID==='town') buildCity(wallP,m4,vr);
+  else inst(new THREE.CylinderGeometry(3.4,4.2,30,7),smat(barkTex(),{color:0xc09868,rough:0.95}),wallP,
     ()=>13, ()=>0.9+vr()*0.25);
   // border crags (normal-mapped stone)
   inst(new THREE.DodecahedronGeometry(16,1),
@@ -1808,21 +1836,39 @@ function buildProps(){
   }
 
   if(MAPID==='town'){
-    // plaza fountain (on the blocked plinth tile)
-    const fx2=48.5*TILE, fz2=52.5*TILE;
-    const basin=cyl3(22,25,8,0xc8a868,12); basin.position.set(fx2,4,fz2); worldGroup.add(basin);
-    const waterDisc=new THREE.Mesh(new THREE.CircleGeometry(19,16),
+    // central plaza fountain (on the blocked plinth tile at 46,46)
+    const fx2=46.5*TILE, fz2=46.5*TILE;
+    const basin=cyl3(24,27,9,0xd8c0a0,16); basin.position.set(fx2,4.5,fz2); worldGroup.add(basin);
+    const waterDisc=new THREE.Mesh(new THREE.CircleGeometry(20,18),
       new THREE.MeshStandardMaterial({color:0x1a8aa8,roughness:0.12,metalness:0.4,emissive:0x06323e,emissiveIntensity:0.5}));
-    waterDisc.rotation.x=-Math.PI/2; waterDisc.position.set(fx2,8.4,fz2); worldGroup.add(waterDisc);
-    const spout=cyl3(3,4,26,0x9a8458,8); spout.position.set(fx2,18,fz2); worldGroup.add(spout);
-    // keep banner + market stalls + homes + the inn
-    flagpole(48*TILE,13*TILE);
-    tent(12*TILE,45*TILE,0xc87838,0.8); tent(16*TILE,49.5*TILE,0x2a8a96,0.8); tent(20*TILE,46*TILE,0xd8b860,0.8);
-    hut(30,35,0.8); hut(66,33,0.8); hut(72,61,0.8); hut(64,59,1.1); // the inn is the big one
-    // dock crates
-    for(const [cx,cz] of [[28,73],[31,74],[60,73],[26,70]]){
-      const cr=box3(12,12,12,0x9a7a4a); cr.position.set(cx*TILE,6,cz*TILE); cr.rotation.y=vr()*1.5; worldGroup.add(cr);
+    waterDisc.rotation.x=-Math.PI/2; waterDisc.position.set(fx2,9.2,fz2); worldGroup.add(waterDisc);
+    const spout=cyl3(3,4,28,0xc8a868,8); spout.position.set(fx2,19,fz2); worldGroup.add(spout);
+    const orb=ico3(4,0x9fe0ff,{emissive:0x4aa0d0,emissiveIntensity:0.7}); orb.position.set(fx2,34,fz2); worldGroup.add(orb);
+    // the Hall of the Sun: a grand domed hall in the north court (46,14)
+    {
+      const hx2=46*TILE, hz2=14*TILE, hall=smat(adobeTex(),{rough:0.9});
+      const body=new THREE.Mesh(new THREE.BoxGeometry(7*TILE,42,5*TILE),hall); body.position.set(hx2,21,hz2); worldGroup.add(body);
+      const dome=new THREE.Mesh(new THREE.SphereGeometry(3.2*TILE,18,10,0,Math.PI*2,0,Math.PI/2),smat(adobeTex(),{color:0xd0b070,rough:0.9}));
+      dome.position.set(hx2,42,hz2); worldGroup.add(dome);
+      const fin=cone3(5,18,0xc8a020,8); fin.position.set(hx2,42+3.2*TILE,hz2); worldGroup.add(fin);
+      for(const dx of [-3.2*TILE,3.2*TILE]) for(const dz of [-2.2*TILE,2.2*TILE]){ // corner columns
+        const colmn=cyl3(5,6,46,0xe0caa4,10); colmn.position.set(hx2+dx,23,hz2+dz); worldGroup.add(colmn);
+      }
+      const door=box3(20,26,4,0x1f6e7a); door.position.set(hx2,13,hz2+2.5*TILE); worldGroup.add(door);
     }
+    flagpole(40*TILE,8*TILE); flagpole(52*TILE,8*TILE);
+    // the Grand Bazaar: a row of bright market stalls (west)
+    const stallC=[0xc83838,0x2a8a96,0xd8b860,0x4858a8,0xc87838,0x6aa848];
+    for(let i=0;i<6;i++) tent((11+i*2.3)*TILE,(41+(i%2)*4)*TILE,stallC[i],0.66);
+    // Artisans' Row braziers (east)
+    campfire(60*TILE,42*TILE); campfire(70*TILE,44*TILE);
+    // the three piers: crates, barrels and moored skiffs
+    for(const px of [20,48,74]){
+      for(let k=0;k<3;k++){ const cr=box3(11,11,11,0x9a7a4a); cr.position.set((px-1+ (k%2?1:-1))*TILE,7,(80+k)*TILE); cr.rotation.y=vr(); worldGroup.add(cr); }
+      const boat=new THREE.Mesh(new THREE.SphereGeometry(16,10,6,0,Math.PI*2,0,Math.PI/2),smat(barkTex(),{color:0x8a6a40,rough:0.9}));
+      boat.scale.set(0.5,0.4,1.2); boat.rotation.x=Math.PI; boat.position.set(px*TILE+24,5,90*TILE); worldGroup.add(boat);
+    }
+    // a scatter of potted palms around the plaza rim is handled by the tree pass
   } else {
     // corsair camp dressing + the headwater sluice (Marr's poison works)
     tent(75*TILE,17*TILE,0x5a4434); tent(81*TILE,17*TILE,0x5a4434); tent(81*TILE,23*TILE,0x4a3a44,1.15);
@@ -2462,13 +2508,15 @@ function drawOverlay(){
 let vignetteGrad=null;
 
 /* ---------------- main 3D render ---------------- */
+let camYaw=0, rotHold=0; // orbit yaw — 0 looks north (GW1 default); rotHold from on-screen arrows
 function render(){
   if(!HAS3D||!renderer) return;
-  // camera follows from the south, tilted down (fixed yaw — up = north)
+  if(rotHold) camYaw+=rotHold*1.7*frameDt;
   const ph=heightAt(player.x,player.y);
   const cv=CAMVIEWS[SETTINGS.zoom]||CAMVIEWS.normal;
-  camera.position.set(player.x,ph+cv.h,player.y+cv.back);
-  camera.lookAt(player.x,ph+26,player.y+cv.look); // chest height, slightly ahead
+  const s=Math.sin(camYaw), c=Math.cos(camYaw);
+  camera.position.set(player.x+cv.back*s, ph+cv.h, player.y+cv.back*c);
+  camera.lookAt(player.x+cv.look*s, ph+26, player.y+cv.look*c);
   // sun + shadow frustum follow the player
   if(sunLight){
     sunLight.position.set(player.x+420,ph+760,player.y+300);
@@ -2506,30 +2554,46 @@ function render(){
   drawOverlay();
 }
 
-/* ---------------- input (GW1 mouse-style: tap only, no drag) ---------------- */
-let tapId=null, tapX=0, tapY=0, tapT=0;
+/* ---------------- input: GW1 mouse-style tap-to-move + drag-to-rotate ---------------- */
+let tapId=null, tapX=0, tapY=0, tapT=0, dragLastX=0, dragged=false;
 
 canvas.addEventListener('pointerdown',ev=>{
   if(uiBlocking()) return;        // a menu/dialog is open — let the UI handle it
   ev.preventDefault();
-  if(tapId===null){ tapId=ev.pointerId; tapX=ev.clientX; tapY=ev.clientY; tapT=performance.now(); }
+  if(tapId===null){ tapId=ev.pointerId; tapX=dragLastX=ev.clientX; tapY=ev.clientY; tapT=performance.now(); dragged=false; }
+});
+window.addEventListener('pointermove',ev=>{
+  if(ev.pointerId!==tapId) return;
+  const moved=dist(ev.clientX,ev.clientY,tapX,tapY);
+  if(moved>18 && SETTINGS.dragRotate!==false){   // a drag spins the camera (tap still moves)
+    dragged=true;
+    camYaw-=(ev.clientX-dragLastX)*0.006;
+    dragLastX=ev.clientX;
+  }
 });
 window.addEventListener('pointerup',ev=>{
   if(ev.pointerId===tapId){
     tapId=null;
     if(uiBlocking()) return;
     const moved=dist(ev.clientX,ev.clientY,tapX,tapY);
-    if(moved<18&&performance.now()-tapT<500) handleTap(tapX,tapY);
+    if(!dragged&&moved<18&&performance.now()-tapT<500) handleTap(tapX,tapY);
   }
 });
 window.addEventListener('pointercancel',ev=>{
   if(ev.pointerId===tapId)tapId=null;
 });
 
+// remappable keys (persisted in SETTINGS.keys); skills accept 1-8 by default too
+const DEFAULT_KEYS={up:'w',down:'s',left:'a',right:'d',rotL:'q',rotR:'e',
+  s1:'1',s2:'2',s3:'3',s4:'4',s5:'5',s6:'6',s7:'7',s8:'8'};
+let keyListen=null;  // action id awaiting a rebind keypress
+function keyFor(act){ return (SETTINGS.keys&&SETTINGS.keys[act])||DEFAULT_KEYS[act]; }
 window.addEventListener('keydown',ev=>{
   const k=ev.key.toLowerCase();
+  if(keyListen){ SETTINGS.keys=SETTINGS.keys||{}; SETTINGS.keys[keyListen]=k; keyListen=null; saveSettings(); if(openModalId==='settings') renderSettings(); ev.preventDefault(); return; }
   input.keys[k]=true;
-  if(k>='1'&&k<='8') useSkill(+k-1);
+  for(let i=1;i<=8;i++) if(k===keyFor('s'+i)) useSkill(i-1);
+  if(k>='1'&&k<='8') useSkill(+k-1);     // numeric row always works
   if(k==='escape'){player.target=null;player.engaged=false;}
 });
 window.addEventListener('keyup',ev=>{input.keys[ev.key.toLowerCase()]=false;});
@@ -2729,6 +2793,14 @@ function wireUI(){
     if(currentDlg) currentDlg.act();
     closeModal();
   });
+  // on-screen camera rotate (hold to spin)
+  const rl=$('rotLeft'), rr=$('rotRight');
+  if(rl&&rr){
+    const hold=(d)=>ev=>{ ev.stopPropagation(); ev.preventDefault(); rotHold=d; };
+    const release=()=>{ rotHold=0; };
+    rl.addEventListener('pointerdown',hold(1)); rr.addEventListener('pointerdown',hold(-1));
+    for(const el of [rl,rr]){ el.addEventListener('pointerup',release); el.addEventListener('pointerleave',release); el.addEventListener('pointercancel',release); }
+  }
   // delegated handler for buttons inside panel bodies
   for(const id of Object.keys(MODALS)){
     MODALS[id].body.addEventListener('pointerdown',ev=>{ ev.stopPropagation(); onPanelTap(ev,id); });
@@ -2777,6 +2849,10 @@ function onPanelTap(ev,panel){
   else if(act==='zoom'){ SETTINGS.zoom=v; saveSettings(); renderSettings(); }
   else if(act==='vignette'){ SETTINGS.vignette=!SETTINGS.vignette; saveSettings(); renderSettings(); }
   else if(act==='fullscreen'){ toggleFullscreen(); }
+  else if(act==='dragrot'){ SETTINGS.dragRotate=!(SETTINGS.dragRotate!==false); saveSettings(); renderSettings(); }
+  else if(act==='recenter'){ camYaw=0; }
+  else if(act==='rebind'){ keyListen=v; renderSettings(); }
+  else if(act==='resetkeys'){ SETTINGS.keys={}; keyListen=null; saveSettings(); renderSettings(); }
   else if(act==='newgame'){ wipeSave(); location.reload(); }
   else if(act==='stance'){ hench.stance=v; saveGame(); renderParty(); }
   else if(act==='flag'){ if(hench.flag){ hench.flag=null; } else { hench.flag={x:hench.x,y:hench.y}; } saveGame(); renderParty(); }
@@ -3102,11 +3178,26 @@ function renderSettings(){
   h+=`<div class="sectTitle">Camera</div><div class="btnRow">
       ${chip('zoom','close','Close',SETTINGS.zoom==='close')}
       ${chip('zoom','normal','Normal',SETTINGS.zoom==='normal')}
-      ${chip('zoom','far','Far',SETTINGS.zoom==='far')}</div>`;
+      ${chip('zoom','far','Far',SETTINGS.zoom==='far')}</div>
+      <div class="btnRow">${chip('dragrot','x','Drag to rotate: '+(SETTINGS.dragRotate!==false?'on':'off'),SETTINGS.dragRotate!==false)}
+      <button class="chip" data-act="recenter">⟳ Re-centre view (north)</button></div>
+      <div class="dim">Drag the world to spin the camera, or use the on-screen ◀▶ by the compass, or Q/E on a keyboard.</div>`;
   h+=`<div class="sectTitle">Display</div><div class="btnRow">
       ${chip('vignette','x','Vignette: '+(SETTINGS.vignette?'on':'off'),SETTINGS.vignette)}
       <button class="chip" data-act="fullscreen">⛶ Fullscreen</button></div>
       <div class="dim">Rotate your device freely — the layout adapts to portrait or landscape.</div>`;
+  // remappable controls
+  const CTRLS=[['up','Move up'],['down','Move down'],['left','Move left'],['right','Move right'],
+    ['rotL','Rotate camera left'],['rotR','Rotate camera right'],
+    ['s1','Skill 1'],['s2','Skill 2'],['s3','Skill 3'],['s4','Skill 4'],['s5','Skill 5'],['s6','Skill 6'],['s7','Skill 7'],['s8','Skill 8']];
+  h+=`<div class="sectTitle">Controls (keyboard)</div>`;
+  for(const [act,label] of CTRLS){
+    const key=keyListen===act?'press a key…':keyFor(act).toUpperCase();
+    h+=`<div class="attrRow"><span class="an">${label}</span>
+        <button class="mini" data-act="rebind" data-v="${act}">${key}</button></div>`;
+  }
+  h+=`<button class="btn sm" data-act="resetkeys">Reset to defaults</button>
+      <div class="dim">Tap a key, then press the new key. Skills also always respond to the number row, and on mobile via the on-screen bar.</div>`;
   h+=`<div class="sectTitle">Character</div>
       <button class="btn sm dn" data-act="newgame">Delete save & restart</button>
       <div class="dim">Progress auto-saves to this device.</div>`;
