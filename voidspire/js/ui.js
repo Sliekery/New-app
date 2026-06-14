@@ -335,15 +335,40 @@
     return out;
   }
 
+  // pointy-top hexagon frame
+  function hexPts(cx, cy, r) {
+    var pts = [];
+    for (var i = 0; i < 6; i++) {
+      var a = Math.PI / 6 + i * Math.PI / 3;
+      pts.push((cx + Math.cos(a) * r).toFixed(1) + ',' + (cy + Math.sin(a) * r).toFixed(1));
+    }
+    return pts.join(' ');
+  }
+
+  // four corner brackets (a targeting reticle) around a node
+  function cornerTicks(cx, cy, r) {
+    var c = r * 0.42;
+    var segs = [
+      [[cx - r, cy - r + c], [cx - r, cy - r], [cx - r + c, cy - r]],
+      [[cx + r - c, cy - r], [cx + r, cy - r], [cx + r, cy - r + c]],
+      [[cx + r, cy + r - c], [cx + r, cy + r], [cx + r - c, cy + r]],
+      [[cx - r + c, cy + r], [cx - r, cy + r], [cx - r, cy + r - c]],
+    ];
+    return '<g class="ticks">' + segs.map(function (seg) {
+      return '<polyline points="' + seg.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ') + '"/>';
+    }).join('') + '</g>';
+  }
+
   function showMap() {
     updateHUD();
     var r = E.run, m = r.map;
     var s = overlayScreen(true);
+    s.classList.add('map-screen');
     s.appendChild(el('h2', 'screen-title', 'Sector ' + r.sector + ' · Star Chart'));
     var started = r.mapRow >= 0;
     s.appendChild(el('div', 'screen-sub', esc(ns.FACTIONS[r.faction].name.toUpperCase()) + ' TERRITORY · ' + (started ? 'CHOOSE THE NEXT JUMP' : 'CHOOSE YOUR ENTRY POINT')));
 
-    var COLS = m.COLS, ROWS = m.ROWS, cellW = 100, rowH = 92;
+    var COLS = m.COLS, ROWS = m.ROWS, cellW = 100, rowH = 106;
     var W = COLS * cellW, H = (ROWS + 1) * rowH;
     var reach = E.mapReachable(), cur = E.currentNode();
 
@@ -357,7 +382,7 @@
     }
 
     var svg = '<svg class="starchart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMin meet">';
-    // edges
+    // edges (drawn as glowing flight paths with a midpoint waypoint tick)
     for (var ri = 0; ri < ROWS; ri++) {
       m.rows[ri].forEach(function (node) {
         node.edges.forEach(function (tc) {
@@ -365,21 +390,32 @@
           var a = xy(node), b = xy(t);
           var cls = (node === cur && reach.indexOf(t) >= 0) ? 'live' : (node.visited && t.visited) ? 'trav' : 'dim';
           svg += '<line class="edge ' + cls + '" x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) + '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1) + '"/>';
+          if (cls !== 'dim') {
+            var mx = ((a.x + b.x) / 2).toFixed(1), my = ((a.y + b.y) / 2).toFixed(1);
+            svg += '<circle class="waypt ' + cls + '" cx="' + mx + '" cy="' + my + '" r="1.8"/>';
+          }
         });
       });
     }
-    // nodes
+    // nodes (glowing hex frames with reticle brackets on reachable ones)
     function nodeMarkup(node) {
       var p = xy(node), icon = ns.MAP_ICONS[node.type] || ns.MAP_ICONS.fight;
       var isBoss = node.type === 'boss';
-      var ring = isBoss ? 28 : 20, size = isBoss ? 24 : 16;
+      var hexR = isBoss ? 29 : 20, size = isBoss ? 24 : 15;
       var reachable = reach.indexOf(node) >= 0;
       var state = node === cur ? 'current' : node.visited ? 'visited' : reachable ? 'reachable' : 'locked';
-      return '<g class="mapnode ' + state + '" data-row="' + node.row + '" data-col="' + node.col + '">' +
-        '<circle class="ring" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + ring + '"/>' +
-        '<g class="glyph" style="color:' + icon.color + '">' + mapIconPaths(icon, p.x, p.y, size) + '</g>' +
-        '<circle class="hit" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + (ring + 9) + '"/>' +
-        '</g>';
+      var g = '<g class="mapnode ' + state + ' nt-' + node.type + '" data-row="' + node.row + '" data-col="' + node.col + '" style="--nc:' + icon.color + '">';
+      if (reachable) {
+        g += '<circle class="pulse" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + hexR + '"/>';
+        g += '<circle class="pulse p2" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + hexR + '"/>';
+      }
+      g += '<polygon class="hexfill" points="' + hexPts(p.x, p.y, hexR) + '"/>';
+      g += '<polygon class="hex" points="' + hexPts(p.x, p.y, hexR) + '"/>';
+      if (isBoss) g += '<polygon class="hex2" points="' + hexPts(p.x, p.y, hexR + 5) + '"/>';
+      g += '<g class="glyph">' + mapIconPaths(icon, p.x, p.y, size) + '</g>';
+      if (reachable) g += cornerTicks(p.x, p.y, hexR + 5);
+      g += '<circle class="hit" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + (hexR + 10) + '"/>';
+      return g + '</g>';
     }
     m.rows.forEach(function (row) { row.forEach(function (n) { svg += nodeMarkup(n); }); });
     svg += nodeMarkup(m.boss);

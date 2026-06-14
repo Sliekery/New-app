@@ -420,55 +420,81 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 @keyframes dealIn { from { opacity: 0; transform: translateY(80px) rotate(5deg); } }
 
 /* ========================= STAR-CHART MAP ========================= */
+/* the map screen is translucent so the live space backdrop shows through */
+.screen.map-screen {
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(3, 7, 9, 0.42), rgba(3, 7, 9, 0.8) 78%);
+}
 .map-wrap {
-  width: 100%; max-width: 440px; flex: 1 1 auto; min-height: 340px;
+  width: 100%; max-width: 460px; flex: 1 1 auto; min-height: 340px;
   overflow-y: auto; overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  margin: 4px 0 8px;
-  border: 1px solid rgba(93, 255, 136, 0.12);
-  background:
-    radial-gradient(ellipse at 30% 20%, rgba(93, 255, 136, 0.05), transparent 60%),
-    radial-gradient(ellipse at 70% 80%, rgba(65, 216, 255, 0.04), transparent 60%);
+  margin: 6px 0 6px;
+  background: transparent;
+  -webkit-mask-image: linear-gradient(transparent, #000 22px, #000 calc(100% - 22px), transparent);
+  mask-image: linear-gradient(transparent, #000 22px, #000 calc(100% - 22px), transparent);
 }
-.starchart { display: block; width: 100%; height: auto; }
-.starchart .edge { stroke-width: 1.5; }
-.starchart .edge.dim { stroke: rgba(120, 160, 140, 0.16); }
-.starchart .edge.trav { stroke: rgba(184, 230, 196, 0.5); stroke-width: 2; }
+.starchart { display: block; width: 100%; height: auto; overflow: visible; }
+
+/* ---- routes ---- */
+.starchart .edge { fill: none; stroke-linecap: round; }
+.starchart .edge.dim { stroke: rgba(150, 190, 170, 0.22); stroke-width: 1.2; stroke-dasharray: 1.5 7; }
+.starchart .edge.trav { stroke: rgba(184, 230, 196, 0.6); stroke-width: 2; filter: drop-shadow(0 0 3px rgba(184, 230, 196, 0.4)); }
 .starchart .edge.live {
-  stroke: rgba(93, 255, 136, 0.9); stroke-width: 2.6;
-  stroke-dasharray: 5 5; animation: dashFlow 0.7s linear infinite;
-  filter: drop-shadow(0 0 3px rgba(93, 255, 136, 0.6));
+  stroke: var(--green); stroke-width: 2.4;
+  stroke-dasharray: 5 6; animation: dashFlow 0.6s linear infinite;
+  filter: drop-shadow(0 0 4px rgba(93, 255, 136, 0.8));
 }
-@keyframes dashFlow { to { stroke-dashoffset: -10; } }
-.starchart .ring { fill: rgba(8, 18, 14, 0.9); stroke: rgba(184, 230, 196, 0.35); stroke-width: 1.3; }
+@keyframes dashFlow { to { stroke-dashoffset: -11; } }
+.starchart .waypt { fill: rgba(184, 230, 196, 0.55); }
+.starchart .waypt.live { fill: var(--green); filter: drop-shadow(0 0 3px var(--green)); }
+
+/* ---- node hex frames ---- */
+.starchart .hexfill { fill: rgba(6, 12, 14, 0.82); stroke: none; }
+.starchart .hex { fill: none; stroke: var(--nc); stroke-width: 1.4; stroke-linejoin: round; opacity: 0.85; }
+.starchart .hex2 { fill: none; stroke: var(--nc); stroke-width: 1; opacity: 0.4; }
+.starchart .glyph { color: var(--nc); }
 .starchart .glyph polyline { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .starchart .glyph .gdot { fill: currentColor; stroke: none; }
+.starchart .ticks { stroke: var(--green); stroke-width: 1.6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .starchart .hit { fill: transparent; }
-.starchart .mapnode.locked { opacity: 0.4; }
-.starchart .mapnode.visited { opacity: 0.5; }
-.starchart .mapnode.visited .ring { fill: rgba(40, 60, 48, 0.6); }
-.starchart .mapnode.reachable .ring {
-  stroke: var(--green); stroke-width: 2.4;
-  filter: drop-shadow(0 0 5px rgba(93, 255, 136, 0.6));
-  animation: nodePulse 1.4s ease-in-out infinite;
-}
-.starchart .mapnode.reachable .hit { cursor: pointer; }
+
+/* ---- node states ---- */
+.starchart .mapnode.locked { opacity: 0.42; }
+.starchart .mapnode.visited { opacity: 0.55; }
+.starchart .mapnode.visited .hexfill { fill: rgba(28, 40, 34, 0.7); }
+.starchart .mapnode.reachable .hex { stroke: var(--green); stroke-width: 2; opacity: 1; filter: drop-shadow(0 0 5px rgba(93, 255, 136, 0.55)); }
 .starchart .mapnode.reachable .glyph { filter: drop-shadow(0 0 4px currentColor); }
-.starchart .mapnode.current .ring { fill: rgba(93, 255, 136, 0.16); stroke: #eaffe9; stroke-width: 2.4; }
-@keyframes nodePulse { 0%, 100% { stroke-opacity: 0.6; } 50% { stroke-opacity: 1; } }
-.starchart .mapnode.reachable .ring { stroke-opacity: 1; }
+.starchart .mapnode.reachable .hexfill { fill: rgba(10, 30, 18, 0.8); }
+.starchart .mapnode.reachable .hit { cursor: pointer; }
+.starchart .mapnode.reachable .ticks { animation: tickPulse 1.6s ease-in-out infinite; filter: drop-shadow(0 0 3px rgba(93, 255, 136, 0.7)); }
+@keyframes tickPulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+.starchart .mapnode.current .hexfill { fill: rgba(93, 255, 136, 0.16); }
+.starchart .mapnode.current .hex { stroke: #eaffe9; stroke-width: 2.2; opacity: 1; filter: drop-shadow(0 0 6px rgba(234, 255, 233, 0.7)); }
+.starchart .mapnode.nt-boss .hex, .starchart .mapnode.nt-boss .hex2 { filter: drop-shadow(0 0 7px rgba(255, 74, 94, 0.6)); }
+
+/* sonar-ping rings on reachable nodes */
+.starchart .pulse {
+  fill: none; stroke: var(--green); stroke-width: 1.4;
+  transform-box: fill-box; transform-origin: center;
+  animation: ringPing 2s ease-out infinite;
+}
+.starchart .pulse.p2 { animation-delay: 1s; }
+@keyframes ringPing {
+  0% { transform: scale(0.85); opacity: 0.8; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
 
 .map-legend {
-  width: 100%; max-width: 440px; display: flex; flex-wrap: wrap; gap: 4px 12px;
-  justify-content: center; padding: 4px 2px 2px; flex: 0 0 auto;
+  width: 100%; max-width: 460px; display: flex; flex-wrap: wrap; gap: 3px 10px;
+  justify-content: center; padding: 2px 2px 0; flex: 0 0 auto;
 }
-.map-legend .leg { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; letter-spacing: 0.5px; color: var(--text-dim); }
-.map-legend .leg-ic { width: 16px; height: 16px; display: inline-block; }
-.map-legend .leg-ic svg { width: 100%; height: 100%; }
+.map-legend .leg { display: inline-flex; align-items: center; gap: 4px; font-size: 8.5px; letter-spacing: 0.5px; color: var(--text-dim); text-transform: uppercase; }
+.map-legend .leg-ic { width: 15px; height: 15px; display: inline-block; }
+.map-legend .leg-ic svg { width: 100%; height: 100%; overflow: visible; }
 .map-legend .leg-ic polyline { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
 .map-legend .leg-ic .gdot { fill: currentColor; }
 
-/* the map screen lets its chart fill available height */
 .screen .map-wrap { align-self: stretch; }
 
 /* ========================= TOAST ========================= */
