@@ -422,7 +422,7 @@ console.log('data integrity: OK');
 var classes = CLASSES;
 var stats = {};
 var stalls = 0;
-classes.forEach(function (c) { stats[c] = { sectors: [], deaths: {} }; });
+classes.forEach(function (c) { stats[c] = { sectors: [], deaths: {}, wins: 0, runs: 0 }; });
 
 for (var run = 0; run < RUNS; run++) {
   var cls = classes[run % classes.length];
@@ -435,9 +435,12 @@ for (var run = 0; run < RUNS; run++) {
     else throw e;
   }
   var s = stats[cls];
+  s.runs++;
   // cumulative depth (== sector until you beat the Unmaker, then climbs by loop)
   var depth = (E.run._depth != null) ? E.run._depth : ((E.run.loop - 1) * VS.BALANCE.run.finale + E.run.sector);
   s.sectors.push(depth);
+  // a "win" == beat the Unmaker at least once (entered the Recurrence -> loop > 1)
+  if ((E.run.loop || 1) > 1) s.wins++;
   if (E.run.phase === 'dead') {
     var k = 'depth ' + depth + ' / ' + (E.run.nodeType || '?');
     s.deaths[k] = (s.deaths[k] || 0) + 1;
@@ -451,7 +454,10 @@ classes.forEach(function (c) {
   allSectors = allSectors.concat(s);
   var avg = s.reduce(function (a, b) { return a + b; }, 0) / s.length;
   var max = Math.max.apply(null, s);
-  console.log(c + ': avg sector ' + avg.toFixed(2) + ', best ' + max);
+  var sorted = s.slice().sort(function (a, b) { return a - b; });
+  var med = sorted[Math.floor(sorted.length / 2)];
+  var wr = Math.round(100 * stats[c].wins / Math.max(1, stats[c].runs));
+  console.log(c + ': win ' + wr + '%, avg depth ' + avg.toFixed(2) + ', median ' + med + ', best ' + max);
   var deaths = stats[c].deaths;
   Object.keys(deaths).sort().forEach(function (k) {
     console.log('   died at ' + k + ': ' + deaths[k]);
@@ -475,4 +481,18 @@ console.log('median sector reached: ' + median + '   [~3-4]');
 console.log('reached sector 5+: ' + Math.round(100 * reach5 / RUNS) + '%   [~15-30%]');
 if (totalDeaths) console.log('deaths at elites/bosses: ' + Math.round(100 * spikeDeaths / totalDeaths) + '%   [>= ~55%]');
 console.log('stalled combats (turtle vs non-escalating enemy): ' + stalls + ' / ' + RUNS);
+
+/* ---- class parity (StS-style: archetypes should win at similar rates) ----- */
+console.log('\n--- class parity (win = beat the Unmaker) ---');
+var wrList = classes.map(function (c) {
+  return { c: c, wr: 100 * stats[c].wins / Math.max(1, stats[c].runs) };
+}).sort(function (a, b) { return b.wr - a.wr; });
+wrList.forEach(function (x) {
+  console.log('   ' + x.c + ': ' + x.wr.toFixed(1) + '% win');
+});
+var hi = wrList[0], lo = wrList[wrList.length - 1];
+var spread = hi.wr - lo.wr;
+console.log('spread (strongest - weakest): ' + spread.toFixed(1) + ' pts   [<= ~8 = balanced]');
+console.log('  strongest: ' + hi.c + ' (' + hi.wr.toFixed(1) + '%)  |  weakest: ' + lo.c + ' (' + lo.wr.toFixed(1) + '%)');
+
 console.log('\nALL TESTS PASSED');
