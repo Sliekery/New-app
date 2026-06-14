@@ -255,10 +255,10 @@ html, body {
   background: rgba(5, 20, 28, 0.85); padding: 7px 12px;
 }
 
-/* ===== draw / discard piles + card-play flourish ===== */
+/* ===== draw / discard piles (tap to inspect) ===== */
 #draw-pile, #discard-pile {
   position: absolute; bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
-  z-index: 29; width: 44px; text-align: center; pointer-events: none;
+  z-index: 29; width: 44px; text-align: center; pointer-events: auto; cursor: pointer;
 }
 #draw-pile { left: 5px; }
 #discard-pile { right: 5px; }
@@ -267,37 +267,45 @@ html, body {
   border: 1px solid var(--green-dim);
   background: linear-gradient(160deg, var(--panel2), var(--panel));
   clip-path: polygon(0 5px, 5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
-  display: flex; align-items: center; justify-content: center;
 }
 #draw-pile .pile-card { box-shadow: 3px -3px 0 -1px rgba(20,40,30,0.75), 6px -6px 0 -2px rgba(14,28,22,0.5); }
-#discard-pile .pile-card { border-color: #7a5a2a; box-shadow: -3px -3px 0 -1px rgba(40,30,12,0.7), -6px -6px 0 -2px rgba(30,22,8,0.45); }
-.pile-card::before {
-  content: ''; position: absolute; inset: 0; pointer-events: none;
-  background:
-    linear-gradient(45deg, transparent 45%, rgba(93,255,136,0.16) 49% 51%, transparent 55%),
-    linear-gradient(-45deg, transparent 45%, rgba(93,255,136,0.16) 49% 51%, transparent 55%);
+#discard-pile .pile-card { box-shadow: -3px -3px 0 -1px rgba(28,32,30,0.6), -6px -6px 0 -2px rgba(18,22,22,0.4); }
+#draw-pile:active .pile-card, #discard-pile:active .pile-card { filter: brightness(1.3); }
+.pile-ic { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); width: 24px; height: 30px; }
+.pile-ic svg, svg.pile-ic { width: 100%; height: 100%; }
+.pile-discard .pile-ic { opacity: 0.55; filter: saturate(0.55); }
+.pile-n {
+  position: absolute; right: -3px; bottom: -3px; min-width: 15px; padding: 0 2px;
+  font-size: 10px; font-weight: bold; line-height: 14px; color: var(--text);
+  background: rgba(4, 10, 12, 0.95); border: 1px solid var(--green-dim);
 }
-#discard-pile .pile-card::before {
-  background:
-    linear-gradient(45deg, transparent 45%, rgba(255,176,46,0.16) 49% 51%, transparent 55%),
-    linear-gradient(-45deg, transparent 45%, rgba(255,176,46,0.16) 49% 51%, transparent 55%);
+.pile-lbl { font-size: 7px; letter-spacing: 1px; color: var(--text-dim); margin-top: 3px; }
+.pile-card.blink { animation: pileBlink 0.46s ease-out; }
+@keyframes pileBlink {
+  0%, 100% { box-shadow: 0 0 0 var(--blink); border-color: var(--green-dim); }
+  35% { box-shadow: 0 0 15px 3px var(--blink); border-color: var(--blink); }
 }
-.pile-n { position: relative; font-size: 14px; font-weight: bold; color: var(--text); text-shadow: 0 0 4px #000, 0 0 4px #000; }
-#discard-pile .pile-n { color: var(--amber); }
-.pile-lbl { font-size: 7px; letter-spacing: 1px; color: var(--text-dim); margin-top: 2px; }
 
-.card-ghost {
-  position: fixed; z-index: 70; pointer-events: none;
-  background: linear-gradient(160deg, var(--panel2), var(--panel));
-  border: 1px solid var(--green-dim);
-  clip-path: polygon(0 6px, 6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
-  transition: transform 0.42s cubic-bezier(0.5, 0, 0.7, 1), opacity 0.42s ease-in;
-  transform-origin: center;
+/* per-class card dematerialisation (the clone keeps the .card face) */
+.card-ghost { position: fixed; z-index: 70; pointer-events: none; }
+@keyframes dematVan {
+  0% { opacity: 1; filter: none; }
+  22% { opacity: 1; filter: brightness(2.4) saturate(1.5); }
+  100% { opacity: 0; transform: scaleY(0.1) translateY(28px); filter: brightness(2.4); }
 }
-.card-ghost.type-attack { border-color: #9a5a20; }
-.card-ghost.type-skill { border-color: #1f7a96; }
-.card-ghost.type-power { border-color: #7a3f9a; }
-.card-ghost.type-curse { border-color: #7a2030; }
+.card-ghost.demat-van { animation: dematVan 0.42s cubic-bezier(0.4, 0, 0.7, 1) forwards; transform-origin: center bottom; }
+@keyframes dematTech {
+  0% { opacity: 1; filter: none; }
+  30% { opacity: 0.85; filter: brightness(1.9) contrast(1.7) hue-rotate(-8deg); transform: translateX(2px); }
+  65% { opacity: 0.5; transform: translateX(-3px) scaleX(1.05); }
+  100% { opacity: 0; transform: scaleX(0.55) scaleY(1.04); filter: brightness(2.2) contrast(2.2); }
+}
+.card-ghost.demat-tech { animation: dematTech 0.4s steps(7) forwards; }
+@keyframes dematVoid {
+  0% { opacity: 1; }
+  100% { opacity: 0; transform: scale(0.04) rotate(200deg); filter: brightness(1.6); }
+}
+.card-ghost.demat-void { animation: dematVoid 0.46s cubic-bezier(0.6, 0, 0.85, 1) forwards; }
 
 .btn {
   font-family: inherit;

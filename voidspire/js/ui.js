@@ -151,6 +151,8 @@
     $discardPile = el('div', '', '<div class="pile-card"><span class="pile-n">0</span></div><div class="pile-lbl">DISC</div>');
     $discardPile.id = 'discard-pile';
     $game.appendChild($discardPile);
+    $drawPile.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); if (E.combat && !locked) { SFX.tap(); showPileModal('draw'); } });
+    $discardPile.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); if (E.combat && !locked) { SFX.tap(); showPileModal('discard'); } });
 
     $hint = el('div', '', 'DROP ON A TARGET');
     $hint.id = 'target-hint';
@@ -739,15 +741,38 @@
     $energy.textContent = '⚡ ' + c.energy;
   }
 
+  var CLASS_COLOR = { vanguard: '#ffb02e', technomancer: '#41d8ff', voidadept: '#c86bff' };
+  function pileHTML(cls, which, n, sub) {
+    var set = ns.PILE_ICONS[cls] || ns.PILE_ICONS.vanguard;
+    return '<div class="pile-card pile-' + which + '">' + artSVG(set[which], 'pile-ic', CLASS_COLOR[cls] || '#5dff88') +
+      '<span class="pile-n">' + n + '</span></div>' +
+      '<div class="pile-lbl">' + (which === 'draw' ? 'DRAW' : 'DISC' + (sub || '')) + '</div>';
+  }
   function updateCounts() {
     var c = E.combat;
     if (!c) return;
-    $drawPile.querySelector('.pile-n').textContent = c.drawPile.length;
-    var dn = $discardPile.querySelector('.pile-n');
-    dn.textContent = c.discard.length;
-    var lbl = $discardPile.querySelector('.pile-lbl');
-    if (c.exhaust.length) lbl.textContent = 'DISC · EXH ' + c.exhaust.length;
-    else lbl.textContent = 'DISC';
+    var cls = E.run.cls;
+    $drawPile.innerHTML = pileHTML(cls, 'draw', c.drawPile.length, '');
+    $discardPile.innerHTML = pileHTML(cls, 'discard', c.discard.length, c.exhaust.length ? '·E' + c.exhaust.length : '');
+  }
+
+  // Look into the draw / discard pile.
+  function showPileModal(which) {
+    var c = E.combat;
+    if (!c) return;
+    var wasCombat = E.run.phase === 'combat';
+    var cards = (which === 'draw' ? c.drawPile : c.discard).slice();
+    var s = overlayScreen();
+    s.appendChild(el('h2', 'screen-title', (which === 'draw' ? 'Draw Pile' : 'Discard Pile') + ' (' + cards.length + ')'));
+    s.appendChild(el('div', 'screen-sub', which === 'draw' ? 'ORDER IS HIDDEN UNTIL DRAWN' : 'MOST RECENTLY PLAYED LAST'));
+    if (!cards.length) s.appendChild(el('div', 'screen-sub', '— EMPTY —'));
+    var grid = el('div', 'card-grid');
+    var list = (which === 'draw') ? cards.sort(function (a, b) { return ns.CARDS[a.id].cost - ns.CARDS[b.id].cost; }) : cards;
+    list.forEach(function (card) { grid.appendChild(cardEl(card.id, card.up)); });
+    s.appendChild(grid);
+    var btn = el('button', 'btn', 'CLOSE');
+    btn.addEventListener('pointerdown', function () { SFX.tap(); if (wasCombat) showCombat(); else U.refresh(); });
+    s.appendChild(btn);
   }
 
   /* ---- shared card markup ---------------------------------------------- */
@@ -942,34 +967,42 @@
     }
   }
 
-  var TYPE_COLOR = { attack: '#ffb02e', skill: '#41d8ff', power: '#c86bff', curse: '#ff4a5e' };
-
-  // Card-play flourish: cards that go to discard fly to the discard pile; cards
-  // that exhaust / are consumed (powers) disintegrate into vector particles.
-  function cardPlayFx(rect, card, def) {
+  // Per-class card-play flourish: the card dematerialises in place (class-styled),
+  // a class-coloured particle burst pops at the play point, and the pile it
+  // went to blinks. Vanguard ejects (squash), Technomancer deresolves (glitch),
+  // Void Adept implodes into the void.
+  var CLASS_FX = {
+    vanguard:     { color: '#ffb02e', demat: 'demat-van',  n: 18 },
+    technomancer: { color: '#41d8ff', demat: 'demat-tech', n: 22 },
+    voidadept:    { color: '#c86bff', demat: 'demat-void', n: 20 },
+  };
+  function blinkPile(pileEl, color) {
+    if (!pileEl) return;
+    var pc = pileEl.querySelector('.pile-card');
+    if (!pc) return;
+    pc.style.setProperty('--blink', color);
+    pc.classList.remove('blink'); void pc.offsetWidth; pc.classList.add('blink');
+    setTimeout(function () { pc.classList.remove('blink'); }, 480);
+  }
+  function cardPlayFx(rect, clone, card, def) {
     if (!rect) return;
+    var fx = CLASS_FX[E.run.cls] || CLASS_FX.vanguard;
     var bf = document.getElementById('battlefield').getBoundingClientRect();
     var cx = rect.left + rect.width / 2 - bf.left, cy = rect.top + rect.height / 2 - bf.top;
-    var color = TYPE_COLOR[def.type] || '#5dff88';
-    var c = E.combat;
-    var gone = !!c && (c.exhaust.some(function (x) { return x.uid === card.uid; }) ||
-                       c.consumed.some(function (x) { return x.uid === card.uid; }));
-    if (gone) {
-      R.burst(cx, cy, color, 26); R.burst(cx, cy, '#ffffff', 6);
-    } else {
-      R.burst(cx, cy, color, 8);
-      var g = el('div', 'card-ghost type-' + def.type);
-      g.style.left = rect.left + 'px'; g.style.top = rect.top + 'px';
-      g.style.width = rect.width + 'px'; g.style.height = rect.height + 'px';
-      $game.appendChild(g);
-      var dst = $discardPile.getBoundingClientRect();
-      var dx = (dst.left + dst.width / 2) - (rect.left + rect.width / 2);
-      var dy = (dst.top + dst.height / 2) - (rect.top + rect.height / 2);
-      g.getBoundingClientRect(); // reflow so the transition runs
-      g.style.transform = 'translate(' + dx.toFixed(0) + 'px,' + dy.toFixed(0) + 'px) scale(0.26) rotate(38deg)';
-      g.style.opacity = '0';
-      setTimeout(function () { g.remove(); }, 440);
+    if (clone) {
+      clone.classList.add('card-ghost', fx.demat);
+      clone.classList.remove('selected', 'dragging', 'deal', 'unaffordable');
+      clone.style.position = 'fixed'; clone.style.margin = '0'; clone.style.transition = 'none'; clone.style.transform = 'none';
+      clone.style.left = rect.left + 'px'; clone.style.top = rect.top + 'px';
+      clone.style.width = rect.width + 'px'; clone.style.height = rect.height + 'px';
+      $game.appendChild(clone);
+      setTimeout(function () { clone.remove(); }, 520);
     }
+    R.burst(cx, cy, fx.color, fx.n);
+    var c = E.combat;
+    var consumed = !!c && (c.exhaust.some(function (x) { return x.uid === card.uid; }) ||
+                           c.consumed.some(function (x) { return x.uid === card.uid; }));
+    blinkPile(consumed ? null : $discardPile, fx.color);
   }
 
   function playCardAt(i, targetIdx) {
@@ -979,11 +1012,11 @@
     var wasAttack = def.type === 'attack';
     var srcEl = $hand.children[i];
     var srcRect = srcEl ? srcEl.getBoundingClientRect() : null;
+    var clone = srcEl ? srcEl.cloneNode(true) : null;
     E.events.length = 0;
     var ok = E.playCard(i, targetIdx);
     if (!ok) { renderHand(); return; }
     SFX.play();
-    cardPlayFx(srcRect, card, def);
     if (wasAttack) R.playerLunge();
     var evts = E.events.slice();
     E.events.length = 0;
@@ -997,6 +1030,7 @@
     updateEnergy();
     updateCounts();
     updateHUD();
+    cardPlayFx(srcRect, clone, card, def); // after piles update so the blink sticks
   }
 
   function doEndTurn() {

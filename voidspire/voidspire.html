@@ -266,10 +266,10 @@ html, body {
   background: rgba(5, 20, 28, 0.85); padding: 7px 12px;
 }
 
-/* ===== draw / discard piles + card-play flourish ===== */
+/* ===== draw / discard piles (tap to inspect) ===== */
 #draw-pile, #discard-pile {
   position: absolute; bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
-  z-index: 29; width: 44px; text-align: center; pointer-events: none;
+  z-index: 29; width: 44px; text-align: center; pointer-events: auto; cursor: pointer;
 }
 #draw-pile { left: 5px; }
 #discard-pile { right: 5px; }
@@ -278,37 +278,45 @@ html, body {
   border: 1px solid var(--green-dim);
   background: linear-gradient(160deg, var(--panel2), var(--panel));
   clip-path: polygon(0 5px, 5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
-  display: flex; align-items: center; justify-content: center;
 }
 #draw-pile .pile-card { box-shadow: 3px -3px 0 -1px rgba(20,40,30,0.75), 6px -6px 0 -2px rgba(14,28,22,0.5); }
-#discard-pile .pile-card { border-color: #7a5a2a; box-shadow: -3px -3px 0 -1px rgba(40,30,12,0.7), -6px -6px 0 -2px rgba(30,22,8,0.45); }
-.pile-card::before {
-  content: ''; position: absolute; inset: 0; pointer-events: none;
-  background:
-    linear-gradient(45deg, transparent 45%, rgba(93,255,136,0.16) 49% 51%, transparent 55%),
-    linear-gradient(-45deg, transparent 45%, rgba(93,255,136,0.16) 49% 51%, transparent 55%);
+#discard-pile .pile-card { box-shadow: -3px -3px 0 -1px rgba(28,32,30,0.6), -6px -6px 0 -2px rgba(18,22,22,0.4); }
+#draw-pile:active .pile-card, #discard-pile:active .pile-card { filter: brightness(1.3); }
+.pile-ic { position: absolute; left: 50%; top: 45%; transform: translate(-50%, -50%); width: 24px; height: 30px; }
+.pile-ic svg, svg.pile-ic { width: 100%; height: 100%; }
+.pile-discard .pile-ic { opacity: 0.55; filter: saturate(0.55); }
+.pile-n {
+  position: absolute; right: -3px; bottom: -3px; min-width: 15px; padding: 0 2px;
+  font-size: 10px; font-weight: bold; line-height: 14px; color: var(--text);
+  background: rgba(4, 10, 12, 0.95); border: 1px solid var(--green-dim);
 }
-#discard-pile .pile-card::before {
-  background:
-    linear-gradient(45deg, transparent 45%, rgba(255,176,46,0.16) 49% 51%, transparent 55%),
-    linear-gradient(-45deg, transparent 45%, rgba(255,176,46,0.16) 49% 51%, transparent 55%);
+.pile-lbl { font-size: 7px; letter-spacing: 1px; color: var(--text-dim); margin-top: 3px; }
+.pile-card.blink { animation: pileBlink 0.46s ease-out; }
+@keyframes pileBlink {
+  0%, 100% { box-shadow: 0 0 0 var(--blink); border-color: var(--green-dim); }
+  35% { box-shadow: 0 0 15px 3px var(--blink); border-color: var(--blink); }
 }
-.pile-n { position: relative; font-size: 14px; font-weight: bold; color: var(--text); text-shadow: 0 0 4px #000, 0 0 4px #000; }
-#discard-pile .pile-n { color: var(--amber); }
-.pile-lbl { font-size: 7px; letter-spacing: 1px; color: var(--text-dim); margin-top: 2px; }
 
-.card-ghost {
-  position: fixed; z-index: 70; pointer-events: none;
-  background: linear-gradient(160deg, var(--panel2), var(--panel));
-  border: 1px solid var(--green-dim);
-  clip-path: polygon(0 6px, 6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
-  transition: transform 0.42s cubic-bezier(0.5, 0, 0.7, 1), opacity 0.42s ease-in;
-  transform-origin: center;
+/* per-class card dematerialisation (the clone keeps the .card face) */
+.card-ghost { position: fixed; z-index: 70; pointer-events: none; }
+@keyframes dematVan {
+  0% { opacity: 1; filter: none; }
+  22% { opacity: 1; filter: brightness(2.4) saturate(1.5); }
+  100% { opacity: 0; transform: scaleY(0.1) translateY(28px); filter: brightness(2.4); }
 }
-.card-ghost.type-attack { border-color: #9a5a20; }
-.card-ghost.type-skill { border-color: #1f7a96; }
-.card-ghost.type-power { border-color: #7a3f9a; }
-.card-ghost.type-curse { border-color: #7a2030; }
+.card-ghost.demat-van { animation: dematVan 0.42s cubic-bezier(0.4, 0, 0.7, 1) forwards; transform-origin: center bottom; }
+@keyframes dematTech {
+  0% { opacity: 1; filter: none; }
+  30% { opacity: 0.85; filter: brightness(1.9) contrast(1.7) hue-rotate(-8deg); transform: translateX(2px); }
+  65% { opacity: 0.5; transform: translateX(-3px) scaleX(1.05); }
+  100% { opacity: 0; transform: scaleX(0.55) scaleY(1.04); filter: brightness(2.2) contrast(2.2); }
+}
+.card-ghost.demat-tech { animation: dematTech 0.4s steps(7) forwards; }
+@keyframes dematVoid {
+  0% { opacity: 1; }
+  100% { opacity: 0; transform: scale(0.04) rotate(200deg); filter: brightness(1.6); }
+}
+.card-ghost.demat-void { animation: dematVoid 0.46s cubic-bezier(0.6, 0, 0.85, 1) forwards; }
 
 .btn {
   font-family: inherit;
@@ -1426,6 +1434,25 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   ns.cardGlyph = function (id, def) {
     var g = GLYPH_OF[id] || (def && TYPE_DEFAULT[def.type]) || 'core';
     return ns.CARD_GLYPHS[g] || ns.CARD_GLYPHS.core;
+  };
+
+  // Per-class draw/discard pile icons (a "full" charge vs a "spent" one).
+  ns.PILE_ICONS = {
+    vanguard: {
+      // a live cartridge vs a spent casing
+      draw: { p: [[-0.27,-0.12, 0,-0.72, 0.27,-0.12, 0.27,0.66, -0.27,0.66, -0.27,-0.12], [-0.27,0.16, 0.27,0.16], [-0.27,0.42, 0.27,0.42]] },
+      discard: { p: [[-0.44,-0.52, 0.44,-0.52, 0.3,-0.34, 0.3,0.66, -0.3,0.66, -0.3,-0.34, -0.44,-0.52], [-0.3,-0.08, 0.3,-0.08]] },
+    },
+    technomancer: {
+      // a charged energy cell vs a drained, cracked one
+      draw: { p: [[-0.32,-0.52, 0.32,-0.52, 0.32,0.66, -0.32,0.66, -0.32,-0.52], [-0.14,-0.52, -0.14,-0.7, 0.14,-0.7, 0.14,-0.52], [-0.18,-0.22, 0.18,-0.22], [-0.18,0.08, 0.18,0.08], [-0.18,0.38, 0.18,0.38]] },
+      discard: { p: [[-0.32,-0.52, 0.32,-0.52, 0.32,0.66, -0.32,0.66, -0.32,-0.52], [-0.14,-0.52, -0.14,-0.7, 0.14,-0.7, 0.14,-0.52], [-0.06,-0.28, 0.12,0.04, -0.1,0.1, 0.08,0.44]] },
+    },
+    voidadept: {
+      // a live void shard (eye) vs a cracked, dead one
+      draw: { p: [[0,-0.7, 0.42,-0.04, 0,0.72, -0.42,-0.04, 0,-0.7], [0,-0.36, 0,0.42]], e: [[0,0.02]] },
+      discard: { p: [[0,-0.7, 0.42,-0.04, 0,0.72, -0.42,-0.04, 0,-0.7], [-0.18,-0.3, 0.1,-0.02, -0.08,0.06, 0.16,0.4]] },
+    },
   };
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
@@ -5214,6 +5241,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $discardPile = el('div', '', '<div class="pile-card"><span class="pile-n">0</span></div><div class="pile-lbl">DISC</div>');
     $discardPile.id = 'discard-pile';
     $game.appendChild($discardPile);
+    $drawPile.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); if (E.combat && !locked) { SFX.tap(); showPileModal('draw'); } });
+    $discardPile.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); if (E.combat && !locked) { SFX.tap(); showPileModal('discard'); } });
 
     $hint = el('div', '', 'DROP ON A TARGET');
     $hint.id = 'target-hint';
@@ -5802,15 +5831,38 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $energy.textContent = '⚡ ' + c.energy;
   }
 
+  var CLASS_COLOR = { vanguard: '#ffb02e', technomancer: '#41d8ff', voidadept: '#c86bff' };
+  function pileHTML(cls, which, n, sub) {
+    var set = ns.PILE_ICONS[cls] || ns.PILE_ICONS.vanguard;
+    return '<div class="pile-card pile-' + which + '">' + artSVG(set[which], 'pile-ic', CLASS_COLOR[cls] || '#5dff88') +
+      '<span class="pile-n">' + n + '</span></div>' +
+      '<div class="pile-lbl">' + (which === 'draw' ? 'DRAW' : 'DISC' + (sub || '')) + '</div>';
+  }
   function updateCounts() {
     var c = E.combat;
     if (!c) return;
-    $drawPile.querySelector('.pile-n').textContent = c.drawPile.length;
-    var dn = $discardPile.querySelector('.pile-n');
-    dn.textContent = c.discard.length;
-    var lbl = $discardPile.querySelector('.pile-lbl');
-    if (c.exhaust.length) lbl.textContent = 'DISC · EXH ' + c.exhaust.length;
-    else lbl.textContent = 'DISC';
+    var cls = E.run.cls;
+    $drawPile.innerHTML = pileHTML(cls, 'draw', c.drawPile.length, '');
+    $discardPile.innerHTML = pileHTML(cls, 'discard', c.discard.length, c.exhaust.length ? '·E' + c.exhaust.length : '');
+  }
+
+  // Look into the draw / discard pile.
+  function showPileModal(which) {
+    var c = E.combat;
+    if (!c) return;
+    var wasCombat = E.run.phase === 'combat';
+    var cards = (which === 'draw' ? c.drawPile : c.discard).slice();
+    var s = overlayScreen();
+    s.appendChild(el('h2', 'screen-title', (which === 'draw' ? 'Draw Pile' : 'Discard Pile') + ' (' + cards.length + ')'));
+    s.appendChild(el('div', 'screen-sub', which === 'draw' ? 'ORDER IS HIDDEN UNTIL DRAWN' : 'MOST RECENTLY PLAYED LAST'));
+    if (!cards.length) s.appendChild(el('div', 'screen-sub', '— EMPTY —'));
+    var grid = el('div', 'card-grid');
+    var list = (which === 'draw') ? cards.sort(function (a, b) { return ns.CARDS[a.id].cost - ns.CARDS[b.id].cost; }) : cards;
+    list.forEach(function (card) { grid.appendChild(cardEl(card.id, card.up)); });
+    s.appendChild(grid);
+    var btn = el('button', 'btn', 'CLOSE');
+    btn.addEventListener('pointerdown', function () { SFX.tap(); if (wasCombat) showCombat(); else U.refresh(); });
+    s.appendChild(btn);
   }
 
   /* ---- shared card markup ---------------------------------------------- */
@@ -6005,34 +6057,42 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
   }
 
-  var TYPE_COLOR = { attack: '#ffb02e', skill: '#41d8ff', power: '#c86bff', curse: '#ff4a5e' };
-
-  // Card-play flourish: cards that go to discard fly to the discard pile; cards
-  // that exhaust / are consumed (powers) disintegrate into vector particles.
-  function cardPlayFx(rect, card, def) {
+  // Per-class card-play flourish: the card dematerialises in place (class-styled),
+  // a class-coloured particle burst pops at the play point, and the pile it
+  // went to blinks. Vanguard ejects (squash), Technomancer deresolves (glitch),
+  // Void Adept implodes into the void.
+  var CLASS_FX = {
+    vanguard:     { color: '#ffb02e', demat: 'demat-van',  n: 18 },
+    technomancer: { color: '#41d8ff', demat: 'demat-tech', n: 22 },
+    voidadept:    { color: '#c86bff', demat: 'demat-void', n: 20 },
+  };
+  function blinkPile(pileEl, color) {
+    if (!pileEl) return;
+    var pc = pileEl.querySelector('.pile-card');
+    if (!pc) return;
+    pc.style.setProperty('--blink', color);
+    pc.classList.remove('blink'); void pc.offsetWidth; pc.classList.add('blink');
+    setTimeout(function () { pc.classList.remove('blink'); }, 480);
+  }
+  function cardPlayFx(rect, clone, card, def) {
     if (!rect) return;
+    var fx = CLASS_FX[E.run.cls] || CLASS_FX.vanguard;
     var bf = document.getElementById('battlefield').getBoundingClientRect();
     var cx = rect.left + rect.width / 2 - bf.left, cy = rect.top + rect.height / 2 - bf.top;
-    var color = TYPE_COLOR[def.type] || '#5dff88';
-    var c = E.combat;
-    var gone = !!c && (c.exhaust.some(function (x) { return x.uid === card.uid; }) ||
-                       c.consumed.some(function (x) { return x.uid === card.uid; }));
-    if (gone) {
-      R.burst(cx, cy, color, 26); R.burst(cx, cy, '#ffffff', 6);
-    } else {
-      R.burst(cx, cy, color, 8);
-      var g = el('div', 'card-ghost type-' + def.type);
-      g.style.left = rect.left + 'px'; g.style.top = rect.top + 'px';
-      g.style.width = rect.width + 'px'; g.style.height = rect.height + 'px';
-      $game.appendChild(g);
-      var dst = $discardPile.getBoundingClientRect();
-      var dx = (dst.left + dst.width / 2) - (rect.left + rect.width / 2);
-      var dy = (dst.top + dst.height / 2) - (rect.top + rect.height / 2);
-      g.getBoundingClientRect(); // reflow so the transition runs
-      g.style.transform = 'translate(' + dx.toFixed(0) + 'px,' + dy.toFixed(0) + 'px) scale(0.26) rotate(38deg)';
-      g.style.opacity = '0';
-      setTimeout(function () { g.remove(); }, 440);
+    if (clone) {
+      clone.classList.add('card-ghost', fx.demat);
+      clone.classList.remove('selected', 'dragging', 'deal', 'unaffordable');
+      clone.style.position = 'fixed'; clone.style.margin = '0'; clone.style.transition = 'none'; clone.style.transform = 'none';
+      clone.style.left = rect.left + 'px'; clone.style.top = rect.top + 'px';
+      clone.style.width = rect.width + 'px'; clone.style.height = rect.height + 'px';
+      $game.appendChild(clone);
+      setTimeout(function () { clone.remove(); }, 520);
     }
+    R.burst(cx, cy, fx.color, fx.n);
+    var c = E.combat;
+    var consumed = !!c && (c.exhaust.some(function (x) { return x.uid === card.uid; }) ||
+                           c.consumed.some(function (x) { return x.uid === card.uid; }));
+    blinkPile(consumed ? null : $discardPile, fx.color);
   }
 
   function playCardAt(i, targetIdx) {
@@ -6042,11 +6102,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var wasAttack = def.type === 'attack';
     var srcEl = $hand.children[i];
     var srcRect = srcEl ? srcEl.getBoundingClientRect() : null;
+    var clone = srcEl ? srcEl.cloneNode(true) : null;
     E.events.length = 0;
     var ok = E.playCard(i, targetIdx);
     if (!ok) { renderHand(); return; }
     SFX.play();
-    cardPlayFx(srcRect, card, def);
     if (wasAttack) R.playerLunge();
     var evts = E.events.slice();
     E.events.length = 0;
@@ -6060,6 +6120,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     updateEnergy();
     updateCounts();
     updateHUD();
+    cardPlayFx(srcRect, clone, card, def); // after piles update so the blink sticks
   }
 
   function doEndTurn() {
