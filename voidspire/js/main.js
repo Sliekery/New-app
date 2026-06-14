@@ -10,10 +10,14 @@
     ns.render.init(canvas);
     ns.ui.init();
 
-    window.addEventListener('resize', function () {
-      ns.render.resize();
-      if (ns.engine.combat) ns.render.syncCombat();
-    });
+    function refit() {
+      if (ns.ui.onResize) ns.ui.onResize();
+      else { ns.render.resize(); if (ns.engine.combat) ns.render.syncCombat(); }
+    }
+    window.addEventListener('resize', refit);
+    window.addEventListener('orientationchange', refit);
+    document.addEventListener('fullscreenchange', refit);
+    document.addEventListener('webkitfullscreenchange', refit);
 
     // prevent rubber-band scrolling on iOS, but allow overlay screens to scroll
     document.addEventListener('touchmove', function (e) {

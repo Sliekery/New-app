@@ -33,18 +33,21 @@ html, body {
   overscroll-behavior: none;
 }
 
+/* the game fills the whole screen and adapts to its aspect ratio; the
+   portrait column is capped so it never becomes an absurdly wide strip, while
+   landscape fills edge-to-edge (PC / phone-rotated). */
 #game {
   position: fixed;
   inset: 0;
-  max-width: 560px;
+  max-width: min(100vw, 620px);
   margin: 0 auto;
   overflow: hidden;
 }
-/* horizontal / landscape display mode (toggled from the menu) */
+/* horizontal / landscape display mode (auto-selected by aspect, or forced) */
 #game.landscape {
-  max-width: 1000px;
-  max-height: 560px;
-  margin: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
 }
 /* landscape overlays use the extra width: panel lists flow into 2 columns,
    card grids get wider; titles / buttons / bars stay full-width */

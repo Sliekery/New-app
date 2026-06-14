@@ -16,7 +16,7 @@
   var targeting = false;
   var locked = false;       // input lock while timeline plays
   var toastTimer = null;
-  var orient = 'portrait';  // 'portrait' | 'landscape' display mode (persisted)
+  var orient = 'auto';  // 'auto' (fit to screen) | 'portrait' | 'landscape' (persisted)
 
   /* ====================== tiny synth ====================== */
   var AC = null, muted = false;
@@ -187,14 +187,24 @@
   };
 
   /* ====================== display orientation ====================== */
+  var lastLandscape = null;
   function loadOrient() {
     try {
       var v = window.localStorage && window.localStorage.getItem('voidspire_orient');
-      if (v === 'landscape' || v === 'portrait') orient = v;
+      if (v === 'landscape' || v === 'portrait' || v === 'auto') orient = v;
     } catch (e) { /* private mode */ }
   }
+  // 'auto' picks the layout from the viewport's aspect ratio so the game fits
+  // any screen (phone portrait, PC landscape...). portrait/landscape force it.
+  function isLandscape() {
+    if (orient === 'landscape') return true;
+    if (orient === 'portrait') return false;
+    return (window.innerWidth / Math.max(1, window.innerHeight)) >= 1.1;
+  }
   function applyOrient() {
-    if ($game) $game.classList.toggle('landscape', orient === 'landscape');
+    var land = isLandscape();
+    lastLandscape = land;
+    if ($game) $game.classList.toggle('landscape', land);
     if (R.resize) R.resize();
     if (E.combat && R.syncCombat) R.syncCombat();
   }
@@ -202,6 +212,32 @@
     orient = v;
     try { if (window.localStorage) window.localStorage.setItem('voidspire_orient', v); } catch (e) { /* ignore */ }
     applyOrient();
+  }
+  function cycleOrient() { setOrient(orient === 'auto' ? 'portrait' : orient === 'portrait' ? 'landscape' : 'auto'); }
+  function orientLabel() {
+    return orient === 'auto' ? '⤢ DISPLAY: AUTO' : orient === 'landscape' ? '▭ DISPLAY: HORIZONTAL' : '▯ DISPLAY: VERTICAL';
+  }
+
+  // window resize / fullscreen change: refit, and re-render an overlay if the
+  // auto orientation flipped (so the map / panels reflow to the new layout)
+  U.onResize = function () {
+    var land = isLandscape();
+    if ($game) $game.classList.toggle('landscape', land);
+    if (R.resize) R.resize();
+    if (E.combat && R.syncCombat) R.syncCombat();
+    if (land !== lastLandscape) {
+      lastLandscape = land;
+      if (E.run && E.run.phase !== 'combat' && $overlay.classList.contains('active')) U.refresh();
+    }
+  };
+
+  function fsElement() { return document.fullscreenElement || document.webkitFullscreenElement; }
+  function toggleFullscreen() {
+    var d = document, el = d.documentElement;
+    try {
+      if (fsElement()) { (d.exitFullscreen || d.webkitExitFullscreen || function () {}).call(d); }
+      else { (el.requestFullscreen || el.webkitRequestFullscreen || function () {}).call(el); }
+    } catch (e) { /* not supported */ }
   }
 
   // Tooltip text for an artifact chip, including live quest progress.
@@ -387,14 +423,16 @@
     });
 
     var disp = el('div', 'panel-btn dim-panel',
-      '<div class="pb-title">' + (orient === 'landscape' ? '▭ DISPLAY: HORIZONTAL' : '▯ DISPLAY: VERTICAL') + '</div>' +
-      '<div class="pb-sub">Tap to switch orientation</div>');
-    disp.addEventListener('pointerdown', function () {
-      SFX.tap();
-      setOrient(orient === 'landscape' ? 'portrait' : 'landscape');
-      showTitle();
-    });
+      '<div class="pb-title">' + orientLabel() + '</div>' +
+      '<div class="pb-sub">Tap to cycle · Auto fits your screen</div>');
+    disp.addEventListener('pointerdown', function () { SFX.tap(); cycleOrient(); showTitle(); });
     s.appendChild(disp);
+
+    var fsb = el('div', 'panel-btn dim-panel',
+      '<div class="pb-title">⛶ ' + (fsElement() ? 'EXIT FULLSCREEN' : 'FULLSCREEN') + '</div>' +
+      '<div class="pb-sub">Fill the whole screen</div>');
+    fsb.addEventListener('pointerdown', function () { SFX.tap(); toggleFullscreen(); setTimeout(showTitle, 120); });
+    s.appendChild(fsb);
 
     var best = E.getBest();
     var foot = 'TAP A CLASS TO DEPLOY · SWIPE CARDS UP TO PLAY THEM';
@@ -472,7 +510,7 @@
     s.appendChild(el('div', 'screen-sub', esc(ns.FACTIONS[r.faction].name.toUpperCase()) + ' TERRITORY · ' + (started ? 'CHOOSE THE NEXT JUMP' : 'CHOOSE YOUR ENTRY POINT')));
 
     var COLS = m.COLS, ROWS = m.ROWS;
-    var land = (orient === 'landscape');
+    var land = isLandscape();
     var lane = 100, step = 106;        // lane = perpendicular spacing, step = progress spacing
     var W = land ? (ROWS + 1) * step : COLS * lane;
     var H = land ? COLS * lane : (ROWS + 1) * step;
@@ -2015,14 +2053,14 @@
     s.appendChild(mute);
 
     var disp = el('div', 'panel-btn',
-      '<div class="pb-title">' + (orient === 'landscape' ? '▭ DISPLAY: HORIZONTAL' : '▯ DISPLAY: VERTICAL') + '</div>' +
-      '<div class="pb-sub">Tap to switch orientation</div>');
-    disp.addEventListener('pointerdown', function () {
-      SFX.tap();
-      setOrient(orient === 'landscape' ? 'portrait' : 'landscape');
-      showMenu(); // re-render the menu in the new orientation
-    });
+      '<div class="pb-title">' + orientLabel() + '</div>' +
+      '<div class="pb-sub">Tap to cycle · Auto fits your screen</div>');
+    disp.addEventListener('pointerdown', function () { SFX.tap(); cycleOrient(); showMenu(); });
     s.appendChild(disp);
+
+    var fsb = el('div', 'panel-btn', '<div class="pb-title">⛶ ' + (fsElement() ? 'EXIT FULLSCREEN' : 'FULLSCREEN') + '</div>');
+    fsb.addEventListener('pointerdown', function () { SFX.tap(); toggleFullscreen(); setTimeout(showMenu, 120); });
+    s.appendChild(fsb);
 
     var help = el('div', 'panel-btn magenta', '<div class="pb-title">? FIELD MANUAL</div>');
     help.addEventListener('pointerdown', function () { SFX.tap(); showHelp(wasCombat); });
