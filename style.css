@@ -292,6 +292,17 @@ button { touch-action:none; font-family:inherit; }
 .cpOpt b { color:#f0d97a; font-size:16px; }
 .cpOpt span { color:#bdb293; font-size:12px; }
 
+/* ---------- camera rotate control ---------- */
+#rotCtl{
+  position:absolute; right:14px; top:calc(env(safe-area-inset-top,0px) + 150px);
+  display:flex; gap:8px; pointer-events:auto; z-index:6;
+}
+#rotCtl button{
+  width:40px; height:40px; border-radius:50%; border:1px solid #6b5a33;
+  background:rgba(26,22,14,.8); color:#e8dcc0; font-size:16px;
+}
+#rotCtl button:active{ background:rgba(60,50,30,.9); }
+
 /* ---------- zone map ---------- */
 #mapCanvas {
   width:100%; max-width:520px; display:block; margin:0 auto;
