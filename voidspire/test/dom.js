@@ -174,10 +174,13 @@ async function main() {
     ', phase = ' + (VS.engine.run ? VS.engine.run.phase : 'no-run') +
     ', sector = ' + (VS.engine.run ? VS.engine.run.sector : '?'));
 
-  // if dead, restart via game over button
+  // if dead, restart via game over button (it renders after the death timeline
+  // + a short delay, so poll for it rather than assuming a fixed wait)
   if (VS.engine.run && VS.engine.run.phase === 'dead') {
-    await sleep(900);
-    tap(qa('#overlay .btn')[0]);
+    var over = null;
+    for (var dt = 0; dt < 60 && !over; dt++) { over = qa('#overlay .btn')[0]; if (!over) await sleep(50); }
+    if (!over) throw new Error('game-over screen did not render after death');
+    tap(over);
     await sleep(50);
     if (!qa('#overlay .panel-btn').length) throw new Error('did not return to title after death');
     console.log('death -> title: OK');
