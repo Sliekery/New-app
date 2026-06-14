@@ -82,10 +82,10 @@
       restHealPct: 0.30,         // heal at a rest node
     },
 
-    /* ---- Level up (after each boss) ----------------------------------- */
+    /* ---- Level up: Augment Protocol draft (after each boss) ----------- */
     levelUp: {
-      attrGain: 1,               // points gained when picking an attribute
-      maxHpGain: 9,              // option: +max HP (also heals this much)
+      // how often each augment rarity shows up in the 3-card draft
+      rarityWeights: { 1: 100, 2: 52, 3: 20 },
     },
 
     /* ---- Shop ---------------------------------------------------------- */

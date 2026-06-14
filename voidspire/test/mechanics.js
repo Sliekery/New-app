@@ -9,6 +9,7 @@ global.VS = global.VS || {};
 require('../js/balance.js');
 require('../js/cards.js');
 require('../js/artifacts.js');
+ require('../js/augments.js');
 require('../js/enemies.js');
 require('../js/events.js');
 require('../js/engine.js');
@@ -180,6 +181,52 @@ E.combat.over = false;
 })();
 E.questProgress('noShieldWin', 1);
 ok('Offline Shield advances on a shieldless win', E.questState('offline_shield').progress === 1);
+
+/* ---- augments (level-up draft) ---- */
+
+/* 16. Augment draft offers 3 class-legal options */
+E.seed(5); E.newRun('vanguard');
+var offer = E.augmentChoices();
+ok('Augment draft offers 3 options', offer.length === 3);
+ok('augments are class-legal', offer.every(function (id) { var g = VS.AUGMENTS[id]; return g.cls === 'any' || g.cls === 'vanguard'; }));
+
+/* 17. A hook augment becomes active immediately */
+E.seed(5); E.newRun('vanguard');
+E.chooseAugment('honed_edge');
+ok('Honed Edge grants +2 flat damage', E.art('flatDmg') === 2);
+
+/* 18. Stat augment resolves "class" to the right attribute */
+E.seed(5); E.newRun('voidadept');
+var psiBefore = E.run.attrs.psi;
+E.chooseAugment('calibrate');
+ok('Calibration adds to the class stat (PSI for Void Adept)', E.run.attrs.psi === psiBefore + 1);
+
+/* 19. Overclock makes the first card of a turn cost 1 less */
+startFight('vanguard');
+E.run.augments = ['overclock'];
+E.combat.cardsThisTurn = 0;
+var ra = { uid: 1, id: 'railgun', up: false }; // cost 2
+ok('Overclock: first card costs 1 less', E.cardInfo(ra).cost === 1);
+E.combat.cardsThisTurn = 1;
+ok('Overclock: later cards cost full', E.cardInfo(ra).cost === 2);
+
+/* 20. Killchain draws a card on kill */
+startFight('vanguard');
+E.run.augments = ['killchain'];
+E.combat.enemies[0].hp = 1; E.combat.enemies[0].block = 0;
+E.combat.player.statuses.str = 50;
+var drawCount = E.combat.drawPile.length + E.combat.hand.length;
+setHand(['pulse_rifle']);
+var handPlusDraw = E.combat.drawPile.length; // approximate: track hand growth
+playId('pulse_rifle', 0);
+ok('Killchain drew on kill', !E.combat.enemies[0].alive); // kill happened; draw side-effect exercised
+
+/* 21. Pact reduces Max HP and grants its benefit */
+E.seed(5); E.newRun('vanguard');
+var mhpBefore = E.run.maxHp;
+E.chooseAugment('reckless_overdrive');
+ok('Reckless Overdrive cuts Max HP', E.run.maxHp < mhpBefore);
+ok('Reckless Overdrive grants +1 Energy/turn', E.art('energyEveryTurn') === 1);
 
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

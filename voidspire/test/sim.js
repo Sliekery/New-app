@@ -10,6 +10,7 @@ global.VS = global.VS || {};
 require('../js/balance.js');
 require('../js/cards.js');
 require('../js/artifacts.js');
+ require('../js/augments.js');
 require('../js/enemies.js');
 require('../js/events.js');
 require('../js/engine.js');
@@ -283,12 +284,21 @@ function step() {
       else { E.restUpgrade(); E.restFinishUpgrade(pickUpgradeIdx()); }
       break;
     case 'levelup': {
-      var opts = E.levelUpOptions().map(function (o) { return o.id; });
-      var pick;
-      if (r.hp < r.maxHp * 0.5 && opts.indexOf('heal') >= 0) pick = 'heal';
-      else if (r.maxHp < 70) pick = 'hp';
-      else pick = CLASS_ATTR[r.cls];
-      E.levelUp(opts.indexOf(pick) >= 0 ? pick : opts[0]);
+      // augment draft: a competent player heals when low, otherwise takes a
+      // straightforward module/stat and avoids pacts & fiddly deck-ops
+      var offer = E.augmentChoices();
+      var low = r.hp < r.maxHp * 0.45;
+      var simple = offer.filter(function (id) { var g = VS.AUGMENTS[id]; return g.kind !== 'pact' && g.kind !== 'deckop'; });
+      var heals = offer.filter(function (id) { return VS.AUGMENTS[id].kind === 'heal'; });
+      var chosen = (low && heals.length) ? heals[0] : (simple[0] || offer[0]);
+      E.chooseAugment(chosen);
+      if (E.run.augmentDeckop) {
+        var op = E.run.augmentDeckop;
+        if (op === 'remove') { E.run.pendingPick = 'remove'; E.applyPick(pickRemoveIdx()); }
+        else if (op === 'upgrade2') { E.run.pendingPick = 'upgrade'; E.applyPick(pickUpgradeIdx()); E.run.pendingPick = 'upgrade'; E.applyPick(pickUpgradeIdx()); }
+        else if (op === 'addCard') { var add = E.augmentAddOptions(); if (add.length) E.augmentAddCard(add[0]); }
+        E.finishAugment();
+      }
       break;
     }
     case 'boss-artifact': {

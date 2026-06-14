@@ -325,6 +325,12 @@ h2.screen-title {
 .panel-btn.cyan .pb-title { color: var(--cyan); text-shadow: var(--glow-c); }
 .panel-btn.magenta .pb-title { color: var(--magenta); }
 .panel-btn.disabled { opacity: 0.4; pointer-events: none; }
+.panel-btn.pact { border-color: var(--red); }
+.panel-btn.pact .pb-title { color: var(--red); text-shadow: 0 0 6px rgba(255,74,94,0.4); }
+.aug-tag {
+  font-size: 8px; letter-spacing: 1px; vertical-align: middle;
+  border: 1px solid currentColor; border-radius: 2px; padding: 1px 4px; margin-left: 6px; opacity: 0.8;
+}
 
 .event-text {
   max-width: 420px; font-size: 12.5px; line-height: 1.7; color: var(--text);
@@ -676,10 +682,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       restHealPct: 0.30,         // heal at a rest node
     },
 
-    /* ---- Level up (after each boss) ----------------------------------- */
+    /* ---- Level up: Augment Protocol draft (after each boss) ----------- */
     levelUp: {
-      attrGain: 1,               // points gained when picking an attribute
-      maxHpGain: 9,              // option: +max HP (also heals this much)
+      // how often each augment rarity shows up in the 3-card draft
+      rarityWeights: { 1: 100, 2: 52, 3: 20 },
     },
 
     /* ---- Shop ---------------------------------------------------------- */
@@ -1268,6 +1274,93 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
+/* ===== js/augments.js ===== */
+/* =========================================================================
+ * VOIDSPIRE — augments.js
+ * "Augment Protocols": the level-up reward pool. After each boss you draft
+ * one of 3 random augments (rarity-weighted, class-flavored). Replaces the
+ * old fixed +1-stat menu so the choice is interesting and not a no-brainer.
+ *
+ * kind:
+ *   'stat'   — immediate attribute / max-HP gain (stat: 'class'|'might'|...|'maxhp', v)
+ *   'heal'   — heal a % of max HP (healPct)
+ *   'hook'   — permanent passive via an engine hook (hook:{k,v} or hooks:[...])
+ *   'deckop' — a deck operation (deckop: 'remove'|'upgrade2'|'addCard')
+ *   'pact'   — a tradeoff: a benefit (hook/hooks or stat) plus a cost (maxhpPct)
+ * cls: 'any' or a class id (only offered to that class)
+ * ========================================================================= */
+(function (ns) {
+  'use strict';
+
+  ns.AUGMENTS = {
+
+    /* ---------------- Commons (rarity 1) ---------------- */
+    calibrate:    { name: 'Calibration', rarity: 1, cls: 'any', kind: 'stat', stat: 'class', v: 1,
+      desc: '+1 to your core attribute.' },
+    field_repairs:{ name: 'Field Repairs', rarity: 1, cls: 'any', kind: 'heal', healPct: 0.30,
+      desc: 'Patch the hull — heal 30% of Max HP.' },
+    honed_edge:   { name: 'Honed Edge', rarity: 1, cls: 'any', kind: 'hook', hook: { k: 'flatDmg', v: 2 },
+      desc: 'Your attacks deal +2 damage.' },
+    armor_weave:  { name: 'Armor Weave', rarity: 1, cls: 'any', kind: 'hook', hook: { k: 'plate', v: 2 },
+      desc: 'Gain 2 Shield at the start of each turn.' },
+    med_reserves: { name: 'Medical Reserves', rarity: 1, cls: 'any', kind: 'stat', stat: 'maxhp', v: 12,
+      desc: '+12 Max HP (and heal 12).' },
+    purge:        { name: 'Purge Protocol', rarity: 1, cls: 'any', kind: 'deckop', deckop: 'remove',
+      desc: 'Remove a card from your deck.' },
+
+    /* ---------------- Uncommons (rarity 2) ---------------- */
+    killchain:    { name: 'Killchain', rarity: 2, cls: 'any', kind: 'hook', hook: { k: 'killDraw', v: 1 },
+      desc: 'Whenever you kill an enemy, draw a card.' },
+    reactive_plating: { name: 'Reactive Plating', rarity: 2, cls: 'any', kind: 'hook', hook: { k: 'reactivePlate', v: 6 },
+      desc: 'The first time you take damage each combat, gain 6 Shield.' },
+    overclock:    { name: 'Overclock Servos', rarity: 2, cls: 'any', kind: 'hook', hook: { k: 'firstCardFree', v: 1 },
+      desc: 'The first card you play each turn costs 1 less.' },
+    refit:        { name: 'Refit Bay', rarity: 2, cls: 'any', kind: 'deckop', deckop: 'upgrade2',
+      desc: 'Upgrade 2 cards.' },
+    requisition:  { name: 'Requisition', rarity: 2, cls: 'any', kind: 'deckop', deckop: 'addCard',
+      desc: 'Add a card of your choice to your deck.' },
+    munitions:    { name: 'Munitions Cache', rarity: 2, cls: 'vanguard', kind: 'hook', hook: { k: 'vulnDmg', v: 3 },
+      desc: 'Deal +3 damage to Vulnerable enemies.' },
+    targeting_matrix: { name: 'Targeting Matrix', rarity: 2, cls: 'technomancer', kind: 'hook', hook: { k: 'critBonus', v: 2 },
+      desc: 'Crit on a d20 roll of 18 or higher.' },
+    static_field: { name: 'Static Field', rarity: 2, cls: 'technomancer', kind: 'hook', hook: { k: 'shieldThorns', v: 2 },
+      desc: 'Whenever you gain Shield, deal 2 to a random enemy.' },
+    soul_pyre:    { name: 'Soul Pyre', rarity: 2, cls: 'voidadept', kind: 'hook', hook: { k: 'burnGrow', v: 1 },
+      desc: 'At the start of your turn, all enemy Burn grows by 1.' },
+
+    /* ---------------- Rares (rarity 3) ---------------- */
+    critical_cascade: { name: 'Critical Cascade', rarity: 3, cls: 'any', kind: 'hook', hook: { k: 'critVuln', v: 2 },
+      desc: 'Your crits also apply 2 Vulnerable.' },
+    warlord_doctrine: { name: 'Warlord Doctrine', rarity: 3, cls: 'vanguard', kind: 'hook', hook: { k: 'strStart', v: 3 },
+      desc: 'Start each combat with 3 Might.' },
+    echo_protocol:{ name: 'Echo Protocol', rarity: 3, cls: 'technomancer', kind: 'hook', hook: { k: 'echoStart', v: 1 },
+      desc: 'The first Attack you play each turn is played twice.' },
+    entropy_doctrine: { name: 'Entropy Doctrine', rarity: 3, cls: 'voidadept', kind: 'hook', hooks: [{ k: 'burnGrow', v: 1 }, { k: 'weakStart', v: 2 }],
+      desc: 'Enemy Burn grows each turn, and all enemies start Weak.' },
+    kinetic_overflow: { name: 'Kinetic Overflow', rarity: 3, cls: 'any', kind: 'hook', hooks: [{ k: 'flatDmg', v: 2 }, { k: 'firstCardFree', v: 1 }],
+      desc: 'Attacks deal +2, and your first card each turn costs 1 less.' },
+
+    /* ---------------- Pacts (tradeoffs) ---------------- */
+    reckless_overdrive: { name: 'Reckless Overdrive', rarity: 2, cls: 'any', kind: 'pact', maxhpPct: 0.12, hook: { k: 'energyEveryTurn', v: 1 },
+      desc: '+1 Energy every turn — but Max HP −12%.' },
+    glass_doctrine: { name: 'Glass Doctrine', rarity: 3, cls: 'any', kind: 'pact', hooks: [{ k: 'dmgMult', v: 0.5 }, { k: 'vulnStart', v: 2 }],
+      desc: 'Deal +50% damage — but start each combat with 2 Vulnerable.' },
+    blood_pact:   { name: 'Blood Pact', rarity: 2, cls: 'any', kind: 'pact', maxhpPct: 0.10, stat: 'class', v: 2,
+      desc: '+2 to your core attribute — but Max HP −10%.' },
+  };
+
+  // Cards offered by the "Requisition" deck-op, by class.
+  ns.augmentAddPool = function (cls) {
+    var out = [];
+    Object.keys(ns.CARDS).forEach(function (id) {
+      var c = ns.CARDS[id];
+      if (c.rarity >= 1 && (c.cls === cls || c.cls === 'any')) out.push(id);
+    });
+    return out;
+  };
+
+})(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
+
 /* ===== js/enemies.js ===== */
 /* =========================================================================
  * VOIDSPIRE — enemies.js
@@ -1737,6 +1830,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       kills: 0, nodesCleared: 0,
       pendingPick: null,
       quests: {}, questDone: {},
+      augments: [], augmentDeckop: null, augmentOffer: null,
     };
     E.combat = null;
     E.run.map = generateMap(1);
@@ -1762,6 +1856,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var a = ns.ARTIFACTS[owned[i]];
       if (a.k === k) t += a.v;
       if (a.done && a.done.k === k && E.run.questDone && E.run.questDone[owned[i]]) t += a.done.v;
+    }
+    var aug = E.run.augments || [];
+    for (var j = 0; j < aug.length; j++) {
+      var g = ns.AUGMENTS[aug[j]];
+      if (!g) continue;
+      if (g.hook && g.hook.k === k) t += g.hook.v;
+      if (g.hooks) for (var h = 0; h < g.hooks.length; h++) if (g.hooks[h].k === k) t += g.hooks[h].v;
     }
     return t;
   }
@@ -1953,32 +2054,98 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
   E.nodeComplete = nodeComplete;
 
-  /* ---------------- Level up + new sector ------------------------------ */
-  E.levelUpOptions = function () {
-    return [
-      { id: 'might', label: '+' + B.levelUp.attrGain + ' MIGHT', desc: 'Weapon damage & feats of strength' },
-      { id: 'tech', label: '+' + B.levelUp.attrGain + ' TECH', desc: 'Shields & technology' },
-      { id: 'psi', label: '+' + B.levelUp.attrGain + ' PSI', desc: 'Psionic power & willpower' },
-      { id: 'hp', label: '+' + B.levelUp.maxHpGain + ' MAX HP', desc: 'Also heals ' + B.levelUp.maxHpGain + ' HP' },
-      { id: 'heal', label: 'FIELD REPAIRS', desc: 'Heal ' + Math.round(B.rewards.bossHealPct * 100) + '% of your max HP' },
-    ];
+  /* ---------------- Level up: Augment Protocol draft ------------------- */
+  var CLASS_STAT = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
+  E.classStat = function () { return CLASS_STAT[E.run.cls] || 'might'; };
+
+  // Draft 3 random augments, rarity-weighted and class-flavored, no repeats
+  // of augments already owned (so variety builds over a run).
+  E.augmentChoices = function () {
+    var r = E.run;
+    if (r.augmentOffer) return r.augmentOffer; // stable across re-renders
+    var W = B.levelUp.rarityWeights || { 1: 100, 2: 52, 3: 20 };
+    var pool = Object.keys(ns.AUGMENTS).filter(function (id) {
+      var g = ns.AUGMENTS[id];
+      if (g.cls !== 'any' && g.cls !== r.cls) return false;
+      // owned single-use passives shouldn't re-offer; stat/heal/deckop can repeat
+      if ((g.kind === 'hook' || g.kind === 'pact') && r.augments.indexOf(id) >= 0) return false;
+      return true;
+    });
+    function rollOne() {
+      var bag = [];
+      pool.forEach(function (id) { var w = W[ns.AUGMENTS[id].rarity] || 1; for (var i = 0; i < w; i++) bag.push(id); });
+      return pick(bag);
+    }
+    var picks = [], guard = 0;
+    while (picks.length < 3 && guard++ < 300 && pool.length) {
+      var id = rollOne();
+      if (picks.indexOf(id) < 0) picks.push(id);
+      if (picks.length >= pool.length) break;
+    }
+    r.augmentOffer = picks;
+    E.save();
+    return picks;
   };
 
-  E.levelUp = function (id) {
+  // Human-readable label/sub for an augment (resolves 'class' to the real stat).
+  E.augmentInfo = function (id) {
+    var g = ns.AUGMENTS[id];
+    var stat = E.classStat().toUpperCase();
+    var desc = g.desc.replace('core attribute', stat);
+    var tag = g.kind === 'pact' ? 'PACT' : g.kind === 'deckop' ? 'DECK' : g.kind === 'stat' ? 'STAT' : g.kind === 'heal' ? 'REPAIR' : 'MODULE';
+    return { name: g.name, desc: desc, rarity: g.rarity, tag: tag, kind: g.kind };
+  };
+
+  E.chooseAugment = function (id) {
+    var r = E.run, g = ns.AUGMENTS[id];
+    if (!g) return;
+    function applyStat(stat, v) {
+      if (stat === 'maxhp') { r.maxHp += v; heal(v); }
+      else { var a = (stat === 'class') ? E.classStat() : stat; r.attrs[a] += v; }
+    }
+    if (g.kind === 'stat') applyStat(g.stat, g.v);
+    else if (g.kind === 'heal') heal(Math.round(r.maxHp * g.healPct));
+    else if (g.kind === 'hook') r.augments.push(id);
+    else if (g.kind === 'pact') {
+      if (g.maxhpPct) { var lose = Math.round(r.maxHp * g.maxhpPct); r.maxHp -= lose; r.hp = Math.min(r.hp, r.maxHp); }
+      if (g.stat) applyStat(g.stat, g.v);
+      if (g.hook || g.hooks) r.augments.push(id);
+    } else if (g.kind === 'deckop') {
+      r.augmentDeckop = g.deckop;
+      r.augmentOffer = null;
+      if (g.deckop === 'remove') r.pendingPick = 'remove';
+      else if (g.deckop === 'upgrade2') r.pendingPick = 'upgrade';
+      E.save();
+      return; // UI resolves the deck op, then calls finishAugment()
+    }
+    r.augmentOffer = null;
+    setupBossArtifacts();
+  };
+
+  E.finishAugment = function () {
+    E.run.augmentDeckop = null;
+    setupBossArtifacts();
+  };
+
+  // Requisition deck-op: offer 3 class cards to add
+  E.augmentAddOptions = function () {
+    var pool = ns.augmentAddPool(E.run.cls);
+    shuffle(pool);
+    return pool.slice(0, Math.min(3, pool.length));
+  };
+  E.augmentAddCard = function (cid) { E.run.deck.push(mkCard(cid, false)); };
+
+  function setupBossArtifacts() {
     var r = E.run;
-    if (id === 'hp') { r.maxHp += B.levelUp.maxHpGain; heal(B.levelUp.maxHpGain); }
-    else if (id === 'heal') heal(Math.round(r.maxHp * B.rewards.bossHealPct));
-    else r.attrs[id] += B.levelUp.attrGain;
-    // boss artifact: pick one of three tier-2 relics (unowned ones preferred)
     var pool = Object.keys(ns.ARTIFACTS).filter(function (k) {
-      return ns.ARTIFACTS[k].tier === 2 && E.run.artifacts.indexOf(k) < 0;
+      return ns.ARTIFACTS[k].tier === 2 && r.artifacts.indexOf(k) < 0;
     });
-    if (pool.length === 0) pool = Object.keys(ns.ARTIFACTS).filter(function (k) { return ns.ARTIFACTS[k].tier === 1 && E.run.artifacts.indexOf(k) < 0; });
+    if (pool.length === 0) pool = Object.keys(ns.ARTIFACTS).filter(function (k) { return ns.ARTIFACTS[k].tier === 1 && r.artifacts.indexOf(k) < 0; });
     shuffle(pool);
     r.bossArtifacts = pool.slice(0, Math.min(3, pool.length));
     r.phase = 'boss-artifact';
     E.save();
-  };
+  }
 
   E.takeBossArtifact = function (i) {
     var r = E.run;
@@ -2043,10 +2210,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       echoReady: false,
       gainedShield: false,
       startHp: r.hp,
+      cardsThisTurn: 0,
+      reactiveUsed: false,
       over: false,
     };
     var ps = art('strStart');
     if (ps > 0) c.player.statuses.str = ps;
+    var es = art('echoStart');
+    if (es > 0) c.player.statuses.echo = es;
+    var vstart = art('vulnStart');
+    if (vstart > 0) c.player.statuses.vuln = vstart;
     var pa = art('platedArmorStart');
     if (pa > 0) c.player.statuses.platedArmor = pa;
     var bs = art('blockStart');
@@ -2088,6 +2261,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var c = E.combat, p = c.player;
     var leftover = c.energy;
     c.turn++;
+    c.cardsThisTurn = 0;
     // block expiry
     if (!statN(p, 'retain')) p.block = 0;
     // energy (with optional carry-over from Overflow Reactor)
@@ -2187,11 +2361,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     };
   };
 
-  // Effective energy cost: X-cost cards read as 0; under Corruption, Skills cost 0.
+  // Effective energy cost: X-cost cards read as 0; under Corruption, Skills cost
+  // 0; Overclock makes the first card each turn cost less.
   function effCost(def, up) {
     if (def.xcost) return 0;
     var c = ns.cardCost(def, up);
     if (E.combat && def.type === 'skill' && statN(E.combat.player, 'corruption') > 0) return 0;
+    if (E.combat && E.combat.cardsThisTurn === 0) {
+      var ff = art('firstCardFree');
+      if (ff > 0) c = Math.max(0, c - ff);
+    }
     return c;
   }
   E.effCost = effCost;
@@ -2219,9 +2398,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var dm = art('dmgMult');
     if (dm > 0) amount = Math.round(amount * (1 + dm));
     if (statN(c.player, 'weak') && !opts.noWeak) amount = Math.floor(amount * B.status.weakMult);
-    if (statN(en, 'vuln')) amount = Math.floor(amount * B.status.vulnMult);
+    if (statN(en, 'vuln')) { amount = Math.floor(amount * B.status.vulnMult); amount += art('vulnDmg'); }
     if (opts.execute && en.hp <= en.maxHp * 0.30) amount *= 2;
-    if (opts.crit) amount = Math.floor(amount * B.dice.critMult);
+    if (opts.crit) {
+      amount = Math.floor(amount * B.dice.critMult);
+      var cv = art('critVuln');
+      if (cv > 0 && en.alive) { addStatus(en, 'vuln', cv); emit('status', { who: 'enemy', idx: idx, s: 'vuln', v: cv }); }
+    }
     var blocked = Math.min(en.block, amount);
     en.block -= blocked;
     var hpDmg = amount - blocked;
@@ -2233,6 +2416,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       questProgress('kills', 1);
       var hk = art('healOnKill'); if (hk > 0) heal(hk);
       var sk = art('strOnKill'); if (sk > 0) { addStatus(c.player, 'str', sk); emit('status', { who: 'player', s: 'str', v: sk }); }
+      var kd = art('killDraw'); if (kd > 0) drawCards(kd);
       emit('die', { idx: idx });
     }
     return hpDmg;
@@ -2259,6 +2443,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var hpDmg = amount - blocked;
     r.hp -= hpDmg;
     emit('dmg', { who: 'player', amount: amount, hpDmg: hpDmg, hpAfter: Math.max(0, r.hp), blockAfter: p ? p.block : 0 });
+    // Reactive Plating: the first HP damage each combat grants Shield
+    if (c && hpDmg > 0 && !c.reactiveUsed && !opts.pure) {
+      var rp = art('reactivePlate');
+      if (rp > 0) { c.reactiveUsed = true; gainBlock(rp); }
+    }
     if (r.hp <= 0) playerDied();
     return hpDmg;
   }
@@ -2456,6 +2645,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     else if (def.exhaust || (def.type === 'skill' && statN(p, 'corruption') > 0)) exhaustCard(card);
     else c.discard.push(card);
 
+    c.cardsThisTurn++;
     emit('cardPlayed', { id: card.id, crit: crit, roll: roll });
     checkWin();
     return true;
@@ -4971,20 +5161,63 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     s.appendChild(cbar.el);
   }
 
-  /* ====================== LEVEL UP / BOSS ARTIFACT ====================== */
+  /* ====================== LEVEL UP: AUGMENT DRAFT ====================== */
   function showLevelUp() {
     updateHUD();
     var s = overlayScreen(true);
-    s.appendChild(el('h2', 'screen-title', 'Level Up'));
-    s.appendChild(el('div', 'screen-sub', 'THE DESCENT HARDENS YOU · CHOOSE ONE'));
+    s.appendChild(el('h2', 'screen-title', 'Augment Protocol'));
+    s.appendChild(el('div', 'screen-sub', 'BOSS PURGED · INSTALL ONE AUGMENT'));
     var cbar = makeConfirmBar();
-    E.levelUpOptions().forEach(function (opt) {
-      var btn = el('div', 'panel-btn',
-        '<div class="pb-title">' + esc(opt.label) + '</div><div class="pb-desc">' + esc(opt.desc) + '</div>');
+    var rareClass = { 1: '', 2: 'cyan', 3: 'amber' };
+    E.augmentChoices().forEach(function (id) {
+      var info = E.augmentInfo(id);
+      var pcls = info.kind === 'pact' ? 'panel-btn pact' : 'panel-btn ' + (rareClass[info.rarity] || '');
+      var rarTag = info.rarity === 3 ? 'RARE' : info.rarity === 2 ? 'UNCOMMON' : 'COMMON';
+      var btn = el('div', pcls,
+        '<div class="pb-title">' + esc(info.name) + ' <span class="aug-tag">' + info.tag + '</span></div>' +
+        '<div class="pb-desc">' + esc(info.desc) + '</div>' +
+        '<div class="pb-sub">' + rarTag + (info.kind === 'deckop' ? ' · choose your cards next' : '') + '</div>');
       s.appendChild(btn);
-      selectConfirm(s, btn, cbar, 'Take <b>' + esc(opt.label) + '</b>?<span class="cb-note">' + esc(opt.desc) + '</span>',
-        function () { SFX.win(); E.levelUp(opt.id); U.refresh(); }, '');
+      selectConfirm(s, btn, cbar, 'Install <b>' + esc(info.name) + '</b>?<span class="cb-note">' + esc(info.desc) + '</span>',
+        function () {
+          SFX.win();
+          E.chooseAugment(id);
+          if (E.run.augmentDeckop) runDeckop(E.run.augmentDeckop, function () { E.finishAugment(); U.refresh(); });
+          else U.refresh();
+        }, info.kind === 'pact' ? 'red' : '');
     });
+    s.appendChild(cbar.el);
+  }
+
+  // Resolve a deck-operation augment (remove / upgrade 2 / add a card), then done()
+  function runDeckop(op, done) {
+    if (op === 'remove') {
+      E.run.pendingPick = 'remove';
+      showPickModal('remove', done);
+    } else if (op === 'upgrade2') {
+      E.run.pendingPick = 'upgrade';
+      showPickModal('upgrade', function () {
+        E.run.pendingPick = 'upgrade';
+        showPickModal('upgrade', done);
+      });
+    } else if (op === 'addCard') {
+      showAddCard(done);
+    } else done();
+  }
+
+  function showAddCard(done) {
+    var s = overlayScreen(true);
+    s.appendChild(el('h2', 'screen-title', 'Requisition'));
+    s.appendChild(el('div', 'screen-sub', 'TAP A CARD TO PREVIEW · CONFIRM TO ADD'));
+    var grid = el('div', 'card-grid');
+    var cbar = makeConfirmBar();
+    E.augmentAddOptions().forEach(function (cid) {
+      var d = cardEl(cid, false);
+      grid.appendChild(d);
+      selectConfirm(grid, d, cbar, 'Add <b>' + esc(ns.CARDS[cid].name) + '</b> to your deck?',
+        function () { E.augmentAddCard(cid); done(); }, 'cyan');
+    });
+    s.appendChild(grid);
     s.appendChild(cbar.el);
   }
 

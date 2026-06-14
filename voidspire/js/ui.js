@@ -1222,20 +1222,63 @@
     s.appendChild(cbar.el);
   }
 
-  /* ====================== LEVEL UP / BOSS ARTIFACT ====================== */
+  /* ====================== LEVEL UP: AUGMENT DRAFT ====================== */
   function showLevelUp() {
     updateHUD();
     var s = overlayScreen(true);
-    s.appendChild(el('h2', 'screen-title', 'Level Up'));
-    s.appendChild(el('div', 'screen-sub', 'THE DESCENT HARDENS YOU · CHOOSE ONE'));
+    s.appendChild(el('h2', 'screen-title', 'Augment Protocol'));
+    s.appendChild(el('div', 'screen-sub', 'BOSS PURGED · INSTALL ONE AUGMENT'));
     var cbar = makeConfirmBar();
-    E.levelUpOptions().forEach(function (opt) {
-      var btn = el('div', 'panel-btn',
-        '<div class="pb-title">' + esc(opt.label) + '</div><div class="pb-desc">' + esc(opt.desc) + '</div>');
+    var rareClass = { 1: '', 2: 'cyan', 3: 'amber' };
+    E.augmentChoices().forEach(function (id) {
+      var info = E.augmentInfo(id);
+      var pcls = info.kind === 'pact' ? 'panel-btn pact' : 'panel-btn ' + (rareClass[info.rarity] || '');
+      var rarTag = info.rarity === 3 ? 'RARE' : info.rarity === 2 ? 'UNCOMMON' : 'COMMON';
+      var btn = el('div', pcls,
+        '<div class="pb-title">' + esc(info.name) + ' <span class="aug-tag">' + info.tag + '</span></div>' +
+        '<div class="pb-desc">' + esc(info.desc) + '</div>' +
+        '<div class="pb-sub">' + rarTag + (info.kind === 'deckop' ? ' · choose your cards next' : '') + '</div>');
       s.appendChild(btn);
-      selectConfirm(s, btn, cbar, 'Take <b>' + esc(opt.label) + '</b>?<span class="cb-note">' + esc(opt.desc) + '</span>',
-        function () { SFX.win(); E.levelUp(opt.id); U.refresh(); }, '');
+      selectConfirm(s, btn, cbar, 'Install <b>' + esc(info.name) + '</b>?<span class="cb-note">' + esc(info.desc) + '</span>',
+        function () {
+          SFX.win();
+          E.chooseAugment(id);
+          if (E.run.augmentDeckop) runDeckop(E.run.augmentDeckop, function () { E.finishAugment(); U.refresh(); });
+          else U.refresh();
+        }, info.kind === 'pact' ? 'red' : '');
     });
+    s.appendChild(cbar.el);
+  }
+
+  // Resolve a deck-operation augment (remove / upgrade 2 / add a card), then done()
+  function runDeckop(op, done) {
+    if (op === 'remove') {
+      E.run.pendingPick = 'remove';
+      showPickModal('remove', done);
+    } else if (op === 'upgrade2') {
+      E.run.pendingPick = 'upgrade';
+      showPickModal('upgrade', function () {
+        E.run.pendingPick = 'upgrade';
+        showPickModal('upgrade', done);
+      });
+    } else if (op === 'addCard') {
+      showAddCard(done);
+    } else done();
+  }
+
+  function showAddCard(done) {
+    var s = overlayScreen(true);
+    s.appendChild(el('h2', 'screen-title', 'Requisition'));
+    s.appendChild(el('div', 'screen-sub', 'TAP A CARD TO PREVIEW · CONFIRM TO ADD'));
+    var grid = el('div', 'card-grid');
+    var cbar = makeConfirmBar();
+    E.augmentAddOptions().forEach(function (cid) {
+      var d = cardEl(cid, false);
+      grid.appendChild(d);
+      selectConfirm(grid, d, cbar, 'Add <b>' + esc(ns.CARDS[cid].name) + '</b> to your deck?',
+        function () { E.augmentAddCard(cid); done(); }, 'cyan');
+    });
+    s.appendChild(grid);
     s.appendChild(cbar.el);
   }
 

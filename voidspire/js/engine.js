@@ -65,6 +65,7 @@
       kills: 0, nodesCleared: 0,
       pendingPick: null,
       quests: {}, questDone: {},
+      augments: [], augmentDeckop: null, augmentOffer: null,
     };
     E.combat = null;
     E.run.map = generateMap(1);
@@ -90,6 +91,13 @@
       var a = ns.ARTIFACTS[owned[i]];
       if (a.k === k) t += a.v;
       if (a.done && a.done.k === k && E.run.questDone && E.run.questDone[owned[i]]) t += a.done.v;
+    }
+    var aug = E.run.augments || [];
+    for (var j = 0; j < aug.length; j++) {
+      var g = ns.AUGMENTS[aug[j]];
+      if (!g) continue;
+      if (g.hook && g.hook.k === k) t += g.hook.v;
+      if (g.hooks) for (var h = 0; h < g.hooks.length; h++) if (g.hooks[h].k === k) t += g.hooks[h].v;
     }
     return t;
   }
@@ -281,32 +289,98 @@
   }
   E.nodeComplete = nodeComplete;
 
-  /* ---------------- Level up + new sector ------------------------------ */
-  E.levelUpOptions = function () {
-    return [
-      { id: 'might', label: '+' + B.levelUp.attrGain + ' MIGHT', desc: 'Weapon damage & feats of strength' },
-      { id: 'tech', label: '+' + B.levelUp.attrGain + ' TECH', desc: 'Shields & technology' },
-      { id: 'psi', label: '+' + B.levelUp.attrGain + ' PSI', desc: 'Psionic power & willpower' },
-      { id: 'hp', label: '+' + B.levelUp.maxHpGain + ' MAX HP', desc: 'Also heals ' + B.levelUp.maxHpGain + ' HP' },
-      { id: 'heal', label: 'FIELD REPAIRS', desc: 'Heal ' + Math.round(B.rewards.bossHealPct * 100) + '% of your max HP' },
-    ];
+  /* ---------------- Level up: Augment Protocol draft ------------------- */
+  var CLASS_STAT = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
+  E.classStat = function () { return CLASS_STAT[E.run.cls] || 'might'; };
+
+  // Draft 3 random augments, rarity-weighted and class-flavored, no repeats
+  // of augments already owned (so variety builds over a run).
+  E.augmentChoices = function () {
+    var r = E.run;
+    if (r.augmentOffer) return r.augmentOffer; // stable across re-renders
+    var W = B.levelUp.rarityWeights || { 1: 100, 2: 52, 3: 20 };
+    var pool = Object.keys(ns.AUGMENTS).filter(function (id) {
+      var g = ns.AUGMENTS[id];
+      if (g.cls !== 'any' && g.cls !== r.cls) return false;
+      // owned single-use passives shouldn't re-offer; stat/heal/deckop can repeat
+      if ((g.kind === 'hook' || g.kind === 'pact') && r.augments.indexOf(id) >= 0) return false;
+      return true;
+    });
+    function rollOne() {
+      var bag = [];
+      pool.forEach(function (id) { var w = W[ns.AUGMENTS[id].rarity] || 1; for (var i = 0; i < w; i++) bag.push(id); });
+      return pick(bag);
+    }
+    var picks = [], guard = 0;
+    while (picks.length < 3 && guard++ < 300 && pool.length) {
+      var id = rollOne();
+      if (picks.indexOf(id) < 0) picks.push(id);
+      if (picks.length >= pool.length) break;
+    }
+    r.augmentOffer = picks;
+    E.save();
+    return picks;
   };
 
-  E.levelUp = function (id) {
+  // Human-readable label/sub for an augment (resolves 'class' to the real stat).
+  E.augmentInfo = function (id) {
+    var g = ns.AUGMENTS[id];
+    var stat = E.classStat().toUpperCase();
+    var desc = g.desc.replace('core attribute', stat);
+    var tag = g.kind === 'pact' ? 'PACT' : g.kind === 'deckop' ? 'DECK' : g.kind === 'stat' ? 'STAT' : g.kind === 'heal' ? 'REPAIR' : 'MODULE';
+    return { name: g.name, desc: desc, rarity: g.rarity, tag: tag, kind: g.kind };
+  };
+
+  E.chooseAugment = function (id) {
+    var r = E.run, g = ns.AUGMENTS[id];
+    if (!g) return;
+    function applyStat(stat, v) {
+      if (stat === 'maxhp') { r.maxHp += v; heal(v); }
+      else { var a = (stat === 'class') ? E.classStat() : stat; r.attrs[a] += v; }
+    }
+    if (g.kind === 'stat') applyStat(g.stat, g.v);
+    else if (g.kind === 'heal') heal(Math.round(r.maxHp * g.healPct));
+    else if (g.kind === 'hook') r.augments.push(id);
+    else if (g.kind === 'pact') {
+      if (g.maxhpPct) { var lose = Math.round(r.maxHp * g.maxhpPct); r.maxHp -= lose; r.hp = Math.min(r.hp, r.maxHp); }
+      if (g.stat) applyStat(g.stat, g.v);
+      if (g.hook || g.hooks) r.augments.push(id);
+    } else if (g.kind === 'deckop') {
+      r.augmentDeckop = g.deckop;
+      r.augmentOffer = null;
+      if (g.deckop === 'remove') r.pendingPick = 'remove';
+      else if (g.deckop === 'upgrade2') r.pendingPick = 'upgrade';
+      E.save();
+      return; // UI resolves the deck op, then calls finishAugment()
+    }
+    r.augmentOffer = null;
+    setupBossArtifacts();
+  };
+
+  E.finishAugment = function () {
+    E.run.augmentDeckop = null;
+    setupBossArtifacts();
+  };
+
+  // Requisition deck-op: offer 3 class cards to add
+  E.augmentAddOptions = function () {
+    var pool = ns.augmentAddPool(E.run.cls);
+    shuffle(pool);
+    return pool.slice(0, Math.min(3, pool.length));
+  };
+  E.augmentAddCard = function (cid) { E.run.deck.push(mkCard(cid, false)); };
+
+  function setupBossArtifacts() {
     var r = E.run;
-    if (id === 'hp') { r.maxHp += B.levelUp.maxHpGain; heal(B.levelUp.maxHpGain); }
-    else if (id === 'heal') heal(Math.round(r.maxHp * B.rewards.bossHealPct));
-    else r.attrs[id] += B.levelUp.attrGain;
-    // boss artifact: pick one of three tier-2 relics (unowned ones preferred)
     var pool = Object.keys(ns.ARTIFACTS).filter(function (k) {
-      return ns.ARTIFACTS[k].tier === 2 && E.run.artifacts.indexOf(k) < 0;
+      return ns.ARTIFACTS[k].tier === 2 && r.artifacts.indexOf(k) < 0;
     });
-    if (pool.length === 0) pool = Object.keys(ns.ARTIFACTS).filter(function (k) { return ns.ARTIFACTS[k].tier === 1 && E.run.artifacts.indexOf(k) < 0; });
+    if (pool.length === 0) pool = Object.keys(ns.ARTIFACTS).filter(function (k) { return ns.ARTIFACTS[k].tier === 1 && r.artifacts.indexOf(k) < 0; });
     shuffle(pool);
     r.bossArtifacts = pool.slice(0, Math.min(3, pool.length));
     r.phase = 'boss-artifact';
     E.save();
-  };
+  }
 
   E.takeBossArtifact = function (i) {
     var r = E.run;
@@ -371,10 +445,16 @@
       echoReady: false,
       gainedShield: false,
       startHp: r.hp,
+      cardsThisTurn: 0,
+      reactiveUsed: false,
       over: false,
     };
     var ps = art('strStart');
     if (ps > 0) c.player.statuses.str = ps;
+    var es = art('echoStart');
+    if (es > 0) c.player.statuses.echo = es;
+    var vstart = art('vulnStart');
+    if (vstart > 0) c.player.statuses.vuln = vstart;
     var pa = art('platedArmorStart');
     if (pa > 0) c.player.statuses.platedArmor = pa;
     var bs = art('blockStart');
@@ -416,6 +496,7 @@
     var c = E.combat, p = c.player;
     var leftover = c.energy;
     c.turn++;
+    c.cardsThisTurn = 0;
     // block expiry
     if (!statN(p, 'retain')) p.block = 0;
     // energy (with optional carry-over from Overflow Reactor)
@@ -515,11 +596,16 @@
     };
   };
 
-  // Effective energy cost: X-cost cards read as 0; under Corruption, Skills cost 0.
+  // Effective energy cost: X-cost cards read as 0; under Corruption, Skills cost
+  // 0; Overclock makes the first card each turn cost less.
   function effCost(def, up) {
     if (def.xcost) return 0;
     var c = ns.cardCost(def, up);
     if (E.combat && def.type === 'skill' && statN(E.combat.player, 'corruption') > 0) return 0;
+    if (E.combat && E.combat.cardsThisTurn === 0) {
+      var ff = art('firstCardFree');
+      if (ff > 0) c = Math.max(0, c - ff);
+    }
     return c;
   }
   E.effCost = effCost;
@@ -547,9 +633,13 @@
     var dm = art('dmgMult');
     if (dm > 0) amount = Math.round(amount * (1 + dm));
     if (statN(c.player, 'weak') && !opts.noWeak) amount = Math.floor(amount * B.status.weakMult);
-    if (statN(en, 'vuln')) amount = Math.floor(amount * B.status.vulnMult);
+    if (statN(en, 'vuln')) { amount = Math.floor(amount * B.status.vulnMult); amount += art('vulnDmg'); }
     if (opts.execute && en.hp <= en.maxHp * 0.30) amount *= 2;
-    if (opts.crit) amount = Math.floor(amount * B.dice.critMult);
+    if (opts.crit) {
+      amount = Math.floor(amount * B.dice.critMult);
+      var cv = art('critVuln');
+      if (cv > 0 && en.alive) { addStatus(en, 'vuln', cv); emit('status', { who: 'enemy', idx: idx, s: 'vuln', v: cv }); }
+    }
     var blocked = Math.min(en.block, amount);
     en.block -= blocked;
     var hpDmg = amount - blocked;
@@ -561,6 +651,7 @@
       questProgress('kills', 1);
       var hk = art('healOnKill'); if (hk > 0) heal(hk);
       var sk = art('strOnKill'); if (sk > 0) { addStatus(c.player, 'str', sk); emit('status', { who: 'player', s: 'str', v: sk }); }
+      var kd = art('killDraw'); if (kd > 0) drawCards(kd);
       emit('die', { idx: idx });
     }
     return hpDmg;
@@ -587,6 +678,11 @@
     var hpDmg = amount - blocked;
     r.hp -= hpDmg;
     emit('dmg', { who: 'player', amount: amount, hpDmg: hpDmg, hpAfter: Math.max(0, r.hp), blockAfter: p ? p.block : 0 });
+    // Reactive Plating: the first HP damage each combat grants Shield
+    if (c && hpDmg > 0 && !c.reactiveUsed && !opts.pure) {
+      var rp = art('reactivePlate');
+      if (rp > 0) { c.reactiveUsed = true; gainBlock(rp); }
+    }
     if (r.hp <= 0) playerDied();
     return hpDmg;
   }
@@ -784,6 +880,7 @@
     else if (def.exhaust || (def.type === 'skill' && statN(p, 'corruption') > 0)) exhaustCard(card);
     else c.discard.push(card);
 
+    c.cardsThisTurn++;
     emit('cardPlayed', { id: card.id, crit: crit, roll: roll });
     checkWin();
     return true;

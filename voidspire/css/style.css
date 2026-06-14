@@ -314,6 +314,12 @@ h2.screen-title {
 .panel-btn.cyan .pb-title { color: var(--cyan); text-shadow: var(--glow-c); }
 .panel-btn.magenta .pb-title { color: var(--magenta); }
 .panel-btn.disabled { opacity: 0.4; pointer-events: none; }
+.panel-btn.pact { border-color: var(--red); }
+.panel-btn.pact .pb-title { color: var(--red); text-shadow: 0 0 6px rgba(255,74,94,0.4); }
+.aug-tag {
+  font-size: 8px; letter-spacing: 1px; vertical-align: middle;
+  border: 1px solid currentColor; border-radius: 2px; padding: 1px 4px; margin-left: 6px; opacity: 0.8;
+}
 
 .event-text {
   max-width: 420px; font-size: 12.5px; line-height: 1.7; color: var(--text);
