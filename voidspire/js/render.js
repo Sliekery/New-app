@@ -176,6 +176,18 @@
       });
     }
   };
+  // Void-implosion sparkles: spawn around a card-sized area and rush inward to
+  // the centre (used by the Void Adept card-play effect).
+  R.implode = function (x, y, color, w, h, n) {
+    for (var i = 0; i < n; i++) {
+      var px = x + (Math.random() - 0.5) * w, py = y + (Math.random() - 0.5) * h;
+      var dx = x - px, dy = y - py, d = Math.sqrt(dx * dx + dy * dy) || 1, sp = 110 + Math.random() * 130;
+      particles.push({
+        x: px, y: py, vx: dx / d * sp, vy: dy / d * sp,
+        life: 0.32 + Math.random() * 0.34, age: 0, color: color, size: 0.8 + Math.random() * 1.7,
+      });
+    }
+  };
   function deathBurst(v) {
     burst(v.x, v.y, factionColor(v.def), 26);
     burst(v.x, v.y, '#ffffff', 8);

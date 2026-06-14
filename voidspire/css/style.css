@@ -289,19 +289,45 @@ html, body {
 /* card dematerialisation — the clone (keeps the .card face) breaks into rising
    scan-lines and beams upward, transporter / Gauss-flayer style */
 .card-ghost { position: fixed; z-index: 70; pointer-events: none; }
-.card-ghost.beam {
+
+/* Technomancer — transporter beam-up: rising scan-lines (cyan) */
+.card-ghost.beam-tech {
   box-shadow: 0 0 16px 1px var(--beam, #9fe);
   -webkit-mask-image: repeating-linear-gradient(0deg, #000 0 2px, rgba(0,0,0,0.08) 2px 5px);
           mask-image: repeating-linear-gradient(0deg, #000 0 2px, rgba(0,0,0,0.08) 2px 5px);
   -webkit-mask-size: 100% 220%; mask-size: 100% 220%;
-  animation: beamUp 0.56s ease-out forwards;
+  animation: beamTech 0.56s ease-out forwards;
 }
-@keyframes beamUp {
+@keyframes beamTech {
   0%   { opacity: 1; filter: brightness(1) saturate(1);
          transform: translateY(0) scaleY(1); -webkit-mask-position: 0 0; mask-position: 0 0; }
   14%  { opacity: 1; filter: brightness(2.6) saturate(1.7); }
   100% { opacity: 0; filter: brightness(3) saturate(2);
          transform: translateY(-32px) scaleY(1.06); -webkit-mask-position: 0 -48px; mask-position: 0 -48px; }
+}
+
+/* Vanguard — kinetic shatter: flashes and blasts apart along diagonal shards (amber) */
+.card-ghost.beam-van {
+  box-shadow: 0 0 18px 2px var(--beam, #fa3);
+  -webkit-mask-image: repeating-linear-gradient(108deg, #000 0 5px, rgba(0,0,0,0.04) 5px 9px);
+          mask-image: repeating-linear-gradient(108deg, #000 0 5px, rgba(0,0,0,0.04) 5px 9px);
+  animation: shatterVan 0.36s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+@keyframes shatterVan {
+  0%   { opacity: 1; filter: brightness(1); transform: scale(1); }
+  18%  { opacity: 1; filter: brightness(3) saturate(1.7); transform: scale(1.05); }
+  100% { opacity: 0; filter: brightness(2.6); transform: scale(1.2) skewX(-7deg) translateY(8px); }
+}
+
+/* Void Adept — void implosion: spirals into a point (magenta) */
+.card-ghost.beam-void {
+  box-shadow: 0 0 22px 2px var(--beam, #c6f);
+  animation: implodeVoid 0.46s cubic-bezier(0.5, 0, 0.85, 1) forwards;
+}
+@keyframes implodeVoid {
+  0%   { opacity: 1; filter: brightness(1) saturate(1); }
+  25%  { opacity: 1; filter: brightness(1.9) saturate(1.7); transform: scale(1.05); }
+  100% { opacity: 0; filter: brightness(1.5) saturate(2); transform: scale(0.04) rotate(220deg); }
 }
 
 .btn {

@@ -978,28 +978,42 @@
     pc.classList.remove('blink'); void pc.offsetWidth; pc.classList.add('blink');
     setTimeout(function () { pc.classList.remove('blink'); }, 480);
   }
+  // Each class dematerialises its played cards differently, in its own colour:
+  //  Vanguard  — kinetic shatter: the card flashes and blasts apart (amber sparks out).
+  //  Technomancer — transporter beam-up: breaks into rising scan-lines (cyan + white shimmer).
+  //  Void Adept — void implosion: spirals into a point as sparks rush inward (magenta).
+  var CLASS_FX = {
+    vanguard:     { color: '#ffb02e', cls: 'beam-van',  mode: 'shatter', life: 380 },
+    technomancer: { color: '#41d8ff', cls: 'beam-tech', mode: 'beam',    life: 600 },
+    voidadept:    { color: '#c86bff', cls: 'beam-void', mode: 'implode', life: 480 },
+  };
   function cardPlayFx(rect, clone, card, def) {
     if (!rect) return;
-    var color = CLASS_COLOR[E.run.cls] || '#5dff88';
+    var fx = CLASS_FX[E.run.cls] || CLASS_FX.vanguard;
+    var w = rect.width, h = rect.height;
     var bf = document.getElementById('battlefield').getBoundingClientRect();
-    var cx = rect.left + rect.width / 2 - bf.left, cy = rect.top + rect.height / 2 - bf.top;
+    var cx = rect.left + w / 2 - bf.left, cy = rect.top + h / 2 - bf.top;
     if (clone) {
-      clone.classList.add('card-ghost', 'beam');
+      clone.classList.add('card-ghost', fx.cls);
       clone.classList.remove('selected', 'dragging', 'deal', 'unaffordable');
       clone.style.position = 'fixed'; clone.style.margin = '0'; clone.style.transition = 'none'; clone.style.transform = 'none';
       clone.style.left = rect.left + 'px'; clone.style.top = rect.top + 'px';
-      clone.style.width = rect.width + 'px'; clone.style.height = rect.height + 'px';
-      clone.style.setProperty('--beam', color);
+      clone.style.width = w + 'px'; clone.style.height = h + 'px';
+      clone.style.setProperty('--beam', fx.color);
       $game.appendChild(clone);
-      setTimeout(function () { clone.remove(); }, 600);
+      setTimeout(function () { clone.remove(); }, fx.life + 80);
     }
-    // rising disintegration sparkles: class-tinted, plus a white transporter shimmer
-    R.beam(cx, cy, color, rect.width * 0.74, rect.height * 0.82, 24);
-    R.beam(cx, cy, '#e6fbff', rect.width * 0.6, rect.height * 0.7, 12);
+    if (fx.mode === 'shatter') {
+      R.burst(cx, cy, fx.color, 22); R.burst(cx, cy, '#fff3d6', 9);
+    } else if (fx.mode === 'implode') {
+      R.implode(cx, cy, fx.color, w * 0.82, h * 0.92, 24); R.implode(cx, cy, '#f0d6ff', w * 0.55, h * 0.65, 9);
+    } else {
+      R.beam(cx, cy, fx.color, w * 0.74, h * 0.82, 24); R.beam(cx, cy, '#e6fbff', w * 0.6, h * 0.7, 12);
+    }
     var c = E.combat;
     var consumed = !!c && (c.exhaust.some(function (x) { return x.uid === card.uid; }) ||
                            c.consumed.some(function (x) { return x.uid === card.uid; }));
-    blinkPile(consumed ? null : $discardPile, color);
+    blinkPile(consumed ? null : $discardPile, fx.color);
   }
 
   function playCardAt(i, targetIdx) {

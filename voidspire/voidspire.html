@@ -300,19 +300,45 @@ html, body {
 /* card dematerialisation — the clone (keeps the .card face) breaks into rising
    scan-lines and beams upward, transporter / Gauss-flayer style */
 .card-ghost { position: fixed; z-index: 70; pointer-events: none; }
-.card-ghost.beam {
+
+/* Technomancer — transporter beam-up: rising scan-lines (cyan) */
+.card-ghost.beam-tech {
   box-shadow: 0 0 16px 1px var(--beam, #9fe);
   -webkit-mask-image: repeating-linear-gradient(0deg, #000 0 2px, rgba(0,0,0,0.08) 2px 5px);
           mask-image: repeating-linear-gradient(0deg, #000 0 2px, rgba(0,0,0,0.08) 2px 5px);
   -webkit-mask-size: 100% 220%; mask-size: 100% 220%;
-  animation: beamUp 0.56s ease-out forwards;
+  animation: beamTech 0.56s ease-out forwards;
 }
-@keyframes beamUp {
+@keyframes beamTech {
   0%   { opacity: 1; filter: brightness(1) saturate(1);
          transform: translateY(0) scaleY(1); -webkit-mask-position: 0 0; mask-position: 0 0; }
   14%  { opacity: 1; filter: brightness(2.6) saturate(1.7); }
   100% { opacity: 0; filter: brightness(3) saturate(2);
          transform: translateY(-32px) scaleY(1.06); -webkit-mask-position: 0 -48px; mask-position: 0 -48px; }
+}
+
+/* Vanguard — kinetic shatter: flashes and blasts apart along diagonal shards (amber) */
+.card-ghost.beam-van {
+  box-shadow: 0 0 18px 2px var(--beam, #fa3);
+  -webkit-mask-image: repeating-linear-gradient(108deg, #000 0 5px, rgba(0,0,0,0.04) 5px 9px);
+          mask-image: repeating-linear-gradient(108deg, #000 0 5px, rgba(0,0,0,0.04) 5px 9px);
+  animation: shatterVan 0.36s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+}
+@keyframes shatterVan {
+  0%   { opacity: 1; filter: brightness(1); transform: scale(1); }
+  18%  { opacity: 1; filter: brightness(3) saturate(1.7); transform: scale(1.05); }
+  100% { opacity: 0; filter: brightness(2.6); transform: scale(1.2) skewX(-7deg) translateY(8px); }
+}
+
+/* Void Adept — void implosion: spirals into a point (magenta) */
+.card-ghost.beam-void {
+  box-shadow: 0 0 22px 2px var(--beam, #c6f);
+  animation: implodeVoid 0.46s cubic-bezier(0.5, 0, 0.85, 1) forwards;
+}
+@keyframes implodeVoid {
+  0%   { opacity: 1; filter: brightness(1) saturate(1); }
+  25%  { opacity: 1; filter: brightness(1.9) saturate(1.7); transform: scale(1.05); }
+  100% { opacity: 0; filter: brightness(1.5) saturate(2); transform: scale(0.04) rotate(220deg); }
 }
 
 .btn {
@@ -4309,6 +4335,18 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       });
     }
   };
+  // Void-implosion sparkles: spawn around a card-sized area and rush inward to
+  // the centre (used by the Void Adept card-play effect).
+  R.implode = function (x, y, color, w, h, n) {
+    for (var i = 0; i < n; i++) {
+      var px = x + (Math.random() - 0.5) * w, py = y + (Math.random() - 0.5) * h;
+      var dx = x - px, dy = y - py, d = Math.sqrt(dx * dx + dy * dy) || 1, sp = 110 + Math.random() * 130;
+      particles.push({
+        x: px, y: py, vx: dx / d * sp, vy: dy / d * sp,
+        life: 0.32 + Math.random() * 0.34, age: 0, color: color, size: 0.8 + Math.random() * 1.7,
+      });
+    }
+  };
   function deathBurst(v) {
     burst(v.x, v.y, factionColor(v.def), 26);
     burst(v.x, v.y, '#ffffff', 8);
@@ -6077,28 +6115,42 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     pc.classList.remove('blink'); void pc.offsetWidth; pc.classList.add('blink');
     setTimeout(function () { pc.classList.remove('blink'); }, 480);
   }
+  // Each class dematerialises its played cards differently, in its own colour:
+  //  Vanguard  — kinetic shatter: the card flashes and blasts apart (amber sparks out).
+  //  Technomancer — transporter beam-up: breaks into rising scan-lines (cyan + white shimmer).
+  //  Void Adept — void implosion: spirals into a point as sparks rush inward (magenta).
+  var CLASS_FX = {
+    vanguard:     { color: '#ffb02e', cls: 'beam-van',  mode: 'shatter', life: 380 },
+    technomancer: { color: '#41d8ff', cls: 'beam-tech', mode: 'beam',    life: 600 },
+    voidadept:    { color: '#c86bff', cls: 'beam-void', mode: 'implode', life: 480 },
+  };
   function cardPlayFx(rect, clone, card, def) {
     if (!rect) return;
-    var color = CLASS_COLOR[E.run.cls] || '#5dff88';
+    var fx = CLASS_FX[E.run.cls] || CLASS_FX.vanguard;
+    var w = rect.width, h = rect.height;
     var bf = document.getElementById('battlefield').getBoundingClientRect();
-    var cx = rect.left + rect.width / 2 - bf.left, cy = rect.top + rect.height / 2 - bf.top;
+    var cx = rect.left + w / 2 - bf.left, cy = rect.top + h / 2 - bf.top;
     if (clone) {
-      clone.classList.add('card-ghost', 'beam');
+      clone.classList.add('card-ghost', fx.cls);
       clone.classList.remove('selected', 'dragging', 'deal', 'unaffordable');
       clone.style.position = 'fixed'; clone.style.margin = '0'; clone.style.transition = 'none'; clone.style.transform = 'none';
       clone.style.left = rect.left + 'px'; clone.style.top = rect.top + 'px';
-      clone.style.width = rect.width + 'px'; clone.style.height = rect.height + 'px';
-      clone.style.setProperty('--beam', color);
+      clone.style.width = w + 'px'; clone.style.height = h + 'px';
+      clone.style.setProperty('--beam', fx.color);
       $game.appendChild(clone);
-      setTimeout(function () { clone.remove(); }, 600);
+      setTimeout(function () { clone.remove(); }, fx.life + 80);
     }
-    // rising disintegration sparkles: class-tinted, plus a white transporter shimmer
-    R.beam(cx, cy, color, rect.width * 0.74, rect.height * 0.82, 24);
-    R.beam(cx, cy, '#e6fbff', rect.width * 0.6, rect.height * 0.7, 12);
+    if (fx.mode === 'shatter') {
+      R.burst(cx, cy, fx.color, 22); R.burst(cx, cy, '#fff3d6', 9);
+    } else if (fx.mode === 'implode') {
+      R.implode(cx, cy, fx.color, w * 0.82, h * 0.92, 24); R.implode(cx, cy, '#f0d6ff', w * 0.55, h * 0.65, 9);
+    } else {
+      R.beam(cx, cy, fx.color, w * 0.74, h * 0.82, 24); R.beam(cx, cy, '#e6fbff', w * 0.6, h * 0.7, 12);
+    }
     var c = E.combat;
     var consumed = !!c && (c.exhaust.some(function (x) { return x.uid === card.uid; }) ||
                            c.consumed.some(function (x) { return x.uid === card.uid; }));
-    blinkPile(consumed ? null : $discardPile, color);
+    blinkPile(consumed ? null : $discardPile, fx.color);
   }
 
   function playCardAt(i, targetIdx) {
