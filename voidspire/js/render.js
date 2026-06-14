@@ -522,18 +522,6 @@
     var flash = (t - v.flashT < 0.13);
     var x = v.x + sx, y = v.y + bob;
 
-    // ground shadow / hover pool — anchors grounded units, gives floaters depth
-    if (!dying || alpha > 0.4) {
-      var feetY = v.y + scale * 0.96;
-      var shY = grounded ? feetY : feetY + scale * 0.42;
-      var shW = (grounded ? 0.78 : 0.5) * scale, shH = scale * 0.13;
-      ctx.save();
-      ctx.globalAlpha = (grounded ? 0.18 : 0.1) * alpha;
-      ctx.fillStyle = color;
-      ctx.beginPath(); ctx.ellipse(v.x, shY, shW, shH, 0, 0, 7); ctx.fill();
-      ctx.restore();
-    }
-
     strokePaths(v.def.art.p, x, y, scale, flash ? '#ffffff' : color, flash ? 16 : 9, alpha);
 
     // eyes
@@ -721,13 +709,15 @@
         [0.3,0.18, 0.36,0.6, 0.36,0.95, 0.1,0.95, 0.08,0.6, 0.06,0.3],
         [-0.36,0.54, -0.06,0.54], [0.06,0.54, 0.36,0.54],
         [-0.36,0.95, -0.46,0.9], [0.36,0.95, 0.46,0.9],
-        // bolter held forward
-        [-0.06,0.12, 0.5,0.0, 0.56,0.08, 0.0,0.2, -0.06,0.12],
-        [0.56,0.04, 0.78,-0.02],
-        [0.2,0.2, 0.22,0.34, 0.34,0.32, 0.32,0.18],
-        [0.34,0.0, 0.36,-0.08, 0.42,-0.06],
+        // boxy blaster carbine, held forward toward the enemy line
+        [0.06,0.05, 0.44,0.05, 0.44,0.19, 0.06,0.19, 0.06,0.05], // receiver
+        [0.12,0.05, 0.12,0.0, 0.34,0.0, 0.34,0.05],              // top sight rail
+        [0.44,0.09, 0.78,0.09], [0.44,0.15, 0.78,0.15],          // barrel tube
+        [0.78,0.07, 0.84,0.07, 0.84,0.17, 0.78,0.17],            // muzzle brake
+        [0.16,0.19, 0.18,0.33, 0.3,0.33, 0.28,0.19],             // grip
       ],
       e: [[-0.11,-0.88], [0.11,-0.88]],
+      muzzle: [0.84, 0.12],
     },
     technomancer: {
       color: '#41d8ff',
@@ -774,6 +764,82 @@
     },
   };
 
+  // small auto-turret drone (Technomancer identity)
+  function drawTurret(x, y, r, col) {
+    ctx.save();
+    ctx.strokeStyle = col; ctx.lineWidth = 1.3; ctx.lineJoin = 'round';
+    ctx.shadowColor = col; ctx.shadowBlur = 5; ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    for (var i = 0; i < 6; i++) {
+      var a = Math.PI / 6 + i * Math.PI / 3;
+      var bx = x + Math.cos(a) * r, by = y + Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(bx, by); else ctx.lineTo(bx, by);
+    }
+    ctx.closePath(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + r * 0.6, y); ctx.lineTo(x + r * 1.6, y); ctx.stroke(); // barrel toward enemies
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, r * 0.26, 0, 7); ctx.fill();        // eye
+    ctx.restore();
+  }
+
+  // Subtle, state-driven identity flourishes per class.
+  function drawPlayerFx(r, px, py, scale, col) {
+    var c = ns.engine.combat;
+    var st = c ? c.player.statuses : {};
+
+    if (r.cls === 'vanguard') {
+      // muzzle glow at the blaster, brief flash when firing
+      var mz = (CLASS_ART.vanguard.muzzle) || [0.84, 0.12];
+      var mx = px + mz[0] * scale, my = py + mz[1] * scale;
+      var fl = (t - (R.player.lungeT || -9)) / 0.28;
+      var firing = fl >= 0 && fl < 0.5;
+      ctx.save();
+      ctx.fillStyle = firing ? '#ffe9c0' : col;
+      ctx.shadowColor = firing ? '#ffd27a' : col;
+      ctx.shadowBlur = firing ? 14 : 5;
+      ctx.globalAlpha = firing ? 0.9 : 0.28 + 0.12 * Math.sin(t * 7);
+      ctx.beginPath(); ctx.arc(mx, my, scale * (firing ? 0.16 : 0.05), 0, 7); ctx.fill();
+      if (firing) {
+        ctx.strokeStyle = '#ffe9c0'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(mx, my); ctx.lineTo(mx + scale * 0.32, my - scale * 0.05);
+        ctx.moveTo(mx, my); ctx.lineTo(mx + scale * 0.3, my + scale * 0.07);
+        ctx.stroke();
+      }
+      ctx.restore();
+    } else if (r.cls === 'technomancer') {
+      // deployed turret drones hover beside you when the Turret power is up
+      var tv = st.turret || 0;
+      if (tv > 0) {
+        var n = Math.max(1, Math.min(3, Math.ceil(tv / 5)));
+        for (var i = 0; i < n; i++) {
+          var ox = px + (-0.5 - i * 0.16) * scale;
+          var oy = py + (-0.45 + i * 0.55) * scale + Math.sin(t * 2 + i) * 2.5;
+          drawTurret(ox, oy, scale * 0.26, col);
+        }
+      }
+      // idle spark at the staff tip
+      ctx.save();
+      ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 6;
+      ctx.globalAlpha = 0.35 + 0.25 * Math.sin(t * 4);
+      ctx.beginPath(); ctx.arc(px + 0.64 * scale, py - 1.06 * scale, scale * 0.045, 0, 7); ctx.fill();
+      ctx.restore();
+    } else if (r.cls === 'voidadept') {
+      // psionic motes orbiting the adept; more with Psi Focus
+      var motes = 3 + Math.min(4, st.psiPow || 0);
+      ctx.save();
+      ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 6;
+      for (var m = 0; m < motes; m++) {
+        var a = t * 1.1 + m * (6.283 / motes);
+        var rad = scale * (0.55 + 0.12 * Math.sin(t * 1.7 + m));
+        var ex = px + Math.cos(a) * rad;
+        var ey = py - 0.35 * scale + Math.sin(a) * rad * 0.66;
+        ctx.globalAlpha = 0.25 + 0.25 * (0.5 + 0.5 * Math.sin(t * 3 + m));
+        ctx.beginPath(); ctx.arc(ex, ey, scale * (0.028 + (m % 2) * 0.014), 0, 7); ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
   function drawPlayer() {
     var r = ns.engine.run;
     if (!r) return;
@@ -786,12 +852,6 @@
     var lu = (t - (R.player.lungeT || -9)) / 0.28;
     if (lu >= 0 && lu < 1) px += Math.sin(lu * Math.PI) * 18;
     var art = CLASS_ART[r.cls] || CLASS_ART.vanguard;
-    // ground shadow
-    ctx.save();
-    ctx.globalAlpha = 0.2;
-    ctx.fillStyle = art.color;
-    ctx.beginPath(); ctx.ellipse(p.x, p.y + scale * 0.98, scale * 0.7, scale * 0.13, 0, 0, 7); ctx.fill();
-    ctx.restore();
     strokePaths(art.p, px, p.y + bob, scale, flash ? '#ff4a5e' : art.color, flash ? 14 : 9, 1);
 
     // glowing eye/visor points
@@ -805,6 +865,9 @@
       ctx.fillRect(ex - es / 2, ey - es / 2, es, es);
     });
     ctx.restore();
+
+    // subtle class-identity effects
+    drawPlayerFx(r, px, p.y + bob, scale, art.color);
 
     // shield arc
     if (R.player.block > 0) {
