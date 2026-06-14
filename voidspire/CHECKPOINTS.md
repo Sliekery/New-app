@@ -10,6 +10,7 @@ GitHub forever, so it can't be lost even if later changes break something. The
 
 | Checkpoint | Commit | Date | What's in it |
 |---|---|---|---|
+| **v2.3-recurrence** | `ac4f484` | 2026-06-14 | The Recurrence (NG+): beat THE UNMAKER → a time-loop narrative → draft a permanent **Void Echo** → equip a 3-slot loadout → a full-reset loop where your powers fade and the void grows stronger. 11 sideways-by-design Echoes. |
 | **v2.2-balance** | `2133e88` | 2026-06-14 | Balance pass toward Slay-the-Spire: softened the late-game enemy curve, lifted the stat-scaling classes (MIGHT/PSI per-point + Void Adept HP), buffed value commons, and trimmed the finale boss. Deep-run rate (S5+) ~8% → ~20% (in band); all three classes viable. |
 | **v2.1-finale** | `37ef31f` | 2026-06-14 | Potions & consumables (a 3-slot combat belt that drops from fights, sells in shops, and is offered as a reward) plus a win condition: the finale boss THE UNMAKER, a victory screen, and the choice to claim victory or descend endlessly. |
 | **v2.0-voidknight** | `b6b4a2a` | 2026-06-14 | New Vanguard avatar: the Void Knight (armoured coat, helm halo, blaster). |
@@ -23,6 +24,10 @@ GitHub forever, so it can't be lost even if later changes break something. The
 | **v1.2-map** | `1acede5` | 2026-06-14 | Branching star-chart map per sector (pick your path through fights/events/shops/rests/elites/treasure to the boss), with distinct node icons. Retuned to hold the StS difficulty. |
 | **v1.1-builds** | `316d309` | 2026-06-14 | Adds Slay-the-Spire-style build archetypes (Might/Exhaust, Shield/Echo, Burn/spam) and build-defining rares for "god runs". Fixes the power-reuse bug (powers are now consumed). |
 | **v1.0-stable** | `9583880` | 2026-06-14 | Swipe-to-play combat, Slay-the-Spire-tuned balance, faction world-building, animated screen transitions, talking event portraits, artifact icons. First fully-polished version. |
+
+### v2.3-recurrence
+- **Play (frozen):** https://rawcdn.githack.com/Sliekery/New-app/ac4f48496b813a730aa673633f8f3c8e8af9113a/voidspire/voidspire.html
+- **Restore command (for reference):** `git checkout ac4f484 -- voidspire`
 
 ### v2.2-balance
 - **Play (frozen):** https://rawcdn.githack.com/Sliekery/New-app/2133e8840edfa3d8ddba3d5481879f15e279926d/voidspire/voidspire.html
