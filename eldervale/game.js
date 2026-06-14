@@ -41,7 +41,7 @@ function saveGame(){
   if(!hasLS||!player) return;
   try{
     localStorage.setItem(SAVE_KEY,JSON.stringify({
-      cls:player.cls, lvl:player.lvl, xp:player.xp, gold:player.gold, dp:player.dp,
+      cls:player.cls, lvl:player.lvl, xp:player.xp, gold:player.gold, morale:player.morale||0,
       attrs:player.attrs, equip:player.equip, inv:player.inv,
       builds:player.builds||[], known:player.known, bars:player.bars, skillPts:player.skillPts,
       promo:player.promo||0, bounty:player.bounty||null, vault:player.vault||[],
@@ -228,7 +228,8 @@ function travelTo(zid,fromId){
   player.x=p.x; player.y=p.y;
   player.moveTo=null; player.target=null; player.engaged=false; player.approach=null;
   cancelCast();
-  hench.dead=false; hench.hp=hench.maxHp;
+  if(ZONES[zid].safe){ resetMorale(); player.hp=pMaxHp(); player.en=pMaxEn(); player.skillReady.fill(0); player.adr=0; } // GW1: a town clears morale & recharges
+  hench.dead=false; hench.hp=hench.maxHp; hench.flag=null;
   const hp2=findOpen(ent[0],ent[1]+1); hench.x=hp2.x; hench.y=hp2.y;
   banner(ZONES[zid].name.toUpperCase(),ZONES[zid].sub);
   saveGame();
@@ -494,7 +495,7 @@ const strMod=d=>Math.round(d*(1+0.015*attr('Strength')));
 // GW1-style attribute point economy: raising an attribute costs progressively
 // more, from a pool that grows as you level. You can master one or two lines.
 const ATTR_CUM=[0,1,3,6,10,15,21,28,37,48,61,77,97]; // total points to reach rank index (0..12)
-const attrPool=()=>Math.round(120*Math.max(0,player.lvl-1)/9); // 0 at lvl1 → 120 at lvl10
+const attrPool=()=>Math.round(200*Math.max(0,player.lvl-1)/19); // GW1: ~200 points by level 20
 const attrSpentOf=a=>{let s=0; for(const k in a) s+=ATTR_CUM[Math.min(12,a[k]||0)]; return s;};
 const attrSpent=()=>attrSpentOf(player.attrs);
 const attrFree=()=>attrPool()-attrSpent();
@@ -582,7 +583,7 @@ function makePlayer(){
     promo:0, bounty:null, vault:[],
     known:{warrior:[...DEFAULT_BARS.warrior,'cap'], elementalist:[...DEFAULT_BARS.elementalist,'cap']},
     bars:{warrior:[...DEFAULT_BARS.warrior], elementalist:[...DEFAULT_BARS.elementalist]},
-    lvl:1, xp:0, gold:0, dp:0,
+    lvl:1, xp:0, gold:0, morale:0,
     baseHp:100, baseEn:30, hp:100, en:30,
     dmgMin:12, dmgMax:18, atkInt:1.2, range:MELEE_RANGE, speed:130,
     nextAtk:0, target:null, engaged:false, moveTo:null, approach:null,
@@ -590,10 +591,28 @@ function makePlayer(){
     skillReady:new Array(8).fill(0),
   };
 }
-const pMaxHp=()=>Math.round(player.baseHp*(1-player.dp));
+// GW1 morale: −60% (death penalty) … 0 … +10% (morale boost) scales max HP & energy
+const moraleMul=()=>1+clamp(player.morale||0,-0.6,0.1);
+const pMaxHp=()=>Math.round(player.baseHp*moraleMul());
 const pMaxEn=()=>Math.round((player.baseEn+3*(player.attrs['Energy Storage']||0)
   +((player.equip.off&&player.equip.off.energy)||0)
-  +(player.equip.weapon.energy||0))*(1-player.dp));
+  +(player.equip.weapon.energy||0))*moraleMul());
+function gainMorale(a){ // morale boost: caps at +10%, fully heals and recharges (GW1)
+  const before=player.morale||0;
+  player.morale=clamp(before+a,-0.6,0.1);
+  if(player.morale>before){ player.hp=pMaxHp(); player.en=pMaxEn(); if(player.skillReady) player.skillReady.fill(0);
+    ftext(player.x,player.y,'Morale!','#ffe680',13); }
+}
+function resetMorale(){ player.morale=0; } // entering a town clears penalty & boost
+// GW1-style armour: every 40 armour halves incoming damage (60 is the caster baseline)
+const armorMult=ar=>Math.pow(2,-(((ar==null?60:ar)-60)/40));
+function playerArmor(){
+  let a=(player.cls==='warrior'?80:60);             // warriors wear heavier armour
+  a+=(player.equip.off&&player.equip.off.armor)||0;
+  a+=(player.equip.weapon.armor||0)+attr('Strength'); // Strength: +1 armour/rank
+  if((player.buffs.stone||0)>now) a+=24;            // Armor of Earth
+  return a;
+}
 
 function makeHench(){
   const p=findOpen(12,79);
@@ -615,24 +634,24 @@ const party=()=>heroActive()?[player,hench]:[player];
 const ENEMY_TYPES={
   // --- Skales (amphibious river reptiles) ---
   skale:   {name:'Ridgeback Skale', family:'skale', lvl:2, hp:70, dmgMin:7,dmgMax:11, atkInt:1.5, range:MELEE_RANGE, speed:90, r:12, color:'#3a8a7a', gold:[3,9], trophy:'Skale Fin', mat:'Scale'},
-  skaleCaster:{name:'Skale Blighter', family:'skale', lvl:4, hp:95, dmgMin:9,dmgMax:14, atkInt:2.0, range:280, speed:90, r:12, color:'#2a7a86', gold:[6,14], trophy:'Skale Fin', mat:'Scale', caster:true, healer:true},
-  skaleLasher:{name:'Skale Lasher', family:'skale', lvl:6, hp:140, dmgMin:13,dmgMax:19, atkInt:1.2, range:MELEE_RANGE, speed:120, r:13, color:'#1f6a78', gold:[8,16], trophy:'Skale Fin', mat:'Scale'},
+  skaleCaster:{name:'Skale Blighter', family:'skale', lvl:4, hp:95, dmgMin:9,dmgMax:14, atkInt:2.0, range:280, speed:90, r:12, color:'#2a7a86', gold:[6,14], trophy:'Skale Fin', mat:'Scale', caster:true, healer:true, weaken:true},
+  skaleLasher:{name:'Skale Lasher', family:'skale', lvl:6, hp:140, dmgMin:13,dmgMax:19, atkInt:1.2, range:MELEE_RANGE, speed:120, r:13, color:'#1f6a78', gold:[8,16], trophy:'Skale Fin', mat:'Scale', armor:70},
   // --- Insects ---
   termite: {name:'Bladed Termite', family:'insect', lvl:4, hp:85, dmgMin:10,dmgMax:15, atkInt:0.9, range:MELEE_RANGE, speed:170, r:11, color:'#6a5a30', gold:[4,10], trophy:'Insect Carapace', mat:'Chitin Fragment'},
   spider:  {name:'Stalking Nephila', family:'insect', lvl:3, hp:75, dmgMin:8,dmgMax:12, atkInt:1.6, range:250, speed:130, r:12, color:'#3a2a3a', gold:[4,10], trophy:'Insect Carapace', mat:'Chitin Fragment', caster:true, poison:true},
   lance:   {name:'Preying Lance', family:'insect', lvl:6, hp:130, dmgMin:13,dmgMax:20, atkInt:1.3, range:MELEE_RANGE, speed:150, r:13, color:'#7a6a28', gold:[7,15], trophy:'Insect Carapace', mat:'Chitin Fragment'},
   // --- Mandragors (burrowing sand-stalkers) ---
-  lurker:  {name:'Mandragor Slither', family:'mandragor', lvl:4, hp:110, dmgMin:11,dmgMax:17, atkInt:1.2, range:MELEE_RANGE, speed:140, r:13, color:'#9a7a4a', gold:[5,12], trophy:'Mandragor Pincer', mat:'Bone', burrow:true},
-  lurkerImp:{name:'Mandragor Imp', family:'mandragor', lvl:4, hp:90, dmgMin:9,dmgMax:14, atkInt:1.9, range:270, speed:120, r:12, color:'#b89860', gold:[5,12], trophy:'Mandragor Pincer', mat:'Bone', caster:true, burrow:true},
+  lurker:  {name:'Mandragor Slither', family:'mandragor', lvl:4, hp:110, dmgMin:11,dmgMax:17, atkInt:1.2, range:MELEE_RANGE, speed:140, r:13, color:'#9a7a4a', gold:[5,12], trophy:'Mandragor Pincer', mat:'Bone', burrow:true, blinder:true},
+  lurkerImp:{name:'Mandragor Imp', family:'mandragor', lvl:4, hp:90, dmgMin:9,dmgMax:14, atkInt:1.9, range:270, speed:120, r:12, color:'#b89860', gold:[5,12], trophy:'Mandragor Pincer', mat:'Bone', caster:true, burrow:true, weaken:true},
   // --- Plants ---
   iboga:   {name:'Fanged Iboga', family:'plant', lvl:5, hp:120, dmgMin:11,dmgMax:16, atkInt:1.5, range:MELEE_RANGE, speed:0, r:14, color:'#7a3a4a', gold:[5,12], trophy:'Iboga Petal', mat:'Plant Fiber', rooted:true, poison:true},
   jacaranda:{name:'Stormseed Jacaranda', family:'plant', lvl:5, hp:115, dmgMin:12,dmgMax:18, atkInt:2.1, range:300, speed:0, r:14, color:'#4a5ac8', gold:[6,14], trophy:'Iboga Petal', mat:'Plant Fiber', rooted:true, caster:true, beam:true},
   // --- Drakes ---
-  drake:   {name:'Irontooth Drake', family:'drake', lvl:8, hp:280, dmgMin:16,dmgMax:24, atkInt:1.4, range:MELEE_RANGE, speed:120, r:16, color:'#5a6a3a', gold:[14,28], trophy:'Drake Tooth', mat:'Drake Scale', firebreath:true},
+  drake:   {name:'Irontooth Drake', family:'drake', lvl:8, hp:280, dmgMin:16,dmgMax:24, atkInt:1.4, range:MELEE_RANGE, speed:120, r:16, color:'#5a6a3a', gold:[14,28], trophy:'Drake Tooth', mat:'Drake Scale', firebreath:true, armor:80},
   // --- field bosses (green drops + capturable elite via Signet of Capture) ---
-  lurkerBoss:{name:'Karesh Duneshaper', family:'mandragor', lvl:7, hp:420, dmgMin:16,dmgMax:24, atkInt:1.1, range:MELEE_RANGE, speed:150, r:16, color:'#b07838', gold:[80,140], boss:true, unique:'duneshaper', elite:'el_aegis', mat:'Bone', burrow:true},
-  jacarandaBoss:{name:'Old Galewither', family:'plant', lvl:5, hp:360, dmgMin:14,dmgMax:22, atkInt:1.7, range:300, speed:0, r:16, color:'#5a4ad8', gold:[80,140], boss:true, unique:'galewither', elite:'el_storm', mat:'Plant Fiber', rooted:true, caster:true, beam:true},
-  lanceBoss:{name:'Sicklemaw the Reaper', family:'insect', lvl:6, hp:400, dmgMin:16,dmgMax:24, atkInt:1.1, range:MELEE_RANGE, speed:160, r:15, color:'#a08828', gold:[80,140], boss:true, unique:'sicklemaw', elite:'el_rake', mat:'Chitin Fragment'},
+  lurkerBoss:{name:'Karesh Duneshaper', family:'mandragor', lvl:7, hp:420, dmgMin:16,dmgMax:24, atkInt:1.1, range:MELEE_RANGE, speed:150, r:16, color:'#b07838', gold:[80,140], boss:true, unique:'duneshaper', elite:'el_aegis', mat:'Bone', burrow:true, blinder:true, armor:75},
+  jacarandaBoss:{name:'Old Galewither', family:'plant', lvl:5, hp:360, dmgMin:14,dmgMax:22, atkInt:1.7, range:300, speed:0, r:16, color:'#5a4ad8', gold:[80,140], boss:true, unique:'galewither', elite:'el_storm', mat:'Plant Fiber', rooted:true, caster:true, beam:true, armor:70},
+  lanceBoss:{name:'Sicklemaw the Reaper', family:'insect', lvl:6, hp:400, dmgMin:16,dmgMax:24, atkInt:1.1, range:MELEE_RANGE, speed:160, r:15, color:'#a08828', gold:[80,140], boss:true, unique:'sicklemaw', elite:'el_rake', mat:'Chitin Fragment', weaken:true, armor:75},
 };
 
 function spawnEnemy(type,tx,ty){
@@ -865,16 +884,19 @@ function npcDialog(n){
 
 /* ---------------- Sunward Hunts (bounties) & promotion rank ---------------- */
 const BOUNTIES={
-  skale:    {name:'Skale Hunt',     goal:8},
-  insect:   {name:'Insect Hunt',    goal:8},
-  mandragor:{name:'Mandragor Hunt', goal:8},
-  plant:    {name:'Plant Hunt',     goal:6},
-  drake:    {name:'Drake Hunt',     goal:4},
+  // maxLvl: a hunt is no longer offered once you out-level it (GW1 bounty gating)
+  skale:    {name:'Skale Hunt',     goal:8, maxLvl:12},
+  insect:   {name:'Insect Hunt',    goal:8, maxLvl:7},
+  plant:    {name:'Plant Hunt',     goal:6, maxLvl:7},
+  mandragor:{name:'Mandragor Hunt', goal:8, maxLvl:12},
+  drake:    {name:'Drake Hunt',     goal:4, maxLvl:20},
 };
 const RANKS=[[0,'Recruit'],[150,'Spearbearer'],[450,'Vanguard'],[1000,'Castellan'],[2200,'Champion of the Sun']];
 function rankTitle(){ let t=RANKS[0][1]; for(const [n,nm] of RANKS) if((player.promo||0)>=n) t=nm; return t; }
 function rankNext(){ for(const [n,nm] of RANKS) if((player.promo||0)<n) return {at:n,name:nm}; return null; }
 function startBounty(fam){
+  if(!BOUNTIES[fam]) return;
+  if(player.lvl>BOUNTIES[fam].maxLvl){ toast('You have out-levelled that hunt'); return; }
   player.bounty={family:fam,n:0,goal:BOUNTIES[fam].goal};
   toast(BOUNTIES[fam].name+' begun — slay '+BOUNTIES[fam].goal+' for Sunward Honor'); saveGame();
 }
@@ -948,13 +970,14 @@ function applyDamage(src,e,amt,color){
   if(e.dead) return;
   if(e===player){
     if((player.buffs.frenzy||0)>now) amt*=2;            // Frenzy downside
-    if((player.buffs.stone||0)>now) amt*=0.6;           // Armor of Earth
     if((player.buffs.brace||0)>now) amt*=0.7;           // Stand Firm
     if((player.buffs.aegis||0)>now) amt*=0.5;           // Duneshaper's Aegis (elite)
-    const armor=((player.equip.off&&player.equip.off.armor)||0)+(player.equip.weapon.armor||0)+attr('Strength');
-    amt*=Math.max(0.45,1-armor/140);                    // shield + Strength armor
+    amt*=armorMult(playerArmor());                      // GW1 armour: each 40 halves
     amt=Math.max(1,Math.round(amt));
     player.adr=Math.min(10,player.adr+0.5);             // adrenaline when struck
+    if(cast&&condActive(player,'dazed')){ cancelCast(); toast('Interrupted!'); } // Dazed: hits interrupt your casting
+  } else if(e.kind==='enemy'){
+    amt*=armorMult(e.armor); amt=Math.max(1,Math.round(amt));
   }
   e.hp-=amt; e.lastCombat=now;
   if(src) src.lastCombat=now;
@@ -982,8 +1005,11 @@ function meleeAttack(a,d,bonus,onHit){
   a.face=Math.atan2(d.y-a.y,d.x-a.x);
   const frenzied=a===player&&(player.buffs.frenzy||0)>now;
   a.nextAtk=now+(frenzied?a.atkInt*0.67:a.atkInt);
-  if(a===player) player.adr=Math.min(10,player.adr+1); // adrenaline per strike
-  const dmg=rollDmg(a)+(bonus||0);
+  // Blindness: 90% of attacks miss (GW1)
+  if(condActive(a,'blind')&&Math.random()<0.9){ ftext(a.x,a.y-10,'Miss','#cfcfcf',12); return; }
+  if(a===player) player.adr=Math.min(10,player.adr+1); // adrenaline per landed strike
+  let dmg=rollDmg(a)+(bonus||0);
+  if(condActive(a,'weak')) dmg=Math.round(dmg*0.75);   // Weakness saps attack damage
   applyDamage(a,d,dmg, a.team===0?'#ffd870':'#ff7050');
   if(onHit&&!d.dead) onHit(d);
 }
@@ -993,12 +1019,21 @@ function fireProjectile(a,d,dmg,color,onHit){
   a.nextAtk=Math.max(a.nextAtk,now); // keep lunge anim sane
   projectiles.push({x:a.x,y:a.y,target:d,src:a,dmg,color,speed:380,onHit});
 }
+// signature conditions a creature inflicts on hit (GW1-flavoured by family)
+function enemyOnHit(e){ return d=>{
+  if(d.dead) return;
+  if(e.poison&&Math.random()<0.5){ addCond(d,'poison',8); ftext(d.x,d.y,'Poisoned!','#7ac84a',11); }
+  if(e.blinder&&Math.random()<0.4){ addCond(d,'blind',5); ftext(d.x,d.y,'Blinded!','#cfcfcf',11); }
+  if(e.weaken&&Math.random()<0.4){ addCond(d,'weak',9); ftext(d.x,d.y,'Weakened!','#c0a060',11); }
+  if(e.dazer&&Math.random()<0.35){ addCond(d,'dazed',6); ftext(d.x,d.y,'Dazed!','#d0a0ff',11); }
+}; }
 
 function die(e,src){
   e.dead=true; e.target=null; e.cond={};
   if(e.kind==='enemy'){
     e.respawnAt=now+(e.boss?150:35);
     if(e.boss){ banner(e.name.toUpperCase(),'has been defeated');
+      gainMorale(0.02);   // GW1: slaying a boss grants a morale boost
       if(e.elite&&!e.captured) toast('It carried an elite form — strike it with Signet of Capture (📜).'); }
     questCredit(e);
     bountyCredit(e);
@@ -1018,7 +1053,7 @@ function die(e,src){
     if(player.target===e){player.target=null;player.engaged=false;}
   } else if(e===player){
     player.engaged=false; player.target=null; player.moveTo=null;
-    player.dp=Math.min(0.6,player.dp+0.15);
+    player.morale=clamp((player.morale||0)-0.15,-0.6,0.1);  // -15% death penalty, stacks to -60%
     deathOverlay(true);
     setTimeout(()=>{
       const p=findOpen(Math.floor(SHRINE.x/TILE),Math.floor(SHRINE.y/TILE)+2);
@@ -1026,7 +1061,7 @@ function die(e,src){
       player.hp=pMaxHp(); player.en=pMaxEn(); cancelCast();
       deathOverlay(false);
       effects.push({type:'res',x:player.x,y:player.y,t:now,dur:0.8});
-      if(player.dp>0) toast(`Death penalty: -${Math.round(player.dp*100)}% max HP/energy (cleared at quest turn-in or level up)`);
+      if(player.morale<0) toast(`Death penalty: ${Math.round(player.morale*100)}% max HP/energy — gain morale from bosses & shrines, or return to a city`);
     },4000);
   } else if(e===hench){
     hench.deadAt=now;
@@ -1034,27 +1069,29 @@ function die(e,src){
   }
 }
 
+const LVL_CAP=20;  // GW1 level cap
 function giveXp(x){
-  if(player.lvl>=10){ player.xp=Math.min(player.xp+x,xpNeed()); return; } // GW1-style cap (10 for this campaign)
+  if(player.lvl>=LVL_CAP){ player.xp=Math.min(player.xp+x,xpNeed()); return; }
   player.xp+=x; ftext(player.x,player.y,'+'+x+' XP','#d8c069',12);
   let need=xpNeed();
-  while(player.xp>=need&&player.lvl<10){
+  while(player.xp>=need&&player.lvl<LVL_CAP){
     player.xp-=need; player.lvl++;
-    player.baseHp+=20; player.baseEn+=2;
+    player.baseHp+=20; player.baseEn+= (player.lvl<=10?2:0); // health every level; energy front-loaded
     player.skillPts=(player.skillPts||0)+1; // spend at the Skill Trainer
     // Lyra levels with you
     hench.lvl=player.lvl;
     hench.maxHp=110+18*Math.max(0,player.lvl-2);
     hench.dmgMin=9+2*Math.max(0,player.lvl-2); hench.dmgMax=hench.dmgMin+5;
-    clearDp(); player.hp=pMaxHp(); player.en=pMaxEn();
+    player.hp=pMaxHp(); player.en=pMaxEn();
     effects.push({type:'levelup',x:player.x,y:player.y,t:now,dur:1.2});
     ftext(player.x,player.y,'LEVEL UP!','#ffe680',20);
-    banner('LEVEL '+player.lvl,'+attribute points & a skill point');
+    banner('LEVEL '+player.lvl,'+attribute & skill points');
     need=xpNeed();
   }
 }
-const xpNeed=()=>100+(player.lvl-1)*80;
-function clearDp(){ if(player.dp>0){player.dp=0; toast('Death penalty removed.');} }
+// GW1-shaped curve: each level needs more (level N needs 100·N xp here)
+const xpNeed=()=>100*player.lvl;
+function clearDp(){ if((player.morale||0)<0){ player.morale=Math.min(0.1,player.morale+0.15); player.hp=pMaxHp(); player.en=pMaxEn(); } } // a quest reward lifts one stack of death penalty
 
 /* ---------------- skill use / casting ---------------- */
 let cast=null; // {idx, t0, dur}
@@ -1108,9 +1145,17 @@ function moveToward(e,tx,ty,dt,mul){
   tryMove(e,(tx-e.x)/d*s,(ty-e.y)/d*s);
 }
 
+// GW1 health degeneration: measured in pips (1 pip = 2 health/sec), capped at 10 pips
+function degenPips(e){
+  let p=0;
+  if(condActive(e,'bleed')) p+=3;
+  if(condActive(e,'poison')) p+=4;
+  if(condActive(e,'burn'))  p+=7;
+  return Math.min(p,10);
+}
 function tickConds(e,dt){
-  if(condActive(e,'bleed')) e.hp-=3*dt;
-  if(condActive(e,'burn')) e.hp-=6*dt;
+  const p=degenPips(e);
+  if(p>0) e.hp-=p*2*dt;   // 2 health per pip per second
   if(e.hp<=0&&!e.dead) die(e,null);
 }
 
@@ -1193,20 +1238,21 @@ function updateEnemy(e,dt){
   if(d>reach) moveToward(e,t.x,t.y,dt);
   else if(now>=e.nextAtk){
     e.nextAtk=now+e.atkInt;
-    if(e.beam){ // Windcaller: instant lightning, periodic crippling gale
+    if(e.beam){ // stormseed lightning: instant bolt, periodic crippling gale
       e.face=Math.atan2(t.y-e.y,t.x-e.x);
       effects.push({type:'beam',x:e.x,y:e.y,x2:t.x,y2:t.y,t:now,dur:0.25});
       applyDamage(e,t,rollDmg(e),'#ffe860');
+      if(!t.dead) enemyOnHit(e)(t);
       if(now>=(e.nextGale||0)&&!t.dead){
         e.nextGale=now+9;
         addCond(t,'cripple',5);
         ftext(t.x,t.y,'Gale!','#8ad8ff',12);
       }
-    } else if(e.range>MELEE_RANGE){ // archers & skale bolts
+    } else if(e.range>MELEE_RANGE){ // ranged casters & skale bolts
       e.face=Math.atan2(t.y-e.y,t.x-e.x);
-      fireProjectile(e,t,rollDmg(e),e.caster?'#6ad8d0':'#d8c069');
+      fireProjectile(e,t,rollDmg(e),e.caster?'#6ad8d0':'#d8c069',enemyOnHit(e));
     } else {
-      meleeAttack(e,t,0);
+      meleeAttack(e,t,0,enemyOnHit(e));
     }
   }
   // boss whirl (melee bosses)
@@ -2480,8 +2526,12 @@ function drawOverlay(){
     const pip=c=>{fctx.fillStyle=c;fctx.beginPath();fctx.arc(p.x-10+ci*8,p.y-6,3,0,7);fctx.fill();ci++;};
     if(condActive(e,'bleed'))pip('#e02020');
     if(condActive(e,'burn'))pip('#ff8830');
+    if(condActive(e,'poison'))pip('#7ac84a');
     if(condActive(e,'cripple'))pip('#e3a23c');
     if(condActive(e,'deepwound'))pip('#b050d0');
+    if(condActive(e,'blind'))pip('#cfcfcf');
+    if(condActive(e,'weak'))pip('#c0a060');
+    if(condActive(e,'dazed'))pip('#d0a0ff');
   }
   // npc labels + quest markers
   for(const n of npcs){
@@ -3022,11 +3072,13 @@ function renderBounty(){
     <div class="dim">Sunward Honor: <b style="color:#ffd34d">${player.promo||0}</b>${nx?` · next rank "${nx.name}" at ${nx.at}`:' · highest rank reached'}</div>`;
   const b=player.bounty;
   if(b&&b.family) h+=`<div class="dim" style="color:#f0d97a;margin-top:6px">Active: ${BOUNTIES[b.family].name} — ${b.n}/${b.goal}</div>`;
-  h+=`<div class="sectTitle">Take a hunt</div><div class="dim">Each kill of the named kind earns Honor. Only one hunt at a time.</div>`;
+  h+=`<div class="sectTitle">Take a hunt</div><div class="dim">Each kill of the named kind earns Honor. Only one hunt at a time — and a hunt closes once you out-level it.</div>`;
   for(const fam of Object.keys(BOUNTIES)){
-    const on=b&&b.family===fam;
-    h+=`<div class="attrRow"><span class="an">${BOUNTIES[fam].name} <span class="dim">(${BOUNTIES[fam].goal})</span></span>
-        ${on?'<span class="dim" style="color:#f0d97a">active</span>':`<button class="mini" data-act="hunt" data-v="${fam}">Begin</button>`}</div>`;
+    const on=b&&b.family===fam, outlevelled=player.lvl>BOUNTIES[fam].maxLvl;
+    h+=`<div class="attrRow"><span class="an">${BOUNTIES[fam].name} <span class="dim">(${BOUNTIES[fam].goal})${outlevelled?' · out-levelled':''}</span></span>
+        ${on?'<span class="dim" style="color:#f0d97a">active</span>'
+            :outlevelled?'<span class="dim">—</span>'
+            :`<button class="mini" data-act="hunt" data-v="${fam}">Begin</button>`}</div>`;
   }
   MODALS.bounty.body.innerHTML=h;
 }
@@ -3087,12 +3139,13 @@ function renderVault(){
 function renderHero(){
   const c=CLASSES[player.cls], w=player.equip.weapon, o=player.equip.off;
   const armor=((o&&o.armor)||0)+attr('Strength');
-  let h=`<div class="sectTitle">Kaelen — Level ${player.lvl} ${player.lvl>=10?'(max)':''}</div>`;
+  let h=`<div class="sectTitle">Kaelen — Level ${player.lvl} ${player.lvl>=20?'(max)':''}</div>`;
   h+=`<div class="dim">${c.label} · ${player.gold} gold · XP ${Math.floor(player.xp)}/${xpNeed()}</div>`;
   h+=`<div class="statGrid" style="margin-top:8px">
       <div>Health <b>${pMaxHp()}</b></div><div>Energy <b>${pMaxEn()}</b></div>
       <div>Armor <b>${armor}</b></div><div>Weapon <b>${w.dmgMin}–${w.dmgMax}</b></div></div>`;
-  if(player.dp>0) h+=`<div class="dim" style="color:#d98a6a">Death penalty −${Math.round(player.dp*100)}% (cleared on level-up / quest turn-in)</div>`;
+  if((player.morale||0)<0) h+=`<div class="dim" style="color:#d98a6a">Death penalty ${Math.round(player.morale*100)}% — gain morale from bosses & shrines, or return to a city</div>`;
+  else if((player.morale||0)>0) h+=`<div class="dim" style="color:#7ac77a">Morale boost +${Math.round(player.morale*100)}%</div>`;
 
   h+=`<div class="sectTitle">Attributes — <span style="color:#f0d97a">${attrFree()}</span> / ${attrPool()} points</div>`;
   for(const a of CLASS_ATTRS[player.cls]){
@@ -3344,7 +3397,7 @@ function syncUI(){
   ui.pXp.style.width=clamp(player.xp/xpNeed()*100,0,100)+'%';
   ui.pHpTxt.textContent=Math.ceil(Math.max(0,player.hp))+' / '+pMaxHp();
   ui.pEnTxt.textContent=Math.floor(player.en)+' / '+pMaxEn();
-  ui.pLvl.textContent='Lv '+player.lvl+(player.lvl>=10?' MAX':'')+(player.dp>0?` (−${Math.round(player.dp*100)}%)`:'');
+  ui.pLvl.textContent='Lv '+player.lvl+(player.lvl>=20?' MAX':'')+((player.morale||0)?` (${player.morale>0?'+':''}${Math.round(player.morale*100)}%)`:'');
   ui.gold.textContent=player.gold;
   if(SKILLS.some(s=>s.adr)) ui.pAdr.style.width=clamp(player.adr/10*100,0,100)+'%';
   if(heroBtn) heroBtn.style.boxShadow=attrFree()>0?'0 0 10px #f0d97a, inset 0 1px 0 #ffffff14':'';
@@ -3362,8 +3415,12 @@ function syncUI(){
     const conds=[];
     if(condActive(t,'bleed'))conds.push('Bleeding');
     if(condActive(t,'burn'))conds.push('Burning');
+    if(condActive(t,'poison'))conds.push('Poison');
     if(condActive(t,'cripple'))conds.push('Crippled');
     if(condActive(t,'deepwound'))conds.push('Deep Wound');
+    if(condActive(t,'blind'))conds.push('Blind');
+    if(condActive(t,'weak'))conds.push('Weakness');
+    if(condActive(t,'dazed'))conds.push('Dazed');
     ui.tConds.textContent=conds.join(' · ');
   } else ui.targetFrame.classList.add('hidden');
 
@@ -3465,7 +3522,7 @@ function applySave(s){
   if(s.bars) player.bars=s.bars;
   player.skillPts=s.skillPts??1;
   applyClass(s.cls||'warrior');
-  player.lvl=s.lvl||1; player.xp=s.xp||0; player.gold=s.gold||0; player.dp=s.dp||0;
+  player.lvl=s.lvl||1; player.xp=s.xp||0; player.gold=s.gold||0; player.morale=s.morale||0;
   player.baseHp=CLASSES[player.cls].baseHp+20*(player.lvl-1);
   player.baseEn=CLASSES[player.cls].baseEn+2*(player.lvl-1);
   player.attrs=s.attrs||{};
