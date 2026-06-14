@@ -44,6 +44,8 @@ function saveGame(){
       cls:player.cls, lvl:player.lvl, xp:player.xp, gold:player.gold, dp:player.dp,
       attrs:player.attrs, attrPts:player.attrPts, equip:player.equip, inv:player.inv,
       builds:player.builds||[], known:player.known, bars:player.bars, skillPts:player.skillPts,
+      promo:player.promo||0, bounty:player.bounty||null, vault:player.vault||[],
+      hero:{recruited:hench&&hench.recruited, stance:hench&&hench.stance},
       zone:MAPID, qs,
     }));
   }catch(e){}
@@ -94,92 +96,115 @@ function borderRocks(){
   }
 }
 
-/* ---- Sunmere Harbor: the town (Kamadan-inspired, smaller) ---- */
+/* ---- Sunmere, Jewel of the Coast: the great port city (Kamadan-scale) ---- */
 function buildTown(){
-  map.fill(G_GRASS);
-  // harbor: ocean along the south, sandy shore above it
-  for(let y=78;y<MAPH;y++)for(let x=0;x<MAPW;x++) setT(x,y,G_WATER);
-  for(let y=72;y<78;y++)for(let x=0;x<MAPW;x++) setT(x,y,G_SAND);
-  // piers out into the bay
-  for(let y=74;y<=88;y++)for(let x=28;x<=30;x++) setT(x,y,G_BRIDGE);
-  for(let y=74;y<=86;y++)for(let x=59;x<=61;x++) setT(x,y,G_BRIDGE);
-  // central plaza + streets
-  stampCircle(48,52,9,G_PATH);
-  road([[48,52],[48,26]]);          // north to the keep
-  road([[48,52],[88,48]]);          // east to the gate
-  road([[48,52],[18,48]]);          // west to the market
-  road([[44,58],[30,72]]);          // SW to pier 1
-  road([[52,58],[60,72]]);          // SE to pier 2
-  // Sunspear keep (north): packed earth court with a wall ring, gap south
-  stampCircle(48,19,8,G_DIRT);
-  for(let a=0;a<Math.PI*2;a+=0.04){
+  map.fill(G_PATH);                                  // a fully paved sandstone city
+  // the sea along the south, a sand quay above it
+  for(let y=82;y<MAPH;y++)for(let x=0;x<MAPW;x++) setT(x,y,G_WATER);
+  for(let y=78;y<82;y++)for(let x=0;x<MAPW;x++) setT(x,y,G_SAND);
+  // three timber piers reaching into the harbor
+  for(const px of [20,48,74]){
+    for(let y=79;y<=92;y++)for(let x=px-1;x<=px+1;x++) setT(x,y,G_BRIDGE);
+  }
+  // outer city wall just inside the map, with three gates
+  for(let i=3;i<MAPW-3;i++){ setT(i,3,G_WALL); setT(i,4,G_WALL); }      // north wall
+  for(let j=3;j<78;j++){ setT(3,j,G_WALL); setT(4,j,G_WALL); setT(MAPW-4,j,G_WALL); setT(MAPW-5,j,G_WALL); }
+  for(let y=46;y<=50;y++){ setT(MAPW-4,y,G_PATH); setT(MAPW-5,y,G_PATH); } // east land gate (to the Dunereach)
+  for(let x=44;x<=52;x++){ setT(x,3,G_PATH); setT(x,4,G_PATH); }          // north gate (sealed)
+  for(let y=46;y<=50;y++){ setT(3,y,G_PATH); setT(4,y,G_PATH); }          // west gate (sealed)
+  // grand plaza with the fountain at its heart
+  stampCircle(46,46,11,G_PATH);
+  setT(46,46,G_WALL);                                // fountain plinth (solid)
+  // boulevards: cardinal avenues from the plaza, lined later with palms
+  road([[46,46],[46,8]],1);    // to the Hall of the Sun (north court)
+  road([[46,46],[88,48]],1);   // to the east land gate
+  road([[46,46],[8,46]],1);    // to the west market
+  road([[46,57],[46,79]],1);   // to the central pier
+  road([[40,52],[20,79]],1);   // to the west pier
+  road([[52,52],[74,79]],1);   // to the east pier
+  // Hall of the Sun: a walled court at the north (quest-givers, hero, trainers)
+  stampCircle(46,14,8,G_DIRT);
+  for(let a=0;a<Math.PI*2;a+=0.035){
     const d=Math.abs(((a-Math.PI/2+Math.PI*3)%(Math.PI*2))-Math.PI);
-    if(d<0.5) continue; // south gap toward the plaza
-    const tx=Math.round(48+Math.cos(a)*8.5),ty=Math.round(19+Math.sin(a)*8.5);
+    if(d<0.5) continue;                              // south gate toward the plaza
+    const tx=Math.round(46+Math.cos(a)*8.5),ty=Math.round(14+Math.sin(a)*8.5);
     if(T(tx,ty)!==G_PATH) setT(tx,ty,G_WALL);
   }
-  // market row (west) + inn yard (east of plaza)
-  for(let y=44;y<=52;y++)for(let x=10;x<=22;x++) setT(x,y,G_DIRT);
-  for(let y=56;y<=62;y++)for(let x=60;x<=68;x++) setT(x,y,G_DIRT);
-  // residential earth patches (huts go on top as props)
-  stampCircle(30,36,4,G_DIRT); stampCircle(66,34,4,G_DIRT); stampCircle(72,62,4,G_DIRT);
-  // palms scattered + a beach line of palms
-  for(let y=4;y<70;y++)for(let x=4;x<MAPW-4;x++)
-    if(T(x,y)===G_GRASS&&rng()<0.03) setT(x,y,G_TREE);
-  for(let x=6;x<MAPW-6;x+=3) if(rng()<0.5&&T(x,70)===G_GRASS) setT(x,70,G_TREE);
+  // the Grand Bazaar (west): merchant, traders, collectors — a market square of stalls
+  for(let y=40;y<=52;y++)for(let x=10;x<=24;x++) setT(x,y,G_DIRT);
+  // the Artisans' Row (east of plaza): armorer, weaponsmith, crafter
+  for(let y=40;y<=46;y++)for(let x=58;x<=72;x++) setT(x,y,G_DIRT);
+  // the Vault & storage court (south-east)
+  for(let y=58;y<=66;y++)for(let x=60;x<=70;x++) setT(x,y,G_DIRT);
+  // residential blocks (building footprints become solid; props draw domes atop)
+  const blocks=[[16,20,5,4],[30,16,4,4],[64,18,5,4],[74,30,4,5],[18,62,5,4],[34,64,4,4],[72,52,4,4],[28,30,3,3]];
+  for(const [bx,by,bw,bh] of blocks){
+    for(let y=by;y<by+bh;y++)for(let x=bx;x<bx+bw;x++) setT(x,y,G_WALL);
+  }
+  // palms lining the avenues and dotting the squares
+  for(let y=6;y<78;y++)for(let x=6;x<MAPW-6;x++)
+    if(T(x,y)===G_PATH&&rng()<0.012) setT(x,y,G_TREE);
+  for(let x=8;x<MAPW-8;x+=4) if(T(x,77)===G_PATH&&rng()<0.6) setT(x,77,G_TREE);
   clearTreesNearPaths();
   borderRocks();
-  // east gate corridor through the border crags
-  for(let y=47;y<=49;y++)for(let x=88;x<MAPW;x++) setT(x,y,G_PATH);
-  // fountain plinth blocks the plaza heart
-  setT(48,52,G_WALL);
-  SHRINE={x:48*TILE,y:58*TILE};
-  SAFE={x:48*TILE,y:52*TILE,r:99999};
-  GATES=[{x:93*TILE,y:48*TILE,to:'wilds',label:'The Saltgrass Flats'}];
+  SHRINE={x:46*TILE,y:30*TILE};                      // statue-of-rebirth at the plaza's north steps (cosmetic in town)
+  SAFE={x:46*TILE,y:46*TILE,r:99999};                // the whole city is safe
+  GATES=[
+    {x:93*TILE,y:48*TILE,to:'wilds',label:'The Dunereach'},
+    {x:46*TILE,y:3*TILE,locked:'The northern road is sealed — for now.',label:'Northern Road'},
+    {x:3*TILE,y:48*TILE,locked:'The Astralarium gate is barred.',label:'Astralarium Way'},
+  ];
 }
 
-/* ---- The Saltgrass Flats: first explorable area ---- */
+/* ---- The Dunereach: first explorable area (Plains of Jarin) ----
+   rolling green hills & a foliaged lake to the NORTH, dry red desert to the
+   SOUTH; a river threads down the middle. Several portals ring the edges. */
 function buildWilds(){
   map.fill(G_GRASS);
-  // river down the middle + the headwater spring pool (NE)
-  for(let y=0;y<MAPH;y++){
-    const cx=Math.round(riverCX(y));
-    for(let x=cx-3;x<=cx+3;x++) setT(x,y,G_WATER);
+  // the south half is arid desert (sand/red earth); the north stays green
+  for(let y=54;y<MAPH;y++)for(let x=0;x<MAPW;x++){
+    if(T(x,y)===G_GRASS) setT(x,y, rng()<0.5?G_SAND:(rng()<0.4?G_DIRT:G_GRASS));
   }
-  stampCircle(85,8,5,G_WATER);
-  // the east road: town gate (west) → bridge → corsair camp; spur to the spring
-  road([[4,48],[14,50],[26,54],[38,57],[50,53],[58,48],[66,40],[71,31],[75,26]]);
-  road([[75,26],[80,17],[83,12]]);
-  // corsair camp: palisade ring with a SW gap
-  stampCircle(78,20,8,G_DIRT);
-  for(let a=0;a<Math.PI*2;a+=0.04){
-    const gapTo=Math.atan2(26-20,75-78);
-    const d=Math.abs(((a-gapTo+Math.PI*3)%(Math.PI*2))-Math.PI);
-    if(d<0.55) continue;
-    const tx=Math.round(78+Math.cos(a)*8.5),ty=Math.round(20+Math.sin(a)*8.5);
-    if(T(tx,ty)!==G_PATH) setT(tx,ty,G_WALL);
-  }
-  // groves
-  const groves=[[30,30,10],[18,64,9],[44,20,10],[70,60,12],[40,84,9],[84,44,8],[58,72,8],[24,14,9]];
+  // the great lake in the north, foliage all around it
+  stampCircle(40,14,12,G_WATER);
+  stampCircle(40,14,15,G_GRASS===G_GRASS?G_GRASS:G_GRASS); // (lakeshore stays green; no-op guard)
+  // a river spilling from the lake down through the plain to the south dunes
+  const rcx=y=>40+Math.round(Math.sin(y*0.08)*8)+Math.round((y-14)*0.18);
+  for(let y=14;y<MAPH;y++){ const cx=rcx(y); for(let x=cx-2;x<=cx+2;x++) setT(x,y,G_WATER); }
+  // roads: west gate ⇄ central crossroads ⇄ east gate (to the city)
+  road([[5,48],[18,46],[30,48],[44,50],[58,48],[72,46],[90,48]],1);
+  // spur north to the lake shrine, spur south into the dunes
+  road([[44,50],[40,30],[38,18]],1);
+  road([[58,48],[64,62],[70,78]],1);
+  // green rolling groves in the north, sparse acacias in the south desert
+  const groves=[[22,20,9],[58,18,9],[30,38,7],[70,30,8],[14,60,6],[80,64,7]];
   for(const [gx,gy,gr] of groves){
     for(let y=gy-gr;y<=gy+gr;y++)for(let x=gx-gr;x<=gx+gr;x++){
-      if(dist(x,y,gx,gy)<=gr&&T(x,y)===G_GRASS&&rng()<0.45) setT(x,y,G_TREE);
+      const dns = gy<40?0.5:0.18; // north is lush, south is sparse
+      if(dist(x,y,gx,gy)<=gr&&T(x,y)===G_GRASS&&rng()<dns) setT(x,y,G_TREE);
     }
   }
   for(let y=0;y<MAPH;y++)for(let x=0;x<MAPW;x++)
-    if(T(x,y)===G_GRASS&&rng()<0.045) setT(x,y,G_TREE);
+    if(T(x,y)===G_GRASS&&rng()<(y<40?0.05:0.02)) setT(x,y,G_TREE);
+  // a rocky outcrop in the south where the sand-stalkers den, and the lurker boss hides
+  stampCircle(78,72,5,G_ROCK); stampCircle(78,72,3,G_DIRT);
   clearTreesNearPaths();
   borderRocks();
-  // west corridor back to town
-  for(let y=47;y<=49;y++)for(let x=0;x<=5;x++) setT(x,y,G_PATH);
-  SHRINE={x:8*TILE,y:52*TILE};
-  SAFE={x:6*TILE,y:48*TILE,r:5*TILE}; // small safe pocket at the gate
-  GATES=[{x:3*TILE,y:48*TILE,to:'town',label:'Sunmere Harbor'}];
+  // gate corridors
+  for(let y=46;y<=50;y++){ for(let x=0;x<=5;x++) setT(x,y,G_PATH); for(let x=90;x<MAPW;x++) setT(x,y,G_PATH); }
+  for(let x=36;x<=40;x++)for(let y=0;y<=4;y++) setT(x,y,G_PATH); // north portal stub (sealed)
+  SHRINE={x:90*TILE,y:48*TILE};                      // resurrection shrine by the east (city) gate
+  SAFE={x:92*TILE,y:48*TILE,r:5*TILE};
+  GATES=[
+    {x:94*TILE,y:48*TILE,to:'town',label:'Sunmere'},
+    {x:3*TILE,y:48*TILE,locked:'Champion\'s Dawn lies beyond — not yet open.',label:"Champion's Dawn"},
+    {x:38*TILE,y:3*TILE,locked:'The Astralarium road is impassable.',label:'The Astralarium'},
+  ];
 }
 
 const ZONES={
-  town: {name:'Sunmere Harbor', sub:'sunspear outpost', safe:true,  build:buildTown,  spawn:spawnTown,  enterFrom:{wilds:[89,48], start:[48,58]}},
-  wilds:{name:'The Saltgrass Flats', sub:'explorable area', safe:false, build:buildWilds, spawn:spawnWilds, enterFrom:{town:[7,48], start:[7,48]}},
+  town: {name:'Sunmere', sub:'jewel of the coast', safe:true,  build:buildTown,  spawn:spawnTown,  enterFrom:{wilds:[88,48], start:[46,40]}},
+  wilds:{name:'The Dunereach', sub:'explorable — plains of jarin', safe:false, build:buildWilds, spawn:spawnWilds, enterFrom:{town:[8,48], start:[8,48]}},
 };
 function buildZone(){ ZONES[MAPID].build(); }
 
@@ -381,8 +406,25 @@ ELE_POOL.push(
       effects.push({type:'heal',x:low.x,y:low.y,t:now,dur:0.6});
     }},
 );
+// Signet of Capture + the three capturable boss elites (any profession may slot them).
+const EXTRA_SKILLS=[
+  {id:'cap', name:'Signet of Capture', icon:'📜', en:0, rc:2, cast:2, type:'capture',
+    desc:'Signet (2s): used beside a slain boss, learn its elite skill. Slot the elite at the trainer afterward.',
+    fx(){ tryCapture(); }},
+  {id:'el_aegis', name:'Duneshaper\'s Aegis', icon:'🪨', en:5, rc:30, cast:0, type:'self', elite:true,
+    desc:'Elite Stance (10s): a carapace of sand — you take 50% less damage and cannot be knocked down.',
+    fx(){ player.buffs.aegis=now+10; ftext(player.x,player.y,'Aegis!','#c8a060',13); effects.push({type:'aoe',x:player.x,y:player.y,t:now,dur:0.45,r:44,color:'#c8a060'}); }},
+  {id:'el_storm', name:'Galewither\'s Wrath', icon:'🌩️', en:15, rc:12, cast:1.5, type:'ranged', range:300, elite:true,
+    desc:'Elite Spell (1.5s): call the storm — 70 lightning damage to your target and every foe near it.',
+    fx(t){ if(!t||t.dead) return; const cx=t.x,cy=t.y;
+      effects.push({type:'aoe',x:cx,y:cy,t:now,dur:0.5,r:96,color:'#ffe860'});
+      for(const e of enemies) if(!e.dead&&dist(cx,cy,e.x,e.y)<96+e.r){ effects.push({type:'beam',x:player.x,y:player.y,x2:e.x,y2:e.y,t:now,dur:0.22}); applyDamage(player,e,stormMod(70),'#ffe860'); } }},
+  {id:'el_rake', name:'Reaper\'s Rake', icon:'🌾', en:0, adr:8, rc:1, cast:0, type:'melee', elite:true,
+    desc:'Elite adrenaline (8): a scything blow for +24 damage that inflicts Bleeding and a Deep Wound.',
+    fx(t){ meleeAttack(player,t,strMod(24),d=>{ addCond(d,'bleed',12); addCond(d,'deepwound',12); ftext(d.x,d.y,'Rake!','#b050d0',12); }); }},
+];
 const SKILL_BY_ID={};
-for(const s of [...WARRIOR_POOL,...ELE_POOL,RES_SKILL]) SKILL_BY_ID[s.id]=s;
+for(const s of [...WARRIOR_POOL,...ELE_POOL,RES_SKILL,...EXTRA_SKILLS]) SKILL_BY_ID[s.id]=s;
 const DEFAULT_BARS={
   warrior:['w_sever','w_gash','w_final','w_ham','w_sig','w_frenzy','w_fbolt','res'],
   elementalist:['e_flare','e_fball','e_light','e_ice','e_immo','e_earth','e_aura','res'],
@@ -472,20 +514,19 @@ function giveItem(it){
 
 /* unique boss drops (GW1 "greens") */
 const UNIQUES={
-  greyfang:()=>({kind:'weapon',wtype:'sword',rarity:3,unique:true,name:"Greyfang's Hunger",dmgMin:16,dmgMax:26,armor:5,value:420,lore:'Torn from the alpha of the Saltgrass packs.'}),
-  ssraja:()=>({kind:'weapon',wtype:'wand',rarity:3,unique:true,name:"Ssraja's Rivermaw Fang",dmgMin:13,dmgMax:21,energy:6,value:420,lore:'Still damp. Always damp.'}),
-  korr:()=>({kind:'weapon',wtype:'sword',rarity:3,unique:true,name:"Blackmaw's Cleaver",dmgMin:18,dmgMax:30,value:520,lore:'Korr never sharpened it. He never needed to.'}),
-  veyd:()=>(Math.random()<0.5
-    ?{kind:'weapon',wtype:'sword',rarity:3,unique:true,name:"Veyd's Sluicebreaker",dmgMin:20,dmgMax:32,armor:8,value:680,lore:'The blade that held the spring hostage.'}
-    :{kind:'off',otype:'focus',rarity:3,unique:true,name:'Marr Company Seal',energy:12,value:680,lore:'Proof, and power.'}),
+  duneshaper:()=>({kind:'weapon',wtype:'sword',rarity:3,unique:true,name:"Duneshaper's Pincer",dmgMin:18,dmgMax:30,armor:6,value:520,lore:'Hewn from the claw that moved the sand.'}),
+  galewither:()=>({kind:'weapon',wtype:'wand',rarity:3,unique:true,name:'Galewither Branch',dmgMin:15,dmgMax:24,energy:8,value:520,lore:'A storm still sleeps in the grain of it.'}),
+  sicklemaw:()=>(Math.random()<0.5
+    ?{kind:'weapon',wtype:'sword',rarity:3,unique:true,name:"Sicklemaw's Edge",dmgMin:20,dmgMax:32,value:560,lore:'It reaps. That is all it has ever done.'}
+    :{kind:'off',otype:'shield',rarity:3,unique:true,name:'Carapace Bulwark',armor:18,value:560,lore:'Plate that grew, rather than was forged.'}),
 };
 
-/* crafting (Nightfall-style: materials + gold at the crafter) */
+/* crafting (Nightfall-style: materials + gold at the armorer / weaponsmith) */
 const RECIPES=[
-  {name:'Sunspear Blade',     wt:'sword',  off:false, gold:140, mats:{'Iron Shard':3,'Tanned Hide':2}, icon:'🗡️', desc:'A keen service sword fitted to your level.'},
-  {name:'Sunspear Scepter',   wt:'wand',   off:false, gold:140, mats:{'Skale Scale':3,'Tanned Hide':1}, icon:'🪄', desc:'A channeling rod bound in river-cured scale.'},
-  {name:'Harbor Tower Shield',ot:'shield', off:true,  gold:110, mats:{'Iron Shard':2,'Tanned Hide':2}, icon:'🛡️', desc:'Dockyard iron over jackal hide.'},
-  {name:'Tidewater Focus',    ot:'focus',  off:true,  gold:110, mats:{'Skale Scale':2,'Iron Shard':1}, icon:'🔮', desc:'Hums faintly when the tide turns.'},
+  {name:'Istani Blade',     wt:'sword',  off:false, gold:140, mats:{'Chitin Fragment':3,'Bone':2}, icon:'🗡️', desc:'A keen service sword fitted to your level.'},
+  {name:'Istani Scepter',   wt:'wand',   off:false, gold:140, mats:{'Plant Fiber':3,'Scale':1}, icon:'🪄', desc:'A channeling rod bound in river-cured scale.'},
+  {name:'Dunereach Shield', ot:'shield', off:true,  gold:110, mats:{'Drake Scale':1,'Chitin Fragment':2}, icon:'🛡️', desc:'Drake-scale over chitin plate.'},
+  {name:'Tidewater Focus',  ot:'focus',  off:true,  gold:110, mats:{'Scale':2,'Plant Fiber':1}, icon:'🔮', desc:'Hums faintly when the tide turns.'},
 ];
 const matCount=n=>player.inv.filter(i=>i.kind==='mat'&&i.name===n).length;
 function takeMats(n,c){ for(let k=0;k<c;k++){ const i=player.inv.findIndex(it=>it.kind==='mat'&&it.name===n); if(i>=0) player.inv.splice(i,1); } }
@@ -514,7 +555,8 @@ function makePlayer(){
     cls:'warrior', enRegen:1.33, adr:0,
     inv:[], equip:{weapon:{kind:'weapon',wtype:'sword',rarity:0,name:'Training Sword',dmgMin:10,dmgMax:16,value:0}, off:null},
     attrs:{}, attrPts:0, skillPts:1,
-    known:{warrior:[...DEFAULT_BARS.warrior], elementalist:[...DEFAULT_BARS.elementalist]},
+    promo:0, bounty:null, vault:[],
+    known:{warrior:[...DEFAULT_BARS.warrior,'cap'], elementalist:[...DEFAULT_BARS.elementalist,'cap']},
     bars:{warrior:[...DEFAULT_BARS.warrior], elementalist:[...DEFAULT_BARS.elementalist]},
     lvl:1, xp:0, gold:0, dp:0,
     baseHp:100, baseEn:30, hp:100, en:30,
@@ -535,29 +577,45 @@ function makeHench(){
     kind:'hench', name:'Lyra', team:0, x:p.x, y:p.y, r:12, face:0, lvl:2,
     maxHp:110, hp:110, dmgMin:9, dmgMax:14, atkInt:1.5, range:240, speed:145,
     nextAtk:0, nextHeal:0, target:null, cond:{}, dead:false, deadAt:0, lastCombat:-99,
+    recruited:false,        // joins as a Hero during the primary chain
+    stance:'guard',         // guard | aggressive | passive
+    flag:null,              // {x,y} hold-position flag, or null to follow
   };
 }
+const heroActive=()=>hench.recruited&&!hench.dead;
+const heroOrPlayer=f=>f===player||(f===hench&&hench.recruited&&!hench.dead);
+const party=()=>heroActive()?[player,hench]:[player];
 
+/* Plains-of-Jarin bestiary, grouped into GW1 creature families.
+   family is used by Sunward Hunt bounties and collectors. */
 const ENEMY_TYPES={
-  skale:  {name:'Istani Skale',   lvl:1, hp:55,  dmgMin:6, dmgMax:10, atkInt:1.6, range:MELEE_RANGE, speed:80,  r:12, color:'#3a8a7a', gold:[3,8],  trophy:'Skale Fin', mat:'Skale Scale'},
-  mystic: {name:'Skale Mystic',   lvl:3, hp:85,  dmgMin:8, dmgMax:13, atkInt:2.0, range:280, speed:95, r:12, color:'#2a9a86', gold:[6,14], trophy:'Skale Fin', mat:'Skale Scale', caster:true, healer:true},
-  wolf:   {name:'Sand Jackal',    lvl:2, hp:80,  dmgMin:8, dmgMax:13, atkInt:1.1, range:MELEE_RANGE, speed:155, r:12, color:'#b09a6a', gold:[4,10], trophy:'Jackal Pelt', mat:'Tanned Hide'},
-  raider: {name:'Corsair Raider', lvl:3, hp:120, dmgMin:11,dmgMax:17, atkInt:1.3, range:MELEE_RANGE, speed:135, r:13, color:'#8a4a3a', gold:[8,18], trophy:'Corsair Emblem', mat:'Iron Shard'},
-  archer: {name:'Corsair Archer', lvl:3, hp:90,  dmgMin:10,dmgMax:15, atkInt:1.8, range:265, speed:120, r:12, color:'#9a6a3a', gold:[8,18], trophy:'Corsair Emblem', mat:'Iron Shard'},
-  windcaller:{name:'Corsair Windcaller',lvl:5,hp:120,dmgMin:13,dmgMax:19,atkInt:2.2,range:300,speed:115,r:12,color:'#4858c8',gold:[12,24],trophy:'Corsair Emblem',mat:'Iron Shard',caster:true,beam:true},
-  avenger:{name:'Blackmaw Avenger',lvl:7,hp:260, dmgMin:20,dmgMax:30, atkInt:1.2, range:MELEE_RANGE, speed:150, r:13, color:'#7a3050', gold:[20,40], trophy:'Corsair Emblem', mat:'Iron Shard'},
-  // bosses — each has a chance at a unique drop
-  wolfBoss:{name:'Greyfang',      lvl:5, hp:340, dmgMin:14,dmgMax:20, atkInt:1.0, range:MELEE_RANGE, speed:165, r:15, color:'#8a8a96', gold:[60,110], boss:true, unique:'greyfang', mat:'Tanned Hide'},
-  skaleBoss:{name:'Ssraja the Rivermaw',lvl:4,hp:300,dmgMin:12,dmgMax:18,atkInt:1.8,range:280,speed:100,r:15,color:'#1a9a8a',gold:[60,110],boss:true,unique:'ssraja',caster:true,healer:true,mat:'Skale Scale'},
-  chief:  {name:'Korr Blackmaw',  lvl:6, hp:480, dmgMin:18,dmgMax:28, atkInt:1.4, range:MELEE_RANGE, speed:140, r:17, color:'#b03838', gold:[120,180], boss:true, unique:'korr', mat:'Iron Shard'},
-  enforcer:{name:'Enforcer Veyd', lvl:8, hp:620, dmgMin:22,dmgMax:34, atkInt:1.3, range:MELEE_RANGE, speed:145, r:17, color:'#602838', gold:[160,240], boss:true, unique:'veyd', mat:'Iron Shard'},
+  // --- Skales (amphibious river reptiles) ---
+  skale:   {name:'Ridgeback Skale', family:'skale', lvl:2, hp:70, dmgMin:7,dmgMax:11, atkInt:1.5, range:MELEE_RANGE, speed:90, r:12, color:'#3a8a7a', gold:[3,9], trophy:'Skale Fin', mat:'Scale'},
+  skaleCaster:{name:'Skale Blighter', family:'skale', lvl:4, hp:95, dmgMin:9,dmgMax:14, atkInt:2.0, range:280, speed:90, r:12, color:'#2a7a86', gold:[6,14], trophy:'Skale Fin', mat:'Scale', caster:true, healer:true},
+  skaleLasher:{name:'Skale Lasher', family:'skale', lvl:6, hp:140, dmgMin:13,dmgMax:19, atkInt:1.2, range:MELEE_RANGE, speed:120, r:13, color:'#1f6a78', gold:[8,16], trophy:'Skale Fin', mat:'Scale'},
+  // --- Insects ---
+  termite: {name:'Bladed Termite', family:'insect', lvl:4, hp:85, dmgMin:10,dmgMax:15, atkInt:0.9, range:MELEE_RANGE, speed:170, r:11, color:'#6a5a30', gold:[4,10], trophy:'Insect Carapace', mat:'Chitin Fragment'},
+  spider:  {name:'Stalking Nephila', family:'insect', lvl:3, hp:75, dmgMin:8,dmgMax:12, atkInt:1.6, range:250, speed:130, r:12, color:'#3a2a3a', gold:[4,10], trophy:'Insect Carapace', mat:'Chitin Fragment', caster:true, poison:true},
+  lance:   {name:'Preying Lance', family:'insect', lvl:6, hp:130, dmgMin:13,dmgMax:20, atkInt:1.3, range:MELEE_RANGE, speed:150, r:13, color:'#7a6a28', gold:[7,15], trophy:'Insect Carapace', mat:'Chitin Fragment'},
+  // --- Mandragors (burrowing sand-stalkers) ---
+  lurker:  {name:'Mandragor Slither', family:'mandragor', lvl:4, hp:110, dmgMin:11,dmgMax:17, atkInt:1.2, range:MELEE_RANGE, speed:140, r:13, color:'#9a7a4a', gold:[5,12], trophy:'Mandragor Pincer', mat:'Bone', burrow:true},
+  lurkerImp:{name:'Mandragor Imp', family:'mandragor', lvl:4, hp:90, dmgMin:9,dmgMax:14, atkInt:1.9, range:270, speed:120, r:12, color:'#b89860', gold:[5,12], trophy:'Mandragor Pincer', mat:'Bone', caster:true, burrow:true},
+  // --- Plants ---
+  iboga:   {name:'Fanged Iboga', family:'plant', lvl:5, hp:120, dmgMin:11,dmgMax:16, atkInt:1.5, range:MELEE_RANGE, speed:0, r:14, color:'#7a3a4a', gold:[5,12], trophy:'Iboga Petal', mat:'Plant Fiber', rooted:true, poison:true},
+  jacaranda:{name:'Stormseed Jacaranda', family:'plant', lvl:5, hp:115, dmgMin:12,dmgMax:18, atkInt:2.1, range:300, speed:0, r:14, color:'#4a5ac8', gold:[6,14], trophy:'Iboga Petal', mat:'Plant Fiber', rooted:true, caster:true, beam:true},
+  // --- Drakes ---
+  drake:   {name:'Irontooth Drake', family:'drake', lvl:8, hp:280, dmgMin:16,dmgMax:24, atkInt:1.4, range:MELEE_RANGE, speed:120, r:16, color:'#5a6a3a', gold:[14,28], trophy:'Drake Tooth', mat:'Drake Scale', firebreath:true},
+  // --- field bosses (green drops + capturable elite via Signet of Capture) ---
+  lurkerBoss:{name:'Karesh Duneshaper', family:'mandragor', lvl:7, hp:420, dmgMin:16,dmgMax:24, atkInt:1.1, range:MELEE_RANGE, speed:150, r:16, color:'#b07838', gold:[80,140], boss:true, unique:'duneshaper', elite:'el_aegis', mat:'Bone', burrow:true},
+  jacarandaBoss:{name:'Old Galewither', family:'plant', lvl:5, hp:360, dmgMin:14,dmgMax:22, atkInt:1.7, range:300, speed:0, r:16, color:'#5a4ad8', gold:[80,140], boss:true, unique:'galewither', elite:'el_storm', mat:'Plant Fiber', rooted:true, caster:true, beam:true},
+  lanceBoss:{name:'Sicklemaw the Reaper', family:'insect', lvl:6, hp:400, dmgMin:16,dmgMax:24, atkInt:1.1, range:MELEE_RANGE, speed:160, r:15, color:'#a08828', gold:[80,140], boss:true, unique:'sicklemaw', elite:'el_rake', mat:'Chitin Fragment'},
 };
 
 function spawnEnemy(type,tx,ty){
   const t=ENEMY_TYPES[type], p=findOpen(tx,ty);
   const e={
     kind:'enemy', type, ...t, team:1, x:p.x, y:p.y, sx:p.x, sy:p.y, face:0,
-    maxHp:t.hp, nextAtk:0, target:null, state:'idle',
+    maxHp:t.hp, nextAtk:0, target:null, state:t.burrow?'burrowed':'idle', hidden:!!t.burrow,
     wx:p.x, wy:p.y, wanderT:rand(1,4), cond:{}, dead:false, respawnAt:0,
     nextAoe:0, lastCombat:-99,
   };
@@ -577,35 +635,50 @@ function spawnNpc(id,name,style,tx,ty,face){
 }
 
 function spawnTown(){
-  npcAldra=spawnNpc('aldra','Captain Aldra','aldra',46,19,1.6);
-  spawnNpc('henko','Master Henko','trainer',52,20,2.4);
-  npcSuki=spawnNpc('suki','Merchant Suki','merchant',13,46,-0.4);
-  spawnNpc('joska','Crafter Joska','crafter',18,50,-2.4);
-  spawnNpc('dau','Fisher Dau','fisher',29,76,1.57);
-  spawnNpc('mirelle','Innkeep Mirelle','inn',63,58,-1.6);
+  // Hall of the Sun (north court): the Order's officers, trainer
+  npcAldra=spawnNpc('marshal','Marshal Oyin','aldra',46,11,1.6);
+  spawnNpc('trainer','Blademaster Henko','trainer',50,13,2.2);
+  spawnNpc('dockmaster','Dockmaster Ahlar','aldra',49,77,2.2);
+  // the Grand Bazaar (west)
+  npcSuki=spawnNpc('merchant','Merchant Suki','merchant',13,43,-0.4);
+  spawnNpc('trader','Trader Kahli','merchant',20,49,-1.4);
+  spawnNpc('vault','Vault-keeper Jueh','inn',64,62,-1.6);
+  // Artisans' Row (east)
+  spawnNpc('smith','Armorer Joska','crafter',64,43,-2.4);
+  // plaza flavor
+  spawnNpc('noble','Lady Mehana','inn',52,50,-1.6);
 }
 
 function spawnWilds(){
-  spawnNpc('scout','Sunspear Scout','scout',8,46,0.2);
-  // skale pulls along the river — small groups with a Mystic healer (GW1-style)
-  spawnGroup(['skale','skale','mystic'],50,62);
-  spawnGroup(['skale','skale','mystic'],48,70);
-  spawnGroup(['skale','skale','mystic'],53,57);
-  spawnGroup(['skale','skale','mystic'],62,68);
-  spawnEnemy('skaleBoss',49,76);                       // Ssraja, by the south pool
-  // jackal packs
-  spawnGroup(['wolf','wolf','wolf','wolf'],30,40);
-  spawnGroup(['wolf','wolf','wolf'],20,62);
-  spawnGroup(['wolf','wolf','wolf'],40,30);
-  spawnGroup(['wolf','wolf'],16,30); spawnEnemy('wolfBoss',16,28); // Greyfang's pack
-  // corsairs on the road and in the camp
-  spawnGroup(['raider','archer','windcaller'],44,55);  // road patrol
-  spawnGroup(['raider','raider','windcaller'],76,17);
-  spawnGroup(['raider','archer','archer'],78,24);
-  spawnEnemy('chief',78,20);                           // Korr Blackmaw
-  // the spring: Marr's enforcer and his guard
-  spawnGroup(['avenger','avenger'],84,12);
-  spawnEnemy('enforcer',85,9);                         // Enforcer Veyd
+  // the resurrection shrine & Order scout (Sunward Hunt bounties + blessing)
+  spawnNpc('scout','Sunward Scout','scout',88,46,3.0);
+  spawnNpc('collector','Collector Poturi','crafter',84,51,2.6);
+  spawnNpc('beastmaster','Beastmaster Yapo','scout',45,44,1.4);
+
+  // --- NORTH: green lakeshore — skales, insects, and rooted plants ---
+  spawnGroup(['skale','skale','skaleCaster'],34,24);
+  spawnGroup(['skale','skaleLasher','skaleCaster'],46,28);
+  spawnGroup(['skale','skale'],30,34);
+  spawnGroup(['termite','termite','spider'],58,22);
+  spawnGroup(['lance','termite','spider'],62,30);
+  spawnEnemy('lanceBoss',64,24);                       // Sicklemaw the Reaper (insect boss)
+  spawnGroup(['iboga','jacaranda'],22,18);
+  spawnGroup(['iboga','iboga','jacaranda'],18,12);
+  spawnEnemy('jacarandaBoss',16,16);                   // Old Galewither (plant boss)
+
+  // --- MID: the river crossroads — mixed skale/insect ---
+  spawnGroup(['skale','skaleCaster'],40,44);
+  spawnGroup(['termite','lance','spider'],52,40);
+
+  // --- SOUTH: dry dunes — burrowing mandragors and drakes ---
+  spawnGroup(['lurker','lurker','lurkerImp'],50,66);
+  spawnGroup(['lurker','lurkerImp'],62,70);
+  spawnGroup(['lurker','lurker','lurker'],40,72);
+  spawnEnemy('drake',26,66);
+  spawnEnemy('drake',84,58);
+  // the hidden den at the southern rock outcrop: Karesh Duneshaper and guard
+  spawnGroup(['lurker','lurker','lurkerImp','lurker'],78,72);
+  spawnEnemy('lurkerBoss',78,72);
 }
 
 /* ---------------- quests ----------------
@@ -613,63 +686,52 @@ function spawnWilds(){
    trade) plus side work from the townsfolk. State in `qs`:
    qs[id] = {st:'a'(active)|'r'(ready)|'t'(turned in), n, seen[]}      ---- */
 const qs={};
-const CORSAIRS=['raider','archer','windcaller','avenger','chief','enforcer'];
+const anyFoe=e=>true;
 const QDEFS=[
-  // ---- story: CLEAR WATER ----
-  {id:'s1', story:1, giver:'aldra', name:'A Quiet Harbor', kind:'talk', targets:['suki','dau'], need:2,
-   offer:'Three weeks, recruit. Three weeks without a caravan and the warehouses echo. Before I send Sunspears anywhere, I want ears on the ground — talk to Suki at the market and old Dau on the pier. Hear what they\'re seeing.',
-   prog:'Suki at the market row, Dau out on the western pier. Listen more than you talk.',
-   turnin:'Suki\'s shelves are bare and Dau\'s nets come up dead. So it\'s not one problem — it\'s two hands of the same body.', xp:150, gold:60},
-  {id:'s2', story:2, giver:'aldra', prereq:['s1'], name:'Dead Water', kind:'kill', match:e=>e.type==='skale'||e.type==='mystic'||e.type==='skaleBoss', need:5,
-   offer:'Dau says the fish float belly-up and the skale have gone mad with it — something is wrong with the river itself. Go out the east gate, cull five of them along the banks, and look at the water with your own eyes.',
-   prog:'The skale keep to the river banks in the Flats. Watch for their Mystics — they mend the others mid-fight.',
-   turnin:'Scales bleached white, you say. That\'s not sickness, that\'s something *in* the water. Upstream. Someone put it there.', xp:300, gold:120, sp:1},
-  {id:'s3', story:3, giver:'aldra', prereq:['s2'], name:'Tracks on the Road', kind:'kill', match:e=>e.type==='raider'||e.type==='archer'||e.type==='windcaller', need:3,
-   offer:'And while the river dies, corsairs bleed the east road — too patient, too organized, too well paid for common cutthroats. Break their patrol and bring me anything they carry.',
-   prog:'The patrol walks the road east of the bridge. Their Windcaller will throw lightning — drop it first.',
-   turnin:'A way-ledger page, in a clerk\'s hand. Corsairs don\'t keep books, recruit. Someone keeps books *for* them. Show this to Suki — she knows every hand that signs in this harbor.', xp:350, gold:140},
-  {id:'s4', story:4, giver:'suki', prereq:['s3'], name:'The Broker\'s Hand', kind:'talk', targets:['suki'], need:1,
-   offer:'Show Suki the ledger page from the corsair patrol.',
-   prog:'Show Suki the ledger page.',
-   turnin:'Suki goes pale: "This is Vessa Marr\'s ledger. The broker — she lost her shipping license last spring. Her overland caravans are the only ones still arriving… and her prices triple every week. Foul the river, choke the road, and the town buys from the only hand left. Clever. Vile, but clever."', xp:250, gold:100},
-  {id:'s5', story:5, giver:'aldra', prereq:['s4'], name:'The Blackmaw Contract', kind:'kill', match:e=>e.type==='chief', need:1,
-   offer:'Marr pays Korr Blackmaw to keep the road shut — and Korr keeps contracts the way other men keep grudges. Take Lyra, take the camp, and take that contract off his corpse. When his cleaver starts to spin, step away.',
-   prog:'Korr holds the palisade camp in the north-east of the Flats.',
-   turnin:'Signed. Sealed. Marr\'s own mark, plain as a brand. But a paper won\'t shut the sluice her enforcer holds at the headwater spring — that needs a sword.', xp:600, gold:300, sp:1},
-  {id:'s6', story:6, giver:'aldra', prereq:['s5'], name:'The Spring Sluice', kind:'kill', match:e=>e.type==='enforcer', need:1,
-   offer:'Enforcer Veyd holds the spring above the corsair camp — he keeps the sluice gates shut and the poison barrels flowing. End him, smash the works, and the river runs clean by morning.',
-   prog:'Veyd waits at the headwater spring, past the camp, north-east corner of the Flats. He won\'t be alone.',
-   turnin:'It\'s done, then. The sluice is broken and the spring runs cold and clear.', xp:800, gold:400},
-  {id:'s7', story:7, giver:'aldra', prereq:['s6'], name:'Clear Water', kind:'final', need:0,
-   offer:'Report to Captain Aldra.',
-   prog:'Report to Captain Aldra.',
-   turnin:'The magistrate has Marr\'s ledger, her contract, and her enforcer\'s seal — she\'ll trade her fine house for a cell by week\'s end. The first caravan since spring rolled through the east gate this morning, and the fisherfolk are singing on the piers. You did this, recruit. Kneel — rise, Sunspear of the First Watch.',
-   xp:1200, gold:600, sp:2, item:()=>makeEquip(10,3), final:true},
+  // ---- primary chain: THE DUNEREACH ----
+  {id:'s1', story:1, giver:'marshal', name:'Answer the Summons', kind:'talk', targets:['dockmaster','merchant'], need:2,
+   offer:'Welcome to Sunmere, recruit — Jewel of the Coast, and the last calm harbor before the deep desert. Before the Order spends you on the Dunereach, learn the city. Speak with Dockmaster Ahlar on the pier and Merchant Suki in the bazaar, then report back.',
+   prog:'Dockmaster Ahlar is on the central pier; Merchant Suki keeps the west bazaar.',
+   turnin:'Ahlar says the caravans out of the Dunereach have stopped, and Suki\'s shelves show it. The plain has grown teeth again. Time you grew some too.', xp:120, gold:60},
+  {id:'s2', story:2, giver:'marshal', prereq:['s1'], name:'Honing Your Skills', kind:'talk', targets:['trainer'], need:1,
+   offer:'No one walks the Dunereach alone and unproven. Train your forms with Blademaster Henko at the board, then return — I have someone for you to meet.',
+   prog:'Speak with Blademaster Henko in the Hall of the Sun.',
+   turnin:'Henko says you\'ll do. Good — because you won\'t be going out there alone. This is Lyra, a Mender of the Order and the first of your Heroes. She answers to you now: set her stance and her flag from the Party panel. Take her, and take the east gate to the Dunereach.',
+   xp:200, gold:80, sp:1, recruit:true},
+  {id:'s3', story:3, giver:'marshal', prereq:['s2'], name:'Trial by Fire', kind:'kill', match:e=>true, need:6,
+   offer:'The Dunereach lies east. Skale haunt the lake in the north; mandragors burrow the southern dunes; insects and plants between. Cut down six of anything out there and prove you can hold the road.',
+   prog:'Slay any six creatures in the Dunereach (east gate).',
+   turnin:'Six, and back on your feet. The Order can use you. Speak with the Scout at the shrine out there — she keeps the Sunward Hunts, and the honor that comes with them.', xp:350, gold:140, sp:1},
+  {id:'s4', story:4, giver:'marshal', prereq:['s3'], name:'The Reaper in the Reeds', kind:'kill', match:e=>e.type==='lanceBoss', need:1,
+   offer:'A great mantis the scouts call Sicklemaw has nested in the northern reeds and the lake road is shut for it. End it. And bring your Signet of Capture — a beast like that knows a technique worth taking.',
+   prog:'Sicklemaw the Reaper nests in the northern reeds of the Dunereach.',
+   turnin:'The lake road breathes again. If you struck it with the Signet, that elite form is yours to learn — wear it well.', xp:450, gold:220, sp:1},
+  {id:'s5', story:5, giver:'marshal', prereq:['s4'], name:'The Storm in the Grove', kind:'kill', match:e=>e.type==='jacarandaBoss', need:1,
+   offer:'An ancient stormseed — Old Galewither — has rooted in the west grove and throws lightning at anything that moves. Burn it out before it spreads.',
+   prog:'Old Galewither is rooted in the western grove of the Dunereach.',
+   turnin:'Good. The grove cools. One trouble left, and it is the worst of them — under the south dunes.', xp:500, gold:260, sp:1},
+  {id:'s6', story:6, giver:'marshal', prereq:['s5'], name:'What Moves the Sand', kind:'kill', match:e=>e.type==='lurkerBoss', need:1,
+   offer:'The caravans didn\'t stop for skale or thorns. Something *moves the dunes* — a mandragor the size of a wagon the diggers name Karesh Duneshaper, denned in the southern rocks. It will erupt from under you. End it, and the road to the desert opens.',
+   prog:'Karesh Duneshaper dens beneath the southern rock outcrop. Mind the ground.',
+   turnin:'Slain — and the sand lies still. The Dunereach is the Order\'s again, and so is the road beyond. Kneel, recruit. Rise, Spear of the Sun.',
+   xp:900, gold:450, sp:2, item:()=>makeEquip(10,3), final:true},
   // ---- side work ----
-  {id:'d1', giver:'dau', prereq:['s1'], name:'Empty Nets', kind:'kill', match:e=>e.type==='skale'||e.type==='mystic', need:4,
-   offer:'Forty years I\'ve fished this bay and never seen the skale come at a boat. Thin them out near the banks so an old man can work, eh?',
-   prog:'Cull skale along the river banks in the Flats.',
-   turnin:'Ha! There\'s room to cast a net again. Take this — coin\'s no use to a fish.', xp:200, gold:120},
-  {id:'m1', giver:'mirelle', name:'Pelts for the Hearth', kind:'kill', match:e=>e.type==='wolf'||e.type==='wolfBoss', need:4,
-   offer:'Winter wind comes off that bay like a knife, and my inn\'s blankets are thin as broth. Jackal pelts, four of them — I\'ll pay fair and throw in a hot meal.',
-   prog:'Jackal packs roam the open savanna in the Flats.',
-   turnin:'Soft as anything! The hearth room will be warm this winter. Here, as promised.', xp:200, gold:140},
-  {id:'h1', giver:'henko', name:'Prove Your Form', kind:'kill', match:e=>e.type==='wolf'||e.type==='skale', need:3,
-   offer:'Forms in a courtyard prove nothing. Go put three real beasts down — jackal or skale, I don\'t care which — then come back and we\'ll talk like professionals.',
-   prog:'Slay any three jackals or skale in the Flats.',
-   turnin:'Acceptable. Rough, but acceptable. Here — a skill point. Spend it at my board and spend it wisely.', xp:180, gold:50, sp:1},
-  {id:'a1', giver:'aldra', prereq:['s2'], name:'Bounty: Greyfang', kind:'kill', match:e=>e.type==='wolfBoss', need:1,
-   offer:'The pack alpha the herders call Greyfang has taken two mules and nearly a boy. There\'s a standing bounty. It hunts the western savanna.',
-   prog:'Greyfang runs with his pack in the west of the Flats.',
-   turnin:'That\'s the brute. The herders sleep easier — bounty\'s yours.', xp:300, gold:250},
-  {id:'a2', giver:'aldra', prereq:['s2'], name:'Bounty: the Rivermaw', kind:'kill', match:e=>e.type==='skaleBoss', need:1,
-   offer:'The fisherfolk swear a skale the size of a skiff broods by the south pool — they\'ve named it Ssraja and they won\'t row past it. Bounty\'s posted.',
-   prog:'Ssraja broods by the river\'s south pool in the Flats.',
-   turnin:'Size of a skiff, was it? The bounty stands paid.', xp:300, gold:250},
-  {id:'k1', giver:'aldra', prereq:['s5'], name:'Camp Breaker', kind:'kill', match:e=>CORSAIRS.includes(e.type), need:6,
-   offer:'With Korr gone the camp will fray — fray it faster. Six more corsairs in the dirt and the rest will take ship by week\'s end.',
-   prog:'Cut down corsairs anywhere in the Flats.',
-   turnin:'The watch reports sails leaving the cove. Good riddance, and good work.', xp:450, gold:300},
+  {id:'b1', giver:'beastmaster', name:'Thin the Drakes', kind:'kill', match:e=>e.type==='drake', need:2,
+   offer:'Irontooth drakes are coming up out of the south dunes and they cook a man in his armor. Put two of them down and the herders will sing your name.',
+   prog:'Irontooth Drakes roam the southern dunes of the Dunereach.',
+   turnin:'Two drakes! Hah — the dunes are quieter already. Here, with the herders\' thanks.', xp:300, gold:200},
+  {id:'d1', giver:'dockmaster', name:'Lost Shipment', kind:'kill', match:e=>e.family==='skale', need:5,
+   offer:'A barge of dye and cloth went down at the lake mouth and skale have nested in the wreck. Clear five of them and I can send divers for the crates.',
+   prog:'Skale haunt the northern lake of the Dunereach.',
+   turnin:'Divers are away. You\'ll see that cloth in Suki\'s stall within the week — at a markup, knowing her.', xp:240, gold:160},
+  {id:'n1', giver:'noble', name:'A Matter of Pride', kind:'kill', match:e=>e.family==='insect', need:6,
+   offer:'My family\'s estate on the lakeshore is overrun with bladed termites — they\'re eating the *furniture*. Six of the horrid things, and you\'ll have a noble\'s gratitude.',
+   prog:'Bladed termites and their kin swarm the northern Dunereach.',
+   turnin:'The estate is saveable, thank the gods. A noble pays her debts — take it.', xp:240, gold:200},
+  {id:'h1', giver:'trainer', name:'Prove Your Form', kind:'kill', match:e=>true, need:3,
+   offer:'Forms in a courtyard prove nothing. Put down three real creatures in the Dunereach, then come back and we\'ll talk like professionals.',
+   prog:'Slay any three creatures in the Dunereach.',
+   turnin:'Acceptable. Rough, but acceptable. Here — a skill point. Spend it at my board.', xp:180, gold:60, sp:1},
 ];
 const QBY={}; for(const q of QDEFS) QBY[q.id]=q;
 const qTurned=id=>qs[id]&&qs[id].st==='t';
@@ -687,11 +749,17 @@ function completeQuest(q){
   giveXp(q.xp||0); player.gold+=q.gold||0;
   if(q.sp){ player.skillPts=(player.skillPts||0)+q.sp; toast('+'+q.sp+' skill point'+(q.sp>1?'s':'')); }
   if(q.item) giveItem(q.item());
+  if(q.recruit&&!hench.recruited){ recruitHero(); }
   clearDp();
-  if(q.final) banner('FIRST WATCH','the water runs clear');
-  // story flow: auto-arm the wrap-up report
-  if(q.id==='s6'&&qAvailable(QBY.s7)) acceptQuest(QBY.s7);
+  if(q.final) banner('SPEAR OF THE SUN','the dunereach is yours');
   saveGame();
+}
+function recruitHero(){
+  hench.recruited=true; hench.dead=false; hench.hp=hench.maxHp; hench.stance='guard';
+  const p=findOpen(Math.floor(player.x/TILE),Math.floor(player.y/TILE)+1);
+  hench.x=p.x; hench.y=p.y;
+  toast('Lyra has joined you as a Hero — set her stance in the Party panel (👥).');
+  if(HAS3D&&hench.av){ scene.remove(hench.av); hench.av=null; }
 }
 function questCredit(e){
   for(const q of QDEFS){
@@ -700,8 +768,7 @@ function questCredit(e){
     st.n++;
     if(st.n>=q.need){
       st.st='r';
-      toast(q.name+' — return to '+(QBY[q.id].giver==='aldra'?'Captain Aldra':npcName(q.giver)));
-      if(q.id==='s3') toast('You found a way-ledger page on the corsair.');
+      toast(q.name+' — return to '+npcName(q.giver));
     } else toast(`${q.name}: ${st.n}/${q.need}`);
   }
 }
@@ -716,7 +783,8 @@ function talkCredit(npcId){
     }
   }
 }
-const npcName=id=>{const n=npcs.find(n=>n.id===id); return n?n.name:({aldra:'Captain Aldra',suki:'Merchant Suki',dau:'Fisher Dau',mirelle:'Innkeep Mirelle',henko:'Master Henko',joska:'Crafter Joska'}[id]||id);};
+const NPC_NAMES={marshal:'Marshal Oyin',trainer:'Blademaster Henko',dockmaster:'Dockmaster Ahlar',merchant:'Merchant Suki',trader:'Trader Kahli',vault:'Vault-keeper Jueh',smith:'Armorer Joska',noble:'Lady Mehana',scout:'Sunward Scout',collector:'Collector Poturi',beastmaster:'Beastmaster Yapo'};
+const npcName=id=>{const n=npcs.find(n=>n.id===id); return n?n.name:(NPC_NAMES[id]||id);};
 
 function npcMarker(n){
   for(const q of QDEFS) if(q.giver===n.id&&qReady(q)) return '!';
@@ -732,8 +800,8 @@ function questTrackerText(){
     if(lines.length>=2) break;
   }
   if(!lines.length){
-    if(qTurned('s7')) return '<span class="qtitle">Sunmere Harbor</span><br>The water runs clear, First Watch. Explore at will.';
-    return '<span class="qtitle">Sunmere Harbor</span><br>Speak with Captain Aldra at the keep.';
+    if(qTurned('s6')) return '<span class="qtitle">The Dunereach</span><br>The plain is yours, Spear of the Sun. Hunt the bounties or explore at will.';
+    return '<span class="qtitle">Sunmere</span><br>Speak with Marshal Oyin in the Hall of the Sun.';
   }
   return lines.join('<br>');
 }
@@ -757,14 +825,73 @@ function npcDialog(n){
   }
   // services & flavor
   switch(n.id){
-    case 'suki': return {text:'Finest goods left in Sunmere — which these days means "goods". I buy trophies and salvage at full price, and sell what the caravans used to bring.', btn:'Browse wares', act(){ openModal('merch'); }};
-    case 'joska': return {text:'Bring me hides, scales and good iron and I\'ll hammer you something the armory would envy. Materials drop from the beasts and corsairs out in the Flats.', btn:'Crafting', act(){ openModal('craft'); }};
-    case 'henko': return {text:'Every Sunspear learns eight forms and masters the ones that fit. Gold and a skill point per technique — and no refunds for sloppy footwork.', btn:'Learn skills', act(){ openModal('train'); }};
-    case 'dau': return {text:'Tide\'s wrong, recruit. Has been for weeks. The bay knows what the river did.', btn:'Farewell', act(){}};
-    case 'mirelle': return {text:'Room\'s free for Sunspears — payment in stories. Mind the jackals on the road after dark.', btn:'Farewell', act(){}};
-    case 'scout': return {text:'Stay on the road and watch the compass — the white circle is how far the wild things can smell you. The shrine here will catch you if you fall.', btn:'Understood', act(){}};
-    default: return {text:'The Reach holds, recruit.', btn:'Farewell', act(){}};
+    case 'merchant': return {text:'Finest goods in Sunmere, traveler. I buy trophies and salvage at a fair price, and sell what the caravans bring — when they bring it.', btn:'Browse wares', act(){ openModal('merch'); }};
+    case 'smith': return {text:'Bring me chitin, scale, bone and good drake-hide and I\'ll forge you something the armory would envy. Materials come off the beasts of the Dunereach.', btn:'Crafting', act(){ openModal('craft'); }};
+    case 'trainer': return {text:'Every spear of the Order learns eight forms and masters the few that fit. Gold and a skill point per technique. Elite forms you must take from the beasts themselves — with a Signet of Capture.', btn:'Learn skills', act(){ openModal('train'); }};
+    case 'trader': return {text:'Crafting stock, by weight. I buy your raw materials and sell what the artisans need — no haggling.', btn:'Trade materials', act(){ openModal('trade'); }};
+    case 'vault': return {text:'The Order keeps a strongbox for its spears — yours travels with you to any city. Store what you can\'t carry.', btn:'Open vault', act(){ openModal('vault'); }};
+    case 'dockmaster': return {text:'Caravans out of the Dunereach? Stopped cold, a month past. Whatever\'s out there, it eats merchants.', btn:'Farewell', act(){}};
+    case 'noble': return {text:'A new spear, how quaint. Do be careful in the desert — the Order keeps losing them.', btn:'Farewell', act(){}};
+    case 'collector': return {text:'I trade fair gear for the spoils of the plain — fins, carapace, pincers, petals, drake-teeth. Show me what you\'ve gathered.', btn:'Collector trades', act(){ openModal('collect'); }};
+    case 'beastmaster': return {text:'The Dunereach is mine to know — every burrow and nest. Watch the south dunes; the ground there is a lie. The shrine behind me will catch you if you fall.', btn:'Farewell', act(){}};
+    case 'scout': return scoutDialog();
+    default: return {text:'The Order holds, recruit.', btn:'Farewell', act(){}};
   }
+}
+
+/* ---------------- Sunward Hunts (bounties) & promotion rank ---------------- */
+const BOUNTIES={
+  skale:    {name:'Skale Hunt',     goal:8},
+  insect:   {name:'Insect Hunt',    goal:8},
+  mandragor:{name:'Mandragor Hunt', goal:8},
+  plant:    {name:'Plant Hunt',     goal:6},
+  drake:    {name:'Drake Hunt',     goal:4},
+};
+const RANKS=[[0,'Recruit'],[150,'Spearbearer'],[450,'Vanguard'],[1000,'Castellan'],[2200,'Champion of the Sun']];
+function rankTitle(){ let t=RANKS[0][1]; for(const [n,nm] of RANKS) if((player.promo||0)>=n) t=nm; return t; }
+function rankNext(){ for(const [n,nm] of RANKS) if((player.promo||0)<n) return {at:n,name:nm}; return null; }
+function startBounty(fam){
+  player.bounty={family:fam,n:0,goal:BOUNTIES[fam].goal};
+  toast(BOUNTIES[fam].name+' begun — slay '+BOUNTIES[fam].goal+' for Sunward Honor'); saveGame();
+}
+function bountyCredit(e){
+  const b=player.bounty;
+  if(!b||!b.family||e.family!==b.family) return;
+  b.n++;
+  const pts=8+e.lvl*2; player.promo=(player.promo||0)+pts;
+  ftext(player.x,player.y-14,'+'+pts+' Honor','#ffd34d',12);
+  if(b.n>=b.goal){
+    player.promo+=80; giveXp(60);
+    toast(BOUNTIES[b.family].name+' complete! +80 Sunward Honor');
+    player.bounty=null;
+  }
+  saveGame();
+}
+function scoutDialog(){
+  const b=player.bounty;
+  if(b&&b.family) return {text:`Your ${BOUNTIES[b.family].name} stands at ${b.n}/${b.goal}. Honor to the Order. You are ranked: ${rankTitle()}.`,
+    btn:'Abandon this hunt', act(){ player.bounty=null; toast('Hunt abandoned'); saveGame(); }};
+  return {text:`The Order rewards those who cull the Dunereach. Take a Sunward Hunt — every kill of the named kind earns Honor toward your rank. You are: ${rankTitle()}.`,
+    btn:'Choose a hunt', act(){ openModal('bounty'); }};
+}
+
+/* ---------------- elite skill capture ---------------- */
+function tryCapture(){
+  let best=null,bd=220;
+  for(const e of enemies){
+    if(e.dead&&e.boss&&e.elite&&!e.captured){
+      const d=dist(player.x,player.y,e.x,e.y);
+      if(d<bd){best=e;bd=d;}
+    }
+  }
+  if(!best){ toast('No fallen boss near enough to capture from'); return false; }
+  best.captured=true;
+  const id=best.elite, sk=SKILL_BY_ID[id];
+  for(const cls of ['warrior','elementalist']) if(!player.known[cls].includes(id)) player.known[cls].push(id);
+  effects.push({type:'res',x:player.x,y:player.y,t:now,dur:0.9});
+  banner('ELITE CAPTURED',sk.name);
+  toast('Learned elite: '+sk.name+' — slot it in town (✨ Skills).');
+  saveGame(); return true;
 }
 
 /* ---------------- combat ---------------- */
@@ -799,6 +926,7 @@ function applyDamage(src,e,amt,color){
     if((player.buffs.frenzy||0)>now) amt*=2;            // Frenzy downside
     if((player.buffs.stone||0)>now) amt*=0.6;           // Armor of Earth
     if((player.buffs.brace||0)>now) amt*=0.7;           // Stand Firm
+    if((player.buffs.aegis||0)>now) amt*=0.5;           // Duneshaper's Aegis (elite)
     const armor=((player.equip.off&&player.equip.off.armor)||0)+(player.equip.weapon.armor||0)+attr('Strength');
     amt*=Math.max(0.45,1-armor/140);                    // shield + Strength armor
     amt=Math.max(1,Math.round(amt));
@@ -846,8 +974,10 @@ function die(e,src){
   e.dead=true; e.target=null; e.cond={};
   if(e.kind==='enemy'){
     e.respawnAt=now+(e.boss?150:35);
-    if(e.boss) banner(e.name.toUpperCase(),'has been defeated');
+    if(e.boss){ banner(e.name.toUpperCase(),'has been defeated');
+      if(e.elite&&!e.captured) toast('It carried an elite form — strike it with Signet of Capture (📜).'); }
     questCredit(e);
+    bountyCredit(e);
     // xp + loot
     giveXp(18+e.lvl*10);
     if(Math.random()<0.65||e.boss){
@@ -963,19 +1093,34 @@ function tickConds(e,dt){
 function updateEnemy(e,dt){
   if(e.dead){
     if(now>=e.respawnAt&&dist(player.x,player.y,e.sx,e.sy)>360){
-      e.dead=false; e.hp=e.maxHp; e.x=e.sx; e.y=e.sy; e.state='idle'; e.cond={};
+      e.dead=false; e.hp=e.maxHp; e.x=e.sx; e.y=e.sy; e.cond={}; e.captured=false;
+      if(e.burrow){ e.state='burrowed'; e.hidden=true; } else e.state='idle';
     }
     return;
   }
   tickConds(e,dt); if(e.dead) return;
   if(condActive(e,'stun')) return;
 
+  // burrowing sand-stalkers (mandragors): hidden until the party strays close, then erupt
+  if(e.state==='burrowed'){
+    e.hidden=true;
+    for(const f of party()){
+      if(!f.dead&&!inSafeZone(f)&&heroOrPlayer(f)&&dist(e.x,e.y,f.x,f.y)<140){
+        e.hidden=false; e.state='chase'; e.target=f;
+        effects.push({type:'aoe',x:e.x,y:e.y,t:now,dur:0.45,r:54,color:'#c8a060'});
+        for(const o of enemies){ if(o!==e&&!o.dead&&o.state==='burrowed'&&dist(o.x,o.y,e.x,e.y)<SOCIAL_R){ o.hidden=false; o.state='chase'; o.target=f; } }
+        break;
+      }
+    }
+    return;
+  }
+
   const leashDist=dist(e.x,e.y,e.sx,e.sy);
 
   if(e.state==='return'){
     e.hp=Math.min(e.maxHp,e.hp+e.maxHp*0.25*dt);
     moveToward(e,e.sx,e.sy,dt);
-    if(dist(e.x,e.y,e.sx,e.sy)<12){e.state='idle';e.hp=e.maxHp;}
+    if(dist(e.x,e.y,e.sx,e.sy)<12){ e.hp=e.maxHp; if(e.burrow){e.state='burrowed';e.hidden=true;} else e.state='idle'; }
     return;
   }
 
@@ -990,7 +1135,7 @@ function updateEnemy(e,dt){
     // out-of-combat regen
     e.hp=Math.min(e.maxHp,e.hp+e.maxHp*0.05*dt);
     // aggro check
-    for(const f of [player,hench]){
+    for(const f of party()){
       if(!f.dead&&!inSafeZone(f)&&dist(e.x,e.y,f.x,f.y)<AGGRO_R){ aggro(e,f); break; }
     }
     return;
@@ -1040,20 +1185,29 @@ function updateEnemy(e,dt){
       meleeAttack(e,t,0);
     }
   }
-  // boss whirl
-  if(e.boss&&now>=e.nextAoe&&d<110){
+  // boss whirl (melee bosses)
+  if(e.boss&&!e.rooted&&!e.beam&&now>=e.nextAoe&&d<110){
     e.nextAoe=now+8;
     e.whirlT=now; // drives the spin animation
     effects.push({type:'aoe',x:e.x,y:e.y,t:now,dur:0.4,r:95,color:'#ff5030'});
-    for(const f of [player,hench]){
+    for(const f of party()){
       if(!f.dead&&dist(e.x,e.y,f.x,f.y)<95+f.r) applyDamage(e,f,30,'#ff5030');
+    }
+  }
+  // Irontooth Drakes: a periodic gout of fire that scorches everyone near
+  if(e.firebreath&&now>=e.nextAoe&&d<170){
+    e.nextAoe=now+6;
+    effects.push({type:'aoe',x:e.x,y:e.y,t:now,dur:0.5,r:110,color:'#ff7020'});
+    for(const f of party()){
+      if(!f.dead&&dist(e.x,e.y,f.x,f.y)<110+f.r){ applyDamage(e,f,e.lvl*3,'#ff7020'); addCond(f,'burn',3); }
     }
   }
 }
 
 function updateHench(dt){
+  if(!hench.recruited) return;       // joins as a Hero during the primary chain
   if(hench.dead){
-    // auto-revive if player returns to the outpost
+    // a fallen Hero recovers when you reach a safe zone (or use Restore Ally)
     if(inSafeZone(player)&&now-hench.deadAt>3){
       hench.dead=false; hench.hp=hench.maxHp;
       const p=findOpen(Math.floor(player.x/TILE),Math.floor(player.y/TILE)+1);
@@ -1064,7 +1218,7 @@ function updateHench(dt){
   }
   tickConds(hench,dt); if(hench.dead) return;
 
-  // heal (priority)
+  // heal (priority — Lyra is a Mender, regardless of stance she always heals)
   if(now>=hench.nextHeal){
     let low=null,lowPct=0.7;
     for(const a of [player,hench]){
@@ -1082,10 +1236,23 @@ function updateHench(dt){
     }
   }
 
-  // pick target: assist player, else fight back
+  // anchor: a flag holds position; otherwise the Hero follows the player
+  const anchor=hench.flag||player;
+  const ax=hench.flag?hench.flag.x:player.x, ay=hench.flag?hench.flag.y:player.y;
+
+  // pick target per AI stance (GW1 Hero behaviour)
   let t=null;
-  if(player.engaged&&player.target&&!player.target.dead) t=player.target;
-  else if(hench.target&&!hench.target.dead&&hench.target.kind==='enemy') t=hench.target;
+  if(hench.stance!=='passive'){
+    if(player.engaged&&player.target&&!player.target.dead) t=player.target;          // assist the player's called target
+    else if(hench.target&&!hench.target.dead&&hench.target.kind==='enemy') t=hench.target;
+    else if(hench.stance==='aggressive'){                                            // hunt the nearest foe
+      let best=null,bd=AGGRO_R;
+      for(const e of enemies){ if(e.dead||e.hidden) continue; const d=dist(hench.x,hench.y,e.x,e.y); if(d<bd){best=e;bd=d;} }
+      t=best;
+    }
+    // guard/aggressive won't chase far from their anchor
+    if(t&&dist(t.x,t.y,ax,ay)>(hench.stance==='aggressive'?LEASH_R:300)) t=null;
+  }
   hench.target=t;
 
   if(t){
@@ -1097,9 +1264,9 @@ function updateHench(dt){
     }
     return;
   }
-  // follow
-  const dp=dist(hench.x,hench.y,player.x,player.y);
-  if(dp>90) moveToward(hench,player.x+rand(-20,20),player.y+rand(-20,20),dt);
+  // move to anchor (flag or player)
+  const dp=dist(hench.x,hench.y,ax,ay);
+  if(dp>(hench.flag?14:90)) moveToward(hench,ax+(hench.flag?0:rand(-20,20)),ay+(hench.flag?0:rand(-20,20)),dt);
   // out-of-combat regen
   if(now-hench.lastCombat>6) hench.hp=Math.min(hench.maxHp,hench.hp+8*dt);
 }
@@ -1831,6 +1998,62 @@ function skaleAvatar(scale){
   const fin=M(new THREE.ConeGeometry(3,6,8),hideD); fin.position.set(0,14,0); inner.add(fin);
   return g;
 }
+function bugAvatar(kind,scale){
+  const g=new THREE.Group(); const inner=new THREE.Group(); g.add(inner); g.userData.inner=inner;
+  if(scale) inner.scale.setScalar(scale);
+  const c=kind==='spider'?0x352338:kind==='lance'?0x7a6a28:0x6a5a30, cd=kind==='spider'?0x201620:0x46390f;
+  const M=(geo,col)=>new THREE.Mesh(geo,smat(skinTex(col),{rough:0.5,metal:0.25}));
+  const ab=M(new THREE.SphereGeometry(7,12,10),c); ab.scale.set(1.1,0.8,1.2); ab.position.set(-6,7,0); inner.add(ab);
+  const th=M(new THREE.SphereGeometry(5,12,10),cd); th.position.set(4,7,0); inner.add(th);
+  const hd=M(new THREE.SphereGeometry(3.4,10,8),c); hd.position.set(11,7,0); inner.add(hd);
+  if(kind==='lance'){ const l=M(new THREE.ConeGeometry(1.3,13,6),cd); l.position.set(19,8,0); l.rotation.z=-Math.PI/2; inner.add(l); }
+  else for(const z of [-1.8,1.8]){ const md=M(new THREE.ConeGeometry(1,4,5),cd); md.position.set(14,7,z); md.rotation.z=-Math.PI/2; inner.add(md); }
+  const eyeM=smat(null,{color:0xff3030,emissive:0x801010,rough:0.3});
+  for(const z of [-1.6,1.6]){ const eye=new THREE.Mesh(new THREE.SphereGeometry(0.6,6,6),eyeM); eye.position.set(12.6,8.4,z); inner.add(eye); }
+  g.userData.legs=[];
+  for(const lx of [-2,4]) for(const z of [-5.5,5.5]){
+    const leg=box3(1.1,7,1.1,cd); leg.geometry.translate(0,-3.5,0); leg.position.set(lx,7,z); inner.add(leg); g.userData.legs.push(leg);
+  }
+  return g;
+}
+function mandragorAvatar(scale){
+  const g=new THREE.Group(); const inner=new THREE.Group(); g.add(inner); g.userData.inner=inner;
+  if(scale) inner.scale.setScalar(scale);
+  const c=0x9a7a4a, cd=0x6a5230;
+  const M=(geo,col)=>new THREE.Mesh(geo,smat(skinTex(col),{rough:0.88}));
+  const body=M(new THREE.SphereGeometry(9,12,10),c); body.scale.set(1.3,0.7,1.1); body.position.y=7; inner.add(body);
+  const head=M(new THREE.SphereGeometry(4,10,8),cd); head.position.set(9,7,0); inner.add(head);
+  const arm=new THREE.Group(); arm.position.set(8,7,6); inner.add(arm); g.userData.arm=arm;
+  const claw=M(new THREE.ConeGeometry(3,10,6),cd); claw.position.set(5,0,0); claw.rotation.z=-Math.PI/2; arm.add(claw);
+  const claw2=M(new THREE.ConeGeometry(3,10,6),cd); claw2.position.set(9,7,-6); claw2.rotation.z=-Math.PI/2; inner.add(claw2);
+  g.userData.legs=[];
+  for(const lx of [-4,4]) for(const z of [-7,7]){ const leg=box3(1.6,6,1.6,cd); leg.geometry.translate(0,-3,0); leg.position.set(lx,6,z); inner.add(leg); g.userData.legs.push(leg); }
+  return g;
+}
+function plantAvatar(kind,scale){
+  const g=new THREE.Group(); const inner=new THREE.Group(); g.add(inner); g.userData.inner=inner;
+  if(scale) inner.scale.setScalar(scale);
+  const bloom=kind==='storm'?0x4a5ac8:0x9a3a5a;
+  const M=(geo,col,opt)=>new THREE.Mesh(geo,smat(null,Object.assign({color:col,rough:0.8},opt||{})));
+  const base=M(new THREE.ConeGeometry(9,9,8),0x5a4a2a); base.position.y=4.5; base.rotation.x=Math.PI; inner.add(base);
+  const stalk=M(new THREE.CylinderGeometry(2.6,4,18,7),0x3a6a2a); stalk.position.y=13; inner.add(stalk); g.userData.robe=stalk;
+  const head=M(new THREE.IcosahedronGeometry(7,0),bloom,{emissive:kind==='storm'?0x2030a0:0x3a1020,emissiveIntensity:0.55}); head.position.y=24; inner.add(head);
+  for(let i=0;i<6;i++){ const a=i/6*6.28; const petal=M(new THREE.ConeGeometry(2,8,5),bloom); petal.position.set(Math.cos(a)*6,24,Math.sin(a)*6); petal.rotation.x=Math.cos(a)*0.9; petal.rotation.z=-Math.sin(a)*0.9; inner.add(petal); }
+  return g;
+}
+function drakeAvatar(scale){
+  const g=new THREE.Group(); const inner=new THREE.Group(); g.add(inner); g.userData.inner=inner;
+  if(scale) inner.scale.setScalar(scale);
+  const c=0x5a6a3a, cd=0x3e4a28;
+  const M=(geo,col)=>new THREE.Mesh(geo,smat(skinTex(col),{rough:0.6}));
+  const body=M(new THREE.SphereGeometry(11,14,10),c); body.scale.set(1.5,0.9,1.0); body.position.y=11; inner.add(body);
+  const neck=M(new THREE.CylinderGeometry(4,5,10,8),c); neck.position.set(12,15,0); neck.rotation.z=-0.7; inner.add(neck);
+  const head=M(new THREE.ConeGeometry(5,13,8),cd); head.position.set(21,18,0); head.rotation.z=-Math.PI/2.2; inner.add(head);
+  const tail=M(new THREE.ConeGeometry(5,22,8),c); tail.position.set(-16,9,0); tail.rotation.z=Math.PI/2; inner.add(tail); g.userData.tail=tail;
+  g.userData.legs=[];
+  for(const lx of [-6,8]) for(const z of [-8,8]){ const leg=box3(3,11,3,cd); leg.geometry.translate(0,-5.5,0); leg.position.set(lx,9,z); inner.add(leg); g.userData.legs.push(leg); }
+  return g;
+}
 const NPC_STYLES={
   aldra:{m:'knight',tint:0xd8b860},   trainer:{m:'barbarian',tint:0xc8a060},
   merchant:{m:'rogueh',tint:0x8a68c8},crafter:{m:'rogue',tint:0xc87840},
@@ -1839,38 +2062,29 @@ const NPC_STYLES={
 };
 function makeAvatar(e){
   let g=null;
-  // real modeled + skeleton-animated characters once loaded (KayKit CC0)
+  // humanoids (player / Hero / NPCs) use the modeled+animated characters once loaded
   if(modelsReady){
     if(e.kind==='player') g=gltfAvatar(e.cls==='elementalist'?'mage':'knight',null);
     else if(e.kind==='hench') g=gltfAvatar('mage',0x3f8a62);
     else if(e.kind==='npc'){ const s=NPC_STYLES[e.style]||NPC_STYLES.aldra; g=gltfAvatar(s.m,s.tint); }
-    else if(e.type==='raider') g=gltfAvatar('barbarian',0xb07050);
-    else if(e.type==='archer') g=gltfAvatar('rogue',0xa88858);
-    else if(e.type==='mystic') g=gltfAvatar('mage',0x2a9a86);
-    else if(e.type==='windcaller') g=gltfAvatar('mage',0x4858c8);
-    else if(e.type==='chief') g=gltfAvatar('barbarian',0xc03828,1.45);
-    else if(e.type==='enforcer') g=gltfAvatar('knight',0x903040,1.3);
-    else if(e.type==='avenger') g=gltfAvatar('rogueh',0x803048,1.12);
   }
-  if(!g){
-  if(e.kind==='player') g=e.cls==='elementalist'
-    ? humanoid({robe:0x8a3838,armor:0x6a2c2c,trim:0xe8b050,weapon:'staff',hair:0x2a1c10})
-    : humanoid({armor:0x4a7ab5,trim:0x9aa8c0,pants:0x39414f,weapon:'sword',helm:true,metalArmor:true});
-  else if(e.kind==='hench') g=humanoid({robe:0x3f8a62,armor:0x2f6a4a,trim:0x7ad0a0,weapon:'staff',hood:true});
-  else if(e.kind==='npc') g=e.style==='merchant'||e.style==='inn'||e.style==='crafter'
-    ? humanoid({robe:0x6a4a8a,armor:0x5a3a7a,trim:0xd8b860,hood:true})
-    : humanoid({armor:0xb59a4a,trim:0xe8d290,pants:0x4a4438,weapon:'banner',metalArmor:true});
-  else if(e.type==='wolf') g=wolfAvatar();
-  else if(e.type==='wolfBoss') g=wolfAvatar(1.5);
-  else if(e.type==='skale') g=skaleAvatar();
-  else if(e.type==='skaleBoss') g=skaleAvatar(1.6);
-  else if(e.type==='mystic') g=humanoid({robe:0x2a9a86,armor:0x1f7a6a,trim:0x7ad0c0,weapon:'staff',hood:true});
-  else if(e.type==='windcaller') g=humanoid({robe:0x4858c8,armor:0x3a48a8,trim:0x9ab0ff,weapon:'staff',hood:true});
-  else if(e.type==='enforcer') g=humanoid({armor:0x602838,trim:0xb05070,pants:0x3a2030,weapon:'cleaver',helm:true,scale:1.3,metalArmor:true});
-  else if(e.type==='archer') g=humanoid({armor:0x9a6a3a,trim:0x6a4a26,pants:0x4a3a28,weapon:'bow',hood:true,robe:0});
-  else if(e.type==='chief') g=humanoid({armor:0x5a2e2e,trim:0xb03838,pants:0x3a2424,weapon:'cleaver',helm:true,scale:1.45,metalArmor:true});
-  else if(e.type==='avenger') g=humanoid({armor:0x6a2848,trim:0xb05070,pants:0x3a2030,weapon:'sword',hood:true,robe:0,scale:1.12,metalArmor:true});
-  else g=humanoid({armor:0x8a4a3a,trim:0x5a3326,pants:0x42302a,weapon:'sword',hair:0x201610});
+  if(!g&&(e.kind==='player'||e.kind==='hench'||e.kind==='npc')){
+    if(e.kind==='player') g=e.cls==='elementalist'
+      ? humanoid({robe:0x8a3838,armor:0x6a2c2c,trim:0xe8b050,weapon:'staff',hair:0x2a1c10})
+      : humanoid({armor:0x4a7ab5,trim:0x9aa8c0,pants:0x39414f,weapon:'sword',helm:true,metalArmor:true});
+    else if(e.kind==='hench') g=humanoid({robe:0x3f8a62,armor:0x2f6a4a,trim:0x7ad0a0,weapon:'staff',hood:true});
+    else g=(e.style==='merchant'||e.style==='inn'||e.style==='crafter')
+      ? humanoid({robe:0x6a4a8a,armor:0x5a3a7a,trim:0xd8b860,hood:true})
+      : humanoid({armor:0xb59a4a,trim:0xe8d290,pants:0x4a4438,weapon:'banner',metalArmor:true});
+  }
+  if(!g){ // creatures of the Dunereach — always procedural
+    const fam=e.family, bs=e.boss;
+    if(fam==='skale') g=skaleAvatar(bs?1.6:0);
+    else if(fam==='insect') g=bugAvatar(e.type==='spider'?'spider':(e.type==='lance'||e.type==='lanceBoss')?'lance':'termite', bs?1.5:0);
+    else if(fam==='mandragor') g=mandragorAvatar(bs?1.6:0);
+    else if(fam==='plant') g=plantAvatar((e.type==='jacaranda'||e.type==='jacarandaBoss')?'storm':'fang', bs?1.5:0);
+    else if(fam==='drake') g=drakeAvatar(bs?1.4:0);
+    else g=skaleAvatar(0);
   }
   // blob shadow
   const sh=new THREE.Mesh(new THREE.CircleGeometry(e.r*0.95,14),
@@ -1890,6 +2104,8 @@ function makeAvatar(e){
 }
 
 function syncAvatar(e){
+  // burrowed sand-stalkers, and the Hero before she's recruited, aren't shown
+  if(e.hidden||(e===hench&&!hench.recruited)){ if(e.av) e.av.visible=false; return; }
   if(!e.av) e.av=makeAvatar(e);
   const g=e.av;
   // distance cull: far-off characters cost draw calls but are lost in the fog anyway.
@@ -2175,9 +2391,9 @@ function drawOverlay(){
     fctx.fillStyle='rgba(255,228,190,0.035)'; fctx.fillRect(0,0,VW,VH);
   }
   // entity bars / labels
-  const seen=[...enemies,hench];
+  const seen=heroActive()?[...enemies,hench]:[...enemies];
   for(const e of seen){
-    if(e.dead) continue;
+    if(e.dead||e.hidden) continue;
     if(dist(e.x,e.y,player.x,player.y)>900) continue;
     if(e.kind==='enemy'&&e.hp>=e.maxHp-0.5&&player.target!==e) continue;
     if(e.kind!=='enemy'&&e.hp>=maxHpOf(e)-0.5) continue;
@@ -2326,7 +2542,7 @@ function handleTap(sx,sy){
   // enemy?
   let best=null,bd=40;
   for(const e of enemies){
-    if(e.dead) continue;
+    if(e.dead||e.hidden) continue;
     const d=dist(wx,wy,e.x,e.y);
     if(d<bd+e.r){best=e;bd=d;}
   }
@@ -2345,6 +2561,7 @@ function handleTap(sx,sy){
   // gate to another zone?
   for(const g of GATES){
     if(dist(wx,wy,g.x,g.y)<60){
+      if(g.locked){ toast(g.locked); return; }
       if(dist(player.x,player.y,g.x,g.y)<90) travelTo(g.to,MAPID);
       else { player.approach=g; player.target=null; player.engaged=false; }
       return;
@@ -2384,6 +2601,11 @@ const MODALS={
   merch:   {el:$('merchPanel'),   body:$('merchBody'),   render:renderMerch},
   train:   {el:$('trainPanel'),   body:$('trainBody'),   render:renderTrain},
   map:     {el:$('mapPanel'),     body:$('mapBody'),     render:renderMap},
+  party:   {el:$('partyPanel'),   body:$('partyBody'),   render:renderParty},
+  bounty:  {el:$('bountyPanel'),  body:$('bountyBody'),  render:renderBounty},
+  collect: {el:$('collectPanel'), body:$('collectBody'), render:renderCollect},
+  trade:   {el:$('tradePanel'),   body:$('tradeBody'),   render:renderTrade},
+  vault:   {el:$('vaultPanel'),   body:$('vaultBody'),   render:renderVault},
 };
 
 /* ---------------- full-screen zone map ---------------- */
@@ -2556,6 +2778,14 @@ function onPanelTap(ev,panel){
   else if(act==='vignette'){ SETTINGS.vignette=!SETTINGS.vignette; saveSettings(); renderSettings(); }
   else if(act==='fullscreen'){ toggleFullscreen(); }
   else if(act==='newgame'){ wipeSave(); location.reload(); }
+  else if(act==='stance'){ hench.stance=v; saveGame(); renderParty(); }
+  else if(act==='flag'){ if(hench.flag){ hench.flag=null; } else { hench.flag={x:hench.x,y:hench.y}; } saveGame(); renderParty(); }
+  else if(act==='hunt'){ startBounty(v); closeModal(); }
+  else if(act==='collect'){ doCollect(+v); renderCollect(); }
+  else if(act==='buymat'){ buyMat(v); renderTrade(); }
+  else if(act==='sellmat'){ sellMat(v); renderTrade(); }
+  else if(act==='store'){ moveToVault(+v); renderVault(); }
+  else if(act==='withdraw'){ moveFromVault(+v); renderVault(); }
 }
 
 function equipItem(i){
@@ -2575,7 +2805,7 @@ function equipItem(i){
 
 /* ---------------- panel renderers ---------------- */
 const rc=it=>RARITY_COLORS[it.rarity||0];
-const MAT_ICONS={'Tanned Hide':'🟤','Skale Scale':'🐚','Iron Shard':'⛓️'};
+const MAT_ICONS={'Scale':'🐚','Chitin Fragment':'🪲','Bone':'🦴','Plant Fiber':'🌿','Drake Scale':'🐲'};
 const itemIcon=it=> it.kind==='weapon' ? (it.wtype==='sword'?'🗡️':'🪄')
   : it.kind==='off' ? (it.otype==='shield'?'🛡️':'🔮')
   : it.kind==='mat' ? (MAT_ICONS[it.name]||'📦') : '🦴';
@@ -2627,9 +2857,9 @@ function buyMerch(i){
   saveGame(); renderMerch(); toast('Bought: '+it.name);
 }
 function renderCraft(){
-  let h=`<div class="dim">Joska crafts to your level. Materials drop from beasts and corsairs in the Flats.</div>`;
+  let h=`<div class="dim">Armorer Joska crafts to your level. Materials drop from the creatures of the Dunereach.</div>`;
   h+=`<div class="sectTitle">Your materials</div><div class="dim">`;
-  h+=['Tanned Hide','Skale Scale','Iron Shard'].map(m=>`${MAT_ICONS[m]} ${m}: <b>${matCount(m)}</b>`).join(' · ');
+  h+=TRADE_MATS.map(m=>`${MAT_ICONS[m]} ${m}: <b>${matCount(m)}</b>`).join(' · ');
   h+=`</div><div class="sectTitle">Recipes</div>`;
   RECIPES.forEach((r,i)=>{
     const mats=Object.entries(r.mats).map(([m,c])=>`${c}× ${m}`).join(', ');
@@ -2655,6 +2885,96 @@ function renderTrain(){
              :`<button class="mini" data-act="learn" data-v="${s.id}">Learn — ${cost}g + 1 SP</button>`}</div></div>`;
   }
   MODALS.train.body.innerHTML=h;
+}
+
+/* ---------------- Party (Heroes), Bounties, Collector, Material trader, Vault ---------------- */
+function renderParty(){
+  let h=`<div class="sectTitle">Your party</div>`;
+  if(!hench.recruited){
+    h+=`<div class="dim">You travel alone for now. Complete <b>Honing Your Skills</b> for Marshal Oyin to gain your first Hero.</div>`;
+  } else {
+    const flag=hench.flag?'Holding position':'Following you';
+    h+=`<div class="skRow"><div class="si">✚</div><div class="sd">
+        <b>Lyra</b> <i>Hero · Mender</i><br>
+        <span class="dim">Heals the party and fights to your orders. HP ${Math.ceil(hench.hp)}/${hench.maxHp}.</span></div></div>`;
+    h+=`<div class="sectTitle">AI stance</div><div class="btnRow">
+        <button class="chip${hench.stance==='aggressive'?' on':''}" data-act="stance" data-v="aggressive">Aggressive</button>
+        <button class="chip${hench.stance==='guard'?' on':''}" data-act="stance" data-v="guard">Guard</button>
+        <button class="chip${hench.stance==='passive'?' on':''}" data-act="stance" data-v="passive">Passive</button></div>
+        <div class="dim">Aggressive hunts nearby foes · Guard assists your target and stays close · Passive only heals.</div>`;
+    h+=`<div class="sectTitle">Position</div>
+        <button class="btn sm" data-act="flag">${hench.flag?'↩ Recall to my side':'⚑ Hold this position'}</button>
+        <div class="dim">Currently: ${flag}.</div>`;
+  }
+  MODALS.party.body.innerHTML=h;
+}
+
+function renderBounty(){
+  const nx=rankNext();
+  let h=`<div class="sectTitle">Sunward rank: ${rankTitle()}</div>
+    <div class="dim">Sunward Honor: <b style="color:#ffd34d">${player.promo||0}</b>${nx?` · next rank "${nx.name}" at ${nx.at}`:' · highest rank reached'}</div>`;
+  const b=player.bounty;
+  if(b&&b.family) h+=`<div class="dim" style="color:#f0d97a;margin-top:6px">Active: ${BOUNTIES[b.family].name} — ${b.n}/${b.goal}</div>`;
+  h+=`<div class="sectTitle">Take a hunt</div><div class="dim">Each kill of the named kind earns Honor. Only one hunt at a time.</div>`;
+  for(const fam of Object.keys(BOUNTIES)){
+    const on=b&&b.family===fam;
+    h+=`<div class="attrRow"><span class="an">${BOUNTIES[fam].name} <span class="dim">(${BOUNTIES[fam].goal})</span></span>
+        ${on?'<span class="dim" style="color:#f0d97a">active</span>':`<button class="mini" data-act="hunt" data-v="${fam}">Begin</button>`}</div>`;
+  }
+  MODALS.bounty.body.innerHTML=h;
+}
+
+const COLLECTOR_TRADES=[
+  {trophy:'Skale Fin',        count:5, label:'Tidewater Focus',  make:()=>{const o=genOff('focus',player.lvl,1);o.name='Tidewater Focus';return o;}},
+  {trophy:'Insect Carapace',  count:5, label:'Chitin Buckler',   make:()=>{const o=genOff('shield',player.lvl,1);o.name='Chitin Buckler';return o;}},
+  {trophy:'Mandragor Pincer', count:5, label:'Pincer Shortblade',make:()=>{const o=genW('sword',player.lvl,1);o.name='Pincer Shortblade';return o;}},
+  {trophy:'Iboga Petal',      count:5, label:'Bloomwood Scepter',make:()=>{const o=genW('wand',player.lvl,1);o.name='Bloomwood Scepter';return o;}},
+  {trophy:'Drake Tooth',      count:3, label:'Drakescale Cuirass (rare)',make:()=>makeEquip(player.lvl,2)},
+];
+const trophyCount=n=>player.inv.filter(i=>i.kind==='trophy'&&i.name===n).length;
+function takeTrophies(n,c){ for(let k=0;k<c;k++){ const i=player.inv.findIndex(it=>it.kind==='trophy'&&it.name===n); if(i>=0) player.inv.splice(i,1); } }
+function doCollect(i){
+  const t=COLLECTOR_TRADES[i]; if(!t) return;
+  if(trophyCount(t.trophy)<t.count){ toast('Not enough '+t.trophy); return; }
+  if(player.inv.length-t.count+1>20){ toast('Inventory too full'); return; }
+  takeTrophies(t.trophy,t.count); giveItem(t.make()); saveGame();
+}
+function renderCollect(){
+  let h=`<div class="dim">Collector Poturi trades fair gear for the spoils of the plain.</div>`;
+  for(let i=0;i<COLLECTOR_TRADES.length;i++){
+    const t=COLLECTOR_TRADES[i], have=trophyCount(t.trophy), can=have>=t.count;
+    h+=`<div class="attrRow"><span class="an">${t.count}× ${t.trophy} <span class="dim">→ ${t.label}</span><br><span class="dim">you have ${have}</span></span>
+        <button class="mini" data-act="collect" data-v="${i}" ${can?'':'disabled style="opacity:.45"'}>Trade</button></div>`;
+  }
+  MODALS.collect.body.innerHTML=h;
+}
+
+const TRADE_MATS=['Scale','Chitin Fragment','Bone','Plant Fiber','Drake Scale'];
+const MAT_BUY=14, MAT_SELL=5;
+function buyMat(n){ if(player.gold<MAT_BUY){toast('Not enough gold');return;} if(player.inv.length>=20){toast('Inventory full');return;} player.gold-=MAT_BUY; player.inv.push(makeMat(n)); saveGame(); }
+function sellMat(n){ const i=player.inv.findIndex(it=>it.kind==='mat'&&it.name===n); if(i<0){toast('None to sell');return;} player.inv.splice(i,1); player.gold+=MAT_SELL; saveGame(); }
+function renderTrade(){
+  let h=`<div class="dim">Gold: <b style="color:#f0d97a">${player.gold}</b> · buy ${MAT_BUY}g · sell ${MAT_SELL}g</div>`;
+  for(const m of TRADE_MATS){
+    h+=`<div class="attrRow"><span class="an">${MAT_ICONS[m]||'📦'} ${m} <span class="dim">×${matCount(m)}</span></span>
+        <button class="mini" data-act="buymat" data-v="${m}">Buy</button>
+        <button class="mini" data-act="sellmat" data-v="${m}">Sell</button></div>`;
+  }
+  MODALS.trade.body.innerHTML=h;
+}
+
+function moveToVault(i){ const it=player.inv[i]; if(!it)return; if((player.vault||[]).length>=30){toast('Vault full');return;} player.inv.splice(i,1); (player.vault=player.vault||[]).push(it); saveGame(); }
+function moveFromVault(i){ const it=player.vault[i]; if(!it)return; if(player.inv.length>=20){toast('Inventory full');return;} player.vault.splice(i,1); player.inv.push(it); saveGame(); }
+function renderVault(){
+  player.vault=player.vault||[];
+  let h=`<div class="sectTitle">Inventory <span class="dim">${player.inv.length}/20 — tap to store</span></div><div class="invList">`;
+  player.inv.forEach((it,i)=>{ h+=`<div class="attrRow" data-act="store" data-v="${i}" style="cursor:pointer"><span class="an" style="color:${rc(it)}">${itemIcon(it)} ${it.name}</span><span class="dim">store ▸</span></div>`; });
+  if(!player.inv.length) h+=`<div class="dim">empty</div>`;
+  h+=`</div><div class="sectTitle">Vault <span class="dim">${player.vault.length}/30 — tap to withdraw</span></div><div class="invList">`;
+  player.vault.forEach((it,i)=>{ h+=`<div class="attrRow" data-act="withdraw" data-v="${i}" style="cursor:pointer"><span class="an" style="color:${rc(it)}">${itemIcon(it)} ${it.name}</span><span class="dim">◂ take</span></div>`; });
+  if(!player.vault.length) h+=`<div class="dim">empty — the Order keeps it safe between cities</div>`;
+  h+=`</div>`;
+  MODALS.vault.body.innerHTML=h;
 }
 
 function renderHero(){
@@ -2905,6 +3225,7 @@ function syncUI(){
   if(SKILLS.some(s=>s.adr)) ui.pAdr.style.width=clamp(player.adr/10*100,0,100)+'%';
   if(heroBtn) heroBtn.style.boxShadow=player.attrPts>0?'0 0 10px #f0d97a, inset 0 1px 0 #ffffff14':'';
 
+  ui.henchFrame.style.display=hench.recruited?'':'none';
   ui.henchFrame.style.opacity=hench.dead?0.45:1;
   ui.hHp.style.width=(hench.dead?0:clamp(hench.hp/hench.maxHp*100,0,100))+'%';
 
@@ -2973,11 +3294,11 @@ function drawCompass(){
     if(cx<0||cy<0||cx>S||cy>S)return;
     c.fillStyle=col; c.beginPath(); c.arc(cx,cy,r||5,0,7); c.fill();
   };
-  for(const e of enemies) if(!e.dead) dot(e.x,e.y,e.boss?'#ff3030':'#e05040',e.boss?8:5);
+  for(const e of enemies) if(!e.dead&&!e.hidden) dot(e.x,e.y,e.boss?'#ff3030':'#e05040',e.boss?8:5);
   for(const n of npcs) dot(n.x,n.y,npcMarker(n)?'#f0d97a':'#d8b860',npcMarker(n)?6:5);
-  for(const g of GATES) dot(g.x,g.y,'#9fd0ff',6);
+  for(const g of GATES) dot(g.x,g.y,g.locked?'#888':'#9fd0ff',6);
   dot(SHRINE.x,SHRINE.y,'#b8c8ff',5);
-  if(!hench.dead) dot(hench.x,hench.y,'#50c878',5);
+  if(heroActive()) dot(hench.x,hench.y,'#50c878',5);
   // aggro bubble (the GW1 danger circle)
   c.strokeStyle='rgba(255,255,255,.5)'; c.lineWidth=2;
   c.beginPath(); c.arc(R,R,AGGRO_R*W2S,0,7); c.stroke();
@@ -3026,10 +3347,15 @@ function applySave(s){
   player.attrs=s.attrs||{}; player.attrPts=s.attrPts??0;
   player.inv=Array.isArray(s.inv)?s.inv:[];
   player.builds=Array.isArray(s.builds)?s.builds:[];
+  player.promo=s.promo||0; player.bounty=s.bounty||null;
+  player.vault=Array.isArray(s.vault)?s.vault:[];
   if(s.equip&&s.equip.weapon) player.equip=s.equip;
+  // everyone always knows the Signet of Capture
+  for(const cls of ['warrior','elementalist']) if(player.known[cls]&&!player.known[cls].includes('cap')) player.known[cls].push('cap');
   if(s.qs) Object.assign(qs,s.qs);
   hench.lvl=player.lvl; hench.maxHp=110+18*Math.max(0,player.lvl-2); hench.hp=hench.maxHp;
   hench.dmgMin=9+2*Math.max(0,player.lvl-2); hench.dmgMax=hench.dmgMin+5;
+  if(s.hero){ hench.recruited=!!s.hero.recruited; hench.stance=s.hero.stance||'guard'; }
   player.hp=pMaxHp(); player.en=pMaxEn();
 }
 

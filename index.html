@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Eldervale — The Sunward Reach</title>
-<link rel="stylesheet" href="style.css?v=14">
+<link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -54,6 +54,7 @@
     <button class="menuBtn" data-modal="hero" title="Hero">🛡️</button>
     <button class="menuBtn" data-modal="skills" title="Skills &amp; Builds">✨</button>
     <button class="menuBtn" data-modal="inv" title="Inventory">🎒</button>
+    <button class="menuBtn" data-modal="party" title="Party &amp; Heroes">👥</button>
     <button class="menuBtn" data-modal="quest" title="Quest Log">📜</button>
     <button class="menuBtn" data-modal="map" title="Map">🗺️</button>
     <button class="menuBtn" data-modal="settings" title="Settings">⚙️</button>
@@ -111,6 +112,31 @@
     <div class="modalBody" id="trainBody"></div>
   </div>
 
+  <div id="partyPanel" class="modal hidden">
+    <div class="modalHead"><span class="mt">Party &amp; Heroes</span><button class="mx" data-close>✕</button></div>
+    <div class="modalBody" id="partyBody"></div>
+  </div>
+
+  <div id="bountyPanel" class="modal hidden">
+    <div class="modalHead"><span class="mt">Sunward Hunts</span><button class="mx" data-close>✕</button></div>
+    <div class="modalBody" id="bountyBody"></div>
+  </div>
+
+  <div id="collectPanel" class="modal hidden">
+    <div class="modalHead"><span class="mt">Collector — Poturi</span><button class="mx" data-close>✕</button></div>
+    <div class="modalBody" id="collectBody"></div>
+  </div>
+
+  <div id="tradePanel" class="modal hidden">
+    <div class="modalHead"><span class="mt">Material Trader — Kahli</span><button class="mx" data-close>✕</button></div>
+    <div class="modalBody" id="tradeBody"></div>
+  </div>
+
+  <div id="vaultPanel" class="modal hidden">
+    <div class="modalHead"><span class="mt">Order Vault</span><button class="mx" data-close>✕</button></div>
+    <div class="modalBody" id="vaultBody"></div>
+  </div>
+
   <div id="dialog" class="modal hidden">
     <div class="modalHead"><span class="mt" id="dlgName"></span><button class="mx" data-close>✕</button></div>
     <div class="modalBody"><div id="dlgText"></div><button id="dlgBtn"></button></div>
@@ -119,9 +145,9 @@
   <div id="classPick" class="hidden"></div>
 </div>
 
-<script src="three.min.js?v=14"></script>
-<script src="GLTFLoader.js?v=14"></script>
-<script src="SkeletonUtils.js?v=14"></script>
-<script src="game.js?v=14"></script>
+<script src="three.min.js?v=15"></script>
+<script src="GLTFLoader.js?v=15"></script>
+<script src="SkeletonUtils.js?v=15"></script>
+<script src="game.js?v=15"></script>
 </body>
 </html>
