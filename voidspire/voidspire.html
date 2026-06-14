@@ -5558,12 +5558,40 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   };
 
   function fsElement() { return document.fullscreenElement || document.webkitFullscreenElement; }
+  function fsSupported() { var el = document.documentElement; return !!(el.requestFullscreen || el.webkitRequestFullscreen); }
+  // already running as an installed/home-screen app (iOS standalone or PWA)?
+  function isStandalone() {
+    return window.navigator.standalone === true ||
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+  }
   function toggleFullscreen() {
     var d = document, el = d.documentElement;
     try {
       if (fsElement()) { (d.exitFullscreen || d.webkitExitFullscreen || function () {}).call(d); }
       else { (el.requestFullscreen || el.webkitRequestFullscreen || function () {}).call(el); }
     } catch (e) { /* not supported */ }
+  }
+  // Fullscreen control that adapts to the platform. Returns null if already
+  // running fullscreen as an installed app (nothing to offer).
+  function makeFullscreenBtn(reRender, cls) {
+    if (isStandalone()) return null;
+    var b;
+    if (fsSupported()) {
+      b = el('div', 'panel-btn ' + (cls || ''),
+        '<div class="pb-title">⛶ ' + (fsElement() ? 'EXIT FULLSCREEN' : 'FULLSCREEN') + '</div>' +
+        '<div class="pb-sub">Fill the whole screen</div>');
+      b.addEventListener('pointerdown', function () { SFX.tap(); toggleFullscreen(); setTimeout(reRender, 140); });
+    } else {
+      // iPhone Safari blocks the Fullscreen API — Add to Home Screen instead
+      b = el('div', 'panel-btn ' + (cls || ''),
+        '<div class="pb-title">⤓ ADD TO HOME SCREEN</div>' +
+        '<div class="pb-sub">For true fullscreen on iPhone: Share → “Add to Home Screen”, then open from the icon</div>');
+      b.addEventListener('pointerdown', function () {
+        SFX.tap();
+        toast('Tap the Share button, choose “Add to Home Screen”, then launch from the icon for fullscreen.', 4600);
+      });
+    }
+    return b;
   }
 
   // Tooltip text for an artifact chip, including live quest progress.
@@ -5754,11 +5782,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     disp.addEventListener('pointerdown', function () { SFX.tap(); cycleOrient(); showTitle(); });
     s.appendChild(disp);
 
-    var fsb = el('div', 'panel-btn dim-panel',
-      '<div class="pb-title">⛶ ' + (fsElement() ? 'EXIT FULLSCREEN' : 'FULLSCREEN') + '</div>' +
-      '<div class="pb-sub">Fill the whole screen</div>');
-    fsb.addEventListener('pointerdown', function () { SFX.tap(); toggleFullscreen(); setTimeout(showTitle, 120); });
-    s.appendChild(fsb);
+    var fsb = makeFullscreenBtn(showTitle, 'dim-panel');
+    if (fsb) s.appendChild(fsb);
 
     var best = E.getBest();
     var foot = 'TAP A CLASS TO DEPLOY · SWIPE CARDS UP TO PLAY THEM';
@@ -7384,9 +7409,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     disp.addEventListener('pointerdown', function () { SFX.tap(); cycleOrient(); showMenu(); });
     s.appendChild(disp);
 
-    var fsb = el('div', 'panel-btn', '<div class="pb-title">⛶ ' + (fsElement() ? 'EXIT FULLSCREEN' : 'FULLSCREEN') + '</div>');
-    fsb.addEventListener('pointerdown', function () { SFX.tap(); toggleFullscreen(); setTimeout(showMenu, 120); });
-    s.appendChild(fsb);
+    var fsb = makeFullscreenBtn(showMenu, '');
+    if (fsb) s.appendChild(fsb);
 
     var help = el('div', 'panel-btn magenta', '<div class="pb-title">? FIELD MANUAL</div>');
     help.addEventListener('pointerdown', function () { SFX.tap(); showHelp(wasCombat); });
