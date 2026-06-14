@@ -487,6 +487,69 @@
     ctx.restore();
   }
 
+  // ---- readable status / shield rendering (Slay-the-Spire-ish) ----
+  var STATUS_COLORS = {
+    vuln: '#ff8a3a', weak: '#c86bff', burn: '#ff5a2a', str: '#5dff88',
+    regen: '#56ff9c', plate: '#41d8ff', platedArmor: '#41d8ff', thorns: '#9bb0a6',
+  };
+  var STATUS_ABBR = { vuln: 'VULN', weak: 'WEAK', burn: 'BURN', str: 'STR' };
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawBlockBadge(cx, cy, val) {
+    var r = 11;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(cx - r, cy - r * 0.85);
+    ctx.lineTo(cx + r, cy - r * 0.85);
+    ctx.lineTo(cx + r, cy + r * 0.15);
+    ctx.quadraticCurveTo(cx + r, cy + r * 0.9, cx, cy + r * 1.15);
+    ctx.quadraticCurveTo(cx - r, cy + r * 0.9, cx - r, cy + r * 0.15);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(5, 22, 30, 0.96)';
+    ctx.fill();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = '#41d8ff';
+    ctx.shadowColor = '#41d8ff'; ctx.shadowBlur = 6; ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#cdeeff';
+    ctx.font = 'bold 11px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('' + val, cx, cy + 4);
+    ctx.restore();
+  }
+
+  function drawEnemyStatuses(v, by) {
+    var st = v.en.statuses;
+    var keys = Object.keys(st).filter(function (k) { return st[k] > 0; });
+    if (!keys.length) return;
+    ctx.save();
+    ctx.font = 'bold 9px ui-monospace, monospace';
+    var gap = 4, pills = keys.map(function (k) {
+      var abbr = STATUS_ABBR[k] || (ns.STATUS_NAMES[k] || k).slice(0, 4).toUpperCase();
+      var txt = abbr + ' ' + st[k];
+      return { txt: txt, w: ctx.measureText(txt).width + 11, color: STATUS_COLORS[k] || '#9bb0a6' };
+    });
+    var total = pills.reduce(function (a, p) { return a + p.w + gap; }, -gap);
+    var x = v.x - total / 2, y = by + 22, h = 14;
+    pills.forEach(function (p) {
+      roundRect(x, y, p.w, h, 3);
+      ctx.fillStyle = 'rgba(6, 14, 12, 0.94)'; ctx.fill();
+      ctx.lineWidth = 1; ctx.strokeStyle = p.color; ctx.stroke();
+      ctx.fillStyle = p.color; ctx.textAlign = 'center';
+      ctx.fillText(p.txt, x + p.w / 2, y + 10);
+      x += p.w + gap;
+    });
+    ctx.restore();
+  }
+
   function drawEnemy(v, idx) {
     var dying = !v.alive;
     var dieDur = 0.45;
@@ -561,26 +624,11 @@
     ctx.textAlign = 'center';
     ctx.fillText(Math.max(0, Math.round(v.dispHp)) + '/' + v.maxHp, v.x, by + 16);
 
-    // block chip
-    if (v.block > 0) {
-      ctx.fillStyle = 'rgba(5, 20, 28, 0.95)';
-      ctx.strokeStyle = '#41d8ff';
-      drawHex(bx - 12, by + 3, 9);
-      ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#41d8ff';
-      ctx.fillText('' + v.block, bx - 12, by + 6.5);
-    }
+    // block (shield) — clear cyan badge at the HP bar's left edge
+    if (v.block > 0) drawBlockBadge(bx - 13, by + 2, v.block);
 
-    // statuses (live from engine entity)
-    var st = v.en.statuses, sx2 = v.x, parts = [];
-    Object.keys(st).forEach(function (k) {
-      if (st[k] > 0) parts.push((ns.STATUS_NAMES[k] || k).slice(0, 3).toUpperCase() + st[k]);
-    });
-    if (parts.length) {
-      ctx.fillStyle = 'rgba(200, 107, 255, 0.85)';
-      ctx.font = '8px ui-monospace, monospace';
-      ctx.fillText(parts.join(' '), sx2, by + 27);
-    }
+    // statuses — colour-coded pills under the HP bar
+    drawEnemyStatuses(v, by);
 
     // intent
     drawIntent(v);
@@ -624,7 +672,7 @@
     var x = v.x;
     ctx.save();
     ctx.lineWidth = 1.5;
-    ctx.font = '12px ui-monospace, monospace';
+    ctx.font = 'bold 13px ui-monospace, monospace';
     ctx.textAlign = 'left';
     var label = info.label;
     var col;

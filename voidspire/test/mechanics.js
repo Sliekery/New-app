@@ -478,5 +478,17 @@ E.run.pendingRelic = 'cog_implant';
 E.skipEventRelic();
 ok('skipEventRelic leaves it behind', !E.run.pendingRelic && E.run.artifacts.indexOf('cog_implant') < 0);
 
+/* 45. Damage buffs (flat) are reflected on the card description */
+startFight('vanguard');
+var baseN = parseInt(E.cardInfo({ uid: 1, id: 'pulse_rifle', up: false }).desc.match(/Deal (\d+)/)[1], 10);
+E.run.augments = ['honed_edge']; // +3 flat damage
+var buffN = parseInt(E.cardInfo({ uid: 2, id: 'pulse_rifle', up: false }).desc.match(/Deal (\d+)/)[1], 10);
+ok('Honed Edge (+3) shows on the card (' + baseN + ' -> ' + buffN + ')', buffN === baseN + 3);
+
+/* 46. Breaching Rounds applies Vulnerable on attack */
+startFight('vanguard'); E.run.augments = ['breaching_rounds']; bigEnemies();
+setHand(['pulse_rifle']); playId('pulse_rifle', 0);
+ok('Breaching Rounds applies Vulnerable on attack', (E.combat.enemies[0].statuses.vuln || 0) >= 1);
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

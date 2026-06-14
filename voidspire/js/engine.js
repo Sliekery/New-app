@@ -650,6 +650,7 @@
     return {
       attrs: { might: attr('might'), tech: attr('tech'), psi: attr('psi') },
       statuses: E.combat ? E.combat.player.statuses : null,
+      flatDmg: art('flatDmg'),   // so cards show damage incl. relic/augment buffs
     };
   }
 
@@ -956,6 +957,12 @@
       if (ab > 0 && def.type === 'attack') {
         var stB = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
         if (stB) { addStatus(stB, 'burn', ab); emit('status', { who: 'enemy', idx: c.enemies.indexOf(stB), s: 'burn', v: ab }); trackBurn(ab); }
+      }
+      // Breaching Rounds: attacks also apply Vulnerable
+      var av = art('attackVuln');
+      if (av > 0 && def.type === 'attack') {
+        var stV = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+        if (stV) { addStatus(stV, 'vuln', av); emit('status', { who: 'enemy', idx: c.enemies.indexOf(stV), s: 'vuln', v: av }); }
       }
     }
     // Contagion: applying Burn spreads it to all enemies

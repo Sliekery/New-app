@@ -366,6 +366,7 @@
           if (f.scale === 'might') v += ctx.attrs.might * B.attrs.mightDmgPerPoint * mul;
           if (f.scale === 'tech') v += ctx.attrs.tech * mul;
           if (f.scale === 'psi') v += ctx.attrs.psi * B.attrs.psiDmgPerPoint * mul;
+          v += (ctx.flatDmg || 0);   // relic/augment flat damage (e.g. Honed Edge)
           if (ctx.statuses) {
             v += (ctx.statuses.str || 0);
             if (f.scale === 'psi') v += (ctx.statuses.psiPow || 0);
