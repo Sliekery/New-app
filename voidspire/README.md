@@ -54,17 +54,27 @@ Runs are auto-saved at every node — close the tab and continue later.
   three rarities; tap a slot to use (targeted potions ask you to tap an enemy).
 - **Progression** — card rewards & upgrades, ~20 passive artifacts,
   level-ups after every boss (+attribute or +max HP), credits, deck purges.
-- **Build archetypes** (Slay-the-Spire-inspired) — each class has a keyword
-  to draft around, with build-defining rares that go exponential when the RNG
-  cooperates ("god runs"):
-  - **Vanguard — Might & Exhaust:** Heavy Ordnance (MIGHT ×3), Limit Break
-    (double Might), Whirlwind (X-cost), Iron Resolve (Shield on Exhaust),
-    Reckless Protocol (Corruption: Skills cost 0 but Exhaust).
-  - **Technomancer — Shields, Turrets & Powers:** Kinetic Discharge (damage =
-    Shield), Entrench (double Shield), Overload Capacitor (Shield per card),
-    Echo Core (first attack each turn plays twice).
-  - **Void Adept — Burn & card-spam:** Catalyst (double a target's Burn),
-    Plague Engine (Burn spreads to all), Mind Array (deal to all on every card).
+- **Build archetypes** (Slay-the-Spire-inspired) — **four per class**, each
+  with build-defining rares that go exponential when the RNG cooperates ("god
+  runs"). Some pairs synergise hard, others barely share cards — mixing is a
+  spectrum, not a free-for-all:
+  - **Vanguard** — *Warlord* (stack Might: Combat Stims, Warlord Protocol,
+    Heavy Ordnance ×3, Limit Break) · *Ordnance* (Exhaust payoff: Scorched
+    Earth, Iron Resolve, Reckless Protocol, Munitions Dump) · *Bulwark*
+    (Shield → damage: Shield Slam, Barricade Protocol, Bunker Down, Riot
+    Shield) · *Suppression* (AoE + Vuln/Weak control: Frag Grenade, Orbital
+    Strike, Breach). Warlord+Ordnance and Bulwark+Suppression combo best.
+  - **Technomancer** — *Aegis* (Shield → damage: Kinetic Discharge, Entrench,
+    Overload Capacitor, Cogwork Surge) · *Constructs* (turret engine: Deploy
+    Turret, Sentry Protocol, Drone Swarm) · *Overclock* (stack Powers: Echo
+    Core, Auxiliary Reactor, Omega Protocol) · *Tesla* (direct burst + Weak:
+    Railgun, Chain Lightning, Static Field). Aegis+Constructs+Overclock
+    interlock; Tesla is the aggressive outlier.
+  - **Void Adept** — *Pyre* (Burn/DoT: Soul Burn, Catalyst, Plague Engine) ·
+    *Maelstrom* (card-spam: Mind Array, Mind Storm, Eldritch Storm) ·
+    *Hexweaver* (debuff exploit: Mind Fracture, Void Siphon, Unravel) ·
+    *Blood Pact* (HP-as-fuel glass cannon: Blood Pact, Exsanguinate,
+    Hemorrhage). Pyre+Hexweaver and Maelstrom+Blood Pact pair naturally.
   - **Keywords:** Powers are **consumed** when played (one use per combat);
     **Exhaust** removes a card for the combat (with payoff cards); **Retain**
     keeps a card across turns; **X-cost** spends all your Energy.

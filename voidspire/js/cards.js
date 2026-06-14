@@ -21,7 +21,7 @@
     reactor: 'Reactor', retain: 'Phase Lock',
     feelNoPain: 'Resolve', darkEmbrace: 'Salvage', thousandCuts: 'Blade Array',
     afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
-    platedArmor: 'Plated Armor',
+    platedArmor: 'Plated Armor', barricade: 'Barricade', bloodPact: 'Blood Pact',
   };
   ns.STATUS_NAMES = STATUS_NAMES;
 
@@ -392,6 +392,100 @@
       up: { fx: [{ k: 'hploss', v: 3 }, { k: 'status', s: 'psiPow', v: 3, who: 'self' }] },
     },
 
+    /* ============ Archetype depth: 4 builds per class ============ */
+
+    /* -- Vanguard: ORDNANCE (exhaust) + BULWARK (block) + SUPPRESSION -- */
+    scorched_earth: {
+      name: 'Scorched Earth', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2, exhaust: true,
+      fx: [{ k: 'special', id: 'fiendFire', v: 6 }],
+      text: 'Exhaust your hand. Deal 6 damage to the target for each card Exhausted.',
+      up: { fx: [{ k: 'special', id: 'fiendFire', v: 9 }], text: 'Exhaust your hand. Deal 9 damage to the target for each card Exhausted.' },
+    },
+    munitions_dump: {
+      name: 'Munitions Dump', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1, exhaust: true,
+      fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 1 }],
+      up: { fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }] },
+    },
+    barricade_protocol: {
+      name: 'Barricade Protocol', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'barricade', v: 1, who: 'self' }],
+      up: { cost: 1, fx: [{ k: 'status', s: 'barricade', v: 1, who: 'self' }] },
+    },
+    riot_shield: {
+      name: 'Riot Shield', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'block', v: 6, scale: 'pri' }, { k: 'status', s: 'thorns', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'block', v: 9, scale: 'pri' }, { k: 'status', s: 'thorns', v: 4, who: 'self' }] },
+    },
+    breach: {
+      name: 'Breach', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'special', id: 'reap', v: 5 }],
+      text: 'Deal 5 damage for each Vulnerable, Weak, and Burn on the target.',
+      up: { fx: [{ k: 'special', id: 'reap', v: 8 }], text: 'Deal 8 damage for each Vulnerable, Weak, and Burn on the target.' },
+    },
+
+    /* -- Technomancer: CONSTRUCTS (turrets) + OVERCLOCK (powers) + TESLA -- */
+    sentry_protocol: {
+      name: 'Sentry Protocol', cls: 'technomancer', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'turret', v: 3, who: 'self' }, { k: 'status', s: 'plate', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'turret', v: 4, who: 'self' }, { k: 'status', s: 'plate', v: 3, who: 'self' }] },
+    },
+    drone_swarm: {
+      name: 'Drone Swarm', cls: 'technomancer', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'turret', v: 6, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'turret', v: 8, who: 'self' }] },
+    },
+    cogwork_surge: {
+      name: 'Cogwork Surge', cls: 'technomancer', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'special', id: 'powerSurge', v: 3 }],
+      text: 'Gain 3 Shield for each Power you have played this combat.',
+      up: { fx: [{ k: 'special', id: 'powerSurge', v: 5 }], text: 'Gain 5 Shield for each Power you have played this combat.' },
+    },
+    chain_lightning: {
+      name: 'Chain Lightning', cls: 'technomancer', type: 'attack', rarity: 2, cost: 2,
+      fx: [{ k: 'dmg', v: 4, hits: 3, random: true, scale: 'tech' }],
+      up: { fx: [{ k: 'dmg', v: 6, hits: 3, random: true, scale: 'tech' }] },
+    },
+    static_field: {
+      name: 'Static Field', cls: 'technomancer', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'weak', v: 2, who: 'allEnemies' }, { k: 'block', v: 4, scale: 'pri' }],
+      up: { fx: [{ k: 'status', s: 'weak', v: 2, who: 'allEnemies' }, { k: 'block', v: 7, scale: 'pri' }] },
+    },
+
+    /* -- Void Adept: HEXWEAVER + MAELSTROM (spam) + BLOOD PACT (sacrifice) -- */
+    blood_pact: {
+      name: 'Blood Pact', cls: 'voidadept', type: 'power', rarity: 3, cost: 1,
+      fx: [{ k: 'status', s: 'bloodPact', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'bloodPact', v: 2, who: 'self' }] },
+    },
+    exsanguinate: {
+      name: 'Exsanguinate', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'hploss', v: 3 }, { k: 'dmg', v: 10, scale: 'psi' }, { k: 'special', id: 'drain' }],
+      text: 'Heal for half the damage dealt.',
+      up: { fx: [{ k: 'hploss', v: 3 }, { k: 'dmg', v: 14, scale: 'psi' }, { k: 'special', id: 'drain' }] },
+    },
+    void_siphon: {
+      name: 'Void Siphon', cls: 'voidadept', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 6, scale: 'psi' }, { k: 'status', s: 'vuln', v: 1, who: 'target' }],
+      up: { fx: [{ k: 'dmg', v: 8, scale: 'psi' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }] },
+    },
+    unravel: {
+      name: 'Unravel', cls: 'voidadept', type: 'attack', rarity: 3, cost: 1,
+      fx: [{ k: 'special', id: 'reap', v: 4 }],
+      text: 'Deal 4 damage for each Vulnerable, Weak, and Burn on the target.',
+      up: { fx: [{ k: 'special', id: 'reap', v: 6 }], text: 'Deal 6 damage for each Vulnerable, Weak, and Burn on the target.' },
+    },
+    mind_storm: {
+      name: 'Mind Storm', cls: 'voidadept', type: 'attack', rarity: 2, cost: 0,
+      fx: [{ k: 'special', id: 'overdrive', v: 3 }],
+      text: 'Deal 3 damage for each other card played this turn.',
+      up: { fx: [{ k: 'special', id: 'overdrive', v: 4 }], text: 'Deal 4 damage for each other card played this turn.' },
+    },
+    hemorrhage: {
+      name: 'Hemorrhage', cls: 'voidadept', type: 'skill', rarity: 1, cost: 0, exhaust: true,
+      fx: [{ k: 'hploss', v: 2 }, { k: 'energy', v: 2 }],
+      up: { fx: [{ k: 'hploss', v: 1 }, { k: 'energy', v: 2 }] },
+    },
+
     /* ============ Legendaries (boss rewards only) ============ */
     orbital_bombardment: {
       name: 'Orbital Bombardment', cls: 'vanguard', type: 'attack', rarity: 4, pool: 'boss', cost: 3,
@@ -516,6 +610,8 @@
         else if (f.s === 'plate') parts.push('Gain ' + f.v + ' Shield at the start of each turn.');
         else if (f.s === 'platedArmor') parts.push('Plated Armor ' + f.v + ': each turn gain that much Shield, then it drops by 1.');
         else if (f.s === 'corruption') parts.push('Skills cost 0 this combat, but Exhaust when played.');
+        else if (f.s === 'barricade') parts.push('Your Shield no longer expires at the start of your turn.');
+        else if (f.s === 'bloodPact') parts.push('Whenever you lose HP to your own cards, gain ' + f.v + ' Psi Focus.');
         else if (f.who === 'self') parts.push('Gain ' + f.v + ' ' + n + '.');
         else if (f.who === 'allEnemies') parts.push('Apply ' + f.v + ' ' + n + ' to ALL enemies.');
         else parts.push('Apply ' + f.v + ' ' + n + '.');
@@ -536,7 +632,7 @@
       var f = fx[i];
       if (f.k === 'dmg' && !f.all && !f.random) return true;
       if (f.k === 'status' && f.who === 'target') return true;
-      if (f.k === 'special' && (f.id === 'shieldSlam' || f.id === 'shieldSlam15' || f.id === 'catalyst' || f.id === 'catalyst3')) return true;
+      if (f.k === 'special' && (f.id === 'shieldSlam' || f.id === 'shieldSlam15' || f.id === 'catalyst' || f.id === 'catalyst3' || f.id === 'reap' || f.id === 'overdrive' || f.id === 'fiendFire')) return true;
     }
     return false;
   };

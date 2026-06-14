@@ -536,8 +536,8 @@
     c.momentum = 0;   // Momentum Engine resets each turn
     // Cursed Inheritance: a curse is lodged in hand at the start of combat
     if (c.turn === 1 && E.hasEcho('cursed_inheritance')) c.hand.push(mkCard('recurring_curse', false));
-    // block expiry
-    if (!statN(p, 'retain')) p.block = 0;
+    // block expiry (Retain / Barricade keep your Shield)
+    if (!statN(p, 'retain') && !statN(p, 'barricade')) p.block = 0;
     // energy (with optional carry-over from Overflow Reactor)
     c.energy = maxEnergy() + (art('energyCarry') > 0 ? leftover : 0);
     if (c.turn === 1) c.energy += art('energyTurn1');
@@ -874,7 +874,12 @@
           break;
         }
         case 'heal': heal(f.v); break;
-        case 'hploss': hurtPlayer(f.v, { pure: true }); break;
+        case 'hploss': {
+          hurtPlayer(f.v, { pure: true });
+          var bp = statN(p, 'bloodPact');   // BLOOD PACT: spilled HP feeds your Psi
+          if (bp > 0) { addStatus(p, 'psiPow', bp); emit('status', { who: 'player', s: 'psiPow', v: bp }); }
+          break;
+        }
         case 'draw': drawCards(f.v); break;
         case 'energy': c.energy += f.v; break;
         case 'status': {
@@ -914,6 +919,31 @@
               var mul = (f.id === 'catalyst3') ? 2 : 1; // extra stacks added
               if (cur > 0) { addStatus(ce, 'burn', cur * mul); emit('status', { who: 'enemy', idx: c.enemies.indexOf(ce), s: 'burn', v: cur * mul }); trackBurn(cur * mul); }
             }
+          } else if (f.id === 'fiendFire') {
+            // ORDNANCE capstone: exhaust the rest of your hand, deal f.v per card.
+            var fEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            var burnt = c.hand.splice(0, c.hand.length);
+            burnt.forEach(function (hc) { exhaustCard(hc); });
+            var per = f.v + statN(p, 'str') + art('flatDmg');
+            if (fEn) for (var q = 0; q < burnt.length; q++) totalDealt += dealToEnemy(fEn, c.enemies.indexOf(fEn), per, { crit: crit, roll: roll });
+          } else if (f.id === 'reap') {
+            // HEXWEAVER / SUPPRESSION capstone: damage scales with debuffs on target.
+            var rEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            if (rEn) {
+              var stacks = statN(rEn, 'vuln') + statN(rEn, 'weak') + statN(rEn, 'burn');
+              var rd = stacks * f.v + statN(p, 'str') + art('flatDmg');
+              if (rd > 0) totalDealt += dealToEnemy(rEn, c.enemies.indexOf(rEn), rd, { crit: crit, roll: roll });
+            }
+          } else if (f.id === 'overdrive') {
+            // MAELSTROM capstone: damage scales with cards already played this turn.
+            var oEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            var od = f.v * (c.cardsThisTurn || 0) + statN(p, 'str') + art('flatDmg');
+            if (oEn && od > 0) totalDealt += dealToEnemy(oEn, c.enemies.indexOf(oEn), od, { crit: crit, roll: roll });
+          } else if (f.id === 'powerSurge') {
+            // OVERCLOCK payoff: gain Shield for every Power you've played this combat.
+            var pw = 0;
+            c.consumed.forEach(function (cc) { if (ns.CARDS[cc.id].type === 'power') pw++; });
+            if (pw > 0) gainBlock(f.v * pw, true);
           }
           break;
         }

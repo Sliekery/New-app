@@ -24,7 +24,7 @@
 
     /* ---- Attribute scaling ------------------------------------------ */
     attrs: {
-      mightDmgPerPoint: 1.4,    // bonus damage per MIGHT on might-scaling attacks
+      mightDmgPerPoint: 1.8,    // bonus damage per MIGHT on might-scaling attacks
       techBlockPerPoint: 1,     // bonus block per TECH on tech-scaling skills
       mightBlockPerPoint: 1,    // bonus block per MIGHT on primary-scaling skills
       psiBlockPerPoint: 1,      // bonus block per PSI on primary-scaling skills
@@ -48,7 +48,7 @@
     /* ---- Enemy scaling per sector (s = sector, 1-based) -------------- */
     scaling: {
       hpMul:  function (s) { return 1 + 0.30 * (s - 1) + 0.034 * (s - 1) * (s - 1); },
-      dmgMul: function (s) { return 1 + 0.145 * (s - 1) + 0.015 * (s - 1) * (s - 1); },
+      dmgMul: function (s) { return 1 + 0.165 * (s - 1) + 0.017 * (s - 1) * (s - 1); },
       // extra flat strength enemies gain every N sectors (late-game pressure)
       strEverySectors: 3,
     },

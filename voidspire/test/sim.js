@@ -65,6 +65,16 @@ function estCardDamage(card, target, includeDot) {
     if (f.k === 'special' && (f.id === 'shieldSlam' || f.id === 'shieldSlam15')) {
       total += Math.floor(c.player.block * (f.id === 'shieldSlam15' ? 1.5 : 1));
     }
+    if (f.k === 'special' && f.id === 'reap' && target) {
+      var st = (target.statuses.vuln || 0) + (target.statuses.weak || 0) + (target.statuses.burn || 0);
+      total += st * f.v + str;
+    }
+    if (f.k === 'special' && f.id === 'overdrive') {
+      total += f.v * (c.cardsThisTurn || 0) + str;
+    }
+    if (f.k === 'special' && f.id === 'fiendFire') {
+      total += (f.v + str) * Math.max(0, c.hand.length - 1); // ~cards left to exhaust
+    }
   });
   if ((c.player.statuses.weak || 0) > 0) total = Math.floor(total * VS.BALANCE.status.weakMult);
   return total + dot;
@@ -79,6 +89,11 @@ function estCardBlock(card) {
     if (f.k === 'block') {
       var sc = f.scale === 'pri' ? PRI_ATTR[VS.engine.run.cls] : f.scale;
       total += f.v + ((sc === 'tech' || sc === 'might' || sc === 'psi') ? VS.engine.attr(sc) : 0);
+    }
+    if (f.k === 'special' && f.id === 'powerSurge') {
+      var c = VS.engine.combat, pw = 0;
+      c.consumed.forEach(function (cc) { if (VS.CARDS[cc.id].type === 'power') pw++; });
+      total += f.v * pw;
     }
   });
   return total;
