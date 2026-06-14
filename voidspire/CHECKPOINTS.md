@@ -10,7 +10,12 @@ GitHub forever, so it can't be lost even if later changes break something. The
 
 | Checkpoint | Commit | Date | What's in it |
 |---|---|---|---|
+| **v1.1-builds** | `316d309` | 2026-06-14 | Adds Slay-the-Spire-style build archetypes (Might/Exhaust, Shield/Echo, Burn/spam) and build-defining rares for "god runs". Fixes the power-reuse bug (powers are now consumed). |
 | **v1.0-stable** | `9583880` | 2026-06-14 | Swipe-to-play combat, Slay-the-Spire-tuned balance, faction world-building, animated screen transitions, talking event portraits, artifact icons. First fully-polished version. |
+
+### v1.1-builds
+- **Play (frozen):** https://rawcdn.githack.com/Sliekery/New-app/316d30953976c376816e88644f137b8c926fe849/voidspire/voidspire.html
+- **Restore command (for reference):** `git checkout 316d309 -- voidspire`
 
 ### v1.0-stable
 - **Play (frozen):** https://rawcdn.githack.com/Sliekery/New-app/95838809c08f72988d31c899436f5d4d86986fce/voidspire/voidspire.html
