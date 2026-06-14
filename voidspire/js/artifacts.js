@@ -46,7 +46,7 @@
       art: { p: [[0,-0.9, 0.7,-0.6, 0.7,0.1, 0,0.9, -0.7,0.1, -0.7,-0.6, 0,-0.9], [-0.35,-0.2, 0,0.1, 0.35,-0.2]], e: [[-0.45,-0.5],[0.45,-0.5]] } },
     singularity:     { name: 'Singularity Engine',tier: 2, k: 'aoeTurnStart',    v: 4,    desc: 'Deal 4 damage to ALL enemies at the start of your turn.',
       art: { p: [[0.7,0, 0.5,0.5, 0,0.7, -0.5,0.5, -0.7,0, -0.45,-0.45, 0,-0.55, 0.35,-0.3, 0.4,0, 0.2,0.25, 0,0.28, -0.18,0.12, -0.15,-0.1, 0,-0.15]], e: [[0,0]] } },
-    omega_visor:     { name: 'Omega Visor',       tier: 2, k: 'critBonus',       v: 4,    desc: 'Crit on a d20 roll of 16 or higher.',
+    omega_visor:     { name: 'Omega Visor',       tier: 2, k: 'critDraw',        v: 1,    desc: 'Whenever you land a critical hit, draw a card.',
       art: { p: [[-0.6,0.8, -0.25,0.8, -0.25,0.55, -0.55,0.3, -0.6,-0.2, -0.3,-0.65, 0.3,-0.65, 0.6,-0.2, 0.55,0.3, 0.25,0.55, 0.25,0.8, 0.6,0.8]], e: [[-0.2,-0.2],[0.2,-0.2]] } },
 
     /* ============ Special passive relics ============ */

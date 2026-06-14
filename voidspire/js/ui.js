@@ -1286,7 +1286,9 @@
     var btn = el('button', 'btn', 'CONTINUE');
     btn.addEventListener('pointerdown', function () {
       SFX.tap();
-      if (r.pendingAddCard) {
+      if (r.pendingRelic) {
+        showEventRelic(function () { E.finishEvent(); U.refresh(); });
+      } else if (r.pendingAddCard) {
         showEventAddCard(function () { E.finishEvent(); U.refresh(); });
       } else if (r.pendingPick) {
         showPickModal(r.pendingPick, function () { E.finishEvent(); U.refresh(); });
@@ -1529,6 +1531,27 @@
         function () { E.augmentAddCard(cid); done(); }, 'cyan');
     });
     s.appendChild(grid);
+    s.appendChild(cbar.el);
+  }
+
+  // relic offered by an event: preview it, then TAKE or LEAVE it
+  function showEventRelic(done) {
+    var aid = E.run.pendingRelic;
+    if (!aid) { done(); return; }
+    var a = ns.ARTIFACTS[aid];
+    var s = overlayScreen(true);
+    s.appendChild(el('h2', 'screen-title', 'Salvaged Relic'));
+    s.appendChild(el('div', 'screen-sub', 'TAP TO PREVIEW · TAKE IT OR LEAVE IT'));
+    var cbar = makeConfirmBar();
+    var btn = el('div', 'panel-btn amber',
+      '<div class="pb-title"><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + '</div>' +
+      '<div class="pb-desc">' + esc(a.desc) + '</div>');
+    s.appendChild(btn);
+    selectConfirm(s, btn, cbar, 'Take <b>' + esc(a.name) + '</b>?<span class="cb-note">' + esc(a.desc) + '</span>',
+      function () { SFX.coin(); E.takeEventRelic(); done(); }, 'amber');
+    var skip = el('button', 'btn dim small', 'LEAVE IT');
+    skip.addEventListener('pointerdown', function () { SFX.tap(); E.skipEventRelic(); done(); });
+    s.appendChild(skip);
     s.appendChild(cbar.el);
   }
 

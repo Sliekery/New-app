@@ -284,6 +284,7 @@ function step() {
       break;
     }
     case 'event-result':
+      if (r.pendingRelic) E.takeEventRelic();   // a competent player takes the free relic
       if (r.pendingAddCard) E.eventAddCard(r.pendingAddCard[0]);
       if (r.pendingPick) {
         E.applyPick(r.pendingPick === 'remove' ? pickRemoveIdx() : r.pendingPick === 'upgrade' ? pickUpgradeIdx() : 0);

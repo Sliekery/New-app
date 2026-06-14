@@ -1306,7 +1306,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       art: { p: [[0,-0.9, 0.7,-0.6, 0.7,0.1, 0,0.9, -0.7,0.1, -0.7,-0.6, 0,-0.9], [-0.35,-0.2, 0,0.1, 0.35,-0.2]], e: [[-0.45,-0.5],[0.45,-0.5]] } },
     singularity:     { name: 'Singularity Engine',tier: 2, k: 'aoeTurnStart',    v: 4,    desc: 'Deal 4 damage to ALL enemies at the start of your turn.',
       art: { p: [[0.7,0, 0.5,0.5, 0,0.7, -0.5,0.5, -0.7,0, -0.45,-0.45, 0,-0.55, 0.35,-0.3, 0.4,0, 0.2,0.25, 0,0.28, -0.18,0.12, -0.15,-0.1, 0,-0.15]], e: [[0,0]] } },
-    omega_visor:     { name: 'Omega Visor',       tier: 2, k: 'critBonus',       v: 4,    desc: 'Crit on a d20 roll of 16 or higher.',
+    omega_visor:     { name: 'Omega Visor',       tier: 2, k: 'critDraw',        v: 1,    desc: 'Whenever you land a critical hit, draw a card.',
       art: { p: [[-0.6,0.8, -0.25,0.8, -0.25,0.55, -0.55,0.3, -0.6,-0.2, -0.3,-0.65, 0.3,-0.65, 0.6,-0.2, 0.55,0.3, 0.25,0.55, 0.25,0.8, 0.6,0.8]], e: [[-0.2,-0.2],[0.2,-0.2]] } },
 
     /* ============ Special passive relics ============ */
@@ -1426,12 +1426,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       desc: 'Add a card of your choice to your deck.' },
     munitions:    { name: 'Munitions Cache', rarity: 2, cls: 'vanguard', kind: 'hook', hook: { k: 'vulnDmg', v: 3 },
       desc: 'Deal +3 damage to Vulnerable enemies.' },
-    targeting_matrix: { name: 'Targeting Matrix', rarity: 2, cls: 'technomancer', kind: 'hook', hook: { k: 'critBonus', v: 2 },
-      desc: 'Crit on a d20 roll of 18 or higher.' },
-    static_field: { name: 'Static Field', rarity: 2, cls: 'technomancer', kind: 'hook', hook: { k: 'shieldThorns', v: 2 },
-      desc: 'Whenever you gain Shield, deal 2 to a random enemy.' },
-    soul_pyre:    { name: 'Soul Pyre', rarity: 2, cls: 'voidadept', kind: 'hook', hook: { k: 'burnGrow', v: 1 },
-      desc: 'At the start of your turn, all enemy Burn grows by 1.' },
+    targeting_matrix: { name: 'Targeting Matrix', rarity: 2, cls: 'technomancer', kind: 'hook', hook: { k: 'critStr', v: 1 },
+      desc: 'Whenever you land a critical hit, gain 1 Might.' },
+    disruptor_field: { name: 'Disruptor Field', rarity: 2, cls: 'technomancer', kind: 'hook', hook: { k: 'shieldWeak', v: 1 },
+      desc: 'Whenever you gain Shield, apply 1 Weak to a random enemy.' },
+    soul_pyre:    { name: 'Soul Pyre', rarity: 2, cls: 'voidadept', kind: 'hook', hook: { k: 'attackBurn', v: 1 },
+      desc: 'Your attacks also apply 1 Burn.' },
 
     /* ---------------- Rares (rarity 3) ---------------- */
     critical_cascade: { name: 'Critical Cascade', rarity: 3, cls: 'any', kind: 'hook', hook: { k: 'critVuln', v: 2 },
@@ -2699,6 +2699,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var pool = aliveEnemies();
       if (pool.length) { var en = pick(pool); dealToEnemy(en, c.enemies.indexOf(en), st, { noCrit: true, noWeak: true }); }
     }
+    var sw = art('shieldWeak');   // Disruptor Field: Shield gains apply Weak
+    if (sw > 0 && !c.over) {
+      var poolW = aliveEnemies();
+      if (poolW.length) { var enW = pick(poolW); addStatus(enW, 'weak', sw); emit('status', { who: 'enemy', idx: c.enemies.indexOf(enW), s: 'weak', v: sw }); }
+    }
   }
 
   /* ---------------- Combat: turn structure ------------------------------ */
@@ -3131,6 +3136,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       if (tc > 0) c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, tc, { noCrit: true, noWeak: true }); });
       var ai = statN(p, 'afterImage');
       if (ai > 0) gainBlock(ai);
+      // crit payoffs (Omega Visor / Targeting Matrix), once per critting card
+      if (crit) {
+        var cdr = art('critDraw'); if (cdr > 0) drawCards(cdr);
+        var cst = art('critStr'); if (cst > 0) { addStatus(p, 'str', cst); emit('status', { who: 'player', s: 'str', v: cst }); }
+      }
+      // Soul Pyre: attacks also apply Burn
+      var ab = art('attackBurn');
+      if (ab > 0 && def.type === 'attack') {
+        var stB = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+        if (stB) { addStatus(stB, 'burn', ab); emit('status', { who: 'enemy', idx: c.enemies.indexOf(stB), s: 'burn', v: ab }); trackBurn(ab); }
+      }
     }
     // Contagion: applying Burn spreads it to all enemies
     if (ctx.appliedBurn && statN(p, 'plague') > 0 && !c.over) {
@@ -3693,7 +3709,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
     if (fx.artifact) {
       var aid = randomArtifact(1);
-      if (aid) { addArtifact(aid); gained.push('Relic: ' + ns.ARTIFACTS[aid].name); }
+      // offer it as a take/skip choice instead of auto-granting
+      if (aid) { r.pendingRelic = aid; gained.push('Relic found: ' + ns.ARTIFACTS[aid].name); }
       else { r.credits += 40; gained.push('+40 credits'); }
     }
     if (fx.curse) {
@@ -3720,9 +3737,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   E.eventAddCard = function (cid) { E.run.deck.push(mkCard(cid, false)); E.run.pendingAddCard = null; };
 
+  // A relic offered by an event: take it into the arsenal, or leave it behind.
+  E.takeEventRelic = function () {
+    var r = E.run;
+    if (r.pendingRelic) { addArtifact(r.pendingRelic); r.pendingRelic = null; E.save(); }
+  };
+  E.skipEventRelic = function () { E.run.pendingRelic = null; E.save(); };
+
   E.finishEvent = function () {
     var r = E.run;
-    if (r.pendingPick || r.pendingAddCard) return; // must resolve pending picks first
+    if (r.pendingPick || r.pendingAddCard || r.pendingRelic) return; // resolve pending choices first
     r.eventResult = null;
     r.currentEvent = null;
     nodeComplete();
@@ -6098,7 +6122,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var btn = el('button', 'btn', 'CONTINUE');
     btn.addEventListener('pointerdown', function () {
       SFX.tap();
-      if (r.pendingAddCard) {
+      if (r.pendingRelic) {
+        showEventRelic(function () { E.finishEvent(); U.refresh(); });
+      } else if (r.pendingAddCard) {
         showEventAddCard(function () { E.finishEvent(); U.refresh(); });
       } else if (r.pendingPick) {
         showPickModal(r.pendingPick, function () { E.finishEvent(); U.refresh(); });
@@ -6341,6 +6367,27 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         function () { E.augmentAddCard(cid); done(); }, 'cyan');
     });
     s.appendChild(grid);
+    s.appendChild(cbar.el);
+  }
+
+  // relic offered by an event: preview it, then TAKE or LEAVE it
+  function showEventRelic(done) {
+    var aid = E.run.pendingRelic;
+    if (!aid) { done(); return; }
+    var a = ns.ARTIFACTS[aid];
+    var s = overlayScreen(true);
+    s.appendChild(el('h2', 'screen-title', 'Salvaged Relic'));
+    s.appendChild(el('div', 'screen-sub', 'TAP TO PREVIEW · TAKE IT OR LEAVE IT'));
+    var cbar = makeConfirmBar();
+    var btn = el('div', 'panel-btn amber',
+      '<div class="pb-title"><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + '</div>' +
+      '<div class="pb-desc">' + esc(a.desc) + '</div>');
+    s.appendChild(btn);
+    selectConfirm(s, btn, cbar, 'Take <b>' + esc(a.name) + '</b>?<span class="cb-note">' + esc(a.desc) + '</span>',
+      function () { SFX.coin(); E.takeEventRelic(); done(); }, 'amber');
+    var skip = el('button', 'btn dim small', 'LEAVE IT');
+    skip.addEventListener('pointerdown', function () { SFX.tap(); E.skipEventRelic(); done(); });
+    s.appendChild(skip);
     s.appendChild(cbar.el);
   }
 

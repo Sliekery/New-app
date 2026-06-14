@@ -44,12 +44,12 @@
       desc: 'Add a card of your choice to your deck.' },
     munitions:    { name: 'Munitions Cache', rarity: 2, cls: 'vanguard', kind: 'hook', hook: { k: 'vulnDmg', v: 3 },
       desc: 'Deal +3 damage to Vulnerable enemies.' },
-    targeting_matrix: { name: 'Targeting Matrix', rarity: 2, cls: 'technomancer', kind: 'hook', hook: { k: 'critBonus', v: 2 },
-      desc: 'Crit on a d20 roll of 18 or higher.' },
-    static_field: { name: 'Static Field', rarity: 2, cls: 'technomancer', kind: 'hook', hook: { k: 'shieldThorns', v: 2 },
-      desc: 'Whenever you gain Shield, deal 2 to a random enemy.' },
-    soul_pyre:    { name: 'Soul Pyre', rarity: 2, cls: 'voidadept', kind: 'hook', hook: { k: 'burnGrow', v: 1 },
-      desc: 'At the start of your turn, all enemy Burn grows by 1.' },
+    targeting_matrix: { name: 'Targeting Matrix', rarity: 2, cls: 'technomancer', kind: 'hook', hook: { k: 'critStr', v: 1 },
+      desc: 'Whenever you land a critical hit, gain 1 Might.' },
+    disruptor_field: { name: 'Disruptor Field', rarity: 2, cls: 'technomancer', kind: 'hook', hook: { k: 'shieldWeak', v: 1 },
+      desc: 'Whenever you gain Shield, apply 1 Weak to a random enemy.' },
+    soul_pyre:    { name: 'Soul Pyre', rarity: 2, cls: 'voidadept', kind: 'hook', hook: { k: 'attackBurn', v: 1 },
+      desc: 'Your attacks also apply 1 Burn.' },
 
     /* ---------------- Rares (rarity 3) ---------------- */
     critical_cascade: { name: 'Critical Cascade', rarity: 3, cls: 'any', kind: 'hook', hook: { k: 'critVuln', v: 2 },

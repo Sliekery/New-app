@@ -432,5 +432,51 @@ E.run.potions = ['frag_charge']; E.usePotion(0, 0);
 ok('Salvage grafts a card on every 3rd kill', E.run.deck.length === deck0 + 1);
 ok('Salvage forgoes card rewards', E.run.reward && E.run.reward.cards.length === 0);
 
+/* 43. Reworked relics/augments: distinct crit / shield / burn payoffs */
+var CRIT = VS.BALANCE.dice.critThreshold;
+// Omega Visor (relic): crit -> draw
+startFight('vanguard'); E.run.artifacts = ['omega_visor']; bigEnemies();
+VS.BALANCE.dice.critThreshold = 1; // force every attack to crit
+setHand(['pulse_rifle']); var dp0 = E.combat.drawPile.length; playId('pulse_rifle', 0);
+ok('Omega Visor draws a card on crit', dp0 - E.combat.drawPile.length === 1);
+// Targeting Matrix (augment): crit -> +1 Might
+startFight('vanguard'); E.run.augments = ['targeting_matrix']; bigEnemies();
+VS.BALANCE.dice.critThreshold = 1; E.combat.player.statuses = {};
+setHand(['pulse_rifle']); playId('pulse_rifle', 0);
+ok('Targeting Matrix grants Might on crit', (E.combat.player.statuses.str || 0) >= 1);
+VS.BALANCE.dice.critThreshold = CRIT;
+// Disruptor Field (augment): gain Shield -> apply Weak
+startFight('vanguard'); E.run.augments = ['disruptor_field']; bigEnemies();
+setHand(['combat_shield']); playId('combat_shield');
+ok('Disruptor Field applies Weak on Shield gain', E.combat.enemies.some(function (e) { return (e.statuses.weak || 0) > 0; }));
+// Soul Pyre (augment): attacks also apply Burn
+startFight('voidadept'); E.run.augments = ['soul_pyre']; bigEnemies();
+setHand(['pulse_rifle']); playId('pulse_rifle', 0);
+ok('Soul Pyre applies Burn on attack', (E.combat.enemies[0].statuses.burn || 0) >= 1);
+// no relic strictly upgrades another on the same hook (no scaled-copy pairs)
+(function () {
+  var byHook = {}, dups = [];
+  Object.keys(VS.ARTIFACTS).forEach(function (id) {
+    var a = VS.ARTIFACTS[id];
+    if (!a.k || a.quest) return;
+    var key = a.k + ':' + (a.a || '');   // attr:might / attr:tech / attr:psi stay distinct
+    (byHook[key] = byHook[key] || []).push(id);
+  });
+  Object.keys(byHook).forEach(function (k) { if (byHook[k].length > 1) dups.push(k + ' -> ' + byHook[k].join(',')); });
+  ok('no two non-quest relics share an effect' + (dups.length ? ' [' + dups.join(' | ') + ']' : ''), dups.length === 0);
+})();
+
+/* 44. Event relic offered as a take/skip choice */
+E.seed(5); E.newRun('vanguard'); E.run.artifacts = [];
+E.run.currentEvent = VS.EVENTS[0].id; E.run.phase = 'event-result'; E.run.eventResult = {};
+E.run.pendingRelic = 'war_sigil';
+E.finishEvent();
+ok('finishEvent waits while a relic is pending', E.run.phase === 'event-result' && E.run.pendingRelic === 'war_sigil');
+E.takeEventRelic();
+ok('takeEventRelic grants the relic', E.run.artifacts.indexOf('war_sigil') >= 0 && !E.run.pendingRelic);
+E.run.pendingRelic = 'cog_implant';
+E.skipEventRelic();
+ok('skipEventRelic leaves it behind', !E.run.pendingRelic && E.run.artifacts.indexOf('cog_implant') < 0);
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

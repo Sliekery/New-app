@@ -509,6 +509,11 @@
       var pool = aliveEnemies();
       if (pool.length) { var en = pick(pool); dealToEnemy(en, c.enemies.indexOf(en), st, { noCrit: true, noWeak: true }); }
     }
+    var sw = art('shieldWeak');   // Disruptor Field: Shield gains apply Weak
+    if (sw > 0 && !c.over) {
+      var poolW = aliveEnemies();
+      if (poolW.length) { var enW = pick(poolW); addStatus(enW, 'weak', sw); emit('status', { who: 'enemy', idx: c.enemies.indexOf(enW), s: 'weak', v: sw }); }
+    }
   }
 
   /* ---------------- Combat: turn structure ------------------------------ */
@@ -941,6 +946,17 @@
       if (tc > 0) c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, tc, { noCrit: true, noWeak: true }); });
       var ai = statN(p, 'afterImage');
       if (ai > 0) gainBlock(ai);
+      // crit payoffs (Omega Visor / Targeting Matrix), once per critting card
+      if (crit) {
+        var cdr = art('critDraw'); if (cdr > 0) drawCards(cdr);
+        var cst = art('critStr'); if (cst > 0) { addStatus(p, 'str', cst); emit('status', { who: 'player', s: 'str', v: cst }); }
+      }
+      // Soul Pyre: attacks also apply Burn
+      var ab = art('attackBurn');
+      if (ab > 0 && def.type === 'attack') {
+        var stB = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+        if (stB) { addStatus(stB, 'burn', ab); emit('status', { who: 'enemy', idx: c.enemies.indexOf(stB), s: 'burn', v: ab }); trackBurn(ab); }
+      }
     }
     // Contagion: applying Burn spreads it to all enemies
     if (ctx.appliedBurn && statN(p, 'plague') > 0 && !c.over) {
@@ -1503,7 +1519,8 @@
     }
     if (fx.artifact) {
       var aid = randomArtifact(1);
-      if (aid) { addArtifact(aid); gained.push('Relic: ' + ns.ARTIFACTS[aid].name); }
+      // offer it as a take/skip choice instead of auto-granting
+      if (aid) { r.pendingRelic = aid; gained.push('Relic found: ' + ns.ARTIFACTS[aid].name); }
       else { r.credits += 40; gained.push('+40 credits'); }
     }
     if (fx.curse) {
@@ -1530,9 +1547,16 @@
 
   E.eventAddCard = function (cid) { E.run.deck.push(mkCard(cid, false)); E.run.pendingAddCard = null; };
 
+  // A relic offered by an event: take it into the arsenal, or leave it behind.
+  E.takeEventRelic = function () {
+    var r = E.run;
+    if (r.pendingRelic) { addArtifact(r.pendingRelic); r.pendingRelic = null; E.save(); }
+  };
+  E.skipEventRelic = function () { E.run.pendingRelic = null; E.save(); };
+
   E.finishEvent = function () {
     var r = E.run;
-    if (r.pendingPick || r.pendingAddCard) return; // must resolve pending picks first
+    if (r.pendingPick || r.pendingAddCard || r.pendingRelic) return; // resolve pending choices first
     r.eventResult = null;
     r.currentEvent = null;
     nodeComplete();
