@@ -303,6 +303,26 @@ function sanity() {
   }
 }
 
+/* ---- one full bot run; returns the finished run state ------------------ */
+function playOneRun(cls, seed) {
+  E.seed(seed >>> 0);
+  E.newRun(cls);
+  var steps = 0;
+  while (E.run.phase !== 'dead' && E.run.sector <= MAX_SECTOR && steps++ < 8000) {
+    step();
+    sanity();
+    E.events.length = 0; // drain
+  }
+  if (steps >= 8000) throw new Error('run loop guard tripped');
+  return E.run;
+}
+
+var CLASSES = Object.keys(VS.BALANCE.classes);
+module.exports = { playOneRun: playOneRun, classes: CLASSES, MAX_SECTOR: MAX_SECTOR, VS: VS, E: E };
+
+// Only run the integrity checks + CLI stats when invoked directly.
+if (require.main !== module) return;
+
 /* ---- validate data integrity ------------------------------------------- */
 Object.keys(VS.CARDS).forEach(function (id) {
   var c = VS.CARDS[id];
@@ -337,21 +357,13 @@ VS.EVENTS.forEach(function (ev) {
 console.log('data integrity: OK');
 
 /* ---- run simulations ----------------------------------------------------- */
-var classes = Object.keys(VS.BALANCE.classes);
+var classes = CLASSES;
 var stats = {};
 classes.forEach(function (c) { stats[c] = { sectors: [], deaths: {} }; });
 
 for (var run = 0; run < RUNS; run++) {
   var cls = classes[run % classes.length];
-  E.seed((run * 2654435761) >>> 0);
-  E.newRun(cls);
-  var steps = 0;
-  while (E.run.phase !== 'dead' && E.run.sector <= MAX_SECTOR && steps++ < 8000) {
-    step();
-    sanity();
-    E.events.length = 0; // drain
-  }
-  if (steps >= 8000) throw new Error('run loop guard tripped');
+  playOneRun(cls, (run * 2654435761) >>> 0);
   var s = stats[cls];
   s.sectors.push(E.run.sector);
   if (E.run.phase === 'dead') {
