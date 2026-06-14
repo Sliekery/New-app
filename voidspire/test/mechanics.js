@@ -11,6 +11,7 @@ require('../js/cards.js');
 require('../js/artifacts.js');
  require('../js/augments.js');
 require('../js/potions.js');
+require('../js/echoes.js');
 require('../js/enemies.js');
 require('../js/events.js');
 require('../js/engine.js');
@@ -341,7 +342,95 @@ E.usePotion(0, 0);
 ok('finale boss is dead', !E.combat.enemies[0].alive);
 ok('finale victory sets run.won', E.run.won === true);
 ok('finale victory enters the victory phase', E.run.phase === 'victory');
-ok('continueDescent routes to the augment draft', (E.continueDescent(), E.run.phase === 'levelup'));
+ok('enterRecurrence opens the narrative', (E.enterRecurrence(), E.run.phase === 'recurrence-intro'));
+
+/* 33. Echoes: equipped hooks fold into art() */
+startFight('vanguard'); E.run.loadout = ['hollow_crown'];
+ok('hasEcho reads the loadout', E.hasEcho('hollow_crown'));
+ok('Hollow Crown adds dmgMult', Math.abs(E.art('dmgMult') - 0.30) < 1e-9);
+ok('Hollow Crown adds dmgTakenMult', Math.abs(E.art('dmgTakenMult') - 0.30) < 1e-9);
+
+/* 34. World power: loop scaling + the Unmaker's Tithe */
+startFight('vanguard'); E.run.loadout = []; E.run.loop = 4;
+ok('loop 4 world mult = 1.36', Math.abs(E.worldPowerMult() - 1.36) < 1e-9);
+E.run.loop = 1; E.run.loadout = ['unmaker_tithe'];
+ok("Tithe makes enemies 25% stronger", Math.abs(E.worldPowerMult() - 1.25) < 1e-9);
+
+/* 35. Momentum Engine: each card buffs the next, resets each turn */
+startFight('vanguard'); E.run.loadout = ['momentum_engine'];
+ok('momentum starts at 0', (E.combat.momentum || 0) === 0);
+setHand(['combat_shield']); playId('combat_shield');
+ok('momentum +1 after a card', E.combat.momentum === 1);
+
+/* 36. Doubled Self: a turn-1 card resolves twice */
+function shieldGain(echo) {
+  startFight('vanguard'); if (echo) E.run.loadout = [echo];
+  E.combat.turn = 1; E.combat.player.block = 0;
+  setHand(['combat_shield']); playId('combat_shield');
+  return E.combat.player.block;
+}
+var nb = shieldGain(null), db = shieldGain('doubled_self');
+ok('Doubled Self doubles a turn-1 card (' + nb + '->' + db + ')', db === nb * 2);
+
+/* 37. Void-Touched: a kill chains 6 to another enemy */
+startFight('vanguard'); E.run.loadout = ['void_touched'];
+var e0 = E.combat.enemies[0];
+var clone = { id: e0.id, def: e0.def, hp: 50, maxHp: 50, block: 0, statuses: {}, moveIdx: 0, lastMove: -1, intent: e0.intent, alive: true };
+E.combat.enemies = [e0, clone];   // exactly two, so the chain must hit the clone
+e0.hp = 4; e0.block = 0;
+E.run.potions = ['frag_charge']; E.usePotion(0, 0);
+ok('Void-Touched chains 6 on kill', clone.hp === 44);
+
+/* 38. Hunger of the Void: no normal heal, but heal 5 per kill */
+startFight('vanguard'); E.run.loadout = ['hunger_void']; E.run.maxHp = 100; E.run.hp = 20;
+E.heal(30);
+ok('Hunger blocks ordinary healing', E.run.hp === 20);
+E.combat.enemies[0].hp = 4; E.combat.enemies[0].block = 0;
+E.run.potions = ['frag_charge']; E.usePotion(0, 0);
+ok('Hunger heals 5 on a kill', E.run.hp === 25);
+
+/* 39. Phylactery: the first lethal blow leaves you at 30% HP, once per loop */
+startFight('vanguard'); E.run.loadout = ['phylactery']; E.run.maxHp = 100; E.run.hp = 5; E.run.phylacteryUsed = false;
+E.combat.enemies = [E.combat.enemies[0]];
+E.combat.enemies[0].intent = { t: 'block', b: 5 }; E.combat.enemies[0].hp = 50;
+E.combat.player.statuses = { burn: 20 }; E.combat.player.block = 0;
+E.endTurn();
+ok('Phylactery revives instead of dying (hp 30)', E.run.phase !== 'dead' && E.run.hp === 30);
+ok('Phylactery is marked used', E.run.phylacteryUsed === true);
+
+/* 40. The Recurrence: full reset keeps Echoes; Ascendant Core persists */
+E.newRun('voidadept'); E.run.echoes = ['ascendant_core']; E.run.loadout = ['ascendant_core'];
+E.run.won = true; E.run.phase = 'victory';
+var lp = E.run.loop;
+E.enterRecurrence();
+ok('Recurrence increments the loop', E.run.loop === lp + 1);
+ok('enterRecurrence -> narrative', E.run.phase === 'recurrence-intro');
+E.recurrenceContinue();
+ok('narrative -> echo draft', E.run.phase === 'echo-draft');
+E.chooseEcho(E.echoOffer()[0]);
+ok('choosing an Echo -> loadout', E.run.phase === 'echo-loadout');
+E.beginLoop();
+ok('Recurrence resets the deck to starter', E.run.deck.length === 10);
+ok('Recurrence wipes relics', E.run.artifacts.length === 0);
+ok('Recurrence keeps Echoes', E.run.echoes.indexOf('ascendant_core') >= 0);
+ok('Ascendant Core grants +2 core attribute', E.attr('psi') === 4);
+ok('new loop begins at sector 1', E.run.sector === 1 && E.run.phase === 'sector-intro');
+
+/* 41. Loadout respects the slot cap */
+E.newRun('vanguard');
+E.run.echoes = ['hollow_crown', 'void_battery', 'momentum_engine', 'hunger_void']; E.run.loadout = [];
+E.echoToggle('hollow_crown'); E.echoToggle('void_battery'); E.echoToggle('momentum_engine');
+ok('three Echoes equip', E.run.loadout.length === 3);
+ok('a 4th is rejected at the cap', E.echoToggle('hunger_void') === false && E.run.loadout.length === 3);
+ok('un-equipping frees a slot', E.echoToggle('hollow_crown') === true && E.run.loadout.length === 2);
+
+/* 42. Salvage Doctrine: every 3rd kill grafts a card; no card rewards */
+startFight('vanguard'); E.run.loadout = ['salvage_doctrine']; E.run.salvageKills = 2;
+var deck0 = E.run.deck.length;
+E.combat.enemies = [E.combat.enemies[0]]; E.combat.enemies[0].hp = 4; E.combat.enemies[0].block = 0;
+E.run.potions = ['frag_charge']; E.usePotion(0, 0);
+ok('Salvage grafts a card on every 3rd kill', E.run.deck.length === deck0 + 1);
+ok('Salvage forgoes card rewards', E.run.reward && E.run.reward.cards.length === 0);
 
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

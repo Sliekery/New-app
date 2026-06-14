@@ -5,7 +5,26 @@ aren't obvious from the code. For the big picture see `README.md` (architecture,
 balance targets, dev/test workflow) and `CHECKPOINTS.md` (version history +
 frozen play links).
 
-Branch: `claude/sci-fi-roguelike-cards-ycwlxz` · latest checkpoint: **v2.2-balance**.
+Branch: `claude/sci-fi-roguelike-cards-ycwlxz` · latest checkpoint: **v2.3-recurrence**.
+
+## RESOLVED: The Recurrence (NG+ loop) + Void Echoes (v2.3-recurrence)
+Beating THE UNMAKER now offers **ENTER THE RECURRENCE**: a 3-slide narrative
+screen → draft 1 of 3 **Void Echoes** → **equip up to `BALANCE.echoes.loadoutSlots`
+(3)** → a full-reset fresh loop (deck/relics/augments/stats back to baseline,
+Echoes + loop count kept). The world scales `BALANCE.run.loopPower` (0.12) per
+loop via `worldPowerMult()` (folded into `scaledHp/scaledDmg`, also reads the
+`worldPower` hook for the Unmaker's Tithe echo). `js/echoes.js` holds 11
+sideways-by-design Echoes; simple ones use `hook/hooks` summed in `art()` while
+EQUIPPED, rule-benders are checked via `E.hasEcho(id)`:
+- hooks: hollow_crown (dmgMult+`dmgTakenMult` new), void_battery (energyCarry+drawTurn), unmaker_tithe (worldPower + extra relic in winCombat).
+- flags: momentum_engine (`combat.momentum`), doubled_self (turn-1 `times=2` in playCard), hunger_void (heal gate + `healRaw` on kill), salvage_doctrine (no reward cards + `salvageKills` graft), void_touched (chain in `echoKill`), cursed_inheritance (`recurring_curse` card + `handHasCurse()` +25%), phylactery (`phylacteryUsed` revive in hurtPlayer), ascendant_core (+2 core in `resetForLoop`).
+Engine: `enterRecurrence / recurrenceContinue / echoOffer / chooseEcho /
+prepLoadout / echoToggle / beginLoop / claimVictory`; `E.depth()` =
+`(loop-1)*finale + sector`. UI phases: `recurrence-intro / echo-draft /
+echo-loadout`; HUD shows `L{n}·S{n}`. **Test harness:** sim/analyze now key off
+cumulative **depth** (== sector on loop 1, climbs past the finale), bot drives
+the recurrence capped at `MAX_LOOP`. Wave-2 Echoes (deferred): The Long Spiral,
+Recurring Nightmare, Severed Memory, Mirror of Was, Probability Collapse.
 Everything is committed and pushed. The game is `voidspire/` (pure HTML/JS, no build).
 
 ## RESOLVED: Potions & win condition (v2.1-finale)

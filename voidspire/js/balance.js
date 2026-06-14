@@ -112,12 +112,20 @@
       perSector: 100,
       perNode: 12,
       perKill: 4,
+      perLoop: 600,   // bonus per completed Recurrence loop
     },
 
     /* ---- Run arc / win condition ---------------------------------------- */
     run: {
       finale: 4,   // the boss of this sector is THE UNMAKER (the win condition).
-                   // Beat it to win; you may then keep descending endlessly.
+                   // Beat it to win; you may then enter the Recurrence (NG+ loop).
+      loopPower: 0.12, // each Recurrence loop multiplies enemy HP & damage by
+                       // (1 + loopPower*(loop-1)) on top of normal sector scaling.
+    },
+
+    /* ---- Void Echoes (Recurrence / NG+ special relics) ------------------ */
+    echoes: {
+      loadoutSlots: 3,  // how many owned Echoes you may equip per loop
     },
 
     /* ---- Potions & consumables ------------------------------------------ */

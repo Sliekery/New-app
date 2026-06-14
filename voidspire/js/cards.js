@@ -336,6 +336,10 @@
       name: 'Shrapnel', cls: 'curse', type: 'curse', rarity: -1, cost: 0, unplayable: true,
       fx: [], text: 'Unplayable. Lose 2 HP if this is in your hand at end of turn.',
     },
+    recurring_curse: {
+      name: 'Recurring Dread', cls: 'curse', type: 'curse', rarity: -1, cost: 0, unplayable: true, retain: true,
+      fx: [], text: 'Unplayable. A fragment of the loop, lodged in your mind — it will not leave.',
+    },
   };
 
   /* ---- Starter decks ------------------------------------------------- */

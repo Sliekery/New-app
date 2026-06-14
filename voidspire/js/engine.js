@@ -67,6 +67,8 @@
       quests: {}, questDone: {},
       augments: [], augmentDeckop: null, augmentOffer: null,
       potions: [], won: false,
+      loop: 1, echoes: [], loadout: [], echoOffer: null,
+      phylacteryUsed: false, salvageKills: 0,
     };
     E.combat = null;
     E.run.map = generateMap(1);
@@ -84,8 +86,15 @@
     return v;
   }
   E.attr = attr;
+  // Is a Void Echo currently EQUIPPED (in the loadout, not merely owned)?
+  E.hasEcho = function (id) {
+    return !!(E.run && E.run.loadout && E.run.loadout.indexOf(id) >= 0);
+  };
+  // Cumulative run depth: each cleared Recurrence loop counts as `finale`
+  // sectors, so depth == sector on the first loop and keeps climbing after.
+  E.depth = function () { return (E.run.loop - 1) * B.run.finale + E.run.sector; };
   // Sum of hook k over owned artifacts, including quest "done" hooks once the
-  // artifact's quest has been completed.
+  // artifact's quest has been completed, plus augments and EQUIPPED echoes.
   function art(k) {
     var t = 0, owned = E.run.artifacts;
     for (var i = 0; i < owned.length; i++) {
@@ -99,6 +108,13 @@
       if (!g) continue;
       if (g.hook && g.hook.k === k) t += g.hook.v;
       if (g.hooks) for (var h = 0; h < g.hooks.length; h++) if (g.hooks[h].k === k) t += g.hooks[h].v;
+    }
+    var ech = E.run.loadout || [];
+    for (var e = 0; e < ech.length; e++) {
+      var ee = ns.ECHOES[ech[e]];
+      if (!ee) continue;
+      if (ee.hook && ee.hook.k === k) t += ee.hook.v;
+      if (ee.hooks) for (var hh = 0; hh < ee.hooks.length; hh++) if (ee.hooks[hh].k === k) t += ee.hooks[hh].v;
     }
     return t;
   }
@@ -131,7 +147,8 @@
 
   E.score = function () {
     var r = E.run;
-    return (r.sector - 1) * B.score.perSector + r.nodesCleared * B.score.perNode + r.kills * B.score.perKill;
+    return (r.sector - 1) * B.score.perSector + r.nodesCleared * B.score.perNode + r.kills * B.score.perKill +
+      ((r.loop || 1) - 1) * B.score.perLoop;
   };
 
   /* ---------------- Map generation (branching star chart) -------------- */
@@ -405,8 +422,14 @@
   E.beginSector = function () { E.run.phase = 'map'; E.save(); };
 
   /* ---------------- Combat: setup --------------------------------------- */
-  function scaledHp(base, s) { return Math.round(base * B.scaling.hpMul(s)); }
-  function scaledDmg(base, s) { return Math.round(base * B.scaling.dmgMul(s)); }
+  // Extra enemy power from the Recurrence loop and the Unmaker's Tithe echo,
+  // applied on top of normal per-sector scaling.
+  function worldPowerMult() {
+    return (1 + B.run.loopPower * ((E.run.loop || 1) - 1)) * (1 + art('worldPower'));
+  }
+  E.worldPowerMult = worldPowerMult;
+  function scaledHp(base, s) { return Math.round(base * B.scaling.hpMul(s) * worldPowerMult()); }
+  function scaledDmg(base, s) { return Math.round(base * B.scaling.dmgMul(s) * worldPowerMult()); }
 
   function mkEnemy(id) {
     var def = ns.ENEMIES[id];
@@ -502,6 +525,9 @@
     var leftover = c.energy;
     c.turn++;
     c.cardsThisTurn = 0;
+    c.momentum = 0;   // Momentum Engine resets each turn
+    // Cursed Inheritance: a curse is lodged in hand at the start of combat
+    if (c.turn === 1 && E.hasEcho('cursed_inheritance')) c.hand.push(mkCard('recurring_curse', false));
     // block expiry
     if (!statN(p, 'retain')) p.block = 0;
     // energy (with optional carry-over from Overflow Reactor)
@@ -625,7 +651,7 @@
   function attackBonus(f) {
     var p = E.combat.player;
     var mul = f.scaleMul || 1;
-    var v = statN(p, 'str') + art('flatDmg');
+    var v = statN(p, 'str') + art('flatDmg') + (E.combat.momentum || 0); // Momentum Engine
     if (f.scale === 'might') v += attr('might') * B.attrs.mightDmgPerPoint * mul;
     if (f.scale === 'tech') v += attr('tech') * mul;
     if (f.scale === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * mul + statN(p, 'psiPow');
@@ -637,6 +663,7 @@
     var c = E.combat;
     var dm = art('dmgMult');
     if (dm > 0) amount = Math.round(amount * (1 + dm));
+    if (E.hasEcho('cursed_inheritance') && handHasCurse()) amount = Math.round(amount * 1.25); // Cursed Inheritance
     if (statN(c.player, 'weak') && !opts.noWeak) amount = Math.floor(amount * B.status.weakMult);
     if (statN(en, 'vuln')) { amount = Math.floor(amount * B.status.vulnMult); amount += art('vulnDmg'); }
     if (opts.execute && en.hp <= en.maxHp * 0.30) amount *= 2;
@@ -658,15 +685,39 @@
       var sk = art('strOnKill'); if (sk > 0) { addStatus(c.player, 'str', sk); emit('status', { who: 'player', s: 'str', v: sk }); }
       var kd = art('killDraw'); if (kd > 0) drawCards(kd);
       emit('die', { idx: idx });
+      echoKill(idx);
     }
     return hpDmg;
   }
 
-  function heal(n) {
+  // Void Echo on-kill triggers (used by both card-dealt and burn-tick kills).
+  function echoKill(idx) {
+    var c = E.combat, r = E.run;
+    if (E.hasEcho('hunger_void')) healRaw(5);                 // Hunger of the Void
+    if (E.hasEcho('salvage_doctrine')) {                      // Salvage Doctrine
+      r.salvageKills = (r.salvageKills || 0) + 1;
+      if (r.salvageKills % 3 === 0) {
+        var cid = rollRewardCard(0);
+        r.deck.push(mkCard(cid, false));
+        emit('salvage', { id: cid });
+      }
+    }
+    if (E.hasEcho('void_touched')) {                          // Void-Touched: chain
+      var pool = aliveEnemies();
+      if (pool.length) { var en = pick(pool); dealToEnemy(en, c.enemies.indexOf(en), 6, { noCrit: true, noWeak: true }); }
+    }
+  }
+
+  function healRaw(n) {
     var r = E.run;
     var before = r.hp;
     r.hp = Math.min(r.maxHp, r.hp + n);
     if (r.hp !== before) emit('heal', { who: 'player', amount: r.hp - before, hpAfter: r.hp });
+  }
+  // Hunger of the Void blocks all ordinary healing; only kill-heals (healRaw) land.
+  function heal(n) {
+    if (E.hasEcho('hunger_void')) return;
+    healRaw(n);
   }
   E.heal = heal;
 
@@ -675,6 +726,8 @@
     var c = E.combat, r = E.run;
     var p = c ? c.player : null;
     if (p && statN(p, 'vuln') && !opts.pure) amount = Math.floor(amount * B.status.vulnMult);
+    var dtm = art('dmgTakenMult');   // Hollow Crown: take +X% damage
+    if (dtm > 0 && !opts.pure) amount = Math.round(amount * (1 + dtm));
     var blocked = 0;
     if (p && !opts.pure) {
       blocked = Math.min(p.block, amount);
@@ -688,7 +741,17 @@
       var rp = art('reactivePlate');
       if (rp > 0) { c.reactiveUsed = true; gainBlock(rp); }
     }
-    if (r.hp <= 0) playerDied();
+    if (r.hp <= 0) {
+      // Phylactery: once per loop, the first lethal blow leaves you clinging on.
+      if (c && E.hasEcho('phylactery') && !r.phylacteryUsed) {
+        r.phylacteryUsed = true;
+        r.hp = Math.max(1, Math.round(r.maxHp * 0.30));
+        ['vuln', 'weak', 'burn'].forEach(function (s) { if (p.statuses[s]) delete p.statuses[s]; });
+        emit('revive', { hpAfter: r.hp });
+      } else {
+        playerDied();
+      }
+    }
     return hpDmg;
   }
 
@@ -704,6 +767,11 @@
 
   function aliveEnemies() { return E.combat.enemies.filter(function (e) { return e.alive; }); }
   E.aliveEnemies = aliveEnemies;
+
+  function handHasCurse() {
+    var c = E.combat;
+    return !!(c && c.hand.some(function (cd) { return ns.CARDS[cd.id].type === 'curse'; }));
+  }
 
   function checkWin() {
     var c = E.combat;
@@ -859,6 +927,8 @@
     var ctx = { tgt: tgt, crit: crit, roll: roll, flags: flags, xval: xval, appliedBurn: false };
     var times = 1;
     if (def.type === 'attack' && c.echoReady) { c.echoReady = false; times = 2; }
+    // Doubled Self: on turn 1, every card you play resolves twice
+    if (c.turn === 1 && E.hasEcho('doubled_self')) times = Math.max(times, 2);
     var totalDealt = 0;
     for (var rep = 0; rep < times; rep++) {
       if (c.over) break;
@@ -886,6 +956,7 @@
     else c.discard.push(card);
 
     c.cardsThisTurn++;
+    if (E.hasEcho('momentum_engine')) c.momentum = (c.momentum || 0) + 1; // each card buffs the next
     emit('cardPlayed', { id: card.id, crit: crit, roll: roll });
     checkWin();
     return true;
@@ -949,6 +1020,7 @@
         if (en.hp <= 0) {
           en.alive = false; r.kills++;
           emit('die', { idx: idx });
+          echoKill(idx);
           return;
         }
       }
@@ -1068,17 +1140,26 @@
     if (hb > 0) heal(hb);
     var rareBoost = (kind === 'elite' || kind === 'boss') ? B.rewards.eliteRareChance : 0;
     var cards = [], seen = {};
-    for (var i = 0; i < B.rewards.cardChoices; i++) {
-      var cid = rollRewardCard(rareBoost), guard = 0;
-      while (seen[cid] && guard++ < 20) cid = rollRewardCard(rareBoost);
-      seen[cid] = true;
-      cards.push(cid);
+    // Salvage Doctrine forgoes card rewards (the deck grows from kills instead)
+    if (!E.hasEcho('salvage_doctrine')) {
+      for (var i = 0; i < B.rewards.cardChoices; i++) {
+        var cid = rollRewardCard(rareBoost), guard = 0;
+        while (seen[cid] && guard++ < 20) cid = rollRewardCard(rareBoost);
+        seen[cid] = true;
+        cards.push(cid);
+      }
     }
     var artifactDrop = (kind === 'elite') ? randomArtifact(1) : null;
     if (artifactDrop) addArtifact(artifactDrop);
+    // The Unmaker's Tithe: an extra relic from every elite & boss
+    var bonusArtifact = null;
+    if (E.hasEcho('unmaker_tithe') && (kind === 'elite' || kind === 'boss')) {
+      bonusArtifact = randomArtifact(1);
+      if (bonusArtifact) addArtifact(bonusArtifact);
+    }
     var dropP = (kind === 'boss') ? B.potions.bossDropChance : B.potions.dropChance;
     var potionDrop = (rnd() < dropP) ? rollPotion() : null;
-    r.reward = { credits: credits, cards: cards, artifact: artifactDrop, potion: potionDrop, potionTaken: false, cardTaken: false, kind: kind };
+    r.reward = { credits: credits, cards: cards, artifact: artifactDrop, bonusArtifact: bonusArtifact, potion: potionDrop, potionTaken: false, cardTaken: false, kind: kind };
     r.phase = 'reward';
     emit('win', { kind: kind, credits: credits });
     E.save();
@@ -1203,17 +1284,99 @@
     return true;
   };
 
-  /* ---------------- Victory (finale) ------------------------------------- */
-  // Keep descending after the win: take the augment draft like any boss clear.
-  E.continueDescent = function () {
+  /* ---------------- Victory & the Recurrence (NG+ loop) ------------------ */
+  // Enter the next loop: bump the loop counter, then run the narrative ->
+  // echo-draft -> loadout flow before a fresh (reset) descent begins.
+  E.enterRecurrence = function () {
     var r = E.run;
     E.combat = null;
-    r.nodesCleared++;
-    r.phase = 'levelup';
+    r.loop = (r.loop || 1) + 1;
+    r.echoOffer = null;
+    r.phase = 'recurrence-intro';
     E.save();
   };
 
-  // End the run on a high: record it and clear the save.
+  // From the narrative screen: offer a new Echo (or straight to loadout if
+  // every Echo is already collected).
+  E.recurrenceContinue = function () {
+    var off = E.echoOffer();
+    if (off.length) E.run.phase = 'echo-draft';
+    else { prepLoadout(); E.run.phase = 'echo-loadout'; }
+    E.save();
+  };
+
+  // 3 not-yet-owned Echoes to choose from (stable across re-renders).
+  E.echoOffer = function () {
+    var r = E.run;
+    if (r.echoOffer) return r.echoOffer;
+    var pool = Object.keys(ns.ECHOES).filter(function (id) { return r.echoes.indexOf(id) < 0; });
+    shuffle(pool);
+    r.echoOffer = pool.slice(0, Math.min(3, pool.length));
+    return r.echoOffer;
+  };
+
+  E.chooseEcho = function (id) {
+    var r = E.run;
+    if (ns.ECHOES[id] && r.echoes.indexOf(id) < 0) r.echoes.push(id);
+    r.echoOffer = null;
+    prepLoadout();
+    r.phase = 'echo-loadout';
+    E.save();
+  };
+
+  // Default the loadout: keep the previous valid picks, else auto-fill.
+  function prepLoadout() {
+    var r = E.run, slots = B.echoes.loadoutSlots, owned = r.echoes.slice();
+    if (owned.length <= slots) r.loadout = owned.slice();
+    else {
+      var keep = (r.loadout || []).filter(function (id) { return owned.indexOf(id) >= 0; });
+      while (keep.length < slots) { var nx = owned.find(function (id) { return keep.indexOf(id) < 0; }); if (!nx) break; keep.push(nx); }
+      r.loadout = keep.slice(0, slots);
+    }
+  }
+  E.prepLoadout = prepLoadout;
+  E.echoLoadout = function () { return (E.run.loadout || []).slice(); };
+  E.echoLoadoutFull = function () { return (E.run.loadout || []).length >= B.echoes.loadoutSlots; };
+
+  // Toggle an owned Echo in/out of the equipped loadout (respecting the cap).
+  E.echoToggle = function (id) {
+    var r = E.run, L = r.loadout || (r.loadout = []);
+    var i = L.indexOf(id);
+    if (i >= 0) { L.splice(i, 1); E.save(); return true; }
+    if (r.echoes.indexOf(id) < 0 || L.length >= B.echoes.loadoutSlots) return false;
+    L.push(id); E.save(); return true;
+  };
+
+  // Commit the loadout and start the fresh (reset) loop.
+  E.beginLoop = function () { resetForLoop(E.run); E.save(); };
+
+  // Full reset for a new loop: keep class, loop count, Echoes, loadout, and the
+  // cumulative kills/nodes/records ("powers have faded; surroundings stronger").
+  function resetForLoop(r) {
+    var clsId = r.cls, c = B.classes[clsId];
+    r.hp = c.hp; r.maxHp = c.hp;
+    r.attrs = { might: c.might, tech: c.tech, psi: c.psi };
+    if (E.hasEcho('ascendant_core')) r.attrs[CLASS_STAT[clsId]] += 2; // legacy stat
+    r.credits = B.player.startCredits;
+    r.deck = ns.STARTER_DECKS[clsId].map(function (id) { return mkCard(id, false); });
+    r.artifacts = [];
+    r.sector = 1;
+    r.faction = pick(Object.keys(ns.FACTIONS));
+    r.map = generateMap(1);
+    r.mapRow = -1; r.mapCol = 0;
+    r.usedEvents = [];
+    r.removeCost = B.shop.removeCost;
+    r.quests = {}; r.questDone = {};
+    r.augments = []; r.augmentDeckop = null; r.augmentOffer = null;
+    r.potions = [];
+    r.phylacteryUsed = false; r.salvageKills = 0;
+    r.reward = null; r.shop = null; r.bossArtifacts = null; r.treasure = null;
+    r.pendingPick = null; r.pendingAddCard = null; r.echoOffer = null;
+    r.phase = 'sector-intro';
+    E.combat = null;
+  }
+
+  // End the run a victor: record it and clear the save.
   E.claimVictory = function () {
     E.recordBest();
     E.clearSave();
@@ -1531,7 +1694,7 @@
       var sc = E.score();
       var wonBefore = !!best.won;
       if (!best.score || sc > best.score || (E.run.won && !wonBefore)) {
-        best = { score: Math.max(sc, best.score || 0), sector: E.run.sector, cls: E.run.cls, won: wonBefore || !!E.run.won };
+        best = { score: Math.max(sc, best.score || 0), sector: E.run.sector, loop: E.run.loop || 1, cls: E.run.cls, won: wonBefore || !!E.run.won };
         s.setItem('voidspire_best', JSON.stringify(best));
       }
     } catch (e) {}

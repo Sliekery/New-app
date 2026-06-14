@@ -39,8 +39,15 @@ Runs are auto-saved at every node — close the tab and continue later.
   your score is how deep you go.
 - **A win condition** — the boss of the finale sector (`BALANCE.run.finale`,
   default 4) is **THE UNMAKER**, a faction-less cosmic entity. Beat it to win
-  the run; you then choose to **claim victory** (run ends, recorded) or
-  **continue the descent** into the endless dark.
+  the run, then **claim victory** (run ends, recorded) or enter **the
+  Recurrence**.
+- **The Recurrence (NG+ loop)** — choosing to go on warps you into a fresh
+  descent of the *same* spire: your powers fade (deck, relics, augments and
+  stats reset to baseline), the world grows `loopPower`-stronger each loop, and
+  you carry one permanent **Void Echo** (`js/echoes.js`) into every future loop.
+  Echoes are sideways-by-design (glass-cannon, combo, execute-chain, pacts…);
+  you collect one per loop and **equip up to `BALANCE.echoes.loadoutSlots`** in
+  a loadout, so deep loops are a build puzzle, not a power treadmill.
 - **Potions & consumables** — a 3-slot belt of one-shot items used in combat
   (damage, Shield, Energy, draw, heal, buffs/debuffs). They drop from fights,
   appear in shops, and the belt is shown beside your hand. ~13 potions across
@@ -83,6 +90,7 @@ Content is data-driven too:
 | `js/artifacts.js` | Relics: one hook key + value each. |
 | `js/enemies.js` | Enemy stats, AI move patterns, encounter packs, the finale boss (THE UNMAKER), and vector art (polyline coordinates in a −1..1 box). |
 | `js/potions.js` | Consumables: name, rarity, colour, target flag, and an effect list (same `fx` style as cards). |
+| `js/echoes.js` | Void Echoes (Recurrence/NG+ relics): simple ones carry `hook`/`hooks` (fold into `art()` while equipped); rule-benders are checked by `E.hasEcho(id)`. |
 | `js/events.js` | Decision events with skill checks and outcome effects. |
 
 ### Validate your tweaks headlessly
@@ -137,7 +145,7 @@ const fs = require('fs');
 let html = fs.readFileSync('index.html', 'utf8');
 html = html.replace(/<link rel=\"stylesheet\"[^>]*>/, '<style>\n' + fs.readFileSync('css/style.css', 'utf8') + '\n</style>');
 let js = '';
-for (const s of ['balance','cards','artifacts','augments','potions','enemies','events','engine','render','ui','main']) js += '\n' + fs.readFileSync('js/' + s + '.js', 'utf8');
+for (const s of ['balance','cards','artifacts','augments','potions','echoes','enemies','events','engine','render','ui','main']) js += '\n' + fs.readFileSync('js/' + s + '.js', 'utf8');
 html = html.replace(/(\s*<script src=[^>]*><\/script>)+/, '\n<script>\n' + js.replace(/<\/script>/g, '<\\\\/script>') + '\n</script>\n');
 fs.writeFileSync('voidspire.html', html);
 "

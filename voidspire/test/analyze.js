@@ -45,7 +45,7 @@ for (var ci = 0; ci < CLASSES.length; ci++) {
     var run;
     try { run = sim.playOneRun(cls, ((ci * 1000003 + i) * 2654435761) >>> 0); }
     catch (e) { if (e.message.indexOf('combat loop') >= 0) { run = sim.E.run; } else throw e; }
-    var sector = run.sector;
+    var sector = (run._depth != null) ? run._depth : ((run.loop - 1) * VS.BALANCE.run.finale + run.sector);
     var ids = deckIds(run);
     var uids = uniq(ids);
     perClass[cls].push({ sector: sector, dead: run.phase === 'dead', ids: uids });

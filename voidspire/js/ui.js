@@ -200,6 +200,9 @@
       case 'boss-artifact': return showBossArtifact();
       case 'sector-intro': return showSectorIntro();
       case 'victory': return showVictory();
+      case 'recurrence-intro': return showRecurrenceIntro();
+      case 'echo-draft': return showEchoDraft();
+      case 'echo-loadout': return showEchoLoadout();
       case 'dead': return showGameOver();
       default: return showTitle();
     }
@@ -254,7 +257,7 @@
       '<span class="attr">MGT <b>' + E.attr('might') + '</b></span>' +
       '<span class="attr">TEC <b>' + E.attr('tech') + '</b></span>' +
       '<span class="attr">PSI <b>' + E.attr('psi') + '</b></span>' +
-      '<span class="attr" style="color:' + fac.color + '">S' + r.sector + ' ▴' + Math.max(0, r.mapRow + 1) + '/' + (B.map.rows + 1) + '</span>' +
+      '<span class="attr" style="color:' + fac.color + '">' + (r.loop > 1 ? 'L' + r.loop + '·' : '') + 'S' + r.sector + ' ▴' + Math.max(0, r.mapRow + 1) + '/' + (B.map.rows + 1) + '</span>' +
       '<span class="spacer"></span>' +
       '<button class="icon-btn" data-act="deck">DECK ' + r.deck.length + '</button>' +
       '<button class="icon-btn" data-act="menu">≡</button>' +
@@ -341,7 +344,8 @@
     var best = E.getBest();
     var foot = 'TAP A CLASS TO DEPLOY · SWIPE CARDS UP TO PLAY THEM';
     if (best) {
-      var bestLine = (best.won ? '★ THE UNMAKER SLAIN · ' : '') + 'BEST: SECTOR ' + best.sector + ' · SCORE ' + best.score;
+      var bestWhere = best.loop > 1 ? 'LOOP ' + best.loop : 'SECTOR ' + best.sector;
+      var bestLine = (best.won ? '★ THE UNMAKER SLAIN · ' : '') + 'BEST: ' + bestWhere + ' · SCORE ' + best.score;
       foot = bestLine + '<br><br>' + foot;
     }
     s.appendChild(el('div', 'footer-note', foot));
@@ -993,6 +997,27 @@
             })(e, 0);
           }
           break;
+        case 'revive':
+          (function (e, d) {
+            setTimeout(function () {
+              R.flash();
+              R.setPlayerView(e.hpAfter, null);
+              floater(pp.x, pp.y - 50, '✦ PHYLACTERY ✦', 'crit');
+              SFX.win();
+              updateHUD();
+            }, d);
+          })(e, delay);
+          delay += 260;
+          break;
+        case 'salvage':
+          (function (e, d) {
+            setTimeout(function () {
+              toast('SALVAGED: ' + ns.CARDS[e.id].name.toUpperCase() + ' GRAFTED INTO YOUR DECK', 2000);
+              floater(pp.x + 30, pp.y - 40, '+ ' + ns.CARDS[e.id].name, 'status');
+            }, d);
+          })(e, delay);
+          delay += 80;
+          break;
         case 'win':
           (function (d) { setTimeout(function () { R.flash(); }, d); })(delay);
           delay += 250;
@@ -1011,11 +1036,13 @@
     s.appendChild(el('h2', 'screen-title', rw.kind === 'boss' ? 'Sector Boss Eliminated' : rw.kind === 'elite' ? 'Elite Eliminated' : 'Hostiles Eliminated'));
     var subParts = ['+' + rw.credits + ' CREDITS'];
     if (rw.artifact) subParts.push('RELIC: ' + ns.ARTIFACTS[rw.artifact].name.toUpperCase());
+    if (rw.bonusArtifact) subParts.push('TITHE: ' + ns.ARTIFACTS[rw.bonusArtifact].name.toUpperCase());
     s.appendChild(el('div', 'screen-sub', subParts.join(' · ')));
-    if (rw.artifact) {
-      var a = ns.ARTIFACTS[rw.artifact];
+    [rw.artifact, rw.bonusArtifact].forEach(function (aid) {
+      if (!aid) return;
+      var a = ns.ARTIFACTS[aid];
       s.appendChild(el('div', 'gain-list', '<div><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + ' — ' + esc(a.desc) + '</div>'));
-    }
+    });
 
     if (rw.potion && !rw.potionTaken) {
       var pot = ns.POTIONS[rw.potion];
@@ -1033,7 +1060,13 @@
       s.appendChild(el('div', 'gain-list', '<div>◇ Stowed: ' + esc(ns.POTIONS[rw.potion].name) + '</div>'));
     }
 
-    if (!rw.cardTaken) {
+    if (!rw.cards || rw.cards.length === 0) {
+      // Salvage Doctrine forgoes card rewards
+      if (E.hasEcho('salvage_doctrine')) s.appendChild(el('div', 'screen-sub', 'SALVAGE DOCTRINE · NO CARD REWARD'));
+      var cbtn = el('button', 'btn', 'CONTINUE');
+      cbtn.addEventListener('pointerdown', function () { SFX.tap(); E.finishReward(); U.refresh(); });
+      s.appendChild(cbtn);
+    } else if (!rw.cardTaken) {
       s.appendChild(el('div', 'screen-sub', 'TAP A CARD TO PREVIEW · CONFIRM TO TAKE'));
       var grid = el('div', 'card-grid');
       var cbar = makeConfirmBar();
@@ -1554,24 +1587,25 @@
     R.flash();
     var s = overlayScreen();
     s.appendChild(el('div', 'sector-banner victory-banner', 'THE UNMAKER FALLS'));
-    s.appendChild(el('div', 'screen-sub', 'THE DESCENT IS CONQUERED · SECTOR ' + r.sector));
+    var loopTxt = r.loop > 1 ? 'LOOP ' + r.loop + ' CONQUERED' : 'THE DESCENT IS CONQUERED';
+    s.appendChild(el('div', 'screen-sub', loopTxt));
     s.appendChild(el('div', 'big-score', E.score() + ' PTS'));
     var lines = [
-      'SECTORS CLEARED: ' + r.sector,
+      'LOOP: ' + r.loop,
       'NODES CLEARED: ' + r.nodesCleared,
       'KILLS: ' + r.kills,
-      'RELICS: ' + r.artifacts.length,
+      'ECHOES HELD: ' + (r.echoes ? r.echoes.length : 0),
     ];
     var gl = el('div', 'gain-list');
     lines.forEach(function (l) { gl.appendChild(el('div', '', esc(l))); });
     s.appendChild(gl);
 
     var cont = el('div', 'panel-btn cyan',
-      '<div class="pb-title">▼ CONTINUE THE DESCENT</div>' +
-      '<div class="pb-desc">Keep going into the endless dark. Take an augment and press on; the enemy only grows stronger.</div>');
+      '<div class="pb-title">↻ ENTER THE RECURRENCE</div>' +
+      '<div class="pb-desc">Begin again. Your powers fade and the void grows stronger — but you carry an Echo of yourself into the next loop.</div>');
     cont.addEventListener('pointerdown', function () {
       SFX.play();
-      E.continueDescent();
+      E.enterRecurrence();
       U.refresh();
     });
     s.appendChild(cont);
@@ -1587,22 +1621,121 @@
     s.appendChild(claim);
   }
 
+  /* ====================== THE RECURRENCE (NG+ loop) ====================== */
+  // Vector glyph for an Echo: the void seraph's halo + eye, tinted.
+  var ECHO_ICON = {
+    p: [
+      [0, -0.62, 0.42, -0.04, 0, 0.5, -0.42, -0.04, 0, -0.62],
+      [-0.16, -0.04, 0, 0.1, 0.16, -0.04, 0, -0.2, -0.16, -0.04],
+    ],
+  };
+  function echoSVG(cls) { return artSVG(ECHO_ICON, cls, '#b8ecff'); }
+
+  function showRecurrenceIntro() {
+    combatChrome(false);
+    $hud.innerHTML = '';
+    var slides = [
+      'Space warps around you like a void. Your mind goes blank…',
+      'You find yourself in a familiar setting, an urge to continue… Haven’t you been here before?',
+      'Powers you once had have faded — yet your surroundings seem… stronger.',
+    ];
+    var idx = 0;
+    function render() {
+      var s = overlayScreen();
+      s.classList.add('recurrence-screen');
+      s.appendChild(el('div', 'recurrence-loop', 'LOOP ' + E.run.loop));
+      var p = el('div', 'event-text recurrence-text', '');
+      s.appendChild(p);
+      var finish = typeText(p, slides[idx], null);
+      var btn = el('button', 'btn', idx < slides.length - 1 ? 'CONTINUE' : 'REACH INTO THE VOID');
+      btn.addEventListener('pointerdown', function () {
+        if (typing()) { finish(); return; }
+        SFX.tap();
+        idx++;
+        if (idx < slides.length) render();
+        else { E.recurrenceContinue(); U.refresh(); }
+      });
+      s.appendChild(btn);
+      // tapping anywhere also completes the current line
+      s.addEventListener('pointerdown', function (e2) {
+        if (typing()) { finish(); e2.stopPropagation(); }
+      }, true);
+    }
+    render();
+  }
+
+  function showEchoDraft() {
+    $hud.innerHTML = '';
+    var s = overlayScreen(true);
+    s.appendChild(el('h2', 'screen-title victory-banner', 'A Void Echo'));
+    s.appendChild(el('div', 'screen-sub', 'CLAIM ONE FRAGMENT OF A PAST SELF · IT IS YOURS FOREVER'));
+    var cbar = makeConfirmBar();
+    E.echoOffer().forEach(function (id) {
+      var ec = ns.ECHOES[id];
+      var btn = el('div', 'panel-btn echo-card',
+        '<div class="pb-title"><span class="pb-icon echo-ic">' + echoSVG() + '</span>' + esc(ec.name) +
+        ' <span class="aug-tag">' + esc(ec.tag) + '</span></div>' +
+        '<div class="pb-desc">' + esc(ec.desc) + '</div>' +
+        '<div class="pb-sub echo-flavor">' + esc(ec.flavor) + '</div>');
+      s.appendChild(btn);
+      selectConfirm(s, btn, cbar, 'Claim <b>' + esc(ec.name) + '</b>?<span class="cb-note">' + esc(ec.desc) + '</span>',
+        function () { SFX.win(); E.chooseEcho(id); U.refresh(); }, 'cyan');
+    });
+    s.appendChild(cbar.el);
+  }
+
+  function showEchoLoadout() {
+    $hud.innerHTML = '';
+    var r = E.run, slots = B.echoes.loadoutSlots;
+    var s = overlayScreen(true);
+    s.appendChild(el('h2', 'screen-title', 'Attune Your Echoes'));
+
+    function render() {
+      // rebuild list region in place
+      var old = s.querySelector('.echo-list'); if (old) old.remove();
+      var oldsub = s.querySelector('.echo-sub'); if (oldsub) oldsub.remove();
+      var oldbtn = s.querySelector('.echo-begin'); if (oldbtn) oldbtn.remove();
+      var equipped = E.echoLoadout();
+      s.appendChild(el('div', 'screen-sub echo-sub', 'EQUIP UP TO ' + slots + ' · ' + equipped.length + '/' + slots + ' ATTUNED'));
+      var list = el('div', 'echo-list');
+      r.echoes.forEach(function (id) {
+        var ec = ns.ECHOES[id];
+        var on = equipped.indexOf(id) >= 0;
+        var full = !on && equipped.length >= slots;
+        var card = el('div', 'panel-btn echo-card' + (on ? ' equipped' : '') + (full ? ' disabled' : ''),
+          '<div class="pb-title"><span class="pb-icon echo-ic">' + echoSVG() + '</span>' + esc(ec.name) +
+          ' <span class="aug-tag">' + esc(ec.tag) + '</span>' + (on ? ' <span class="echo-on">ATTUNED</span>' : '') + '</div>' +
+          '<div class="pb-desc">' + esc(ec.desc) + '</div>');
+        card.addEventListener('pointerdown', function () {
+          if (full) { toast('LOADOUT FULL — UNEQUIP ONE FIRST'); return; }
+          SFX.tap(); E.echoToggle(id); render();
+        });
+        list.appendChild(card);
+      });
+      s.appendChild(list);
+      var begin = el('button', 'btn echo-begin', 'BEGIN THE LOOP');
+      begin.addEventListener('pointerdown', function () { SFX.play(); E.beginLoop(); U.refresh(); });
+      s.appendChild(begin);
+    }
+    render();
+  }
+
   /* ====================== GAME OVER ====================== */
   function showGameOver() {
     combatChrome(false);
     var r = E.run;
     var s = overlayScreen();
     s.appendChild(el('h2', 'screen-title', 'Signal Lost'));
-    s.appendChild(el('div', 'screen-sub', 'YOUR DESCENT ENDS IN SECTOR ' + r.sector));
+    s.appendChild(el('div', 'screen-sub', r.loop > 1 ? 'THE LOOP CLAIMS YOU IN LOOP ' + r.loop + ' · SECTOR ' + r.sector : 'YOUR DESCENT ENDS IN SECTOR ' + r.sector));
     s.appendChild(el('div', 'big-score', E.score() + ' PTS'));
     var best = E.getBest();
     var lines = [
-      'SECTOR REACHED: ' + r.sector,
+      (r.loop > 1 ? 'LOOP REACHED: ' + r.loop + ' · SECTOR ' + r.sector : 'SECTOR REACHED: ' + r.sector),
       'NODES CLEARED: ' + r.nodesCleared,
       'KILLS: ' + r.kills,
-      'RELICS: ' + r.artifacts.length,
+      'ECHOES HELD: ' + (r.echoes ? r.echoes.length : 0),
     ];
-    if (best) lines.push('', 'BEST: ' + best.score + ' PTS (SECTOR ' + best.sector + ')');
+    if (best) lines.push('', 'BEST: ' + best.score + ' PTS' + (best.loop > 1 ? ' (LOOP ' + best.loop + ')' : ' (SECTOR ' + best.sector + ')'));
     var gl = el('div', 'gain-list');
     lines.forEach(function (l) { gl.appendChild(el('div', '', esc(l))); });
     s.appendChild(gl);

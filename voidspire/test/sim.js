@@ -12,6 +12,7 @@ require('../js/cards.js');
 require('../js/artifacts.js');
  require('../js/augments.js');
 require('../js/potions.js');
+require('../js/echoes.js');
 require('../js/enemies.js');
 require('../js/events.js');
 require('../js/engine.js');
@@ -21,6 +22,7 @@ var E = VS.engine;
 
 var RUNS = parseInt(process.argv[2] || '60', 10);
 var MAX_SECTOR = 10; // stop "endless" runs here for stats
+var MAX_LOOP = 8;    // stop the Recurrence here for stats (bounds runtime)
 var rand = Math.random;
 
 /* ====================================================================
@@ -333,7 +335,15 @@ function step() {
       break;
     }
     case 'sector-intro': E.beginSector(); break;
-    case 'victory': E.continueDescent(); break;   // beat the finale, keep descending
+    case 'victory': E.enterRecurrence(); break;          // beat the finale -> next loop
+    case 'recurrence-intro': E.recurrenceContinue(); break;
+    case 'echo-draft': {
+      // greedy: take the first offered Echo (the bot under-drafts, like augments)
+      var off = E.echoOffer();
+      E.chooseEcho(off[0]);
+      break;
+    }
+    case 'echo-loadout': E.beginLoop(); break;           // loadout auto-filled; descend
     default:
       throw new Error('unknown phase: ' + r.phase);
   }
@@ -356,12 +366,14 @@ function playOneRun(cls, seed) {
   E.seed(seed >>> 0);
   E.newRun(cls);
   var steps = 0;
-  while (E.run.phase !== 'dead' && E.run.sector <= MAX_SECTOR && steps++ < 8000) {
+  while (E.run.phase !== 'dead' && E.run.sector <= MAX_SECTOR && (E.run.loop || 1) <= MAX_LOOP && steps++ < 8000) {
     step();
     sanity();
     E.events.length = 0; // drain
   }
   if (steps >= 8000) throw new Error('run loop guard tripped');
+  // cumulative depth: each cleared loop counts as `finale` sectors
+  E.run._depth = (E.run.loop - 1) * VS.BALANCE.run.finale + E.run.sector;
   return E.run;
 }
 
@@ -422,9 +434,11 @@ for (var run = 0; run < RUNS; run++) {
     else throw e;
   }
   var s = stats[cls];
-  s.sectors.push(E.run.sector);
+  // cumulative depth (== sector until you beat the Unmaker, then climbs by loop)
+  var depth = (E.run._depth != null) ? E.run._depth : ((E.run.loop - 1) * VS.BALANCE.run.finale + E.run.sector);
+  s.sectors.push(depth);
   if (E.run.phase === 'dead') {
-    var k = 'sector ' + E.run.sector + ' / ' + (E.run.nodeType || '?');
+    var k = 'depth ' + depth + ' / ' + (E.run.nodeType || '?');
     s.deaths[k] = (s.deaths[k] || 0) + 1;
   }
 }
@@ -440,7 +454,7 @@ classes.forEach(function (c) {
   var deaths = stats[c].deaths;
   Object.keys(deaths).sort().forEach(function (k) {
     console.log('   died at ' + k + ': ' + deaths[k]);
-    var m = k.match(/sector (\d+) \/ (\w+)/);
+    var m = k.match(/depth (\d+) \/ (\w+)/);
     if (m) {
       if (m[1] === '1') s1Deaths += deaths[k];
       nodeDeaths[m[2]] = (nodeDeaths[m[2]] || 0) + deaths[k];
