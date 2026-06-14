@@ -66,6 +66,7 @@
       pendingPick: null, pendingAddCard: null,
       quests: {}, questDone: {},
       augments: [], augmentDeckop: null, augmentOffer: null,
+      potions: [], won: false,
     };
     E.combat = null;
     E.run.map = generateMap(1);
@@ -422,9 +423,10 @@
 
   function startCombat(kind) {
     var r = E.run;
-    var ids;
+    var ids, isFinal = false;
     if (kind === 'boss') {
-      ids = [ns.BOSSES[r.faction]];
+      if (r.sector === B.run.finale) { ids = [ns.FINAL_BOSS]; isFinal = true; }
+      else ids = [ns.BOSSES[r.faction]];
     } else if (kind === 'elite') {
       ids = [ns.ELITES[r.faction]];
       if (r.sector >= 3 && rnd() < B.sector.eliteChance2Enemies) ids.push(ns.ELITE_MINIONS[r.faction]);
@@ -448,6 +450,7 @@
       cardsThisTurn: 0,
       reactiveUsed: false,
       over: false,
+      isFinal: isFinal,
     };
     var ps = art('strStart');
     if (ps > 0) c.player.statuses.str = ps;
@@ -1047,6 +1050,17 @@
     // quest credit: combats won without ever gaining Shield / without losing HP
     if (!cc.playedShield) questProgress('noShieldWin', 1);
     if (r.hp >= cc.startHp) questProgress('flawlessWin', 1);
+
+    // The finale: beating THE UNMAKER wins the run.
+    if (cc.isFinal) {
+      r.won = true;
+      E.recordBest();
+      r.phase = 'victory';
+      emit('win', { kind: 'final', credits: 0 });
+      E.save();
+      return;
+    }
+
     var credits = creditRange(kind);
     r.credits += credits;
     questProgress('creditsAtOnce', r.credits);
@@ -1062,7 +1076,9 @@
     }
     var artifactDrop = (kind === 'elite') ? randomArtifact(1) : null;
     if (artifactDrop) addArtifact(artifactDrop);
-    r.reward = { credits: credits, cards: cards, artifact: artifactDrop, cardTaken: false, kind: kind };
+    var dropP = (kind === 'boss') ? B.potions.bossDropChance : B.potions.dropChance;
+    var potionDrop = (rnd() < dropP) ? rollPotion() : null;
+    r.reward = { credits: credits, cards: cards, artifact: artifactDrop, potion: potionDrop, potionTaken: false, cardTaken: false, kind: kind };
     r.phase = 'reward';
     emit('win', { kind: kind, credits: credits });
     E.save();
@@ -1083,6 +1099,126 @@
     r.reward = null;
     E.combat = null;
     nodeComplete();
+  };
+
+  /* ---------------- Potions & consumables -------------------------------- */
+  function rollPotion() {
+    var W = B.potions.rarityWeights, bag = [];
+    Object.keys(ns.POTIONS).forEach(function (id) {
+      var w = W[ns.POTIONS[id].rarity] || 1;
+      for (var i = 0; i < w; i++) bag.push(id);
+    });
+    return pick(bag);
+  }
+  E.rollPotion = rollPotion;
+
+  E.potionSlots = function () { return B.potions.slots; };
+  E.potionFull = function () { return (E.run.potions || []).length >= B.potions.slots; };
+
+  E.addPotion = function (pid) {
+    var r = E.run;
+    if (!r.potions) r.potions = [];
+    if (r.potions.length >= B.potions.slots) return false;
+    r.potions.push(pid);
+    E.save();
+    return true;
+  };
+
+  // Grab the potion offered on a reward screen (no-op if belt is full).
+  E.takeRewardPotion = function () {
+    var r = E.run;
+    if (!r.reward || !r.reward.potion || r.reward.potionTaken) return false;
+    if (!E.addPotion(r.reward.potion)) return false;
+    r.reward.potionTaken = true;
+    return true;
+  };
+
+  E.discardPotion = function (slot) {
+    var r = E.run;
+    if (!r.potions || slot < 0 || slot >= r.potions.length) return false;
+    r.potions.splice(slot, 1);
+    E.save();
+    return true;
+  };
+
+  // Does this potion need the player to pick a target? (only when >1 enemy left)
+  E.potionNeedsTarget = function (pid) {
+    var pot = ns.POTIONS[pid];
+    return !!(pot && pot.target) && E.combat && aliveEnemies().length > 1;
+  };
+
+  function applyPotion(pot, targetIdx) {
+    var c = E.combat, r = E.run, p = c.player;
+    var tgt = c.enemies[targetIdx];
+    if (!tgt || !tgt.alive) {
+      targetIdx = c.enemies.findIndex(function (e) { return e.alive; });
+      tgt = c.enemies[targetIdx];
+    }
+    pot.fx.forEach(function (f) {
+      if (c.over && f.k === 'dmg') return;
+      switch (f.k) {
+        case 'dmg':
+          if (f.all) c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, f.v, { noCrit: true }); });
+          else if (tgt && tgt.alive) dealToEnemy(tgt, targetIdx, f.v, { noCrit: true });
+          break;
+        case 'block': gainBlock(f.v); break;          // passive Shield (not a played card)
+        case 'energy': c.energy += f.v; break;
+        case 'draw': drawCards(f.v); break;
+        case 'heal': heal(f.v); break;
+        case 'healPct': heal(Math.round(r.maxHp * f.v)); break;
+        case 'status':
+          if (f.who === 'self') {
+            addStatus(p, f.s, f.v);
+            emit('status', { who: 'player', s: f.s, v: f.v });
+          } else if (f.who === 'allEnemies') {
+            var hit = 0;
+            c.enemies.forEach(function (e, i) {
+              if (e.alive) { addStatus(e, f.s, f.v); emit('status', { who: 'enemy', idx: i, s: f.s, v: f.v }); hit++; }
+            });
+            if (f.s === 'burn') trackBurn(f.v * hit);
+          } else {
+            var st = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            if (st) {
+              addStatus(st, f.s, f.v);
+              emit('status', { who: 'enemy', idx: c.enemies.indexOf(st), s: f.s, v: f.v });
+              if (f.s === 'burn') trackBurn(f.v);
+            }
+          }
+          break;
+      }
+    });
+  }
+
+  E.usePotion = function (slot, targetIdx) {
+    var c = E.combat, r = E.run;
+    if (!c || c.over) return false;
+    if (!r.potions || slot < 0 || slot >= r.potions.length) return false;
+    var pid = r.potions[slot];
+    var pot = ns.POTIONS[pid];
+    if (!pot) return false;
+    r.potions.splice(slot, 1);
+    applyPotion(pot, targetIdx);
+    emit('potion', { id: pid });
+    checkWin();
+    return true;
+  };
+
+  /* ---------------- Victory (finale) ------------------------------------- */
+  // Keep descending after the win: take the augment draft like any boss clear.
+  E.continueDescent = function () {
+    var r = E.run;
+    E.combat = null;
+    r.nodesCleared++;
+    r.phase = 'levelup';
+    E.save();
+  };
+
+  // End the run on a high: record it and clear the save.
+  E.claimVictory = function () {
+    E.recordBest();
+    E.clearSave();
+    E.run = null;
+    E.combat = null;
   };
 
   /* ---------------- Events ------------------------------------------------ */
@@ -1267,9 +1403,11 @@
       cards.push({ id: cid, cost: B.shop.cardCost[ns.CARDS[cid].rarity] || 35, sold: false });
     }
     var aid = randomArtifact(1);
+    var pid = (rnd() < B.potions.shopChance) ? rollPotion() : null;
     r.shop = {
       cards: cards,
       artifact: aid ? { id: aid, cost: B.shop.artifactCost, sold: false } : null,
+      potion: pid ? { id: pid, cost: B.potions.shopCost[ns.POTIONS[pid].rarity] || 40, sold: false } : null,
       healUsed: false,
       removeUsed: false,
     };
@@ -1288,6 +1426,15 @@
     if (!it || it.sold || r.credits < it.cost) return false;
     r.credits -= it.cost; it.sold = true;
     addArtifact(it.id);
+    E.save();
+    return true;
+  };
+  E.shopBuyPotion = function () {
+    var r = E.run, it = r.shop.potion;
+    if (!it || it.sold || r.credits < it.cost) return false;
+    if (E.potionFull()) return false;
+    r.credits -= it.cost; it.sold = true;
+    E.addPotion(it.id);
     E.save();
     return true;
   };
@@ -1382,8 +1529,9 @@
     try {
       var best = JSON.parse(s.getItem('voidspire_best') || '{}');
       var sc = E.score();
-      if (!best.score || sc > best.score) {
-        best = { score: sc, sector: E.run.sector, cls: E.run.cls };
+      var wonBefore = !!best.won;
+      if (!best.score || sc > best.score || (E.run.won && !wonBefore)) {
+        best = { score: Math.max(sc, best.score || 0), sector: E.run.sector, cls: E.run.cls, won: wonBefore || !!E.run.won };
         s.setItem('voidspire_best', JSON.stringify(best));
       }
     } catch (e) {}

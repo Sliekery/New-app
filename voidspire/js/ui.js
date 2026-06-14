@@ -11,11 +11,12 @@
   var R = ns.render;
   var B = ns.BALANCE;
 
-  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game;
+  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions;
   var selected = -1;        // selected hand index
   var targeting = false;
   var locked = false;       // input lock while timeline plays
   var toastTimer = null;
+  var pendingPotion = -1;   // slot index of a potion awaiting a target tap (-1 = none)
 
   /* ====================== tiny synth ====================== */
   var AC = null, muted = false;
@@ -149,6 +150,10 @@
     $hint.style.display = 'none';
     $game.appendChild($hint);
 
+    $potions = el('div', '', '');
+    $potions.id = 'potion-belt';
+    $game.appendChild($potions);
+
     document.getElementById('battlefield').addEventListener('pointerdown', onFieldTap);
     document.addEventListener('pointermove', onDragMove);
     document.addEventListener('pointerup', onDragEnd);
@@ -194,6 +199,7 @@
       case 'levelup': return showLevelUp();
       case 'boss-artifact': return showBossArtifact();
       case 'sector-intro': return showSectorIntro();
+      case 'victory': return showVictory();
       case 'dead': return showGameOver();
       default: return showTitle();
     }
@@ -223,7 +229,8 @@
     $controls.style.display = on ? 'flex' : 'none';
     $energy.style.display = on ? 'block' : 'none';
     $counts.style.display = on ? 'block' : 'none';
-    if (!on) $hint.style.display = 'none';
+    $potions.style.display = on ? 'flex' : 'none';
+    if (!on) { $hint.style.display = 'none'; closePotionMenu(); pendingPotion = -1; }
     R.combatVisible = on;
   }
 
@@ -333,7 +340,10 @@
 
     var best = E.getBest();
     var foot = 'TAP A CLASS TO DEPLOY · SWIPE CARDS UP TO PLAY THEM';
-    if (best) foot = 'BEST: SECTOR ' + best.sector + ' · SCORE ' + best.score + '<br><br>' + foot;
+    if (best) {
+      var bestLine = (best.won ? '★ THE UNMAKER SLAIN · ' : '') + 'BEST: SECTOR ' + best.sector + ' · SCORE ' + best.score;
+      foot = bestLine + '<br><br>' + foot;
+    }
     s.appendChild(el('div', 'footer-note', foot));
   }
 
@@ -518,6 +528,105 @@
     renderControls();
     updateEnergy();
     updateCounts();
+    updatePotions();
+  }
+
+  /* ---- potion belt ----------------------------------------------------- */
+  // Shared vial glyph, tinted per potion.
+  function potionSVG(pid, cls) {
+    var pot = ns.POTIONS[pid];
+    return artSVG(ns.POTION_ICON, cls, pot.color);
+  }
+
+  function updatePotions() {
+    var r = E.run;
+    $potions.innerHTML = '';
+    if (!E.combat) return;
+    var slots = E.potionSlots();
+    for (var i = 0; i < slots; i++) {
+      var pid = (r.potions || [])[i];
+      if (pid) {
+        var pot = ns.POTIONS[pid];
+        var chip = el('div', 'potion-chip' + (i === pendingPotion ? ' armed' : ''), potionSVG(pid, 'pot-icon'));
+        chip.setAttribute('data-slot', i);
+        chip.addEventListener('pointerdown', (function (slot) {
+          return function (ev) { ev.stopPropagation(); openPotionMenu(slot); };
+        })(i));
+        $potions.appendChild(chip);
+      } else {
+        $potions.appendChild(el('div', 'potion-chip empty', ''));
+      }
+    }
+  }
+
+  var $potionMenu = null;
+  function closePotionMenu() {
+    if ($potionMenu) { $potionMenu.remove(); $potionMenu = null; }
+  }
+
+  function openPotionMenu(slot) {
+    if (locked || !E.combat || E.combat.over) return;
+    var pid = (E.run.potions || [])[slot];
+    if (!pid) return;
+    closePotionMenu();
+    SFX.tap();
+    var pot = ns.POTIONS[pid];
+    var rarTag = pot.rarity === 3 ? 'RARE' : pot.rarity === 2 ? 'UNCOMMON' : 'COMMON';
+    var m = el('div', 'potion-menu');
+    m.innerHTML =
+      '<div class="pm-head"><span class="pm-ic">' + potionSVG(pid) + '</span>' +
+      '<span class="pm-name">' + esc(pot.name) + '</span></div>' +
+      '<div class="pm-tag">' + rarTag + '</div>' +
+      '<div class="pm-desc">' + esc(pot.desc) + '</div>' +
+      '<div class="pm-actions">' +
+      '<button class="btn small pm-use">USE</button>' +
+      '<button class="btn small red pm-discard">DISCARD</button>' +
+      '<button class="btn small dim pm-cancel">CANCEL</button></div>';
+    m.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); });
+    m.querySelector('.pm-use').addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation();
+      closePotionMenu();
+      if (E.potionNeedsTarget(pid)) {
+        pendingPotion = slot;
+        setTargeting(true);
+        toast('TAP A TARGET FOR ' + pot.name.toUpperCase());
+        updatePotions();
+      } else {
+        usePotionAt(slot, -1);
+      }
+    });
+    m.querySelector('.pm-discard').addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation();
+      closePotionMenu();
+      SFX.tap();
+      E.discardPotion(slot);
+      updatePotions();
+    });
+    m.querySelector('.pm-cancel').addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation(); SFX.tap(); closePotionMenu();
+    });
+    $game.appendChild(m);
+    $potionMenu = m;
+  }
+
+  function usePotionAt(slot, targetIdx) {
+    pendingPotion = -1;
+    setTargeting(false);
+    E.events.length = 0;
+    var ok = E.usePotion(slot, targetIdx);
+    if (!ok) { updatePotions(); return; }
+    SFX.play();
+    var evts = E.events.slice();
+    E.events.length = 0;
+    lock(true);
+    playTimeline(evts, 70, function () {
+      lock(false);
+      afterAction(false);
+    });
+    updatePotions();
+    updateEnergy();
+    updateCounts();
+    updateHUD();
   }
 
   function renderControls() {
@@ -695,6 +804,11 @@
     var rect = ev.currentTarget.getBoundingClientRect();
     var x = ev.clientX - rect.left, y = ev.clientY - rect.top;
     var idx = R.enemyAt(x, y);
+    if (pendingPotion >= 0) {
+      if (idx >= 0) { usePotionAt(pendingPotion, idx); }
+      else { pendingPotion = -1; setTargeting(false); updatePotions(); toast('POTION CANCELLED'); }
+      return;
+    }
     if (selected >= 0) {
       var si = selected;
       if (idx >= 0 && E.canPlay(si)) { selected = -1; playCardAt(si, idx); }
@@ -758,6 +872,7 @@
       updateEnergy();
       updateCounts();
       updateHUD();
+      updatePotions();
     } else {
       U.refresh();
     }
@@ -900,6 +1015,22 @@
     if (rw.artifact) {
       var a = ns.ARTIFACTS[rw.artifact];
       s.appendChild(el('div', 'gain-list', '<div><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + ' — ' + esc(a.desc) + '</div>'));
+    }
+
+    if (rw.potion && !rw.potionTaken) {
+      var pot = ns.POTIONS[rw.potion];
+      var full = E.potionFull();
+      var pb = el('div', 'panel-btn' + (full ? ' disabled' : ''),
+        '<div class="pb-title"><span class="pb-icon">' + potionSVG(rw.potion) + '</span>GRAB POTION: ' + esc(pot.name) + '</div>' +
+        '<div class="pb-desc">' + esc(pot.desc) + (full ? ' — BELT FULL' : '') + '</div>');
+      pb.addEventListener('pointerdown', function () {
+        if (E.potionFull()) { toast('POTION BELT FULL'); return; }
+        SFX.coin();
+        if (E.takeRewardPotion()) showReward();
+      });
+      s.appendChild(pb);
+    } else if (rw.potion && rw.potionTaken) {
+      s.appendChild(el('div', 'gain-list', '<div>◇ Stowed: ' + esc(ns.POTIONS[rw.potion].name) + '</div>'));
     }
 
     if (!rw.cardTaken) {
@@ -1227,6 +1358,23 @@
       }
     }
 
+    if (sh.potion) {
+      var pot = ns.POTIONS[sh.potion.id];
+      var pfull = E.potionFull();
+      var disabled = sh.potion.sold || pfull;
+      var note = sh.potion.sold ? '' : pfull ? ' — BELT FULL' : '';
+      var pb = el('div', 'panel-btn cyan' + (disabled ? ' disabled' : ''),
+        '<div class="pb-title"><span class="pb-icon">' + potionSVG(sh.potion.id) + '</span>' + esc(pot.name) + ' — ¢' + sh.potion.cost + '</div>' +
+        '<div class="pb-desc">' + esc(pot.desc) + note + '</div>');
+      s.appendChild(pb);
+      if (!disabled) {
+        selectConfirm(s, pb, cbar, 'Buy <b>' + esc(pot.name) + '</b> for ¢' + sh.potion.cost + '?',
+          function () { if (E.shopBuyPotion()) { SFX.coin(); showShop(); } else toast(E.potionFull() ? 'POTION BELT FULL' : 'NOT ENOUGH CREDITS'); }, 'cyan');
+      } else if (pfull && !sh.potion.sold) {
+        pb.addEventListener('pointerdown', function () { toast('POTION BELT FULL'); });
+      }
+    }
+
     var row = el('div', 'shop-row');
     var hb = el('button', 'btn cyan small' + (sh.healUsed || r.hp >= r.maxHp ? ' dim' : ''), 'REPAIR +' + B.shop.healAmount + ' HP · ¢' + B.shop.healCost);
     if (!sh.healUsed && r.hp < r.maxHp) {
@@ -1395,6 +1543,48 @@
     var btn = el('button', 'btn', 'DESCEND');
     btn.addEventListener('pointerdown', function () { SFX.play(); E.beginSector(); U.refresh(); });
     s.appendChild(btn);
+  }
+
+  /* ====================== VICTORY (finale) ====================== */
+  function showVictory() {
+    combatChrome(false);
+    updateHUD();
+    var r = E.run;
+    SFX.win();
+    R.flash();
+    var s = overlayScreen();
+    s.appendChild(el('div', 'sector-banner victory-banner', 'THE UNMAKER FALLS'));
+    s.appendChild(el('div', 'screen-sub', 'THE DESCENT IS CONQUERED · SECTOR ' + r.sector));
+    s.appendChild(el('div', 'big-score', E.score() + ' PTS'));
+    var lines = [
+      'SECTORS CLEARED: ' + r.sector,
+      'NODES CLEARED: ' + r.nodesCleared,
+      'KILLS: ' + r.kills,
+      'RELICS: ' + r.artifacts.length,
+    ];
+    var gl = el('div', 'gain-list');
+    lines.forEach(function (l) { gl.appendChild(el('div', '', esc(l))); });
+    s.appendChild(gl);
+
+    var cont = el('div', 'panel-btn cyan',
+      '<div class="pb-title">▼ CONTINUE THE DESCENT</div>' +
+      '<div class="pb-desc">Keep going into the endless dark. Take an augment and press on; the enemy only grows stronger.</div>');
+    cont.addEventListener('pointerdown', function () {
+      SFX.play();
+      E.continueDescent();
+      U.refresh();
+    });
+    s.appendChild(cont);
+
+    var claim = el('div', 'panel-btn',
+      '<div class="pb-title">★ CLAIM VICTORY</div>' +
+      '<div class="pb-desc">End the run a victor. Your score is recorded.</div>');
+    claim.addEventListener('pointerdown', function () {
+      SFX.coin();
+      E.claimVictory();
+      U.refresh();
+    });
+    s.appendChild(claim);
   }
 
   /* ====================== GAME OVER ====================== */

@@ -113,6 +113,22 @@
       perNode: 12,
       perKill: 4,
     },
+
+    /* ---- Run arc / win condition ---------------------------------------- */
+    run: {
+      finale: 4,   // the boss of this sector is THE UNMAKER (the win condition).
+                   // Beat it to win; you may then keep descending endlessly.
+    },
+
+    /* ---- Potions & consumables ------------------------------------------ */
+    potions: {
+      slots: 3,            // how many potions you can carry at once
+      dropChance: 0.40,    // chance a normal/elite fight also drops a potion
+      bossDropChance: 1.0, // a sector boss always offers a potion
+      shopChance: 0.7,     // chance a shop stocks a potion
+      shopCost: { 1: 35, 2: 55, 3: 85 },  // shop price by rarity
+      rarityWeights: { 1: 100, 2: 46, 3: 15 },
+    },
   };
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));

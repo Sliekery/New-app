@@ -170,6 +170,7 @@
   }
 
   function factionColor(def) {
+    if (def.color) return def.color;   // faction-less bosses (the finale) carry their own colour
     var f = ns.FACTIONS[def.faction];
     return f ? f.color : '#5dff88';
   }

@@ -37,6 +37,14 @@ Runs are auto-saved at every node — close the tab and continue later.
   shops, rest sites, an elite, then a boss) against one of three factions:
   the Hierarchy, the Rust Legion, the Voidspawn. Enemies scale forever;
   your score is how deep you go.
+- **A win condition** — the boss of the finale sector (`BALANCE.run.finale`,
+  default 4) is **THE UNMAKER**, a faction-less cosmic entity. Beat it to win
+  the run; you then choose to **claim victory** (run ends, recorded) or
+  **continue the descent** into the endless dark.
+- **Potions & consumables** — a 3-slot belt of one-shot items used in combat
+  (damage, Shield, Energy, draw, heal, buffs/debuffs). They drop from fights,
+  appear in shops, and the belt is shown beside your hand. ~13 potions across
+  three rarities; tap a slot to use (targeted potions ask you to tap an enemy).
 - **Progression** — card rewards & upgrades, ~20 passive artifacts,
   level-ups after every boss (+attribute or +max HP), credits, deck purges.
 - **Build archetypes** (Slay-the-Spire-inspired) — each class has a keyword
@@ -73,7 +81,8 @@ Content is data-driven too:
 | --- | --- |
 | `js/cards.js` | All cards: declarative effect lists + upgrade patches. Descriptions auto-generate from effects, so tweaks stay truthful. |
 | `js/artifacts.js` | Relics: one hook key + value each. |
-| `js/enemies.js` | Enemy stats, AI move patterns, encounter packs, and vector art (polyline coordinates in a −1..1 box). |
+| `js/enemies.js` | Enemy stats, AI move patterns, encounter packs, the finale boss (THE UNMAKER), and vector art (polyline coordinates in a −1..1 box). |
+| `js/potions.js` | Consumables: name, rarity, colour, target flag, and an effect list (same `fx` style as cards). |
 | `js/events.js` | Decision events with skill checks and outcome effects. |
 
 ### Validate your tweaks headlessly
@@ -128,7 +137,7 @@ const fs = require('fs');
 let html = fs.readFileSync('index.html', 'utf8');
 html = html.replace(/<link rel=\"stylesheet\"[^>]*>/, '<style>\n' + fs.readFileSync('css/style.css', 'utf8') + '\n</style>');
 let js = '';
-for (const s of ['balance','cards','artifacts','enemies','events','engine','render','ui','main']) js += '\n' + fs.readFileSync('js/' + s + '.js', 'utf8');
+for (const s of ['balance','cards','artifacts','augments','potions','enemies','events','engine','render','ui','main']) js += '\n' + fs.readFileSync('js/' + s + '.js', 'utf8');
 html = html.replace(/(\s*<script src=[^>]*><\/script>)+/, '\n<script>\n' + js.replace(/<\/script>/g, '<\\\\/script>') + '\n</script>\n');
 fs.writeFileSync('voidspire.html', html);
 "

@@ -594,11 +594,49 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 }
 @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 
+/* ========================= POTION BELT ========================= */
+#potion-belt {
+  position: absolute; right: 8px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 160px);
+  z-index: 25; display: none; flex-direction: column; gap: 6px;
+}
+.potion-chip {
+  width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(93,255,136,0.4); background: rgba(5, 20, 18, 0.85);
+  cursor: pointer;
+}
+.potion-chip.empty {
+  border-style: dashed; border-color: rgba(94,138,108,0.35); background: rgba(5,14,11,0.5);
+}
+.potion-chip.armed { border-color: var(--amber); box-shadow: var(--glow-a); animation: pulse 1s ease-in-out infinite; }
+.potion-chip .pot-icon { width: 26px; height: 26px; }
+.potion-chip .pot-icon svg, .potion-chip svg.vec { width: 100%; height: 100%; }
+
+.potion-menu {
+  position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%);
+  z-index: 70; width: 248px; max-width: 84vw; padding: 16px;
+  border: 1px solid var(--green-dim); background: rgba(6, 16, 13, 0.97);
+  clip-path: polygon(0 10px, 10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
+  box-shadow: 0 0 30px rgba(0,0,0,0.7), var(--glow-g);
+  animation: commOn 0.25s ease-out backwards;
+}
+.potion-menu .pm-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.potion-menu .pm-ic { width: 26px; height: 26px; flex-shrink: 0; }
+.potion-menu .pm-ic svg.vec { width: 100%; height: 100%; }
+.potion-menu .pm-name { font-size: 14px; color: var(--text); letter-spacing: 1px; }
+.potion-menu .pm-tag { font-size: 9px; letter-spacing: 2px; color: var(--text-dim); margin-bottom: 8px; }
+.potion-menu .pm-desc { font-size: 12px; color: var(--text); line-height: 1.4; margin-bottom: 14px; }
+.potion-menu .pm-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.potion-menu .pm-actions .btn { flex: 1 1 auto; }
+
+.victory-banner { color: var(--amber); text-shadow: 0 0 18px rgba(255,176,46,0.7); }
+
 @media (max-height: 640px) {
   #hand { height: 128px; }
   .card { height: 110px; }
   #combat-controls { bottom: calc(env(safe-area-inset-bottom, 0px) + 140px); }
   #energy-pip { bottom: calc(env(safe-area-inset-bottom, 0px) + 140px); }
+  #potion-belt { bottom: calc(env(safe-area-inset-bottom, 0px) + 140px); }
 }
 
 </style>
@@ -616,7 +654,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   <div id="crt"></div>
 <script>
 
-/* ===== js/balance.js ===== */
 /* =========================================================================
  * VOIDSPIRE — balance.js
  * Every tunable number in the game lives here. Tweak freely.
@@ -732,11 +769,26 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       perNode: 12,
       perKill: 4,
     },
+
+    /* ---- Run arc / win condition ---------------------------------------- */
+    run: {
+      finale: 4,   // the boss of this sector is THE UNMAKER (the win condition).
+                   // Beat it to win; you may then keep descending endlessly.
+    },
+
+    /* ---- Potions & consumables ------------------------------------------ */
+    potions: {
+      slots: 3,            // how many potions you can carry at once
+      dropChance: 0.40,    // chance a normal/elite fight also drops a potion
+      bossDropChance: 1.0, // a sector boss always offers a potion
+      shopChance: 0.7,     // chance a shop stocks a potion
+      shopCost: { 1: 35, 2: 55, 3: 85 },  // shop price by rarity
+      rarityWeights: { 1: 100, 2: 46, 3: 15 },
+    },
   };
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
-/* ===== js/cards.js ===== */
 /* =========================================================================
  * VOIDSPIRE — cards.js
  * Card definitions. Effects are declarative; descriptions auto-generate.
@@ -1170,7 +1222,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
-/* ===== js/artifacts.js ===== */
 /* =========================================================================
  * VOIDSPIRE — artifacts.js
  * Passive relics. Each has a single declarative hook the engine checks.
@@ -1293,7 +1344,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
-/* ===== js/augments.js ===== */
 /* =========================================================================
  * VOIDSPIRE — augments.js
  * "Augment Protocols": the level-up reward pool. After each boss you draft
@@ -1380,7 +1430,105 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
-/* ===== js/enemies.js ===== */
+/* =========================================================================
+ * VOIDSPIRE — potions.js
+ * One-shot consumables carried into combat. Tap a belt slot to use one;
+ * targeted potions ask you to tap an enemy.
+ *
+ * Each potion: { name, rarity (1-3), color, target?, desc, fx:[...] }
+ * fx kinds: dmg{v,all?} block{v} energy{v} draw{v} heal{v} healPct{v}
+ *           status{who:'self'|'enemy'|'allEnemies', s, v}
+ * `target:true` means it hits one enemy you pick (when more than one is alive).
+ * Icons are drawn from a single shared vial glyph, tinted by `color`.
+ * ========================================================================= */
+(function (ns) {
+  'use strict';
+
+  ns.POTIONS = {
+    /* ---------------- common ---------------- */
+    frag_charge: {
+      name: 'Frag Charge', rarity: 1, color: '#ff7a4a', target: true,
+      desc: 'Deal 12 damage to one enemy.',
+      fx: [{ k: 'dmg', v: 12 }],
+    },
+    cluster_charge: {
+      name: 'Cluster Charge', rarity: 1, color: '#ff9a3a',
+      desc: 'Deal 8 damage to ALL enemies.',
+      fx: [{ k: 'dmg', v: 8, all: true }],
+    },
+    shield_gel: {
+      name: 'Shield Gel', rarity: 1, color: '#41d8ff',
+      desc: 'Gain 14 Shield.',
+      fx: [{ k: 'block', v: 14 }],
+    },
+    stim_shot: {
+      name: 'Stim Shot', rarity: 1, color: '#5dff88',
+      desc: 'Draw 3 cards.',
+      fx: [{ k: 'draw', v: 3 }],
+    },
+    medkit: {
+      name: 'Medkit', rarity: 1, color: '#56ff9c',
+      desc: 'Heal 25% of your max HP.',
+      fx: [{ k: 'healPct', v: 0.25 }],
+    },
+    targeting_optics: {
+      name: 'Targeting Optics', rarity: 1, color: '#ffd23a', target: true,
+      desc: 'Apply 3 Vulnerable to one enemy.',
+      fx: [{ k: 'status', who: 'enemy', s: 'vuln', v: 3 }],
+    },
+
+    /* ---------------- uncommon ---------------- */
+    overcharge_cell: {
+      name: 'Overcharge Cell', rarity: 2, color: '#ffe14a',
+      desc: 'Gain 2 Energy this turn.',
+      fx: [{ k: 'energy', v: 2 }],
+    },
+    berserk_serum: {
+      name: 'Berserk Serum', rarity: 2, color: '#ff5e7a',
+      desc: 'Gain 2 Might for this combat.',
+      fx: [{ k: 'status', who: 'self', s: 'str', v: 2 }],
+    },
+    neural_jammer: {
+      name: 'Neural Jammer', rarity: 2, color: '#9a8bff',
+      desc: 'Apply 3 Weak to ALL enemies.',
+      fx: [{ k: 'status', who: 'allEnemies', s: 'weak', v: 3 }],
+    },
+    incendiary_vial: {
+      name: 'Incendiary Vial', rarity: 2, color: '#ff6a2a', target: true,
+      desc: 'Apply 6 Burn to one enemy.',
+      fx: [{ k: 'status', who: 'enemy', s: 'burn', v: 6 }],
+    },
+
+    /* ---------------- rare ---------------- */
+    adrenal_surge: {
+      name: 'Adrenal Surge', rarity: 3, color: '#ffce4a',
+      desc: 'Gain 1 Energy and draw 2 cards.',
+      fx: [{ k: 'energy', v: 1 }, { k: 'draw', v: 2 }],
+    },
+    nanite_surge: {
+      name: 'Nanite Surge', rarity: 3, color: '#56ffd2',
+      desc: 'Heal 20% max HP and gain 20 Shield.',
+      fx: [{ k: 'healPct', v: 0.20 }, { k: 'block', v: 20 }],
+    },
+    void_flask: {
+      name: 'Void Flask', rarity: 3, color: '#c86bff',
+      desc: 'Deal 10 damage and apply 3 Vulnerable to ALL enemies.',
+      fx: [{ k: 'dmg', v: 10, all: true }, { k: 'status', who: 'allEnemies', s: 'vuln', v: 3 }],
+    },
+  };
+
+  // Shared vial glyph (polyline format, -1..1 box) for belt slots & offers.
+  ns.POTION_ICON = {
+    p: [
+      [-0.28, -0.62, -0.14, -0.62],            // cork lip
+      [-0.2, -0.62, -0.2, -0.34, -0.5, 0.34, -0.42, 0.66, 0.42, 0.66, 0.5, 0.34, 0.2, -0.34, 0.2, -0.62],
+      [-0.36, 0.06, 0.36, 0.06],               // fluid line
+      [-0.2, -0.5, 0.2, -0.5],                 // neck band
+    ],
+  };
+
+})(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
+
 /* =========================================================================
  * VOIDSPIRE — enemies.js
  * Enemy stats, AI patterns, faction encounter packs, and vector art.
@@ -1568,7 +1716,40 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // gravemind: vast head, double rows of teeth, crown spikes, spore sac, tentacles
       art: { p: [[-0.85,-0.1, -0.55,-0.65, -0.15,-0.9, 0.3,-0.85, 0.7,-0.55, 0.9,-0.1, 0.7,0.4, 0.2,0.65, -0.4,0.6, -0.75,0.35, -0.85,-0.1], [-0.55,0.0, -0.4,0.18, -0.25,0.0, -0.1,0.18, 0.05,0.0, 0.2,0.18, 0.35,0.0, 0.5,0.18, 0.6,0.0], [-0.45,0.42, -0.3,0.28, -0.15,0.42, 0,0.28, 0.15,0.42, 0.3,0.28, 0.45,0.42], [-0.55,-0.65, -0.7,-0.95], [-0.15,-0.9, -0.2,-1.2], [0.3,-0.85, 0.45,-1.15], [-0.5,-0.4, -0.42,-0.32, -0.5,-0.24, -0.58,-0.32, -0.5,-0.4], [-0.85,-0.1, -1.12,-0.3, -1.2,-0.05], [-0.75,0.35, -1.05,0.55, -1.15,0.45], [0.9,-0.1, 1.15,-0.27, 1.2,0.0], [0.7,0.4, 1.0,0.6, 1.1,0.5], [-0.2,0.62, -0.3,0.92, -0.15,1.02], [0.25,0.62, 0.35,0.88, 0.5,0.93]], e: [[-0.35,-0.45],[0,-0.55],[0.35,-0.4],[-0.62,-0.15],[0.64,-0.2]] },
     },
+    /* ============ THE FINALE ============ */
+    // Faction-less cosmic entity that ends the descent. No PACK / no scaling
+    // faction; uses its own `color`. Spawned only as the boss of the finale
+    // sector (see BALANCE.run.finale).
+    unmaker: {
+      name: 'THE UNMAKER', color: '#b8ecff', hp: 124, size: 1.4, boss: true, final: true, ai: 'cycle',
+      moves: [
+        { t: 'attack', d: 14 },
+        { t: 'debuff', s: 'vuln', v: 2 },
+        { t: 'attack', d: 8, hits: 2 },
+        { t: 'buff', s: 'str', v: 3 },
+        { t: 'block', b: 18 },
+        { t: 'curse', card: 'void_taint' },
+        { t: 'attack', d: 10, hits: 2 },
+        { t: 'attack', d: 24 },
+      ],
+      // void seraph: haloed monolith body, spread wings of light, crown spikes,
+      // a chest singularity and a cluster of cold eyes.
+      art: { p: [
+        [0,-1.15, 0.22,-0.85, 0.3,-0.2, 0.5,0.5, 0.28,1.0, -0.28,1.0, -0.5,0.5, -0.3,-0.2, -0.22,-0.85, 0,-1.15],
+        [0,-1.5, 0.5,-1.05, 0,-0.6, -0.5,-1.05, 0,-1.5],
+        [0,-0.85, 0,0.92],
+        [-0.3,-0.2, -0.85,-0.55, -1.15,-0.32, -0.95,-0.02, -0.5,0.12],
+        [0.3,-0.2, 0.85,-0.55, 1.15,-0.32, 0.95,-0.02, 0.5,0.12],
+        [-0.46,0.4, -0.92,0.55, -1.06,0.86, -0.68,0.8],
+        [0.46,0.4, 0.92,0.55, 1.06,0.86, 0.68,0.8],
+        [0,-0.12, 0.18,0.12, 0,0.36, -0.18,0.12, 0,-0.12],
+        [-0.14,-0.92, -0.18,-1.24], [0.14,-0.92, 0.18,-1.24], [0,-1.15, 0,-1.42],
+        [-0.22,-0.56, 0.22,-0.56],
+      ], e: [[-0.1,-0.42],[0.1,-0.42],[0,0.12],[-0.16,0.7],[0.16,0.7]] },
+    },
   };
+
+  ns.FINAL_BOSS = 'unmaker';
 
   /* ---- Encounter packs per faction, ordered easy -> hard --------------- */
   ns.PACKS = {
@@ -1607,7 +1788,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
-/* ===== js/events.js ===== */
 /* =========================================================================
  * VOIDSPIRE — events.js
  * Short decision events. Choices may carry a d20 skill check:
@@ -1892,7 +2072,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
-/* ===== js/engine.js ===== */
 /* =========================================================================
  * VOIDSPIRE — engine.js
  * All game logic. No DOM access: state in, events out (ns.engine.events),
@@ -1961,6 +2140,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       pendingPick: null, pendingAddCard: null,
       quests: {}, questDone: {},
       augments: [], augmentDeckop: null, augmentOffer: null,
+      potions: [], won: false,
     };
     E.combat = null;
     E.run.map = generateMap(1);
@@ -2317,9 +2497,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   function startCombat(kind) {
     var r = E.run;
-    var ids;
+    var ids, isFinal = false;
     if (kind === 'boss') {
-      ids = [ns.BOSSES[r.faction]];
+      if (r.sector === B.run.finale) { ids = [ns.FINAL_BOSS]; isFinal = true; }
+      else ids = [ns.BOSSES[r.faction]];
     } else if (kind === 'elite') {
       ids = [ns.ELITES[r.faction]];
       if (r.sector >= 3 && rnd() < B.sector.eliteChance2Enemies) ids.push(ns.ELITE_MINIONS[r.faction]);
@@ -2343,6 +2524,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       cardsThisTurn: 0,
       reactiveUsed: false,
       over: false,
+      isFinal: isFinal,
     };
     var ps = art('strStart');
     if (ps > 0) c.player.statuses.str = ps;
@@ -2942,6 +3124,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // quest credit: combats won without ever gaining Shield / without losing HP
     if (!cc.playedShield) questProgress('noShieldWin', 1);
     if (r.hp >= cc.startHp) questProgress('flawlessWin', 1);
+
+    // The finale: beating THE UNMAKER wins the run.
+    if (cc.isFinal) {
+      r.won = true;
+      E.recordBest();
+      r.phase = 'victory';
+      emit('win', { kind: 'final', credits: 0 });
+      E.save();
+      return;
+    }
+
     var credits = creditRange(kind);
     r.credits += credits;
     questProgress('creditsAtOnce', r.credits);
@@ -2957,7 +3150,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
     var artifactDrop = (kind === 'elite') ? randomArtifact(1) : null;
     if (artifactDrop) addArtifact(artifactDrop);
-    r.reward = { credits: credits, cards: cards, artifact: artifactDrop, cardTaken: false, kind: kind };
+    var dropP = (kind === 'boss') ? B.potions.bossDropChance : B.potions.dropChance;
+    var potionDrop = (rnd() < dropP) ? rollPotion() : null;
+    r.reward = { credits: credits, cards: cards, artifact: artifactDrop, potion: potionDrop, potionTaken: false, cardTaken: false, kind: kind };
     r.phase = 'reward';
     emit('win', { kind: kind, credits: credits });
     E.save();
@@ -2978,6 +3173,126 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     r.reward = null;
     E.combat = null;
     nodeComplete();
+  };
+
+  /* ---------------- Potions & consumables -------------------------------- */
+  function rollPotion() {
+    var W = B.potions.rarityWeights, bag = [];
+    Object.keys(ns.POTIONS).forEach(function (id) {
+      var w = W[ns.POTIONS[id].rarity] || 1;
+      for (var i = 0; i < w; i++) bag.push(id);
+    });
+    return pick(bag);
+  }
+  E.rollPotion = rollPotion;
+
+  E.potionSlots = function () { return B.potions.slots; };
+  E.potionFull = function () { return (E.run.potions || []).length >= B.potions.slots; };
+
+  E.addPotion = function (pid) {
+    var r = E.run;
+    if (!r.potions) r.potions = [];
+    if (r.potions.length >= B.potions.slots) return false;
+    r.potions.push(pid);
+    E.save();
+    return true;
+  };
+
+  // Grab the potion offered on a reward screen (no-op if belt is full).
+  E.takeRewardPotion = function () {
+    var r = E.run;
+    if (!r.reward || !r.reward.potion || r.reward.potionTaken) return false;
+    if (!E.addPotion(r.reward.potion)) return false;
+    r.reward.potionTaken = true;
+    return true;
+  };
+
+  E.discardPotion = function (slot) {
+    var r = E.run;
+    if (!r.potions || slot < 0 || slot >= r.potions.length) return false;
+    r.potions.splice(slot, 1);
+    E.save();
+    return true;
+  };
+
+  // Does this potion need the player to pick a target? (only when >1 enemy left)
+  E.potionNeedsTarget = function (pid) {
+    var pot = ns.POTIONS[pid];
+    return !!(pot && pot.target) && E.combat && aliveEnemies().length > 1;
+  };
+
+  function applyPotion(pot, targetIdx) {
+    var c = E.combat, r = E.run, p = c.player;
+    var tgt = c.enemies[targetIdx];
+    if (!tgt || !tgt.alive) {
+      targetIdx = c.enemies.findIndex(function (e) { return e.alive; });
+      tgt = c.enemies[targetIdx];
+    }
+    pot.fx.forEach(function (f) {
+      if (c.over && f.k === 'dmg') return;
+      switch (f.k) {
+        case 'dmg':
+          if (f.all) c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, f.v, { noCrit: true }); });
+          else if (tgt && tgt.alive) dealToEnemy(tgt, targetIdx, f.v, { noCrit: true });
+          break;
+        case 'block': gainBlock(f.v); break;          // passive Shield (not a played card)
+        case 'energy': c.energy += f.v; break;
+        case 'draw': drawCards(f.v); break;
+        case 'heal': heal(f.v); break;
+        case 'healPct': heal(Math.round(r.maxHp * f.v)); break;
+        case 'status':
+          if (f.who === 'self') {
+            addStatus(p, f.s, f.v);
+            emit('status', { who: 'player', s: f.s, v: f.v });
+          } else if (f.who === 'allEnemies') {
+            var hit = 0;
+            c.enemies.forEach(function (e, i) {
+              if (e.alive) { addStatus(e, f.s, f.v); emit('status', { who: 'enemy', idx: i, s: f.s, v: f.v }); hit++; }
+            });
+            if (f.s === 'burn') trackBurn(f.v * hit);
+          } else {
+            var st = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            if (st) {
+              addStatus(st, f.s, f.v);
+              emit('status', { who: 'enemy', idx: c.enemies.indexOf(st), s: f.s, v: f.v });
+              if (f.s === 'burn') trackBurn(f.v);
+            }
+          }
+          break;
+      }
+    });
+  }
+
+  E.usePotion = function (slot, targetIdx) {
+    var c = E.combat, r = E.run;
+    if (!c || c.over) return false;
+    if (!r.potions || slot < 0 || slot >= r.potions.length) return false;
+    var pid = r.potions[slot];
+    var pot = ns.POTIONS[pid];
+    if (!pot) return false;
+    r.potions.splice(slot, 1);
+    applyPotion(pot, targetIdx);
+    emit('potion', { id: pid });
+    checkWin();
+    return true;
+  };
+
+  /* ---------------- Victory (finale) ------------------------------------- */
+  // Keep descending after the win: take the augment draft like any boss clear.
+  E.continueDescent = function () {
+    var r = E.run;
+    E.combat = null;
+    r.nodesCleared++;
+    r.phase = 'levelup';
+    E.save();
+  };
+
+  // End the run on a high: record it and clear the save.
+  E.claimVictory = function () {
+    E.recordBest();
+    E.clearSave();
+    E.run = null;
+    E.combat = null;
   };
 
   /* ---------------- Events ------------------------------------------------ */
@@ -3162,9 +3477,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       cards.push({ id: cid, cost: B.shop.cardCost[ns.CARDS[cid].rarity] || 35, sold: false });
     }
     var aid = randomArtifact(1);
+    var pid = (rnd() < B.potions.shopChance) ? rollPotion() : null;
     r.shop = {
       cards: cards,
       artifact: aid ? { id: aid, cost: B.shop.artifactCost, sold: false } : null,
+      potion: pid ? { id: pid, cost: B.potions.shopCost[ns.POTIONS[pid].rarity] || 40, sold: false } : null,
       healUsed: false,
       removeUsed: false,
     };
@@ -3183,6 +3500,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (!it || it.sold || r.credits < it.cost) return false;
     r.credits -= it.cost; it.sold = true;
     addArtifact(it.id);
+    E.save();
+    return true;
+  };
+  E.shopBuyPotion = function () {
+    var r = E.run, it = r.shop.potion;
+    if (!it || it.sold || r.credits < it.cost) return false;
+    if (E.potionFull()) return false;
+    r.credits -= it.cost; it.sold = true;
+    E.addPotion(it.id);
     E.save();
     return true;
   };
@@ -3277,8 +3603,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     try {
       var best = JSON.parse(s.getItem('voidspire_best') || '{}');
       var sc = E.score();
-      if (!best.score || sc > best.score) {
-        best = { score: sc, sector: E.run.sector, cls: E.run.cls };
+      var wonBefore = !!best.won;
+      if (!best.score || sc > best.score || (E.run.won && !wonBefore)) {
+        best = { score: Math.max(sc, best.score || 0), sector: E.run.sector, cls: E.run.cls, won: wonBefore || !!E.run.won };
         s.setItem('voidspire_best', JSON.stringify(best));
       }
     } catch (e) {}
@@ -3298,7 +3625,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
-/* ===== js/render.js ===== */
 /* =========================================================================
  * VOIDSPIRE — render.js
  * Canvas battlefield: starfield, vector line-art entities, particles.
@@ -3471,6 +3797,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
 
   function factionColor(def) {
+    if (def.color) return def.color;   // faction-less bosses (the finale) carry their own colour
     var f = ns.FACTIONS[def.faction];
     return f ? f.color : '#5dff88';
   }
@@ -4204,7 +4531,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
-/* ===== js/ui.js ===== */
 /* =========================================================================
  * VOIDSPIRE — ui.js
  * DOM screens, one-finger combat interaction, action timeline playback.
@@ -4218,11 +4544,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   var R = ns.render;
   var B = ns.BALANCE;
 
-  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game;
+  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions;
   var selected = -1;        // selected hand index
   var targeting = false;
   var locked = false;       // input lock while timeline plays
   var toastTimer = null;
+  var pendingPotion = -1;   // slot index of a potion awaiting a target tap (-1 = none)
 
   /* ====================== tiny synth ====================== */
   var AC = null, muted = false;
@@ -4356,6 +4683,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $hint.style.display = 'none';
     $game.appendChild($hint);
 
+    $potions = el('div', '', '');
+    $potions.id = 'potion-belt';
+    $game.appendChild($potions);
+
     document.getElementById('battlefield').addEventListener('pointerdown', onFieldTap);
     document.addEventListener('pointermove', onDragMove);
     document.addEventListener('pointerup', onDragEnd);
@@ -4401,6 +4732,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       case 'levelup': return showLevelUp();
       case 'boss-artifact': return showBossArtifact();
       case 'sector-intro': return showSectorIntro();
+      case 'victory': return showVictory();
       case 'dead': return showGameOver();
       default: return showTitle();
     }
@@ -4430,7 +4762,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $controls.style.display = on ? 'flex' : 'none';
     $energy.style.display = on ? 'block' : 'none';
     $counts.style.display = on ? 'block' : 'none';
-    if (!on) $hint.style.display = 'none';
+    $potions.style.display = on ? 'flex' : 'none';
+    if (!on) { $hint.style.display = 'none'; closePotionMenu(); pendingPotion = -1; }
     R.combatVisible = on;
   }
 
@@ -4540,7 +4873,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     var best = E.getBest();
     var foot = 'TAP A CLASS TO DEPLOY · SWIPE CARDS UP TO PLAY THEM';
-    if (best) foot = 'BEST: SECTOR ' + best.sector + ' · SCORE ' + best.score + '<br><br>' + foot;
+    if (best) {
+      var bestLine = (best.won ? '★ THE UNMAKER SLAIN · ' : '') + 'BEST: SECTOR ' + best.sector + ' · SCORE ' + best.score;
+      foot = bestLine + '<br><br>' + foot;
+    }
     s.appendChild(el('div', 'footer-note', foot));
   }
 
@@ -4725,6 +5061,105 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     renderControls();
     updateEnergy();
     updateCounts();
+    updatePotions();
+  }
+
+  /* ---- potion belt ----------------------------------------------------- */
+  // Shared vial glyph, tinted per potion.
+  function potionSVG(pid, cls) {
+    var pot = ns.POTIONS[pid];
+    return artSVG(ns.POTION_ICON, cls, pot.color);
+  }
+
+  function updatePotions() {
+    var r = E.run;
+    $potions.innerHTML = '';
+    if (!E.combat) return;
+    var slots = E.potionSlots();
+    for (var i = 0; i < slots; i++) {
+      var pid = (r.potions || [])[i];
+      if (pid) {
+        var pot = ns.POTIONS[pid];
+        var chip = el('div', 'potion-chip' + (i === pendingPotion ? ' armed' : ''), potionSVG(pid, 'pot-icon'));
+        chip.setAttribute('data-slot', i);
+        chip.addEventListener('pointerdown', (function (slot) {
+          return function (ev) { ev.stopPropagation(); openPotionMenu(slot); };
+        })(i));
+        $potions.appendChild(chip);
+      } else {
+        $potions.appendChild(el('div', 'potion-chip empty', ''));
+      }
+    }
+  }
+
+  var $potionMenu = null;
+  function closePotionMenu() {
+    if ($potionMenu) { $potionMenu.remove(); $potionMenu = null; }
+  }
+
+  function openPotionMenu(slot) {
+    if (locked || !E.combat || E.combat.over) return;
+    var pid = (E.run.potions || [])[slot];
+    if (!pid) return;
+    closePotionMenu();
+    SFX.tap();
+    var pot = ns.POTIONS[pid];
+    var rarTag = pot.rarity === 3 ? 'RARE' : pot.rarity === 2 ? 'UNCOMMON' : 'COMMON';
+    var m = el('div', 'potion-menu');
+    m.innerHTML =
+      '<div class="pm-head"><span class="pm-ic">' + potionSVG(pid) + '</span>' +
+      '<span class="pm-name">' + esc(pot.name) + '</span></div>' +
+      '<div class="pm-tag">' + rarTag + '</div>' +
+      '<div class="pm-desc">' + esc(pot.desc) + '</div>' +
+      '<div class="pm-actions">' +
+      '<button class="btn small pm-use">USE</button>' +
+      '<button class="btn small red pm-discard">DISCARD</button>' +
+      '<button class="btn small dim pm-cancel">CANCEL</button></div>';
+    m.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); });
+    m.querySelector('.pm-use').addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation();
+      closePotionMenu();
+      if (E.potionNeedsTarget(pid)) {
+        pendingPotion = slot;
+        setTargeting(true);
+        toast('TAP A TARGET FOR ' + pot.name.toUpperCase());
+        updatePotions();
+      } else {
+        usePotionAt(slot, -1);
+      }
+    });
+    m.querySelector('.pm-discard').addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation();
+      closePotionMenu();
+      SFX.tap();
+      E.discardPotion(slot);
+      updatePotions();
+    });
+    m.querySelector('.pm-cancel').addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation(); SFX.tap(); closePotionMenu();
+    });
+    $game.appendChild(m);
+    $potionMenu = m;
+  }
+
+  function usePotionAt(slot, targetIdx) {
+    pendingPotion = -1;
+    setTargeting(false);
+    E.events.length = 0;
+    var ok = E.usePotion(slot, targetIdx);
+    if (!ok) { updatePotions(); return; }
+    SFX.play();
+    var evts = E.events.slice();
+    E.events.length = 0;
+    lock(true);
+    playTimeline(evts, 70, function () {
+      lock(false);
+      afterAction(false);
+    });
+    updatePotions();
+    updateEnergy();
+    updateCounts();
+    updateHUD();
   }
 
   function renderControls() {
@@ -4902,6 +5337,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var rect = ev.currentTarget.getBoundingClientRect();
     var x = ev.clientX - rect.left, y = ev.clientY - rect.top;
     var idx = R.enemyAt(x, y);
+    if (pendingPotion >= 0) {
+      if (idx >= 0) { usePotionAt(pendingPotion, idx); }
+      else { pendingPotion = -1; setTargeting(false); updatePotions(); toast('POTION CANCELLED'); }
+      return;
+    }
     if (selected >= 0) {
       var si = selected;
       if (idx >= 0 && E.canPlay(si)) { selected = -1; playCardAt(si, idx); }
@@ -4965,6 +5405,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       updateEnergy();
       updateCounts();
       updateHUD();
+      updatePotions();
     } else {
       U.refresh();
     }
@@ -5107,6 +5548,22 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (rw.artifact) {
       var a = ns.ARTIFACTS[rw.artifact];
       s.appendChild(el('div', 'gain-list', '<div><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + ' — ' + esc(a.desc) + '</div>'));
+    }
+
+    if (rw.potion && !rw.potionTaken) {
+      var pot = ns.POTIONS[rw.potion];
+      var full = E.potionFull();
+      var pb = el('div', 'panel-btn' + (full ? ' disabled' : ''),
+        '<div class="pb-title"><span class="pb-icon">' + potionSVG(rw.potion) + '</span>GRAB POTION: ' + esc(pot.name) + '</div>' +
+        '<div class="pb-desc">' + esc(pot.desc) + (full ? ' — BELT FULL' : '') + '</div>');
+      pb.addEventListener('pointerdown', function () {
+        if (E.potionFull()) { toast('POTION BELT FULL'); return; }
+        SFX.coin();
+        if (E.takeRewardPotion()) showReward();
+      });
+      s.appendChild(pb);
+    } else if (rw.potion && rw.potionTaken) {
+      s.appendChild(el('div', 'gain-list', '<div>◇ Stowed: ' + esc(ns.POTIONS[rw.potion].name) + '</div>'));
     }
 
     if (!rw.cardTaken) {
@@ -5434,6 +5891,23 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       }
     }
 
+    if (sh.potion) {
+      var pot = ns.POTIONS[sh.potion.id];
+      var pfull = E.potionFull();
+      var disabled = sh.potion.sold || pfull;
+      var note = sh.potion.sold ? '' : pfull ? ' — BELT FULL' : '';
+      var pb = el('div', 'panel-btn cyan' + (disabled ? ' disabled' : ''),
+        '<div class="pb-title"><span class="pb-icon">' + potionSVG(sh.potion.id) + '</span>' + esc(pot.name) + ' — ¢' + sh.potion.cost + '</div>' +
+        '<div class="pb-desc">' + esc(pot.desc) + note + '</div>');
+      s.appendChild(pb);
+      if (!disabled) {
+        selectConfirm(s, pb, cbar, 'Buy <b>' + esc(pot.name) + '</b> for ¢' + sh.potion.cost + '?',
+          function () { if (E.shopBuyPotion()) { SFX.coin(); showShop(); } else toast(E.potionFull() ? 'POTION BELT FULL' : 'NOT ENOUGH CREDITS'); }, 'cyan');
+      } else if (pfull && !sh.potion.sold) {
+        pb.addEventListener('pointerdown', function () { toast('POTION BELT FULL'); });
+      }
+    }
+
     var row = el('div', 'shop-row');
     var hb = el('button', 'btn cyan small' + (sh.healUsed || r.hp >= r.maxHp ? ' dim' : ''), 'REPAIR +' + B.shop.healAmount + ' HP · ¢' + B.shop.healCost);
     if (!sh.healUsed && r.hp < r.maxHp) {
@@ -5604,6 +6078,48 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     s.appendChild(btn);
   }
 
+  /* ====================== VICTORY (finale) ====================== */
+  function showVictory() {
+    combatChrome(false);
+    updateHUD();
+    var r = E.run;
+    SFX.win();
+    R.flash();
+    var s = overlayScreen();
+    s.appendChild(el('div', 'sector-banner victory-banner', 'THE UNMAKER FALLS'));
+    s.appendChild(el('div', 'screen-sub', 'THE DESCENT IS CONQUERED · SECTOR ' + r.sector));
+    s.appendChild(el('div', 'big-score', E.score() + ' PTS'));
+    var lines = [
+      'SECTORS CLEARED: ' + r.sector,
+      'NODES CLEARED: ' + r.nodesCleared,
+      'KILLS: ' + r.kills,
+      'RELICS: ' + r.artifacts.length,
+    ];
+    var gl = el('div', 'gain-list');
+    lines.forEach(function (l) { gl.appendChild(el('div', '', esc(l))); });
+    s.appendChild(gl);
+
+    var cont = el('div', 'panel-btn cyan',
+      '<div class="pb-title">▼ CONTINUE THE DESCENT</div>' +
+      '<div class="pb-desc">Keep going into the endless dark. Take an augment and press on; the enemy only grows stronger.</div>');
+    cont.addEventListener('pointerdown', function () {
+      SFX.play();
+      E.continueDescent();
+      U.refresh();
+    });
+    s.appendChild(cont);
+
+    var claim = el('div', 'panel-btn',
+      '<div class="pb-title">★ CLAIM VICTORY</div>' +
+      '<div class="pb-desc">End the run a victor. Your score is recorded.</div>');
+    claim.addEventListener('pointerdown', function () {
+      SFX.coin();
+      E.claimVictory();
+      U.refresh();
+    });
+    s.appendChild(claim);
+  }
+
   /* ====================== GAME OVER ====================== */
   function showGameOver() {
     combatChrome(false);
@@ -5707,7 +6223,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
-/* ===== js/main.js ===== */
 /* =========================================================================
  * VOIDSPIRE — main.js
  * Boot, resize handling, render loop.

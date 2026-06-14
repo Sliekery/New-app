@@ -10,6 +10,7 @@ require('../js/balance.js');
 require('../js/cards.js');
 require('../js/artifacts.js');
  require('../js/augments.js');
+require('../js/potions.js');
 require('../js/enemies.js');
 require('../js/events.js');
 require('../js/engine.js');
@@ -284,6 +285,63 @@ ok('eventAddCard adds the card and clears the pending state', E.run.deck.length 
 E.seed(9); E.newRun('voidadept'); // psi 2
 var od = E.checkOdds({ attr: 'psi', dc: 12 });
 ok('check odds within 0-100 and reflect the bonus', od.pct >= 0 && od.pct <= 100 && od.bonus === E.attr('psi'));
+
+/* 28. Potions: damage potion hurts the target */
+startFight('vanguard');
+bigEnemies();
+E.run.potions = ['frag_charge'];
+var php0 = E.combat.enemies[0].hp;
+ok('usePotion returns true', E.usePotion(0, 0) === true);
+ok('Frag Charge dealt damage', E.combat.enemies[0].hp < php0);
+ok('used potion leaves the belt', E.run.potions.length === 0);
+
+/* 29. Potions: heal/energy/draw/status applied correctly */
+startFight('vanguard');
+E.run.hp = 10; E.run.maxHp = 100;
+E.run.potions = ['medkit'];
+E.usePotion(0, 0);
+ok('Medkit heals 25% max HP (10 -> 35)', E.run.hp === 35);
+
+startFight('vanguard');
+E.run.potions = ['shield_gel'];
+E.combat.player.block = 0;
+E.usePotion(0, 0);
+ok('Shield Gel grants 14 Shield', E.combat.player.block === 14);
+ok('Potion Shield does NOT count as played Shield', !E.combat.playedShield);
+
+startFight('vanguard');
+E.run.potions = ['overcharge_cell'];
+var en0 = E.combat.energy;
+E.usePotion(0, 0);
+ok('Overcharge Cell adds 2 Energy', E.combat.energy === en0 + 2);
+
+/* 30. Potion belt is capped at the configured slot count */
+E.seed(5); E.newRun('vanguard');
+ok('new run starts with an empty belt', Array.isArray(E.run.potions) && E.run.potions.length === 0);
+var slots = E.potionSlots();
+for (var pi = 0; pi < slots; pi++) ok('addPotion ' + pi + ' succeeds', E.addPotion('frag_charge') === true);
+ok('belt reports full at capacity', E.potionFull() === true);
+ok('addPotion past capacity is rejected', E.addPotion('frag_charge') === false);
+
+/* 31. Win condition: the finale sector spawns THE UNMAKER */
+E.seed(7); E.newRun('vanguard');
+E.run.sector = VS.BALANCE.run.finale;
+E.run.faction = 'hierarchy';
+E.startNode('boss');
+ok('finale boss is THE UNMAKER', E.combat.enemies[0].id === VS.FINAL_BOSS);
+ok('combat flagged as final', E.combat.isFinal === true);
+
+/* 32. Beating the finale wins the run (phase = victory) */
+E.seed(7); E.newRun('vanguard');
+E.run.sector = VS.BALANCE.run.finale; E.run.faction = 'rust';
+E.startNode('boss');
+E.combat.enemies[0].hp = 8; E.combat.enemies[0].block = 0;
+E.run.potions = ['frag_charge']; // 12 dmg, lethal
+E.usePotion(0, 0);
+ok('finale boss is dead', !E.combat.enemies[0].alive);
+ok('finale victory sets run.won', E.run.won === true);
+ok('finale victory enters the victory phase', E.run.phase === 'victory');
+ok('continueDescent routes to the augment draft', (E.continueDescent(), E.run.phase === 'levelup'));
 
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

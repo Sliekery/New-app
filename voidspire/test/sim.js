@@ -11,6 +11,7 @@ require('../js/balance.js');
 require('../js/cards.js');
 require('../js/artifacts.js');
  require('../js/augments.js');
+require('../js/potions.js');
 require('../js/enemies.js');
 require('../js/events.js');
 require('../js/engine.js');
@@ -332,6 +333,7 @@ function step() {
       break;
     }
     case 'sector-intro': E.beginSector(); break;
+    case 'victory': E.continueDescent(); break;   // beat the finale, keep descending
     default:
       throw new Error('unknown phase: ' + r.phase);
   }

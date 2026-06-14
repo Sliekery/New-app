@@ -22,7 +22,8 @@ var COLS = 5, CELL = 230;
 var items = [];
 Object.keys(VS.ENEMIES).forEach(function (id) {
   var d = VS.ENEMIES[id];
-  items.push({ label: d.name, art: d.art, color: VS.FACTIONS[d.faction].color, scale: 62 * (d.size || 1) });
+  var color = d.color || (VS.FACTIONS[d.faction] && VS.FACTIONS[d.faction].color) || '#5dff88';
+  items.push({ label: d.name, art: d.art, color: color, scale: 62 * (d.size || 1) });
 });
 VS.EVENTS.forEach(function (ev) {
   items.push({ label: 'EVT: ' + ev.title, art: ev.art, color: ev.art.c || '#5dff88', scale: 70 });

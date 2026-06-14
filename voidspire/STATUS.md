@@ -5,8 +5,26 @@ aren't obvious from the code. For the big picture see `README.md` (architecture,
 balance targets, dev/test workflow) and `CHECKPOINTS.md` (version history +
 frozen play links).
 
-Branch: `claude/sci-fi-roguelike-cards-ycwlxz` · latest checkpoint: **v1.9-classfx**.
+Branch: `claude/sci-fi-roguelike-cards-ycwlxz` · latest checkpoint: **v2.1-finale**.
 Everything is committed and pushed. The game is `voidspire/` (pure HTML/JS, no build).
+
+## RESOLVED: Potions & win condition (v2.1-finale)
+- **Potions/consumables** — `js/potions.js` (13 items, `fx` list like cards),
+  carried in a 3-slot belt (`run.potions`, cap `BALANCE.potions.slots`). Engine:
+  `addPotion / usePotion / discardPotion / potionFull / potionNeedsTarget /
+  rollPotion`. They drop from fights (`BALANCE.potions.dropChance`, bosses always),
+  sell in shops (`shopChance`/`shopCost`), and can be grabbed on the reward screen.
+  UI: `#potion-belt` beside the hand → tap a slot → USE/DISCARD menu; targeted
+  potions arm a tap-an-enemy mode (`pendingPotion` in ui.js).
+- **Win condition** — `BALANCE.run.finale` (=4): the boss of that sector is
+  `ns.FINAL_BOSS` ('unmaker', THE UNMAKER, faction-less `color:'#b8ecff'`).
+  `winCombat` detects `combat.isFinal` → `run.won=true`, `phase='victory'`.
+  `showVictory()` offers `E.continueDescent()` (→ levelup, endless) or
+  `E.claimVictory()` (record + end). `recordBest` now stores `won`; title shows
+  a victor flourish. `render.factionColor` falls back to `def.color`.
+- Build list now has 11 js files (added `potions` after `augments`). Tests cover
+  potions + finale (`test/mechanics.js` cases 28-32); `sim.js`/`dom.js`/`sheet.js`
+  updated to load potions and tolerate the faction-less boss.
 
 ## Dev workflow quick reference
 - Sandbox has `jsdom` + `canvas` installed under `/tmp/domtest/node_modules`
