@@ -587,37 +587,33 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 /* ========================= POTION BELT ========================= */
 #potion-belt {
   position: absolute; right: 8px;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 160px);
-  z-index: 25; display: none; flex-direction: column; gap: 6px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 218px);
+  z-index: 26; display: none; flex-direction: column; gap: 6px;
 }
 .potion-chip {
-  width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
   border: 1px solid rgba(93,255,136,0.4); background: rgba(5, 20, 18, 0.85);
-  cursor: pointer;
+  cursor: grab; touch-action: none; transition: border-color 0.1s, box-shadow 0.1s;
 }
 .potion-chip.empty {
   border-style: dashed; border-color: rgba(94,138,108,0.35); background: rgba(5,14,11,0.5);
+  cursor: default;
 }
-.potion-chip.armed { border-color: var(--amber); box-shadow: var(--glow-a); animation: pulse 1s ease-in-out infinite; }
-.potion-chip .pot-icon { width: 26px; height: 26px; }
+.potion-chip.dragging { cursor: grabbing; z-index: 70; }
+.potion-chip.will-play { border-color: var(--amber); box-shadow: var(--glow-a); }
+.potion-chip .pot-icon { width: 27px; height: 27px; }
 .potion-chip .pot-icon svg, .potion-chip svg.vec { width: 100%; height: 100%; }
 
-.potion-menu {
-  position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%);
-  z-index: 70; width: 248px; max-width: 84vw; padding: 16px;
+/* hover / press tooltip */
+#potion-tip {
+  position: absolute; z-index: 80; display: none; width: 188px; padding: 8px 10px;
   border: 1px solid var(--green-dim); background: rgba(6, 16, 13, 0.97);
-  clip-path: polygon(0 10px, 10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
-  box-shadow: 0 0 30px rgba(0,0,0,0.7), var(--glow-g);
-  animation: commOn 0.25s ease-out backwards;
+  box-shadow: 0 0 18px rgba(0,0,0,0.6); pointer-events: none;
+  clip-path: polygon(0 8px, 8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
 }
-.potion-menu .pm-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.potion-menu .pm-ic { width: 26px; height: 26px; flex-shrink: 0; }
-.potion-menu .pm-ic svg.vec { width: 100%; height: 100%; }
-.potion-menu .pm-name { font-size: 14px; color: var(--text); letter-spacing: 1px; }
-.potion-menu .pm-tag { font-size: 9px; letter-spacing: 2px; color: var(--text-dim); margin-bottom: 8px; }
-.potion-menu .pm-desc { font-size: 12px; color: var(--text); line-height: 1.4; margin-bottom: 14px; }
-.potion-menu .pm-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.potion-menu .pm-actions .btn { flex: 1 1 auto; }
+#potion-tip .pt-name { font-size: 12px; letter-spacing: 1px; color: var(--text); margin-bottom: 4px; }
+#potion-tip .pt-tag { font-size: 8px; letter-spacing: 1px; color: var(--text-dim); }
+#potion-tip .pt-desc { font-size: 11px; line-height: 1.4; color: var(--text); }
 
 .victory-banner { color: var(--amber); text-shadow: 0 0 18px rgba(255,176,46,0.7); }
 
@@ -649,5 +645,5 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   .card { height: 110px; }
   #combat-controls { bottom: calc(env(safe-area-inset-bottom, 0px) + 140px); }
   #energy-pip { bottom: calc(env(safe-area-inset-bottom, 0px) + 140px); }
-  #potion-belt { bottom: calc(env(safe-area-inset-bottom, 0px) + 140px); }
+  #potion-belt { bottom: calc(env(safe-area-inset-bottom, 0px) + 196px); }
 }

@@ -11,12 +11,11 @@
   var R = ns.render;
   var B = ns.BALANCE;
 
-  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions;
+  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip;
   var selected = -1;        // selected hand index
   var targeting = false;
   var locked = false;       // input lock while timeline plays
   var toastTimer = null;
-  var pendingPotion = -1;   // slot index of a potion awaiting a target tap (-1 = none)
 
   /* ====================== tiny synth ====================== */
   var AC = null, muted = false;
@@ -154,6 +153,10 @@
     $potions.id = 'potion-belt';
     $game.appendChild($potions);
 
+    $potionTip = el('div', '', '');
+    $potionTip.id = 'potion-tip';
+    $game.appendChild($potionTip);
+
     document.getElementById('battlefield').addEventListener('pointerdown', onFieldTap);
     document.addEventListener('pointermove', onDragMove);
     document.addEventListener('pointerup', onDragEnd);
@@ -239,7 +242,7 @@
     $energy.style.display = on ? 'block' : 'none';
     $counts.style.display = on ? 'block' : 'none';
     $potions.style.display = on ? 'flex' : 'none';
-    if (!on) { $hint.style.display = 'none'; closePotionMenu(); pendingPotion = -1; }
+    if (!on) { $hint.style.display = 'none'; onPotionCancel(); hidePotionTip(); }
     R.combatVisible = on;
   }
 
@@ -559,12 +562,14 @@
     for (var i = 0; i < slots; i++) {
       var pid = (r.potions || [])[i];
       if (pid) {
-        var pot = ns.POTIONS[pid];
-        var chip = el('div', 'potion-chip' + (i === pendingPotion ? ' armed' : ''), potionSVG(pid, 'pot-icon'));
+        var chip = el('div', 'potion-chip', potionSVG(pid, 'pot-icon'));
         chip.setAttribute('data-slot', i);
-        chip.addEventListener('pointerdown', (function (slot) {
-          return function (ev) { ev.stopPropagation(); openPotionMenu(slot); };
-        })(i));
+        (function (slot, id, chipEl) {
+          chipEl.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); startPotionDrag(chipEl, slot, ev); });
+          // desktop hover tooltip (touch shows it on press, in startPotionDrag)
+          chipEl.addEventListener('mouseenter', function () { if (!potionDrag) showPotionTip(id, chipEl); });
+          chipEl.addEventListener('mouseleave', function () { if (!potionDrag) hidePotionTip(); });
+        })(i, pid, chip);
         $potions.appendChild(chip);
       } else {
         $potions.appendChild(el('div', 'potion-chip empty', ''));
@@ -572,58 +577,83 @@
     }
   }
 
-  var $potionMenu = null;
-  function closePotionMenu() {
-    if ($potionMenu) { $potionMenu.remove(); $potionMenu = null; }
-  }
-
-  function openPotionMenu(slot) {
-    if (locked || !E.combat || E.combat.over) return;
-    var pid = (E.run.potions || [])[slot];
-    if (!pid) return;
-    closePotionMenu();
-    SFX.tap();
+  /* ---- potion tooltip ---- */
+  function showPotionTip(pid, chipEl) {
     var pot = ns.POTIONS[pid];
     var rarTag = pot.rarity === 3 ? 'RARE' : pot.rarity === 2 ? 'UNCOMMON' : 'COMMON';
-    var m = el('div', 'potion-menu');
-    m.innerHTML =
-      '<div class="pm-head"><span class="pm-ic">' + potionSVG(pid) + '</span>' +
-      '<span class="pm-name">' + esc(pot.name) + '</span></div>' +
-      '<div class="pm-tag">' + rarTag + '</div>' +
-      '<div class="pm-desc">' + esc(pot.desc) + '</div>' +
-      '<div class="pm-actions">' +
-      '<button class="btn small pm-use">USE</button>' +
-      '<button class="btn small red pm-discard">DISCARD</button>' +
-      '<button class="btn small dim pm-cancel">CANCEL</button></div>';
-    m.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); });
-    m.querySelector('.pm-use').addEventListener('pointerdown', function (ev) {
-      ev.stopPropagation();
-      closePotionMenu();
-      if (E.potionNeedsTarget(pid)) {
-        pendingPotion = slot;
-        setTargeting(true);
-        toast('TAP A TARGET FOR ' + pot.name.toUpperCase());
-        updatePotions();
-      } else {
-        usePotionAt(slot, -1);
-      }
-    });
-    m.querySelector('.pm-discard').addEventListener('pointerdown', function (ev) {
-      ev.stopPropagation();
-      closePotionMenu();
-      SFX.tap();
-      E.discardPotion(slot);
-      updatePotions();
-    });
-    m.querySelector('.pm-cancel').addEventListener('pointerdown', function (ev) {
-      ev.stopPropagation(); SFX.tap(); closePotionMenu();
-    });
-    $game.appendChild(m);
-    $potionMenu = m;
+    $potionTip.innerHTML =
+      '<div class="pt-name">' + esc(pot.name) + ' <span class="pt-tag">' + rarTag + '</span></div>' +
+      '<div class="pt-desc">' + esc(pot.desc) + '</div>';
+    $potionTip.style.display = 'block';
+    var gr = $game.getBoundingClientRect(), cr = chipEl.getBoundingClientRect();
+    // sit to the LEFT of the belt (which hugs the right edge)
+    $potionTip.style.left = 'auto';
+    $potionTip.style.right = Math.round(gr.right - cr.left + 10) + 'px';
+    var tipH = $potionTip.getBoundingClientRect().height || 56;
+    $potionTip.style.top = Math.max(6, Math.round(cr.top - gr.top - (tipH - cr.height) / 2)) + 'px';
+  }
+  function hidePotionTip() { $potionTip.style.display = 'none'; }
+
+  /* ---- potion drag-to-use ----
+     Press a potion to see its tooltip; drag it onto an enemy (or anywhere on
+     the field) to use it, or drag it back to the belt to cancel. */
+  var potionDrag = null;
+
+  function startPotionDrag(chipEl, slot, ev) {
+    if (locked || drag || potionDrag || !E.combat || E.combat.over) return;
+    var pid = (E.run.potions || [])[slot];
+    if (!pid) return;
+    potionDrag = { el: chipEl, slot: slot, pid: pid, x0: ev.clientX, y0: ev.clientY, dx: 0, dy: 0, moved: false };
+    showPotionTip(pid, chipEl);
+    if (chipEl.setPointerCapture && ev.pointerId !== undefined) {
+      try { chipEl.setPointerCapture(ev.pointerId); } catch (e) { /* not supported */ }
+    }
+  }
+
+  function overPotionArea(ev) {
+    var rct = $potions.getBoundingClientRect(), pad = 28;
+    return ev.clientX >= rct.left - pad && ev.clientX <= rct.right + pad &&
+           ev.clientY >= rct.top - pad && ev.clientY <= rct.bottom + pad;
+  }
+
+  function onPotionMove(ev) {
+    potionDrag.dx = ev.clientX - potionDrag.x0;
+    potionDrag.dy = ev.clientY - potionDrag.y0;
+    if (!potionDrag.moved && Math.abs(potionDrag.dx) + Math.abs(potionDrag.dy) > 9) {
+      potionDrag.moved = true;
+      potionDrag.el.classList.add('dragging');
+    }
+    if (potionDrag.moved) {
+      potionDrag.el.style.transform = 'translate(' + potionDrag.dx + 'px,' + potionDrag.dy + 'px) scale(1.12)';
+      var armed = !overPotionArea(ev);            // armed everywhere except back over the belt
+      potionDrag.el.classList.toggle('will-play', armed);
+      R.targeting = armed && E.aliveEnemies().length > 0;  // show reticles as drop hints
+    }
+  }
+
+  function onPotionEnd(ev) {
+    var pd = potionDrag;
+    potionDrag = null;
+    pd.el.classList.remove('dragging', 'will-play');
+    pd.el.style.transform = '';
+    R.targeting = false;
+    hidePotionTip();
+    if (!pd.moved) return;                          // a tap just previews; you must drag to use
+    if (locked || !E.combat || E.combat.over) return;
+    if (overPotionArea(ev)) return;                 // dragged back to the belt -> cancel
+    usePotionAt(pd.slot, enemyAtClient(ev));        // enemy under pointer, or -1 (defaults to first)
+  }
+
+  function onPotionCancel() {
+    if (!potionDrag) return;
+    potionDrag.el.classList.remove('dragging', 'will-play');
+    potionDrag.el.style.transform = '';
+    potionDrag = null;
+    R.targeting = false;
+    hidePotionTip();
   }
 
   function usePotionAt(slot, targetIdx) {
-    pendingPotion = -1;
     setTargeting(false);
     E.events.length = 0;
     var ok = E.usePotion(slot, targetIdx);
@@ -721,6 +751,7 @@
   }
 
   function onDragMove(ev) {
+    if (potionDrag) { onPotionMove(ev); return; }
     if (!drag) return;
     drag.dx = ev.clientX - drag.x0;
     drag.dy = ev.clientY - drag.y0;
@@ -752,6 +783,7 @@
   }
 
   function onDragEnd(ev) {
+    if (potionDrag) { onPotionEnd(ev); return; }
     if (!drag) return;
     var d = drag;
     drag = null;
@@ -782,6 +814,7 @@
   }
 
   function onDragCancel() {
+    if (potionDrag) { onPotionCancel(); return; }
     if (!drag) return;
     drag.el.classList.remove('dragging');
     drag.el.classList.remove('will-play');
@@ -817,11 +850,6 @@
     var rect = ev.currentTarget.getBoundingClientRect();
     var x = ev.clientX - rect.left, y = ev.clientY - rect.top;
     var idx = R.enemyAt(x, y);
-    if (pendingPotion >= 0) {
-      if (idx >= 0) { usePotionAt(pendingPotion, idx); }
-      else { pendingPotion = -1; setTargeting(false); updatePotions(); toast('POTION CANCELLED'); }
-      return;
-    }
     if (selected >= 0) {
       var si = selected;
       if (idx >= 0 && E.canPlay(si)) { selected = -1; playCardAt(si, idx); }
