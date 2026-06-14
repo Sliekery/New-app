@@ -768,7 +768,7 @@
     if (!cards.length) s.appendChild(el('div', 'screen-sub', '— EMPTY —'));
     var grid = el('div', 'card-grid');
     var list = (which === 'draw') ? cards.sort(function (a, b) { return ns.CARDS[a.id].cost - ns.CARDS[b.id].cost; }) : cards;
-    list.forEach(function (card) { grid.appendChild(cardEl(card.id, card.up)); });
+    list.forEach(function (card) { grid.appendChild(cardEl(card.id, card.up, card.vtouch)); });
     s.appendChild(grid);
     var btn = el('button', 'btn', 'CLOSE');
     btn.addEventListener('pointerdown', function () { SFX.tap(); if (wasCombat) showCombat(); else U.refresh(); });
@@ -799,9 +799,10 @@
     }
     return s;
   }
+  function rareClassOf(rarity) { return rarity === 4 ? ' legendary' : rarity === 3 ? ' rare' : rarity === 2 ? ' unc' : ''; }
   function cardInner(name, cost, type, rarity, desc, unplayable, cid) {
-    var r = rarity === 3 ? 'r3' : rarity === 2 ? 'r2' : 'r1';
-    var tag = rarity === 3 ? 'RARE' : rarity === 2 ? 'UNC' : '';
+    var r = rarity === 4 ? 'r4' : rarity === 3 ? 'r3' : rarity === 2 ? 'r2' : 'r1';
+    var tag = rarity === 4 ? 'LEGENDARY' : rarity === 3 ? 'RARE' : rarity === 2 ? 'UNC' : '';
     return '<div class="cost"><svg viewBox="0 0 24 24"><polygon points="12,0.8 21.7,6.4 21.7,17.6 12,23.2 2.3,17.6 2.3,6.4"/></svg>' +
       '<span class="cost-n">' + (unplayable ? '✕' : cost) + '</span></div>' +
       '<div class="cname">' + esc(name) + '</div>' +
@@ -818,8 +819,8 @@
     var spread = n > 1 ? Math.min(4.2, 26 / n) : 0; // degrees between cards
     c.hand.forEach(function (card, i) {
       var info = E.cardInfo(card);
-      var rare = info.rarity === 3 ? ' rare' : info.rarity === 2 ? ' unc' : '';
-      var d = el('div', 'card type-' + info.type + rare +
+      var d = el('div', 'card type-' + info.type + rareClassOf(info.rarity) +
+        (info.vtouch ? ' vtouched' : '') +
         (info.cost > c.energy && !info.unplayable ? ' unaffordable' : '') +
         (info.unplayable ? ' unplayable-curse' : '') +
         (deal ? ' deal' : '') +
@@ -1287,13 +1288,12 @@
     }
   }
 
-  function cardEl(cid, up) {
+  function cardEl(cid, up, vtouch) {
     var def = ns.CARDS[cid];
     var ctx = E.run ? { attrs: { might: E.attr('might'), tech: E.attr('tech'), psi: E.attr('psi') }, statuses: null } : null;
-    var rare = def.rarity === 3 ? ' rare' : def.rarity === 2 ? ' unc' : '';
-    var d = el('div', 'card type-' + def.type + rare);
+    var d = el('div', 'card type-' + def.type + rareClassOf(def.rarity) + (vtouch ? ' vtouched' : ''));
     d.innerHTML = cardInner(def.name + (up ? '+' : ''), def.xcost ? 'X' : ns.cardCost(def, up), def.type, def.rarity,
-      ns.cardDesc(def, up, ctx), def.unplayable, cid);
+      ns.cardDesc(def, up, ctx, vtouch), def.unplayable, cid);
     return d;
   }
 
@@ -1410,6 +1410,7 @@
     if (fx.pick === 'remove') chip('Remove a card', true);
     if (fx.pick === 'upgrade') chip('Upgrade a card', true);
     if (fx.pick === 'dupe') chip('Duplicate a card', true);
+    if (fx.pick === 'vtouch') chip('Void-Touch a card', true);
     if (fx.curse) chip('Curse', false);
     return out.join('');
   }
@@ -1514,9 +1515,9 @@
   function showPickModal(type, onDone) {
     var r = E.run;
     var s = overlayScreen();
-    var titles = { remove: 'Purge a Card', upgrade: 'Refine a Card', dupe: 'Duplicate a Card' };
-    var verbs = { remove: 'Purge', upgrade: 'Refine', dupe: 'Duplicate' };
-    var okClass = { remove: 'red', upgrade: 'amber', dupe: 'cyan' }[type] || '';
+    var titles = { remove: 'Purge a Card', upgrade: 'Refine a Card', dupe: 'Duplicate a Card', vtouch: 'Void-Touch a Card' };
+    var verbs = { remove: 'Purge', upgrade: 'Refine', dupe: 'Duplicate', vtouch: 'Corrupt' };
+    var okClass = { remove: 'red', upgrade: 'amber', dupe: 'cyan', vtouch: 'magenta' }[type] || '';
     s.appendChild(el('h2', 'screen-title', titles[type] || 'Choose a Card'));
     s.appendChild(el('div', 'screen-sub', 'TAP A CARD TO PREVIEW · CONFIRM TO ' + (verbs[type] || 'SELECT').toUpperCase()));
     var grid = el('div', 'card-grid');
@@ -1526,8 +1527,9 @@
       var def = ns.CARDS[card.id];
       if (type === 'upgrade' && (card.up || def.type === 'curse')) return;
       if (type === 'dupe' && def.type === 'curse') return;
+      if (type === 'vtouch' && (card.vtouch || def.type === 'curse')) return;
       any = true;
-      var d = cardEl(card.id, card.up);
+      var d = cardEl(card.id, card.up, card.vtouch);
       grid.appendChild(d);
       var name = def.name;
       var msg, onSelect, onDeselect;
@@ -1539,6 +1541,13 @@
         var upHTML = cardEl(card.id, true).innerHTML;
         onSelect = function () { d.innerHTML = upHTML; d.classList.add('preview-up'); };
         onDeselect = function () { d.innerHTML = baseHTML; d.classList.remove('preview-up'); };
+      } else if (type === 'vtouch') {
+        msg = 'Void-Touch <b>' + esc(name) + '</b>? It hits ~50% harder but costs 3 HP each play.';
+        // preview the corrupted face while selected
+        var baseV = d.innerHTML;
+        var vHTML = cardEl(card.id, card.up, true).innerHTML;
+        onSelect = function () { d.innerHTML = vHTML; d.classList.add('vtouched'); };
+        onDeselect = function () { d.innerHTML = baseV; if (!card.vtouch) d.classList.remove('vtouched'); };
       } else msg = 'Duplicate <b>' + esc(name) + '</b>?';
       selectConfirm(grid, d, cbar, msg, function () { E.applyPick(i); onDone(); }, okClass, onSelect, onDeselect);
     });
@@ -1979,7 +1988,7 @@
     r.deck.slice().sort(function (a, b) {
       return ns.CARDS[a.id].cost - ns.CARDS[b.id].cost;
     }).forEach(function (card) {
-      grid.appendChild(cardEl(card.id, card.up));
+      grid.appendChild(cardEl(card.id, card.up, card.vtouch));
     });
     s.appendChild(grid);
     var btn = el('button', 'btn', 'CLOSE');
