@@ -42,7 +42,7 @@ function saveGame(){
   try{
     localStorage.setItem(SAVE_KEY,JSON.stringify({
       cls:player.cls, lvl:player.lvl, xp:player.xp, gold:player.gold, dp:player.dp,
-      attrs:player.attrs, attrPts:player.attrPts, equip:player.equip, inv:player.inv,
+      attrs:player.attrs, equip:player.equip, inv:player.inv,
       builds:player.builds||[], known:player.known, bars:player.bars, skillPts:player.skillPts,
       promo:player.promo||0, bounty:player.bounty||null, vault:player.vault||[],
       hero:{recruited:hench&&hench.recruited, stance:hench&&hench.stance},
@@ -452,6 +452,11 @@ function setBarSlot(slot,id){
   if(!ZONES[MAPID].safe){ toast('Builds can only be changed in town (GW1 rule)'); return false; }
   const bar=player.bars[player.cls];
   if(!player.known[player.cls].includes(id)){ toast('You have not learned that skill'); return false; }
+  // GW1 rule: at most one elite skill on the bar
+  if(SKILL_BY_ID[id]&&SKILL_BY_ID[id].elite){
+    const other=bar.findIndex((bid,k)=>k!==slot&&SKILL_BY_ID[bid]&&SKILL_BY_ID[bid].elite);
+    if(other>=0){ toast('Only one elite skill may be equipped'); return false; }
+  }
   const j=bar.indexOf(id);
   if(j>=0) bar[j]=bar[slot]; // swap if already slotted
   bar[slot]=id;
@@ -485,6 +490,25 @@ const attr=n=>player.attrs[n]||0;
 const fireMod=d=>Math.round(d*(1+0.04*attr('Fire Magic')));
 const stormMod=d=>Math.round(d*(1+0.04*attr('Storm Magic')));
 const strMod=d=>Math.round(d*(1+0.015*attr('Strength')));
+
+// GW1-style attribute point economy: raising an attribute costs progressively
+// more, from a pool that grows as you level. You can master one or two lines.
+const ATTR_CUM=[0,1,3,6,10,15,21,28,37,48,61,77,97]; // total points to reach rank index (0..12)
+const attrPool=()=>Math.round(120*Math.max(0,player.lvl-1)/9); // 0 at lvl1 → 120 at lvl10
+const attrSpentOf=a=>{let s=0; for(const k in a) s+=ATTR_CUM[Math.min(12,a[k]||0)]; return s;};
+const attrSpent=()=>attrSpentOf(player.attrs);
+const attrFree=()=>attrPool()-attrSpent();
+const attrUpCost=r=>ATTR_CUM[Math.min(12,r+1)]-ATTR_CUM[Math.min(12,r)];
+// each skill's governing attribute (scales its damage/heal), GW1-style
+const SKILL_ATTR={
+  w_sever:'Swordsmanship',w_gash:'Swordsmanship',w_final:'Swordsmanship',w_ham:'Swordsmanship',
+  w_cyclone:'Swordsmanship',w_power:'Swordsmanship',w_bash:'Tactics',w_sig:'Tactics',
+  w_frenzy:'Tactics',w_sprint:'Tactics',w_stand:'Tactics',w_fbolt:'Fire Magic',
+  e_flare:'Fire Magic',e_fball:'Fire Magic',e_immo:'Fire Magic',e_meteor:'Fire Magic',
+  e_light:'Storm Magic',e_ice:'Storm Magic',e_chain:'Storm Magic',e_nova:'Storm Magic',
+  e_earth:'Energy Storage',e_aura:'Energy Storage',e_stone:'Energy Storage',e_mend:'Energy Storage',
+  el_aegis:'Strength',el_storm:'Storm Magic',el_rake:'Swordsmanship',
+};
 
 const RARITY_COLORS=['#e8e8e8','#7ab0ff','#c080ff','#ffd34d'];
 const RARITY_PREFIX=['Worn','Istani','Sunspear',"Blackmaw's"];
@@ -554,7 +578,7 @@ function makePlayer(){
     kind:'player', name:'Kaelen', team:0, x:p.x, y:p.y, r:13, face:0,
     cls:'warrior', enRegen:1.33, adr:0,
     inv:[], equip:{weapon:{kind:'weapon',wtype:'sword',rarity:0,name:'Training Sword',dmgMin:10,dmgMax:16,value:0}, off:null},
-    attrs:{}, attrPts:0, skillPts:1,
+    attrs:{}, skillPts:1,
     promo:0, bounty:null, vault:[],
     known:{warrior:[...DEFAULT_BARS.warrior,'cap'], elementalist:[...DEFAULT_BARS.elementalist,'cap']},
     bars:{warrior:[...DEFAULT_BARS.warrior], elementalist:[...DEFAULT_BARS.elementalist]},
@@ -1017,8 +1041,7 @@ function giveXp(x){
   while(player.xp>=need&&player.lvl<10){
     player.xp-=need; player.lvl++;
     player.baseHp+=20; player.baseEn+=2;
-    player.attrPts+=3; // spend in the Hero panel
-    player.skillPts=(player.skillPts||0)+1; // spend at Master Henko
+    player.skillPts=(player.skillPts||0)+1; // spend at the Skill Trainer
     // Lyra levels with you
     hench.lvl=player.lvl;
     hench.maxHp=110+18*Math.max(0,player.lvl-2);
@@ -1026,7 +1049,7 @@ function giveXp(x){
     clearDp(); player.hp=pMaxHp(); player.en=pMaxEn();
     effects.push({type:'levelup',x:player.x,y:player.y,t:now,dur:1.2});
     ftext(player.x,player.y,'LEVEL UP!','#ffe680',20);
-    banner('LEVEL '+player.lvl,'+3 attribute points');
+    banner('LEVEL '+player.lvl,'+attribute points & a skill point');
     need=xpNeed();
   }
 }
@@ -1038,6 +1061,7 @@ let cast=null; // {idx, t0, dur}
 
 function useSkill(i){
   if(player.dead||cast) return;
+  if(now<(player.aftercast||0)) return;   // GW1 aftercast lockout
   const sk=SKILLS[i];
   if(now<player.skillReady[i]){ return; }
   if(sk.adr&&player.adr<sk.adr){ toast('Not enough adrenaline — keep swinging'); return; }
@@ -1325,6 +1349,7 @@ function updatePlayer(dt){
       const i=cast.idx; cast=null;
       resolveSkill(i);
       player.skillReady[i]=now+SKILLS[i].rc;
+      player.aftercast=now+0.5;   // GW1 aftercast delay after a spell/signet
     }
   }
 
@@ -2790,8 +2815,10 @@ function wireUI(){
   // dialog action button
   ui.dlgBtn.addEventListener('pointerdown',ev=>{
     ev.stopPropagation();
+    const before=openModalId;
     if(currentDlg) currentDlg.act();
-    closeModal();
+    // if the action opened a service panel (merchant, trainer, crafter…), leave it open
+    if(openModalId===before) closeModal();
   });
   // on-screen camera rotate (hold to spin)
   const rl=$('rotLeft'), rr=$('rotRight');
@@ -2812,10 +2839,12 @@ function onPanelTap(ev,panel){
   while(t&&t!==ev.currentTarget&&!t.dataset?.act) t=t.parentElement;
   if(!t||!t.dataset||!t.dataset.act) return;
   const act=t.dataset.act, v=t.dataset.v;
-  if(act==='attr'&&player.attrPts>0&&(player.attrs[v]||0)<12){
-    player.attrs[v]=(player.attrs[v]||0)+1; player.attrPts--; saveGame(); renderHero();
+  if(act==='attr'){
+    const r=player.attrs[v]||0;
+    if(r<12&&attrFree()>=attrUpCost(r)){ player.attrs[v]=r+1; saveGame(); renderHero(); }
+    else toast(r>=12?'Already mastered':'Not enough attribute points');
   } else if(act==='attrminus'&&(player.attrs[v]||0)>0){
-    player.attrs[v]--; player.attrPts++; saveGame(); renderHero();
+    player.attrs[v]--; if(!player.attrs[v]) delete player.attrs[v]; saveGame(); renderHero();
   } else if(act==='selitem'){
     invSel=+v; renderInv();
   } else if(act==='equip'){
@@ -2844,7 +2873,7 @@ function onPanelTap(ev,panel){
   } else if(act==='selltrophies'){
     sellTrophies(); renderMerch();
   } else if(act==='respec'){
-    player.attrs={}; player.attrPts=3*(player.lvl-1); saveGame(); renderSkills(); toast('Attributes refunded');
+    player.attrs={}; saveGame(); renderSkills(); toast('Attributes refunded');
   } else if(act==='quality'){ SETTINGS.quality=v; applyQuality(); saveSettings(); renderSettings(); }
   else if(act==='zoom'){ SETTINGS.zoom=v; saveSettings(); renderSettings(); }
   else if(act==='vignette'){ SETTINGS.vignette=!SETTINGS.vignette; saveSettings(); renderSettings(); }
@@ -2954,12 +2983,14 @@ function renderTrain(){
   for(const s of CLASSES[player.cls].pool){
     const have=known.includes(s.id);
     const cost=skillCost();
+    const ga=SKILL_ATTR[s.id], gtag=ga?` · <span style="color:#9fd0ff">${ga}</span>`:'';
     h+=`<div class="skRow"><div class="si">${s.icon}</div><div class="sd">
-        <b>${s.name}</b> <i>${s.adr?s.adr+' adr':(s.en>0?s.en+'e':'free')}${s.cast?` · ${s.cast}s`:''} · ${s.rc}s rc</i><br>
+        <b>${s.name}</b> <i>${s.adr?s.adr+' adr':(s.en>0?s.en+'e':'free')}${s.cast?` · ${s.cast}s`:''} · ${s.rc}s rc${gtag}</i><br>
         <span class="dim">${s.desc}</span><br>
         ${have?'<span class="dim" style="color:#7ac77a">✓ known</span>'
              :`<button class="mini" data-act="learn" data-v="${s.id}">Learn — ${cost}g + 1 SP</button>`}</div></div>`;
   }
+  h+=`<div class="dim" style="margin-top:8px">Elite skills can't be bought — capture them from a slain boss with your Signet of Capture (📜). Only one elite may be equipped at a time.</div>`;
   MODALS.train.body.innerHTML=h;
 }
 
@@ -3063,15 +3094,16 @@ function renderHero(){
       <div>Armor <b>${armor}</b></div><div>Weapon <b>${w.dmgMin}–${w.dmgMax}</b></div></div>`;
   if(player.dp>0) h+=`<div class="dim" style="color:#d98a6a">Death penalty −${Math.round(player.dp*100)}% (cleared on level-up / quest turn-in)</div>`;
 
-  h+=`<div class="sectTitle">Attributes — <span style="color:#f0d97a">${player.attrPts}</span> points</div>`;
+  h+=`<div class="sectTitle">Attributes — <span style="color:#f0d97a">${attrFree()}</span> / ${attrPool()} points</div>`;
   for(const a of CLASS_ATTRS[player.cls]){
-    const r=attr(a);
+    const r=attr(a), up=attrUpCost(r), canUp=r<12&&attrFree()>=up;
     h+=`<div class="attrRow"><span class="an">${a}</span>
         ${r>0?`<button class="mini" data-act="attrminus" data-v="${a}">−</button>`:''}
         <span class="av">${r}</span>
-        ${player.attrPts>0&&r<12?`<button class="mini" data-act="attr" data-v="${a}">+</button>`:''}</div>
+        ${r<12?`<button class="mini" data-act="attr" data-v="${a}" ${canUp?'':'style="opacity:.4"'}>+${up}</button>`:'<span class="dim">max</span>'}</div>
         <div class="attrDesc">${ATTR_DESC[a]}</div>`;
   }
+  h+=`<div class="dim">Higher ranks cost more points — enough to master one line and dabble in another, GW1-style.</div>`;
   h+=`<div class="sectTitle">Equipment</div><div class="equipRow">
       <div class="eqSlot"><div class="el">WEAPON</div><span style="color:${rc(w)}">${itemIcon(w)} ${w.name}</span><br><span class="dim">${itemStat(w)}</span></div>
       <div class="eqSlot"><div class="el">OFF-HAND</div>${o?`<span style="color:${rc(o)}">${itemIcon(o)} ${o.name}</span><br><span class="dim">${itemStat(o)}</span>`:'<span class="dim">empty</span>'}</div>
@@ -3126,8 +3158,10 @@ function renderSkills(){
     h+=`<div class="dim">Tap a slot above to change it.</div>`;
     SKILLS.forEach((s,i)=>{
       const cost=s.adr?`${s.adr} adrenaline`:(s.en>0?`${s.en} energy`:'no cost');
-      h+=`<div class="skRow"><div class="si">${s.icon}</div><div class="sd">
-          <b>${i+1}. ${s.name}</b> <i>${cost}${s.cast?` · ${s.cast}s cast`:''} · ${s.rc}s recharge</i><br>
+      const ga=SKILL_ATTR[s.id], gtag=ga?` · <span style="color:#9fd0ff">${ga} ${attr(ga)}</span>`:'';
+      h+=`<div class="skRow"><div class="si">${s.icon}${s.elite?'<span class="eliteDot">★</span>':''}</div><div class="sd">
+          <b>${i+1}. ${s.name}${s.elite?' <span style="color:#ffd34d">(Elite)</span>':''}</b>
+          <i>${cost}${s.cast?` · ${s.cast}s cast`:''} · ${s.rc}s recharge${gtag}</i><br>
           <span class="dim">${s.desc}</span></div></div>`;
     });
   }
@@ -3214,10 +3248,9 @@ function saveBuild(){
 function loadBuild(i){
   const b=(player.builds||[])[i]; if(!b) return;
   if(b.cls!==player.cls){ toast('That build is for a different profession'); return; }
-  const spent=Object.values(b.attrs).reduce((a,c)=>a+c,0);
-  if(spent>3*(player.lvl-1)){ toast('Not enough points for that build yet'); return; }
+  if(attrSpentOf(b.attrs)>attrPool()){ toast('Not enough attribute points for that build yet'); return; }
   if(b.bar&&!ZONES[MAPID].safe){ toast('Builds can only be changed in town'); return; }
-  player.attrs={...b.attrs}; player.attrPts=3*(player.lvl-1)-spent;
+  player.attrs={...b.attrs};
   if(b.bar){
     player.bars[player.cls]=b.bar.filter(id=>player.known[player.cls].includes(id));
     while(player.bars[player.cls].length<8) player.bars[player.cls].push('res');
@@ -3241,7 +3274,7 @@ function applyClass(key){
     ? {kind:'weapon',wtype:'sword',rarity:0,name:'Training Sword',dmgMin:10,dmgMax:16,value:0}
     : {kind:'weapon',wtype:'wand', rarity:0,name:'Training Wand', dmgMin:7, dmgMax:12,value:0};
   if(player.equip.off){ player.inv.push(player.equip.off); player.equip.off=null; }
-  player.attrs={}; player.attrPts=3*(player.lvl-1);
+  player.attrs={};
   player.adr=0;
   player.hp=pMaxHp(); player.en=pMaxEn();
   if(!player.known[key]) player.known[key]=[...DEFAULT_BARS[key]];
@@ -3314,7 +3347,7 @@ function syncUI(){
   ui.pLvl.textContent='Lv '+player.lvl+(player.lvl>=10?' MAX':'')+(player.dp>0?` (−${Math.round(player.dp*100)}%)`:'');
   ui.gold.textContent=player.gold;
   if(SKILLS.some(s=>s.adr)) ui.pAdr.style.width=clamp(player.adr/10*100,0,100)+'%';
-  if(heroBtn) heroBtn.style.boxShadow=player.attrPts>0?'0 0 10px #f0d97a, inset 0 1px 0 #ffffff14':'';
+  if(heroBtn) heroBtn.style.boxShadow=attrFree()>0?'0 0 10px #f0d97a, inset 0 1px 0 #ffffff14':'';
 
   ui.henchFrame.style.display=hench.recruited?'':'none';
   ui.henchFrame.style.opacity=hench.dead?0.45:1;
@@ -3435,7 +3468,7 @@ function applySave(s){
   player.lvl=s.lvl||1; player.xp=s.xp||0; player.gold=s.gold||0; player.dp=s.dp||0;
   player.baseHp=CLASSES[player.cls].baseHp+20*(player.lvl-1);
   player.baseEn=CLASSES[player.cls].baseEn+2*(player.lvl-1);
-  player.attrs=s.attrs||{}; player.attrPts=s.attrPts??0;
+  player.attrs=s.attrs||{};
   player.inv=Array.isArray(s.inv)?s.inv:[];
   player.builds=Array.isArray(s.builds)?s.builds:[];
   player.promo=s.promo||0; player.bounty=s.bounty||null;
