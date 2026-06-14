@@ -508,6 +508,42 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 .screen .map-wrap { align-self: stretch; }
 
+/* ========================= CONFIRM BAR (tap → preview → confirm) ========================= */
+.confirm-bar {
+  position: sticky; bottom: 0; z-index: 8;
+  display: none; flex-direction: column; gap: 8px; align-items: stretch;
+  width: 100%; max-width: 460px; align-self: center;
+  margin-top: 10px;
+  padding: 11px 12px calc(env(safe-area-inset-bottom, 0px) + 11px);
+  background: linear-gradient(rgba(4, 10, 12, 0.2), rgba(4, 10, 12, 0.97) 45%);
+  border-top: 1px solid var(--green-dim);
+  backdrop-filter: blur(2px);
+  animation: cbIn 0.18s ease-out;
+}
+.confirm-bar.show { display: flex; }
+@keyframes cbIn { from { opacity: 0; transform: translateY(10px); } }
+.confirm-bar .cb-msg { font-size: 12px; color: var(--text); text-align: center; line-height: 1.5; }
+.confirm-bar .cb-msg b { color: var(--green); font-weight: normal; }
+.confirm-bar .cb-note { display: block; font-size: 10px; color: var(--text-dim); margin-top: 4px; letter-spacing: 0.5px; }
+.confirm-bar .cb-actions { display: flex; gap: 10px; justify-content: center; }
+.confirm-bar .cb-actions .btn { flex: 1; max-width: 170px; }
+
+/* selection highlight for cards / panels under the confirm flow */
+.card-grid .card.picked {
+  transform: scale(1.16) translateY(-4px);
+  z-index: 6; border-color: var(--green);
+  box-shadow: 0 0 16px rgba(93, 255, 136, 0.45), 0 6px 20px rgba(0, 0, 0, 0.75);
+}
+.card-grid .card.picked.preview-up { border-color: var(--amber); box-shadow: 0 0 16px rgba(255, 176, 46, 0.5), 0 6px 20px rgba(0, 0, 0, 0.75); }
+.panel-btn.sel { border-color: var(--green); box-shadow: 0 0 14px rgba(93, 255, 136, 0.4); transform: translateY(-1px); }
+.panel-btn.amber.sel { border-color: var(--amber); box-shadow: 0 0 14px rgba(255, 176, 46, 0.45); }
+.btn.sel { background: rgba(40, 90, 55, 0.85); box-shadow: 0 0 12px rgba(93, 255, 136, 0.4); }
+
+/* aimed (selected) map node */
+.starchart .mapnode.aim .hex { stroke: #eaffe9; stroke-width: 2.4; opacity: 1; filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.85)); }
+.starchart .mapnode.aim .ticks { opacity: 1; }
+.starchart .mapnode.aim .glyph { filter: drop-shadow(0 0 5px currentColor); }
+
 /* ========================= TOAST ========================= */
 #toast {
   position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 170px);
@@ -3883,6 +3919,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     event: 'Unknown signal', random: 'Uncharted', shop: 'Free trader',
     rest: 'Field camp', treasure: 'Supply cache',
   };
+  var NODE_DESC = {
+    fight: 'A standard enemy pack. Salvage and a card reward on victory.',
+    elite: 'A dangerous mini-boss — but it drops a relic.',
+    boss: 'The sector boss. Beat it to level up and jump onward.',
+    event: 'An unknown signal: a decision with consequences.',
+    random: 'Uncharted space. Could be anything.',
+    shop: 'A trader. Spend credits on cards, relics and repairs.',
+    rest: 'A quiet camp. Heal up, or refine a card.',
+    treasure: 'A sealed cache holding a free relic.',
+  };
 
   function mapJit(row, col, axis) { return ((row * 13 + col * 7 + axis * 5) % 7 - 3) * 4; }
 
@@ -3996,6 +4042,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         '<svg viewBox="0 0 48 48">' + mapIconPaths(ic, 24, 24, 17) + '</svg></span>' + esc(NODE_LABEL[t]) + '</span>';
     });
     s.appendChild(legend);
+    var cbar = makeConfirmBar();
+    s.appendChild(cbar.el);
 
     wrap.addEventListener('pointerdown', function (ev) {
       var g = ev.target.closest ? ev.target.closest('.mapnode') : null;
@@ -4003,7 +4051,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var row = +g.getAttribute('data-row'), col = +g.getAttribute('data-col');
       var node = (row >= m.ROWS) ? m.boss : null;
       if (!node) { m.rows[row].forEach(function (n) { if (n.col === col) node = n; }); }
-      if (node && E.enterNode(node)) { SFX.play(); U.refresh(); }
+      if (!node) return;
+      // tapping the already-aimed node confirms the jump (double-tap shortcut)
+      if (g.classList.contains('aim')) { cbar.hide(); if (E.enterNode(node)) { SFX.play(); U.refresh(); } return; }
+      Array.prototype.forEach.call(wrap.querySelectorAll('.mapnode.aim'), function (e) { e.classList.remove('aim'); });
+      g.classList.add('aim');
+      SFX.tap();
+      var t = node.type;
+      cbar.show('Jump to <b>' + esc(NODE_LABEL[t]) + '</b>?<span class="cb-note">' + esc(NODE_DESC[t]) + '</span>',
+        function () { if (E.enterNode(node)) { SFX.play(); U.refresh(); } },
+        function () { g.classList.remove('aim'); }, (t === 'elite' || t === 'boss') ? 'red' : '');
     });
 
     // scroll so the active frontier is in view (bottom on entry, current node later)
@@ -4433,17 +4490,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
 
     if (!rw.cardTaken) {
-      s.appendChild(el('div', 'screen-sub', 'TAKE ONE CARD'));
+      s.appendChild(el('div', 'screen-sub', 'TAP A CARD TO PREVIEW · CONFIRM TO TAKE'));
       var grid = el('div', 'card-grid');
+      var cbar = makeConfirmBar();
       rw.cards.forEach(function (cid, i) {
         var d = cardEl(cid, false);
-        d.addEventListener('pointerdown', function () {
-          SFX.coin();
-          E.takeRewardCard(i);
-          E.finishReward();
-          U.refresh();
-        });
         grid.appendChild(d);
+        selectConfirm(grid, d, cbar, 'Take <b>' + esc(ns.CARDS[cid].name) + '</b> into your deck?',
+          function () { E.takeRewardCard(i); E.finishReward(); U.refresh(); }, 'cyan');
       });
       s.appendChild(grid);
       var skip = el('button', 'btn dim small', 'SKIP CARD');
@@ -4453,6 +4507,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         U.refresh();
       });
       s.appendChild(skip);
+      s.appendChild(cbar.el);
     } else {
       var btn = el('button', 'btn', 'CONTINUE');
       btn.addEventListener('pointerdown', function () { SFX.tap(); E.finishReward(); U.refresh(); });
@@ -4467,6 +4522,53 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     d.innerHTML = cardInner(def.name + (up ? '+' : ''), def.xcost ? 'X' : ns.cardCost(def, up), def.type, def.rarity,
       ns.cardDesc(def, up, ctx), def.unplayable);
     return d;
+  }
+
+  /* ====================== tap → preview → confirm ====================== */
+  // A sticky confirm bar so no irreversible action is ever a single misclick.
+  function makeConfirmBar() {
+    var bar = el('div', 'confirm-bar');
+    bar.innerHTML = '<div class="cb-msg"></div><div class="cb-actions">' +
+      '<button class="btn small dim cb-cancel">CANCEL</button>' +
+      '<button class="btn small cb-ok">CONFIRM</button></div>';
+    var st = {};
+    var api = {
+      el: bar,
+      show: function (msg, onOk, onCancel, okClass) {
+        bar.querySelector('.cb-msg').innerHTML = msg;
+        st.onOk = onOk; st.onCancel = onCancel;
+        bar.querySelector('.cb-ok').className = 'btn small cb-ok' + (okClass ? ' ' + okClass : '');
+        bar.classList.add('show');
+      },
+      hide: function () { bar.classList.remove('show'); st.onOk = st.onCancel = null; },
+      shown: function () { return bar.classList.contains('show'); },
+    };
+    bar.querySelector('.cb-cancel').addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation(); SFX.tap(); var f = st.onCancel; api.hide(); if (f) f();
+    });
+    bar.querySelector('.cb-ok').addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation(); SFX.coin(); var f = st.onOk; api.hide(); if (f) f();
+    });
+    return api;
+  }
+
+  // Wire an element so a tap selects+previews it (arming the confirm bar);
+  // tapping the already-selected element confirms (double-tap shortcut).
+  function selectConfirm(container, elm, cbar, message, onConfirm, okClass, onSelect, onDeselect) {
+    var selClass = elm.classList.contains('card') ? 'picked' : 'sel';
+    elm._onDesel = onDeselect;
+    elm.addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation();
+      if (elm.classList.contains('disabled') || elm.classList.contains('sold')) return;
+      if (elm.classList.contains(selClass)) { SFX.coin(); cbar.hide(); onConfirm(); return; }
+      SFX.tap();
+      Array.prototype.forEach.call(container.querySelectorAll('.picked, .sel'), function (e) {
+        e.classList.remove('picked', 'sel'); if (e._onDesel) e._onDesel();
+      });
+      elm.classList.add(selClass);
+      if (onSelect) onSelect();
+      cbar.show(message, onConfirm, function () { elm.classList.remove(selClass); if (onDeselect) onDeselect(); }, okClass);
+    });
   }
 
   /* ====================== EVENT ====================== */
@@ -4577,29 +4679,43 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function showPickModal(type, onDone) {
     var r = E.run;
     var s = overlayScreen();
-    var titles = { remove: 'Remove a Card', upgrade: 'Upgrade a Card', dupe: 'Duplicate a Card' };
+    var titles = { remove: 'Purge a Card', upgrade: 'Refine a Card', dupe: 'Duplicate a Card' };
+    var verbs = { remove: 'Purge', upgrade: 'Refine', dupe: 'Duplicate' };
+    var okClass = { remove: 'red', upgrade: 'amber', dupe: 'cyan' }[type] || '';
     s.appendChild(el('h2', 'screen-title', titles[type] || 'Choose a Card'));
-    s.appendChild(el('div', 'screen-sub', 'TAP A CARD'));
+    s.appendChild(el('div', 'screen-sub', 'TAP A CARD TO PREVIEW · CONFIRM TO ' + (verbs[type] || 'SELECT').toUpperCase()));
     var grid = el('div', 'card-grid');
+    var cbar = makeConfirmBar();
+    var any = false;
     r.deck.forEach(function (card, i) {
       var def = ns.CARDS[card.id];
       if (type === 'upgrade' && (card.up || def.type === 'curse')) return;
       if (type === 'dupe' && def.type === 'curse') return;
+      any = true;
       var d = cardEl(card.id, card.up);
-      d.addEventListener('pointerdown', function () {
-        SFX.coin();
-        E.applyPick(i);
-        onDone();
-      });
       grid.appendChild(d);
+      var name = def.name;
+      var msg, onSelect, onDeselect;
+      if (type === 'remove') msg = 'Purge <b>' + esc(name) + '</b> from your deck? This is permanent.';
+      else if (type === 'upgrade') {
+        msg = 'Refine <b>' + esc(name) + '</b> into <b>' + esc(name) + '+</b>?';
+        // preview: swap the card face to its upgraded version while selected
+        var baseHTML = d.innerHTML;
+        var upHTML = cardEl(card.id, true).innerHTML;
+        onSelect = function () { d.innerHTML = upHTML; d.classList.add('preview-up'); };
+        onDeselect = function () { d.innerHTML = baseHTML; d.classList.remove('preview-up'); };
+      } else msg = 'Duplicate <b>' + esc(name) + '</b>?';
+      selectConfirm(grid, d, cbar, msg, function () { E.applyPick(i); onDone(); }, okClass, onSelect, onDeselect);
     });
     s.appendChild(grid);
-    if (!grid.children.length) {
+    if (!any) {
       E.cancelPick();
       s.appendChild(el('div', 'screen-sub', 'NO VALID CARDS'));
       var btn = el('button', 'btn dim', 'BACK');
       btn.addEventListener('pointerdown', function () { onDone(); });
       s.appendChild(btn);
+    } else {
+      s.appendChild(cbar.el);
     }
   }
 
@@ -4611,56 +4727,57 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var s = overlayScreen(true);
     s.appendChild(el('h2', 'screen-title', 'Free Trader'));
     s.appendChild(el('div', 'screen-sub', '“EVERYTHING IS FOR SALE.” · ¢' + r.credits));
+    var cbar = makeConfirmBar();
 
     var grid = el('div', 'card-grid');
     sh.cards.forEach(function (it, i) {
       var d = cardEl(it.id, false);
-      if (it.sold) d.classList.add('sold');
       d.appendChild(el('div', 'price', '¢' + it.cost));
-      d.addEventListener('pointerdown', function () {
-        if (it.sold) return;
-        if (E.shopBuyCard(i)) { SFX.coin(); showShop(); }
-        else toast('NOT ENOUGH CREDITS');
-      });
+      if (it.sold) { d.classList.add('sold'); grid.appendChild(d); return; }
       grid.appendChild(d);
+      var afford = r.credits >= it.cost;
+      selectConfirm(s, d, cbar,
+        'Buy <b>' + esc(ns.CARDS[it.id].name) + '</b> for ¢' + it.cost + '?' + (afford ? '' : '<span class="cb-note">Not enough credits.</span>'),
+        function () { if (E.shopBuyCard(i)) { SFX.coin(); showShop(); } else toast('NOT ENOUGH CREDITS'); }, 'cyan');
     });
     s.appendChild(grid);
 
-    var row = el('div', 'shop-row');
     if (sh.artifact) {
       var a = ns.ARTIFACTS[sh.artifact.id];
       var ab = el('div', 'panel-btn amber' + (sh.artifact.sold ? ' disabled' : ''),
         '<div class="pb-title"><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + ' — ¢' + sh.artifact.cost + '</div>' +
         '<div class="pb-desc">' + esc(a.desc) + '</div>');
-      ab.addEventListener('pointerdown', function () {
-        if (sh.artifact.sold) return;
-        if (E.shopBuyArtifact()) { SFX.coin(); showShop(); }
-        else toast('NOT ENOUGH CREDITS');
-      });
       s.appendChild(ab);
+      if (!sh.artifact.sold) {
+        selectConfirm(s, ab, cbar, 'Buy relic <b>' + esc(a.name) + '</b> for ¢' + sh.artifact.cost + '?',
+          function () { if (E.shopBuyArtifact()) { SFX.coin(); showShop(); } else toast('NOT ENOUGH CREDITS'); }, 'amber');
+      }
     }
 
+    var row = el('div', 'shop-row');
     var hb = el('button', 'btn cyan small' + (sh.healUsed || r.hp >= r.maxHp ? ' dim' : ''), 'REPAIR +' + B.shop.healAmount + ' HP · ¢' + B.shop.healCost);
-    hb.addEventListener('pointerdown', function () {
-      if (E.shopBuyHeal()) { SFX.heal(); showShop(); }
-      else toast(r.hp >= r.maxHp ? 'HULL ALREADY INTACT' : sh.healUsed ? 'SOLD OUT' : 'NOT ENOUGH CREDITS');
-    });
+    if (!sh.healUsed && r.hp < r.maxHp) {
+      selectConfirm(s, hb, cbar, 'Repair <b>+' + B.shop.healAmount + ' HP</b> for ¢' + B.shop.healCost + '?',
+        function () { if (E.shopBuyHeal()) { SFX.heal(); showShop(); } else toast('NOT ENOUGH CREDITS'); }, 'cyan');
+    } else {
+      hb.addEventListener('pointerdown', function () { toast(r.hp >= r.maxHp ? 'HULL ALREADY INTACT' : 'SOLD OUT'); });
+    }
     row.appendChild(hb);
 
     var rb = el('button', 'btn red small' + (sh.removeUsed ? ' dim' : ''), 'PURGE A CARD · ¢' + r.removeCost);
-    rb.addEventListener('pointerdown', function () {
-      if (sh.removeUsed) { toast('SERVICE USED'); return; }
-      if (E.shopBuyRemove()) {
-        SFX.tap();
-        showPickModal('remove', function () { showShop(); });
-      } else toast('NOT ENOUGH CREDITS');
-    });
+    if (!sh.removeUsed) {
+      selectConfirm(s, rb, cbar, 'Pay ¢' + r.removeCost + ' to purge a card from your deck?',
+        function () { if (E.shopBuyRemove()) { showPickModal('remove', function () { showShop(); }); } else toast('NOT ENOUGH CREDITS'); }, 'red');
+    } else {
+      rb.addEventListener('pointerdown', function () { toast('SERVICE USED'); });
+    }
     row.appendChild(rb);
     s.appendChild(row);
 
     var leave = el('button', 'btn', 'DEPART');
     leave.addEventListener('pointerdown', function () { SFX.tap(); E.leaveShop(); U.refresh(); });
     s.appendChild(leave);
+    s.appendChild(cbar.el);
   }
 
   /* ====================== REST ====================== */
@@ -4670,23 +4787,26 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var s = overlayScreen(true);
     s.appendChild(el('h2', 'screen-title', 'Field Camp'));
     s.appendChild(el('div', 'screen-sub', 'THE GUNS GO QUIET FOR A WHILE'));
+    var cbar = makeConfirmBar();
     var healAmt = Math.round(r.maxHp * B.rewards.restHealPct);
     var h = el('div', 'panel-btn cyan',
       '<div class="pb-title">+ PATCH WOUNDS</div><div class="pb-desc">Heal ' + healAmt + ' HP (' + r.hp + ' → ' + Math.min(r.maxHp, r.hp + healAmt) + ')</div>');
-    h.addEventListener('pointerdown', function () { SFX.heal(); E.restHeal(); U.refresh(); });
     s.appendChild(h);
+    selectConfirm(s, h, cbar, 'Patch wounds — heal <b>' + healAmt + ' HP</b>?',
+      function () { SFX.heal(); E.restHeal(); U.refresh(); }, 'cyan');
     var u = el('div', 'panel-btn amber',
       '<div class="pb-title">▲ REFINE A CARD</div><div class="pb-desc">Permanently upgrade one card in your deck.</div>');
-    u.addEventListener('pointerdown', function () {
-      SFX.tap();
-      E.restUpgrade();
-      showPickModal('upgrade', function () {
-        if (E.run.pendingPick) { E.cancelPick(); showRest(); return; }
-        E.nodeComplete();
-        U.refresh();
-      });
-    });
     s.appendChild(u);
+    selectConfirm(s, u, cbar, 'Spend this camp refining a card?',
+      function () {
+        E.restUpgrade();
+        showPickModal('upgrade', function () {
+          if (E.run.pendingPick) { E.cancelPick(); showRest(); return; }
+          E.nodeComplete();
+          U.refresh();
+        });
+      }, 'amber');
+    s.appendChild(cbar.el);
   }
 
   /* ====================== LEVEL UP / BOSS ARTIFACT ====================== */
@@ -4695,16 +4815,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var s = overlayScreen(true);
     s.appendChild(el('h2', 'screen-title', 'Level Up'));
     s.appendChild(el('div', 'screen-sub', 'THE DESCENT HARDENS YOU · CHOOSE ONE'));
+    var cbar = makeConfirmBar();
     E.levelUpOptions().forEach(function (opt) {
       var btn = el('div', 'panel-btn',
         '<div class="pb-title">' + esc(opt.label) + '</div><div class="pb-desc">' + esc(opt.desc) + '</div>');
-      btn.addEventListener('pointerdown', function () {
-        SFX.win();
-        E.levelUp(opt.id);
-        U.refresh();
-      });
       s.appendChild(btn);
+      selectConfirm(s, btn, cbar, 'Take <b>' + esc(opt.label) + '</b>?<span class="cb-note">' + esc(opt.desc) + '</span>',
+        function () { SFX.win(); E.levelUp(opt.id); U.refresh(); }, '');
     });
+    s.appendChild(cbar.el);
   }
 
   function showBossArtifact() {
@@ -4713,17 +4832,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var s = overlayScreen(true);
     s.appendChild(el('h2', 'screen-title', 'Spoils of War'));
     s.appendChild(el('div', 'screen-sub', 'CLAIM ONE RELIC'));
+    var cbar = makeConfirmBar();
     (r.bossArtifacts || []).forEach(function (id, i) {
       var a = ns.ARTIFACTS[id];
       var btn = el('div', 'panel-btn amber',
         '<div class="pb-title"><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + '</div><div class="pb-desc">' + esc(a.desc) + '</div>');
-      btn.addEventListener('pointerdown', function () {
-        SFX.coin();
-        E.takeBossArtifact(i);
-        U.refresh();
-      });
       s.appendChild(btn);
+      selectConfirm(s, btn, cbar, 'Claim <b>' + esc(a.name) + '</b>?<span class="cb-note">' + esc(a.desc) + '</span>',
+        function () { SFX.coin(); E.takeBossArtifact(i); U.refresh(); }, 'amber');
     });
+    s.appendChild(cbar.el);
     if (!r.bossArtifacts || !r.bossArtifacts.length) {
       var btn2 = el('button', 'btn', 'CONTINUE');
       btn2.addEventListener('pointerdown', function () { E.takeBossArtifact(-1); U.refresh(); });

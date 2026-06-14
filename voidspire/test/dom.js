@@ -69,10 +69,13 @@ async function main() {
   if (!qa('#overlay .mapnode.reachable').length) throw new Error('map has no reachable start nodes');
   console.log('map boot: OK, ' + qa('#overlay .mapnode.reachable').length + ' start nodes');
 
-  // enter the first node (row 0 is always a fight) to reach combat
+  // enter the first node (row 0 is always a fight): tap selects, confirm jumps
   tap(qa('#overlay .mapnode.reachable')[0]);
-  await sleep(60);
-  if (VS.engine.run.phase !== 'combat') throw new Error('expected combat after entering a fight node, got ' + VS.engine.run.phase);
+  await sleep(50);
+  if (!q('#overlay .confirm-bar.show')) throw new Error('map node tap did not arm the confirm bar');
+  tap(q('#overlay .confirm-bar.show .cb-ok'));
+  await sleep(80);
+  if (VS.engine.run.phase !== 'combat') throw new Error('expected combat after confirming a fight node, got ' + VS.engine.run.phase);
   if (!qa('#hand .card').length) throw new Error('hand did not render');
   console.log('combat boot: OK, hand size ' + qa('#hand .card').length);
 
@@ -108,7 +111,9 @@ async function main() {
     stuckCount = (stuckKey === stuckPhase) ? stuckCount + 1 : 0;
     stuckPhase = stuckKey;
     if (stuckCount > 5 && phase !== 'combat') {
-      var bail = qa('#overlay .btn').pop();
+      // bail via a real exit button (DEPART / CONTINUE / SKIP), never a
+      // confirm-bar button (those are also .btn)
+      var bail = qa('#overlay .btn:not(.cb-ok):not(.cb-cancel)').pop();
       if (bail) { tap(bail); await sleep(400); continue; }
     }
     if (phase === 'combat') {
@@ -139,7 +144,7 @@ async function main() {
         await sleep(400);
       }
     } else if (phase === 'map') {
-      // star-chart: tap a reachable node
+      // star-chart: tap a reachable node (arms confirm), then confirm the jump
       var node = null;
       for (var mtries = 0; mtries < 40 && !node; mtries++) {
         node = qa('#overlay .mapnode.reachable')[0];
@@ -147,7 +152,10 @@ async function main() {
       }
       if (!node) throw new Error('no reachable map node');
       tap(node);
-      await sleep(120);
+      await sleep(60);
+      var jok = q('#overlay .confirm-bar.show .cb-ok');
+      if (jok) tap(jok);
+      await sleep(140);
     } else {
       // overlay phase: tap the first actionable element (it may render after
       // a victory/defeat delay, so poll briefly)
@@ -160,7 +168,11 @@ async function main() {
       }
       if (!act) throw new Error('no actionable element in phase ' + phase);
       tap(act);
-      await sleep(900); // let dice / timelines settle
+      await sleep(140);
+      // most committal actions now arm a confirm bar — confirm it
+      var cbok = q('#overlay .confirm-bar.show .cb-ok');
+      if (cbok) { tap(cbok); await sleep(160); }
+      await sleep(740); // let dice / timelines settle
     }
   }
   if (safety >= 3000) throw new Error('UI drive safety tripped in phase ' + VS.engine.run.phase);

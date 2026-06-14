@@ -497,6 +497,42 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 .screen .map-wrap { align-self: stretch; }
 
+/* ========================= CONFIRM BAR (tap → preview → confirm) ========================= */
+.confirm-bar {
+  position: sticky; bottom: 0; z-index: 8;
+  display: none; flex-direction: column; gap: 8px; align-items: stretch;
+  width: 100%; max-width: 460px; align-self: center;
+  margin-top: 10px;
+  padding: 11px 12px calc(env(safe-area-inset-bottom, 0px) + 11px);
+  background: linear-gradient(rgba(4, 10, 12, 0.2), rgba(4, 10, 12, 0.97) 45%);
+  border-top: 1px solid var(--green-dim);
+  backdrop-filter: blur(2px);
+  animation: cbIn 0.18s ease-out;
+}
+.confirm-bar.show { display: flex; }
+@keyframes cbIn { from { opacity: 0; transform: translateY(10px); } }
+.confirm-bar .cb-msg { font-size: 12px; color: var(--text); text-align: center; line-height: 1.5; }
+.confirm-bar .cb-msg b { color: var(--green); font-weight: normal; }
+.confirm-bar .cb-note { display: block; font-size: 10px; color: var(--text-dim); margin-top: 4px; letter-spacing: 0.5px; }
+.confirm-bar .cb-actions { display: flex; gap: 10px; justify-content: center; }
+.confirm-bar .cb-actions .btn { flex: 1; max-width: 170px; }
+
+/* selection highlight for cards / panels under the confirm flow */
+.card-grid .card.picked {
+  transform: scale(1.16) translateY(-4px);
+  z-index: 6; border-color: var(--green);
+  box-shadow: 0 0 16px rgba(93, 255, 136, 0.45), 0 6px 20px rgba(0, 0, 0, 0.75);
+}
+.card-grid .card.picked.preview-up { border-color: var(--amber); box-shadow: 0 0 16px rgba(255, 176, 46, 0.5), 0 6px 20px rgba(0, 0, 0, 0.75); }
+.panel-btn.sel { border-color: var(--green); box-shadow: 0 0 14px rgba(93, 255, 136, 0.4); transform: translateY(-1px); }
+.panel-btn.amber.sel { border-color: var(--amber); box-shadow: 0 0 14px rgba(255, 176, 46, 0.45); }
+.btn.sel { background: rgba(40, 90, 55, 0.85); box-shadow: 0 0 12px rgba(93, 255, 136, 0.4); }
+
+/* aimed (selected) map node */
+.starchart .mapnode.aim .hex { stroke: #eaffe9; stroke-width: 2.4; opacity: 1; filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.85)); }
+.starchart .mapnode.aim .ticks { opacity: 1; }
+.starchart .mapnode.aim .glyph { filter: drop-shadow(0 0 5px currentColor); }
+
 /* ========================= TOAST ========================= */
 #toast {
   position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 170px);
