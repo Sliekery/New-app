@@ -10,6 +10,7 @@ GitHub forever, so it can't be lost even if later changes break something. The
 
 | Checkpoint | Commit | Date | What's in it |
 |---|---|---|---|
+| **v1.8-look** | `ae1a3f8` | 2026-06-14 | Space-Marine Vanguard avatar, grounded vs floating enemies (contact shadows), readability tweaks, and a fix so the "no Shield" quest only counts player-played shield. |
 | **v1.7-events** | `9ccf04c` | 2026-06-14 | Events show your credits/HP and preview each choice's cost & reward; adds gambles, conditional "blue" options, curse removal, card-acquisition, and 7 new space-themed events. |
 | **v1.6-augments** | `bc4db5f` | 2026-06-14 | Level-up redesigned as an Augment Protocol draft: random 3-of-~22, rarity-weighted & class-flavored, with modules, deck ops, and risk/reward pacts. Fixes the boring/OP fixed-stat menu. |
 | **v1.5-relics** | `c412c50` | 2026-06-14 | 12 new artifacts incl. quest relics (complete a task → unlock a reward) and tradeoff/reactive relics. Map jump confirmation removed (single tap). |
@@ -18,6 +19,10 @@ GitHub forever, so it can't be lost even if later changes break something. The
 | **v1.2-map** | `1acede5` | 2026-06-14 | Branching star-chart map per sector (pick your path through fights/events/shops/rests/elites/treasure to the boss), with distinct node icons. Retuned to hold the StS difficulty. |
 | **v1.1-builds** | `316d309` | 2026-06-14 | Adds Slay-the-Spire-style build archetypes (Might/Exhaust, Shield/Echo, Burn/spam) and build-defining rares for "god runs". Fixes the power-reuse bug (powers are now consumed). |
 | **v1.0-stable** | `9583880` | 2026-06-14 | Swipe-to-play combat, Slay-the-Spire-tuned balance, faction world-building, animated screen transitions, talking event portraits, artifact icons. First fully-polished version. |
+
+### v1.8-look
+- **Play (frozen):** https://rawcdn.githack.com/Sliekery/New-app/ae1a3f8524b78507d41b2527b45f5f2b14fb11b3/voidspire/voidspire.html
+- **Restore command (for reference):** `git checkout ae1a3f8 -- voidspire`
 
 ### v1.7-events
 - **Play (frozen):** https://rawcdn.githack.com/Sliekery/New-app/9ccf04c0613ec89405317fa08f479eca6c2ee3e0/voidspire/voidspire.html
