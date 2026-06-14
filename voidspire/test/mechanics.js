@@ -490,5 +490,29 @@ startFight('vanguard'); E.run.augments = ['breaching_rounds']; bigEnemies();
 setHand(['pulse_rifle']); playId('pulse_rifle', 0);
 ok('Breaching Rounds applies Vulnerable on attack', (E.combat.enemies[0].statuses.vuln || 0) >= 1);
 
+/* 47. Void-Touched: boosts the effect and costs HP each play */
+startFight('vanguard'); bigEnemies();
+E.combat.hand = [{ uid: 7001, id: 'pulse_rifle', up: false }];
+var baseDmg = parseInt(E.cardInfo(E.combat.hand[0]).desc.match(/Deal (\d+)/)[1], 10);
+E.combat.hand[0].vtouch = true;
+var vtDesc = E.cardInfo(E.combat.hand[0]).desc;
+ok('Void-Touch boosts the damage (' + baseDmg + ' -> ' + vtDesc.match(/Deal (\d+)/)[1] + ')', parseInt(vtDesc.match(/Deal (\d+)/)[1], 10) > baseDmg);
+ok('Void-Touch notes the HP cost', /lose 3 HP/i.test(vtDesc));
+var vhp0 = E.run.hp, vehp0 = E.combat.enemies[0].hp;
+E.playCard(0, 0);
+ok('Void-Touch deals boosted damage', E.combat.enemies[0].hp < vehp0);
+ok('Void-Touch costs 3 HP on play', E.run.hp === vhp0 - 3);
+
+/* 48. applyPick vtouch corrupts a deck card */
+E.seed(3); E.newRun('vanguard'); E.run.pendingPick = 'vtouch';
+ok('applyPick vtouch sets the flag', (E.applyPick(0), !!E.run.deck[0].vtouch));
+
+/* 49. legendary + pooled cards never appear in normal rewards */
+E.seed(9); E.newRun('vanguard');
+var leak = false;
+for (var lt = 0; lt < 400; lt++) { var rc = E.rollRewardCard(0.5); if (VS.CARDS[rc].pool || VS.CARDS[rc].rarity === 4) leak = true; }
+ok('no pooled/legendary cards in normal rewards', !leak);
+ok('rollLegendary returns a boss-pool legendary', !!E.rollLegendary() && VS.CARDS[E.rollLegendary()].pool === 'boss');
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

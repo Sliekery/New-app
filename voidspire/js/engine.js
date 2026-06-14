@@ -624,11 +624,12 @@
       name: def.name + (card.up ? '+' : ''),
       cost: effCost(def, card.up),
       xcost: !!def.xcost,
-      desc: ns.cardDesc(def, card.up, liveCtx()),
+      desc: ns.cardDesc(def, card.up, liveCtx(), card.vtouch),
       type: def.type,
       needsTarget: ns.cardNeedsTarget(def, card.up),
       unplayable: !!def.unplayable,
       rarity: def.rarity,
+      vtouch: !!card.vtouch,
     };
   };
 
@@ -904,7 +905,7 @@
     if (!E.canPlay(handIdx)) return false;
     var card = c.hand[handIdx];
     var def = ns.CARDS[card.id];
-    var fx = ns.cardFx(def, card.up);
+    var fx = ns.cardFx(def, card.up, card.vtouch);
     var cost = effCost(def, card.up);
 
     // resolve target (default: first living enemy)
@@ -940,6 +941,8 @@
       if (c.over) break;
       totalDealt += applyCardFx(fx, ctx);
     }
+    // Void-Touched drawback: pay HP each time the corrupted card is played
+    if (card.vtouch && r.phase !== 'dead') hurtPlayer(ns.VTOUCH_HP, { pure: true });
 
     // on-play triggers (once per card played, not per echo repeat)
     if (!c.over) {
@@ -1102,6 +1105,8 @@
     return v;
   }
 
+  // Normal reward/shop pool: rarity 1-3, class-legal, and NOT a special pool
+  // (event-only / boss-only cards never roll here).
   function rollRewardCard(rareBoost) {
     var roll = rnd();
     var rar = 1;
@@ -1109,15 +1114,25 @@
     else if (roll < B.rewards.rareChance + (rareBoost || 0) + B.rewards.uncommonChance) rar = 2;
     var pool = Object.keys(ns.CARDS).filter(function (k) {
       var c = ns.CARDS[k];
-      return c.rarity === rar && (c.cls === E.run.cls || c.cls === 'any');
+      return c.rarity === rar && !c.pool && (c.cls === E.run.cls || c.cls === 'any');
     });
     if (pool.length === 0) pool = Object.keys(ns.CARDS).filter(function (k) {
       var c = ns.CARDS[k];
-      return c.rarity === 1 && (c.cls === E.run.cls || c.cls === 'any');
+      return c.rarity === 1 && !c.pool && (c.cls === E.run.cls || c.cls === 'any');
     });
     return pick(pool);
   }
   E.rollRewardCard = rollRewardCard;
+
+  // Legendary (rarity 4, boss pool) for boss/elite rewards.
+  function rollLegendary() {
+    var pool = Object.keys(ns.CARDS).filter(function (k) {
+      var c = ns.CARDS[k];
+      return c.rarity === 4 && c.pool === 'boss' && (c.cls === E.run.cls || c.cls === 'any');
+    });
+    return pool.length ? pick(pool) : null;
+  }
+  E.rollLegendary = rollLegendary;
 
   function randomArtifact(tier) {
     var pool = Object.keys(ns.ARTIFACTS).filter(function (k) {
@@ -1170,6 +1185,11 @@
         while (seen[cid] && guard++ < 20) cid = rollRewardCard(rareBoost);
         seen[cid] = true;
         cards.push(cid);
+      }
+      // bosses always offer a legendary; elites sometimes do
+      if (cards.length && (kind === 'boss' || (kind === 'elite' && rnd() < 0.4))) {
+        var leg = rollLegendary();
+        if (leg) cards[0] = leg;
       }
     }
     var artifactDrop = (kind === 'elite') ? randomArtifact(1) : null;
@@ -1517,7 +1537,7 @@
       else if (fx.card === 'rare') {
         var rares = Object.keys(ns.CARDS).filter(function (k) {
           var c = ns.CARDS[k];
-          return c.rarity === 3 && (c.cls === r.cls || c.cls === 'any');
+          return c.rarity === 3 && !c.pool && (c.cls === r.cls || c.cls === 'any');
         });
         cid = rares.length ? pick(rares) : rollRewardCard(0);
       } else cid = fx.card;
@@ -1547,7 +1567,8 @@
     }
     if (fx.pick) {
       r.pendingPick = fx.pick;
-      gained.push(fx.pick === 'remove' ? 'Choose a card to remove' : fx.pick === 'upgrade' ? 'Choose a card to upgrade' : 'Choose a card to duplicate');
+      gained.push(fx.pick === 'remove' ? 'Choose a card to remove' : fx.pick === 'upgrade' ? 'Choose a card to upgrade' :
+        fx.pick === 'vtouch' ? 'Choose a card to Void-Touch' : 'Choose a card to duplicate');
     }
     return gained;
   }
@@ -1579,6 +1600,7 @@
     if (t === 'remove') r.deck.splice(deckIdx, 1);
     else if (t === 'upgrade') card.up = true;
     else if (t === 'dupe') r.deck.push(mkCard(card.id, card.up));
+    else if (t === 'vtouch') card.vtouch = true;
     r.pendingPick = null;
     E.save();
     return true;

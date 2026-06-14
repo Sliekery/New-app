@@ -77,7 +77,7 @@
     var out = [];
     Object.keys(ns.CARDS).forEach(function (id) {
       var c = ns.CARDS[id];
-      if (c.rarity >= 1 && (c.cls === cls || c.cls === 'any')) out.push(id);
+      if (c.rarity >= 1 && c.rarity <= 3 && !c.pool && (c.cls === cls || c.cls === 'any')) out.push(id);
     });
     return out;
   };

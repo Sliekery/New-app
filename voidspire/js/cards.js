@@ -25,6 +25,19 @@
   };
   ns.STATUS_NAMES = STATUS_NAMES;
 
+  // HP paid each time a Void-Touched card is played.
+  ns.VTOUCH_HP = 3;
+  // "Void-Touched": empower a card's numbers (it costs HP to play, see engine).
+  function voidBoost(fx) {
+    return fx.map(function (f) {
+      var g = {}; for (var k in f) g[k] = f[k];
+      if (g.k === 'dmg' || g.k === 'block' || g.k === 'heal') g.v = Math.ceil(g.v * 1.5);
+      else if (g.k === 'status' || g.k === 'draw' || g.k === 'energy') g.v = g.v + 1;
+      return g;
+    });
+  }
+  ns.voidBoost = voidBoost;
+
   ns.CARDS = {
 
     /* ---------------- Starters ---------------- */
@@ -327,6 +340,97 @@
       up: { fx: [{ k: 'block', v: 9, scale: 'tech' }] },
     },
 
+    /* ============ Expansion: new class cards ============ */
+    /* -- Vanguard -- */
+    war_cry: {
+      name: 'War Cry', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'status', s: 'str', v: 2, who: 'self' }, { k: 'draw', v: 1 }],
+      up: { fx: [{ k: 'status', s: 'str', v: 3, who: 'self' }, { k: 'draw', v: 1 }] },
+    },
+    cluster_munitions: {
+      name: 'Cluster Munitions', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
+      fx: [{ k: 'dmg', v: 4, all: true, hits: 2, scale: 'might' }],
+      up: { fx: [{ k: 'dmg', v: 6, all: true, hits: 2, scale: 'might' }] },
+    },
+    bunker_down: {
+      name: 'Bunker Down', cls: 'vanguard', type: 'skill', rarity: 2, cost: 2,
+      fx: [{ k: 'block', v: 8, scale: 'tech' }, { k: 'status', s: 'platedArmor', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'block', v: 12, scale: 'tech' }, { k: 'status', s: 'platedArmor', v: 4, who: 'self' }] },
+    },
+
+    /* -- Technomancer -- */
+    arc_welder: {
+      name: 'Arc Welder', cls: 'technomancer', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 7, scale: 'tech' }, { k: 'block', v: 4, scale: 'tech' }],
+      up: { fx: [{ k: 'dmg', v: 10, scale: 'tech' }, { k: 'block', v: 6, scale: 'tech' }] },
+    },
+    static_lance: {
+      name: 'Static Lance', cls: 'technomancer', type: 'attack', rarity: 2, cost: 2,
+      fx: [{ k: 'dmg', v: 8, scale: 'tech' }, { k: 'status', s: 'weak', v: 2, who: 'target' }],
+      up: { fx: [{ k: 'dmg', v: 11, scale: 'tech' }, { k: 'status', s: 'weak', v: 3, who: 'target' }] },
+    },
+    shield_battery: {
+      name: 'Shield Battery', cls: 'technomancer', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'plate', v: 4, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'plate', v: 6, who: 'self' }] },
+    },
+
+    /* -- Void Adept -- */
+    void_bolt: {
+      name: 'Void Bolt', cls: 'voidadept', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 5, scale: 'psi' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }],
+      up: { fx: [{ k: 'dmg', v: 7, scale: 'psi' }, { k: 'status', s: 'vuln', v: 3, who: 'target' }] },
+    },
+    wither: {
+      name: 'Wither', cls: 'voidadept', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'burn', v: 3, who: 'target' }, { k: 'status', s: 'weak', v: 2, who: 'target' }],
+      up: { fx: [{ k: 'status', s: 'burn', v: 5, who: 'target' }, { k: 'status', s: 'weak', v: 2, who: 'target' }] },
+    },
+    blood_sacrifice: {
+      name: 'Blood Sacrifice', cls: 'voidadept', type: 'skill', rarity: 2, cost: 0, exhaust: true,
+      fx: [{ k: 'hploss', v: 4 }, { k: 'status', s: 'psiPow', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'hploss', v: 3 }, { k: 'status', s: 'psiPow', v: 3, who: 'self' }] },
+    },
+
+    /* ============ Legendaries (boss rewards only) ============ */
+    orbital_bombardment: {
+      name: 'Orbital Bombardment', cls: 'vanguard', type: 'attack', rarity: 4, pool: 'boss', cost: 3,
+      fx: [{ k: 'dmg', v: 12, all: true, scale: 'might' }, { k: 'status', s: 'vuln', v: 2, who: 'allEnemies' }],
+      up: { fx: [{ k: 'dmg', v: 16, all: true, scale: 'might' }, { k: 'status', s: 'vuln', v: 3, who: 'allEnemies' }] },
+    },
+    omega_protocol: {
+      name: 'Omega Protocol', cls: 'technomancer', type: 'power', rarity: 4, pool: 'boss', cost: 3,
+      fx: [{ k: 'status', s: 'retain', v: 1, who: 'self' }, { k: 'status', s: 'echo', v: 1, who: 'self' }],
+      up: { cost: 2, fx: [{ k: 'status', s: 'retain', v: 1, who: 'self' }, { k: 'status', s: 'echo', v: 1, who: 'self' }] },
+    },
+    singularity_bloom: {
+      name: 'Singularity Bloom', cls: 'voidadept', type: 'power', rarity: 4, pool: 'boss', cost: 2,
+      fx: [{ k: 'status', s: 'plague', v: 1, who: 'self' }, { k: 'status', s: 'entropy', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'plague', v: 2, who: 'self' }, { k: 'status', s: 'entropy', v: 2, who: 'self' }] },
+    },
+    juggernaut_core: {
+      name: 'Juggernaut Core', cls: 'any', type: 'power', rarity: 4, pool: 'boss', cost: 2,
+      fx: [{ k: 'status', s: 'plate', v: 3, who: 'self' }, { k: 'status', s: 'strPerTurn', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'plate', v: 4, who: 'self' }, { k: 'status', s: 'strPerTurn', v: 1, who: 'self' }] },
+    },
+
+    /* ============ Event-only cards (never in normal rewards/shops) ============ */
+    salvaged_ordnance: {
+      name: 'Salvaged Ordnance', cls: 'any', type: 'attack', rarity: 2, pool: 'event', cost: 1, exhaust: true,
+      fx: [{ k: 'dmg', v: 11 }],
+      up: { fx: [{ k: 'dmg', v: 16 }] },
+    },
+    stim_overdose: {
+      name: 'Stim Overdose', cls: 'any', type: 'skill', rarity: 2, pool: 'event', cost: 0, exhaust: true,
+      fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }, { k: 'hploss', v: 3 }],
+      up: { fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }, { k: 'hploss', v: 1 }] },
+    },
+    forbidden_lore: {
+      name: 'Forbidden Lore', cls: 'any', type: 'skill', rarity: 3, pool: 'event', cost: 1, exhaust: true,
+      fx: [{ k: 'draw', v: 3 }, { k: 'status', s: 'psiPow', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'draw', v: 4 }, { k: 'status', s: 'psiPow', v: 1, who: 'self' }] },
+    },
+
     /* ---------------- Curses ---------------- */
     void_taint: {
       name: 'Void Taint', cls: 'curse', type: 'curse', rarity: -1, cost: 0, unplayable: true,
@@ -354,8 +458,9 @@
 
   /* ---- Description generator ----------------------------------------- */
   // ctx (optional): {attrs, statuses} so descriptions show live modified numbers.
-  ns.cardDesc = function (def, upgraded, ctx) {
+  ns.cardDesc = function (def, upgraded, ctx, vtouch) {
     var fx = (upgraded && def.up && def.up.fx) ? def.up.fx : def.fx;
+    if (vtouch) fx = voidBoost(fx);
     var parts = [];
     var B = ns.BALANCE;
     fx.forEach(function (f) {
@@ -401,6 +506,8 @@
         else if (f.s === 'afterImage') parts.push('Whenever you play a card, gain ' + f.v + ' Shield.');
         else if (f.s === 'plague') parts.push('Whenever you apply Burn, apply ' + f.v + ' Burn to ALL enemies.');
         else if (f.s === 'echo') parts.push('The first Attack you play each turn is played twice.');
+        else if (f.s === 'plate') parts.push('Gain ' + f.v + ' Shield at the start of each turn.');
+        else if (f.s === 'platedArmor') parts.push('Plated Armor ' + f.v + ': each turn gain that much Shield, then it drops by 1.');
         else if (f.s === 'corruption') parts.push('Skills cost 0 this combat, but Exhaust when played.');
         else if (f.who === 'self') parts.push('Gain ' + f.v + ' ' + n + '.');
         else if (f.who === 'allEnemies') parts.push('Apply ' + f.v + ' ' + n + ' to ALL enemies.');
@@ -411,6 +518,7 @@
     if (text) parts.push(text);
     if (def.retain) parts.push('Retain.');
     if (def.exhaust) parts.push('Exhaust.');
+    if (vtouch) parts.push('Void-Touched: lose ' + ns.VTOUCH_HP + ' HP when played.');
     return parts.join(' ');
   };
 
@@ -430,8 +538,9 @@
     return (upgraded && def.up && def.up.cost !== undefined) ? def.up.cost : def.cost;
   };
 
-  ns.cardFx = function (def, upgraded) {
-    return (upgraded && def.up && def.up.fx) ? def.up.fx : def.fx;
+  ns.cardFx = function (def, upgraded, vtouch) {
+    var fx = (upgraded && def.up && def.up.fx) ? def.up.fx : def.fx;
+    return vtouch ? voidBoost(fx) : fx;
   };
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));

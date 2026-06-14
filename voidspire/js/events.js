@@ -278,6 +278,31 @@
           fail: { text: 'The scavengers were not alone. You break contact, bloodied, pod lost.', fx: { hp: -10 } } },
       ],
     },
+    {
+      id: 'void_forge', title: 'THE VOID FORGE',
+      art: { c: '#c86bff', p: [[0,-0.92, 0.32,-0.28, 0.16,0.42, 0,0.92, -0.16,0.42, -0.32,-0.28, 0,-0.92], [0,-0.6, 0,0.62], [-0.5,-0.18, -0.86,-0.4], [0.5,-0.18, 0.86,-0.4], [-0.46,0.32, -0.8,0.55], [0.46,0.32, 0.8,0.55]], e: [[0,-0.04]], m: [-0.07,0.18, 0.07,0.18] },
+      text: 'A rent in the world, ringed with black iron. Offer it a weapon and it will return it — heavier, hungrier. Everything the void touches, it changes.',
+      choices: [
+        { label: 'Feed it a card', sub: 'Void-touch a card: +50% effect, but it costs 3 HP to play',
+          outcome: { text: 'You hold a card to the rift. It drinks the design and gives it back wrong — and wonderful.', fx: { pick: 'vtouch' } } },
+        { label: 'Reach inside', sub: 'PSI check, DC 13', check: { attr: 'psi', dc: 13 },
+          success: { text: 'Your hand closes on something that was never meant to be known. You keep it anyway.', fx: { card: 'forbidden_lore' } },
+          fail: { text: 'Something reaches back. It does not let go cleanly.', fx: { hp: -8, curse: 'void_taint' } } },
+        { label: 'Seal it and walk', outcome: { text: 'Some forges are better left cold. You weld the rift and move on.', fx: {} } },
+      ],
+    },
+    {
+      id: 'munitions_depot', title: 'ABANDONED DEPOT',
+      art: { c: '#ffb02e', p: [[-0.72,-0.28, 0.72,-0.28, 0.72,0.7, -0.72,0.7, -0.72,-0.28], [-0.72,0.22, 0.72,0.22], [-0.26,-0.52, 0,-0.95, 0.26,-0.52, 0.26,-0.28, -0.26,-0.28, -0.26,-0.52], [-0.4,0.42, -0.1,0.42], [0.1,0.42, 0.4,0.42]], e: [] },
+      text: 'A forward weapons depot, half-looted in the retreat. A live ordnance rack still hangs on the wall; a med-locker blinks beside it.',
+      choices: [
+        { label: 'Pull the ordnance', outcome: { text: 'You wrench a primed charge off the rack. It will only fire once, but it will fire hard.', fx: { card: 'salvaged_ordnance' } } },
+        { label: 'Crack the med-locker', outcome: { text: 'Combat stims, expired but potent. One hit will light you up — and cost you.', fx: { card: 'stim_overdose' } } },
+        { label: 'Strip it for scrip', sub: 'TECH check, DC 12', check: { attr: 'tech', dc: 12 },
+          success: { text: 'You disarm the lot and sell it down the line.', fx: { credits: 60 } },
+          fail: { text: 'A tamper-charge cooks off in your face.', fx: { hp: -9 } } },
+      ],
+    },
   ];
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));

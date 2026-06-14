@@ -59,6 +59,12 @@
     overload_capacitor: 'core', echo_core: 'core', mind_array: 'hex', plague_engine: 'flame',
     salvage_protocol: 'core',
     void_taint: 'vortex', shrapnel: 'shell', recurring_curse: 'skull',
+    // expansion
+    war_cry: 'might', cluster_munitions: 'shell', bunker_down: 'shield',
+    arc_welder: 'bolt', static_lance: 'bolt', shield_battery: 'core',
+    void_bolt: 'psiBolt', wither: 'hex', blood_sacrifice: 'drain',
+    orbital_bombardment: 'cannon', omega_protocol: 'core', singularity_bloom: 'vortex', juggernaut_core: 'core',
+    salvaged_ordnance: 'cannon', stim_overdose: 'bolt', forbidden_lore: 'eye',
   };
   var TYPE_DEFAULT = { attack: 'rifle', skill: 'shield', power: 'core', curse: 'skull' };
 
