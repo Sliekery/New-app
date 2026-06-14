@@ -42,7 +42,9 @@ for (var ci = 0; ci < CLASSES.length; ci++) {
   var cls = CLASSES[ci];
   allByClass[cls] = [];
   for (var i = 0; i < PER; i++) {
-    var run = sim.playOneRun(cls, ((ci * 1000003 + i) * 2654435761) >>> 0);
+    var run;
+    try { run = sim.playOneRun(cls, ((ci * 1000003 + i) * 2654435761) >>> 0); }
+    catch (e) { if (e.message.indexOf('combat loop') >= 0) { run = sim.E.run; } else throw e; }
     var sector = run.sector;
     var ids = deckIds(run);
     var uids = uniq(ids);

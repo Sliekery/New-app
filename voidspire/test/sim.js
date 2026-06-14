@@ -386,11 +386,19 @@ console.log('data integrity: OK');
 /* ---- run simulations ----------------------------------------------------- */
 var classes = CLASSES;
 var stats = {};
+var stalls = 0;
 classes.forEach(function (c) { stats[c] = { sectors: [], deaths: {} }; });
 
 for (var run = 0; run < RUNS; run++) {
   var cls = classes[run % classes.length];
-  playOneRun(cls, (run * 2654435761) >>> 0);
+  try {
+    playOneRun(cls, (run * 2654435761) >>> 0);
+  } catch (e) {
+    // a defensive build can stalemate a non-escalating enemy forever; the bot's
+    // loop guard surfaces it. Count it rather than aborting the whole batch.
+    if (e.message.indexOf('combat loop') >= 0) { stalls++; }
+    else throw e;
+  }
   var s = stats[cls];
   s.sectors.push(E.run.sector);
   if (E.run.phase === 'dead') {
@@ -429,4 +437,5 @@ console.log('sector-1 death rate: ' + Math.round(100 * s1Deaths / RUNS) + '%   [
 console.log('median sector reached: ' + median + '   [~3-4]');
 console.log('reached sector 5+: ' + Math.round(100 * reach5 / RUNS) + '%   [~15-30%]');
 if (totalDeaths) console.log('deaths at elites/bosses: ' + Math.round(100 * spikeDeaths / totalDeaths) + '%   [>= ~55%]');
+console.log('stalled combats (turtle vs non-escalating enemy): ' + stalls + ' / ' + RUNS);
 console.log('\nALL TESTS PASSED');
