@@ -10,11 +10,16 @@ GitHub forever, so it can't be lost even if later changes break something. The
 
 | Checkpoint | Commit | Date | What's in it |
 |---|---|---|---|
+| **v1.5-relics** | `c412c50` | 2026-06-14 | 12 new artifacts incl. quest relics (complete a task → unlock a reward) and tradeoff/reactive relics. Map jump confirmation removed (single tap). |
 | **v1.4-confirm** | `6c4056c` | 2026-06-14 | Tap → preview → confirm for every irreversible action (card purge/refine/dupe, reward, shop, level-up, relic, rest, map jumps). No more accidental one-tap commits. |
 | **v1.3-mapart** | `2f8ea51` | 2026-06-14 | Restyles the star-chart map to the CRT/space aesthetic: translucent live backdrop, glowing hex nodes, sonar-ping reachable rings, constellation flight-path edges. |
 | **v1.2-map** | `1acede5` | 2026-06-14 | Branching star-chart map per sector (pick your path through fights/events/shops/rests/elites/treasure to the boss), with distinct node icons. Retuned to hold the StS difficulty. |
 | **v1.1-builds** | `316d309` | 2026-06-14 | Adds Slay-the-Spire-style build archetypes (Might/Exhaust, Shield/Echo, Burn/spam) and build-defining rares for "god runs". Fixes the power-reuse bug (powers are now consumed). |
 | **v1.0-stable** | `9583880` | 2026-06-14 | Swipe-to-play combat, Slay-the-Spire-tuned balance, faction world-building, animated screen transitions, talking event portraits, artifact icons. First fully-polished version. |
+
+### v1.5-relics
+- **Play (frozen):** https://rawcdn.githack.com/Sliekery/New-app/c412c5010439ae4009af1c76cb06e08e5129639e/voidspire/voidspire.html
+- **Restore command (for reference):** `git checkout c412c50 -- voidspire`
 
 ### v1.4-confirm
 - **Play (frozen):** https://rawcdn.githack.com/Sliekery/New-app/6c4056ccf7b9153cb34d5d15d66f59b6f47f9f4b/voidspire/voidspire.html
