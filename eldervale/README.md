@@ -86,68 +86,71 @@ Pick at character start, GW1 primary/secondary flavor:
 7. 🔥 **Fire Bolt** — 10e, 0.8s cast, 5s rc. 35 dmg + Burning (E secondary)
 8. 💫 **Restore Ally** — 0e, 3s cast, 90s rc. Resurrect Lyra
 
-## The world (Nightfall-style town + explorable)
+## The world — Sunmere & the Dunereach (Nightfall Istan, recreated)
 
-**Sunmere Harbor** (town, Kamadan-inspired but smaller): docks and piers on the
-bay, central plaza with a fountain, market row, and the Sunspear keep. Fully
-safe. Six NPCs: Captain Aldra (story quests), Merchant Suki (buy/sell),
-Crafter Joska (materials + gold → gear), Master Henko (skill trainer),
-Fisher Dau and Innkeep Mirelle (side quests). The east gate leads out.
+A faithful, mechanics-1:1 recreation of Nightfall's opening — **Kamadan + Plains
+of Jarin** — in Eldervale's own setting and names (no trademarked assets/text).
 
-**The Saltgrass Flats** (explorable, levels 1–10): populated GW1-style —
-small pulls of 2–4 with support casters. Skale groups along the river bring a
-**Skale Mystic** who heals its pack; corsair patrols bring a **Corsair
-Windcaller** throwing lightning and crippling gales. Four bosses roam the map,
-each with a ~35% chance at a **unique** drop: Greyfang (jackal alpha), Ssraja
-the Rivermaw, Korr Blackmaw, and Enforcer Veyd at the headwater spring.
+**Sunmere, Jewel of the Coast** (the city / town hub, Kamadan analog): a great
+walled port — grand plaza with a fountain, the Hall of the Sun (officers,
+trainer), a Grand Bazaar (merchant, material trader, the Order vault), Artisans'
+Row (armorer/crafter), three piers on the bay, and three gates (one open to the
+Dunereach, two sealed for future zones). Fully safe, no combat — a shared-hub
+analog. Service NPCs: Marshal Oyin (quests + your Hero), Blademaster Henko
+(skills), Merchant Suki, Trader Kahli (materials), Vault-keeper Jueh, Armorer
+Joska, Dockmaster Ahlar, Lady Mehana.
 
-## Story: Clear Water (grounded, no apocalypse)
+**The Dunereach** (explorable, Plains of Jarin analog): green rolling hills and a
+foliaged lake to the **north**, dry red-and-gold desert to the **south**, a river
+between. Populated GW1-style in small mixed pulls with support casters and
+healers. A resurrection shrine + Sunward Scout sit by the city gate; a Collector
+and Beastmaster roam the field.
 
-Sunmere's trade is dying — three weeks without a caravan. The river runs foul
-and corsairs choke the east road. A ledger page found on a patrol leads, via
-Suki, to **Vessa Marr**: a broker who lost her shipping license and decided
-that if her overland caravans were the only ones getting through, the town
-would pay anything she asked. Poison the spring, hire the corsairs, corner the
-market. Seven story quests (ending at the spring sluice and a town that trades
-again) plus six side quests: bounties, pelts for the inn's hearth, the
-trainer's proving, and more. Turn-ins pay XP/gold/skill points and clear
-death penalty.
+## Bestiary (Plains-of-Jarin creature families)
+
+- **Skales** (lake): Ridgeback Skale, Skale Blighter (healer-caster), Skale Lasher
+- **Insects**: Bladed Termite, Stalking Nephila (spider), Preying Lance
+- **Mandragors** (south dunes): Slither & Imp — **burrowed and invisible until you
+  stray close, then they erupt and ambush** (the Nightfall signature)
+- **Plants** (rooted): Fanged Iboga, Stormseed Jacaranda (lightning caster)
+- **Drakes**: Irontooth Drake — tanky, with a periodic fire-breath AoE
+- **Field bosses**, each with a ~35% **unique green** drop and a **capturable elite**:
+  Sicklemaw the Reaper (insect), Old Galewither (plant), Karesh Duneshaper (mandragor)
+
+## Signature Nightfall mechanics
+
+- **Sunward Hunts (bounties)**: the Scout at the shrine offers creature-family
+  hunts (Skale/Insect/Mandragor/Plant/Drake). Each kill of the named kind earns
+  **Sunward Honor**, advancing your **rank title** (Recruit → Spearbearer →
+  Vanguard → Castellan → Champion of the Sun).
+- **Heroes**: Lyra joins as a customizable Hero during the chain. The Party panel
+  (👥) sets her **AI stance** (Aggressive / Guard / Passive) and lets you **flag**
+  her to hold a position or recall to your side.
+- **Elite skill capture**: a **Signet of Capture** on your bar, used beside a slain
+  boss, learns that boss's **elite** skill — then slot it at the trainer.
+- **Town-vs-explorable** rules, resurrection shrines at portals, **collectors**
+  (trade creature trophies for gear), a **material trader**, and a persistent
+  **Order vault** (shared storage that travels between cities).
+
+## The primary chain
+
+Onboards through the city (meet the officers, train, gain your Hero), then sends
+you into the Dunereach to clear the three field bosses and reopen the desert road,
+ending in the rank of **Spear of the Sun**. Side work from the Beastmaster,
+Dockmaster, Lady Mehana, and the Blademaster.
 
 ## Skills, the GW1 way
 
-You start knowing your 8 default skills. **Master Henko sells the rest**
-(5 more per profession — Cyclone Slash, Shield Bash, Frost Nova, Meteor,
-Chain Gale…) for gold + 1 skill point each; skill points come from leveling
-and quests. Compose your own 8-slot bar in ✨ Skills & Builds — **editable only
-in town**, the GW1 outpost rule. Builds save bar + attributes together.
-
-## Crafting & trade (Nightfall flavor)
-
-Beasts and corsairs drop materials — Tanned Hide, Skale Scale, Iron Shard.
-Joska crafts level-scaled rare gear from materials + gold (blade, scepter,
-tower shield, focus). Suki buys trophies at full value and stocks a small
-rotating selection of gear.
-
-## Prototype scope / next steps
-
-This is a single-player vertical slice ("mmolite" = MMO systems without the server):
-all combat, AI, and quest logic runs client-side. Natural next steps:
-
-- WebSocket server for shared persistent zones (entity state is already
-  plain-data and tick-based, so it ports cleanly to a server-authoritative loop)
-- Character persistence (localStorage → account DB), more professions and skill unlocks
-- Second zone gate, loot/inventory beyond gold, skill capture from bosses
-- Wrap in Capacitor/WKWebView for an installable native app
-
-## Testing
-
-Headless logic tests (map gen, combat, skills, death/respawn, quests, henchman AI)
-run under Node with a DOM stub — see the repo history for the harness.
+Start with your 8 default skills + a free Signet of Capture. **Blademaster Henko
+sells** the rest of your profession's pool for gold + a skill point; you compose
+your own 8-slot bar in ✨ Skills & Builds (editable in town only — the GW1 outpost
+rule). Elites can't be bought — capture them from bosses. Builds save bar +
+attributes together.
 
 ## Character models
 
-Humanoid characters use the **KayKit Character Pack: Adventurers** (CC0, by Kay
-Lousberg — kaylousberg.com) loaded as glTF with full skeletal animation: idle,
-walk/run, sword attacks, ranged shots, spellcasting, the boss's spin, and
-deaths. Models load in the background (~18MB); until then (or offline) the game
-falls back to the procedural avatars. Jackals and skales remain procedural.
+Humanoid characters (you, your Hero, the city NPCs) use the **KayKit Adventurers**
+pack (CC0, Kay Lousberg) as glTF with full skeletal animation. The Dunereach
+creatures are procedurally modeled (skale, insect, mandragor, plant, drake).
+Models load in the background; until then the game falls back to procedural
+avatars.
