@@ -195,11 +195,11 @@ function buildWilds(){
   // gate corridors
   for(let y=46;y<=50;y++){ for(let x=0;x<=5;x++) setT(x,y,G_PATH); for(let x=90;x<MAPW;x++) setT(x,y,G_PATH); }
   for(let x=36;x<=40;x++)for(let y=0;y<=4;y++) setT(x,y,G_PATH); // north portal stub (sealed)
-  SHRINE={x:90*TILE,y:48*TILE};                      // resurrection shrine by the east (city) gate
-  SAFE={x:92*TILE,y:48*TILE,r:5*TILE};
+  SHRINE={x:8*TILE,y:48*TILE};                       // resurrection shrine by the west (city) gate — where you arrive
+  SAFE={x:5*TILE,y:48*TILE,r:6*TILE};
   GATES=[
-    {x:94*TILE,y:48*TILE,to:'town',label:'Sunmere'},
-    {x:3*TILE,y:48*TILE,locked:'Champion\'s Dawn lies beyond — not yet open.',label:"Champion's Dawn"},
+    {x:2*TILE,y:48*TILE,to:'town',label:'Sunmere'},                 // return to the city (west, where you enter)
+    {x:94*TILE,y:48*TILE,locked:'Champion\'s Dawn lies beyond — not yet open.',label:"Champion's Dawn"},
     {x:38*TILE,y:3*TILE,locked:'The Astralarium road is impassable.',label:'The Astralarium'},
   ];
 }
@@ -845,6 +845,12 @@ function spawnTown(){
   spawnNpc('smith','Armorer Joska','crafter',64,43,-2.4);
   // plaza flavor
   spawnNpc('noble','Lady Mehana','inn',52,50,-1.6);
+  // henchmen for hire — standing by the east gate, GW1-style (walk up and recruit)
+  const hpos=[[80,45],[83,48],[86,45],[83,51],[80,50]];
+  HENCH_ROSTER.filter(s=>s.role!=='healer').forEach((s,i)=>{
+    const n=spawnNpc('h_'+s.role, s.name, s.role, hpos[i][0], hpos[i][1], -1.8);
+    n.hrole=s.role;
+  });
 }
 
 function spawnWilds(){
@@ -1006,6 +1012,14 @@ function questTrackerText(){
 
 /* per-NPC dialog: turn-ins first, then offers, then services/flavor */
 function npcDialog(n){
+  // henchman recruiters: walk up and add/remove them from your party
+  if(n.hrole){
+    const inParty=allies.some(a=>a.role===n.hrole&&!a.minion&&!a.pet);
+    if(inParty) return {text:`${n.name}, ${ROLE_LABEL[n.hrole]}, marches with you.`,
+      btn:'Dismiss from party', act(){ removeHench(n.hrole); }};
+    return {text:`${n.name}, ${ROLE_LABEL[n.hrole]} for hire. "Say the word and I'll watch your back in the Dunereach." (Party ${1+partyCount()}/${PARTY_CAP})`,
+      btn:'Add to party', act(){ addHench(n.hrole); }};
+  }
   talkCredit(n.id);
   for(const q of QDEFS){
     if(q.giver!==n.id) continue;
@@ -2357,6 +2371,10 @@ const NPC_STYLES={
   merchant:{m:'rogueh',tint:0x8a68c8},crafter:{m:'rogue',tint:0xc87840},
   fisher:{m:'rogue',tint:0x4a88b8},   inn:{m:'mage',tint:0xc86a78},
   scout:{m:'rogue',tint:0xd8b860},
+  // henchman recruiters standing in town, by role
+  fighter:{m:'knight',tint:0x9a9aa8}, prot:{m:'mage',tint:0x8aa0d0},
+  mage:{m:'mage',tint:0xc86a3a},      archer:{m:'rogue',tint:0x6a8a4a},
+  necro:{m:'rogueh',tint:0x6a4a8a},
 };
 const PLAYER_MODEL={warrior:'knight',ranger:'rogue',necromancer:'rogueh',elementalist:'mage'};
 const ALLY_MODEL={fighter:'knight',healer:'mage',prot:'mage',mage:'mage',archer:'rogue',necro:'rogueh'};
@@ -3248,13 +3266,10 @@ function renderTrain(){
 const ROLE_LABEL={healer:'Healer (Monk)',prot:'Protector (Monk)',fighter:'Fighter (Warrior)',mage:'Mage (Elementalist)',archer:'Archer (Ranger)',necro:'Necromancer'};
 function renderParty(){
   let h=`<div class="sectTitle">Your party (${1+partyCount()}/${PARTY_CAP})</div>`;
-  if(!hench.recruited){
-    h+=`<div class="dim">You travel alone for now. Complete <b>Honing Your Skills</b> for Marshal Oyin to gain Lyra, your first companion — then hire more here in town.</div>`;
-    MODALS.party.body.innerHTML=h; return;
-  }
   const row=(icon,name,role,hp,max,extra,canDismiss)=>`<div class="attrRow"><span class="an">${icon} ${name} <span class="dim">${ROLE_LABEL[role]||role}${extra||''}</span><br>
       <span class="dim">HP ${Math.ceil(hp)}/${max}</span></span>${canDismiss?`<button class="mini" data-act="dismiss" data-v="${role}">Dismiss</button>`:''}</div>`;
-  h+=row('✚','Lyra','healer',hench.hp,hench.maxHp,'',false);
+  if(hench.recruited) h+=row('✚','Lyra','healer',hench.hp,hench.maxHp,'',false);
+  else h+=`<div class="dim">Complete <b>Honing Your Skills</b> for Marshal Oyin to gain Lyra, your Healer.</div>`;
   for(const a of allies){ if(a.minion||a.pet) continue; h+=row(a.spec?a.spec.icon:'•',a.name,a.role,a.hp,a.maxHp,a.dead?' · fallen':'',ZONES[MAPID].safe); }
   const pet=allies.find(a=>a.pet); if(pet) h+=`<div class="attrRow"><span class="an">🐾 Companion <span class="dim">pet · HP ${Math.ceil(pet.hp)}/${pet.maxHp}</span></span></div>`;
   const minN=allies.filter(a=>a.minion&&!a.dead).length; if(minN) h+=`<div class="dim">💀 ${minN} minion${minN>1?'s':''} animated</div>`;
