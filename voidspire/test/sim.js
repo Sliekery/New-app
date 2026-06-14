@@ -37,12 +37,15 @@ function attrOf(scale) {
   return VS.engine.attr(scale);
 }
 
-function estCardDamage(card, target) {
+// includeDot: also credit damage-over-time (Burn) as expected damage. Used for
+// ranking/priority so the Burn archetype isn't invisible to the bot; left OFF
+// for lethal detection (Burn can't kill *this* turn).
+function estCardDamage(card, target, includeDot) {
   var def = VS.CARDS[card.id];
   var fx = VS.cardFx(def, card.up);
   var c = VS.engine.combat;
   var str = (c.player.statuses.str || 0);
-  var total = 0;
+  var total = 0, dot = 0;
   fx.forEach(function (f) {
     if (f.k === 'dmg') {
       var v = f.v + attrOf(f.scale) * (f.scaleMul || 1) + str;
@@ -51,20 +54,32 @@ function estCardDamage(card, target) {
       if (target && (target.statuses.vuln || 0) > 0) v = Math.floor(v * VS.BALANCE.status.vulnMult);
       total += v * hits;
     }
+    // Burn ticks for its full stack each turn, decaying by 1 — i.e. applying b
+    // stacks deals ~b*(b+1)/2 over the fight (ignores block). Value it as a
+    // multi-tick DoT, capped so huge single stacks don't read as instant lethal.
+    if (includeDot && f.k === 'status' && f.s === 'burn') {
+      var b = f.v + ((f.scale === 'psi') ? attrOf('psi') : 0);
+      var ticks = Math.min(b, 4);              // realistic turns before death/decay
+      dot += Math.round(b * ticks - ticks * (ticks - 1) / 2);
+    }
     if (f.k === 'special' && (f.id === 'shieldSlam' || f.id === 'shieldSlam15')) {
       total += Math.floor(c.player.block * (f.id === 'shieldSlam15' ? 1.5 : 1));
     }
   });
   if ((c.player.statuses.weak || 0) > 0) total = Math.floor(total * VS.BALANCE.status.weakMult);
-  return total;
+  return total + dot;
 }
 
+var PRI_ATTR = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
 function estCardBlock(card) {
   var def = VS.CARDS[card.id];
   var fx = VS.cardFx(def, card.up);
   var total = 0;
   fx.forEach(function (f) {
-    if (f.k === 'block') total += f.v + (f.scale === 'tech' ? VS.engine.attr('tech') : 0);
+    if (f.k === 'block') {
+      var sc = f.scale === 'pri' ? PRI_ATTR[VS.engine.run.cls] : f.scale;
+      total += f.v + ((sc === 'tech' || sc === 'might' || sc === 'psi') ? VS.engine.attr(sc) : 0);
+    }
   });
   return total;
 }
@@ -114,13 +129,13 @@ function botCombat() {
     var hpDanger = E.run.hp < E.run.maxHp * 0.6 || needBlock >= E.run.hp * 0.25;
     var choice = -1, target = pickTarget();
 
-    // 1. finish a kill if possible
+    // 1. finish a kill if possible (immediate damage only — Burn can't kill now)
     var best = -1, bestOver = 1e9;
     playable.forEach(function (idx) {
       var card = c.hand[idx];
       if (VS.CARDS[card.id].type !== 'attack') return;
       var tEn = c.enemies[target];
-      var dmg = estCardDamage(card, tEn);
+      var dmg = estCardDamage(card, tEn, false);
       if (dmg >= tEn.hp + tEn.block && dmg - tEn.hp < bestOver) { best = idx; bestOver = dmg - tEn.hp; }
     });
     if (best >= 0) choice = best;
@@ -145,7 +160,8 @@ function botCombat() {
       var ba = -1, bd = -1;
       playable.forEach(function (idx) {
         if (VS.CARDS[c.hand[idx].id].type !== 'attack') return;
-        var dmg = estCardDamage(card0(c, idx), c.enemies[target]);
+        // DoT-aware: lay/stack Burn proactively instead of treating it as 0 dmg
+        var dmg = estCardDamage(card0(c, idx), c.enemies[target], true);
         if (dmg > bd) { bd = dmg; ba = idx; }
       });
       if (ba >= 0) choice = ba;

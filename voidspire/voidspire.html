@@ -864,6 +864,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     attrs: {
       mightDmgPerPoint: 1.4,    // bonus damage per MIGHT on might-scaling attacks
       techBlockPerPoint: 1,     // bonus block per TECH on tech-scaling skills
+      mightBlockPerPoint: 1,    // bonus block per MIGHT on primary-scaling skills
+      psiBlockPerPoint: 1,      // bonus block per PSI on primary-scaling skills
       psiDmgPerPoint: 1.4,      // bonus damage per PSI on psi-scaling attacks
       eventCheckBonusDiv: 1,    // event check bonus = attr / this (rounded down)
     },
@@ -1029,8 +1031,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
     combat_shield: {
       name: 'Combat Shield', cls: 'any', type: 'skill', rarity: 0, cost: 1,
-      fx: [{ k: 'block', v: 5, scale: 'tech' }],
-      up: { fx: [{ k: 'block', v: 8, scale: 'tech' }] },
+      fx: [{ k: 'block', v: 5, scale: 'pri' }],
+      up: { fx: [{ k: 'block', v: 8, scale: 'pri' }] },
     },
     bayonet_charge: {
       name: 'Bayonet Charge', cls: 'vanguard', type: 'attack', rarity: 0, cost: 1,
@@ -1072,8 +1074,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
     bulwark: {
       name: 'Bulwark', cls: 'vanguard', type: 'skill', rarity: 2, cost: 2,
-      fx: [{ k: 'block', v: 13, scale: 'tech' }, { k: 'status', s: 'thorns', v: 3, who: 'self' }],
-      up: { fx: [{ k: 'block', v: 17, scale: 'tech' }, { k: 'status', s: 'thorns', v: 4, who: 'self' }] },
+      fx: [{ k: 'block', v: 13, scale: 'pri' }, { k: 'status', s: 'thorns', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'block', v: 17, scale: 'pri' }, { k: 'status', s: 'thorns', v: 4, who: 'self' }] },
     },
     combat_stims: {
       name: 'Combat Stims', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
@@ -1222,8 +1224,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
     brace: {
       name: 'Brace', cls: 'any', type: 'skill', rarity: 1, cost: 1,
-      fx: [{ k: 'block', v: 5, scale: 'tech' }, { k: 'draw', v: 1 }],
-      up: { fx: [{ k: 'block', v: 8, scale: 'tech' }, { k: 'draw', v: 1 }] },
+      fx: [{ k: 'block', v: 5, scale: 'pri' }, { k: 'draw', v: 1 }],
+      up: { fx: [{ k: 'block', v: 8, scale: 'pri' }, { k: 'draw', v: 1 }] },
     },
     combat_scan: {
       name: 'Combat Scan', cls: 'any', type: 'skill', rarity: 1, cost: 0,
@@ -1317,8 +1319,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
     guard_protocol: {
       name: 'Guard Protocol', cls: 'any', type: 'skill', rarity: 2, cost: 1, retain: true,
-      fx: [{ k: 'block', v: 6, scale: 'tech' }],
-      up: { fx: [{ k: 'block', v: 9, scale: 'tech' }] },
+      fx: [{ k: 'block', v: 6, scale: 'pri' }],
+      up: { fx: [{ k: 'block', v: 9, scale: 'pri' }] },
     },
 
     /* ============ Expansion: new class cards ============ */
@@ -1335,8 +1337,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
     bunker_down: {
       name: 'Bunker Down', cls: 'vanguard', type: 'skill', rarity: 2, cost: 2,
-      fx: [{ k: 'block', v: 8, scale: 'tech' }, { k: 'status', s: 'platedArmor', v: 3, who: 'self' }],
-      up: { fx: [{ k: 'block', v: 12, scale: 'tech' }, { k: 'status', s: 'platedArmor', v: 4, who: 'self' }] },
+      fx: [{ k: 'block', v: 8, scale: 'pri' }, { k: 'status', s: 'platedArmor', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'block', v: 12, scale: 'pri' }, { k: 'status', s: 'platedArmor', v: 4, who: 'self' }] },
     },
 
     /* -- Technomancer -- */
@@ -1433,8 +1435,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
                    'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'bayonet_charge'],
     technomancer: ['pulse_rifle', 'pulse_rifle', 'pulse_rifle', 'pulse_rifle',
                    'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'overshield'],
-    voidadept:    ['pulse_rifle', 'pulse_rifle', 'pulse_rifle', 'pulse_rifle',
-                   'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'mind_spike', 'mind_spike'],
+    voidadept:    ['pulse_rifle', 'pulse_rifle',
+                   'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield',
+                   'mind_spike', 'mind_spike', 'mind_spike', 'mind_spike'],
   };
 
   /* ---- Description generator ----------------------------------------- */
@@ -1449,13 +1452,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         var v = f.v;
         var mul = f.scaleMul || 1;
         if (ctx) {
-          if (f.scale === 'might') v += ctx.attrs.might * B.attrs.mightDmgPerPoint * mul;
-          if (f.scale === 'tech') v += ctx.attrs.tech * mul;
-          if (f.scale === 'psi') v += ctx.attrs.psi * B.attrs.psiDmgPerPoint * mul;
+          var dsc = f.scale === 'pri' ? (ctx.pri || 'might') : f.scale;
+          if (dsc === 'might') v += ctx.attrs.might * B.attrs.mightDmgPerPoint * mul;
+          if (dsc === 'tech') v += ctx.attrs.tech * mul;
+          if (dsc === 'psi') v += ctx.attrs.psi * B.attrs.psiDmgPerPoint * mul;
           v += (ctx.flatDmg || 0);   // relic/augment flat damage (e.g. Honed Edge)
           if (ctx.statuses) {
             v += (ctx.statuses.str || 0);
-            if (f.scale === 'psi') v += (ctx.statuses.psiPow || 0);
+            if (dsc === 'psi') v += (ctx.statuses.psiPow || 0);
           }
         }
         var s = 'Deal ' + Math.round(v) + ' damage';
@@ -1467,7 +1471,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       }
       if (f.k === 'block') {
         var b = f.v;
-        if (ctx && f.scale === 'tech') b += ctx.attrs.tech * B.attrs.techBlockPerPoint;
+        if (ctx) {
+          var bsc = f.scale === 'pri' ? (ctx.pri || 'might') : f.scale;
+          if (bsc === 'tech') b += ctx.attrs.tech * B.attrs.techBlockPerPoint;
+          else if (bsc === 'might') b += ctx.attrs.might * B.attrs.mightBlockPerPoint;
+          else if (bsc === 'psi') b += ctx.attrs.psi * B.attrs.psiBlockPerPoint;
+        }
         parts.push('Gain ' + Math.round(b) + ' Shield.');
       }
       if (f.k === 'heal') parts.push('Heal ' + f.v + ' HP.');
@@ -3307,18 +3316,26 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function liveCtx() {
     return {
       attrs: { might: attr('might'), tech: attr('tech'), psi: attr('psi') },
+      pri: priAttr(),            // primary attribute name (for 'pri'-scaled cards)
       statuses: E.combat ? E.combat.player.statuses : null,
       flatDmg: art('flatDmg'),   // so cards show damage incl. relic/augment buffs
     };
   }
 
+  // primary attribute of the active class — lets shared/defensive cards scale
+  // with whatever the class actually invests in, instead of a fixed attribute.
+  var PRI_ATTR = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
+  function priAttr() { return PRI_ATTR[E.run && E.run.cls] || 'might'; }
+  function resolveScale(s) { return s === 'pri' ? priAttr() : s; }
+
   function attackBonus(f) {
     var p = E.combat.player;
     var mul = f.scaleMul || 1;
+    var sc = resolveScale(f.scale);
     var v = statN(p, 'str') + art('flatDmg') + (E.combat.momentum || 0); // Momentum Engine
-    if (f.scale === 'might') v += attr('might') * B.attrs.mightDmgPerPoint * mul;
-    if (f.scale === 'tech') v += attr('tech') * mul;
-    if (f.scale === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * mul + statN(p, 'psiPow');
+    if (sc === 'might') v += attr('might') * B.attrs.mightDmgPerPoint * mul;
+    if (sc === 'tech') v += attr('tech') * mul;
+    if (sc === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * mul + statN(p, 'psiPow');
     return Math.round(v);   // damage is always a whole number (no decimals)
   }
 
@@ -3509,8 +3526,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           break;
         }
         case 'block': {
-          var b = f.v + (f.scale === 'tech' ? attr('tech') * B.attrs.techBlockPerPoint : 0);
-          gainBlock(b, true);
+          var bsc = resolveScale(f.scale);
+          var bonus = bsc === 'tech' ? attr('tech') * B.attrs.techBlockPerPoint
+                    : bsc === 'might' ? attr('might') * B.attrs.mightBlockPerPoint
+                    : bsc === 'psi' ? attr('psi') * B.attrs.psiBlockPerPoint : 0;
+          gainBlock(f.v + bonus, true);
           break;
         }
         case 'heal': heal(f.v); break;

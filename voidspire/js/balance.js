@@ -26,6 +26,8 @@
     attrs: {
       mightDmgPerPoint: 1.4,    // bonus damage per MIGHT on might-scaling attacks
       techBlockPerPoint: 1,     // bonus block per TECH on tech-scaling skills
+      mightBlockPerPoint: 1,    // bonus block per MIGHT on primary-scaling skills
+      psiBlockPerPoint: 1,      // bonus block per PSI on primary-scaling skills
       psiDmgPerPoint: 1.4,      // bonus damage per PSI on psi-scaling attacks
       eventCheckBonusDiv: 1,    // event check bonus = attr / this (rounded down)
     },

@@ -48,8 +48,8 @@
     },
     combat_shield: {
       name: 'Combat Shield', cls: 'any', type: 'skill', rarity: 0, cost: 1,
-      fx: [{ k: 'block', v: 5, scale: 'tech' }],
-      up: { fx: [{ k: 'block', v: 8, scale: 'tech' }] },
+      fx: [{ k: 'block', v: 5, scale: 'pri' }],
+      up: { fx: [{ k: 'block', v: 8, scale: 'pri' }] },
     },
     bayonet_charge: {
       name: 'Bayonet Charge', cls: 'vanguard', type: 'attack', rarity: 0, cost: 1,
@@ -91,8 +91,8 @@
     },
     bulwark: {
       name: 'Bulwark', cls: 'vanguard', type: 'skill', rarity: 2, cost: 2,
-      fx: [{ k: 'block', v: 13, scale: 'tech' }, { k: 'status', s: 'thorns', v: 3, who: 'self' }],
-      up: { fx: [{ k: 'block', v: 17, scale: 'tech' }, { k: 'status', s: 'thorns', v: 4, who: 'self' }] },
+      fx: [{ k: 'block', v: 13, scale: 'pri' }, { k: 'status', s: 'thorns', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'block', v: 17, scale: 'pri' }, { k: 'status', s: 'thorns', v: 4, who: 'self' }] },
     },
     combat_stims: {
       name: 'Combat Stims', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
@@ -241,8 +241,8 @@
     },
     brace: {
       name: 'Brace', cls: 'any', type: 'skill', rarity: 1, cost: 1,
-      fx: [{ k: 'block', v: 5, scale: 'tech' }, { k: 'draw', v: 1 }],
-      up: { fx: [{ k: 'block', v: 8, scale: 'tech' }, { k: 'draw', v: 1 }] },
+      fx: [{ k: 'block', v: 5, scale: 'pri' }, { k: 'draw', v: 1 }],
+      up: { fx: [{ k: 'block', v: 8, scale: 'pri' }, { k: 'draw', v: 1 }] },
     },
     combat_scan: {
       name: 'Combat Scan', cls: 'any', type: 'skill', rarity: 1, cost: 0,
@@ -336,8 +336,8 @@
     },
     guard_protocol: {
       name: 'Guard Protocol', cls: 'any', type: 'skill', rarity: 2, cost: 1, retain: true,
-      fx: [{ k: 'block', v: 6, scale: 'tech' }],
-      up: { fx: [{ k: 'block', v: 9, scale: 'tech' }] },
+      fx: [{ k: 'block', v: 6, scale: 'pri' }],
+      up: { fx: [{ k: 'block', v: 9, scale: 'pri' }] },
     },
 
     /* ============ Expansion: new class cards ============ */
@@ -354,8 +354,8 @@
     },
     bunker_down: {
       name: 'Bunker Down', cls: 'vanguard', type: 'skill', rarity: 2, cost: 2,
-      fx: [{ k: 'block', v: 8, scale: 'tech' }, { k: 'status', s: 'platedArmor', v: 3, who: 'self' }],
-      up: { fx: [{ k: 'block', v: 12, scale: 'tech' }, { k: 'status', s: 'platedArmor', v: 4, who: 'self' }] },
+      fx: [{ k: 'block', v: 8, scale: 'pri' }, { k: 'status', s: 'platedArmor', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'block', v: 12, scale: 'pri' }, { k: 'status', s: 'platedArmor', v: 4, who: 'self' }] },
     },
 
     /* -- Technomancer -- */
@@ -452,8 +452,9 @@
                    'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'bayonet_charge'],
     technomancer: ['pulse_rifle', 'pulse_rifle', 'pulse_rifle', 'pulse_rifle',
                    'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'overshield'],
-    voidadept:    ['pulse_rifle', 'pulse_rifle', 'pulse_rifle', 'pulse_rifle',
-                   'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'mind_spike', 'mind_spike'],
+    voidadept:    ['pulse_rifle', 'pulse_rifle',
+                   'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield',
+                   'mind_spike', 'mind_spike', 'mind_spike', 'mind_spike'],
   };
 
   /* ---- Description generator ----------------------------------------- */
@@ -468,13 +469,14 @@
         var v = f.v;
         var mul = f.scaleMul || 1;
         if (ctx) {
-          if (f.scale === 'might') v += ctx.attrs.might * B.attrs.mightDmgPerPoint * mul;
-          if (f.scale === 'tech') v += ctx.attrs.tech * mul;
-          if (f.scale === 'psi') v += ctx.attrs.psi * B.attrs.psiDmgPerPoint * mul;
+          var dsc = f.scale === 'pri' ? (ctx.pri || 'might') : f.scale;
+          if (dsc === 'might') v += ctx.attrs.might * B.attrs.mightDmgPerPoint * mul;
+          if (dsc === 'tech') v += ctx.attrs.tech * mul;
+          if (dsc === 'psi') v += ctx.attrs.psi * B.attrs.psiDmgPerPoint * mul;
           v += (ctx.flatDmg || 0);   // relic/augment flat damage (e.g. Honed Edge)
           if (ctx.statuses) {
             v += (ctx.statuses.str || 0);
-            if (f.scale === 'psi') v += (ctx.statuses.psiPow || 0);
+            if (dsc === 'psi') v += (ctx.statuses.psiPow || 0);
           }
         }
         var s = 'Deal ' + Math.round(v) + ' damage';
@@ -486,7 +488,12 @@
       }
       if (f.k === 'block') {
         var b = f.v;
-        if (ctx && f.scale === 'tech') b += ctx.attrs.tech * B.attrs.techBlockPerPoint;
+        if (ctx) {
+          var bsc = f.scale === 'pri' ? (ctx.pri || 'might') : f.scale;
+          if (bsc === 'tech') b += ctx.attrs.tech * B.attrs.techBlockPerPoint;
+          else if (bsc === 'might') b += ctx.attrs.might * B.attrs.mightBlockPerPoint;
+          else if (bsc === 'psi') b += ctx.attrs.psi * B.attrs.psiBlockPerPoint;
+        }
         parts.push('Gain ' + Math.round(b) + ' Shield.');
       }
       if (f.k === 'heal') parts.push('Heal ' + f.v + ' HP.');

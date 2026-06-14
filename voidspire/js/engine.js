@@ -656,18 +656,26 @@
   function liveCtx() {
     return {
       attrs: { might: attr('might'), tech: attr('tech'), psi: attr('psi') },
+      pri: priAttr(),            // primary attribute name (for 'pri'-scaled cards)
       statuses: E.combat ? E.combat.player.statuses : null,
       flatDmg: art('flatDmg'),   // so cards show damage incl. relic/augment buffs
     };
   }
 
+  // primary attribute of the active class — lets shared/defensive cards scale
+  // with whatever the class actually invests in, instead of a fixed attribute.
+  var PRI_ATTR = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
+  function priAttr() { return PRI_ATTR[E.run && E.run.cls] || 'might'; }
+  function resolveScale(s) { return s === 'pri' ? priAttr() : s; }
+
   function attackBonus(f) {
     var p = E.combat.player;
     var mul = f.scaleMul || 1;
+    var sc = resolveScale(f.scale);
     var v = statN(p, 'str') + art('flatDmg') + (E.combat.momentum || 0); // Momentum Engine
-    if (f.scale === 'might') v += attr('might') * B.attrs.mightDmgPerPoint * mul;
-    if (f.scale === 'tech') v += attr('tech') * mul;
-    if (f.scale === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * mul + statN(p, 'psiPow');
+    if (sc === 'might') v += attr('might') * B.attrs.mightDmgPerPoint * mul;
+    if (sc === 'tech') v += attr('tech') * mul;
+    if (sc === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * mul + statN(p, 'psiPow');
     return Math.round(v);   // damage is always a whole number (no decimals)
   }
 
@@ -858,8 +866,11 @@
           break;
         }
         case 'block': {
-          var b = f.v + (f.scale === 'tech' ? attr('tech') * B.attrs.techBlockPerPoint : 0);
-          gainBlock(b, true);
+          var bsc = resolveScale(f.scale);
+          var bonus = bsc === 'tech' ? attr('tech') * B.attrs.techBlockPerPoint
+                    : bsc === 'might' ? attr('might') * B.attrs.mightBlockPerPoint
+                    : bsc === 'psi' ? attr('psi') * B.attrs.psiBlockPerPoint : 0;
+          gainBlock(f.v + bonus, true);
           break;
         }
         case 'heal': heal(f.v); break;
