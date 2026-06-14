@@ -168,10 +168,10 @@ html, body {
 .card.type-power .cname { color: var(--magenta); }
 .card.type-curse .cname { color: var(--red); }
 .card .ctype { font-size: 7px; letter-spacing: 2px; color: var(--text-dim); margin: 0 4px 3px; text-transform: uppercase; }
-.card .cdesc { font-size: 8.5px; line-height: 1.3; color: var(--text); padding: 0 5px; }
+.card .cdesc { font-size: 9px; line-height: 1.32; color: var(--text); padding: 0 5px; }
 .card.unaffordable { opacity: 0.45; }
 .card.selected {
-  transform: translateY(-64px) scale(1.5);
+  transform: translateY(-72px) scale(1.62);
   z-index: 50;
   box-shadow: 0 0 18px rgba(93, 255, 136, 0.35), 0 8px 30px rgba(0,0,0,0.8);
   border-color: var(--green);

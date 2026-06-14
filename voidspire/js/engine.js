@@ -443,7 +443,7 @@
       hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
       player: { block: 0, statuses: {} },
       echoReady: false,
-      gainedShield: false,
+      playedShield: false,
       startHp: r.hp,
       cardsThisTurn: 0,
       reactiveUsed: false,
@@ -458,7 +458,7 @@
     var pa = art('platedArmorStart');
     if (pa > 0) c.player.statuses.platedArmor = pa;
     var bs = art('blockStart');
-    if (bs > 0) { c.player.block = bs; c.gainedShield = true; }
+    if (bs > 0) { c.player.block = bs; } // relic Shield is passive, not "played"
     var ws = art('weakStart');
     if (ws > 0) c.enemies.forEach(function (en, i) { addStatus(en, 'weak', ws); });
     var sd = art('combatStartDamage');
@@ -470,11 +470,13 @@
 
   // All player Shield gains route through here so relics that react to gaining
   // Shield (and the "no Shield" quest) see every source.
-  function gainBlock(n) {
+  // played = the Shield came from a card the player chose to play (so passive
+  // relic/plate/trigger Shield does NOT count against the "no Shield" quest).
+  function gainBlock(n, played) {
     var c = E.combat, p = c.player;
     if (n <= 0) return;
     p.block += n;
-    c.gainedShield = true;
+    if (played) c.playedShield = true;
     emit('block', { who: 'player', amount: n, blockAfter: p.block });
     var st = art('shieldThorns');
     if (st > 0 && !c.over) {
@@ -766,7 +768,7 @@
         }
         case 'block': {
           var b = f.v + (f.scale === 'tech' ? attr('tech') * B.attrs.techBlockPerPoint : 0);
-          gainBlock(b);
+          gainBlock(b, true);
           break;
         }
         case 'heal': heal(f.v); break;
@@ -802,7 +804,7 @@
             var s = statN(p, 'str');
             if (s > 0) { addStatus(p, 'str', s); emit('status', { who: 'player', s: 'str', v: s }); }
           } else if (f.id === 'doubleBlock') {
-            if (p.block > 0) gainBlock(p.block);
+            if (p.block > 0) gainBlock(p.block, true);
           } else if (f.id === 'catalyst' || f.id === 'catalyst3') {
             var ce = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             if (ce) {
@@ -815,7 +817,7 @@
         }
       }
     });
-    if (flags.leech && totalDealt > 0) gainBlock(totalDealt);
+    if (flags.leech && totalDealt > 0) gainBlock(totalDealt, true);
     if (flags.drain && totalDealt > 0) heal(Math.ceil(totalDealt / 2));
     return totalDealt;
   }
@@ -1043,7 +1045,7 @@
   function winCombat() {
     var r = E.run, kind = E.combat.kind, cc = E.combat;
     // quest credit: combats won without ever gaining Shield / without losing HP
-    if (!cc.gainedShield) questProgress('noShieldWin', 1);
+    if (!cc.playedShield) questProgress('noShieldWin', 1);
     if (r.hp >= cc.startHp) questProgress('flawlessWin', 1);
     var credits = creditRange(kind);
     r.credits += credits;

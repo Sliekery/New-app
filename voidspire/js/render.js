@@ -491,7 +491,9 @@
     var dieDur = 0.45;
     if (dying && (v.deathT < 0 || t - v.deathT > dieDur)) return;
 
-    var bob = Math.sin(t * 1.8 + idx * 1.7) * 3;
+    var grounded = !!v.def.grounded;
+    // grounded enemies stand still (a faint sway); floating ones bob
+    var bob = grounded ? Math.sin(t * 1.2 + idx) * 0.8 : Math.sin(t * 1.8 + idx * 1.7) * 3;
     var sx = 0;
     if (t - v.shakeT < 0.22) sx = (Math.random() - 0.5) * 8;
     // lunge toward the player when attacking
@@ -519,6 +521,18 @@
     var color = factionColor(v.def);
     var flash = (t - v.flashT < 0.13);
     var x = v.x + sx, y = v.y + bob;
+
+    // ground shadow / hover pool — anchors grounded units, gives floaters depth
+    if (!dying || alpha > 0.4) {
+      var feetY = v.y + scale * 0.96;
+      var shY = grounded ? feetY : feetY + scale * 0.42;
+      var shW = (grounded ? 0.78 : 0.5) * scale, shH = scale * 0.13;
+      ctx.save();
+      ctx.globalAlpha = (grounded ? 0.18 : 0.1) * alpha;
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.ellipse(v.x, shY, shW, shH, 0, 0, 7); ctx.fill();
+      ctx.restore();
+    }
 
     strokePaths(v.def.art.p, x, y, scale, flash ? '#ffffff' : color, flash ? 16 : 9, alpha);
 
@@ -678,30 +692,42 @@
   /* ---- player avatar ----------------------------------------------------------- */
   var CLASS_ART = {
     vanguard: {
+      // Space-Marine power armour: snouted helm, heavy pauldrons, chest aquila,
+      // armoured greaves, planted stance, bolter held forward.
       color: '#5dff88',
       p: [
-        // helmet + visor
-        [-0.28,-1.05, 0.28,-1.05, 0.34,-0.72, 0.22,-0.6, -0.22,-0.6, -0.34,-0.72, -0.28,-1.05],
-        [-0.2,-0.84, 0.2,-0.84],
-        [0,-1.05, 0,-1.18],                              // comm fin
-        // torso + chest plate
-        [-0.4,-0.6, 0.4,-0.6, 0.46,-0.08, 0.3,0.18, -0.3,0.18, -0.46,-0.08, -0.4,-0.6],
-        [-0.16,-0.46, 0.16,-0.46, 0.16,-0.26, -0.16,-0.26, -0.16,-0.46],
-        [0,-0.26, 0,0.05],                               // sternum seam
-        // pauldrons
-        [-0.4,-0.6, -0.68,-0.66, -0.72,-0.34, -0.46,-0.28],
-        [0.4,-0.6, 0.68,-0.66, 0.72,-0.34, 0.46,-0.28],
-        // legs + knee plates
-        [-0.27,0.18, -0.32,0.55, -0.3,0.96, -0.08,0.96, -0.06,0.55, -0.04,0.3],
-        [0.27,0.18, 0.32,0.55, 0.3,0.96, 0.08,0.96, 0.06,0.55, 0.04,0.3],
-        [-0.33,0.52, -0.05,0.52], [0.05,0.52, 0.33,0.52],
-        // rifle, aimed at the enemy line
-        [-0.05,0.0, 0.12,-0.12, 0.92,-0.5],
-        [0.92,-0.5, 1.0,-0.6],
-        [0.4,-0.26, 0.44,-0.08],
-        [0.62,-0.36, 0.66,-0.5],
+        // helmet (snout/respirator)
+        [-0.24,-0.78, -0.26,-1.0, -0.13,-1.13, 0.13,-1.13, 0.26,-1.0, 0.24,-0.78, 0.12,-0.66, 0.05,-0.66, 0,-0.72, -0.05,-0.66, -0.12,-0.66, -0.24,-0.78],
+        [0,-1.13, 0,-0.9],                                  // crest ridge
+        [-0.2,-0.82, -0.05,-0.86], [0.2,-0.82, 0.05,-0.86], // brows
+        [-0.06,-0.7, 0.06,-0.7],                            // grille
+        // gorget collar
+        [-0.18,-0.66, 0.18,-0.66, 0.2,-0.56, -0.2,-0.56, -0.18,-0.66],
+        // heavy pauldrons + trim
+        [-0.34,-0.56, -0.62,-0.6, -0.8,-0.4, -0.72,-0.14, -0.44,-0.12],
+        [0.34,-0.56, 0.62,-0.6, 0.8,-0.4, 0.72,-0.14, 0.44,-0.12],
+        [-0.74,-0.42, -0.5,-0.36], [0.74,-0.42, 0.5,-0.36],
+        // cuirass + chest aquila
+        [-0.34,-0.54, 0.34,-0.54, 0.4,-0.1, 0.3,0.18, -0.3,0.18, -0.4,-0.1, -0.34,-0.54],
+        [-0.22,-0.34, -0.06,-0.26, 0,-0.38, 0.06,-0.26, 0.22,-0.34],
+        [0,-0.38, 0,-0.16],
+        [-0.26,0.02, 0.26,0.02],                            // ab seam
+        [-0.08,0.06, 0.08,0.06, 0.08,0.18, -0.08,0.18, -0.08,0.06], // belt buckle
+        // arms / gauntlets
+        [0.44,-0.12, 0.52,0.14, 0.46,0.24, 0.34,0.2, 0.36,0.0],
+        [-0.44,-0.12, -0.34,0.08, -0.06,0.12],
+        // armoured legs + knee guards + boots
+        [-0.3,0.18, -0.36,0.6, -0.36,0.95, -0.1,0.95, -0.08,0.6, -0.06,0.3],
+        [0.3,0.18, 0.36,0.6, 0.36,0.95, 0.1,0.95, 0.08,0.6, 0.06,0.3],
+        [-0.36,0.54, -0.06,0.54], [0.06,0.54, 0.36,0.54],
+        [-0.36,0.95, -0.46,0.9], [0.36,0.95, 0.46,0.9],
+        // bolter held forward
+        [-0.06,0.12, 0.5,0.0, 0.56,0.08, 0.0,0.2, -0.06,0.12],
+        [0.56,0.04, 0.78,-0.02],
+        [0.2,0.2, 0.22,0.34, 0.34,0.32, 0.32,0.18],
+        [0.34,0.0, 0.36,-0.08, 0.42,-0.06],
       ],
-      e: [[-0.09,-0.84], [0.09,-0.84]],
+      e: [[-0.11,-0.88], [0.11,-0.88]],
     },
     technomancer: {
       color: '#41d8ff',
@@ -752,14 +778,20 @@
     var r = ns.engine.run;
     if (!r) return;
     var p = R.playerXY();
-    var scale = Math.min(W, H) * 0.082;
-    var bob = Math.sin(t * 1.6) * 2;
+    var scale = Math.min(W, H) * 0.09;
+    var bob = Math.sin(t * 1.6) * 1.4;
     var flash = (t - R.player.flashT < 0.15);
     // lunge toward the enemy line when attacking
     var px = p.x;
     var lu = (t - (R.player.lungeT || -9)) / 0.28;
     if (lu >= 0 && lu < 1) px += Math.sin(lu * Math.PI) * 18;
     var art = CLASS_ART[r.cls] || CLASS_ART.vanguard;
+    // ground shadow
+    ctx.save();
+    ctx.globalAlpha = 0.2;
+    ctx.fillStyle = art.color;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y + scale * 0.98, scale * 0.7, scale * 0.13, 0, 0, 7); ctx.fill();
+    ctx.restore();
     strokePaths(art.p, px, p.y + bob, scale, flash ? '#ff4a5e' : art.color, flash ? 14 : 9, 1);
 
     // glowing eye/visor points

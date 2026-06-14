@@ -179,10 +179,10 @@ html, body {
 .card.type-power .cname { color: var(--magenta); }
 .card.type-curse .cname { color: var(--red); }
 .card .ctype { font-size: 7px; letter-spacing: 2px; color: var(--text-dim); margin: 0 4px 3px; text-transform: uppercase; }
-.card .cdesc { font-size: 8.5px; line-height: 1.3; color: var(--text); padding: 0 5px; }
+.card .cdesc { font-size: 9px; line-height: 1.32; color: var(--text); padding: 0 5px; }
 .card.unaffordable { opacity: 0.45; }
 .card.selected {
-  transform: translateY(-64px) scale(1.5);
+  transform: translateY(-72px) scale(1.62);
   z-index: 50;
   box-shadow: 0 0 18px rgba(93, 255, 136, 0.35), 0 8px 30px rgba(0,0,0,0.8);
   border-color: var(--green);
@@ -1413,7 +1413,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // hover drone: winged pod, central eye, underslung cannon, grav fins
       art: { p: [[-0.25,-0.3, 0.25,-0.3, 0.4,0, 0.25,0.3, -0.25,0.3, -0.4,0, -0.25,-0.3], [-0.12,-0.06, 0.12,-0.06, 0.12,0.13, -0.12,0.13, -0.12,-0.06], [-0.4,0, -0.95,-0.45, -1.0,-0.18, -0.55,0.2, -0.4,0.1], [-0.55,-0.13, -0.85,-0.34], [0.4,0, 0.95,-0.45, 1.0,-0.18, 0.55,0.2, 0.4,0.1], [0.55,-0.13, 0.85,-0.34], [0,-0.3, -0.1,-0.6, 0.1,-0.6, 0,-0.3], [-0.05,0.3, -0.05,0.58, 0.05,0.58, 0.05,0.3], [0,0.58, 0,0.72], [-0.28,0.3, -0.4,0.55], [0.28,0.3, 0.4,0.55]], e: [[0,0.04]] },
     },
-    zealot_warrior: {
+    zealot_warrior: { grounded: true,
       name: 'Zealot Warrior', faction: 'hierarchy', hp: 22, size: 0.85, ai: 'random',
       moves: [
         { t: 'attack', d: 8, w: 4 },
@@ -1424,7 +1424,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // elite warrior: swept crest, mandibles, energy blade, digitigrade legs
       art: { p: [[0,-1.05, 0.14,-0.95, 0.18,-0.78, 0.1,-0.66, -0.1,-0.66, -0.18,-0.85, -0.45,-1.15, -0.26,-1.2, 0,-1.05], [-0.08,-0.66, -0.15,-0.52, -0.05,-0.58], [0.08,-0.66, 0.15,-0.52, 0.05,-0.58], [-0.3,-0.55, 0.3,-0.55, 0.38,-0.15, 0.2,0.12, -0.2,0.12, -0.38,-0.15, -0.3,-0.55], [-0.18,-0.45, 0,-0.3, 0.18,-0.45], [-0.3,-0.55, -0.55,-0.62, -0.6,-0.35, -0.4,-0.28], [0.3,-0.55, 0.55,-0.62, 0.6,-0.35, 0.4,-0.28], [0.55,-0.45, 0.7,-0.25], [0.7,-0.25, 1.0,-0.75], [0.66,-0.17, 0.95,-0.65], [-0.55,-0.45, -0.62,-0.1, -0.5,0.05], [-0.15,0.12, -0.26,0.45, -0.13,0.6, -0.26,0.95, -0.08,0.95, -0.02,0.6], [0.15,0.12, 0.26,0.45, 0.13,0.6, 0.26,0.95, 0.08,0.95, 0.02,0.6]], e: [[-0.06,-0.8],[0.06,-0.8]] },
     },
-    plasma_acolyte: {
+    plasma_acolyte: { grounded: true,
       name: 'Plasma Acolyte', faction: 'hierarchy', hp: 16, size: 0.75, ai: 'random',
       moves: [
         { t: 'debuff', s: 'burn', v: 3, w: 3 },
@@ -1434,7 +1434,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // squat acolyte: dome head, methane tank, hose, hands cupping a plasma orb
       art: { p: [[-0.2,-0.6, 0.2,-0.6, 0.3,-0.4, -0.3,-0.4, -0.2,-0.6], [-0.1,-0.4, -0.14,-0.28, 0.14,-0.28, 0.1,-0.4], [-0.35,-0.4, 0.35,-0.4, 0.5,0.35, 0.3,0.6, -0.3,0.6, -0.5,0.35, -0.35,-0.4], [-0.15,-0.6, 0,-1.0, 0.15,-0.6], [0,-1.0, 0,-0.62], [0.13,-0.78, 0.34,-0.6, 0.28,-0.42], [-0.35,-0.15, -0.55,0.05, -0.32,0.2], [0.35,-0.15, 0.55,0.05, 0.32,0.2], [-0.16,0.1, 0,-0.05, 0.16,0.1, 0,0.26, -0.16,0.1], [-0.3,0.6, -0.38,0.8, -0.14,0.8], [0.3,0.6, 0.38,0.8, 0.14,0.8]], e: [[-0.08,-0.5],[0.08,-0.5],[0,0.1]] },
     },
-    honor_guard: {
+    honor_guard: { grounded: true,
       name: 'Honor Guard', faction: 'hierarchy', hp: 48, size: 1.0, elite: true, ai: 'cycle',
       moves: [
         { t: 'block', b: 9 },
@@ -1460,7 +1460,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
 
     /* ============ THE RUST LEGION ============ */
-    scrap_hound: {
+    scrap_hound: { grounded: true,
       name: 'Scrap Hound', faction: 'rust', hp: 13, size: 0.65, ai: 'random',
       moves: [
         { t: 'attack', d: 6, w: 4 },
@@ -1470,7 +1470,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // robot hound: sensor head, jaw, spine plates, exhaust, four legs, antenna tail
       art: { p: [[0.5,-0.55, 0.95,-0.5, 1.0,-0.3, 0.75,-0.2, 0.55,-0.25, 0.5,-0.55], [0.75,-0.2, 0.95,-0.08, 0.68,-0.04, 0.58,-0.14], [0.5,-0.55, 0.35,-0.4], [-0.75,-0.35, 0.35,-0.4, 0.45,0.05, -0.65,0.15, -0.75,-0.35], [-0.65,-0.38, -0.5,-0.55, -0.35,-0.42, -0.2,-0.58, -0.05,-0.44, 0.1,-0.55, 0.25,-0.42], [-0.75,-0.35, -0.95,-0.55], [-0.72,-0.22, -0.92,-0.38], [0.35,0.05, 0.28,0.45, 0.45,0.55, 0.42,0.9, 0.56,0.9], [0.15,0.05, 0.12,0.6], [-0.55,0.15, -0.65,0.5, -0.5,0.6, -0.55,0.92, -0.4,0.92], [-0.25,0.12, -0.3,0.65], [-0.75,-0.3, -1.0,-0.12]], e: [[0.8,-0.4]] },
     },
-    rust_cultist: {
+    rust_cultist: { grounded: true,
       name: 'Rust Cultist', faction: 'rust', hp: 15, size: 0.75, ai: 'random',
       moves: [
         { t: 'attack', d: 5, w: 4 },
@@ -1480,7 +1480,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // hooded cyborg: cog amulet, mechadendrite over shoulder, cog-staff, cabling
       art: { p: [[0,-1.0, 0.24,-0.78, 0.18,-0.52, -0.18,-0.52, -0.24,-0.78, 0,-1.0], [-0.36,-0.48, 0.36,-0.48, 0.46,0.92, -0.46,0.92, -0.36,-0.48], [-0.4,0.1, 0.4,0.1], [-0.44,0.7, 0.44,0.7], [0,-0.26, 0.1,-0.19, 0.1,-0.06, 0,0.01, -0.1,-0.06, -0.1,-0.19, 0,-0.26], [-0.28,-0.55, -0.5,-0.85, -0.3,-1.08, -0.05,-1.02], [-0.05,-1.02, 0.06,-1.1], [-0.05,-1.02, 0.06,-0.94], [0.36,-0.32, 0.56,-0.36], [0.56,-0.86, 0.56,0.88], [0.56,-1.16, 0.67,-1.06, 0.67,-0.94, 0.56,-0.86, 0.45,-0.94, 0.45,-1.06, 0.56,-1.16], [-0.36,-0.3, -0.52,0.0, -0.42,0.3]], e: [[-0.07,-0.68],[0.07,-0.68]] },
     },
-    forge_walker: {
+    forge_walker: { grounded: true,
       name: 'Forge Walker', faction: 'rust', hp: 28, size: 0.95, ai: 'random',
       moves: [
         { t: 'attack', d: 9, w: 4 },
@@ -1490,7 +1490,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // bipedal mech: visor slit, plate seams, smokestacks, claw arms, piston legs
       art: { p: [[-0.55,-0.7, 0.55,-0.7, 0.62,0.05, -0.62,0.05, -0.55,-0.7], [-0.3,-0.52, 0.3,-0.52], [-0.3,-0.4, 0.3,-0.4], [-0.62,-0.18, 0.62,-0.18], [-0.45,-0.18, -0.45,-0.08], [0,-0.18, 0,-0.08], [0.45,-0.18, 0.45,-0.08], [-0.35,-0.7, -0.35,-1.05, -0.22,-1.05, -0.22,-0.7], [0.22,-0.7, 0.22,-0.95, 0.35,-0.95, 0.35,-0.7], [-0.62,-0.5, -0.9,-0.4, -0.85,0.1], [-0.85,0.1, -0.95,0.3], [-0.85,0.1, -0.74,0.3], [0.62,-0.5, 0.9,-0.4, 0.85,0.05], [0.85,0.05, 0.95,0.25], [0.85,0.05, 0.74,0.25], [-0.4,0.05, -0.48,0.5, -0.38,0.55, -0.42,0.92, -0.2,0.92, -0.25,0.55], [0.4,0.05, 0.48,0.5, 0.38,0.55, 0.42,0.92, 0.2,0.92, 0.25,0.55]], e: [[-0.15,-0.46],[0.15,-0.46]] },
     },
-    iron_butcher: {
+    iron_butcher: { grounded: true,
       name: 'Iron Butcher', faction: 'rust', hp: 52, size: 1.05, elite: true, ai: 'cycle',
       moves: [
         { t: 'attack', d: 13 },
@@ -1501,7 +1501,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // butcher mech: horned head, vented chest, pauldrons, cleaver arm, hook arm
       art: { p: [[-0.18,-1.0, 0.18,-1.0, 0.24,-0.78, -0.24,-0.78, -0.18,-1.0], [-0.18,-1.0, -0.35,-1.2], [0.18,-1.0, 0.35,-1.2], [-0.5,-0.75, 0.5,-0.75, 0.6,-0.1, 0.42,0.35, -0.42,0.35, -0.6,-0.1, -0.5,-0.75], [-0.25,-0.55, 0.25,-0.55], [-0.2,-0.42, 0.2,-0.42], [-0.5,-0.75, -0.85,-0.85, -0.95,-0.45, -0.62,-0.35], [0.5,-0.75, 0.85,-0.85, 0.95,-0.45, 0.62,-0.35], [0.85,-0.45, 0.93,-0.12], [0.86,-0.12, 1.1,-0.05, 1.05,0.55, 0.85,0.5, 0.86,-0.12], [1.04,0.0, 0.99,0.45], [-0.85,-0.45, -0.9,-0.05, -0.74,0.1, -0.85,0.27], [-0.42,0.35, -0.5,0.95, -0.15,0.95, -0.12,0.45], [0.42,0.35, 0.5,0.95, 0.15,0.95, 0.12,0.45]], e: [[-0.08,-0.88],[0.08,-0.88]] },
     },
-    forge_tyrant: {
+    forge_tyrant: { grounded: true,
       name: 'THE FORGE TYRANT', faction: 'rust', hp: 105, size: 1.35, boss: true, ai: 'cycle',
       moves: [
         { t: 'block', b: 14 },
@@ -1525,7 +1525,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // infection form: lumpy sac, tendril legs, feelers, eye cluster
       art: { p: [[-0.6,0.1, -0.45,-0.35, -0.15,-0.55, 0.2,-0.5, 0.55,-0.25, 0.65,0.15, 0.45,0.45, 0,0.55, -0.4,0.45, -0.6,0.1], [-0.2,-0.55, -0.08,-0.75, 0.07,-0.58], [-0.4,0.45, -0.55,0.8], [-0.15,0.55, -0.2,0.9], [0.1,0.55, 0.05,0.85], [0.35,0.5, 0.5,0.8], [0.2,-0.5, 0.3,-0.85, 0.42,-0.9], [-0.32,-0.45, -0.47,-0.75]], e: [[-0.15,-0.1],[0.05,-0.18],[0.18,-0.02]] },
     },
-    husk_stalker: {
+    husk_stalker: { grounded: true,
       name: 'Husk Stalker', faction: 'voidspawn', hp: 18, size: 0.8, ai: 'random',
       moves: [
         { t: 'attack', d: 7, w: 4 },
@@ -2338,7 +2338,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
       player: { block: 0, statuses: {} },
       echoReady: false,
-      gainedShield: false,
+      playedShield: false,
       startHp: r.hp,
       cardsThisTurn: 0,
       reactiveUsed: false,
@@ -2353,7 +2353,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var pa = art('platedArmorStart');
     if (pa > 0) c.player.statuses.platedArmor = pa;
     var bs = art('blockStart');
-    if (bs > 0) { c.player.block = bs; c.gainedShield = true; }
+    if (bs > 0) { c.player.block = bs; } // relic Shield is passive, not "played"
     var ws = art('weakStart');
     if (ws > 0) c.enemies.forEach(function (en, i) { addStatus(en, 'weak', ws); });
     var sd = art('combatStartDamage');
@@ -2365,11 +2365,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   // All player Shield gains route through here so relics that react to gaining
   // Shield (and the "no Shield" quest) see every source.
-  function gainBlock(n) {
+  // played = the Shield came from a card the player chose to play (so passive
+  // relic/plate/trigger Shield does NOT count against the "no Shield" quest).
+  function gainBlock(n, played) {
     var c = E.combat, p = c.player;
     if (n <= 0) return;
     p.block += n;
-    c.gainedShield = true;
+    if (played) c.playedShield = true;
     emit('block', { who: 'player', amount: n, blockAfter: p.block });
     var st = art('shieldThorns');
     if (st > 0 && !c.over) {
@@ -2661,7 +2663,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         }
         case 'block': {
           var b = f.v + (f.scale === 'tech' ? attr('tech') * B.attrs.techBlockPerPoint : 0);
-          gainBlock(b);
+          gainBlock(b, true);
           break;
         }
         case 'heal': heal(f.v); break;
@@ -2697,7 +2699,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             var s = statN(p, 'str');
             if (s > 0) { addStatus(p, 'str', s); emit('status', { who: 'player', s: 'str', v: s }); }
           } else if (f.id === 'doubleBlock') {
-            if (p.block > 0) gainBlock(p.block);
+            if (p.block > 0) gainBlock(p.block, true);
           } else if (f.id === 'catalyst' || f.id === 'catalyst3') {
             var ce = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             if (ce) {
@@ -2710,7 +2712,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         }
       }
     });
-    if (flags.leech && totalDealt > 0) gainBlock(totalDealt);
+    if (flags.leech && totalDealt > 0) gainBlock(totalDealt, true);
     if (flags.drain && totalDealt > 0) heal(Math.ceil(totalDealt / 2));
     return totalDealt;
   }
@@ -2938,7 +2940,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function winCombat() {
     var r = E.run, kind = E.combat.kind, cc = E.combat;
     // quest credit: combats won without ever gaining Shield / without losing HP
-    if (!cc.gainedShield) questProgress('noShieldWin', 1);
+    if (!cc.playedShield) questProgress('noShieldWin', 1);
     if (r.hp >= cc.startHp) questProgress('flawlessWin', 1);
     var credits = creditRange(kind);
     r.credits += credits;
@@ -3790,7 +3792,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var dieDur = 0.45;
     if (dying && (v.deathT < 0 || t - v.deathT > dieDur)) return;
 
-    var bob = Math.sin(t * 1.8 + idx * 1.7) * 3;
+    var grounded = !!v.def.grounded;
+    // grounded enemies stand still (a faint sway); floating ones bob
+    var bob = grounded ? Math.sin(t * 1.2 + idx) * 0.8 : Math.sin(t * 1.8 + idx * 1.7) * 3;
     var sx = 0;
     if (t - v.shakeT < 0.22) sx = (Math.random() - 0.5) * 8;
     // lunge toward the player when attacking
@@ -3818,6 +3822,18 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var color = factionColor(v.def);
     var flash = (t - v.flashT < 0.13);
     var x = v.x + sx, y = v.y + bob;
+
+    // ground shadow / hover pool — anchors grounded units, gives floaters depth
+    if (!dying || alpha > 0.4) {
+      var feetY = v.y + scale * 0.96;
+      var shY = grounded ? feetY : feetY + scale * 0.42;
+      var shW = (grounded ? 0.78 : 0.5) * scale, shH = scale * 0.13;
+      ctx.save();
+      ctx.globalAlpha = (grounded ? 0.18 : 0.1) * alpha;
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.ellipse(v.x, shY, shW, shH, 0, 0, 7); ctx.fill();
+      ctx.restore();
+    }
 
     strokePaths(v.def.art.p, x, y, scale, flash ? '#ffffff' : color, flash ? 16 : 9, alpha);
 
@@ -3977,30 +3993,42 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   /* ---- player avatar ----------------------------------------------------------- */
   var CLASS_ART = {
     vanguard: {
+      // Space-Marine power armour: snouted helm, heavy pauldrons, chest aquila,
+      // armoured greaves, planted stance, bolter held forward.
       color: '#5dff88',
       p: [
-        // helmet + visor
-        [-0.28,-1.05, 0.28,-1.05, 0.34,-0.72, 0.22,-0.6, -0.22,-0.6, -0.34,-0.72, -0.28,-1.05],
-        [-0.2,-0.84, 0.2,-0.84],
-        [0,-1.05, 0,-1.18],                              // comm fin
-        // torso + chest plate
-        [-0.4,-0.6, 0.4,-0.6, 0.46,-0.08, 0.3,0.18, -0.3,0.18, -0.46,-0.08, -0.4,-0.6],
-        [-0.16,-0.46, 0.16,-0.46, 0.16,-0.26, -0.16,-0.26, -0.16,-0.46],
-        [0,-0.26, 0,0.05],                               // sternum seam
-        // pauldrons
-        [-0.4,-0.6, -0.68,-0.66, -0.72,-0.34, -0.46,-0.28],
-        [0.4,-0.6, 0.68,-0.66, 0.72,-0.34, 0.46,-0.28],
-        // legs + knee plates
-        [-0.27,0.18, -0.32,0.55, -0.3,0.96, -0.08,0.96, -0.06,0.55, -0.04,0.3],
-        [0.27,0.18, 0.32,0.55, 0.3,0.96, 0.08,0.96, 0.06,0.55, 0.04,0.3],
-        [-0.33,0.52, -0.05,0.52], [0.05,0.52, 0.33,0.52],
-        // rifle, aimed at the enemy line
-        [-0.05,0.0, 0.12,-0.12, 0.92,-0.5],
-        [0.92,-0.5, 1.0,-0.6],
-        [0.4,-0.26, 0.44,-0.08],
-        [0.62,-0.36, 0.66,-0.5],
+        // helmet (snout/respirator)
+        [-0.24,-0.78, -0.26,-1.0, -0.13,-1.13, 0.13,-1.13, 0.26,-1.0, 0.24,-0.78, 0.12,-0.66, 0.05,-0.66, 0,-0.72, -0.05,-0.66, -0.12,-0.66, -0.24,-0.78],
+        [0,-1.13, 0,-0.9],                                  // crest ridge
+        [-0.2,-0.82, -0.05,-0.86], [0.2,-0.82, 0.05,-0.86], // brows
+        [-0.06,-0.7, 0.06,-0.7],                            // grille
+        // gorget collar
+        [-0.18,-0.66, 0.18,-0.66, 0.2,-0.56, -0.2,-0.56, -0.18,-0.66],
+        // heavy pauldrons + trim
+        [-0.34,-0.56, -0.62,-0.6, -0.8,-0.4, -0.72,-0.14, -0.44,-0.12],
+        [0.34,-0.56, 0.62,-0.6, 0.8,-0.4, 0.72,-0.14, 0.44,-0.12],
+        [-0.74,-0.42, -0.5,-0.36], [0.74,-0.42, 0.5,-0.36],
+        // cuirass + chest aquila
+        [-0.34,-0.54, 0.34,-0.54, 0.4,-0.1, 0.3,0.18, -0.3,0.18, -0.4,-0.1, -0.34,-0.54],
+        [-0.22,-0.34, -0.06,-0.26, 0,-0.38, 0.06,-0.26, 0.22,-0.34],
+        [0,-0.38, 0,-0.16],
+        [-0.26,0.02, 0.26,0.02],                            // ab seam
+        [-0.08,0.06, 0.08,0.06, 0.08,0.18, -0.08,0.18, -0.08,0.06], // belt buckle
+        // arms / gauntlets
+        [0.44,-0.12, 0.52,0.14, 0.46,0.24, 0.34,0.2, 0.36,0.0],
+        [-0.44,-0.12, -0.34,0.08, -0.06,0.12],
+        // armoured legs + knee guards + boots
+        [-0.3,0.18, -0.36,0.6, -0.36,0.95, -0.1,0.95, -0.08,0.6, -0.06,0.3],
+        [0.3,0.18, 0.36,0.6, 0.36,0.95, 0.1,0.95, 0.08,0.6, 0.06,0.3],
+        [-0.36,0.54, -0.06,0.54], [0.06,0.54, 0.36,0.54],
+        [-0.36,0.95, -0.46,0.9], [0.36,0.95, 0.46,0.9],
+        // bolter held forward
+        [-0.06,0.12, 0.5,0.0, 0.56,0.08, 0.0,0.2, -0.06,0.12],
+        [0.56,0.04, 0.78,-0.02],
+        [0.2,0.2, 0.22,0.34, 0.34,0.32, 0.32,0.18],
+        [0.34,0.0, 0.36,-0.08, 0.42,-0.06],
       ],
-      e: [[-0.09,-0.84], [0.09,-0.84]],
+      e: [[-0.11,-0.88], [0.11,-0.88]],
     },
     technomancer: {
       color: '#41d8ff',
@@ -4051,14 +4079,20 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var r = ns.engine.run;
     if (!r) return;
     var p = R.playerXY();
-    var scale = Math.min(W, H) * 0.082;
-    var bob = Math.sin(t * 1.6) * 2;
+    var scale = Math.min(W, H) * 0.09;
+    var bob = Math.sin(t * 1.6) * 1.4;
     var flash = (t - R.player.flashT < 0.15);
     // lunge toward the enemy line when attacking
     var px = p.x;
     var lu = (t - (R.player.lungeT || -9)) / 0.28;
     if (lu >= 0 && lu < 1) px += Math.sin(lu * Math.PI) * 18;
     var art = CLASS_ART[r.cls] || CLASS_ART.vanguard;
+    // ground shadow
+    ctx.save();
+    ctx.globalAlpha = 0.2;
+    ctx.fillStyle = art.color;
+    ctx.beginPath(); ctx.ellipse(p.x, p.y + scale * 0.98, scale * 0.7, scale * 0.13, 0, 0, 7); ctx.fill();
+    ctx.restore();
     strokePaths(art.p, px, p.y + bob, scale, flash ? '#ff4a5e' : art.color, flash ? 14 : 9, 1);
 
     // glowing eye/visor points

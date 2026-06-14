@@ -170,17 +170,22 @@ ok('Glass Cannon boosts damage (dmgMult)', E.art('dmgMult') === 0.5);
 startFight('vanguard');
 E.run.artifacts = []; E.run.quests = {}; E.run.questDone = {};
 E.addArtifact('offline_shield');
-E.combat.player.block = 0; E.combat.gainedShield = false;
-// win without shield
-E.combat.enemies.forEach(function (e) { e.alive = false; });
-// manually invoke a win check path
-E.combat.over = false;
-(function () {
-  // simulate a clean win
-  E.run.quests.offline_shield = E.run.quests.offline_shield || 0;
-})();
 E.questProgress('noShieldWin', 1);
 ok('Offline Shield advances on a shieldless win', E.questState('offline_shield').progress === 1);
+
+/* 15b. PASSIVE shield (relic/plate) does NOT break the no-Shield quest,
+ * but PLAYED shield (a card) does */
+startFight('vanguard');
+E.run.augments = ['armor_weave']; // plate 2 each turn (passive)
+E.combat.playedShield = false;
+E.combat.player.block = 0;
+E.endTurn(); // triggers a fresh turn with passive plate shield
+ok('passive plate shield does NOT set playedShield', E.combat.playedShield === false && E.combat.player.block >= 2);
+startFight('vanguard');
+E.combat.playedShield = false;
+setHand(['combat_shield']); // a shield CARD
+playId('combat_shield');
+ok('playing a Shield card DOES set playedShield', E.combat.playedShield === true);
 
 /* ---- augments (level-up draft) ---- */
 
