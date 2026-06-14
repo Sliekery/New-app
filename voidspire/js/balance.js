@@ -19,14 +19,14 @@
     classes: {
       vanguard:  { hp: 80, might: 2, tech: 0, psi: 0 },
       technomancer: { hp: 68, might: 0, tech: 2, psi: 0 },
-      voidadept: { hp: 75, might: 0, tech: 0, psi: 2 },
+      voidadept: { hp: 78, might: 0, tech: 0, psi: 2 },
     },
 
     /* ---- Attribute scaling ------------------------------------------ */
     attrs: {
-      mightDmgPerPoint: 1,      // bonus damage per MIGHT on might-scaling attacks
+      mightDmgPerPoint: 1.4,    // bonus damage per MIGHT on might-scaling attacks
       techBlockPerPoint: 1,     // bonus block per TECH on tech-scaling skills
-      psiDmgPerPoint: 1,        // bonus damage per PSI on psi-scaling attacks
+      psiDmgPerPoint: 1.4,      // bonus damage per PSI on psi-scaling attacks
       eventCheckBonusDiv: 1,    // event check bonus = attr / this (rounded down)
     },
 
@@ -45,8 +45,8 @@
 
     /* ---- Enemy scaling per sector (s = sector, 1-based) -------------- */
     scaling: {
-      hpMul:  function (s) { return 1 + 0.30 * (s - 1) + 0.045 * (s - 1) * (s - 1); },
-      dmgMul: function (s) { return 1 + 0.20 * (s - 1) + 0.030 * (s - 1) * (s - 1); },
+      hpMul:  function (s) { return 1 + 0.30 * (s - 1) + 0.038 * (s - 1) * (s - 1); },
+      dmgMul: function (s) { return 1 + 0.18 * (s - 1) + 0.020 * (s - 1) * (s - 1); },
       // extra flat strength enemies gain every N sectors (late-game pressure)
       strEverySectors: 3,
     },

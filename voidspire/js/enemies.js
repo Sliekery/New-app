@@ -190,7 +190,7 @@
     // faction; uses its own `color`. Spawned only as the boss of the finale
     // sector (see BALANCE.run.finale).
     unmaker: {
-      name: 'THE UNMAKER', color: '#b8ecff', hp: 124, size: 1.4, boss: true, final: true, ai: 'cycle',
+      name: 'THE UNMAKER', color: '#b8ecff', hp: 110, size: 1.4, boss: true, final: true, ai: 'cycle',
       moves: [
         { t: 'attack', d: 14 },
         { t: 'debuff', s: 'vuln', v: 2 },

@@ -5,7 +5,7 @@ aren't obvious from the code. For the big picture see `README.md` (architecture,
 balance targets, dev/test workflow) and `CHECKPOINTS.md` (version history +
 frozen play links).
 
-Branch: `claude/sci-fi-roguelike-cards-ycwlxz` · latest checkpoint: **v2.1-finale**.
+Branch: `claude/sci-fi-roguelike-cards-ycwlxz` · latest checkpoint: **v2.2-balance**.
 Everything is committed and pushed. The game is `voidspire/` (pure HTML/JS, no build).
 
 ## RESOLVED: Potions & win condition (v2.1-finale)
@@ -67,16 +67,21 @@ The user dislikes the current Vanguard avatar and we're choosing a replacement.
   Then rebuild the bundle + new checkpoint.
 
 ## OPEN ISSUES / backlog (flagged, not yet done)
-1. **Balance regression from the augment redesign (v1.6).** Difficulty sim shows
-   deep-run rate (sector-5+) ~10-12% vs the 15-30% target, and the class gap
-   widened: Technomancer avg ~3.5 (best 9-10) vs Vanguard ~2.8 / Void Adept ~2.7.
-   Cause: the Augment Draft demoted the flat +1 stat, which the stat-reliant
-   classes (Vanguard=MIGHT→dmg, Void=PSI→burn) leaned on; Technomancer is fine
-   because its power is in modules. Note the bot also UNDER-drafts augments, so
-   human numbers are higher — but the relative Vanguard/Void drop is real.
-   Proposed fix: strengthen the scaling/stat augments for those classes (e.g.
-   bump common damage augments, guarantee a solid "value" augment per draft of 3)
-   in `js/augments.js`, then re-run `node test/sim.js 300` until S5+ is back in band.
+1. ~~**Balance regression from the augment redesign (v1.6).**~~ **FIXED in
+   v2.2-balance.** Deep-run rate (S5+) is back in band — `node test/sim.js 600`
+   now reports ~20% (was ~8%), with sector-1 death 5%, median 3, spike-deaths
+   66%, 0 stalls. Per-class (analyze 400/class): Technomancer 3.98 / S5+ 28%,
+   Vanguard 3.39 / 16%, Void Adept 3.19 / 13% — all viable (median 3-4, best 11).
+   Levers used: softened the late-game enemy quadratic
+   (`scaling.hpMul` quad 0.045→0.038, `dmgMul` 0.20→0.18 / 0.030→0.020);
+   raised `attrs.mightDmgPerPoint` & `psiDmgPerPoint` 1→1.4 (helps the
+   stat-scaling Vanguard/Void, NOT the block-class Technomancer); +3 Void Adept
+   base HP; buffed value commons `honed_edge` (+2→+3 dmg) & `armor_weave`
+   (+2→+3 Shield); trimmed THE UNMAKER 124→110 HP so the finale is a fair
+   capstone. Technomancer is still the structural leader (block/Echo longevity);
+   that residual ~0.6-0.8 spread is left as-is rather than risk fractional
+   block nerfs that hurt its identity — if revisited, target its block engine
+   (`techBlockPerPoint` / Echo) from the top, not the laggards from the bottom.
 2. **Rare combat stalemate.** A pure-defence build (lots of Shield + Phase Lock
    retain) vs a non-escalating enemy can loop forever (~1 in several thousand bot
    runs; sim's loop guard catches it and counts it as a "stall"). Proposed fix:

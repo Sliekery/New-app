@@ -199,7 +199,7 @@ ok('augments are class-legal', offer.every(function (id) { var g = VS.AUGMENTS[i
 /* 17. A hook augment becomes active immediately */
 E.seed(5); E.newRun('vanguard');
 E.chooseAugment('honed_edge');
-ok('Honed Edge grants +2 flat damage', E.art('flatDmg') === 2);
+ok('Honed Edge grants +3 flat damage', E.art('flatDmg') === 3);
 
 /* 18. Stat augment resolves "class" to the right attribute */
 E.seed(5); E.newRun('voidadept');

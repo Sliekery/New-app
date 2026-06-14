@@ -675,14 +675,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     classes: {
       vanguard:  { hp: 80, might: 2, tech: 0, psi: 0 },
       technomancer: { hp: 68, might: 0, tech: 2, psi: 0 },
-      voidadept: { hp: 75, might: 0, tech: 0, psi: 2 },
+      voidadept: { hp: 78, might: 0, tech: 0, psi: 2 },
     },
 
     /* ---- Attribute scaling ------------------------------------------ */
     attrs: {
-      mightDmgPerPoint: 1,      // bonus damage per MIGHT on might-scaling attacks
+      mightDmgPerPoint: 1.4,    // bonus damage per MIGHT on might-scaling attacks
       techBlockPerPoint: 1,     // bonus block per TECH on tech-scaling skills
-      psiDmgPerPoint: 1,        // bonus damage per PSI on psi-scaling attacks
+      psiDmgPerPoint: 1.4,      // bonus damage per PSI on psi-scaling attacks
       eventCheckBonusDiv: 1,    // event check bonus = attr / this (rounded down)
     },
 
@@ -701,8 +701,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     /* ---- Enemy scaling per sector (s = sector, 1-based) -------------- */
     scaling: {
-      hpMul:  function (s) { return 1 + 0.30 * (s - 1) + 0.045 * (s - 1) * (s - 1); },
-      dmgMul: function (s) { return 1 + 0.20 * (s - 1) + 0.030 * (s - 1) * (s - 1); },
+      hpMul:  function (s) { return 1 + 0.30 * (s - 1) + 0.038 * (s - 1) * (s - 1); },
+      dmgMul: function (s) { return 1 + 0.18 * (s - 1) + 0.020 * (s - 1) * (s - 1); },
       // extra flat strength enemies gain every N sectors (late-game pressure)
       strEverySectors: 3,
     },
@@ -1368,10 +1368,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       desc: '+1 to your core attribute.' },
     field_repairs:{ name: 'Field Repairs', rarity: 1, cls: 'any', kind: 'heal', healPct: 0.30,
       desc: 'Patch the hull — heal 30% of Max HP.' },
-    honed_edge:   { name: 'Honed Edge', rarity: 1, cls: 'any', kind: 'hook', hook: { k: 'flatDmg', v: 2 },
-      desc: 'Your attacks deal +2 damage.' },
-    armor_weave:  { name: 'Armor Weave', rarity: 1, cls: 'any', kind: 'hook', hook: { k: 'plate', v: 2 },
-      desc: 'Gain 2 Shield at the start of each turn.' },
+    honed_edge:   { name: 'Honed Edge', rarity: 1, cls: 'any', kind: 'hook', hook: { k: 'flatDmg', v: 3 },
+      desc: 'Your attacks deal +3 damage.' },
+    armor_weave:  { name: 'Armor Weave', rarity: 1, cls: 'any', kind: 'hook', hook: { k: 'plate', v: 3 },
+      desc: 'Gain 3 Shield at the start of each turn.' },
     med_reserves: { name: 'Medical Reserves', rarity: 1, cls: 'any', kind: 'stat', stat: 'maxhp', v: 12,
       desc: '+12 Max HP (and heal 12).' },
     purge:        { name: 'Purge Protocol', rarity: 1, cls: 'any', kind: 'deckop', deckop: 'remove',
@@ -1721,7 +1721,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // faction; uses its own `color`. Spawned only as the boss of the finale
     // sector (see BALANCE.run.finale).
     unmaker: {
-      name: 'THE UNMAKER', color: '#b8ecff', hp: 124, size: 1.4, boss: true, final: true, ai: 'cycle',
+      name: 'THE UNMAKER', color: '#b8ecff', hp: 110, size: 1.4, boss: true, final: true, ai: 'cycle',
       moves: [
         { t: 'attack', d: 14 },
         { t: 'debuff', s: 'vuln', v: 2 },
