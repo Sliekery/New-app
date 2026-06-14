@@ -214,6 +214,12 @@
     combatChrome(false);
     var s = el('div', 'screen' + (clear ? ' clear' : ''));
     $overlay.appendChild(s);
+    // reserve room for the HUD (which sits on top) so a screen title never
+    // collides with the HP bar / attribute row behind it
+    if ($hud && $hud.style.display !== 'none' && $hud.innerHTML.trim()) {
+      var hh = $hud.getBoundingClientRect().height;
+      if (hh > 0 && hh < 220) s.style.paddingTop = (hh + 12) + 'px';
+    }
     // cascade-in for whatever the caller builds next
     setTimeout(function () {
       var kids = s.querySelectorAll('.panel-btn, .card-grid .card');
@@ -238,9 +244,12 @@
   }
 
   /* ====================== HUD ====================== */
+  function setHud(on) { if ($hud) $hud.style.display = on ? '' : 'none'; }
+
   function updateHUD() {
     var r = E.run;
-    if (!r) { $hud.innerHTML = ''; return; }
+    if (!r) { $hud.innerHTML = ''; setHud(false); return; }
+    setHud(true);
     var c = E.combat;
     var fac = ns.FACTIONS[r.faction];
     var hpPct = Math.max(0, r.hp / r.maxHp);
@@ -310,7 +319,7 @@
 
   function showTitle() {
     combatChrome(false);
-    $hud.innerHTML = '';
+    $hud.innerHTML = ''; setHud(false);
     var s = overlayScreen();
     s.appendChild(el('div', 'title-logo', 'VOIDSPIRE'));
     s.appendChild(el('div', 'subtitle', 'AN ENDLESS DESCENT · TACTICAL CARD PROTOCOL'));
@@ -1633,7 +1642,7 @@
 
   function showRecurrenceIntro() {
     combatChrome(false);
-    $hud.innerHTML = '';
+    $hud.innerHTML = ''; setHud(false);
     var slides = [
       'Space warps around you like a void. Your mind goes blank…',
       'You find yourself in a familiar setting, an urge to continue… Haven’t you been here before?',
@@ -1665,7 +1674,7 @@
   }
 
   function showEchoDraft() {
-    $hud.innerHTML = '';
+    $hud.innerHTML = ''; setHud(false);
     var s = overlayScreen(true);
     s.appendChild(el('h2', 'screen-title victory-banner', 'A Void Echo'));
     s.appendChild(el('div', 'screen-sub', 'CLAIM ONE FRAGMENT OF A PAST SELF · IT IS YOURS FOREVER'));
@@ -1685,7 +1694,7 @@
   }
 
   function showEchoLoadout() {
-    $hud.innerHTML = '';
+    $hud.innerHTML = ''; setHud(false);
     var r = E.run, slots = B.echoes.loadoutSlots;
     var s = overlayScreen(true);
     s.appendChild(el('h2', 'screen-title', 'Attune Your Echoes'));
@@ -1723,6 +1732,7 @@
   /* ====================== GAME OVER ====================== */
   function showGameOver() {
     combatChrome(false);
+    setHud(false);
     var r = E.run;
     var s = overlayScreen();
     s.appendChild(el('h2', 'screen-title', 'Signal Lost'));

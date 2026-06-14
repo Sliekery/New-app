@@ -655,7 +655,7 @@
     if (f.scale === 'might') v += attr('might') * B.attrs.mightDmgPerPoint * mul;
     if (f.scale === 'tech') v += attr('tech') * mul;
     if (f.scale === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * mul + statN(p, 'psiPow');
-    return v;
+    return Math.round(v);   // damage is always a whole number (no decimals)
   }
 
   function dealToEnemy(en, idx, amount, opts) {

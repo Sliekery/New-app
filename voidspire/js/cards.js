@@ -371,7 +371,7 @@
             if (f.scale === 'psi') v += (ctx.statuses.psiPow || 0);
           }
         }
-        var s = 'Deal ' + v + ' damage';
+        var s = 'Deal ' + Math.round(v) + ' damage';
         if (f.all) s += ' to ALL enemies';
         if (f.random) s += ' to random enemies';
         if (f.xcost) s += ', X times (X = current Energy)';
@@ -381,7 +381,7 @@
       if (f.k === 'block') {
         var b = f.v;
         if (ctx && f.scale === 'tech') b += ctx.attrs.tech * B.attrs.techBlockPerPoint;
-        parts.push('Gain ' + b + ' Shield.');
+        parts.push('Gain ' + Math.round(b) + ' Shield.');
       }
       if (f.k === 'heal') parts.push('Heal ' + f.v + ' HP.');
       if (f.k === 'hploss') parts.push('Lose ' + f.v + ' HP.');

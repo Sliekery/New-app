@@ -64,9 +64,10 @@ html, body {
 
 /* ========================= HUD ========================= */
 #hud {
-  position: absolute; top: 0; left: 0; right: 0; z-index: 20;
-  padding: calc(env(safe-area-inset-top, 0px) + 8px) 10px 6px;
+  position: absolute; top: 0; left: 0; right: 0; z-index: 110;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) 10px 8px;
   pointer-events: none;
+  background: linear-gradient(180deg, rgba(4,8,10,0.92) 55%, rgba(4,8,10,0.6) 82%, rgba(4,8,10,0));
 }
 #hud .row { display: flex; align-items: center; gap: 8px; }
 #hud .hp-wrap { flex: 1; pointer-events: auto; }
@@ -1193,7 +1194,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             if (f.scale === 'psi') v += (ctx.statuses.psiPow || 0);
           }
         }
-        var s = 'Deal ' + v + ' damage';
+        var s = 'Deal ' + Math.round(v) + ' damage';
         if (f.all) s += ' to ALL enemies';
         if (f.random) s += ' to random enemies';
         if (f.xcost) s += ', X times (X = current Energy)';
@@ -1203,7 +1204,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       if (f.k === 'block') {
         var b = f.v;
         if (ctx && f.scale === 'tech') b += ctx.attrs.tech * B.attrs.techBlockPerPoint;
-        parts.push('Gain ' + b + ' Shield.');
+        parts.push('Gain ' + Math.round(b) + ' Shield.');
       }
       if (f.k === 'heal') parts.push('Heal ' + f.v + ' HP.');
       if (f.k === 'hploss') parts.push('Lose ' + f.v + ' HP.');
@@ -2844,7 +2845,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (f.scale === 'might') v += attr('might') * B.attrs.mightDmgPerPoint * mul;
     if (f.scale === 'tech') v += attr('tech') * mul;
     if (f.scale === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * mul + statN(p, 'psiPow');
-    return v;
+    return Math.round(v);   // damage is always a whole number (no decimals)
   }
 
   function dealToEnemy(en, idx, amount, opts) {
@@ -5025,6 +5026,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     combatChrome(false);
     var s = el('div', 'screen' + (clear ? ' clear' : ''));
     $overlay.appendChild(s);
+    // reserve room for the HUD (which sits on top) so a screen title never
+    // collides with the HP bar / attribute row behind it
+    if ($hud && $hud.style.display !== 'none' && $hud.innerHTML.trim()) {
+      var hh = $hud.getBoundingClientRect().height;
+      if (hh > 0 && hh < 220) s.style.paddingTop = (hh + 12) + 'px';
+    }
     // cascade-in for whatever the caller builds next
     setTimeout(function () {
       var kids = s.querySelectorAll('.panel-btn, .card-grid .card');
@@ -5049,9 +5056,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
 
   /* ====================== HUD ====================== */
+  function setHud(on) { if ($hud) $hud.style.display = on ? '' : 'none'; }
+
   function updateHUD() {
     var r = E.run;
-    if (!r) { $hud.innerHTML = ''; return; }
+    if (!r) { $hud.innerHTML = ''; setHud(false); return; }
+    setHud(true);
     var c = E.combat;
     var fac = ns.FACTIONS[r.faction];
     var hpPct = Math.max(0, r.hp / r.maxHp);
@@ -5121,7 +5131,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   function showTitle() {
     combatChrome(false);
-    $hud.innerHTML = '';
+    $hud.innerHTML = ''; setHud(false);
     var s = overlayScreen();
     s.appendChild(el('div', 'title-logo', 'VOIDSPIRE'));
     s.appendChild(el('div', 'subtitle', 'AN ENDLESS DESCENT · TACTICAL CARD PROTOCOL'));
@@ -6444,7 +6454,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   function showRecurrenceIntro() {
     combatChrome(false);
-    $hud.innerHTML = '';
+    $hud.innerHTML = ''; setHud(false);
     var slides = [
       'Space warps around you like a void. Your mind goes blank…',
       'You find yourself in a familiar setting, an urge to continue… Haven’t you been here before?',
@@ -6476,7 +6486,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
 
   function showEchoDraft() {
-    $hud.innerHTML = '';
+    $hud.innerHTML = ''; setHud(false);
     var s = overlayScreen(true);
     s.appendChild(el('h2', 'screen-title victory-banner', 'A Void Echo'));
     s.appendChild(el('div', 'screen-sub', 'CLAIM ONE FRAGMENT OF A PAST SELF · IT IS YOURS FOREVER'));
@@ -6496,7 +6506,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
 
   function showEchoLoadout() {
-    $hud.innerHTML = '';
+    $hud.innerHTML = ''; setHud(false);
     var r = E.run, slots = B.echoes.loadoutSlots;
     var s = overlayScreen(true);
     s.appendChild(el('h2', 'screen-title', 'Attune Your Echoes'));
@@ -6534,6 +6544,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   /* ====================== GAME OVER ====================== */
   function showGameOver() {
     combatChrome(false);
+    setHud(false);
     var r = E.run;
     var s = overlayScreen();
     s.appendChild(el('h2', 'screen-title', 'Signal Lost'));

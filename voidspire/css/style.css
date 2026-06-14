@@ -53,9 +53,10 @@ html, body {
 
 /* ========================= HUD ========================= */
 #hud {
-  position: absolute; top: 0; left: 0; right: 0; z-index: 20;
-  padding: calc(env(safe-area-inset-top, 0px) + 8px) 10px 6px;
+  position: absolute; top: 0; left: 0; right: 0; z-index: 110;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) 10px 8px;
   pointer-events: none;
+  background: linear-gradient(180deg, rgba(4,8,10,0.92) 55%, rgba(4,8,10,0.6) 82%, rgba(4,8,10,0));
 }
 #hud .row { display: flex; align-items: center; gap: 8px; }
 #hud .hp-wrap { flex: 1; pointer-events: auto; }
