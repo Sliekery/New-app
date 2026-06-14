@@ -745,29 +745,53 @@
     curse: '<svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.5"/><path d="M4 4 L10 10 M10 4 L4 10"/></svg>',
   };
 
-  function cardInner(name, cost, type, rarity, desc, unplayable) {
+  function cardGlyphSVG(cid) {
+    return artSVG(ns.cardGlyph(cid, ns.CARDS[cid]), 'cart-svg');
+  }
+  // Colour combat keywords in card text to match the on-field status pills.
+  var KW_MAP = [
+    ['Plated Armor', 'pa'], ['Vulnerable', 'vu'], ['Shield', 'sh'], ['Weak', 'wk'],
+    ['Burn', 'bn'], ['Might', 'mi'], ['Energy', 'en'], ['Exhaust', 'ex'],
+    ['Retain', 'rt'], ['Heal', 'hl'], ['Echo', 'ec'], ['Thorns', 'th'], ['Regen', 'rg'],
+  ];
+  function descHTML(desc) {
+    var s = esc(desc);
+    for (var i = 0; i < KW_MAP.length; i++) {
+      s = s.replace(new RegExp('\\b(' + KW_MAP[i][0] + 's?)\\b', 'g'), '<span class="kw kw-' + KW_MAP[i][1] + '">$1</span>');
+    }
+    return s;
+  }
+  function cardInner(name, cost, type, rarity, desc, unplayable, cid) {
     var r = rarity === 3 ? 'r3' : rarity === 2 ? 'r2' : 'r1';
+    var tag = rarity === 3 ? 'RARE' : rarity === 2 ? 'UNC' : '';
     return '<div class="cost">' + (unplayable ? '✕' : cost) + '</div>' +
-      '<div class="cicon">' + (TYPE_ICONS[type] || '') + '</div>' +
       '<div class="cname">' + esc(name) + '</div>' +
-      '<div class="rline ' + r + '"></div>' +
-      '<div class="ctype">' + type + (rarity === 3 ? ' · rare' : rarity === 2 ? ' · unc' : '') + '</div>' +
-      '<div class="cdesc">' + esc(desc) + '</div>';
+      '<div class="cart">' + cardGlyphSVG(cid) + '</div>' +
+      '<div class="rline ' + r + '">' + (tag ? '<span class="rtag">' + tag + '</span>' : '') + '</div>' +
+      '<div class="cdesc">' + descHTML(desc) + '</div>';
   }
 
   function renderHand(deal) {
     $hand.innerHTML = '';
     var c = E.combat;
     if (!c) return;
+    var n = c.hand.length, mid = (n - 1) / 2;
+    var spread = n > 1 ? Math.min(4.2, 26 / n) : 0; // degrees between cards
     c.hand.forEach(function (card, i) {
       var info = E.cardInfo(card);
-      var d = el('div', 'card type-' + info.type +
+      var rare = info.rarity === 3 ? ' rare' : info.rarity === 2 ? ' unc' : '';
+      var d = el('div', 'card type-' + info.type + rare +
         (info.cost > c.energy && !info.unplayable ? ' unaffordable' : '') +
         (info.unplayable ? ' unplayable-curse' : '') +
         (deal ? ' deal' : '') +
         (i === selected ? ' selected' : ''));
-      if (deal) d.style.setProperty('--d', (i * 60) + 'ms');
-      d.innerHTML = cardInner(info.name, info.xcost ? 'X' : info.cost, info.type, info.rarity, info.desc, info.unplayable);
+      if (deal) d.style.setProperty('--d', (i * 55) + 'ms');
+      // fan the hand into an arc so cards don't simply stack behind each other
+      var off = i - mid;
+      var rot = off * spread;
+      var ty = Math.abs(off) * Math.abs(off) * 1.5;
+      d.style.setProperty('--fan', 'rotate(' + rot.toFixed(2) + 'deg) translateY(' + ty.toFixed(1) + 'px)');
+      d.innerHTML = cardInner(info.name, info.xcost ? 'X' : info.cost, info.type, info.rarity, info.desc, info.unplayable, card.id);
       d.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
         startCardDrag(d, i, ev);
@@ -1173,9 +1197,10 @@
   function cardEl(cid, up) {
     var def = ns.CARDS[cid];
     var ctx = E.run ? { attrs: { might: E.attr('might'), tech: E.attr('tech'), psi: E.attr('psi') }, statuses: null } : null;
-    var d = el('div', 'card type-' + def.type);
+    var rare = def.rarity === 3 ? ' rare' : def.rarity === 2 ? ' unc' : '';
+    var d = el('div', 'card type-' + def.type + rare);
     d.innerHTML = cardInner(def.name + (up ? '+' : ''), def.xcost ? 'X' : ns.cardCost(def, up), def.type, def.rarity,
-      ns.cardDesc(def, up, ctx), def.unplayable);
+      ns.cardDesc(def, up, ctx), def.unplayable, cid);
     return d;
   }
 

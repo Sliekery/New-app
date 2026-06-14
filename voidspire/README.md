@@ -143,10 +143,12 @@ from a download or a raw-file URL). Regenerate it after changing any source:
 node -e "
 const fs = require('fs');
 let html = fs.readFileSync('index.html', 'utf8');
-html = html.replace(/<link rel=\"stylesheet\"[^>]*>/, '<style>\n' + fs.readFileSync('css/style.css', 'utf8') + '\n</style>');
+// NOTE: use FUNCTION replacers — js/css can contain '$' (e.g. regex \$1), which
+// String.replace would otherwise treat as a capture-group backreference.
+html = html.replace(/<link rel=\"stylesheet\"[^>]*>/, () => '<style>\n' + fs.readFileSync('css/style.css', 'utf8') + '\n</style>');
 let js = '';
-for (const s of ['balance','cards','artifacts','augments','potions','echoes','enemies','events','engine','render','ui','main']) js += '\n' + fs.readFileSync('js/' + s + '.js', 'utf8');
-html = html.replace(/(\s*<script src=[^>]*><\/script>)+/, '\n<script>\n' + js.replace(/<\/script>/g, '<\\\\/script>') + '\n</script>\n');
+for (const s of ['balance','cards','cardart','artifacts','augments','potions','echoes','enemies','events','engine','render','ui','main']) js += '\n' + fs.readFileSync('js/' + s + '.js', 'utf8');
+html = html.replace(/(\s*<script src=[^>]*><\/script>)+/, () => '\n<script>\n' + js.replace(/<\/script>/g, '<\\\\/script>') + '\n</script>\n');
 fs.writeFileSync('voidspire.html', html);
 "
 ```

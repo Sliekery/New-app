@@ -154,24 +154,36 @@ html, body {
   pointer-events: auto;
   touch-action: none;
   position: relative;
-  width: 88px; min-width: 0; height: 124px;
-  margin: 0 -7px;
+  width: 90px; min-width: 0; height: 128px;
+  margin: 0 -8px;
+  display: flex; flex-direction: column;
   background: linear-gradient(160deg, var(--panel2), var(--panel));
   border: 1px solid var(--green-dim);
+  transform: var(--fan, none); transform-origin: bottom center;
   transition: transform 0.16s ease-out, box-shadow 0.16s, border-color 0.16s;
   cursor: pointer;
   flex-shrink: 1;
   clip-path: polygon(0 6px, 6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
 }
+/* lift the focused card clear of its neighbours so it's fully readable */
+@media (hover: hover) {
+  #hand .card:not(.selected):not(.dragging):hover {
+    transform: translateY(-40px) scale(1.16) rotate(0deg); z-index: 40;
+    box-shadow: 0 0 16px rgba(93,255,136,0.3), 0 10px 26px rgba(0,0,0,0.8);
+  }
+}
 .card.type-attack { border-color: #9a5a20; }
 .card.type-skill { border-color: #1f7a96; }
 .card.type-power { border-color: #7a3f9a; }
 .card.type-curse { border-color: #7a2030; }
+/* energy cost — a glowing hex orb in the top-left */
 .card .cost {
-  position: absolute; top: 3px; left: 3px; width: 18px; height: 18px;
-  font-size: 12px; line-height: 18px; text-align: center;
-  color: var(--cyan); text-shadow: var(--glow-c);
-  border: 1px solid rgba(65,216,255,0.6); background: rgba(5, 20, 28, 0.9);
+  position: absolute; top: 1px; left: 1px; width: 22px; height: 22px; z-index: 3;
+  font-size: 12px; line-height: 22px; text-align: center; font-weight: bold;
+  color: #d8f4ff; text-shadow: 0 0 5px rgba(65,216,255,0.9), 0 1px 1px #000;
+  border: 1.5px solid var(--cyan);
+  background: radial-gradient(circle at 38% 32%, rgba(65,216,255,0.4), rgba(5,20,28,0.96) 70%);
+  clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
 }
 /* faint circuit-etch watermark */
 .card::after {
@@ -180,26 +192,43 @@ html, body {
     repeating-linear-gradient(115deg, transparent 0 6px, rgba(184, 230, 196, 0.022) 6px 7px),
     linear-gradient(to top, rgba(184, 230, 196, 0.03), transparent 35%);
 }
-.card .cicon { position: absolute; top: 4px; right: 4px; width: 13px; height: 13px; opacity: 0.85; }
-.card .cicon svg { width: 100%; height: 100%; display: block; }
-.card .cicon path, .card .cicon circle { fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linejoin: round; }
-.card.type-attack .cicon { color: var(--amber); }
-.card.type-skill .cicon { color: var(--cyan); }
-.card.type-power .cicon { color: var(--magenta); }
-.card.type-curse .cicon { color: var(--red); }
-.card .rline { height: 1px; margin: 0 5px 3px; background: rgba(94, 138, 108, 0.35); }
+/* central vector glyph */
+.card .cart { height: 38px; display: flex; align-items: center; justify-content: center; margin: 1px 0 0; }
+.card .cart svg { width: 33px; height: 33px; filter: drop-shadow(0 0 3px currentColor); }
+.card.type-attack .cart { color: var(--amber); }
+.card.type-skill .cart { color: var(--cyan); }
+.card.type-power .cart { color: var(--magenta); }
+.card.type-curse .cart { color: var(--red); }
+.card .rline { position: relative; height: 2px; margin: 1px 5px 3px; background: rgba(94, 138, 108, 0.35); }
 .card .rline.r2 { background: linear-gradient(90deg, rgba(65, 216, 255, 0.7), transparent); box-shadow: 0 0 4px rgba(65, 216, 255, 0.4); }
-.card .rline.r3 { background: linear-gradient(90deg, rgba(255, 176, 46, 0.85), transparent); box-shadow: 0 0 4px rgba(255, 176, 46, 0.5); }
+.card .rline.r3 { background: linear-gradient(90deg, rgba(255, 176, 46, 0.9), transparent); box-shadow: 0 0 5px rgba(255, 176, 46, 0.6); }
+.card .rtag { position: absolute; right: 0; top: -7px; font-size: 6.5px; letter-spacing: 1px; color: var(--amber); }
+.card .rline.r2 .rtag { color: var(--cyan); }
 .card .cname {
-  margin: 5px 18px 2px 24px; font-size: 9px; line-height: 1.15; letter-spacing: 0.5px;
-  color: var(--text); text-transform: uppercase; min-height: 21px;
+  margin: 4px 6px 1px 25px; font-size: 8.5px; line-height: 1.12; letter-spacing: 0.5px;
+  color: var(--text); text-transform: uppercase; min-height: 19px;
 }
 .card.type-attack .cname { color: var(--amber); }
 .card.type-skill .cname { color: var(--cyan); }
 .card.type-power .cname { color: var(--magenta); }
 .card.type-curse .cname { color: var(--red); }
-.card .ctype { font-size: 7px; letter-spacing: 2px; color: var(--text-dim); margin: 0 4px 3px; text-transform: uppercase; }
-.card .cdesc { font-size: 9px; line-height: 1.32; color: var(--text); padding: 0 5px; }
+.card .cdesc { flex: 1; font-size: 8.5px; line-height: 1.3; color: var(--text); padding: 0 5px 3px; overflow: hidden; }
+/* keyword colouring — matches the on-field status pills */
+.card .cdesc .kw { font-weight: bold; }
+.kw-sh { color: #6fd0ff; } .kw-vu { color: #ff9a4a; } .kw-wk { color: #c88bff; }
+.kw-bn { color: #ff7a4a; } .kw-mi { color: #7dffa0; } .kw-en { color: #ffe14a; }
+.kw-ex { color: #ff8090; } .kw-rt { color: #9bd6ff; } .kw-hl { color: #7dffb0; }
+.kw-ec, .kw-th, .kw-rg, .kw-pa { color: #cfeede; }
+/* rare cards get an animated frame glow */
+.card.rare { border-color: var(--amber); }
+.card.rare::before {
+  content: ''; position: absolute; inset: -1px; pointer-events: none; z-index: 2;
+  border: 1px solid rgba(255, 176, 46, 0.5);
+  clip-path: polygon(0 6px, 6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+  animation: rareGlow 2.4s ease-in-out infinite;
+}
+@keyframes rareGlow { 0%, 100% { box-shadow: inset 0 0 6px rgba(255,176,46,0.25); } 50% { box-shadow: inset 0 0 12px rgba(255,176,46,0.5); } }
+.card.unc { border-color: #3aa6c8; }
 .card.unaffordable { opacity: 0.45; }
 .card.selected {
   transform: translateY(-72px) scale(1.62);
@@ -1277,6 +1306,77 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   ns.cardFx = function (def, upgraded) {
     return (upgraded && def.up && def.up.fx) ? def.up.fx : def.fx;
+  };
+
+})(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
+
+/* =========================================================================
+ * VOIDSPIRE — cardart.js
+ * Vector glyphs for cards (polylines in a -1..1 box, same format as enemy /
+ * relic art). A shared library keeps every card readable without authoring a
+ * unique drawing for all 57; ns.cardGlyph(id, def) resolves the best glyph.
+ * ========================================================================= */
+(function (ns) {
+  'use strict';
+
+  ns.CARD_GLYPHS = {
+    // --- weapons / attacks ---
+    rifle: { p: [[-0.95,0.25, 0.25,0.25, 0.25,0.05, 0.95,0.05, 0.95,-0.2, 0.25,-0.2, 0.25,-0.4, -0.7,-0.4, -0.95,0.25], [-0.45,-0.4, -0.6,0.05], [0.4,-0.2, 0.4,0.05]] },
+    burst: { p: [[-0.9,-0.35, 0.2,-0.35], [-0.9,0, 0.2,0], [-0.9,0.35, 0.2,0.35], [0.2,-0.35, 0.6,-0.5], [0.2,0, 0.7,0], [0.2,0.35, 0.6,0.5]] },
+    blade: { p: [[-0.6,0.75, 0.55,-0.5, 0.8,-0.78, 0.5,-0.5, 0.66,-0.2], [-0.45,0.6, -0.72,0.52, -0.6,0.78]] },
+    shell: { p: [[0,-0.55, 0.45,-0.35, 0.6,0.1, 0.35,0.55, -0.35,0.55, -0.6,0.1, -0.45,-0.35, 0,-0.55], [-0.18,-0.62, 0.18,-0.62], [0.12,-0.62, 0.3,-0.85, 0.5,-0.78]] },
+    cannon: { p: [[-0.85,0.5, -0.85,-0.1, 0.5,-0.5, 0.85,-0.3, 0.85,0.1, -0.2,0.5, -0.85,0.5], [-0.55,0.0, -0.55,0.5], [0.55,-0.4, 0.7,-0.65, 0.9,-0.55]] },
+    // --- defence ---
+    shield: { p: [[0,-0.82, 0.7,-0.5, 0.7,0.18, 0,0.85, -0.7,0.18, -0.7,-0.5, 0,-0.82], [0,-0.5, 0,0.5]] },
+    shieldStrike: { p: [[-0.1,-0.78, 0.55,-0.5, 0.55,0.15, -0.1,0.78, -0.72,0.15, -0.72,-0.5, -0.1,-0.78], [0.35,-0.7, 0.9,-0.25], [0.9,-0.25, 0.7,-0.3, 0.85,-0.5]] },
+    // --- energy / tech ---
+    bolt: { p: [[0.15,-0.85, -0.35,-0.05, 0.05,-0.05, -0.25,0.85, 0.4,-0.1, 0.02,-0.1, 0.35,-0.85, 0.15,-0.85]] },
+    core: { p: [[0,-0.75, 0.65,0, 0,0.75, -0.65,0, 0,-0.75], [0,-0.4, 0.35,0, 0,0.4, -0.35,0, 0,-0.4]], e: [[0,0]] },
+    turret: { p: [[-0.45,0.6, 0.45,0.6, 0.3,0.1, -0.3,0.1, -0.45,0.6], [-0.2,0.1, -0.2,-0.2, 0.55,-0.45], [0.55,-0.45, 0.85,-0.55], [-0.55,0.6, 0.55,0.6]], e: [[-0.2,-0.05]] },
+    reload: { p: [[0.62,-0.2, 0.5,-0.55, 0.18,-0.62], [0.62,-0.2, 0.78,-0.5], [-0.62,0.2, -0.5,0.55, -0.18,0.62], [-0.62,0.2, -0.78,0.5], [0.62,-0.2, 0.35,0.0, 0.0,0.18, -0.35,0.1, -0.62,0.2]] },
+    // --- psi / void ---
+    eye: { p: [[-0.85,0, -0.42,-0.42, 0.42,-0.42, 0.85,0, 0.42,0.42, -0.42,0.42, -0.85,0], [-0.26,0, 0,-0.26, 0.26,0, 0,0.26, -0.26,0]], e: [[0,0]] },
+    psiBolt: { p: [[0,-0.85, 0.12,-0.3, 0.5,-0.5, 0.2,-0.05, 0.7,0.15, 0.18,0.2, 0.28,0.7, 0,0.32, -0.28,0.7, -0.18,0.2, -0.7,0.15, -0.2,-0.05, -0.5,-0.5, -0.12,-0.3, 0,-0.85]], e: [[0,-0.05]] },
+    grasp: { p: [[-0.7,-0.5, -0.3,-0.1, -0.5,0.5], [0,-0.6, 0.05,-0.1, -0.1,0.6], [0.7,-0.5, 0.35,-0.1, 0.55,0.55], [-0.4,-0.12, 0.45,-0.12]] },
+    vortex: { p: [[0,0, 0.18,-0.2, 0.05,-0.45, -0.3,-0.4, -0.45,0.0, -0.2,0.45, 0.3,0.5, 0.62,0.05, 0.4,-0.5, -0.2,-0.72, -0.7,-0.3]] },
+    // --- status / utility ---
+    flame: { p: [[0,-0.85, 0.32,-0.4, 0.18,-0.1, 0.45,0.2, 0.22,0.6, 0,0.78, -0.22,0.6, -0.45,0.2, -0.18,-0.1, -0.32,-0.4, 0,-0.85], [0,-0.25, 0.16,0.1, 0,0.45, -0.16,0.1, 0,-0.25]] },
+    hex: { p: [[0,-0.72, 0.62,-0.36, 0.62,0.36, 0,0.72, -0.62,0.36, -0.62,-0.36, 0,-0.72], [-0.4,-0.4, 0.4,0.4], [0.4,-0.4, -0.4,0.4]] },
+    heal: { p: [[-0.22,-0.72, 0.22,-0.72, 0.22,-0.22, 0.72,-0.22, 0.72,0.22, 0.22,0.22, 0.22,0.72, -0.22,0.72, -0.22,0.22, -0.72,0.22, -0.72,-0.22, -0.22,-0.22, -0.22,-0.72]] },
+    might: { p: [[-0.55,0.15, 0,-0.6, 0.55,0.15], [-0.55,0.55, 0,-0.2, 0.55,0.55], [0,-0.6, 0,0.72]] },
+    scan: { p: [[-0.55,-0.55, -0.55,-0.2], [-0.55,-0.55, -0.2,-0.55], [0.55,-0.55, 0.2,-0.55], [0.55,-0.55, 0.55,-0.2], [-0.55,0.55, -0.55,0.2], [-0.55,0.55, -0.2,0.55], [0.55,0.55, 0.55,0.2], [0.55,0.55, 0.2,0.55], [-0.5,0, 0.5,0]], e: [[0,0]] },
+    drain: { p: [[0,-0.7, 0.4,-0.25, 0.25,0.3, -0.25,0.3, -0.4,-0.25, 0,-0.7], [-0.25,0.3, -0.3,0.65, 0.3,0.65, 0.25,0.3], [-0.18,-0.1, 0.18,-0.1]] },
+    skull: { p: [[-0.5,0.12, -0.55,-0.4, -0.3,-0.72, 0.3,-0.72, 0.55,-0.4, 0.5,0.12, 0.3,0.24, 0.3,0.5, 0.12,0.5, 0.12,0.26, -0.12,0.26, -0.12,0.5, -0.3,0.5, -0.3,0.24, -0.5,0.12], [0,-0.06, -0.12,0.14, 0.12,0.14, 0,-0.06]], e: [[-0.24,-0.22], [0.24,-0.22]] },
+  };
+
+  // Explicit card -> glyph mapping. Anything unmapped falls back by type.
+  var GLYPH_OF = {
+    pulse_rifle: 'rifle', burst_fire: 'burst', suppressing_fire: 'burst', scrap_shot: 'rifle',
+    bayonet_charge: 'blade', whirlwind: 'blade',
+    frag_grenade: 'shell', orbital_strike: 'shell', heavy_ordnance: 'cannon',
+    shield_slam: 'shieldStrike', kinetic_discharge: 'shieldStrike',
+    executioner: 'skull',
+    shock_coil: 'bolt', emp_blast: 'bolt', railgun: 'cannon',
+    leech_coil: 'drain',
+    mind_spike: 'psiBolt', psy_lance: 'psiBolt', eldritch_storm: 'vortex',
+    void_grasp: 'grasp', tk_crush: 'grasp',
+    combat_shield: 'shield', overshield: 'shield', bulwark: 'shield', brace: 'shield',
+    guard_protocol: 'shield', fortify_matrix: 'shield', entrench_field: 'shieldStrike',
+    adrenal_surge: 'bolt', overclock: 'bolt', reload: 'reload', combat_scan: 'scan', premonition: 'eye',
+    nano_repair: 'heal', med_stim: 'heal',
+    soul_burn: 'flame', catalyst: 'flame', hex_weave: 'hex', mind_fracture: 'eye', limit_break: 'might',
+    combat_stims: 'might', warlord_protocol: 'might',
+    deploy_turret: 'turret', phase_bulwark: 'shield', aux_reactor: 'core', psionic_focus: 'eye',
+    entropy_field: 'flame', iron_resolve: 'shield', reckless_protocol: 'core',
+    overload_capacitor: 'core', echo_core: 'core', mind_array: 'hex', plague_engine: 'flame',
+    salvage_protocol: 'core',
+    void_taint: 'vortex', shrapnel: 'shell', recurring_curse: 'skull',
+  };
+  var TYPE_DEFAULT = { attack: 'rifle', skill: 'shield', power: 'core', curse: 'skull' };
+
+  ns.cardGlyph = function (id, def) {
+    var g = GLYPH_OF[id] || (def && TYPE_DEFAULT[def.type]) || 'core';
+    return ns.CARD_GLYPHS[g] || ns.CARD_GLYPHS.core;
   };
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
@@ -5659,29 +5759,53 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     curse: '<svg viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.5"/><path d="M4 4 L10 10 M10 4 L4 10"/></svg>',
   };
 
-  function cardInner(name, cost, type, rarity, desc, unplayable) {
+  function cardGlyphSVG(cid) {
+    return artSVG(ns.cardGlyph(cid, ns.CARDS[cid]), 'cart-svg');
+  }
+  // Colour combat keywords in card text to match the on-field status pills.
+  var KW_MAP = [
+    ['Plated Armor', 'pa'], ['Vulnerable', 'vu'], ['Shield', 'sh'], ['Weak', 'wk'],
+    ['Burn', 'bn'], ['Might', 'mi'], ['Energy', 'en'], ['Exhaust', 'ex'],
+    ['Retain', 'rt'], ['Heal', 'hl'], ['Echo', 'ec'], ['Thorns', 'th'], ['Regen', 'rg'],
+  ];
+  function descHTML(desc) {
+    var s = esc(desc);
+    for (var i = 0; i < KW_MAP.length; i++) {
+      s = s.replace(new RegExp('\\b(' + KW_MAP[i][0] + 's?)\\b', 'g'), '<span class="kw kw-' + KW_MAP[i][1] + '">$1</span>');
+    }
+    return s;
+  }
+  function cardInner(name, cost, type, rarity, desc, unplayable, cid) {
     var r = rarity === 3 ? 'r3' : rarity === 2 ? 'r2' : 'r1';
+    var tag = rarity === 3 ? 'RARE' : rarity === 2 ? 'UNC' : '';
     return '<div class="cost">' + (unplayable ? '✕' : cost) + '</div>' +
-      '<div class="cicon">' + (TYPE_ICONS[type] || '') + '</div>' +
       '<div class="cname">' + esc(name) + '</div>' +
-      '<div class="rline ' + r + '"></div>' +
-      '<div class="ctype">' + type + (rarity === 3 ? ' · rare' : rarity === 2 ? ' · unc' : '') + '</div>' +
-      '<div class="cdesc">' + esc(desc) + '</div>';
+      '<div class="cart">' + cardGlyphSVG(cid) + '</div>' +
+      '<div class="rline ' + r + '">' + (tag ? '<span class="rtag">' + tag + '</span>' : '') + '</div>' +
+      '<div class="cdesc">' + descHTML(desc) + '</div>';
   }
 
   function renderHand(deal) {
     $hand.innerHTML = '';
     var c = E.combat;
     if (!c) return;
+    var n = c.hand.length, mid = (n - 1) / 2;
+    var spread = n > 1 ? Math.min(4.2, 26 / n) : 0; // degrees between cards
     c.hand.forEach(function (card, i) {
       var info = E.cardInfo(card);
-      var d = el('div', 'card type-' + info.type +
+      var rare = info.rarity === 3 ? ' rare' : info.rarity === 2 ? ' unc' : '';
+      var d = el('div', 'card type-' + info.type + rare +
         (info.cost > c.energy && !info.unplayable ? ' unaffordable' : '') +
         (info.unplayable ? ' unplayable-curse' : '') +
         (deal ? ' deal' : '') +
         (i === selected ? ' selected' : ''));
-      if (deal) d.style.setProperty('--d', (i * 60) + 'ms');
-      d.innerHTML = cardInner(info.name, info.xcost ? 'X' : info.cost, info.type, info.rarity, info.desc, info.unplayable);
+      if (deal) d.style.setProperty('--d', (i * 55) + 'ms');
+      // fan the hand into an arc so cards don't simply stack behind each other
+      var off = i - mid;
+      var rot = off * spread;
+      var ty = Math.abs(off) * Math.abs(off) * 1.5;
+      d.style.setProperty('--fan', 'rotate(' + rot.toFixed(2) + 'deg) translateY(' + ty.toFixed(1) + 'px)');
+      d.innerHTML = cardInner(info.name, info.xcost ? 'X' : info.cost, info.type, info.rarity, info.desc, info.unplayable, card.id);
       d.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
         startCardDrag(d, i, ev);
@@ -6087,9 +6211,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function cardEl(cid, up) {
     var def = ns.CARDS[cid];
     var ctx = E.run ? { attrs: { might: E.attr('might'), tech: E.attr('tech'), psi: E.attr('psi') }, statuses: null } : null;
-    var d = el('div', 'card type-' + def.type);
+    var rare = def.rarity === 3 ? ' rare' : def.rarity === 2 ? ' unc' : '';
+    var d = el('div', 'card type-' + def.type + rare);
     d.innerHTML = cardInner(def.name + (up ? '+' : ''), def.xcost ? 'X' : ns.cardCost(def, up), def.type, def.rarity,
-      ns.cardDesc(def, up, ctx), def.unplayable);
+      ns.cardDesc(def, up, ctx), def.unplayable, cid);
     return d;
   }
 
