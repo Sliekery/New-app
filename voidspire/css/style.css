@@ -40,6 +40,12 @@ html, body {
   margin: 0 auto;
   overflow: hidden;
 }
+/* horizontal / landscape display mode (toggled from the menu) */
+#game.landscape {
+  max-width: 1000px;
+  max-height: 560px;
+  margin: auto;
+}
 
 #battlefield { position: absolute; inset: 0; width: 100%; height: 100%; }
 

@@ -16,6 +16,7 @@
   var targeting = false;
   var locked = false;       // input lock while timeline plays
   var toastTimer = null;
+  var orient = 'portrait';  // 'portrait' | 'landscape' display mode (persisted)
 
   /* ====================== tiny synth ====================== */
   var AC = null, muted = false;
@@ -162,6 +163,9 @@
     document.addEventListener('pointerup', onDragEnd);
     document.addEventListener('pointercancel', onDragCancel);
 
+    loadOrient();
+    applyOrient();
+
     // global listener for quest completions (can fire any time)
     E.onEvent = function (e) {
       if (e.type === 'questDone') {
@@ -172,6 +176,24 @@
     };
     U.refresh();
   };
+
+  /* ====================== display orientation ====================== */
+  function loadOrient() {
+    try {
+      var v = window.localStorage && window.localStorage.getItem('voidspire_orient');
+      if (v === 'landscape' || v === 'portrait') orient = v;
+    } catch (e) { /* private mode */ }
+  }
+  function applyOrient() {
+    if ($game) $game.classList.toggle('landscape', orient === 'landscape');
+    if (R.resize) R.resize();
+    if (E.combat && R.syncCombat) R.syncCombat();
+  }
+  function setOrient(v) {
+    orient = v;
+    try { if (window.localStorage) window.localStorage.setItem('voidspire_orient', v); } catch (e) { /* ignore */ }
+    applyOrient();
+  }
 
   // Tooltip text for an artifact chip, including live quest progress.
   function artifactTip(id) {
@@ -352,6 +374,16 @@
       });
       s.appendChild(btn);
     });
+
+    var disp = el('div', 'panel-btn dim-panel',
+      '<div class="pb-title">' + (orient === 'landscape' ? '▭ DISPLAY: HORIZONTAL' : '▯ DISPLAY: VERTICAL') + '</div>' +
+      '<div class="pb-sub">Tap to switch orientation</div>');
+    disp.addEventListener('pointerdown', function () {
+      SFX.tap();
+      setOrient(orient === 'landscape' ? 'portrait' : 'landscape');
+      showTitle();
+    });
+    s.appendChild(disp);
 
     var best = E.getBest();
     var foot = 'TAP A CLASS TO DEPLOY · SWIPE CARDS UP TO PLAY THEM';
@@ -1845,6 +1877,16 @@
     var mute = el('div', 'panel-btn cyan', '<div class="pb-title">' + (muted ? '◇ SOUND: OFF' : '◆ SOUND: ON') + '</div>');
     mute.addEventListener('pointerdown', function () { muted = !muted; showMenu(); });
     s.appendChild(mute);
+
+    var disp = el('div', 'panel-btn',
+      '<div class="pb-title">' + (orient === 'landscape' ? '▭ DISPLAY: HORIZONTAL' : '▯ DISPLAY: VERTICAL') + '</div>' +
+      '<div class="pb-sub">Tap to switch orientation</div>');
+    disp.addEventListener('pointerdown', function () {
+      SFX.tap();
+      setOrient(orient === 'landscape' ? 'portrait' : 'landscape');
+      showMenu(); // re-render the menu in the new orientation
+    });
+    s.appendChild(disp);
 
     var help = el('div', 'panel-btn magenta', '<div class="pb-title">? FIELD MANUAL</div>');
     help.addEventListener('pointerdown', function () { SFX.tap(); showHelp(wasCombat); });
