@@ -11,7 +11,7 @@
   var R = ns.render;
   var B = ns.BALANCE;
 
-  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip;
+  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile;
   var selected = -1;        // selected hand index
   var targeting = false;
   var locked = false;       // input lock while timeline plays
@@ -145,6 +145,13 @@
     $counts.id = 'deck-counts';
     $game.appendChild($counts);
 
+    $drawPile = el('div', '', '<div class="pile-card"><span class="pile-n">0</span></div><div class="pile-lbl">DRAW</div>');
+    $drawPile.id = 'draw-pile';
+    $game.appendChild($drawPile);
+    $discardPile = el('div', '', '<div class="pile-card"><span class="pile-n">0</span></div><div class="pile-lbl">DISC</div>');
+    $discardPile.id = 'discard-pile';
+    $game.appendChild($discardPile);
+
     $hint = el('div', '', 'DROP ON A TARGET');
     $hint.id = 'target-hint';
     $hint.style.display = 'none';
@@ -262,7 +269,9 @@
     $hand.style.display = on ? 'flex' : 'none';
     $controls.style.display = on ? 'flex' : 'none';
     $energy.style.display = on ? 'block' : 'none';
-    $counts.style.display = on ? 'block' : 'none';
+    $counts.style.display = 'none';
+    $drawPile.style.display = on ? 'block' : 'none';
+    $discardPile.style.display = on ? 'block' : 'none';
     $potions.style.display = on ? 'flex' : 'none';
     if (!on) { $hint.style.display = 'none'; onPotionCancel(); hidePotionTip(); }
     R.combatVisible = on;
@@ -733,8 +742,12 @@
   function updateCounts() {
     var c = E.combat;
     if (!c) return;
-    $counts.innerHTML = '<span>DRAW ' + c.drawPile.length + '</span><span>DISC ' + c.discard.length + '</span>' +
-      (c.exhaust.length ? '<span>EXH ' + c.exhaust.length + '</span>' : '');
+    $drawPile.querySelector('.pile-n').textContent = c.drawPile.length;
+    var dn = $discardPile.querySelector('.pile-n');
+    dn.textContent = c.discard.length;
+    var lbl = $discardPile.querySelector('.pile-lbl');
+    if (c.exhaust.length) lbl.textContent = 'DISC · EXH ' + c.exhaust.length;
+    else lbl.textContent = 'DISC';
   }
 
   /* ---- shared card markup ---------------------------------------------- */
@@ -764,7 +777,8 @@
   function cardInner(name, cost, type, rarity, desc, unplayable, cid) {
     var r = rarity === 3 ? 'r3' : rarity === 2 ? 'r2' : 'r1';
     var tag = rarity === 3 ? 'RARE' : rarity === 2 ? 'UNC' : '';
-    return '<div class="cost">' + (unplayable ? '✕' : cost) + '</div>' +
+    return '<div class="cost"><svg viewBox="0 0 24 24"><polygon points="12,0.8 21.7,6.4 21.7,17.6 12,23.2 2.3,17.6 2.3,6.4"/></svg>' +
+      '<span class="cost-n">' + (unplayable ? '✕' : cost) + '</span></div>' +
       '<div class="cname">' + esc(name) + '</div>' +
       '<div class="cart">' + cardGlyphSVG(cid) + '</div>' +
       '<div class="rline ' + r + '">' + (tag ? '<span class="rtag">' + tag + '</span>' : '') + '</div>' +
@@ -928,14 +942,48 @@
     }
   }
 
+  var TYPE_COLOR = { attack: '#ffb02e', skill: '#41d8ff', power: '#c86bff', curse: '#ff4a5e' };
+
+  // Card-play flourish: cards that go to discard fly to the discard pile; cards
+  // that exhaust / are consumed (powers) disintegrate into vector particles.
+  function cardPlayFx(rect, card, def) {
+    if (!rect) return;
+    var bf = document.getElementById('battlefield').getBoundingClientRect();
+    var cx = rect.left + rect.width / 2 - bf.left, cy = rect.top + rect.height / 2 - bf.top;
+    var color = TYPE_COLOR[def.type] || '#5dff88';
+    var c = E.combat;
+    var gone = !!c && (c.exhaust.some(function (x) { return x.uid === card.uid; }) ||
+                       c.consumed.some(function (x) { return x.uid === card.uid; }));
+    if (gone) {
+      R.burst(cx, cy, color, 26); R.burst(cx, cy, '#ffffff', 6);
+    } else {
+      R.burst(cx, cy, color, 8);
+      var g = el('div', 'card-ghost type-' + def.type);
+      g.style.left = rect.left + 'px'; g.style.top = rect.top + 'px';
+      g.style.width = rect.width + 'px'; g.style.height = rect.height + 'px';
+      $game.appendChild(g);
+      var dst = $discardPile.getBoundingClientRect();
+      var dx = (dst.left + dst.width / 2) - (rect.left + rect.width / 2);
+      var dy = (dst.top + dst.height / 2) - (rect.top + rect.height / 2);
+      g.getBoundingClientRect(); // reflow so the transition runs
+      g.style.transform = 'translate(' + dx.toFixed(0) + 'px,' + dy.toFixed(0) + 'px) scale(0.26) rotate(38deg)';
+      g.style.opacity = '0';
+      setTimeout(function () { g.remove(); }, 440);
+    }
+  }
+
   function playCardAt(i, targetIdx) {
     setTargeting(false);
     if (i < 0 || !E.canPlay(i)) { renderHand(); return; }
-    var wasAttack = ns.CARDS[E.combat.hand[i].id].type === 'attack';
+    var card = E.combat.hand[i], def = ns.CARDS[card.id];
+    var wasAttack = def.type === 'attack';
+    var srcEl = $hand.children[i];
+    var srcRect = srcEl ? srcEl.getBoundingClientRect() : null;
     E.events.length = 0;
     var ok = E.playCard(i, targetIdx);
     if (!ok) { renderHand(); return; }
     SFX.play();
+    cardPlayFx(srcRect, card, def);
     if (wasAttack) R.playerLunge();
     var evts = E.events.slice();
     E.events.length = 0;

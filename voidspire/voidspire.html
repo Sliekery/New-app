@@ -148,7 +148,7 @@ html, body {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
   height: 148px; z-index: 30;
   display: flex; justify-content: center; align-items: flex-end;
-  padding: 0 6px; pointer-events: none;
+  padding: 0 50px; pointer-events: none;   /* leave corners for the draw/discard piles */
 }
 .card {
   pointer-events: auto;
@@ -176,15 +176,19 @@ html, body {
 .card.type-skill { border-color: #1f7a96; }
 .card.type-power { border-color: #7a3f9a; }
 .card.type-curse { border-color: #7a2030; }
-/* energy cost — a glowing hex orb in the top-left */
-.card .cost {
-  position: absolute; top: 1px; left: 1px; width: 22px; height: 22px; z-index: 3;
-  font-size: 12px; line-height: 22px; text-align: center; font-weight: bold;
-  color: #d8f4ff; text-shadow: 0 0 5px rgba(65,216,255,0.9), 0 1px 1px #000;
-  border: 1.5px solid var(--cyan);
-  background: radial-gradient(circle at 38% 32%, rgba(65,216,255,0.4), rgba(5,20,28,0.96) 70%);
-  clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+/* energy cost — a clean vector hexagon (line-art, matches the CRT look) */
+.card .cost { position: absolute; top: 0; left: 0; width: 24px; height: 24px; z-index: 3; }
+.card .cost svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.card .cost svg polygon {
+  fill: rgba(4, 12, 16, 0.5); stroke: var(--cyan); stroke-width: 1.5;
+  vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 2.5px rgba(65, 216, 255, 0.85));
 }
+.card .cost .cost-n {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: bold; color: #eaffff; text-shadow: 0 0 4px rgba(65, 216, 255, 0.9), 0 1px 1px #000;
+}
+.card.unaffordable .cost svg polygon { stroke: #ff6a6a; filter: drop-shadow(0 0 2.5px rgba(255,80,80,0.7)); }
+.card.unaffordable .cost .cost-n { color: #ffd0d0; }
 /* faint circuit-etch watermark */
 .card::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
@@ -261,6 +265,51 @@ html, body {
   border: 1px solid rgba(65,216,255,0.55);
   background: rgba(5, 20, 28, 0.85); padding: 7px 12px;
 }
+
+/* ===== draw / discard piles + card-play flourish ===== */
+#draw-pile, #discard-pile {
+  position: absolute; bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
+  z-index: 29; width: 44px; text-align: center; pointer-events: none;
+}
+#draw-pile { left: 5px; }
+#discard-pile { right: 5px; }
+.pile-card {
+  width: 34px; height: 46px; margin: 0 auto; position: relative;
+  border: 1px solid var(--green-dim);
+  background: linear-gradient(160deg, var(--panel2), var(--panel));
+  clip-path: polygon(0 5px, 5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
+  display: flex; align-items: center; justify-content: center;
+}
+#draw-pile .pile-card { box-shadow: 3px -3px 0 -1px rgba(20,40,30,0.75), 6px -6px 0 -2px rgba(14,28,22,0.5); }
+#discard-pile .pile-card { border-color: #7a5a2a; box-shadow: -3px -3px 0 -1px rgba(40,30,12,0.7), -6px -6px 0 -2px rgba(30,22,8,0.45); }
+.pile-card::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(45deg, transparent 45%, rgba(93,255,136,0.16) 49% 51%, transparent 55%),
+    linear-gradient(-45deg, transparent 45%, rgba(93,255,136,0.16) 49% 51%, transparent 55%);
+}
+#discard-pile .pile-card::before {
+  background:
+    linear-gradient(45deg, transparent 45%, rgba(255,176,46,0.16) 49% 51%, transparent 55%),
+    linear-gradient(-45deg, transparent 45%, rgba(255,176,46,0.16) 49% 51%, transparent 55%);
+}
+.pile-n { position: relative; font-size: 14px; font-weight: bold; color: var(--text); text-shadow: 0 0 4px #000, 0 0 4px #000; }
+#discard-pile .pile-n { color: var(--amber); }
+.pile-lbl { font-size: 7px; letter-spacing: 1px; color: var(--text-dim); margin-top: 2px; }
+
+.card-ghost {
+  position: fixed; z-index: 70; pointer-events: none;
+  background: linear-gradient(160deg, var(--panel2), var(--panel));
+  border: 1px solid var(--green-dim);
+  clip-path: polygon(0 6px, 6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+  transition: transform 0.42s cubic-bezier(0.5, 0, 0.7, 1), opacity 0.42s ease-in;
+  transform-origin: center;
+}
+.card-ghost.type-attack { border-color: #9a5a20; }
+.card-ghost.type-skill { border-color: #1f7a96; }
+.card-ghost.type-power { border-color: #7a3f9a; }
+.card-ghost.type-curse { border-color: #7a2030; }
+
 .btn {
   font-family: inherit;
   font-size: 13px; letter-spacing: 2px; text-transform: uppercase;
@@ -5025,7 +5074,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   var R = ns.render;
   var B = ns.BALANCE;
 
-  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip;
+  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile;
   var selected = -1;        // selected hand index
   var targeting = false;
   var locked = false;       // input lock while timeline plays
@@ -5159,6 +5208,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $counts.id = 'deck-counts';
     $game.appendChild($counts);
 
+    $drawPile = el('div', '', '<div class="pile-card"><span class="pile-n">0</span></div><div class="pile-lbl">DRAW</div>');
+    $drawPile.id = 'draw-pile';
+    $game.appendChild($drawPile);
+    $discardPile = el('div', '', '<div class="pile-card"><span class="pile-n">0</span></div><div class="pile-lbl">DISC</div>');
+    $discardPile.id = 'discard-pile';
+    $game.appendChild($discardPile);
+
     $hint = el('div', '', 'DROP ON A TARGET');
     $hint.id = 'target-hint';
     $hint.style.display = 'none';
@@ -5276,7 +5332,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $hand.style.display = on ? 'flex' : 'none';
     $controls.style.display = on ? 'flex' : 'none';
     $energy.style.display = on ? 'block' : 'none';
-    $counts.style.display = on ? 'block' : 'none';
+    $counts.style.display = 'none';
+    $drawPile.style.display = on ? 'block' : 'none';
+    $discardPile.style.display = on ? 'block' : 'none';
     $potions.style.display = on ? 'flex' : 'none';
     if (!on) { $hint.style.display = 'none'; onPotionCancel(); hidePotionTip(); }
     R.combatVisible = on;
@@ -5747,8 +5805,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function updateCounts() {
     var c = E.combat;
     if (!c) return;
-    $counts.innerHTML = '<span>DRAW ' + c.drawPile.length + '</span><span>DISC ' + c.discard.length + '</span>' +
-      (c.exhaust.length ? '<span>EXH ' + c.exhaust.length + '</span>' : '');
+    $drawPile.querySelector('.pile-n').textContent = c.drawPile.length;
+    var dn = $discardPile.querySelector('.pile-n');
+    dn.textContent = c.discard.length;
+    var lbl = $discardPile.querySelector('.pile-lbl');
+    if (c.exhaust.length) lbl.textContent = 'DISC · EXH ' + c.exhaust.length;
+    else lbl.textContent = 'DISC';
   }
 
   /* ---- shared card markup ---------------------------------------------- */
@@ -5778,7 +5840,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function cardInner(name, cost, type, rarity, desc, unplayable, cid) {
     var r = rarity === 3 ? 'r3' : rarity === 2 ? 'r2' : 'r1';
     var tag = rarity === 3 ? 'RARE' : rarity === 2 ? 'UNC' : '';
-    return '<div class="cost">' + (unplayable ? '✕' : cost) + '</div>' +
+    return '<div class="cost"><svg viewBox="0 0 24 24"><polygon points="12,0.8 21.7,6.4 21.7,17.6 12,23.2 2.3,17.6 2.3,6.4"/></svg>' +
+      '<span class="cost-n">' + (unplayable ? '✕' : cost) + '</span></div>' +
       '<div class="cname">' + esc(name) + '</div>' +
       '<div class="cart">' + cardGlyphSVG(cid) + '</div>' +
       '<div class="rline ' + r + '">' + (tag ? '<span class="rtag">' + tag + '</span>' : '') + '</div>' +
@@ -5942,14 +6005,48 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
   }
 
+  var TYPE_COLOR = { attack: '#ffb02e', skill: '#41d8ff', power: '#c86bff', curse: '#ff4a5e' };
+
+  // Card-play flourish: cards that go to discard fly to the discard pile; cards
+  // that exhaust / are consumed (powers) disintegrate into vector particles.
+  function cardPlayFx(rect, card, def) {
+    if (!rect) return;
+    var bf = document.getElementById('battlefield').getBoundingClientRect();
+    var cx = rect.left + rect.width / 2 - bf.left, cy = rect.top + rect.height / 2 - bf.top;
+    var color = TYPE_COLOR[def.type] || '#5dff88';
+    var c = E.combat;
+    var gone = !!c && (c.exhaust.some(function (x) { return x.uid === card.uid; }) ||
+                       c.consumed.some(function (x) { return x.uid === card.uid; }));
+    if (gone) {
+      R.burst(cx, cy, color, 26); R.burst(cx, cy, '#ffffff', 6);
+    } else {
+      R.burst(cx, cy, color, 8);
+      var g = el('div', 'card-ghost type-' + def.type);
+      g.style.left = rect.left + 'px'; g.style.top = rect.top + 'px';
+      g.style.width = rect.width + 'px'; g.style.height = rect.height + 'px';
+      $game.appendChild(g);
+      var dst = $discardPile.getBoundingClientRect();
+      var dx = (dst.left + dst.width / 2) - (rect.left + rect.width / 2);
+      var dy = (dst.top + dst.height / 2) - (rect.top + rect.height / 2);
+      g.getBoundingClientRect(); // reflow so the transition runs
+      g.style.transform = 'translate(' + dx.toFixed(0) + 'px,' + dy.toFixed(0) + 'px) scale(0.26) rotate(38deg)';
+      g.style.opacity = '0';
+      setTimeout(function () { g.remove(); }, 440);
+    }
+  }
+
   function playCardAt(i, targetIdx) {
     setTargeting(false);
     if (i < 0 || !E.canPlay(i)) { renderHand(); return; }
-    var wasAttack = ns.CARDS[E.combat.hand[i].id].type === 'attack';
+    var card = E.combat.hand[i], def = ns.CARDS[card.id];
+    var wasAttack = def.type === 'attack';
+    var srcEl = $hand.children[i];
+    var srcRect = srcEl ? srcEl.getBoundingClientRect() : null;
     E.events.length = 0;
     var ok = E.playCard(i, targetIdx);
     if (!ok) { renderHand(); return; }
     SFX.play();
+    cardPlayFx(srcRect, card, def);
     if (wasAttack) R.playerLunge();
     var evts = E.events.slice();
     E.events.length = 0;
