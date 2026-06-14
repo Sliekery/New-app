@@ -10,6 +10,7 @@ GitHub forever, so it can't be lost even if later changes break something. The
 
 | Checkpoint | Commit | Date | What's in it |
 |---|---|---|---|
+| **v2.1-finale** | `37ef31f` | 2026-06-14 | Potions & consumables (a 3-slot combat belt that drops from fights, sells in shops, and is offered as a reward) plus a win condition: the finale boss THE UNMAKER, a victory screen, and the choice to claim victory or descend endlessly. |
 | **v2.0-voidknight** | `b6b4a2a` | 2026-06-14 | New Vanguard avatar: the Void Knight (armoured coat, helm halo, blaster). |
 | **v1.9-classfx** | `d9b34cf` | 2026-06-14 | Removed unit shadows, gave the Vanguard a clear blaster, and added subtle per-class identity FX (turret drones, psi motes, muzzle glow). |
 | **v1.8-look** | `ae1a3f8` | 2026-06-14 | Space-Marine Vanguard avatar, grounded vs floating enemies (contact shadows), readability tweaks, and a fix so the "no Shield" quest only counts player-played shield. |
@@ -21,6 +22,10 @@ GitHub forever, so it can't be lost even if later changes break something. The
 | **v1.2-map** | `1acede5` | 2026-06-14 | Branching star-chart map per sector (pick your path through fights/events/shops/rests/elites/treasure to the boss), with distinct node icons. Retuned to hold the StS difficulty. |
 | **v1.1-builds** | `316d309` | 2026-06-14 | Adds Slay-the-Spire-style build archetypes (Might/Exhaust, Shield/Echo, Burn/spam) and build-defining rares for "god runs". Fixes the power-reuse bug (powers are now consumed). |
 | **v1.0-stable** | `9583880` | 2026-06-14 | Swipe-to-play combat, Slay-the-Spire-tuned balance, faction world-building, animated screen transitions, talking event portraits, artifact icons. First fully-polished version. |
+
+### v2.1-finale
+- **Play (frozen):** https://rawcdn.githack.com/Sliekery/New-app/37ef31faf5886891598238731ea9bba88a16b80f/voidspire/voidspire.html
+- **Restore command (for reference):** `git checkout 37ef31f -- voidspire`
 
 ### v2.0-voidknight
 - **Play (frozen):** https://rawcdn.githack.com/Sliekery/New-app/b6b4a2a6c26bd0a945032e93b55299fc3f167c80/voidspire/voidspire.html
