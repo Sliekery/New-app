@@ -23,7 +23,12 @@ Everything is committed and pushed. The game is `voidspire/` (pure HTML/JS, no b
   `https://rawcdn.githack.com/Sliekery/New-app/<full-sha>/voidspire/voidspire.html`.
 - Commit-message footer the harness expects: `https://claude.ai/code/session_01WQLfVV2zR2UzxSndNX7GtG`
 
-## IN-FLIGHT: Vanguard avatar pick (awaiting user choice)
+## RESOLVED: Vanguard avatar = Void Knight (v2.0-voidknight)
+The user picked the Void Knight concept (with a blaster). It is now live in
+`CLASS_ART.vanguard` (js/render.js). `test/vanguard.js` still has all the
+candidate boards (args 2/3/T/D/X/V) if more iteration is wanted.
+
+## (history) Vanguard avatar pick
 The user dislikes the current Vanguard avatar and we're choosing a replacement.
 - `test/vanguard.js` renders candidate boards: `node test/vanguard.js out.png`
   (batch 1: designs 1-5), `… 2` (batch 2: 6-10), `… 3` (batch 3: clean
