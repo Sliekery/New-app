@@ -983,9 +983,9 @@
   //  Technomancer — transporter beam-up: breaks into rising scan-lines (cyan + white shimmer).
   //  Void Adept — void implosion: spirals into a point as sparks rush inward (magenta).
   var CLASS_FX = {
-    vanguard:     { color: '#ffb02e', cls: 'beam-van',  mode: 'shatter', life: 380 },
-    technomancer: { color: '#41d8ff', cls: 'beam-tech', mode: 'beam',    life: 600 },
-    voidadept:    { color: '#c86bff', cls: 'beam-void', mode: 'implode', life: 480 },
+    vanguard:     { color: '#ffb02e', cls: 'beam-van',  mode: 'shatter', life: 260 },
+    technomancer: { color: '#41d8ff', cls: 'beam-tech', mode: 'beam',    life: 380 },
+    voidadept:    { color: '#c86bff', cls: 'beam-void', mode: 'implode', life: 300 },
   };
   function cardPlayFx(rect, clone, card, def) {
     if (!rect) return;

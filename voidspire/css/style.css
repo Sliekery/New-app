@@ -296,14 +296,14 @@ html, body {
   -webkit-mask-image: repeating-linear-gradient(0deg, #000 0 2px, rgba(0,0,0,0.08) 2px 5px);
           mask-image: repeating-linear-gradient(0deg, #000 0 2px, rgba(0,0,0,0.08) 2px 5px);
   -webkit-mask-size: 100% 220%; mask-size: 100% 220%;
-  animation: beamTech 0.56s ease-out forwards;
+  animation: beamTech 0.38s ease-out forwards;
 }
 @keyframes beamTech {
   0%   { opacity: 1; filter: brightness(1) saturate(1);
          transform: translateY(0) scaleY(1); -webkit-mask-position: 0 0; mask-position: 0 0; }
-  14%  { opacity: 1; filter: brightness(2.6) saturate(1.7); }
+  16%  { opacity: 1; filter: brightness(2.7) saturate(1.7); }
   100% { opacity: 0; filter: brightness(3) saturate(2);
-         transform: translateY(-32px) scaleY(1.06); -webkit-mask-position: 0 -48px; mask-position: 0 -48px; }
+         transform: translateY(-30px) scaleY(1.06); -webkit-mask-position: 0 -48px; mask-position: 0 -48px; }
 }
 
 /* Vanguard — kinetic shatter: flashes and blasts apart along diagonal shards (amber) */
@@ -311,23 +311,24 @@ html, body {
   box-shadow: 0 0 18px 2px var(--beam, #fa3);
   -webkit-mask-image: repeating-linear-gradient(108deg, #000 0 5px, rgba(0,0,0,0.04) 5px 9px);
           mask-image: repeating-linear-gradient(108deg, #000 0 5px, rgba(0,0,0,0.04) 5px 9px);
-  animation: shatterVan 0.36s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+  animation: shatterVan 0.26s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
 }
 @keyframes shatterVan {
   0%   { opacity: 1; filter: brightness(1); transform: scale(1); }
-  18%  { opacity: 1; filter: brightness(3) saturate(1.7); transform: scale(1.05); }
-  100% { opacity: 0; filter: brightness(2.6); transform: scale(1.2) skewX(-7deg) translateY(8px); }
+  22%  { opacity: 1; filter: brightness(3) saturate(1.7); transform: scale(1.05); }
+  100% { opacity: 0; filter: brightness(2.6); transform: scale(1.22) skewX(-8deg) translateY(8px); }
 }
 
-/* Void Adept — void implosion: spirals into a point (magenta) */
+/* Void Adept — collapses in on itself into the void (magenta), no spin */
 .card-ghost.beam-void {
   box-shadow: 0 0 22px 2px var(--beam, #c6f);
-  animation: implodeVoid 0.46s cubic-bezier(0.5, 0, 0.85, 1) forwards;
+  animation: collapseVoid 0.3s cubic-bezier(0.6, 0, 0.9, 1) forwards;
 }
-@keyframes implodeVoid {
-  0%   { opacity: 1; filter: brightness(1) saturate(1); }
-  25%  { opacity: 1; filter: brightness(1.9) saturate(1.7); transform: scale(1.05); }
-  100% { opacity: 0; filter: brightness(1.5) saturate(2); transform: scale(0.04) rotate(220deg); }
+@keyframes collapseVoid {
+  0%   { opacity: 1; filter: brightness(1) saturate(1); transform: scale(1, 1); }
+  35%  { opacity: 1; filter: brightness(2) saturate(1.8); transform: scale(1.03, 1.03); }
+  72%  { opacity: 1; filter: brightness(1.8); transform: scale(0.1, 1.02); }   /* crushed inward to a sliver */
+  100% { opacity: 0; filter: brightness(2.4); transform: scale(0.02, 0.04); }  /* sliver collapses to nothing */
 }
 
 .btn {
