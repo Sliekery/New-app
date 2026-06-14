@@ -714,6 +714,8 @@ function makeHench(){
 }
 const heroActive=()=>hench.recruited&&!hench.dead;
 const heroOrPlayer=f=>f===player||(f===hench&&hench.recruited&&!hench.dead);
+// a living companion that can resurrect you (has a res skill — minions & pets can't)
+function livingCompanion(){ if(heroActive()) return hench; return allies.find(a=>!a.dead&&!a.minion&&!a.pet)||null; }
 const party=()=>{ const a=[player]; if(heroActive()) a.push(hench); for(const m of allies) if(!m.dead) a.push(m); return a; };
 
 /* ---------------- party: Kamadan-style henchmen, minions & pets ---------------- */
@@ -1150,6 +1152,7 @@ function applyDamage(src,e,amt,color){
     amt*=armorMult(e.armor);
     if(condActive(e,'barbs')&&src&&src.team===0) amt+=10; // Necro hex: +damage when struck
     amt=Math.max(1,Math.round(amt));
+    if(src&&src.team===0) src.threat=Math.min(120,(src.threat||0)+amt*0.5); // dealing damage draws aggro
   }
   e.hp-=amt; e.lastCombat=now;
   if(src) src.lastCombat=now;
@@ -1163,12 +1166,27 @@ function applyDamage(src,e,amt,color){
   if(e.hp<=0) die(e,src);
 }
 
+// GW1-style target selection: foes pick among the whole party by proximity and
+// accumulated threat (damage/healing draws attention), not just the player. A
+// front-line fighter or minion that's closest will pull the melee off your back.
+function chooseEnemyTarget(e){
+  let best=null,bs=1e9;
+  for(const m of party()){
+    if(m.dead||m.hidden||inSafeZone(m)) continue;
+    if(dist(m.x,m.y,e.sx,e.sy)>LEASH_R+140) continue;
+    let s=dist(e.x,e.y,m.x,m.y)-(m.threat||0); // closer + higher threat = lower score
+    if(m===e.target) s-=45;                     // stickiness, avoids ping-ponging
+    if(s<bs){ bs=s; best=m; }
+  }
+  return best;
+}
 function aggro(e,target){
   if(e.state==='return') return;
-  e.target=target; e.state='chase';
+  e.state='chase';
+  e.target=target||chooseEnemyTarget(e); e.retargetT=now+1.6+Math.random();
   for(const o of enemies){
     if(o!==e&&!o.dead&&o.state==='idle'&&dist(o.x,o.y,e.x,e.y)<SOCIAL_R){
-      o.target=target; o.state='chase';
+      o.state='chase'; o.target=chooseEnemyTarget(o)||target; o.retargetT=now+1.6+Math.random();
     }
   }
 }
@@ -1236,14 +1254,22 @@ function die(e,src){
   } else if(e===player){
     player.engaged=false; player.target=null; player.moveTo=null;
     player.morale=clamp((player.morale||0)-0.15,-0.6,0.1);  // -15% death penalty, stacks to -60%
-    deathOverlay(true);
+    const rezzer=livingCompanion();
+    deathOverlay(true, rezzer?rezzer.name+' is reviving you…':'Your party has fallen — returning to the shrine…');
     setTimeout(()=>{
-      const p=findOpen(Math.floor(SHRINE.x/TILE),Math.floor(SHRINE.y/TILE)+2);
-      player.x=p.x; player.y=p.y; player.dead=false;
-      player.hp=pMaxHp(); player.en=pMaxEn(); cancelCast();
-      deathOverlay(false);
+      const r=livingCompanion();   // re-check: party may have wiped during the count
+      if(r){ // a living companion rezzes you in place, GW1-style (with death penalty)
+        const p=findOpen(Math.floor(r.x/TILE),Math.floor(r.y/TILE));
+        player.x=p.x; player.y=p.y;
+        player.hp=Math.max(1,Math.round(pMaxHp()*0.25)); player.en=Math.round(pMaxEn()*0.25);
+        toast(r.name+' revived you. '+(player.morale<0?`(${Math.round(player.morale*100)}% death penalty)`:''));
+      } else { // full party wipe — resurrect at the nearest shrine
+        const p=findOpen(Math.floor(SHRINE.x/TILE),Math.floor(SHRINE.y/TILE)+2);
+        player.x=p.x; player.y=p.y; player.hp=pMaxHp(); player.en=pMaxEn();
+        if(player.morale<0) toast(`Death penalty: ${Math.round(player.morale*100)}% max HP/energy — gain morale from bosses & shrines, or return to a city`);
+      }
+      player.dead=false; cancelCast(); deathOverlay(false);
       effects.push({type:'res',x:player.x,y:player.y,t:now,dur:0.8});
-      if(player.morale<0) toast(`Death penalty: ${Math.round(player.morale*100)}% max HP/energy — gain morale from bosses & shrines, or return to a city`);
     },4000);
   } else if(e===hench){
     hench.deadAt=now;
@@ -1397,11 +1423,14 @@ function updateEnemy(e,dt){
     return;
   }
 
-  // chase / fight
-  const t=e.target;
-  if(!t||t.dead||inSafeZone(t)||leashDist>LEASH_R){
-    e.target=null; e.state='return'; return;
+  // chase / fight — periodically re-pick the highest-priority party member
+  if(!e.target||e.target.dead||e.target.hidden||inSafeZone(e.target)||now>=(e.retargetT||0)){
+    const nt=chooseEnemyTarget(e);
+    if(nt){ e.target=nt; e.retargetT=now+1.6+Math.random(); }
+    else { e.target=null; e.state='return'; return; }
   }
+  const t=e.target;
+  if(leashDist>LEASH_R){ e.target=null; e.state='return'; return; }
   // caster support: Skale Mystics (and Ssraja) mend their wounded group, GW1-style
   if(e.healer&&now>=(e.nextHeal||0)){
     let low=null,pct=0.8;
@@ -1528,10 +1557,18 @@ function runAllyAI(a,dt){
     }
     return;
   }
-  // follow the anchor (flag or player) when idle
-  const dp=dist(a.x,a.y,ax,ay);
-  if(dp>(flag?14:90)) moveToward(a,ax+(flag?0:rand(-22,22)),ay+(flag?0:rand(-22,22)),dt);
+  // form up at a stable slot around the anchor (no more stacking behind the player)
+  const fo=formationOffset(a);
+  const tx=ax+fo[0], ty=ay+fo[1];
+  if(dist(a.x,a.y,tx,ty)>12) moveToward(a,tx,ty,dt);
   if(now-a.lastCombat>6&&!a.minion) a.hp=Math.min(a.maxHp,a.hp+8*dt);
+}
+// fixed formation slots so companions spread into a loose wedge instead of overlapping
+const FORM_SLOTS=[[-34,30],[34,30],[-60,12],[60,12],[0,56],[-40,62],[40,62],[0,-34],[-72,-6],[72,-6]];
+function formationOrder(){ const l=[]; if(heroActive()) l.push(hench); for(const a of allies) if(!a.dead) l.push(a); return l; }
+function formationOffset(a){
+  const l=formationOrder(); let i=l.indexOf(a); if(i<0) i=l.length;
+  return FORM_SLOTS[i%FORM_SLOTS.length];
 }
 
 /* ---------------- player update ---------------- */
@@ -3614,9 +3651,9 @@ function banner(title,sub){
   ui.banner.style.animation='';
   setTimeout(()=>ui.banner.classList.add('hidden'),4000);
 }
-function deathOverlay(show){
+function deathOverlay(show,msg){
   ui.death.classList.toggle('hidden',!show);
-  if(show) ui.deathSub.textContent='Returning to the shrine…';
+  if(show) ui.deathSub.textContent=msg||'Returning to the shrine…';
 }
 
 let lastQuestHtml='';
@@ -3735,6 +3772,7 @@ function loop(tms){
   updatePlayer(dt);
   updateHench(dt);
   updateAllies(dt);
+  for(const m of party()) if(m.threat) m.threat=Math.max(0,m.threat-12*dt); // aggro/threat fades
   for(const e of enemies) updateEnemy(e,dt);
   updateProjectiles(dt);
 
