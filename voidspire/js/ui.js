@@ -1175,28 +1175,32 @@
   // Per-card motif: each card maps to its own distinct cast animation + sound.
   // Unlisted cards fall back to a class/flavor default (fallbackMotif).
   var CARD_MOTIF = {
+    // -- Vanguard --
     pulse_rifle: 'bullet', scrap_shot: 'bullet', bayonet_charge: 'slash',
-    burst_fire: 'burst3', suppressing_fire: 'spray', frag_grenade: 'shards', cluster_munitions: 'shards',
+    burst_fire: 'burst3', suppressing_fire: 'spray', frag_grenade: 'grenade', cluster_munitions: 'hail',
     shield_slam: 'slam', kinetic_discharge: 'slam', executioner: 'execute',
     heavy_ordnance: 'heavyShot', salvaged_ordnance: 'heavyShot', whirlwind: 'spiral',
-    orbital_strike: 'orbital', orbital_bombardment: 'orbital', eldritch_storm: 'orbital',
-    breach: 'reap', unravel: 'reap',
-    mind_spike: 'psiBolt', psy_lance: 'psiBolt', void_bolt: 'psiBolt', void_siphon: 'psiBolt',
-    mind_storm: 'psiStorm', tk_crush: 'crush', void_grasp: 'drainBolt', exsanguinate: 'drainBolt',
-    shock_coil: 'rail', static_lance: 'rail', railgun: 'rail', leech_coil: 'rail',
-    chain_lightning: 'arc', arc_welder: 'arc', emp_blast: 'arc',
-    soul_burn: 'ignite', hex_weave: 'ignite', wither: 'ignite', catalyst: 'ignite',
-    mind_fracture: 'hex', combat_scan: 'hex',
-    nano_repair: 'heal', med_stim: 'heal',
-    combat_stims: 'surge', war_cry: 'surge', warlord_protocol: 'surge', limit_break: 'surge',
+    orbital_strike: 'hail', orbital_bombardment: 'hail',
+    breach: 'reap', combat_stims: 'energize', war_cry: 'warcry', warlord_protocol: 'surge', limit_break: 'surge',
     iron_resolve: 'fortify', reckless_protocol: 'fortify', barricade_protocol: 'fortify', bunker_down: 'fortify', juggernaut_core: 'fortify',
+    scorched_earth: 'scorch', munitions_dump: 'energize', adrenal_surge: 'energize',
+    // -- Technomancer --
+    shock_coil: 'zap', static_lance: 'rail', railgun: 'rail', leech_coil: 'rail',
+    chain_lightning: 'arc', arc_welder: 'arc', emp_blast: 'pulse', static_field: 'pulse',
     deploy_turret: 'deploy', sentry_protocol: 'deploy', drone_swarm: 'deploy',
     echo_core: 'overcharge', aux_reactor: 'overcharge', phase_bulwark: 'overcharge', overload_capacitor: 'overcharge',
     shield_battery: 'overcharge', omega_protocol: 'overcharge', cogwork_surge: 'overcharge', salvage_protocol: 'overcharge',
-    psionic_focus: 'sigil', blood_pact: 'sigil', entropy_field: 'sigil', mind_array: 'sigil', plague_engine: 'sigil', singularity_bloom: 'sigil',
-    blood_sacrifice: 'drainSelf', hemorrhage: 'drainSelf',
-    reload: 'utility', overclock: 'utility', adrenal_surge: 'utility', munitions_dump: 'utility',
-    premonition: 'utility', forbidden_lore: 'utility', stim_overdose: 'utility',
+    nano_repair: 'repair', overclock: 'overclock',
+    // -- Void Adept --
+    mind_spike: 'psiBolt', psy_lance: 'psiBolt', void_bolt: 'psiBolt', void_siphon: 'psiBolt',
+    mind_storm: 'psiStorm', tk_crush: 'crush', void_grasp: 'drainBolt', exsanguinate: 'drainBolt',
+    soul_burn: 'ignite', hex_weave: 'ignite', wither: 'ignite', catalyst: 'ignite',
+    mind_fracture: 'hex', unravel: 'reap', eldritch_storm: 'psiRain',
+    psionic_focus: 'sigil', blood_pact: 'sigil', entropy_field: 'sigil', mind_array: 'sigil', plague_engine: 'sigil',
+    singularity_bloom: 'singularity', blood_sacrifice: 'drainSelf', hemorrhage: 'drainSelf',
+    premonition: 'foresee', forbidden_lore: 'foresee',
+    // -- Neutral --
+    combat_scan: 'scan', reload: 'reload', med_stim: 'repair', stim_overdose: 'energize',
   };
   function fallbackMotif(flavor, cls) {
     switch (flavor) {
@@ -1326,6 +1330,66 @@
       s: function (e) { noise(0.28, 0.06, 2000, 180); synth(120 * e.pm, 0.22, 'sawtooth', 0.05, -70, { detune: 10 }); },
       a: function (e) { e.targets.forEach(function (t) { R.shot(e.sx, e.sy, t.x, t.y, e.col); R.ring(t.x, t.y, e.col, 34, 0.4); }); R.ring(e.pp.x, e.pp.y - 6, e.col, 60, 0.5); if (e.power >= 3) R.shake(0.5); },
     },
+    scan: {   // Combat Scan: a targeting reticle + scan-line sweep, sci-fi ping
+      s: function (e) { synth(380 * e.pm, 0.42, 'square', 0.022, 520, { detune: 4 }); [0, 1, 2, 3].forEach(function (i) { setTimeout(function () { beep(1200 + i * 130, 0.02, 'square', 0.014); }, i * 95); }); },
+      a: function (e) { if (e.tp) R.scan(e.tp.x, e.tp.y, e.col); },
+    },
+    hail: {   // Orbital Strike: rounds rain from the sky, old-school explosions
+      s: function (e) { synth(1600, 0.34, 'sine', 0.03, -1300, { vib: 6 }); [0, 1, 2].forEach(function (i) { setTimeout(function () { noise(0.22, 0.06, 1500, 140); }, 200 + i * 130); }); },
+      a: function (e) {
+        var ts = e.targets.length ? e.targets : (e.tp ? [e.tp] : []);
+        ts.forEach(function (t, ti) { for (var k = 0; k < 3; k++) (function (tt, kk) { setTimeout(function () { R.strike(tt.x + (kk - 1) * 11, tt.y, e.col, e.power); }, kk * 120 + ti * 45); })(t, k); });
+        R.shake(0.8);
+      },
+    },
+    grenade: {   // Frag Grenade: a lobbed charge that detonates
+      s: function (e) { synth(140 * e.pm, 0.12, 'square', 0.03, -40); setTimeout(function () { noise(0.2, 0.06, 1700, 200); }, 240); },
+      a: function (e) { if (e.tp) { var dir = Math.atan2(e.tp.y - e.sy, e.tp.x - e.sx); R.shards(e.sx, e.sy, e.col, 4, dir - 0.35, 0.3); setTimeout(function () { R.nova(e.tp.x, e.tp.y, e.col, e.power); }, 240); } },
+    },
+    warcry: {   // War Cry: a roar that ripples out in shockrings
+      s: function (e) { noise(0.18, 0.05, 700, 1700); synth(180 * e.pm, 0.22, 'sawtooth', 0.045, 110, { vib: 14, vibRate: 8 }); },
+      a: function (e) { R.ring(e.pp.x, e.pp.y - 6, e.col, 40, 0.4); setTimeout(function () { R.ring(e.pp.x, e.pp.y - 6, e.col, 64, 0.5); }, 80); setTimeout(function () { R.ring(e.pp.x, e.pp.y - 6, e.col, 90, 0.6); }, 160); R.aura(e.pp.x, e.pp.y - 6, e.col); },
+    },
+    energize: {   // Combat Stims / Adrenal Surge: an energizing jolt
+      s: function (e) { synth(300 * e.pm, 0.16, 'square', 0.04, 600, { detune: 6 }); },
+      a: function (e) { R.aura(e.pp.x, e.pp.y - 6, e.col); R.ring(e.pp.x, e.pp.y - 6, e.col, 34, 0.35); },
+    },
+    repair: {   // Nano Repair: nanobots converge and knit you back together
+      s: function (e) { arp(mul([523, 784, 1047], e.pm), 50, 0.1, 'sine', 0.04); },
+      a: function (e) { R.implode(e.pp.x, e.pp.y - 6, HEAL_COL, 34, 40, 16); R.aura(e.pp.x, e.pp.y - 6, HEAL_COL); },
+    },
+    overclock: {   // Overclock: a CPU spin-up of rapid pulses
+      s: function (e) { arp(mul([440, 587, 740, 880, 1175], e.pm), 34, 0.04, 'square', 0.03); },
+      a: function (e) { for (var i = 0; i < 3; i++) (function (ii) { setTimeout(function () { R.ring(e.pp.x, e.pp.y - 6, e.col, 20 + ii * 10, 0.25); }, ii * 60); })(i); R.burst(e.pp.x, e.pp.y - 6, e.col, 8); },
+    },
+    pulse: {   // EMP / Static Field: an electromagnetic pulse washes over the field
+      s: function (e) { synth(90, 0.3, 'sine', 0.05, 30, { vib: 30, vibRate: 40 }); noise(0.18, 0.04, 400, 2200); },
+      a: function (e) { R.ring(e.pp.x, e.pp.y - 6, e.col, 112, 0.5); R.ring(e.pp.x, e.pp.y - 6, '#ffffff', 60, 0.3); e.targets.forEach(function (t) { R.glitch(t.x, t.y, e.col); R.ring(t.x, t.y, e.col, 30, 0.35); }); R.shake(0.4); },
+    },
+    foresee: {   // Premonition / Forbidden Lore: a flash of foresight
+      s: function (e) { synth(720 * e.pm, 0.3, 'sine', 0.03, 260, { vib: 10, vibRate: 6 }); },
+      a: function (e) { R.ring(e.pp.x, e.pp.y - 30, e.col, 30, 0.5); R.polyRing(e.pp.x, e.pp.y - 6, e.col, 10, 40, 6, 0.5, 2, 1.5); R.aura(e.pp.x, e.pp.y - 6, e.col); },
+    },
+    psiRain: {   // Eldritch Storm: psychic bolts strike at random
+      s: function (e) { arp(mul([523, 659, 784, 988, 1318], e.pm), 45, 0.09, 'triangle', 0.03); },
+      a: function (e) { var ts = e.targets.length ? e.targets : (e.tp ? [e.tp] : []); if (!ts.length) return; for (var k = 0; k < 5; k++) (function (kk) { setTimeout(function () { var t = ts[Math.floor(Math.random() * ts.length)]; if (t) R.strike(t.x + (Math.random() - 0.5) * 16, t.y, PSI_COL, e.power); }, kk * 70); })(k); },
+    },
+    singularity: {   // Singularity Bloom: space collapses inward then erupts
+      s: function (e) { synth(60, 0.5, 'sine', 0.05, 200, { vib: 20, vibRate: 5, detune: 8 }); setTimeout(function () { noise(0.2, 0.05, 320, 1800); }, 300); },
+      a: function (e) { R.implode(e.pp.x, e.pp.y - 6, PSI_COL, 60, 70, 26); R.sigil(e.pp.x, e.pp.y - 6, PSI_COL, 40); R.shake(0.5); },
+    },
+    scorch: {   // Scorched Earth: a sweeping wall of fire across the field
+      s: function (e) { noise(0.4, 0.06, 3000, 300); synth(120 * e.pm, 0.3, 'sawtooth', 0.05, -60, { detune: 12 }); },
+      a: function (e) { e.targets.forEach(function (t) { R.embers(t.x, t.y, BURN_COL, 16); R.ring(t.x, t.y, BURN_COL, 40, 0.45); }); R.shake(0.6); },
+    },
+    zap: {   // Shock Coil: a single forked jolt of electricity
+      s: function (e) { noise(0.08, 0.04, 6000, 3000); synth(800 * e.pm, 0.12, 'square', 0.035, -300, { vib: 25, vibRate: 35 }); },
+      a: function (e) { if (e.tp) R.arc(e.sx, e.sy, e.tp.x, e.tp.y, e.col, 7, 10); },
+    },
+    reload: {   // Reload: eject, slam home a fresh magazine, chamber a round
+      s: function (e) { beep(200, 0.04, 'square', 0.04); setTimeout(function () { beep(140, 0.05, 'square', 0.04); }, 90); setTimeout(function () { beep(520, 0.04, 'square', 0.03); }, 180); },
+      a: function (e) { var dx = e.pp.x + 6, dy = e.pp.y - 4; R.shards(dx, dy, e.col, 3, Math.PI / 2, 0.3); R.burst(dx, dy - 10, e.col, 5); },
+    },
     block: {
       s: function (e) { beep(300 * e.pm, 0.04, 'square', 0.022, 120); },   // soft charge; the shield sounds on the block event
       a: function (e) { R.burst(e.pp.x, e.pp.y - 6, e.col, 4); },          // shield itself draws on the block event
@@ -1434,10 +1498,41 @@
   function playTimeline(evts, stepDelay, done) {
     var delay = 0;
     var pp = R.playerXY();
-    evts.forEach(function (e) {
+    // timing pre-pass: when one action hits several enemies (AoE), resolve their
+    // damage and deaths together; multi-hits on a single enemy still stagger.
+    function isHit(e) { return (e.type === 'dmg' || e.type === 'die') && e.who !== 'player'; }
+    function gapFor(ty) {
+      switch (ty) {
+        case 'dmg': return 90;            // staggers enemy multi-hits on the player
+        case 'die': return 140;
+        case 'block': case 'heal': case 'status': return 60;
+        case 'curse': return 100; case 'summon': return 160;
+        case 'revive': return 260; case 'salvage': return 80; case 'win': return 250;
+        default: return 0;
+      }
+    }
+    var times = new Array(evts.length), endDelay = 0, _i = 0;
+    while (_i < evts.length) {
+      var _e = evts[_i];
+      if (_e.type === 'enemyMove') { endDelay += stepDelay; times[_i] = endDelay; _i++; continue; }
+      if (_e.type === 'cardPlayed') { times[_i] = 0; _i++; continue; }
+      if (isHit(_e)) {
+        var _j = _i, _idxs = {};
+        while (_j < evts.length && isHit(evts[_j])) { _idxs[evts[_j].idx] = 1; _j++; }
+        if (Object.keys(_idxs).length > 1) {                 // AoE wave -> simultaneous
+          for (var _k = _i; _k < _j; _k++) times[_k] = endDelay;
+          endDelay += 150;
+        } else {                                             // single target -> staggered
+          for (var _k2 = _i; _k2 < _j; _k2++) { times[_k2] = endDelay; endDelay += (evts[_k2].type === 'die') ? 140 : 90; }
+        }
+        _i = _j; continue;
+      }
+      times[_i] = endDelay; endDelay += gapFor(_e.type); _i++;
+    }
+    evts.forEach(function (e, _ei) {
+      delay = times[_ei];
       switch (e.type) {
         case 'enemyMove':
-          delay += stepDelay;
           if (e.move && (e.move.t === 'attack' || e.move.t === 'drain')) {
             (function (e, d) {
               setTimeout(function () { R.enemyLunge(e.idx); }, d);
@@ -1580,7 +1675,7 @@
           break;
       }
     });
-    setTimeout(done, delay + 220);
+    setTimeout(done, endDelay + 220);
   }
 
   /* ====================== REWARD ====================== */

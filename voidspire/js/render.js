@@ -304,6 +304,11 @@
     burst(x, y, color, 16 + power * 8); burst(x, y, '#ffffff', 6 + power * 3);
   };
   R.shake = function (v) { screenShake = Math.max(screenShake, v || 0.6); };
+  // Targeting scan: a reticle bracket + a scan-line sweeping down the target.
+  R.scan = function (x, y, color) {
+    R.polyRing(x, y, color, 26, 26, 4, 0.55, 0, 1.6);
+    particles.push({ kind: 'scanline', x: x, y0: y - 17, y1: y + 17, w: 36, life: 0.5, age: 0, color: color });
+  };
 
   /* ---- class shields (one per archetype) --------------------------------- */
   // Vanguard: heavy plated barrier — a tilted square plate snaps inward.
@@ -1066,6 +1071,40 @@
     }
   }
 
+  function shieldPoly(cx, cy, rad, sides, rot) {
+    ctx.beginPath();
+    for (var s = 0; s <= sides; s++) {
+      var a = rot + s / sides * Math.PI * 2, x = cx + Math.cos(a) * rad, y = cy + Math.sin(a) * rad * 0.92;
+      if (s === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  // The Shield you're holding, drawn as your archetype's ward (scales with it).
+  function drawPlayerShield(r, cx, cy, scale, blk) {
+    var rad = scale * 1.5, pulse = 0.5 + Math.sin(t * 3) * 0.12, i, col;
+    ctx.save();
+    ctx.shadowBlur = 8;
+    if (r.cls === 'technomancer') {            // hexagonal energy field
+      col = '#41d8ff'; ctx.strokeStyle = col; ctx.shadowColor = col; ctx.lineWidth = 2;
+      ctx.globalAlpha = pulse; shieldPoly(cx, cy, rad, 6, t * 0.4);
+      ctx.globalAlpha = pulse * 0.6; shieldPoly(cx, cy, rad * 0.82, 6, -t * 0.3 + 0.5);
+    } else if (r.cls === 'voidadept') {        // warding ring of orbiting glyphs
+      col = '#c86bff'; ctx.strokeStyle = col; ctx.shadowColor = col; ctx.lineWidth = 1.4;
+      ctx.globalAlpha = pulse * 0.7; ctx.beginPath(); ctx.arc(cx, cy, rad, 0, 7); ctx.stroke();
+      var runes = Math.max(3, Math.min(9, Math.ceil(blk / 4)));
+      ctx.globalAlpha = pulse;
+      for (i = 0; i < runes; i++) {
+        var a = t * 0.6 + i * (6.283 / runes), x = cx + Math.cos(a) * rad, y = cy + Math.sin(a) * rad * 0.92;
+        ctx.beginPath(); ctx.moveTo(x, y - 3); ctx.lineTo(x - 2.6, y + 2.2); ctx.lineTo(x + 2.6, y + 2.2); ctx.closePath(); ctx.stroke();
+      }
+    } else {                                    // vanguard: stacked plated barrier
+      col = '#ffb02e'; ctx.strokeStyle = col; ctx.shadowColor = col;
+      var plates = Math.max(1, Math.min(4, Math.ceil(blk / 9)));
+      for (i = 0; i < plates; i++) { ctx.lineWidth = 3 - i * 0.4; ctx.globalAlpha = pulse * (1 - i * 0.18); shieldPoly(cx, cy, rad - i * 5, 4, Math.PI / 4); }
+    }
+    ctx.restore();
+  }
+
   function drawPlayer() {
     var r = ns.engine.run;
     if (!r) return;
@@ -1095,22 +1134,8 @@
     // subtle class-identity effects
     drawPlayerFx(r, px, p.y + bob, scale, art.color);
 
-    // shield arc
-    if (R.player.block > 0) {
-      ctx.save();
-      ctx.strokeStyle = '#41d8ff';
-      ctx.shadowColor = '#41d8ff';
-      ctx.shadowBlur = 8;
-      ctx.lineWidth = 1.5;
-      ctx.globalAlpha = 0.6 + Math.sin(t * 3) * 0.15;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y + bob, scale * 1.5, -1.1, 1.1);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(p.x, p.y + bob, scale * 1.5, Math.PI - 1.1, Math.PI + 1.1);
-      ctx.stroke();
-      ctx.restore();
-    }
+    // archetype shield: a persistent ward around you while you hold Shield
+    if (R.player.block > 0) drawPlayerShield(r, p.x, p.y + bob, scale, R.player.block);
   }
 
   /* ---- particles ------------------------------------------------------------------ */
@@ -1145,6 +1170,12 @@
       if (p.kind === 'beam') {                    // thick piercing beam, tapers out
         ctx.strokeStyle = p.color; ctx.lineWidth = Math.max(0.5, p.w * a); ctx.lineCap = 'round';
         ctx.beginPath(); ctx.moveTo(p.x0, p.y0); ctx.lineTo(p.x1, p.y1); ctx.stroke(); ctx.lineCap = 'butt';
+        continue;
+      }
+      if (p.kind === 'scanline') {                 // horizontal scan sweeping down
+        var yy = p.y0 + (p.y1 - p.y0) * (p.age / p.life);
+        ctx.strokeStyle = p.color; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(p.x - p.w / 2, yy); ctx.lineTo(p.x + p.w / 2, yy); ctx.stroke();
         continue;
       }
       if (p.grav) p.vy += p.grav * dt;          // negative grav floats upward
