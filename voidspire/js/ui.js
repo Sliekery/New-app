@@ -456,11 +456,12 @@
     }
 
     if (c) {
+      // Only debuffs live in the HUD now — Powers show on the field as the
+      // "battle augmentation" gauge (tap it to read names/values).
       var st = c.player.statuses, chips = '';
       Object.keys(st).forEach(function (k) {
-        if (st[k] <= 0) return;
-        var bad = (k === 'vuln' || k === 'weak' || k === 'burn');
-        chips += '<span class="status-chip ' + (bad ? 'debuff' : 'buff') + '">' + esc(ns.STATUS_NAMES[k] || k) + ' ' + st[k] + '</span>';
+        if (st[k] <= 0 || (k !== 'vuln' && k !== 'weak' && k !== 'burn')) return;
+        chips += '<span class="status-chip debuff">' + esc(ns.STATUS_NAMES[k] || k) + ' ' + st[k] + '</span>';
       });
       if (chips) html += '<div class="status-row">' + chips + '</div>';
     }
@@ -1087,6 +1088,9 @@
     if (!E.combat || E.run.phase !== 'combat') return;
     var rect = ev.currentTarget.getBoundingClientRect();
     var x = ev.clientX - rect.left, y = ev.clientY - rect.top;
+    // power gauge: tap to expand / collapse the augmentation readout
+    if (selected < 0 && R.gaugeHit(x, y)) { SFX.tap(); R.toggleReadout(); return; }
+    if (R.isReadoutOpen()) { R.closeReadout(); if (selected < 0) return; }   // tap elsewhere dismisses it
     var idx = R.enemyAt(x, y);
     if (selected >= 0) {
       var si = selected;

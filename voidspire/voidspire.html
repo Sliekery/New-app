@@ -4990,6 +4990,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       ctx.fillRect(-20, -20, W + 40, H + 40);
       flashAlpha *= Math.pow(0.001, dt);
     }
+
+    if (R.combatVisible) drawPowerGauge();   // augmentation meter sits on top
   };
 
   /* ---- background scenes -------------------------------------------------- */
@@ -5763,6 +5765,84 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (R.player.block > 0) drawPlayerShield(r, p.x, p.y + bob, scale, R.player.block);
   }
 
+  /* ---- power gauge: active Powers as a stacked "battle augmentation" meter,
+   *      tap to expand a docked tactical readout (names + values) ----------- */
+  var readoutOpen = false, gaugeBox = null, readoutBox = null;
+  // category -> colour, so the gauge reads like a varied console (offense /
+  // defense / engine). Debuffs (vuln/weak/burn) are NOT shown here.
+  var POWER_CAT = {
+    str: 'off', strPerTurn: 'off', psiPow: 'off', plague: 'off', entropy: 'off', thousandCuts: 'off',
+    plate: 'def', platedArmor: 'def', feelNoPain: 'def', afterImage: 'def', barricade: 'def', retain: 'def', thorns: 'def', regen: 'def',
+    turret: 'sp', echo: 'sp', reactor: 'sp', darkEmbrace: 'sp', corruption: 'sp', bloodPact: 'sp',
+  };
+  var CAT_COL = { off: '#ffb02e', def: '#41d8ff', sp: '#c86bff' };
+
+  function activePowers() {
+    var c = ns.engine.combat; if (!c) return [];
+    var st = c.player.statuses, out = [];
+    Object.keys(st).forEach(function (k) {
+      if (st[k] <= 0 || k === 'vuln' || k === 'weak' || k === 'burn') return;
+      var cat = POWER_CAT[k] || 'sp';
+      out.push({ name: (ns.STATUS_NAMES[k] || k), val: st[k], color: CAT_COL[cat] });
+    });
+    return out;
+  }
+
+  function bracket(x, y, dx, dy, n) {
+    ctx.beginPath(); ctx.moveTo(x, y + dy * n); ctx.lineTo(x, y); ctx.lineTo(x + dx * n, y); ctx.stroke();
+  }
+
+  function drawReadout(powers, gx, gy, p) {
+    var rowH = 14, padT = 22, padB = 9, w = 132;
+    var h = padT + powers.length * rowH + padB;
+    // dock just right of the gauge (over your own avatar, clear of the enemy line)
+    var x = Math.max(10, gx + 16), y = Math.max(8, Math.min(H - h - 8, p.y - h / 2 - 8));
+    if (x + w > W - 6) x = Math.max(6, W - 6 - w);
+    ctx.save();
+    ctx.globalAlpha = 0.86; ctx.fillStyle = 'rgba(2,11,15,0.9)'; ctx.fillRect(x, y, w, h);
+    ctx.globalAlpha = 0.5; ctx.strokeStyle = '#41d8ff'; ctx.lineWidth = 1; ctx.beginPath();
+    ctx.moveTo(gx + 8, gy); ctx.lineTo(x, y + 12); ctx.stroke();                 // leader line from gauge
+    ctx.globalAlpha = 0.9; ctx.lineWidth = 1.2; ctx.strokeStyle = '#41d8ff';
+    bracket(x, y, 1, 1, 9); bracket(x + w, y, -1, 1, 9); bracket(x, y + h, 1, -1, 9); bracket(x + w, y + h, -1, -1, 9);
+    ctx.shadowColor = '#41d8ff'; ctx.shadowBlur = 5; ctx.fillStyle = '#7fe6ff'; ctx.font = '9px monospace';
+    ctx.fillText('// BATTLE AUGMENTATION', x + 9, y + 14); ctx.shadowBlur = 0;
+    powers.forEach(function (pw, i) {
+      var ry = y + padT + i * rowH + 6;
+      ctx.fillStyle = pw.color; ctx.shadowColor = pw.color; ctx.shadowBlur = 4; ctx.fillRect(x + 9, ry - 6, 6, 6); ctx.shadowBlur = 0;
+      ctx.fillStyle = '#cfeaf5'; ctx.font = '9px monospace'; ctx.fillText(pw.name.toUpperCase(), x + 22, ry);
+      ctx.fillStyle = pw.color; ctx.textAlign = 'right'; ctx.fillText('' + pw.val, x + w - 9, ry); ctx.textAlign = 'left';
+    });
+    ctx.restore();
+    readoutBox = { x: x, y: y, w: w, h: h };
+  }
+
+  function drawPowerGauge() {
+    var powers = activePowers();
+    if (!powers.length) { gaugeBox = null; readoutBox = null; readoutOpen = false; return; }
+    var p = R.playerXY();
+    var sq = 7, gap = 2, n = powers.length;
+    var gx = Math.max(8, p.x - 34), totalH = n * sq + (n - 1) * gap, gy = p.y - 8 - totalH / 2;
+    var pulse = 0.78 + Math.sin(t * 3) * 0.12;
+    ctx.save();
+    for (var i = 0; i < n; i++) {
+      var syy = gy + (n - 1 - i) * (sq + gap);            // i=0 sits at the bottom; stacks upward
+      ctx.globalAlpha = pulse * (i === n - 1 ? 1 : 0.85);
+      ctx.fillStyle = powers[i].color; ctx.shadowColor = powers[i].color; ctx.shadowBlur = 5;
+      ctx.fillRect(gx, syy, sq, sq);
+    }
+    ctx.shadowBlur = 0; ctx.globalAlpha = 0.45; ctx.strokeStyle = '#7fd8ff'; ctx.lineWidth = 1;
+    ctx.strokeRect(gx - 2.5, gy - 2.5, sq + 5, totalH + 5);
+    ctx.restore();
+    gaugeBox = { x: gx - 8, y: gy - 8, w: sq + 16, h: totalH + 16 };  // generous tap target
+    if (readoutOpen) drawReadout(powers, gx, gy, p); else readoutBox = null;
+  }
+
+  R.gaugeHit = function (x, y) { return !!gaugeBox && x >= gaugeBox.x && x <= gaugeBox.x + gaugeBox.w && y >= gaugeBox.y && y <= gaugeBox.y + gaugeBox.h; };
+  R.readoutHit = function (x, y) { return !!readoutBox && x >= readoutBox.x && x <= readoutBox.x + readoutBox.w && y >= readoutBox.y && y <= readoutBox.y + readoutBox.h; };
+  R.isReadoutOpen = function () { return readoutOpen; };
+  R.toggleReadout = function () { readoutOpen = !readoutOpen; return readoutOpen; };
+  R.closeReadout = function () { readoutOpen = false; };
+
   /* ---- particles ------------------------------------------------------------------ */
   function drawParticles(dt) {
     for (var i = particles.length - 1; i >= 0; i--) {
@@ -6455,11 +6535,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
 
     if (c) {
+      // Only debuffs live in the HUD now — Powers show on the field as the
+      // "battle augmentation" gauge (tap it to read names/values).
       var st = c.player.statuses, chips = '';
       Object.keys(st).forEach(function (k) {
-        if (st[k] <= 0) return;
-        var bad = (k === 'vuln' || k === 'weak' || k === 'burn');
-        chips += '<span class="status-chip ' + (bad ? 'debuff' : 'buff') + '">' + esc(ns.STATUS_NAMES[k] || k) + ' ' + st[k] + '</span>';
+        if (st[k] <= 0 || (k !== 'vuln' && k !== 'weak' && k !== 'burn')) return;
+        chips += '<span class="status-chip debuff">' + esc(ns.STATUS_NAMES[k] || k) + ' ' + st[k] + '</span>';
       });
       if (chips) html += '<div class="status-row">' + chips + '</div>';
     }
@@ -7086,6 +7167,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (!E.combat || E.run.phase !== 'combat') return;
     var rect = ev.currentTarget.getBoundingClientRect();
     var x = ev.clientX - rect.left, y = ev.clientY - rect.top;
+    // power gauge: tap to expand / collapse the augmentation readout
+    if (selected < 0 && R.gaugeHit(x, y)) { SFX.tap(); R.toggleReadout(); return; }
+    if (R.isReadoutOpen()) { R.closeReadout(); if (selected < 0) return; }   // tap elsewhere dismisses it
     var idx = R.enemyAt(x, y);
     if (selected >= 0) {
       var si = selected;
