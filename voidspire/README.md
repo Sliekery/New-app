@@ -141,7 +141,11 @@ NODE_PATH=/path/to/node_modules node test/sheet.js  # contact sheet of all enemy
   updates so HP bars and deaths animate on the action timeline rather than
   snapping to the (instantly-resolved) engine state.
 - `js/ui.js` — DOM screens, hand interaction, the action timeline player,
-  floaters, and a tiny WebAudio synth (mutable in the menu).
+  floaters, per-card cast FX, and a tiny WebAudio synth (mutable in the menu).
+- `js/music.js` — `VS.music`: a procedural deep-synthwave bed on its own
+  WebAudio context. Dark D-minor progression (bass + pad) that layers in
+  kick/hats/arp and lifts tempo + brightness as the sector tenses. Subtle by
+  design; no-ops where WebAudio is unavailable.
 - `js/main.js` — boot + requestAnimationFrame loop.
 
 ## Single-file build
@@ -157,7 +161,7 @@ let html = fs.readFileSync('index.html', 'utf8');
 // String.replace would otherwise treat as a capture-group backreference.
 html = html.replace(/<link rel=\"stylesheet\"[^>]*>/, () => '<style>\n' + fs.readFileSync('css/style.css', 'utf8') + '\n</style>');
 let js = '';
-for (const s of ['balance','cards','cardart','artifacts','augments','potions','echoes','enemies','events','engine','render','ui','main']) js += '\n' + fs.readFileSync('js/' + s + '.js', 'utf8');
+for (const s of ['balance','cards','cardart','artifacts','augments','potions','echoes','enemies','events','engine','render','music','ui','main']) js += '\n' + fs.readFileSync('js/' + s + '.js', 'utf8');
 html = html.replace(/(\s*<script src=[^>]*><\/script>)+/, () => '\n<script>\n' + js.replace(/<\/script>/g, '<\\\\/script>') + '\n</script>\n');
 fs.writeFileSync('voidspire.html', html);
 "

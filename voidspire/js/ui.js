@@ -232,6 +232,12 @@
     document.addEventListener('pointerup', onDragEnd);
     document.addEventListener('pointercancel', onDragCancel);
 
+    // kick the synthwave bed off on the first user gesture (browsers require it)
+    document.addEventListener('pointerdown', function startMusic() {
+      if (!muted && ns.music) ns.music.start();
+      document.removeEventListener('pointerdown', startMusic, true);
+    }, true);
+
     loadOrient();
     applyOrient();
 
@@ -344,6 +350,10 @@
     var r = E.run;
     selected = -1;
     setTargeting(false);
+    if (ns.music) {
+      ns.music.setSector(r ? (r.sector || 1) : 1);
+      ns.music.setScene(r && r.phase === 'combat' ? 'combat' : 'menu');
+    }
     if (!r) return showTitle();
     switch (r.phase) {
       case 'combat': return showCombat();
@@ -2466,7 +2476,11 @@
     s.appendChild(resume);
 
     var mute = el('div', 'panel-btn cyan', '<div class="pb-title">' + (muted ? '◇ SOUND: OFF' : '◆ SOUND: ON') + '</div>');
-    mute.addEventListener('pointerdown', function () { muted = !muted; showMenu(); });
+    mute.addEventListener('pointerdown', function () {
+      muted = !muted;
+      if (ns.music) { ns.music.setMuted(muted); if (!muted) ns.music.start(); }
+      showMenu();
+    });
     s.appendChild(mute);
 
     var disp = el('div', 'panel-btn',
