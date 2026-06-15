@@ -1170,17 +1170,18 @@
   function drawReadout(powers, gx, gy, p) {
     var rowH = 14, padT = 22, padB = 9, w = 132;
     var h = padT + powers.length * rowH + padB;
-    // dock just right of the gauge (over your own avatar, clear of the enemy line)
-    var x = Math.max(10, gx + 16), y = Math.max(8, Math.min(H - h - 8, p.y - h / 2 - 8));
+    var gaugeBot = gy + powers.length * 7 + (powers.length - 1) * 2;
+    // dock BELOW the character (with margin from the screen edge)
+    var x = Math.max(14, p.x - 28), y = Math.min(H - h - 8, p.y + 34);
     if (x + w > W - 6) x = Math.max(6, W - 6 - w);
     ctx.save();
     ctx.globalAlpha = 0.86; ctx.fillStyle = 'rgba(2,11,15,0.9)'; ctx.fillRect(x, y, w, h);
     ctx.globalAlpha = 0.5; ctx.strokeStyle = '#41d8ff'; ctx.lineWidth = 1; ctx.beginPath();
-    ctx.moveTo(gx + 8, gy); ctx.lineTo(x, y + 12); ctx.stroke();                 // leader line from gauge
+    ctx.moveTo(gx + 3, gaugeBot + 1); ctx.lineTo(x + 12, y); ctx.stroke();        // leader line from gauge down
     ctx.globalAlpha = 0.9; ctx.lineWidth = 1.2; ctx.strokeStyle = '#41d8ff';
     bracket(x, y, 1, 1, 9); bracket(x + w, y, -1, 1, 9); bracket(x, y + h, 1, -1, 9); bracket(x + w, y + h, -1, -1, 9);
     ctx.shadowColor = '#41d8ff'; ctx.shadowBlur = 5; ctx.fillStyle = '#7fe6ff'; ctx.font = '9px monospace';
-    ctx.fillText('// BATTLE AUGMENTATION', x + 9, y + 14); ctx.shadowBlur = 0;
+    ctx.fillText('AUGMENTATION', x + 14, y + 14); ctx.shadowBlur = 0;
     powers.forEach(function (pw, i) {
       var ry = y + padT + i * rowH + 6;
       ctx.fillStyle = pw.color; ctx.shadowColor = pw.color; ctx.shadowBlur = 4; ctx.fillRect(x + 9, ry - 6, 6, 6); ctx.shadowBlur = 0;
@@ -1196,7 +1197,7 @@
     if (!powers.length) { gaugeBox = null; readoutBox = null; readoutOpen = false; return; }
     var p = R.playerXY();
     var sq = 7, gap = 2, n = powers.length;
-    var gx = Math.max(8, p.x - 34), totalH = n * sq + (n - 1) * gap, gy = p.y - 8 - totalH / 2;
+    var gx = Math.max(6, p.x - 46), totalH = n * sq + (n - 1) * gap, gy = p.y - 8 - totalH / 2;
     var pulse = 0.78 + Math.sin(t * 3) * 0.12;
     ctx.save();
     for (var i = 0; i < n; i++) {
