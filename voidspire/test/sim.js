@@ -397,13 +397,16 @@ function sanity() {
 function playOneRun(cls, seed) {
   E.seed(seed >>> 0);
   E.newRun(cls);
-  var steps = 0;
+  var steps = 0, s1min = 1;
   while (E.run.phase !== 'dead' && E.run.sector <= MAX_SECTOR && (E.run.loop || 1) <= MAX_LOOP && steps++ < 8000) {
     step();
     sanity();
+    // lowest HP fraction the bot dips to anywhere in sector 1 (loop 1)
+    if ((E.run.loop || 1) === 1 && E.run.sector === 1) s1min = Math.min(s1min, E.run.hp / E.run.maxHp);
     E.events.length = 0; // drain
   }
   if (steps >= 8000) throw new Error('run loop guard tripped');
+  E.run._s1min = s1min;
   // cumulative depth: each cleared loop counts as `finale` sectors
   E.run._depth = (E.run.loop - 1) * VS.BALANCE.run.finale + E.run.sector;
   return E.run;
@@ -453,6 +456,7 @@ console.log('data integrity: OK');
 var classes = CLASSES;
 var stats = {};
 var stalls = 0;
+var s1mins = [];   // lowest HP fraction reached in sector 1, per run
 classes.forEach(function (c) { stats[c] = { sectors: [], deaths: {}, wins: 0, runs: 0 }; });
 
 for (var run = 0; run < RUNS; run++) {
@@ -467,6 +471,7 @@ for (var run = 0; run < RUNS; run++) {
   }
   var s = stats[cls];
   s.runs++;
+  if (E.run._s1min != null) s1mins.push(E.run._s1min);
   // cumulative depth (== sector until you beat the Unmaker, then climbs by loop)
   var depth = (E.run._depth != null) ? E.run._depth : ((E.run.loop - 1) * VS.BALANCE.run.finale + E.run.sector);
   s.sectors.push(depth);
@@ -506,8 +511,14 @@ var median = allSectors[Math.floor(allSectors.length / 2)];
 var totalDeaths = Object.keys(allDeaths).reduce(function (a, k) { return a + allDeaths[k]; }, 0);
 var spikeDeaths = (nodeDeaths.elite || 0) + (nodeDeaths.boss || 0);
 var reach5 = allSectors.filter(function (s) { return s >= 5; }).length;
+var s1avg = s1mins.reduce(function (a, b) { return a + b; }, 0) / Math.max(1, s1mins.length);
+var s1unscathed = s1mins.filter(function (f) { return f >= 0.97; }).length;   // dipped <3% HP
+var s1chip = s1mins.filter(function (f) { return f >= 0.80; }).length;        // never below 80%
 console.log('\n--- difficulty profile (StS targets in brackets) ---');
 console.log('sector-1 death rate: ' + Math.round(100 * s1Deaths / RUNS) + '%   [<= ~15%]');
+console.log('sector-1 lowest HP (avg): ' + Math.round(100 * s1avg) + '%   |  ' +
+  Math.round(100 * s1unscathed / Math.max(1, s1mins.length)) + '% finish ~unscathed (>=97%), ' +
+  Math.round(100 * s1chip / Math.max(1, s1mins.length)) + '% never drop below 80%   [aim ~25-40% unscathed]');
 console.log('median sector reached: ' + median + '   [~3-4]');
 console.log('reached sector 5+: ' + Math.round(100 * reach5 / RUNS) + '%   [~15-30%]');
 if (totalDeaths) console.log('deaths at elites/bosses: ' + Math.round(100 * spikeDeaths / totalDeaths) + '%   [>= ~55%]');

@@ -23,7 +23,7 @@
     drone_skirmisher: {
       name: 'Drone Skirmisher', faction: 'hierarchy', hp: 12, size: 0.6, ai: 'random',
       moves: [
-        { t: 'attack', d: 5, w: 4 },
+        { t: 'attack', d: 6, w: 4 },
         { t: 'attack', d: 3, hits: 2, w: 3 },
         { t: 'block', b: 5, w: 2 },
       ],
@@ -33,7 +33,7 @@
     zealot_warrior: { grounded: true,
       name: 'Zealot Warrior', faction: 'hierarchy', hp: 22, size: 0.85, ai: 'random',
       moves: [
-        { t: 'attack', d: 8, w: 4 },
+        { t: 'attack', d: 9, w: 4 },
         { t: 'attack', d: 6, w: 2 },
         { t: 'buff', s: 'str', v: 1, w: 2 },
         { t: 'block', b: 6, w: 2 },
@@ -45,7 +45,7 @@
       name: 'Plasma Acolyte', faction: 'hierarchy', hp: 16, size: 0.75, ai: 'random',
       moves: [
         { t: 'debuff', s: 'burn', v: 3, w: 3 },
-        { t: 'attack', d: 6, w: 4 },
+        { t: 'attack', d: 7, w: 4 },
         { t: 'buff', s: 'str', v: 1, w: 1 },
       ],
       // squat acolyte: dome head, methane tank, hose, hands cupping a plasma orb
@@ -82,7 +82,7 @@
     scrap_hound: { grounded: true,
       name: 'Scrap Hound', faction: 'rust', hp: 13, size: 0.65, ai: 'random',
       moves: [
-        { t: 'attack', d: 6, w: 4 },
+        { t: 'attack', d: 7, w: 4 },
         { t: 'attack', d: 4, w: 2 },
         { t: 'debuff', s: 'vuln', v: 1, w: 2 },
       ],
@@ -92,7 +92,7 @@
     rust_cultist: { grounded: true,
       name: 'Rust Cultist', faction: 'rust', hp: 15, size: 0.75, ai: 'random',
       moves: [
-        { t: 'attack', d: 5, w: 4 },
+        { t: 'attack', d: 6, w: 4 },
         { t: 'buff', s: 'str', v: 2, w: 2 },
         { t: 'curse', card: 'shrapnel', w: 2 },
       ],
@@ -102,7 +102,7 @@
     forge_walker: { grounded: true,
       name: 'Forge Walker', faction: 'rust', hp: 28, size: 0.95, ai: 'random',
       moves: [
-        { t: 'attack', d: 9, w: 4 },
+        { t: 'attack', d: 10, w: 4 },
         { t: 'block', b: 8, w: 3 },
         { t: 'attack', d: 5, w: 2 },
       ],
@@ -140,7 +140,7 @@
     void_larva: {
       name: 'Void Larva', faction: 'voidspawn', hp: 8, size: 0.5, ai: 'random',
       moves: [
-        { t: 'attack', d: 4, w: 5 },
+        { t: 'attack', d: 5, w: 5 },
         { t: 'buff', s: 'str', v: 1, w: 2 },
       ],
       // infection form: lumpy sac, tendril legs, feelers, eye cluster
@@ -149,7 +149,7 @@
     husk_stalker: { grounded: true,
       name: 'Husk Stalker', faction: 'voidspawn', hp: 18, size: 0.8, ai: 'random',
       moves: [
-        { t: 'attack', d: 7, w: 4 },
+        { t: 'attack', d: 8, w: 4 },
         { t: 'attack', d: 5, w: 2 },
         { t: 'debuff', s: 'weak', v: 1, w: 2 },
       ],
@@ -160,7 +160,7 @@
       name: 'Psy-Wraith', faction: 'voidspawn', hp: 16, size: 0.8, ai: 'random',
       moves: [
         { t: 'debuff', s: 'vuln', v: 2, w: 3 },
-        { t: 'attack', d: 6, w: 4 },
+        { t: 'attack', d: 7, w: 4 },
         { t: 'curse', card: 'void_taint', w: 1 },
       ],
       // shrouded wraith: hood within shroud, hollow face, wisp arms, drifting shards
