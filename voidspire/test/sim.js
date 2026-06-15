@@ -75,6 +75,11 @@ function estCardDamage(card, target, includeDot) {
     if (f.k === 'special' && f.id === 'fiendFire') {
       total += (f.v + str) * Math.max(0, c.hand.length - 1); // ~cards left to exhaust
     }
+    if (f.k === 'special' && f.id === 'cull') {
+      // CULL: sacrifice the whole pack, f.v damage per pet (Butcher finisher).
+      var pets = (c.allies || []).filter(function (a) { return a.alive; }).length;
+      total += f.v * pets;
+    }
   });
   if ((c.player.statuses.weak || 0) > 0) total = Math.floor(total * VS.BALANCE.status.weakMult);
   return total + dot;
@@ -138,8 +143,15 @@ function botCombat() {
     // Warpcaller: keep a sensible formation — tank front, healer behind it,
     // support mid, attackers in the back (a competent player would position).
     if (E.run.cls === 'warpcaller' && c.allies.length > 1) {
-      var PRI = { block: 0, heal: 1, support: 2, burn: 3, attack: 4 };
-      c.allies.sort(function (a, b) { return (PRI[a.def.act.t] == null ? 9 : PRI[a.def.act.t]) - (PRI[b.def.act.t] == null ? 9 : PRI[b.def.act.t]); });
+      if (PILOT === 'butcher') {
+        // feed the grinder: the most expendable (fragile) bodies go up front to
+        // die — that's where Symbiosis / Bloodscent / Spawnling bursts come from.
+        c.allies.sort(function (a, b) { return a.maxHp - b.maxHp; });
+      } else {
+        // tank front, healer behind it, support mid, attackers (and the apex) safe in back.
+        var PRI = { block: 0, heal: 1, support: 2, burn: 3, attack: 4 };
+        c.allies.sort(function (a, b) { return (PRI[a.def.act.t] == null ? 9 : PRI[a.def.act.t]) - (PRI[b.def.act.t] == null ? 9 : PRI[b.def.act.t]); });
+      }
     }
     var playable = [];
     for (var i = 0; i < c.hand.length; i++) if (E.canPlay(i)) playable.push(i);
@@ -175,11 +187,19 @@ function botCombat() {
     // 3. powers + pet-summons early (a Warpcaller lives or dies by its pack),
     //    then best attack, then anything
     if (choice < 0) {
+      var nPets = c.allies.filter(function (a) { return a.alive; }).length;
       var pw = playable.filter(function (idx) {
         var def = VS.CARDS[c.hand[idx].id];
         if (def.type === 'power') return true;
         var fx = VS.cardFx(def, c.hand[idx].up);
-        return fx.some(function (f) { return f.k === 'pet' || (f.k === 'status' && (f.s === 'pack' || f.s === 'symbiosis' || f.s === 'brood' || f.s === 'bloodscent' || f.s === 'bulwark')); });
+        return fx.some(function (f) {
+          if (f.k === 'pet') return true;
+          if (f.k === 'status' && (f.s === 'pack' || f.s === 'symbiosis' || f.s === 'brood' || f.s === 'bloodscent' || f.s === 'bulwark')) return true;
+          // funnel/utility specials are only worth it once you have a pack to act on
+          if (f.k === 'special' && (f.id === 'feed' || f.id === 'empower' || f.id === 'packshield') && nPets >= 1) return true;
+          if (f.k === 'special' && f.id === 'frenzy' && nPets >= 2) return true;  // pack acts again — needs a board
+          return false;
+        });
       });
       if (pw.length && (c.turn <= 3 || E.run.cls === 'warpcaller')) choice = pw[0];
     }
@@ -212,11 +232,29 @@ function card0(c, idx) { return c.hand[idx]; }
 
 var CLASS_ATTR = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
 
+// ---- Warpcaller archetype piloting (for measuring per-build ceilings) -------
+// The Warpcaller's three builds. When PILOT is set, the bot drafts that build's
+// cards (and shuns the others) so we can see how each archetype performs when a
+// player actually commits to it, rather than the greedy grab-bag of the parity run.
+var WC_ARCH = {
+  wall:    ['summon_warden', 'summon_leech', 'entrench', 'aegis', 'summon_behemoth', 'kennel', 'summon_totem'],
+  alpha:   ['summon_dire', 'feed_the_alpha', 'pack_frenzy', 'apex_predator', 'howl', 'summon_totem'],
+  butcher: ['summon_stinger', 'bloodbond', 'spawn_brood', 'symbiotic_bond', 'feeding_frenzy', 'overgrowth', 'cull_the_weak', 'the_swarmlord'],
+};
+var WC_FLEX = ['claw_swipe', 'summon_maw', 'howl', 'kennel', 'summon_totem'];   // fine in any build
+var PILOT = null;   // 'wall' | 'alpha' | 'butcher' — null = default greedy draft
+function setPilot(a) { PILOT = a; }
+
 function scoreRewardCard(cid) {
   var def = VS.CARDS[cid];
   var s = def.rarity * 3;
   if (def.cls === VS.engine.run.cls) s += 2;
   if (VS.engine.run.deck.length > 22 && def.rarity === 1) s -= 6;
+  if (PILOT && def.cls === 'warpcaller') {
+    if (WC_ARCH[PILOT].indexOf(cid) >= 0) s += 12;        // commit hard to the build
+    else if (WC_FLEX.indexOf(cid) >= 0) s += 3;           // flex cards are welcome
+    else s -= 8;                                          // shun off-archetype Warpcaller cards
+  }
   return s;
 }
 
@@ -429,7 +467,7 @@ function playOneRun(cls, seed) {
 }
 
 var CLASSES = Object.keys(VS.BALANCE.classes);
-module.exports = { playOneRun: playOneRun, botCombat: botCombat, classes: CLASSES, MAX_SECTOR: MAX_SECTOR, VS: VS, E: E };
+module.exports = { playOneRun: playOneRun, botCombat: botCombat, classes: CLASSES, MAX_SECTOR: MAX_SECTOR, MAX_LOOP: MAX_LOOP, setPilot: setPilot, VS: VS, E: E };
 
 // Only run the integrity checks + CLI stats when invoked directly.
 if (require.main !== module) return;
@@ -468,7 +506,8 @@ VS.EVENTS.forEach(function (ev) {
 });
 console.log('data integrity: OK');
 
-/* ---- run simulations ----------------------------------------------------- */
+/* ---- run simulations (only when invoked directly, not when require()d) ----- */
+if (require.main === module) {
 var classes = CLASSES;
 var stats = {};
 var stalls = 0;
@@ -559,3 +598,4 @@ console.log('spread (strongest - weakest): ' + spread.toFixed(1) + ' pts   [<= ~
 console.log('  strongest: ' + hi.c + ' (' + hi.wr.toFixed(1) + '%)  |  weakest: ' + lo.c + ' (' + lo.wr.toFixed(1) + '%)');
 
 console.log('\nALL TESTS PASSED');
+}   // end require.main === module
