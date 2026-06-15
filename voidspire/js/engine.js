@@ -572,6 +572,11 @@
       var pool = aliveEnemies();
       if (pool.length) { var en = pick(pool); dealToEnemy(en, c.enemies.indexOf(en), st, { noCrit: true, noWeak: true }); }
     }
+    var rt = statN(p, 'retaliate');   // Riposte Protocol: gaining Shield strikes back
+    if (rt > 0 && !c.over) {
+      var rpool = aliveEnemies();
+      if (rpool.length) { var ren = pick(rpool); dealToEnemy(ren, c.enemies.indexOf(ren), rt, { noCrit: true, noWeak: true }); }
+    }
     var sw = art('shieldWeak');   // Disruptor Field: Shield gains apply Weak
     if (sw > 0 && !c.over) {
       var poolW = aliveEnemies();

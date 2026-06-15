@@ -18,6 +18,7 @@
     str: 'Might', vuln: 'Vulnerable', weak: 'Weak', burn: 'Burn',
     regen: 'Regen', plate: 'Plating', thorns: 'Thorns', psiPow: 'Psi Focus',
     strPerTurn: 'Warlord', turret: 'Turret', drone: 'Drone Swarm', entropy: 'Entropy',
+    retaliate: 'Riposte',
     reactor: 'Reactor', retain: 'Phase Lock',
     feelNoPain: 'Resolve', darkEmbrace: 'Salvage', thousandCuts: 'Blade Array',
     afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
@@ -464,6 +465,23 @@
       fx: [{ k: 'status', s: 'str', v: 1, who: 'self' }, { k: 'block', v: 5, scale: 'pri' }],
       up: { fx: [{ k: 'status', s: 'str', v: 2, who: 'self' }, { k: 'block', v: 6, scale: 'pri' }] },
     },
+    // --- new rares: each anchors a different Vanguard build ---
+    frenzy: {   // the Strength payoff — multi-hit, every hit rides your MIGHT
+      name: 'Frenzy', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
+      fx: [{ k: 'dmg', v: 3, hits: 3, scale: 'might' }],
+      text: 'Each hit is boosted by your Might — a Strength deck turns this lethal.',
+      up: { fx: [{ k: 'dmg', v: 3, hits: 4, scale: 'might' }] },
+    },
+    bloodlust: {   // glass-cannon engine: permanent extra energy bought with HP
+      name: 'Bloodlust', cls: 'vanguard', type: 'power', rarity: 3, cost: 1,
+      fx: [{ k: 'status', s: 'reactor', v: 1, who: 'self' }, { k: 'hploss', v: 6 }],
+      up: { fx: [{ k: 'status', s: 'reactor', v: 1, who: 'self' }, { k: 'hploss', v: 3 }] },
+    },
+    riposte_protocol: {   // turtle-and-punish engine: block becomes offense
+      name: 'Riposte Protocol', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'retaliate', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'retaliate', v: 5, who: 'self' }] },
+    },
 
     /* -- Technomancer -- */
     arc_welder: {
@@ -860,6 +878,7 @@
         var n = STATUS_NAMES[f.s] || f.s;
         if (f.s === 'turret') parts.push('Turret: deal ' + (f.v + (ctx ? ctx.attrs.tech : 0)) + ' damage each turn.');
         else if (f.s === 'drone') parts.push('Drone Swarm: deal ' + (f.v + (ctx ? ctx.attrs.tech : 0)) + ' damage to ALL enemies each turn.');
+        else if (f.s === 'retaliate') parts.push('Whenever you gain Shield, deal ' + f.v + ' damage to a random enemy (Riposte).');
         else if (f.s === 'entropy') parts.push('At end of turn, apply ' + f.v + ' Burn to ALL enemies.');
         else if (f.s === 'reactor') parts.push('Gain +' + f.v + ' Energy at the start of each turn.');
         else if (f.s === 'retain') parts.push('Shield no longer expires.');

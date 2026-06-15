@@ -2,14 +2,14 @@
 
 _Auto-generated from the game data (`node test/cardsdoc.js`). Effect text is exactly what the game shows; numbers are the base values **before** any MIGHT/TECH/PSI/BOND scaling._
 
-**115 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Warpcaller](#warpcaller) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
+**118 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Warpcaller](#warpcaller) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
 
 
 ---
 
 ## Vanguard
 
-_Shock trooper — MIGHT weapons & raw aggression. (29 cards)_
+_Shock trooper — MIGHT weapons & raw aggression. (32 cards)_
 
 
 ### Starter
@@ -95,12 +95,21 @@ _Shock trooper — MIGHT weapons & raw aggression. (29 cards)_
 - **Barricade Protocol**  — Power · ⚡2 → 1
     - Base: Your Shield no longer expires at the start of your turn.
     - Upgraded: _(no change)_
+- **Bloodlust**  — Power · ⚡1
+    - Base: Gain +1 Energy at the start of each turn. Lose 6 HP.
+    - Upgraded: Gain +1 Energy at the start of each turn. Lose 3 HP.
+- **Frenzy**  — Attack · ⚡2
+    - Base: Each hit is boosted by your Might — a Strength deck turns this lethal.
+    - Upgraded: Deal 3 damage 4 times. Each hit is boosted by your Might — a Strength deck turns this lethal.
 - **Orbital Strike**  — Attack · ⚡3
     - Base: Deal 22 damage to ALL enemies.
     - Upgraded: Deal 30 damage to ALL enemies.
 - **Reckless Protocol**  — Power · ⚡2 → 1
     - Base: Skills cost 0 this combat, but Exhaust when played.
     - Upgraded: _(no change)_
+- **Riposte Protocol**  — Power · ⚡2
+    - Base: Whenever you gain Shield, deal 3 damage to a random enemy (Riposte).
+    - Upgraded: Whenever you gain Shield, deal 5 damage to a random enemy (Riposte).
 - **Scorched Earth**  — Attack · ⚡2  _(Exhaust)_
     - Base: Exhaust your hand. Deal 6 damage to the target for each card Exhausted.
     - Upgraded: Exhaust your hand. Deal 9 damage to the target for each card Exhausted.
