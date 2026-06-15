@@ -179,7 +179,7 @@ function botCombat() {
         var def = VS.CARDS[c.hand[idx].id];
         if (def.type === 'power') return true;
         var fx = VS.cardFx(def, c.hand[idx].up);
-        return fx.some(function (f) { return f.k === 'pet' || (f.k === 'status' && (f.s === 'pack' || f.s === 'symbiosis' || f.s === 'brood')); });
+        return fx.some(function (f) { return f.k === 'pet' || (f.k === 'status' && (f.s === 'pack' || f.s === 'symbiosis' || f.s === 'brood' || f.s === 'bloodscent' || f.s === 'bulwark')); });
       });
       if (pw.length && (c.turn <= 3 || E.run.cls === 'warpcaller')) choice = pw[0];
     }

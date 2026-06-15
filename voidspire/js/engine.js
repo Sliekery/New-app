@@ -608,8 +608,10 @@
     if (padv > 0) { gainBlock(padv); addStatus(p, 'platedArmor', -1); } // Plated Armor: shield = stacks, then decays
     var spt = statN(p, 'strPerTurn');
     if (spt > 0) addStatus(p, 'str', spt);
-    var brood = statN(p, 'brood');     // Overgrowth: birth a Maw each turn
-    if (brood > 0 && c.turn > 1) summonPet('maw', brood);
+    var brood = statN(p, 'brood');     // Overgrowth: birth a disposable Spawnling each turn
+    if (brood > 0 && c.turn > 1) summonPet('spawnling', brood);
+    var bw = statN(p, 'bulwark');      // Entrench: the front pet digs in (gains block) each turn
+    if (bw > 0) { var fa = frontAlly(); if (fa) fa.block += bw; }
     var ht = art('healTurn');
     if (ht > 0) heal(ht);
     var bg = art('burnGrow');
@@ -866,7 +868,8 @@
   E.aliveAllies = aliveAllies;
   // A pet's effective action value: BOND scaling + per-pet buffs + pack buffs.
   function petPower(a) {
-    return Math.round(attr('bond') * B.attrs.bondPetPerPoint) + (a.bonusDmg || 0) + statN(E.combat.player, 'pack') + adjacentTotem(a);
+    var p = E.combat.player;
+    return Math.round(attr('bond') * B.attrs.bondPetPerPoint) + (a.bonusDmg || 0) + statN(p, 'pack') + statN(p, 'bloodscent') + adjacentTotem(a);
   }
   E.petPower = petPower;
   // The pack is an ordered formation; c.allies holds only LIVING pets, front first.
@@ -916,9 +919,16 @@
     a.alive = false;
     c.allies.splice(i, 1);
     emit('petDie', { idx: i });
+    // Bloodscent: every death (even a sacrifice) feeds the pack's rage (+1 to all pet actions).
+    if (statN(c.player, 'bloodscent') > 0) addStatus(c.player, 'bloodscent', 1);
     if (!sacrifice) {
       var sy = statN(c.player, 'symbiosis');   // a pet dies -> master gains Shield + draws
       if (sy > 0) { gainBlock(sy); drawCards(1); }
+      // a dying beast's last act — the Spawnling bursts on death.
+      if (a.def.onDie && a.def.onDie.dmg) {
+        var pool = aliveEnemies();
+        if (pool.length) { var en = pick(pool); dealToEnemy(en, c.enemies.indexOf(en), a.def.onDie.dmg, { noCrit: true, src: 'pet' }); }
+      }
     }
   }
   E.killAlly = killAlly;
@@ -1138,6 +1148,18 @@
               strong.bonusDmg = (strong.bonusDmg || 0) + f.v;
               emit('petAct', { idx: c.allies.indexOf(strong), t: 'feed' });
             }
+          } else if (f.id === 'empower') {
+            // APEX PREDATOR: permanently empower your strongest pet (no sacrifice).
+            var liveE = aliveAllies();
+            if (liveE.length) {
+              var champ = liveE.slice().sort(function (a, b) { return E.petInfo(b).val - E.petInfo(a).val; })[0];
+              champ.bonusDmg = (champ.bonusDmg || 0) + f.v;
+              emit('petAct', { idx: c.allies.indexOf(champ), t: 'feed' });
+            }
+          } else if (f.id === 'packshield') {
+            // AEGIS: the whole formation braces — every pet gains f.v block now.
+            aliveAllies().forEach(function (a) { a.block += f.v; });
+            emit('petReorder', {});
           }
           break;
         }
