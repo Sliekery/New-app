@@ -895,11 +895,16 @@
     if (act.t === 'support') return { icon: 'support', val: act.v };
     return { icon: 'heal', val: act.v + Math.floor(pw * 0.5) };
   };
+  // The formation has a SLOT capacity; each pet has a `size` (slots it fills).
+  function petSlots() { return E.combat.allies.reduce(function (s, a) { return s + (a.def.size || 1); }, 0); }
+  E.petSlots = petSlots;
+  function maxSlots() { return 4 + statN(E.combat.player, 'slots'); }   // + Kennel etc.
+  E.maxSlots = maxSlots;
   function summonPet(id, n) {
-    var c = E.combat, cap = 6;
+    var c = E.combat, sz = (ns.PETS[id].size || 1);
     for (var i = 0; i < (n || 1); i++) {
-      if (c.allies.length >= cap) break;
-      c.allies.push(mkAlly(id));   // joins the BACK of the formation
+      if (petSlots() + sz > maxSlots()) break;   // no room -> the summon fizzles
+      c.allies.push(mkAlly(id));                  // joins the BACK of the formation
       emit('petSummon', { idx: c.allies.length - 1, id: id });
     }
   }

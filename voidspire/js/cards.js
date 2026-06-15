@@ -22,19 +22,20 @@
     feelNoPain: 'Resolve', darkEmbrace: 'Salvage', thousandCuts: 'Blade Array',
     afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
     platedArmor: 'Plated Armor', barricade: 'Barricade', bloodPact: 'Blood Pact',
-    pack: 'Pack Fury', symbiosis: 'Symbiosis', brood: 'Brood',
+    pack: 'Pack Fury', symbiosis: 'Symbiosis', brood: 'Brood', slots: 'Kennel',
   };
 
   // The Warpcaller's pets (targetable ally units). act: what they do each turn.
   // `models` = candidate visual models (picked at random on summon) so the pack
   // looks like a varied menagerie. Art lives in ns.PET_MODELS.
   ns.PETS = {
-    maw:      { name: 'Maw',     hp: 5,  act: { t: 'attack', d: 5 }, color: '#7b8cff', models: ['wretch'] },
-    stinger:  { name: 'Stinger', hp: 4,  act: { t: 'burn', v: 3 },   color: '#9b7bff', models: ['stinger', 'spore'] },
-    warden:   { name: 'Warden',  hp: 10, act: { t: 'block', v: 5 },  color: '#6bd8ff', models: ['sentinel'] },
-    leech:    { name: 'Leech',   hp: 5,  act: { t: 'heal', v: 3 },   color: '#6bff9d', models: ['leech'] },
+    maw:      { name: 'Maw',     hp: 4,  act: { t: 'attack', d: 3 }, color: '#7b8cff', models: ['wretch'] },
+    stinger:  { name: 'Stinger', hp: 4,  act: { t: 'burn', v: 2 },   color: '#9b7bff', models: ['stinger', 'spore'] },
+    warden:   { name: 'Warden',  hp: 8,  act: { t: 'block', v: 3 },  color: '#6bd8ff', models: ['sentinel'] },
+    leech:    { name: 'Leech',   hp: 5,  act: { t: 'heal', v: 2 },   color: '#6bff9d', models: ['leech'] },
     totem:    { name: 'Totem',   hp: 7,  act: { t: 'support', v: 2 }, color: '#ffd24a', models: ['totem'] },
-    dire_maw: { name: 'Dire Maw', hp: 11, act: { t: 'attack', d: 9 }, color: '#5e6bff', models: ['wretch'] },
+    dire_maw: { name: 'Dire Maw', hp: 10, act: { t: 'attack', d: 4 }, size: 2, color: '#5e6bff', models: ['wretch'] },
+    behemoth: { name: 'Behemoth', hp: 15, act: { t: 'block', v: 4 }, size: 2, color: '#6bd8ff', models: ['warden_beast'] },
   };
 
   // 9 distinct void-beast silhouettes (+ the Warpcaller avatar = 10 models).
@@ -636,6 +637,17 @@
       text: 'Sacrifice your weakest pet; your strongest pet permanently gains +4 to its action.',
       up: { fx: [{ k: 'special', id: 'feed', v: 7 }], text: 'Sacrifice your weakest pet; your strongest pet permanently gains +7 to its action.' },
     },
+    summon_behemoth: {
+      name: 'Summon Behemoth', cls: 'warpcaller', type: 'skill', rarity: 3, cost: 2,
+      fx: [{ k: 'pet', id: 'behemoth', n: 1 }],
+      text: 'Summon a Behemoth — a huge tank (26 HP, big self-block). Fills 2 slots; the ultimate front-line wall.',
+      up: { fx: [{ k: 'pet', id: 'behemoth', n: 1 }, { k: 'block', v: 5, scale: 'bond' }], text: 'Summon a Behemoth (2 slots). Gain Shield.' },
+    },
+    kennel: {
+      name: 'Kennel', cls: 'warpcaller', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'slots', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'slots', v: 3, who: 'self' }] },
+    },
     summon_dire: {
       name: 'Summon Dire Maw', cls: 'warpcaller', type: 'power', rarity: 2, cost: 2,
       fx: [{ k: 'pet', id: 'dire_maw', n: 1 }],
@@ -774,7 +786,7 @@
         parts.push('Gain ' + Math.round(b) + ' Shield.');
       }
       if (f.k === 'heal') parts.push('Heal ' + f.v + ' HP.');
-      if (f.k === 'pet') { var pn = (ns.PETS[f.id] && ns.PETS[f.id].name) || f.id; parts.push('Summon ' + (f.n > 1 ? f.n + ' ' + pn + 's' : 'a ' + pn) + '.'); }
+      if (f.k === 'pet') { var pd = ns.PETS[f.id] || {}, pn = pd.name || f.id, szt = (pd.size || 1) > 1 ? ' [' + pd.size + ' slots]' : ''; parts.push('Summon ' + (f.n > 1 ? f.n + ' ' + pn + 's' : 'a ' + pn) + szt + '.'); }
       if (f.k === 'hploss') parts.push('Lose ' + f.v + ' HP.');
       if (f.k === 'draw') parts.push('Draw ' + f.v + ' card' + (f.v > 1 ? 's' : '') + '.');
       if (f.k === 'energy') parts.push('Gain ' + f.v + ' Energy.');
@@ -799,6 +811,7 @@
         else if (f.s === 'pack') parts.push('Your pets deal +' + f.v + ' with their actions (Pack Fury).');
         else if (f.s === 'symbiosis') parts.push('Whenever a pet dies, gain ' + f.v + ' Shield and draw a card.');
         else if (f.s === 'brood') parts.push('At the start of each turn, summon ' + (f.v > 1 ? f.v + ' Maws' : 'a Maw') + '.');
+        else if (f.s === 'slots') parts.push('+' + f.v + ' formation slot' + (f.v > 1 ? 's' : '') + ' (room for more or bigger pets).');
         else if (f.who === 'self') parts.push('Gain ' + f.v + ' ' + n + '.');
         else if (f.who === 'allEnemies') parts.push('Apply ' + f.v + ' ' + n + ' to ALL enemies.');
         else parts.push('Apply ' + f.v + ' ' + n + '.');
