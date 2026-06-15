@@ -22,6 +22,7 @@ var TESTS = [
   { key: null, cls: 'vanguard', label: 'vanguard (greedy)' },
   { key: 'fusillade', cls: 'vanguard', label: '  Fusillade' },
   { key: 'bloodforge', cls: 'vanguard', label: '  Bloodforge' },
+  { key: 'bandolier', cls: 'vanguard', label: '  Bandolier' },
 ];
 
 function mean(a) { return a.length ? a.reduce(function (x, y) { return x + y; }, 0) / a.length : 0; }

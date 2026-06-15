@@ -19,7 +19,7 @@
     regen: 'Regen', plate: 'Plating', thorns: 'Thorns', psiPow: 'Psi Focus',
     strPerTurn: 'Warlord', turret: 'Turret', drone: 'Drone Swarm', entropy: 'Entropy',
     retaliate: 'Riposte', momentum: 'Momentum', fullauto: 'Full Auto',
-    parry: 'Parry', bloodrage: 'Blood Rage', vengeance: 'Vengeance',
+    parry: 'Parry', bloodrage: 'Blood Rage', vengeance: 'Vengeance', salvo: 'Salvo', restock: 'Quartermaster',
     reactor: 'Reactor', retain: 'Phase Lock',
     feelNoPain: 'Resolve', darkEmbrace: 'Salvage', thousandCuts: 'Blade Array',
     afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
@@ -550,6 +550,39 @@
       text: 'Deal damage equal to 4× your Strength. Heal for half the damage dealt.',
       up: { fx: [{ k: 'special', id: 'bloodbath', v: 5 }, { k: 'special', id: 'drain' }], text: 'Deal damage equal to 5× your Strength. Heal for half the damage dealt.' },
     },
+    // --- BANDOLIER: heavy ordnance, spent & reloaded. Big shots Exhaust (spent
+    //     shells); payoffs reward spending them; Reload racks them back. ---
+    salvo: {   // the anchor — every spent shell detonates
+      name: 'Salvo', cls: 'vanguard', type: 'power', rarity: 3, cost: 1,
+      fx: [{ k: 'status', s: 'salvo', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'salvo', v: 5, who: 'self' }] },
+    },
+    reload: {   // the reuse engine — rack a spent shell back into the chamber
+      name: 'Reload', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'special', id: 'reload' }, { k: 'draw', v: 1 }],
+      text: 'Return a random exhausted Attack to your hand.',
+      up: { cost: 0, fx: [{ k: 'special', id: 'reload' }, { k: 'draw', v: 1 }], text: 'Return a random exhausted Attack to your hand.' },
+    },
+    quartermaster: {   // the restock anchor — a self-feeding reload loop
+      name: 'Quartermaster', cls: 'vanguard', type: 'power', rarity: 3, cost: 1,
+      fx: [{ k: 'status', s: 'restock', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'restock', v: 2, who: 'self' }] },
+    },
+    breaching_charge: {   // a heavy shell — big single shot, spent on firing
+      name: 'Breaching Charge', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1, exhaust: true,
+      fx: [{ k: 'dmg', v: 9, scale: 'might' }],
+      up: { fx: [{ k: 'dmg', v: 13, scale: 'might' }] },
+    },
+    field_strip: {   // cheap exhaust-fuel — cycles and feeds the spent-shell payoffs
+      name: 'Field Strip', cls: 'vanguard', type: 'skill', rarity: 1, cost: 0, exhaust: true,
+      fx: [{ k: 'draw', v: 2 }],
+      up: { fx: [{ k: 'draw', v: 3 }] },
+    },
+    cluster_charge: {   // an AoE shell
+      name: 'Cluster Charge', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1, exhaust: true,
+      fx: [{ k: 'dmg', v: 5, all: true, scale: 'might' }],
+      up: { fx: [{ k: 'dmg', v: 7, all: true, scale: 'might' }] },
+    },
 
     /* -- Technomancer -- */
     arc_welder: {
@@ -952,6 +985,8 @@
         else if (f.s === 'parry') parts.push('Gain ' + f.v + ' Parry: it absorbs damage like Shield, and every blow you parry strikes the attacker back (scales with Might).');
         else if (f.s === 'bloodrage') parts.push('Whenever you lose HP to your own cards, gain ' + f.v + ' Might (Blood Rage).');
         else if (f.s === 'vengeance') parts.push('After you take a hit or parry a blow, your next Attack heals ' + f.v + ' HP (Vengeance).');
+        else if (f.s === 'salvo') parts.push('Whenever you Exhaust a card, deal ' + f.v + ' damage to a random enemy (Salvo).');
+        else if (f.s === 'restock') parts.push('At the start of each turn, return ' + (f.v > 1 ? f.v + ' random exhausted Attacks' : 'a random exhausted Attack') + ' to your hand (Quartermaster).');
         else if (f.s === 'entropy') parts.push('At end of turn, apply ' + f.v + ' Burn to ALL enemies.');
         else if (f.s === 'reactor') parts.push('Gain +' + f.v + ' Energy at the start of each turn.');
         else if (f.s === 'retain') parts.push('Shield no longer expires.');

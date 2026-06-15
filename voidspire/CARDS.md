@@ -2,14 +2,14 @@
 
 _Auto-generated from the game data (`node test/cardsdoc.js`). Effect text is exactly what the game shows; numbers are the base values **before** any MIGHT/TECH/PSI/BOND scaling._
 
-**130 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Warpcaller](#warpcaller) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
+**135 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Warpcaller](#warpcaller) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
 
 
 ---
 
 ## Vanguard
 
-_Shock trooper — MIGHT weapons & raw aggression. (44 cards)_
+_Shock trooper — MIGHT weapons & raw aggression. (50 cards)_
 
 
 ### Starter
@@ -20,6 +20,9 @@ _Shock trooper — MIGHT weapons & raw aggression. (44 cards)_
 
 ### Common
 
+- **Breaching Charge**  — Attack · ⚡1  _(Exhaust)_
+    - Base: Deal 9 damage. Exhaust.
+    - Upgraded: Deal 13 damage. Exhaust.
 - **Burst Fire**  — Attack · ⚡1
     - Base: Deal 3 damage 2 times.
     - Upgraded: Deal 3 damage 3 times.
@@ -32,6 +35,9 @@ _Shock trooper — MIGHT weapons & raw aggression. (44 cards)_
 - **Deflect**  — Skill · ⚡1
     - Base: Gain 6 Parry: it absorbs damage like Shield, and every blow you parry strikes the attacker back (scales with Might).
     - Upgraded: Gain 9 Parry: it absorbs damage like Shield, and every blow you parry strikes the attacker back (scales with Might).
+- **Field Strip**  — Skill · ⚡0  _(Exhaust)_
+    - Base: Draw 2 cards. Exhaust.
+    - Upgraded: Draw 3 cards. Exhaust.
 - **Frag Grenade**  — Attack · ⚡1
     - Base: Deal 5 damage to ALL enemies.
     - Upgraded: Deal 8 damage to ALL enemies.
@@ -77,6 +83,9 @@ _Shock trooper — MIGHT weapons & raw aggression. (44 cards)_
 - **Bunker Down**  — Skill · ⚡2
     - Base: Gain 8 Shield. Plated Armor 3: each turn gain that much Shield, then it drops by 1.
     - Upgraded: Gain 12 Shield. Plated Armor 4: each turn gain that much Shield, then it drops by 1.
+- **Cluster Charge**  — Attack · ⚡1  _(Exhaust)_
+    - Base: Deal 5 damage to ALL enemies. Exhaust.
+    - Upgraded: Deal 7 damage to ALL enemies. Exhaust.
 - **Cluster Munitions**  — Attack · ⚡2
     - Base: Deal 4 damage to ALL enemies 2 times.
     - Upgraded: Deal 6 damage to ALL enemies 2 times.
@@ -101,6 +110,9 @@ _Shock trooper — MIGHT weapons & raw aggression. (44 cards)_
 - **Munitions Dump**  — Skill · ⚡1  _(Exhaust)_
     - Base: Gain 2 Energy. Draw 1 card. Exhaust.
     - Upgraded: Gain 2 Energy. Draw 2 cards. Exhaust.
+- **Reload**  — Skill · ⚡1 → 0
+    - Base: Return a random exhausted Attack to your hand.
+    - Upgraded: _(no change)_
 - **Shield Slam**  — Attack · ⚡1
     - Base: Deal damage equal to your Shield.
     - Upgraded: Deal damage equal to 150% of your Shield.
@@ -140,12 +152,18 @@ _Shock trooper — MIGHT weapons & raw aggression. (44 cards)_
 - **Orbital Strike**  — Attack · ⚡3
     - Base: Deal 22 damage to ALL enemies.
     - Upgraded: Deal 30 damage to ALL enemies.
+- **Quartermaster**  — Power · ⚡1
+    - Base: At the start of each turn, return a random exhausted Attack to your hand (Quartermaster).
+    - Upgraded: At the start of each turn, return 2 random exhausted Attacks to your hand (Quartermaster).
 - **Reckless Protocol**  — Power · ⚡2 → 1
     - Base: Skills cost 0 this combat, but Exhaust when played.
     - Upgraded: _(no change)_
 - **Riposte Protocol**  — Power · ⚡2
     - Base: Whenever you gain Shield, deal 3 damage to a random enemy (Riposte).
     - Upgraded: Whenever you gain Shield, deal 5 damage to a random enemy (Riposte).
+- **Salvo**  — Power · ⚡1
+    - Base: Whenever you Exhaust a card, deal 3 damage to a random enemy (Salvo).
+    - Upgraded: Whenever you Exhaust a card, deal 5 damage to a random enemy (Salvo).
 - **Scorched Earth**  — Attack · ⚡2  _(Exhaust)_
     - Base: Exhaust your hand. Deal 6 damage to the target for each card Exhausted.
     - Upgraded: Exhaust your hand. Deal 9 damage to the target for each card Exhausted.
@@ -439,7 +457,7 @@ _Ship captain — BOND pets in a positional formation (Wall / Alpha / Butcher). 
 
 ## Neutral (any class)
 
-_Colourless cards any class can draft (starters, boss & event pool). (13 cards)_
+_Colourless cards any class can draft (starters, boss & event pool). (12 cards)_
 
 
 ### Starter
@@ -462,9 +480,6 @@ _Colourless cards any class can draft (starters, boss & event pool). (13 cards)_
 - **Med Stim**  — Skill · ⚡1  _(Exhaust)_
     - Base: Heal 5 HP. Exhaust.
     - Upgraded: Heal 8 HP. Exhaust.
-- **Reload**  — Skill · ⚡1 → 0
-    - Base: Draw 3 cards.
-    - Upgraded: _(no change)_
 - **Scrap Shot**  — Attack · ⚡0
     - Base: Deal 3 damage.
     - Upgraded: Deal 5 damage.

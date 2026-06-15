@@ -615,6 +615,8 @@
     if (padv > 0) { gainBlock(padv); addStatus(p, 'platedArmor', -1); } // Plated Armor: shield = stacks, then decays
     var spt = statN(p, 'strPerTurn');
     if (spt > 0) addStatus(p, 'str', spt);
+    var rstk = statN(p, 'restock');    // Quartermaster: rack spent shells back each turn (Bandolier reload loop)
+    if (rstk > 0) for (var rk = 0; rk < rstk; rk++) reloadShell();
     var brood = statN(p, 'brood');     // Overgrowth: birth a disposable Spawnling each turn
     if (brood > 0 && c.turn > 1) summonPet('spawnling', brood);
     var bw = statN(p, 'bulwark');      // Entrench: the front pet digs in (gains block) each turn
@@ -1020,6 +1022,20 @@
     if (fnp > 0) gainBlock(fnp);
     var de = statN(p, 'darkEmbrace');
     if (de > 0) drawCards(de);
+    var sv = statN(p, 'salvo');   // BANDOLIER: every spent shell detonates on a random enemy
+    if (sv > 0 && !c.over) { var spool = aliveEnemies(); if (spool.length) { var sen = pick(spool); dealToEnemy(sen, c.enemies.indexOf(sen), sv, { noCrit: true, noWeak: true }); } }
+  }
+
+  // BANDOLIER: rack a spent shell (a random exhausted Attack) back into the chamber.
+  function reloadShell() {
+    var c = E.combat;
+    if (!c || c.hand.length >= B.player.maxHand) return false;
+    var spent = c.exhaust.filter(function (cc) { return ns.CARDS[cc.id].type === 'attack'; });
+    if (!spent.length) return false;
+    var shell = spent[Math.floor(rnd() * spent.length)];
+    c.exhaust.splice(c.exhaust.indexOf(shell), 1);
+    c.hand.push(shell);
+    return true;
   }
 
   // Burn applied to an enemy by the player (for the Burn quest).
@@ -1134,6 +1150,8 @@
             var oEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             var od = f.v * (c.cardsThisTurn || 0) + statN(p, 'str') + art('flatDmg');
             if (oEn && od > 0) totalDealt += dealToEnemy(oEn, c.enemies.indexOf(oEn), od, { crit: crit, roll: roll });
+          } else if (f.id === 'reload') {
+            reloadShell();   // on-demand restock (a random exhausted Attack)
           } else if (f.id === 'bloodbath') {
             // BLOODFORGE cashout: convert your stacked Might into one brutal blow.
             var bEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];

@@ -1256,9 +1256,9 @@
   // defense / engine). Debuffs (vuln/weak/burn) are NOT shown here.
   var POWER_CAT = {
     str: 'off', strPerTurn: 'off', psiPow: 'off', plague: 'off', entropy: 'off', thousandCuts: 'off',
-    momentum: 'off', fullauto: 'off', retaliate: 'off', bloodrage: 'off',
+    momentum: 'off', fullauto: 'off', retaliate: 'off', bloodrage: 'off', salvo: 'off',
     plate: 'def', platedArmor: 'def', feelNoPain: 'def', afterImage: 'def', barricade: 'def', retain: 'def', thorns: 'def', regen: 'def', parry: 'def', vengeance: 'def',
-    turret: 'sp', drone: 'sp', echo: 'sp', reactor: 'sp', darkEmbrace: 'sp', corruption: 'sp', bloodPact: 'sp',
+    turret: 'sp', drone: 'sp', echo: 'sp', reactor: 'sp', darkEmbrace: 'sp', corruption: 'sp', bloodPact: 'sp', restock: 'sp',
   };
   var CAT_COL = { off: '#ffb02e', def: '#41d8ff', sp: '#c86bff' };
 

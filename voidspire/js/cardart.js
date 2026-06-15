@@ -69,6 +69,7 @@
     frenzy: 'burst', bloodlust: 'drain', riposte_protocol: 'shieldStrike',
     rapid_fire: 'rifle', trigger_discipline: 'reload', hail_of_lead: 'burst', full_auto: 'might', unload: 'cannon',
     blood_rage: 'might', deflect: 'shieldStrike', counterstrike: 'blade', crimson_pact: 'drain', whet_the_blade: 'blade', bloodbath: 'skull', vengeance: 'drain',
+    salvo: 'shell', reload: 'reload', breaching_charge: 'cannon', field_strip: 'reload', cluster_charge: 'shell', quartermaster: 'core',
   };
   var TYPE_DEFAULT = { attack: 'rifle', skill: 'shield', power: 'core', curse: 'skull' };
 
