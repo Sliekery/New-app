@@ -443,6 +443,27 @@
       fx: [{ k: 'block', v: 8, scale: 'pri' }, { k: 'status', s: 'platedArmor', v: 3, who: 'self' }],
       up: { fx: [{ k: 'block', v: 12, scale: 'pri' }, { k: 'status', s: 'platedArmor', v: 4, who: 'self' }] },
     },
+    // --- new commons: deepen the layer you draft most (each a distinct niche) ---
+    shield_bash: {   // the hybrid: only common that hits AND blocks (tempo + survivability)
+      name: 'Shield Bash', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'block', v: 4, scale: 'pri' }],
+      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'block', v: 6, scale: 'pri' }] },
+    },
+    reckless_charge: {   // 0-cost burst & Exhaust-fuel (feeds Resolve/Salvage/combos)
+      name: 'Reckless Charge', cls: 'vanguard', type: 'attack', rarity: 1, cost: 0, exhaust: true,
+      fx: [{ k: 'dmg', v: 7, scale: 'might' }],
+      up: { fx: [{ k: 'dmg', v: 10, scale: 'might' }] },
+    },
+    suppressing_barrage: {   // AoE control — softens a whole pack (Frag = AoE damage)
+      name: 'Suppressing Barrage', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 3, all: true, scale: 'might' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }],
+      up: { fx: [{ k: 'dmg', v: 5, all: true, scale: 'might' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }] },
+    },
+    rallying_shout: {   // Strength + defense (War Cry = Strength + draw)
+      name: 'Rallying Shout', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'status', s: 'str', v: 1, who: 'self' }, { k: 'block', v: 5, scale: 'pri' }],
+      up: { fx: [{ k: 'status', s: 'str', v: 2, who: 'self' }, { k: 'block', v: 6, scale: 'pri' }] },
+    },
 
     /* -- Technomancer -- */
     arc_welder: {

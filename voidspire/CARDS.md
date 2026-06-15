@@ -2,14 +2,14 @@
 
 _Auto-generated from the game data (`node test/cardsdoc.js`). Effect text is exactly what the game shows; numbers are the base values **before** any MIGHT/TECH/PSI/BOND scaling._
 
-**111 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Warpcaller](#warpcaller) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
+**115 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Warpcaller](#warpcaller) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
 
 
 ---
 
 ## Vanguard
 
-_Shock trooper — MIGHT weapons & raw aggression. (25 cards)_
+_Shock trooper — MIGHT weapons & raw aggression. (29 cards)_
 
 
 ### Starter
@@ -26,9 +26,21 @@ _Shock trooper — MIGHT weapons & raw aggression. (25 cards)_
 - **Frag Grenade**  — Attack · ⚡1
     - Base: Deal 5 damage to ALL enemies.
     - Upgraded: Deal 8 damage to ALL enemies.
+- **Rallying Shout**  — Skill · ⚡1
+    - Base: Gain 1 Might. Gain 5 Shield.
+    - Upgraded: Gain 2 Might. Gain 6 Shield.
+- **Reckless Charge**  — Attack · ⚡0  _(Exhaust)_
+    - Base: Deal 7 damage. Exhaust.
+    - Upgraded: Deal 10 damage. Exhaust.
 - **Riot Shield**  — Skill · ⚡1
     - Base: Gain 6 Shield. Gain 3 Thorns.
     - Upgraded: Gain 9 Shield. Gain 4 Thorns.
+- **Shield Bash**  — Attack · ⚡1
+    - Base: Deal 6 damage. Gain 4 Shield.
+    - Upgraded: Deal 8 damage. Gain 6 Shield.
+- **Suppressing Barrage**  — Attack · ⚡1
+    - Base: Deal 3 damage to ALL enemies. Apply 1 Weak to ALL enemies.
+    - Upgraded: Deal 5 damage to ALL enemies. Apply 1 Weak to ALL enemies.
 - **Suppressing Fire**  — Attack · ⚡1
     - Base: Deal 5 damage. Apply 2 Weak.
     - Upgraded: Deal 8 damage. Apply 2 Weak.

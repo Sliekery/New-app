@@ -65,6 +65,7 @@
     void_bolt: 'psiBolt', wither: 'hex', blood_sacrifice: 'drain',
     orbital_bombardment: 'cannon', omega_protocol: 'core', singularity_bloom: 'vortex', juggernaut_core: 'core',
     salvaged_ordnance: 'cannon', stim_overdose: 'bolt', forbidden_lore: 'eye',
+    shield_bash: 'shieldStrike', reckless_charge: 'blade', suppressing_barrage: 'shell', rallying_shout: 'might',
   };
   var TYPE_DEFAULT = { attack: 'rifle', skill: 'shield', power: 'core', curse: 'skull' };
 
