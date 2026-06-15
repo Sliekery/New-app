@@ -2483,6 +2483,22 @@
     });
     s.appendChild(mute);
 
+    if (ns.music && ns.music.setVolume) {
+      var mv = Math.round((ns.music.getVolume ? ns.music.getVolume() : 0.7) * 100);
+      var volRow = el('div', 'panel-btn cyan',
+        '<div class="pb-title">♪ MUSIC VOLUME · <span id="volval">' + mv + '%</span></div>' +
+        '<input id="volslider" class="vol-slider" type="range" min="0" max="100" value="' + mv + '">');
+      var slider = volRow.querySelector('#volslider'), valSpan = volRow.querySelector('#volval');
+      slider.addEventListener('pointerdown', function (e) { e.stopPropagation(); });
+      slider.addEventListener('input', function () {
+        var v = parseInt(slider.value, 10) || 0;
+        valSpan.textContent = v + '%';
+        ns.music.setVolume(v / 100);
+        if (!muted && v > 0 && !ns.music.isOn()) ns.music.start();
+      });
+      s.appendChild(volRow);
+    }
+
     var disp = el('div', 'panel-btn',
       '<div class="pb-title">' + orientLabel() + '</div>' +
       '<div class="pb-sub">Tap to cycle · Auto fits your screen</div>');
