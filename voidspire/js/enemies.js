@@ -298,14 +298,14 @@
     // Homage to the red bruiser — counters BULWARK/block: escalating Strength and
     // Sundering blows that ignore your Shield, so turtling only delays the end.
     tribute_ironclad: { rampStr: 2, final: true,
-      name: 'THE DREADCLAD', color: '#ff6a4a', hp: 104, size: 1.45, boss: true, ai: 'cycle',
+      name: 'THE DREADCLAD', color: '#ff6a4a', hp: 160, size: 1.45, boss: true, ai: 'cycle',
       moves: [
         { t: 'buff', s: 'str', v: 3 },
-        { t: 'attack', d: 12, pierce: true },
-        { t: 'attack', d: 9, hits: 2 },
-        { t: 'block', b: 20 },
-        { t: 'attack', d: 22, pierce: true },
-        { t: 'attack', d: 16 },
+        { t: 'attack', d: 15, pierce: true },
+        { t: 'attack', d: 11, hits: 2 },
+        { t: 'block', b: 24 },
+        { t: 'attack', d: 24, pierce: true },
+        { t: 'attack', d: 18 },
       ],
       // horned war-helm, slab pauldrons, a colossal greatsword raised high
       art: { p: [
@@ -323,16 +323,16 @@
     // Homage to the green knife-dancer — counters AGGRO/Strength: evades behind
     // walls of block, Weakens your blows and rots you with poison; striking it
     // hurts you (Thorns). Raw damage gets you nowhere.
-    tribute_silent: { thorns: 5, final: true,
-      name: 'THE NIGHTSHADE', color: '#54ffa0', hp: 90, size: 1.3, boss: true, ai: 'cycle',
+    tribute_silent: { thorns: 10, final: true,
+      name: 'THE NIGHTSHADE', color: '#54ffa0', hp: 160, size: 1.3, boss: true, ai: 'cycle',
       moves: [
-        { t: 'block', b: 22 },
-        { t: 'debuff', s: 'weak', v: 2 },
-        { t: 'debuff', s: 'burn', v: 6 },
-        { t: 'attack', d: 8, hits: 2 },
-        { t: 'block', b: 18 },
-        { t: 'debuff', s: 'weak', v: 2 },
-        { t: 'attack', d: 15 },
+        { t: 'block', b: 34 },
+        { t: 'debuff', s: 'weak', v: 3 },
+        { t: 'debuff', s: 'burn', v: 9 },
+        { t: 'attack', d: 11, hits: 2 },
+        { t: 'block', b: 28 },
+        { t: 'debuff', s: 'weak', v: 3 },
+        { t: 'attack', d: 18 },
       ],
       // deep cowl, twin envenomed blades flung wide, a tattered void-cloak
       art: { p: [
@@ -347,16 +347,16 @@
     },
     // Homage to the orb-wielding automaton — counters ENGINE/Powers: it SHORTS
     // OUT your powers and out-scales you with lightning volleys.
-    tribute_defect: { rampStr: 1, final: true,
-      name: 'THE DERELICT', color: '#5ad8ff', hp: 96, size: 1.4, boss: true, ai: 'cycle',
+    tribute_defect: { rampStr: 2, final: true,
+      name: 'THE DERELICT', color: '#5ad8ff', hp: 220, size: 1.4, boss: true, ai: 'cycle',
       moves: [
-        { t: 'disrupt' },
-        { t: 'attack', d: 7, hits: 3 },
-        { t: 'block', b: 16 },
-        { t: 'disrupt' },
-        { t: 'buff', s: 'str', v: 2 },
-        { t: 'attack', d: 13 },
-        { t: 'attack', d: 9, hits: 2 },
+        { t: 'disrupt', n: 3 },
+        { t: 'attack', d: 13, hits: 3 },
+        { t: 'block', b: 26 },
+        { t: 'disrupt', n: 3 },
+        { t: 'buff', s: 'str', v: 4 },
+        { t: 'attack', d: 27 },
+        { t: 'attack', d: 17, hits: 2 },
       ],
       // a hovering core: visored head, finned chassis, orbs caged around it
       art: { p: [
@@ -374,14 +374,14 @@
     // Homage to the purple ascetic — counters AFFLICTION/DoT: it CLEANSES your
     // poisons each turn, mends its wounds, then unleashes a Wrath strike.
     tribute_watcher: { cleanse: 1, regen: 4, final: true,
-      name: 'THE ASCENDANT', color: '#c98bff', hp: 98, size: 1.38, boss: true, ai: 'cycle',
+      name: 'THE ASCENDANT', color: '#c98bff', hp: 158, size: 1.38, boss: true, ai: 'cycle',
       moves: [
-        { t: 'heal', v: 14 },
-        { t: 'block', b: 24 },
-        { t: 'attack', d: 27 },
-        { t: 'debuff', s: 'weak', v: 2 },
-        { t: 'heal', v: 12 },
-        { t: 'attack', d: 12, hits: 2 },
+        { t: 'heal', v: 15 },
+        { t: 'block', b: 28 },
+        { t: 'attack', d: 30 },
+        { t: 'debuff', s: 'weak', v: 3 },
+        { t: 'heal', v: 11 },
+        { t: 'attack', d: 16, hits: 2 },
       ],
       // cowled ascetic, hands in prayer, a third eye and a broken halo overhead
       art: { p: [

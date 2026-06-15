@@ -1218,17 +1218,18 @@
         addStatus(p, m.s, m.v);
         emit('status', { who: 'player', s: m.s, v: m.v });
       } else if (m.t === 'disrupt') {
-        // THE DERELICT's signature: short out one of your Powers (counters engines)
-        var powers = Object.keys(p.statuses).filter(function (k) { return p.statuses[k] > 0 && k !== 'vuln' && k !== 'weak' && k !== 'burn'; });
-        if (powers.length) {
+        // THE DERELICT's signature: short out your Powers (counters engines)
+        var stripped = 0, dn = m.n || 1;
+        for (var dz = 0; dz < dn; dz++) {
+          var powers = Object.keys(p.statuses).filter(function (k) { return p.statuses[k] > 0 && k !== 'vuln' && k !== 'weak' && k !== 'burn'; });
+          if (!powers.length) break;
           var pk = powers[Math.floor(rnd() * powers.length)];
           p.statuses[pk] = 0;
           emit('status', { who: 'player', s: pk, v: 0 });
           emit('disrupt', { idx: idx, s: pk });
-        } else {
-          c.discard.push(mkCard('void_taint', false));
-          emit('curse', { idx: idx, card: 'void_taint' });
+          stripped++;
         }
+        if (stripped === 0) { c.discard.push(mkCard('void_taint', false)); emit('curse', { idx: idx, card: 'void_taint' }); }
       } else if (m.t === 'unmake') {
         // THE UNMAKER's signature: erase your defences, jam your deck, knit itself
         if (p.block > 0) { p.block = 0; emit('block', { who: 'player', amount: 0, blockAfter: 0 }); }
@@ -1556,12 +1557,20 @@
   // cumulative kills/nodes/records ("powers have faded; surroundings stronger").
   function resetForLoop(r) {
     var clsId = r.cls, c = B.classes[clsId];
-    r.hp = c.hp; r.maxHp = c.hp;
-    r.attrs = { might: c.might, tech: c.tech, psi: c.psi };
-    if (E.hasEcho('ascendant_core')) r.attrs[CLASS_STAT[clsId]] += 2; // legacy stat
-    r.credits = B.player.startCredits;
-    r.deck = ns.STARTER_DECKS[clsId].map(function (id) { return mkCard(id, false); });
-    r.artifacts = [];
+    // The Heart gauntlet (NG+5) is the climax — you bring your BUILT deck,
+    // relics, attributes and potions into it (full-healed), not a fresh start.
+    var heart = (r.loop === B.run.heartLoop);
+    if (heart) {
+      r.hp = r.maxHp;
+    } else {
+      r.hp = c.hp; r.maxHp = c.hp;
+      r.attrs = { might: c.might, tech: c.tech, psi: c.psi };
+      if (E.hasEcho('ascendant_core')) r.attrs[CLASS_STAT[clsId]] += 2; // legacy stat
+      r.credits = B.player.startCredits;
+      r.deck = ns.STARTER_DECKS[clsId].map(function (id) { return mkCard(id, false); });
+      r.artifacts = [];
+      r.potions = [];
+    }
     r.sector = 1;
     r.faction = pick(Object.keys(ns.FACTIONS));
     r.map = generateMap(1);
@@ -1569,8 +1578,8 @@
     r.usedEvents = [];
     r.removeCost = B.shop.removeCost;
     r.quests = {}; r.questDone = {};
-    r.augments = []; r.augmentDeckop = null; r.augmentOffer = null;
-    r.potions = [];
+    r.augmentDeckop = null; r.augmentOffer = null;
+    if (!heart) { r.augments = []; r.potions = []; }   // keep your augments/belt for the climax
     r.phylacteryUsed = false; r.salvageKills = 0;
     r.reward = null; r.shop = null; r.bossArtifacts = null; r.treasure = null;
     r.pendingPick = null; r.pendingAddCard = null; r.echoOffer = null;

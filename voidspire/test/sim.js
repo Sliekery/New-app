@@ -417,7 +417,7 @@ function playOneRun(cls, seed) {
 }
 
 var CLASSES = Object.keys(VS.BALANCE.classes);
-module.exports = { playOneRun: playOneRun, classes: CLASSES, MAX_SECTOR: MAX_SECTOR, VS: VS, E: E };
+module.exports = { playOneRun: playOneRun, botCombat: botCombat, classes: CLASSES, MAX_SECTOR: MAX_SECTOR, VS: VS, E: E };
 
 // Only run the integrity checks + CLI stats when invoked directly.
 if (require.main !== module) return;
