@@ -599,6 +599,7 @@
     c.turn++;
     c.cardsThisTurn = 0;
     c.momentum = 0;   // Momentum Engine resets each turn
+    if (p.statuses.momentum) p.statuses.momentum = 0;   // Fusillade: Momentum is a per-turn combo
     // Cursed Inheritance: a curse is lodged in hand at the start of combat
     if (c.turn === 1 && E.hasEcho('cursed_inheritance')) c.hand.push(mkCard('recurring_curse', false));
     // block expiry (Retain / Barricade keep your Shield)
@@ -743,7 +744,7 @@
     var p = E.combat.player;
     var mul = f.scaleMul || 1;
     var sc = resolveScale(f.scale);
-    var v = statN(p, 'str') + art('flatDmg') + (E.combat.momentum || 0); // Momentum Engine
+    var v = statN(p, 'str') + statN(p, 'momentum') + art('flatDmg') + (E.combat.momentum || 0); // Strength + Momentum (Fusillade)
     if (sc === 'might') v += attr('might') * B.attrs.mightDmgPerPoint * mul;
     if (sc === 'tech') v += attr('tech') * mul;
     if (sc === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * mul + statN(p, 'psiPow');
@@ -1129,6 +1130,11 @@
             var oEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             var od = f.v * (c.cardsThisTurn || 0) + statN(p, 'str') + art('flatDmg');
             if (oEn && od > 0) totalDealt += dealToEnemy(oEn, c.enemies.indexOf(oEn), od, { crit: crit, roll: roll });
+          } else if (f.id === 'unload') {
+            // FUSILLADE cashout: dump every point of built-up Momentum into one hit.
+            var uEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            var ud = f.v * statN(p, 'momentum') + statN(p, 'str') + art('flatDmg');
+            if (uEn && ud > 0) totalDealt += dealToEnemy(uEn, c.enemies.indexOf(uEn), ud, { crit: crit, roll: roll });
           } else if (f.id === 'powerSurge') {
             // OVERCLOCK payoff: gain Shield for every Power you've played this combat.
             var pw = 0;
@@ -1260,6 +1266,7 @@
 
     c.cardsThisTurn++;
     if (E.hasEcho('momentum_engine')) c.momentum = (c.momentum || 0) + 1; // each card buffs the next
+    if (def.type === 'attack') { var fauto = statN(p, 'fullauto'); if (fauto > 0) addStatus(p, 'momentum', fauto); } // Full Auto: each shot builds Momentum
     emit('cardPlayed', { id: card.id, crit: crit, roll: roll });
     checkWin();
     return true;

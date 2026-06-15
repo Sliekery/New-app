@@ -75,6 +75,9 @@ function estCardDamage(card, target, includeDot) {
     if (f.k === 'special' && f.id === 'fiendFire') {
       total += (f.v + str) * Math.max(0, c.hand.length - 1); // ~cards left to exhaust
     }
+    if (f.k === 'special' && f.id === 'unload') {
+      total += f.v * (c.player.statuses.momentum || 0);  // Fusillade cashout scales with built Momentum
+    }
     if (f.k === 'special' && f.id === 'cull') {
       // CULL: sacrifice the whole pack, f.v damage per pet (Butcher finisher).
       var pets = (c.allies || []).filter(function (a) { return a.alive; }).length;

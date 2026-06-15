@@ -2,14 +2,14 @@
 
 _Auto-generated from the game data (`node test/cardsdoc.js`). Effect text is exactly what the game shows; numbers are the base values **before** any MIGHT/TECH/PSI/BOND scaling._
 
-**118 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Warpcaller](#warpcaller) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
+**123 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Warpcaller](#warpcaller) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
 
 
 ---
 
 ## Vanguard
 
-_Shock trooper — MIGHT weapons & raw aggression. (32 cards)_
+_Shock trooper — MIGHT weapons & raw aggression. (37 cards)_
 
 
 ### Starter
@@ -29,6 +29,9 @@ _Shock trooper — MIGHT weapons & raw aggression. (32 cards)_
 - **Rallying Shout**  — Skill · ⚡1
     - Base: Gain 1 Might. Gain 5 Shield.
     - Upgraded: Gain 2 Might. Gain 6 Shield.
+- **Rapid Fire**  — Attack · ⚡0
+    - Base: Deal 3 damage. Gain 1 Momentum (your attacks deal +1 each this turn).
+    - Upgraded: Deal 4 damage. Gain 1 Momentum (your attacks deal +1 each this turn).
 - **Reckless Charge**  — Attack · ⚡0  _(Exhaust)_
     - Base: Deal 7 damage. Exhaust.
     - Upgraded: Deal 10 damage. Exhaust.
@@ -44,6 +47,9 @@ _Shock trooper — MIGHT weapons & raw aggression. (32 cards)_
 - **Suppressing Fire**  — Attack · ⚡1
     - Base: Deal 5 damage. Apply 2 Weak.
     - Upgraded: Deal 8 damage. Apply 2 Weak.
+- **Trigger Discipline**  — Skill · ⚡1
+    - Base: Draw 2 cards. Gain 1 Momentum (your attacks deal +1 each this turn).
+    - Upgraded: Draw 2 cards. Gain 2 Momentum (your attacks deal +1 each this turn).
 - **War Cry**  — Skill · ⚡1
     - Base: Gain 2 Might. Draw 1 card.
     - Upgraded: Gain 3 Might. Draw 1 card.
@@ -71,6 +77,9 @@ _Shock trooper — MIGHT weapons & raw aggression. (32 cards)_
 - **Executioner Round**  — Attack · ⚡2
     - Base: Double damage if the target is below 30% HP.
     - Upgraded: Deal 14 damage. Double damage if the target is below 30% HP.
+- **Hail of Lead**  — Attack · ⚡1
+    - Base: Each of the 3 hits is boosted by your Momentum and Might.
+    - Upgraded: Deal 3 damage 3 times. Each of the 3 hits is boosted by your Momentum and Might.
 - **Heavy Ordnance**  — Attack · ⚡2
     - Base: MIGHT counts three times.
     - Upgraded: Deal 12 damage. MIGHT counts three times.
@@ -86,6 +95,9 @@ _Shock trooper — MIGHT weapons & raw aggression. (32 cards)_
 - **Shield Slam**  — Attack · ⚡1
     - Base: Deal damage equal to your Shield.
     - Upgraded: Deal damage equal to 150% of your Shield.
+- **Unload**  — Attack · ⚡2
+    - Base: Deal an additional 2 damage for each Momentum you have.
+    - Upgraded: Deal an additional 3 damage for each Momentum you have.
 - **Whirlwind**  — Attack · ⚡X
     - Base: Deal 5 damage to ALL enemies, X times (X = current Energy).
     - Upgraded: Deal 8 damage to ALL enemies, X times (X = current Energy).
@@ -101,6 +113,9 @@ _Shock trooper — MIGHT weapons & raw aggression. (32 cards)_
 - **Frenzy**  — Attack · ⚡2
     - Base: Each hit is boosted by your Might — a Strength deck turns this lethal.
     - Upgraded: Deal 3 damage 4 times. Each hit is boosted by your Might — a Strength deck turns this lethal.
+- **Full Auto**  — Power · ⚡1
+    - Base: Whenever you play an Attack, gain 1 Momentum (Full Auto).
+    - Upgraded: Whenever you play an Attack, gain 2 Momentum (Full Auto).
 - **Orbital Strike**  — Attack · ⚡3
     - Base: Deal 22 damage to ALL enemies.
     - Upgraded: Deal 30 damage to ALL enemies.

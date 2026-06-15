@@ -67,6 +67,7 @@
     salvaged_ordnance: 'cannon', stim_overdose: 'bolt', forbidden_lore: 'eye',
     shield_bash: 'shieldStrike', reckless_charge: 'blade', suppressing_barrage: 'shell', rallying_shout: 'might',
     frenzy: 'burst', bloodlust: 'drain', riposte_protocol: 'shieldStrike',
+    rapid_fire: 'rifle', trigger_discipline: 'reload', hail_of_lead: 'burst', full_auto: 'might', unload: 'cannon',
   };
   var TYPE_DEFAULT = { attack: 'rifle', skill: 'shield', power: 'core', curse: 'skull' };
 

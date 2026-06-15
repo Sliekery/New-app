@@ -18,7 +18,7 @@
     str: 'Might', vuln: 'Vulnerable', weak: 'Weak', burn: 'Burn',
     regen: 'Regen', plate: 'Plating', thorns: 'Thorns', psiPow: 'Psi Focus',
     strPerTurn: 'Warlord', turret: 'Turret', drone: 'Drone Swarm', entropy: 'Entropy',
-    retaliate: 'Riposte',
+    retaliate: 'Riposte', momentum: 'Momentum', fullauto: 'Full Auto',
     reactor: 'Reactor', retain: 'Phase Lock',
     feelNoPain: 'Resolve', darkEmbrace: 'Salvage', thousandCuts: 'Blade Array',
     afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
@@ -482,6 +482,35 @@
       fx: [{ k: 'status', s: 'retaliate', v: 3, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'retaliate', v: 5, who: 'self' }] },
     },
+    // --- FUSILLADE: the full-auto tempo engine. Cheap shots build Momentum
+    //     (+1 dmg per stack to your attacks, resets each turn); spend it on a payoff. ---
+    rapid_fire: {   // ⚡0 chain-starter — cheap shot that gets the Momentum rolling
+      name: 'Rapid Fire', cls: 'vanguard', type: 'attack', rarity: 1, cost: 0,
+      fx: [{ k: 'dmg', v: 3 }, { k: 'status', s: 'momentum', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'dmg', v: 4 }, { k: 'status', s: 'momentum', v: 1, who: 'self' }] },
+    },
+    trigger_discipline: {   // the draw enabler — keep the chain fed
+      name: 'Trigger Discipline', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'draw', v: 2 }, { k: 'status', s: 'momentum', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'draw', v: 2 }, { k: 'status', s: 'momentum', v: 2, who: 'self' }] },
+    },
+    hail_of_lead: {   // multi-hit payoff — every shot rides your Momentum (and Might)
+      name: 'Hail of Lead', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'dmg', v: 2, hits: 3, scale: 'might' }],
+      text: 'Each of the 3 hits is boosted by your Momentum and Might.',
+      up: { fx: [{ k: 'dmg', v: 3, hits: 3, scale: 'might' }] },
+    },
+    full_auto: {   // the engine anchor — every attack now snowballs Momentum
+      name: 'Full Auto', cls: 'vanguard', type: 'power', rarity: 3, cost: 1,
+      fx: [{ k: 'status', s: 'fullauto', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'fullauto', v: 2, who: 'self' }] },
+    },
+    unload: {   // the cashout — dump a turn of built-up Momentum into one hit
+      name: 'Unload', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'special', id: 'unload', v: 2 }],
+      text: 'Deal an additional 2 damage for each Momentum you have.',
+      up: { fx: [{ k: 'dmg', v: 5, scale: 'might' }, { k: 'special', id: 'unload', v: 3 }], text: 'Deal an additional 3 damage for each Momentum you have.' },
+    },
 
     /* -- Technomancer -- */
     arc_welder: {
@@ -879,6 +908,8 @@
         if (f.s === 'turret') parts.push('Turret: deal ' + (f.v + (ctx ? ctx.attrs.tech : 0)) + ' damage each turn.');
         else if (f.s === 'drone') parts.push('Drone Swarm: deal ' + (f.v + (ctx ? ctx.attrs.tech : 0)) + ' damage to ALL enemies each turn.');
         else if (f.s === 'retaliate') parts.push('Whenever you gain Shield, deal ' + f.v + ' damage to a random enemy (Riposte).');
+        else if (f.s === 'momentum') parts.push('Gain ' + f.v + ' Momentum (your attacks deal +1 each this turn).');
+        else if (f.s === 'fullauto') parts.push('Whenever you play an Attack, gain ' + f.v + ' Momentum (Full Auto).');
         else if (f.s === 'entropy') parts.push('At end of turn, apply ' + f.v + ' Burn to ALL enemies.');
         else if (f.s === 'reactor') parts.push('Gain +' + f.v + ' Energy at the start of each turn.');
         else if (f.s === 'retain') parts.push('Shield no longer expires.');
