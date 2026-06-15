@@ -482,6 +482,19 @@ h2.screen-title {
 .panel-btn.magenta .pb-title { color: var(--magenta); }
 .panel-btn.disabled { opacity: 0.4; pointer-events: none; }
 .panel-btn.pact { border-color: var(--red); }
+/* ---- Codex ---- */
+.codex-nav { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; width: 100%; max-width: 560px; margin: 2px 0 14px; }
+.codex-chip { font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase; padding: 4px 8px; border: 1px solid var(--green-dim); border-radius: 3px; color: var(--text-dim); cursor: pointer; white-space: nowrap; }
+.codex-chip.active { color: var(--cyan); border-color: var(--cyan); text-shadow: var(--glow-c); }
+.codex-body { width: 100%; max-width: 560px; }
+.codex-intro { font-size: 11px; color: var(--text-dim); line-height: 1.55; margin-bottom: 14px; font-style: italic; }
+.codex-entry { margin-bottom: 12px; line-height: 1.5; }
+.codex-term { display: block; font-size: 11.5px; letter-spacing: 1.2px; color: var(--cyan); text-shadow: var(--glow-c); text-transform: uppercase; margin-bottom: 2px; }
+.codex-term.off { color: var(--amber); text-shadow: var(--glow-a); }
+.codex-term.def { color: var(--cyan); text-shadow: var(--glow-c); }
+.codex-term.sp { color: var(--magenta); text-shadow: none; }
+.codex-term.bad { color: var(--red); text-shadow: none; }
+.codex-def { font-size: 11.5px; color: var(--text); }
 .vol-slider {
   -webkit-appearance: none; appearance: none;
   width: 100%; height: 4px; margin-top: 10px; cursor: pointer;
@@ -6610,6 +6623,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var fsb = makeFullscreenBtn(showTitle, 'dim-panel');
     if (fsb) s.appendChild(fsb);
 
+    var codex = el('div', 'panel-btn magenta dim-panel', '<div class="pb-title">? CODEX</div><div class="pb-sub">Every mechanic, explained</div>');
+    codex.addEventListener('pointerdown', function () { SFX.tap(); showCodex(false); });
+    s.appendChild(codex);
+
     var best = E.getBest();
     var foot = 'TAP A CLASS TO DEPLOY · SWIPE CARDS UP TO PLAY THEM';
     if (best) {
@@ -8592,8 +8609,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var fsb = makeFullscreenBtn(showMenu, '');
     if (fsb) s.appendChild(fsb);
 
-    var help = el('div', 'panel-btn magenta', '<div class="pb-title">? FIELD MANUAL</div>');
-    help.addEventListener('pointerdown', function () { SFX.tap(); showHelp(wasCombat); });
+    var help = el('div', 'panel-btn magenta', '<div class="pb-title">? CODEX</div><div class="pb-sub">Every mechanic, explained</div>');
+    help.addEventListener('pointerdown', function () { SFX.tap(); showCodex(wasCombat); });
     s.appendChild(help);
 
     var abandon = el('div', 'panel-btn', '<div class="pb-title" style="color:var(--red)">✕ ABANDON RUN</div><div class="pb-sub">Progress will be lost</div>');
@@ -8610,21 +8627,151 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     s.appendChild(abandon);
   }
 
-  function showHelp(wasCombat) {
+  // ---- Codex: a browsable, categorised manual of every mechanic. Key numbers
+  // are pulled live from balance.js so the text can never drift out of sync. ----
+  function buildCodex() {
+    var B = ns.BALANCE;
+    var vuln = Math.round((B.status.vulnMult - 1) * 100);
+    var weak = Math.round((1 - B.status.weakMult) * 100);
+    var crit = B.dice.critMult;
+    var energy = (B.player.baseEnergy != null ? B.player.baseEnergy : 3);
+    var draw = (B.player.drawPerTurn != null ? B.player.drawPerTurn : 5);
+    var finale = B.run.finale;
+    var loop = Math.round(B.run.loopPower * 100);
+    var slots = (B.echoes && B.echoes.loadoutSlots) || 3;
+    var vh = ns.VTOUCH_HP;
+    function E2(t, d, cls) { return { t: t, d: d, c: cls }; }
+    return [
+      { cat: 'Basics', entries: [
+        E2('Deploy', 'Tap a class on the title screen to start a run. Each turn you play cards, then END TURN.'),
+        E2('Play a card', 'Swipe a card up to play it, or drag it onto an enemy to aim. Tap a card to enlarge and read it first.'),
+        E2('Energy ⚡', 'You get ' + energy + ' Energy each turn. Every card has a cost — you cannot play what you cannot afford. Unused Energy is lost.'),
+        E2('Draw', 'You draw ' + draw + ' cards at the start of each turn; cards left in hand are discarded at turn end (unless they Retain).'),
+        E2('Inspect', 'Tap an enemy to read its intent. Tap your power gauge (left of your character) to read your active augmentations.'),
+        E2('Auto-save', 'Runs save at every node — close the tab and continue later from the title screen.'),
+      ] },
+      { cat: 'Combat', entries: [
+        E2('The turn', 'Spend Energy to play cards, then END TURN. Enemies then act on their telegraphed intents, and a new turn begins.'),
+        E2('Intents', 'Each enemy shows what it will do next: an attack value, a shield, a buff, a debuff, or a curse jammed into your deck.'),
+        E2('Shield ⬡ (Block)', 'Absorbs incoming damage, removed before HP. Unspent Shield expires at the start of your turn — unless you have Barricade or Phase Lock.', 'def'),
+        E2('The d20', 'Every attack rolls a visible d20. A high enough roll is a CRIT for ' + crit + '× damage. Some relics widen the crit range.'),
+        E2('Damage order', 'Damage strips Shield first, then HP. Vulnerable and Weak change the numbers before they land.'),
+        E2('Death', 'At 0 HP the run ends — unless a relic or Echo pulls you back.', 'bad'),
+      ] },
+      { cat: 'Attributes', entries: [
+        E2('MIGHT', 'Raises Might-scaling weapon damage. The Vanguard’s core stat.', 'off'),
+        E2('TECH', 'Raises Shield and tech-attack values. The Technomancer’s core stat.', 'def'),
+        E2('PSI', 'Raises psionic damage and Burn. The Void Adept’s core stat.', 'sp'),
+        E2('Primary scaling', 'Your starter Shield and shared skills scale with your class’s own primary attribute, so investing in your stat helps offense and defense.'),
+        E2('Skill checks', 'Attributes also resolve event checks (e.g. "TECH check, DC 12"). Higher stat = better odds.'),
+      ] },
+      { cat: 'Keywords', entries: [
+        E2('Attack', 'Deals damage and rolls a d20. Carries your Might/Tech/Psi scaling and Strength.'),
+        E2('Skill', 'Utility: Shield, draw, debuffs, energy and more. No d20.'),
+        E2('Power', 'A permanent buff for the rest of the combat. It is consumed when played — one use per fight.', 'sp'),
+        E2('Exhaust', 'The card is removed for the rest of the combat. Several cards pay off when you Exhaust.'),
+        E2('Retain', 'The card stays in your hand between turns instead of being discarded.'),
+        E2('X-Cost', 'Spends ALL your Energy; the effect scales with how much you spent.'),
+        E2('Void-Touched', 'An empowered card that also costs ' + vh + ' HP each time you play it. Power at a price.', 'bad'),
+        E2('Curse', 'An unplayable card clogging your hand. Enemy curses last the combat; event curses are permanent until purged.', 'bad'),
+      ] },
+      { cat: 'Augments', intro: 'Your Powers and positive statuses — shown on the battlefield gauge. Amber = offense, cyan = defense, magenta = engine.', entries: [
+        E2('Might (Strength)', '+1 damage to every attack, per stack.', 'off'),
+        E2('Warlord', 'Gain Might at the start of each turn.', 'off'),
+        E2('Psi Focus', '+damage to your psionic attacks.', 'off'),
+        E2('Contagion', 'Whenever you apply Burn, apply Burn to ALL enemies.', 'off'),
+        E2('Blade Array', 'Whenever you play a card, deal damage to ALL enemies.', 'off'),
+        E2('Entropy', 'At the end of your turn, apply Burn to ALL enemies.', 'off'),
+        E2('Plating', 'Gain Shield at the start of each turn.', 'def'),
+        E2('Plated Armor', 'Gain Shield each turn — the amount drops by 1 each time.', 'def'),
+        E2('Barricade', 'Your Shield no longer expires between turns.', 'def'),
+        E2('Phase Lock', 'Shield no longer expires (the power form of Barricade).', 'def'),
+        E2('Thorns', 'Attackers take damage whenever they hit you.', 'def'),
+        E2('Regen', 'Heal a little at the start of each turn.', 'def'),
+        E2('Resolve', 'Gain Shield whenever you Exhaust a card.', 'def'),
+        E2('Mirror Field', 'Gain Shield whenever you play a card.', 'def'),
+        E2('Salvage', 'Draw a card whenever you Exhaust a card.', 'sp'),
+        E2('Turret', 'At the end of your turn, a deployed turret fires at a random enemy.', 'sp'),
+        E2('Echo', 'The first Attack you play each turn is played twice.', 'sp'),
+        E2('Reactor', '+1 Energy at the start of each turn.', 'sp'),
+        E2('Corruption', 'Skills cost 0 this combat, but Exhaust when played.', 'sp'),
+        E2('Blood Pact', 'Whenever you lose HP to your own cards, gain Psi Focus.', 'sp'),
+      ] },
+      { cat: 'Debuffs', entries: [
+        E2('Vulnerable', 'The target takes ' + vuln + '% more damage while Vulnerable.', 'bad'),
+        E2('Weak', 'The target deals ' + weak + '% less damage while Weak.', 'bad'),
+        E2('Burn', 'At the start of its turn the target loses HP equal to its Burn, then Burn drops by 1. Ignores Shield — great vs. big HP pools.', 'bad'),
+      ] },
+      { cat: 'Gauge', entries: [
+        E2('Power gauge', 'Your active Powers stack as small squares to the left of your character — amber (offense), cyan (defense), magenta (engine). It grows as you install more.'),
+        E2('Tactical readout', 'Tap the gauge to expand a readout listing every active augmentation with its value. Tap again, or elsewhere, to close it.'),
+        E2('Debuff chips', 'Negative statuses on YOU (Vulnerable / Weak / Burn) stay in the top HUD as red warning chips.', 'bad'),
+      ] },
+      { cat: 'The Run', entries: [
+        E2('Sectors', 'Each sector is a branching star-chart against one faction. You choose your path node to node.'),
+        E2('Node types', 'Fight, Elite (mini-boss), Event (choices), Shop, Rest (heal or upgrade), Treasure (free relic), and the Sector Boss.'),
+        E2('Factions', 'The Hierarchy, the Rust Legion, the Voidspawn — each with its own enemies and pressure.'),
+        E2('The Finale', 'The boss of sector ' + finale + ' is THE UNMAKER, a faction-less cosmic entity. Beat it to win the run.', 'sp'),
+        E2('Scaling', 'Enemies gain HP and damage every sector. Deeper is harder — build a deck that scales.'),
+      ] },
+      { cat: 'Progress', entries: [
+        E2('Card rewards', 'After most fights, take 1 of 3 offered cards — or skip to keep your deck lean.'),
+        E2('Upgrades', 'Rest sites and some events upgrade a card to stronger numbers.'),
+        E2('Relics', 'Passive artifacts that last the whole run; from bosses, elites, treasure and shops.'),
+        E2('Augment draft', 'After each boss you draft an Augment Protocol — a permanent module or stat boost.'),
+        E2('Credits & Shop', 'Spend credits on cards, relics, healing, and removing weak cards from your deck.'),
+      ] },
+      { cat: 'Potions', entries: [
+        E2('The belt', 'A 3-slot belt of one-shot consumables for combat — damage, Shield, Energy, draw, heal, buffs and debuffs.'),
+        E2('Using one', 'Tap a belt slot to use it; targeted potions ask you to tap an enemy. They drop from fights and stock the shop.'),
+      ] },
+      { cat: 'Events', entries: [
+        E2('Choices', 'Decision events offer branching options with real consequences — reward, risk, or both.'),
+        E2('Skill checks', 'Some options roll your attribute vs a DC. A natural 1 always fails; a natural 20 always succeeds.'),
+        E2('Risk', 'Failed checks can cost HP or jam a curse into your deck. Read the odds before you gamble.', 'bad'),
+      ] },
+      { cat: 'Recurrence', intro: 'New Game+ : beating THE UNMAKER opens an endless loop of the same spire.', entries: [
+        E2('Victory', 'Beat the Unmaker, then claim victory (run recorded) or enter the Recurrence for a fresh descent.', 'sp'),
+        E2('Powers fade', 'Each loop your deck, relics, augments and stats reset to baseline. You start over — almost.'),
+        E2('Void Echoes', 'You keep one permanent Echo per loop — sideways relics (glass-cannon, combo, execute-chains, pacts). Equip up to ' + slots + ' at once.', 'sp'),
+        E2('The world strengthens', 'Enemies gain +' + loop + '% HP & damage per loop, on top of normal scaling. Deep loops are a build puzzle, not a treadmill.'),
+      ] },
+      { cat: 'Enemies', entries: [
+        E2('Summon', 'Some enemies call in reinforcements mid-fight — clear adds or focus the summoner.'),
+        E2('Regen / Reforge', 'Healers undo your damage each turn. Out-pace them or burst them down fast.'),
+        E2('Enrage', 'The enemy gains Strength whenever it is struck — finish enraging foes quickly.'),
+        E2('Thorns', 'Striking the enemy damages you back. Watch your HP against thorny foes.'),
+        E2('The Unmaking', 'The Unmaker strips your Shield, jams your deck and heals itself. You cannot turtle it — race it down.', 'bad'),
+        E2('Boss signatures', 'Every finale boss has a unique trick. Read the intent and adapt your plan.'),
+      ] },
+    ];
+  }
+  var codexCat = 0;
+  function showCodex(wasCombat, catIdx) {
+    if (catIdx != null) codexCat = catIdx;
+    var CODEX = buildCodex();
+    if (codexCat >= CODEX.length) codexCat = 0;
     var s = overlayScreen();
-    s.appendChild(el('h2', 'screen-title', 'Field Manual'));
-    var txt =
-      'SWIPE a card up to play it — or drag it onto an enemy to choose your target. TAP a card to read it first.\n\n' +
-      'ENERGY (⚡) limits your plays each turn. Unspent SHIELD (⬡) blocks damage but expires.\n\n' +
-      'd20: every attack rolls a die. A high roll is a CRIT for double damage.\n\n' +
-      'MIGHT boosts weapons, TECH boosts shields & tech, PSI boosts psionics. Attributes also decide skill checks at events.\n\n' +
-      'Beat a sector boss to LEVEL UP and claim a relic. The descent is endless — how deep can you go?';
-    var p = el('div', 'event-text', '');
-    p.style.whiteSpace = 'pre-line';
-    p.textContent = txt;
-    s.appendChild(p);
+    s.appendChild(el('h2', 'screen-title', 'Codex'));
+    s.appendChild(el('div', 'screen-sub', 'FIELD MANUAL · ALL SYSTEMS'));
+    var nav = el('div', 'codex-nav', '');
+    CODEX.forEach(function (c, i) {
+      var chip = el('span', 'codex-chip' + (i === codexCat ? ' active' : ''), esc(c.cat));
+      chip.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); SFX.tap(); showCodex(wasCombat, i); });
+      nav.appendChild(chip);
+    });
+    s.appendChild(nav);
+    var cat = CODEX[codexCat];
+    var body = el('div', 'codex-body', '');
+    if (cat.intro) body.appendChild(el('div', 'codex-intro', esc(cat.intro)));
+    cat.entries.forEach(function (e) {
+      body.appendChild(el('div', 'codex-entry',
+        '<span class="codex-term' + (e.c ? ' ' + e.c : '') + '">' + esc(e.t) + '</span>' +
+        '<span class="codex-def">' + esc(e.d) + '</span>'));
+    });
+    s.appendChild(body);
     var btn = el('button', 'btn', 'CLOSE');
-    btn.addEventListener('pointerdown', function () { SFX.tap(); if (wasCombat) showCombat(); else showMenu(); });
+    btn.addEventListener('pointerdown', function () { SFX.tap(); if (wasCombat) showCombat(); else if (E.run) showMenu(); else showTitle(); });
     s.appendChild(btn);
   }
 
