@@ -462,6 +462,14 @@
       var hi = (r.sector <= 1) ? 4 : packs.length;
       var lo = Math.min(Math.floor(prog * (packs.length - 3)), hi - 1);
       ids = pick(packs.slice(Math.max(0, lo), Math.min(hi, lo + 4))).slice();
+      // Sector 1 only: add a fodder minion so hallway fights bite even with
+      // perfect blocking (more simultaneous telegraph than one block can cover).
+      // The very first fight stays gentle as a tutorial; no bleed into sector 2+.
+      if (r.sector === 1 && (r.nodesCleared || 0) >= 1) {
+        var fodder = ns.ELITE_MINIONS[r.faction];
+        if (ids.length < 2) ids.push(fodder);
+        else if (ids.length < 3 && rnd() < 0.4) ids.push(fodder);
+      }
     }
     var c = E.combat = {
       kind: kind,

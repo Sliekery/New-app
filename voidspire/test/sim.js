@@ -397,16 +397,20 @@ function sanity() {
 function playOneRun(cls, seed) {
   E.seed(seed >>> 0);
   E.newRun(cls);
-  var steps = 0, s1min = 1;
+  var steps = 0, s1min = 1, s1fight = 1;
   while (E.run.phase !== 'dead' && E.run.sector <= MAX_SECTOR && (E.run.loop || 1) <= MAX_LOOP && steps++ < 8000) {
     step();
     sanity();
-    // lowest HP fraction the bot dips to anywhere in sector 1 (loop 1)
-    if ((E.run.loop || 1) === 1 && E.run.sector === 1) s1min = Math.min(s1min, E.run.hp / E.run.maxHp);
+    // lowest HP fraction in sector 1 (loop 1): overall, and in regular fights only
+    if ((E.run.loop || 1) === 1 && E.run.sector === 1) {
+      var frac = E.run.hp / E.run.maxHp;
+      s1min = Math.min(s1min, frac);
+      if (E.run.nodeType === 'fight') s1fight = Math.min(s1fight, frac);
+    }
     E.events.length = 0; // drain
   }
   if (steps >= 8000) throw new Error('run loop guard tripped');
-  E.run._s1min = s1min;
+  E.run._s1min = s1min; E.run._s1fight = s1fight;
   // cumulative depth: each cleared loop counts as `finale` sectors
   E.run._depth = (E.run.loop - 1) * VS.BALANCE.run.finale + E.run.sector;
   return E.run;
@@ -456,7 +460,7 @@ console.log('data integrity: OK');
 var classes = CLASSES;
 var stats = {};
 var stalls = 0;
-var s1mins = [];   // lowest HP fraction reached in sector 1, per run
+var s1mins = [], s1fights = [];   // lowest HP fraction reached in sector 1 (overall / hallway fights)
 classes.forEach(function (c) { stats[c] = { sectors: [], deaths: {}, wins: 0, runs: 0 }; });
 
 for (var run = 0; run < RUNS; run++) {
@@ -472,6 +476,7 @@ for (var run = 0; run < RUNS; run++) {
   var s = stats[cls];
   s.runs++;
   if (E.run._s1min != null) s1mins.push(E.run._s1min);
+  if (E.run._s1fight != null) s1fights.push(E.run._s1fight);
   // cumulative depth (== sector until you beat the Unmaker, then climbs by loop)
   var depth = (E.run._depth != null) ? E.run._depth : ((E.run.loop - 1) * VS.BALANCE.run.finale + E.run.sector);
   s.sectors.push(depth);
@@ -519,6 +524,10 @@ console.log('sector-1 death rate: ' + Math.round(100 * s1Deaths / RUNS) + '%   [
 console.log('sector-1 lowest HP (avg): ' + Math.round(100 * s1avg) + '%   |  ' +
   Math.round(100 * s1unscathed / Math.max(1, s1mins.length)) + '% finish ~unscathed (>=97%), ' +
   Math.round(100 * s1chip / Math.max(1, s1mins.length)) + '% never drop below 80%   [aim ~25-40% unscathed]');
+var fAvg = s1fights.reduce(function (a, b) { return a + b; }, 0) / Math.max(1, s1fights.length);
+var fClean = s1fights.filter(function (f) { return f >= 0.97; }).length;
+console.log('sector-1 HALLWAY fights lowest HP (avg): ' + Math.round(100 * fAvg) + '%   |  ' +
+  Math.round(100 * fClean / Math.max(1, s1fights.length)) + '% take ~no damage in hallways');
 console.log('median sector reached: ' + median + '   [~3-4]');
 console.log('reached sector 5+: ' + Math.round(100 * reach5 / RUNS) + '%   [~15-30%]');
 if (totalDeaths) console.log('deaths at elites/bosses: ' + Math.round(100 * spikeDeaths / totalDeaths) + '%   [>= ~55%]');
