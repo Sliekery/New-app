@@ -886,6 +886,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       vanguard:  { hp: 80, might: 2, tech: 0, psi: 0 },
       technomancer: { hp: 68, might: 0, tech: 2, psi: 0 },
       voidadept: { hp: 78, might: 0, tech: 0, psi: 2 },
+      warpcaller: { hp: 55, might: 0, tech: 0, psi: 0, bond: 2 },  // glass-cannon pet master
     },
 
     /* ---- Attribute scaling ------------------------------------------ */
@@ -894,7 +895,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       techBlockPerPoint: 1,     // bonus block per TECH on tech-scaling skills
       mightBlockPerPoint: 1,    // bonus block per MIGHT on primary-scaling skills
       psiBlockPerPoint: 1,      // bonus block per PSI on primary-scaling skills
+      bondBlockPerPoint: 1,     // bonus block per BOND on primary-scaling skills
       psiDmgPerPoint: 1.4,      // bonus damage per PSI on psi-scaling attacks
+      bondPetPerPoint: 1.0,     // bonus to a pet's action per point of BOND (the Warpcaller's scaling)
       eventCheckBonusDiv: 1,    // event check bonus = attr / this (rounded down)
     },
 
@@ -1035,6 +1038,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     feelNoPain: 'Resolve', darkEmbrace: 'Salvage', thousandCuts: 'Blade Array',
     afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
     platedArmor: 'Plated Armor', barricade: 'Barricade', bloodPact: 'Blood Pact',
+    pack: 'Pack Fury', symbiosis: 'Symbiosis', brood: 'Brood',
+  };
+
+  // The Warpcaller's pets (targetable ally units). act: what they do each turn.
+  ns.PETS = {
+    maw:      { name: 'Maw',     hp: 9,  act: { t: 'attack', d: 5 }, color: '#7b8cff' },
+    stinger:  { name: 'Stinger', hp: 6,  act: { t: 'burn', v: 3 },   color: '#7b8cff' },
+    warden:   { name: 'Warden',  hp: 16, act: { t: 'block', v: 5 },  color: '#7b8cff' },
+    leech:    { name: 'Leech',   hp: 7,  act: { t: 'heal', v: 3 },   color: '#7b8cff' },
+    dire_maw: { name: 'Dire Maw', hp: 18, act: { t: 'attack', d: 9 }, color: '#5e6bff' },
   };
   ns.STATUS_NAMES = STATUS_NAMES;
 
@@ -1499,6 +1512,88 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       up: { fx: [{ k: 'hploss', v: 1 }, { k: 'energy', v: 2 }] },
     },
 
+    /* ============ Warpcaller (glass-cannon pet master) ============ */
+    claw_swipe: {   // weak personal attack — the Warpcaller can barely fight alone
+      name: 'Claw Swipe', cls: 'warpcaller', type: 'attack', rarity: 0, cost: 1,
+      fx: [{ k: 'dmg', v: 4, scale: 'bond' }],
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'bond' }] },
+    },
+    summon_maw: {
+      name: 'Summon Maw', cls: 'warpcaller', type: 'skill', rarity: 0, cost: 1,
+      fx: [{ k: 'pet', id: 'maw', n: 1 }],
+      text: 'Summon a Maw (bites a random enemy each turn).',
+      up: { fx: [{ k: 'pet', id: 'maw', n: 1 }, { k: 'status', s: 'pack', v: 1, who: 'self' }], text: 'Summon a Maw. Gain 1 Pack Fury.' },
+    },
+    howl: {
+      name: 'Howl', cls: 'warpcaller', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'status', s: 'pack', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'pack', v: 3, who: 'self' }] },
+    },
+    summon_stinger: {
+      name: 'Summon Stinger', cls: 'warpcaller', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'pet', id: 'stinger', n: 1 }],
+      text: 'Summon a Stinger (spits Burn at a random enemy each turn).',
+      up: { fx: [{ k: 'pet', id: 'stinger', n: 1 }, { k: 'draw', v: 1 }], text: 'Summon a Stinger. Draw 1.' },
+    },
+    summon_warden: {
+      name: 'Summon Warden', cls: 'warpcaller', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'pet', id: 'warden', n: 1 }],
+      text: 'Summon a Warden (a tanky beast that bodies hits and shields you each turn).',
+      up: { fx: [{ k: 'pet', id: 'warden', n: 1 }, { k: 'block', v: 4, scale: 'bond' }], text: 'Summon a Warden. Gain Shield.' },
+    },
+    bloodbond: {   // glass-cannon: pay HP for a fast pack
+      name: 'Blood Bond', cls: 'warpcaller', type: 'skill', rarity: 1, cost: 0,
+      fx: [{ k: 'hploss', v: 4 }, { k: 'pet', id: 'maw', n: 2 }],
+      text: 'Lose 4 HP. Summon 2 Maws.',
+      up: { fx: [{ k: 'hploss', v: 3 }, { k: 'pet', id: 'maw', n: 2 }], text: 'Lose 3 HP. Summon 2 Maws.' },
+    },
+    summon_swarm: {
+      name: 'Summon Swarm', cls: 'warpcaller', type: 'skill', rarity: 2, cost: 2,
+      fx: [{ k: 'pet', id: 'maw', n: 3 }],
+      text: 'Summon 3 Maws.',
+      up: { fx: [{ k: 'pet', id: 'maw', n: 4 }], text: 'Summon 4 Maws.' },
+    },
+    pack_frenzy: {
+      name: 'Pack Frenzy', cls: 'warpcaller', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'special', id: 'frenzy' }],
+      text: 'Your whole pack acts again immediately.',
+      up: { cost: 0, fx: [{ k: 'special', id: 'frenzy' }], text: 'Your whole pack acts again immediately.' },
+    },
+    feed_the_alpha: {
+      name: 'Feed the Alpha', cls: 'warpcaller', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'special', id: 'feed', v: 4 }],
+      text: 'Sacrifice your weakest pet; your strongest pet permanently gains +4 to its action.',
+      up: { fx: [{ k: 'special', id: 'feed', v: 7 }], text: 'Sacrifice your weakest pet; your strongest pet permanently gains +7 to its action.' },
+    },
+    summon_dire: {
+      name: 'Summon Dire Maw', cls: 'warpcaller', type: 'power', rarity: 2, cost: 2,
+      fx: [{ k: 'pet', id: 'dire_maw', n: 1 }],
+      text: 'Summon a Dire Maw (a huge beast that savages a random enemy each turn).',
+      up: { fx: [{ k: 'pet', id: 'dire_maw', n: 1 }, { k: 'status', s: 'pack', v: 2, who: 'self' }], text: 'Summon a Dire Maw. Gain 2 Pack Fury.' },
+    },
+    symbiotic_bond: {
+      name: 'Symbiotic Bond', cls: 'warpcaller', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'symbiosis', v: 6, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'symbiosis', v: 9, who: 'self' }] },
+    },
+    overgrowth: {
+      name: 'Overgrowth', cls: 'warpcaller', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'brood', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'brood', v: 2, who: 'self' }] },
+    },
+    cull_the_weak: {
+      name: 'Cull the Weak', cls: 'warpcaller', type: 'attack', rarity: 3, cost: 1, exhaust: true,
+      fx: [{ k: 'special', id: 'cull', v: 6 }],
+      text: 'Sacrifice your whole pack. Deal 6 damage to the target for each pet culled.',
+      up: { fx: [{ k: 'special', id: 'cull', v: 9 }], text: 'Sacrifice your whole pack. Deal 9 damage to the target for each pet culled.' },
+    },
+    the_swarmlord: {
+      name: 'The Swarmlord', cls: 'warpcaller', type: 'power', rarity: 4, pool: 'boss', cost: 3,
+      fx: [{ k: 'pet', id: 'maw', n: 2 }, { k: 'status', s: 'brood', v: 1, who: 'self' }, { k: 'status', s: 'pack', v: 2, who: 'self' }],
+      text: 'Summon 2 Maws. Gain Brood 1 and 2 Pack Fury.',
+      up: { fx: [{ k: 'pet', id: 'maw', n: 3 }, { k: 'status', s: 'brood', v: 1, who: 'self' }, { k: 'status', s: 'pack', v: 3, who: 'self' }], text: 'Summon 3 Maws. Gain Brood 1 and 3 Pack Fury.' },
+    },
+
     /* ============ Legendaries (boss rewards only) ============ */
     orbital_bombardment: {
       name: 'Orbital Bombardment', cls: 'vanguard', type: 'attack', rarity: 4, pool: 'boss', cost: 3,
@@ -1562,6 +1657,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     voidadept:    ['pulse_rifle', 'pulse_rifle',
                    'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield',
                    'mind_spike', 'mind_spike', 'mind_spike', 'mind_spike'],
+    warpcaller:   ['claw_swipe', 'claw_swipe', 'claw_swipe', 'claw_swipe',
+                   'summon_maw', 'summon_maw', 'combat_shield', 'combat_shield',
+                   'howl', 'summon_stinger'],
   };
 
   /* ---- Description generator ----------------------------------------- */
@@ -1580,6 +1678,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           if (dsc === 'might') v += ctx.attrs.might * B.attrs.mightDmgPerPoint * mul;
           if (dsc === 'tech') v += ctx.attrs.tech * mul;
           if (dsc === 'psi') v += ctx.attrs.psi * B.attrs.psiDmgPerPoint * mul;
+          if (dsc === 'bond') v += (ctx.attrs.bond || 0) * B.attrs.bondPetPerPoint * mul;
           v += (ctx.flatDmg || 0);   // relic/augment flat damage (e.g. Honed Edge)
           if (ctx.statuses) {
             v += (ctx.statuses.str || 0);
@@ -1604,6 +1703,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         parts.push('Gain ' + Math.round(b) + ' Shield.');
       }
       if (f.k === 'heal') parts.push('Heal ' + f.v + ' HP.');
+      if (f.k === 'pet') { var pn = (ns.PETS[f.id] && ns.PETS[f.id].name) || f.id; parts.push('Summon ' + (f.n > 1 ? f.n + ' ' + pn + 's' : 'a ' + pn) + '.'); }
       if (f.k === 'hploss') parts.push('Lose ' + f.v + ' HP.');
       if (f.k === 'draw') parts.push('Draw ' + f.v + ' card' + (f.v > 1 ? 's' : '') + '.');
       if (f.k === 'energy') parts.push('Gain ' + f.v + ' Energy.');
@@ -1625,6 +1725,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         else if (f.s === 'corruption') parts.push('Skills cost 0 this combat, but Exhaust when played.');
         else if (f.s === 'barricade') parts.push('Your Shield no longer expires at the start of your turn.');
         else if (f.s === 'bloodPact') parts.push('Whenever you lose HP to your own cards, gain ' + f.v + ' Psi Focus.');
+        else if (f.s === 'pack') parts.push('Your pets deal +' + f.v + ' with their actions (Pack Fury).');
+        else if (f.s === 'symbiosis') parts.push('Whenever a pet dies, gain ' + f.v + ' Shield and draw a card.');
+        else if (f.s === 'brood') parts.push('At the start of each turn, summon ' + (f.v > 1 ? f.v + ' Maws' : 'a Maw') + '.');
         else if (f.who === 'self') parts.push('Gain ' + f.v + ' ' + n + '.');
         else if (f.who === 'allEnemies') parts.push('Apply ' + f.v + ' ' + n + ' to ALL enemies.');
         else parts.push('Apply ' + f.v + ' ' + n + '.');
@@ -1645,7 +1748,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var f = fx[i];
       if (f.k === 'dmg' && !f.all && !f.random) return true;
       if (f.k === 'status' && f.who === 'target') return true;
-      if (f.k === 'special' && (f.id === 'shieldSlam' || f.id === 'shieldSlam15' || f.id === 'catalyst' || f.id === 'catalyst3' || f.id === 'reap' || f.id === 'overdrive' || f.id === 'fiendFire')) return true;
+      if (f.k === 'special' && (f.id === 'shieldSlam' || f.id === 'shieldSlam15' || f.id === 'catalyst' || f.id === 'catalyst3' || f.id === 'reap' || f.id === 'overdrive' || f.id === 'fiendFire' || f.id === 'cull')) return true;
     }
     return false;
   };
@@ -2943,7 +3046,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     E.run = {
       cls: clsId,
       hp: c.hp, maxHp: c.hp,
-      attrs: { might: c.might, tech: c.tech, psi: c.psi },
+      attrs: { might: c.might, tech: c.tech, psi: c.psi, bond: c.bond || 0 },
       credits: B.player.startCredits,
       deck: deck,
       artifacts: [],
@@ -2970,7 +3073,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   /* Effective attribute incl. artifacts */
   function attr(name) {
-    var v = E.run.attrs[name];
+    var v = E.run.attrs[name] || 0;
     for (var i = 0; i < E.run.artifacts.length; i++) {
       var a = ns.ARTIFACTS[E.run.artifacts[i]];
       if (a.k === 'attr' && a.a === name) v += a.v;
@@ -3201,7 +3304,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   E.nodeComplete = nodeComplete;
 
   /* ---------------- Level up: Augment Protocol draft ------------------- */
-  var CLASS_STAT = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
+  var CLASS_STAT = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi', warpcaller: 'bond' };
   E.classStat = function () { return CLASS_STAT[E.run.cls] || 'might'; };
 
   // Draft 3 random augments, rarity-weighted and class-flavored, no repeats
@@ -3332,10 +3435,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     sc.aggro += (r.attrs.might || 0) * 2;
     sc.bulwark += (r.attrs.tech || 0) * 1.5;
     sc.affliction += (r.attrs.psi || 0) * 1.5;
+    sc.engine += (r.attrs.bond || 0) * 1.5;     // pet/board builds read as 'engine'
     (r.deck || []).forEach(function (card) {
       var def = ns.CARDS[card.id]; if (!def) return;
       if (def.type === 'power') sc.engine += 2;
       (def.fx || []).forEach(function (f) {
+        if (f.k === 'pet') sc.engine += 2;
         if (f.k === 'block') sc.bulwark += 1.2;
         if (f.k === 'draw') sc.engine += 0.5;
         if (f.k === 'dmg' && !f.all) sc.aggro += (f.v >= 10 ? 1.5 : 0.5);
@@ -3415,6 +3520,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var c = E.combat = {
       kind: kind,
       enemies: ids.map(mkEnemy),
+      allies: [],          // the Warpcaller's summoned pets (targetable units)
       turn: 0,
       energy: 0,
       hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
@@ -3497,6 +3603,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (padv > 0) { gainBlock(padv); addStatus(p, 'platedArmor', -1); } // Plated Armor: shield = stacks, then decays
     var spt = statN(p, 'strPerTurn');
     if (spt > 0) addStatus(p, 'str', spt);
+    var brood = statN(p, 'brood');     // Overgrowth: birth a Maw each turn
+    if (brood > 0 && c.turn > 1) summonPet('maw', brood);
     var ht = art('healTurn');
     if (ht > 0) heal(ht);
     var bg = art('burnGrow');
@@ -3605,7 +3713,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   function liveCtx() {
     return {
-      attrs: { might: attr('might'), tech: attr('tech'), psi: attr('psi') },
+      attrs: { might: attr('might'), tech: attr('tech'), psi: attr('psi'), bond: attr('bond') },
       pri: priAttr(),            // primary attribute name (for 'pri'-scaled cards)
       statuses: E.combat ? E.combat.player.statuses : null,
       flatDmg: art('flatDmg'),   // so cards show damage incl. relic/augment buffs
@@ -3614,7 +3722,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   // primary attribute of the active class — lets shared/defensive cards scale
   // with whatever the class actually invests in, instead of a fixed attribute.
-  var PRI_ATTR = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
+  var PRI_ATTR = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi', warpcaller: 'bond' };
   function priAttr() { return PRI_ATTR[E.run && E.run.cls] || 'might'; }
   function resolveScale(s) { return s === 'pri' ? priAttr() : s; }
 
@@ -3626,6 +3734,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (sc === 'might') v += attr('might') * B.attrs.mightDmgPerPoint * mul;
     if (sc === 'tech') v += attr('tech') * mul;
     if (sc === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * mul + statN(p, 'psiPow');
+    if (sc === 'bond') v += attr('bond') * B.attrs.bondPetPerPoint * mul;
     return Math.round(v);   // damage is always a whole number (no decimals)
   }
 
@@ -3746,6 +3855,71 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function aliveEnemies() { return E.combat.enemies.filter(function (e) { return e.alive; }); }
   E.aliveEnemies = aliveEnemies;
 
+  /* ---- The Warpcaller's pets (targetable ally units) --------------------- */
+  function aliveAllies() { return E.combat ? E.combat.allies.filter(function (a) { return a.alive; }) : []; }
+  E.aliveAllies = aliveAllies;
+  // A pet's effective action value: BOND scaling + per-pet buffs + pack buffs.
+  function petPower(a) {
+    return Math.round(attr('bond') * B.attrs.bondPetPerPoint) + (a.bonusDmg || 0) + statN(E.combat.player, 'pack');
+  }
+  E.petPower = petPower;
+  function mkAlly(id) {
+    var def = ns.PETS[id];
+    var hp = def.hp + Math.round(attr('bond') * 0.5);
+    return { id: id, def: def, hp: hp, maxHp: hp, block: 0, statuses: {}, alive: true, bonusDmg: 0 };
+  }
+  function summonPet(id, n) {
+    var c = E.combat, cap = 6;
+    for (var i = 0; i < (n || 1); i++) {
+      if (aliveAllies().length >= cap) break;
+      c.allies.push(mkAlly(id));
+      emit('petSummon', { idx: c.allies.length - 1, id: id });
+    }
+  }
+  E.summonPet = summonPet;
+  function dealToAlly(a, idx, amount) {
+    var blocked = Math.min(a.block, amount);
+    a.block -= blocked;
+    var hp = amount - blocked;
+    a.hp -= hp;
+    emit('petHurt', { idx: idx, amount: amount, hpDmg: hp, hpAfter: Math.max(0, a.hp), blockAfter: a.block });
+    if (a.hp <= 0 && a.alive) {
+      a.alive = false;
+      emit('petDie', { idx: idx });
+      var sy = statN(E.combat.player, 'symbiosis');   // pet dies -> master gains Shield + draws
+      if (sy > 0) { gainBlock(sy); drawCards(1); }
+    }
+    return hp;
+  }
+  // A living pet soaks a single-target enemy attack (the pack shields the master).
+  function soakTarget() {
+    var pets = aliveAllies();
+    return pets.length ? pets[Math.floor(rnd() * pets.length)] : null;
+  }
+  // Pets act after your turn, before the enemy strikes back.
+  function petsAct() {
+    var c = E.combat;
+    aliveAllies().forEach(function (a) {
+      if (c.over || E.run.phase === 'dead') return;
+      var idx = c.allies.indexOf(a), act = a.def.act, pw = petPower(a);
+      emit('petAct', { idx: idx, t: act.t });
+      if (act.t === 'attack') {
+        var pool = aliveEnemies(); if (!pool.length) return;
+        var en = pick(pool);
+        dealToEnemy(en, c.enemies.indexOf(en), (act.d || 0) + pw, { noCrit: true, src: 'pet' });
+      } else if (act.t === 'burn') {
+        var p2 = aliveEnemies(); if (!p2.length) return;
+        var e2 = pick(p2), bv = act.v + Math.floor(pw * 0.5);
+        addStatus(e2, 'burn', bv); emit('status', { who: 'enemy', idx: c.enemies.indexOf(e2), s: 'burn', v: bv });
+      } else if (act.t === 'block') {
+        gainBlock(act.v + Math.floor(pw * 0.5));
+      } else if (act.t === 'heal') {
+        heal(act.v + Math.floor(pw * 0.5));
+      }
+    });
+  }
+  E.petsAct = petsAct;
+
   function handHasCurse() {
     var c = E.combat;
     return !!(c && c.hand.some(function (cd) { return ns.CARDS[cd.id].type === 'curse'; }));
@@ -3819,7 +3993,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           var bsc = resolveScale(f.scale);
           var bonus = bsc === 'tech' ? attr('tech') * B.attrs.techBlockPerPoint
                     : bsc === 'might' ? attr('might') * B.attrs.mightBlockPerPoint
-                    : bsc === 'psi' ? attr('psi') * B.attrs.psiBlockPerPoint : 0;
+                    : bsc === 'psi' ? attr('psi') * B.attrs.psiBlockPerPoint
+                    : bsc === 'bond' ? attr('bond') * B.attrs.bondBlockPerPoint : 0;
           gainBlock(f.v + bonus, true);
           break;
         }
@@ -3832,6 +4007,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         }
         case 'draw': drawCards(f.v); break;
         case 'energy': c.energy += f.v; break;
+        case 'pet': summonPet(f.id, f.n || 1); break;   // Warpcaller: summon a pet
         case 'status': {
           if (f.who === 'self') {
             addStatus(p, f.s, f.v);
@@ -3894,6 +4070,27 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             var pw = 0;
             c.consumed.forEach(function (cc) { if (ns.CARDS[cc.id].type === 'power') pw++; });
             if (pw > 0) gainBlock(f.v * pw, true);
+          } else if (f.id === 'frenzy') {
+            // PACK FRENZY: the whole pack acts again, right now.
+            petsAct();
+          } else if (f.id === 'cull') {
+            // CULL: sacrifice every pet, deal f.v per pet culled to the target.
+            var pets = aliveAllies(), nc = pets.length;
+            pets.forEach(function (a) { a.alive = false; emit('petDie', { idx: c.allies.indexOf(a) }); var sy = statN(p, 'symbiosis'); if (sy > 0) { gainBlock(sy); drawCards(1); } });
+            if (nc > 0) {
+              var cEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+              if (cEn) totalDealt += dealToEnemy(cEn, c.enemies.indexOf(cEn), f.v * nc + Math.round(attr('bond') * B.attrs.bondPetPerPoint), { crit: crit, roll: roll });
+            }
+          } else if (f.id === 'feed') {
+            // FEED THE ALPHA: sacrifice the weakest pet to permanently empower the strongest.
+            var live = aliveAllies();
+            if (live.length >= 1) {
+              var weak = live.slice().sort(function (a, b) { return a.hp - b.hp; })[0];
+              var strong = live.slice().sort(function (a, b) { return (b.bonusDmg || 0) - (a.bonusDmg || 0); })[0];
+              if (live.length > 1 && weak !== strong) { weak.alive = false; emit('petDie', { idx: c.allies.indexOf(weak) }); }
+              strong.bonusDmg = (strong.bonusDmg || 0) + f.v;
+              emit('petAct', { idx: c.allies.indexOf(strong), t: 'feed' });
+            }
           }
           break;
         }
@@ -4030,6 +4227,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
     if (checkWin()) return;
 
+    // the pack strikes (after turrets/entropy, before the enemy retaliates)
+    petsAct();
+    if (checkWin()) return;
+
     // player status ticks
     if (statN(p, 'burn')) { hurtPlayer(statN(p, 'burn'), { pure: true }); addStatus(p, 'burn', -B.status.burnTick); }
     if (r.phase === 'dead') return;
@@ -4076,7 +4277,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         var totalToPlayer = 0;
         for (var h = 0; h < hits; h++) {
           if (r.phase === 'dead') break;
-          totalToPlayer += hurtPlayer(dmg, m.pierce ? { pure: true } : undefined);   // pierce ignores Shield
+          // ~50% of single hits are bodied by a pet — the pack shields the fragile
+          // master, but never fully; pierce ignores pets entirely.
+          var soak = (!m.pierce && rnd() < 0.5) ? soakTarget() : null;
+          if (soak) { dealToAlly(soak, c.allies.indexOf(soak), dmg); continue; }
+          totalToPlayer += hurtPlayer(dmg, m.pierce ? { pure: true } : undefined);   // pierce ignores Shield (and pets)
           var th = statN(p, 'thorns') + art('thorns');
           if (th > 0 && en.alive) {
             dealToEnemy(en, idx, th, { noCrit: true, noWeak: true });
@@ -4456,7 +4661,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       r.hp = r.maxHp;
     } else {
       r.hp = c.hp; r.maxHp = c.hp;
-      r.attrs = { might: c.might, tech: c.tech, psi: c.psi };
+      r.attrs = { might: c.might, tech: c.tech, psi: c.psi, bond: c.bond || 0 };
       if (E.hasEcho('ascendant_core')) r.attrs[CLASS_STAT[clsId]] += 2; // legacy stat
       r.credits = B.player.startCredits;
       r.deck = ns.STARTER_DECKS[clsId].map(function (id) { return mkCard(id, false); });
@@ -5184,6 +5389,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     if (R.combatVisible) {
       drawPlayer();
+      drawAllies();
       for (var i = 0; i < R.views.length; i++) drawEnemy(R.views[i], i);
     }
 
@@ -5824,6 +6030,27 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       ],
       e: [[-0.08,-0.74], [0.08,-0.74], [0,-0.89]],
     },
+    warpcaller: {
+      // gaunt herald: high antlered cowl, thin frame, both arms flung wide
+      // (calling the pack), ragged hem, tethers trailing to summoned beasts.
+      color: '#7b8cff',
+      p: [
+        // antlered cowl
+        [0,-1.02, 0.22,-0.76, 0.18,-0.5, -0.18,-0.5, -0.22,-0.76, 0,-1.02],
+        [-0.12,-0.86, -0.3,-1.1, -0.2,-1.12], [0.12,-0.86, 0.3,-1.1, 0.2,-1.12],   // antlers
+        [-0.14,-0.66, 0.14,-0.66],                          // face shadow
+        // thin robed frame
+        [-0.2,-0.5, -0.26,0.2, -0.18,0.5, -0.24,0.9, 0.24,0.9, 0.18,0.5, 0.26,0.2, 0.2,-0.5],
+        [0,-0.5, 0,0.86],
+        [-0.12,0.5, -0.18,0.86], [0.12,0.5, 0.18,0.86],     // ragged hem
+        // arms flung wide, summoning
+        [-0.2,-0.36, -0.6,-0.5, -0.78,-0.34], [-0.78,-0.34, -0.86,-0.46], [-0.78,-0.34, -0.7,-0.5],  // left hand claw
+        [0.2,-0.36, 0.6,-0.5, 0.78,-0.34], [0.78,-0.34, 0.86,-0.46], [0.78,-0.34, 0.7,-0.5],          // right hand claw
+        // tether wisps to the pack
+        [-0.5,-0.1, -0.66,0.3, -0.58,0.55], [0.5,-0.1, 0.66,0.3, 0.58,0.55],
+      ],
+      e: [[-0.07,-0.64], [0.07,-0.64]],
+    },
   };
 
   // small auto-turret drone (Technomancer identity)
@@ -5934,6 +6161,47 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       for (i = 0; i < plates; i++) { ctx.lineWidth = 3 - i * 0.4; ctx.globalAlpha = pulse * (1 - i * 0.18); shieldPoly(cx, cy, rad - i * 5, 4, Math.PI / 4); }
     }
     ctx.restore();
+  }
+
+  // A summoned pet's silhouette, keyed by what it does.
+  function drawPetGlyph(t, x, y, sz, col) {
+    ctx.save();
+    ctx.strokeStyle = col; ctx.lineWidth = 1.4; ctx.shadowColor = col; ctx.shadowBlur = 5;
+    ctx.beginPath();
+    if (t === 'attack') {                 // fanged maw
+      ctx.moveTo(x - sz, y - sz * 0.5); ctx.lineTo(x + sz, y - sz * 0.5);
+      ctx.lineTo(x + sz * 0.7, y + sz * 0.6); ctx.lineTo(x, y + sz * 0.15); ctx.lineTo(x - sz * 0.7, y + sz * 0.6); ctx.closePath(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x - sz * 0.45, y - sz * 0.5); ctx.lineTo(x - sz * 0.28, y - sz * 0.08);
+      ctx.moveTo(x, y - sz * 0.5); ctx.lineTo(x, y - sz * 0.02); ctx.moveTo(x + sz * 0.45, y - sz * 0.5); ctx.lineTo(x + sz * 0.28, y - sz * 0.08); ctx.stroke();
+    } else if (t === 'burn') {             // spiky stinger
+      ctx.arc(x, y, sz * 0.5, 0, 7); ctx.stroke();
+      ctx.beginPath(); for (var i = 0; i < 6; i++) { var a = i / 6 * 6.283; ctx.moveTo(x + Math.cos(a) * sz * 0.5, y + Math.sin(a) * sz * 0.5); ctx.lineTo(x + Math.cos(a) * sz, y + Math.sin(a) * sz); } ctx.stroke();
+    } else if (t === 'block') {            // shield-beast
+      ctx.moveTo(x, y - sz); ctx.lineTo(x + sz * 0.8, y - sz * 0.4); ctx.lineTo(x + sz * 0.6, y + sz * 0.7);
+      ctx.lineTo(x, y + sz); ctx.lineTo(x - sz * 0.6, y + sz * 0.7); ctx.lineTo(x - sz * 0.8, y - sz * 0.4); ctx.closePath(); ctx.stroke();
+    } else {                              // heal / leech blob
+      ctx.arc(x, y, sz * 0.6, 0, 7); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, y + sz * 0.6); ctx.lineTo(x, y + sz * 1.15); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // The Warpcaller's pack: drawn live from combat state, just below the master.
+  function drawAllies() {
+    var c = ns.engine.combat; if (!c || !c.allies) return;
+    var live = c.allies.filter(function (a) { return a.alive; });
+    if (!live.length) return;
+    var p = R.playerXY(), scale = Math.min(W, H) * 0.09, sz = scale * 0.3;
+    var n = live.length, gap = sz * 2.1, baseX = p.x + scale * 0.4, baseY = p.y + scale * 1.05;
+    live.forEach(function (a, i) {
+      var col = a.def.color || '#7b8cff';
+      var x = baseX + (i - (n - 1) / 2) * gap, y = baseY + (i % 2) * 3 + Math.sin(t * 2 + i) * 1.5;
+      drawPetGlyph(a.def.act.t, x, y, sz * (a.def.hp >= 16 ? 1.25 : 1), col);
+      var w = sz * 1.7, hp = Math.max(0, a.hp / a.maxHp);
+      ctx.save();
+      ctx.globalAlpha = 0.7; ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(x - w / 2, y + sz + 3, w, 2.5);
+      ctx.fillStyle = col; ctx.fillRect(x - w / 2, y + sz + 3, w * hp, 2.5);
+      ctx.restore();
+    });
   }
 
   function drawPlayer() {
@@ -6717,9 +6985,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     html += '<div class="stat"><b>¢' + r.credits + '</b></div>' +
       '</div>' +
       '<div class="row2">' +
-      '<span class="attr">MGT <b>' + E.attr('might') + '</b></span>' +
-      '<span class="attr">TEC <b>' + E.attr('tech') + '</b></span>' +
-      '<span class="attr">PSI <b>' + E.attr('psi') + '</b></span>' +
+      [['MGT', 'might'], ['TEC', 'tech'], ['PSI', 'psi'], ['BND', 'bond']].map(function (a) {
+        var v = E.attr(a[1]); return v > 0 ? '<span class="attr">' + a[0] + ' <b>' + v + '</b></span>' : '';
+      }).join('') +
       '<span class="attr" style="color:' + fac.color + '">' + (r.loop > 1 ? 'L' + r.loop + '·' : '') + 'S' + r.sector + ' ▴' + Math.max(0, r.mapRow + 1) + '/' + (B.map.rows + 1) + '</span>' +
       '<span class="spacer"></span>' +
       '<button class="icon-btn" data-act="deck">DECK ' + r.deck.length + '</button>' +
@@ -6770,6 +7038,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     vanguard: { name: 'VANGUARD', tag: 'Shock trooper of the 9th Voidborne', desc: 'High HP. Brutal weapons that scale with MIGHT. Hits first, asks never.' },
     technomancer: { name: 'TECHNOMANCER', tag: 'Machine-priest of the Forge Choir', desc: 'Shields, turrets and reactors that scale with TECH. Out-build the enemy.' },
     voidadept: { name: 'VOID ADEPT', tag: 'Sanctioned psyker, mostly stable', desc: 'Burns, hexes and psionic blasts that scale with PSI. The void answers.' },
+    warpcaller: { name: 'WARPCALLER', tag: 'Frail herald of the things between stars', desc: 'Glass cannon. Almost no HP — but your summoned pets fight, soak and scale with BOND. The pack does the killing.' },
   };
 
   function showTitle() {
@@ -8881,6 +9150,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         E2('MIGHT', 'Raises Might-scaling weapon damage. The Vanguard’s core stat.', 'off'),
         E2('TECH', 'Raises Shield and tech-attack values. The Technomancer’s core stat.', 'def'),
         E2('PSI', 'Raises psionic damage and Burn. The Void Adept’s core stat.', 'sp'),
+        E2('BOND', 'Empowers your summoned pets (their attacks, Burn, Shield and healing) and toughens them. The Warpcaller’s core stat.', 'sp'),
         E2('Primary scaling', 'Your starter Shield and shared skills scale with your class’s own primary attribute, so investing in your stat helps offense and defense.'),
         E2('Skill checks', 'Attributes also resolve event checks (e.g. "TECH check, DC 12"). Higher stat = better odds.'),
       ] },

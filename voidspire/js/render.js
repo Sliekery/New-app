@@ -355,6 +355,7 @@
 
     if (R.combatVisible) {
       drawPlayer();
+      drawAllies();
       for (var i = 0; i < R.views.length; i++) drawEnemy(R.views[i], i);
     }
 
@@ -995,6 +996,27 @@
       ],
       e: [[-0.08,-0.74], [0.08,-0.74], [0,-0.89]],
     },
+    warpcaller: {
+      // gaunt herald: high antlered cowl, thin frame, both arms flung wide
+      // (calling the pack), ragged hem, tethers trailing to summoned beasts.
+      color: '#7b8cff',
+      p: [
+        // antlered cowl
+        [0,-1.02, 0.22,-0.76, 0.18,-0.5, -0.18,-0.5, -0.22,-0.76, 0,-1.02],
+        [-0.12,-0.86, -0.3,-1.1, -0.2,-1.12], [0.12,-0.86, 0.3,-1.1, 0.2,-1.12],   // antlers
+        [-0.14,-0.66, 0.14,-0.66],                          // face shadow
+        // thin robed frame
+        [-0.2,-0.5, -0.26,0.2, -0.18,0.5, -0.24,0.9, 0.24,0.9, 0.18,0.5, 0.26,0.2, 0.2,-0.5],
+        [0,-0.5, 0,0.86],
+        [-0.12,0.5, -0.18,0.86], [0.12,0.5, 0.18,0.86],     // ragged hem
+        // arms flung wide, summoning
+        [-0.2,-0.36, -0.6,-0.5, -0.78,-0.34], [-0.78,-0.34, -0.86,-0.46], [-0.78,-0.34, -0.7,-0.5],  // left hand claw
+        [0.2,-0.36, 0.6,-0.5, 0.78,-0.34], [0.78,-0.34, 0.86,-0.46], [0.78,-0.34, 0.7,-0.5],          // right hand claw
+        // tether wisps to the pack
+        [-0.5,-0.1, -0.66,0.3, -0.58,0.55], [0.5,-0.1, 0.66,0.3, 0.58,0.55],
+      ],
+      e: [[-0.07,-0.64], [0.07,-0.64]],
+    },
   };
 
   // small auto-turret drone (Technomancer identity)
@@ -1105,6 +1127,47 @@
       for (i = 0; i < plates; i++) { ctx.lineWidth = 3 - i * 0.4; ctx.globalAlpha = pulse * (1 - i * 0.18); shieldPoly(cx, cy, rad - i * 5, 4, Math.PI / 4); }
     }
     ctx.restore();
+  }
+
+  // A summoned pet's silhouette, keyed by what it does.
+  function drawPetGlyph(t, x, y, sz, col) {
+    ctx.save();
+    ctx.strokeStyle = col; ctx.lineWidth = 1.4; ctx.shadowColor = col; ctx.shadowBlur = 5;
+    ctx.beginPath();
+    if (t === 'attack') {                 // fanged maw
+      ctx.moveTo(x - sz, y - sz * 0.5); ctx.lineTo(x + sz, y - sz * 0.5);
+      ctx.lineTo(x + sz * 0.7, y + sz * 0.6); ctx.lineTo(x, y + sz * 0.15); ctx.lineTo(x - sz * 0.7, y + sz * 0.6); ctx.closePath(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x - sz * 0.45, y - sz * 0.5); ctx.lineTo(x - sz * 0.28, y - sz * 0.08);
+      ctx.moveTo(x, y - sz * 0.5); ctx.lineTo(x, y - sz * 0.02); ctx.moveTo(x + sz * 0.45, y - sz * 0.5); ctx.lineTo(x + sz * 0.28, y - sz * 0.08); ctx.stroke();
+    } else if (t === 'burn') {             // spiky stinger
+      ctx.arc(x, y, sz * 0.5, 0, 7); ctx.stroke();
+      ctx.beginPath(); for (var i = 0; i < 6; i++) { var a = i / 6 * 6.283; ctx.moveTo(x + Math.cos(a) * sz * 0.5, y + Math.sin(a) * sz * 0.5); ctx.lineTo(x + Math.cos(a) * sz, y + Math.sin(a) * sz); } ctx.stroke();
+    } else if (t === 'block') {            // shield-beast
+      ctx.moveTo(x, y - sz); ctx.lineTo(x + sz * 0.8, y - sz * 0.4); ctx.lineTo(x + sz * 0.6, y + sz * 0.7);
+      ctx.lineTo(x, y + sz); ctx.lineTo(x - sz * 0.6, y + sz * 0.7); ctx.lineTo(x - sz * 0.8, y - sz * 0.4); ctx.closePath(); ctx.stroke();
+    } else {                              // heal / leech blob
+      ctx.arc(x, y, sz * 0.6, 0, 7); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, y + sz * 0.6); ctx.lineTo(x, y + sz * 1.15); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  // The Warpcaller's pack: drawn live from combat state, just below the master.
+  function drawAllies() {
+    var c = ns.engine.combat; if (!c || !c.allies) return;
+    var live = c.allies.filter(function (a) { return a.alive; });
+    if (!live.length) return;
+    var p = R.playerXY(), scale = Math.min(W, H) * 0.09, sz = scale * 0.3;
+    var n = live.length, gap = sz * 2.1, baseX = p.x + scale * 0.4, baseY = p.y + scale * 1.05;
+    live.forEach(function (a, i) {
+      var col = a.def.color || '#7b8cff';
+      var x = baseX + (i - (n - 1) / 2) * gap, y = baseY + (i % 2) * 3 + Math.sin(t * 2 + i) * 1.5;
+      drawPetGlyph(a.def.act.t, x, y, sz * (a.def.hp >= 16 ? 1.25 : 1), col);
+      var w = sz * 1.7, hp = Math.max(0, a.hp / a.maxHp);
+      ctx.save();
+      ctx.globalAlpha = 0.7; ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(x - w / 2, y + sz + 3, w, 2.5);
+      ctx.fillStyle = col; ctx.fillRect(x - w / 2, y + sz + 3, w * hp, 2.5);
+      ctx.restore();
+    });
   }
 
   function drawPlayer() {

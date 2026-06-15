@@ -166,10 +166,16 @@ function botCombat() {
       if (bb >= 0) choice = bb;
     }
 
-    // 3. powers early, then best attack, then anything
+    // 3. powers + pet-summons early (a Warpcaller lives or dies by its pack),
+    //    then best attack, then anything
     if (choice < 0) {
-      var pw = playable.filter(function (idx) { return VS.CARDS[c.hand[idx].id].type === 'power'; });
-      if (pw.length && c.turn <= 3) choice = pw[0];
+      var pw = playable.filter(function (idx) {
+        var def = VS.CARDS[c.hand[idx].id];
+        if (def.type === 'power') return true;
+        var fx = VS.cardFx(def, c.hand[idx].up);
+        return fx.some(function (f) { return f.k === 'pet' || (f.k === 'status' && (f.s === 'pack' || f.s === 'symbiosis' || f.s === 'brood')); });
+      });
+      if (pw.length && (c.turn <= 3 || E.run.cls === 'warpcaller')) choice = pw[0];
     }
     if (choice < 0) {
       var ba = -1, bd = -1;

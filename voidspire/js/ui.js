@@ -433,9 +433,9 @@
     html += '<div class="stat"><b>¢' + r.credits + '</b></div>' +
       '</div>' +
       '<div class="row2">' +
-      '<span class="attr">MGT <b>' + E.attr('might') + '</b></span>' +
-      '<span class="attr">TEC <b>' + E.attr('tech') + '</b></span>' +
-      '<span class="attr">PSI <b>' + E.attr('psi') + '</b></span>' +
+      [['MGT', 'might'], ['TEC', 'tech'], ['PSI', 'psi'], ['BND', 'bond']].map(function (a) {
+        var v = E.attr(a[1]); return v > 0 ? '<span class="attr">' + a[0] + ' <b>' + v + '</b></span>' : '';
+      }).join('') +
       '<span class="attr" style="color:' + fac.color + '">' + (r.loop > 1 ? 'L' + r.loop + '·' : '') + 'S' + r.sector + ' ▴' + Math.max(0, r.mapRow + 1) + '/' + (B.map.rows + 1) + '</span>' +
       '<span class="spacer"></span>' +
       '<button class="icon-btn" data-act="deck">DECK ' + r.deck.length + '</button>' +
@@ -486,6 +486,7 @@
     vanguard: { name: 'VANGUARD', tag: 'Shock trooper of the 9th Voidborne', desc: 'High HP. Brutal weapons that scale with MIGHT. Hits first, asks never.' },
     technomancer: { name: 'TECHNOMANCER', tag: 'Machine-priest of the Forge Choir', desc: 'Shields, turrets and reactors that scale with TECH. Out-build the enemy.' },
     voidadept: { name: 'VOID ADEPT', tag: 'Sanctioned psyker, mostly stable', desc: 'Burns, hexes and psionic blasts that scale with PSI. The void answers.' },
+    warpcaller: { name: 'WARPCALLER', tag: 'Frail herald of the things between stars', desc: 'Glass cannon. Almost no HP — but your summoned pets fight, soak and scale with BOND. The pack does the killing.' },
   };
 
   function showTitle() {
@@ -2597,6 +2598,7 @@
         E2('MIGHT', 'Raises Might-scaling weapon damage. The Vanguard’s core stat.', 'off'),
         E2('TECH', 'Raises Shield and tech-attack values. The Technomancer’s core stat.', 'def'),
         E2('PSI', 'Raises psionic damage and Burn. The Void Adept’s core stat.', 'sp'),
+        E2('BOND', 'Empowers your summoned pets (their attacks, Burn, Shield and healing) and toughens them. The Warpcaller’s core stat.', 'sp'),
         E2('Primary scaling', 'Your starter Shield and shared skills scale with your class’s own primary attribute, so investing in your stat helps offense and defense.'),
         E2('Skill checks', 'Attributes also resolve event checks (e.g. "TECH check, DC 12"). Higher stat = better odds.'),
       ] },

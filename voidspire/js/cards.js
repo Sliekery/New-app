@@ -22,6 +22,16 @@
     feelNoPain: 'Resolve', darkEmbrace: 'Salvage', thousandCuts: 'Blade Array',
     afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
     platedArmor: 'Plated Armor', barricade: 'Barricade', bloodPact: 'Blood Pact',
+    pack: 'Pack Fury', symbiosis: 'Symbiosis', brood: 'Brood',
+  };
+
+  // The Warpcaller's pets (targetable ally units). act: what they do each turn.
+  ns.PETS = {
+    maw:      { name: 'Maw',     hp: 9,  act: { t: 'attack', d: 5 }, color: '#7b8cff' },
+    stinger:  { name: 'Stinger', hp: 6,  act: { t: 'burn', v: 3 },   color: '#7b8cff' },
+    warden:   { name: 'Warden',  hp: 16, act: { t: 'block', v: 5 },  color: '#7b8cff' },
+    leech:    { name: 'Leech',   hp: 7,  act: { t: 'heal', v: 3 },   color: '#7b8cff' },
+    dire_maw: { name: 'Dire Maw', hp: 18, act: { t: 'attack', d: 9 }, color: '#5e6bff' },
   };
   ns.STATUS_NAMES = STATUS_NAMES;
 
@@ -486,6 +496,88 @@
       up: { fx: [{ k: 'hploss', v: 1 }, { k: 'energy', v: 2 }] },
     },
 
+    /* ============ Warpcaller (glass-cannon pet master) ============ */
+    claw_swipe: {   // weak personal attack — the Warpcaller can barely fight alone
+      name: 'Claw Swipe', cls: 'warpcaller', type: 'attack', rarity: 0, cost: 1,
+      fx: [{ k: 'dmg', v: 4, scale: 'bond' }],
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'bond' }] },
+    },
+    summon_maw: {
+      name: 'Summon Maw', cls: 'warpcaller', type: 'skill', rarity: 0, cost: 1,
+      fx: [{ k: 'pet', id: 'maw', n: 1 }],
+      text: 'Summon a Maw (bites a random enemy each turn).',
+      up: { fx: [{ k: 'pet', id: 'maw', n: 1 }, { k: 'status', s: 'pack', v: 1, who: 'self' }], text: 'Summon a Maw. Gain 1 Pack Fury.' },
+    },
+    howl: {
+      name: 'Howl', cls: 'warpcaller', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'status', s: 'pack', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'pack', v: 3, who: 'self' }] },
+    },
+    summon_stinger: {
+      name: 'Summon Stinger', cls: 'warpcaller', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'pet', id: 'stinger', n: 1 }],
+      text: 'Summon a Stinger (spits Burn at a random enemy each turn).',
+      up: { fx: [{ k: 'pet', id: 'stinger', n: 1 }, { k: 'draw', v: 1 }], text: 'Summon a Stinger. Draw 1.' },
+    },
+    summon_warden: {
+      name: 'Summon Warden', cls: 'warpcaller', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'pet', id: 'warden', n: 1 }],
+      text: 'Summon a Warden (a tanky beast that bodies hits and shields you each turn).',
+      up: { fx: [{ k: 'pet', id: 'warden', n: 1 }, { k: 'block', v: 4, scale: 'bond' }], text: 'Summon a Warden. Gain Shield.' },
+    },
+    bloodbond: {   // glass-cannon: pay HP for a fast pack
+      name: 'Blood Bond', cls: 'warpcaller', type: 'skill', rarity: 1, cost: 0,
+      fx: [{ k: 'hploss', v: 4 }, { k: 'pet', id: 'maw', n: 2 }],
+      text: 'Lose 4 HP. Summon 2 Maws.',
+      up: { fx: [{ k: 'hploss', v: 3 }, { k: 'pet', id: 'maw', n: 2 }], text: 'Lose 3 HP. Summon 2 Maws.' },
+    },
+    summon_swarm: {
+      name: 'Summon Swarm', cls: 'warpcaller', type: 'skill', rarity: 2, cost: 2,
+      fx: [{ k: 'pet', id: 'maw', n: 3 }],
+      text: 'Summon 3 Maws.',
+      up: { fx: [{ k: 'pet', id: 'maw', n: 4 }], text: 'Summon 4 Maws.' },
+    },
+    pack_frenzy: {
+      name: 'Pack Frenzy', cls: 'warpcaller', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'special', id: 'frenzy' }],
+      text: 'Your whole pack acts again immediately.',
+      up: { cost: 0, fx: [{ k: 'special', id: 'frenzy' }], text: 'Your whole pack acts again immediately.' },
+    },
+    feed_the_alpha: {
+      name: 'Feed the Alpha', cls: 'warpcaller', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'special', id: 'feed', v: 4 }],
+      text: 'Sacrifice your weakest pet; your strongest pet permanently gains +4 to its action.',
+      up: { fx: [{ k: 'special', id: 'feed', v: 7 }], text: 'Sacrifice your weakest pet; your strongest pet permanently gains +7 to its action.' },
+    },
+    summon_dire: {
+      name: 'Summon Dire Maw', cls: 'warpcaller', type: 'power', rarity: 2, cost: 2,
+      fx: [{ k: 'pet', id: 'dire_maw', n: 1 }],
+      text: 'Summon a Dire Maw (a huge beast that savages a random enemy each turn).',
+      up: { fx: [{ k: 'pet', id: 'dire_maw', n: 1 }, { k: 'status', s: 'pack', v: 2, who: 'self' }], text: 'Summon a Dire Maw. Gain 2 Pack Fury.' },
+    },
+    symbiotic_bond: {
+      name: 'Symbiotic Bond', cls: 'warpcaller', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'symbiosis', v: 6, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'symbiosis', v: 9, who: 'self' }] },
+    },
+    overgrowth: {
+      name: 'Overgrowth', cls: 'warpcaller', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'brood', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'brood', v: 2, who: 'self' }] },
+    },
+    cull_the_weak: {
+      name: 'Cull the Weak', cls: 'warpcaller', type: 'attack', rarity: 3, cost: 1, exhaust: true,
+      fx: [{ k: 'special', id: 'cull', v: 6 }],
+      text: 'Sacrifice your whole pack. Deal 6 damage to the target for each pet culled.',
+      up: { fx: [{ k: 'special', id: 'cull', v: 9 }], text: 'Sacrifice your whole pack. Deal 9 damage to the target for each pet culled.' },
+    },
+    the_swarmlord: {
+      name: 'The Swarmlord', cls: 'warpcaller', type: 'power', rarity: 4, pool: 'boss', cost: 3,
+      fx: [{ k: 'pet', id: 'maw', n: 2 }, { k: 'status', s: 'brood', v: 1, who: 'self' }, { k: 'status', s: 'pack', v: 2, who: 'self' }],
+      text: 'Summon 2 Maws. Gain Brood 1 and 2 Pack Fury.',
+      up: { fx: [{ k: 'pet', id: 'maw', n: 3 }, { k: 'status', s: 'brood', v: 1, who: 'self' }, { k: 'status', s: 'pack', v: 3, who: 'self' }], text: 'Summon 3 Maws. Gain Brood 1 and 3 Pack Fury.' },
+    },
+
     /* ============ Legendaries (boss rewards only) ============ */
     orbital_bombardment: {
       name: 'Orbital Bombardment', cls: 'vanguard', type: 'attack', rarity: 4, pool: 'boss', cost: 3,
@@ -549,6 +641,9 @@
     voidadept:    ['pulse_rifle', 'pulse_rifle',
                    'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield',
                    'mind_spike', 'mind_spike', 'mind_spike', 'mind_spike'],
+    warpcaller:   ['claw_swipe', 'claw_swipe', 'claw_swipe', 'claw_swipe',
+                   'summon_maw', 'summon_maw', 'combat_shield', 'combat_shield',
+                   'howl', 'summon_stinger'],
   };
 
   /* ---- Description generator ----------------------------------------- */
@@ -567,6 +662,7 @@
           if (dsc === 'might') v += ctx.attrs.might * B.attrs.mightDmgPerPoint * mul;
           if (dsc === 'tech') v += ctx.attrs.tech * mul;
           if (dsc === 'psi') v += ctx.attrs.psi * B.attrs.psiDmgPerPoint * mul;
+          if (dsc === 'bond') v += (ctx.attrs.bond || 0) * B.attrs.bondPetPerPoint * mul;
           v += (ctx.flatDmg || 0);   // relic/augment flat damage (e.g. Honed Edge)
           if (ctx.statuses) {
             v += (ctx.statuses.str || 0);
@@ -591,6 +687,7 @@
         parts.push('Gain ' + Math.round(b) + ' Shield.');
       }
       if (f.k === 'heal') parts.push('Heal ' + f.v + ' HP.');
+      if (f.k === 'pet') { var pn = (ns.PETS[f.id] && ns.PETS[f.id].name) || f.id; parts.push('Summon ' + (f.n > 1 ? f.n + ' ' + pn + 's' : 'a ' + pn) + '.'); }
       if (f.k === 'hploss') parts.push('Lose ' + f.v + ' HP.');
       if (f.k === 'draw') parts.push('Draw ' + f.v + ' card' + (f.v > 1 ? 's' : '') + '.');
       if (f.k === 'energy') parts.push('Gain ' + f.v + ' Energy.');
@@ -612,6 +709,9 @@
         else if (f.s === 'corruption') parts.push('Skills cost 0 this combat, but Exhaust when played.');
         else if (f.s === 'barricade') parts.push('Your Shield no longer expires at the start of your turn.');
         else if (f.s === 'bloodPact') parts.push('Whenever you lose HP to your own cards, gain ' + f.v + ' Psi Focus.');
+        else if (f.s === 'pack') parts.push('Your pets deal +' + f.v + ' with their actions (Pack Fury).');
+        else if (f.s === 'symbiosis') parts.push('Whenever a pet dies, gain ' + f.v + ' Shield and draw a card.');
+        else if (f.s === 'brood') parts.push('At the start of each turn, summon ' + (f.v > 1 ? f.v + ' Maws' : 'a Maw') + '.');
         else if (f.who === 'self') parts.push('Gain ' + f.v + ' ' + n + '.');
         else if (f.who === 'allEnemies') parts.push('Apply ' + f.v + ' ' + n + ' to ALL enemies.');
         else parts.push('Apply ' + f.v + ' ' + n + '.');
@@ -632,7 +732,7 @@
       var f = fx[i];
       if (f.k === 'dmg' && !f.all && !f.random) return true;
       if (f.k === 'status' && f.who === 'target') return true;
-      if (f.k === 'special' && (f.id === 'shieldSlam' || f.id === 'shieldSlam15' || f.id === 'catalyst' || f.id === 'catalyst3' || f.id === 'reap' || f.id === 'overdrive' || f.id === 'fiendFire')) return true;
+      if (f.k === 'special' && (f.id === 'shieldSlam' || f.id === 'shieldSlam15' || f.id === 'catalyst' || f.id === 'catalyst3' || f.id === 'reap' || f.id === 'overdrive' || f.id === 'fiendFire' || f.id === 'cull')) return true;
     }
     return false;
   };

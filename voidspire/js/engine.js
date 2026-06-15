@@ -51,7 +51,7 @@
     E.run = {
       cls: clsId,
       hp: c.hp, maxHp: c.hp,
-      attrs: { might: c.might, tech: c.tech, psi: c.psi },
+      attrs: { might: c.might, tech: c.tech, psi: c.psi, bond: c.bond || 0 },
       credits: B.player.startCredits,
       deck: deck,
       artifacts: [],
@@ -78,7 +78,7 @@
 
   /* Effective attribute incl. artifacts */
   function attr(name) {
-    var v = E.run.attrs[name];
+    var v = E.run.attrs[name] || 0;
     for (var i = 0; i < E.run.artifacts.length; i++) {
       var a = ns.ARTIFACTS[E.run.artifacts[i]];
       if (a.k === 'attr' && a.a === name) v += a.v;
@@ -309,7 +309,7 @@
   E.nodeComplete = nodeComplete;
 
   /* ---------------- Level up: Augment Protocol draft ------------------- */
-  var CLASS_STAT = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
+  var CLASS_STAT = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi', warpcaller: 'bond' };
   E.classStat = function () { return CLASS_STAT[E.run.cls] || 'might'; };
 
   // Draft 3 random augments, rarity-weighted and class-flavored, no repeats
@@ -440,10 +440,12 @@
     sc.aggro += (r.attrs.might || 0) * 2;
     sc.bulwark += (r.attrs.tech || 0) * 1.5;
     sc.affliction += (r.attrs.psi || 0) * 1.5;
+    sc.engine += (r.attrs.bond || 0) * 1.5;     // pet/board builds read as 'engine'
     (r.deck || []).forEach(function (card) {
       var def = ns.CARDS[card.id]; if (!def) return;
       if (def.type === 'power') sc.engine += 2;
       (def.fx || []).forEach(function (f) {
+        if (f.k === 'pet') sc.engine += 2;
         if (f.k === 'block') sc.bulwark += 1.2;
         if (f.k === 'draw') sc.engine += 0.5;
         if (f.k === 'dmg' && !f.all) sc.aggro += (f.v >= 10 ? 1.5 : 0.5);
@@ -523,6 +525,7 @@
     var c = E.combat = {
       kind: kind,
       enemies: ids.map(mkEnemy),
+      allies: [],          // the Warpcaller's summoned pets (targetable units)
       turn: 0,
       energy: 0,
       hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
@@ -605,6 +608,8 @@
     if (padv > 0) { gainBlock(padv); addStatus(p, 'platedArmor', -1); } // Plated Armor: shield = stacks, then decays
     var spt = statN(p, 'strPerTurn');
     if (spt > 0) addStatus(p, 'str', spt);
+    var brood = statN(p, 'brood');     // Overgrowth: birth a Maw each turn
+    if (brood > 0 && c.turn > 1) summonPet('maw', brood);
     var ht = art('healTurn');
     if (ht > 0) heal(ht);
     var bg = art('burnGrow');
@@ -713,7 +718,7 @@
 
   function liveCtx() {
     return {
-      attrs: { might: attr('might'), tech: attr('tech'), psi: attr('psi') },
+      attrs: { might: attr('might'), tech: attr('tech'), psi: attr('psi'), bond: attr('bond') },
       pri: priAttr(),            // primary attribute name (for 'pri'-scaled cards)
       statuses: E.combat ? E.combat.player.statuses : null,
       flatDmg: art('flatDmg'),   // so cards show damage incl. relic/augment buffs
@@ -722,7 +727,7 @@
 
   // primary attribute of the active class — lets shared/defensive cards scale
   // with whatever the class actually invests in, instead of a fixed attribute.
-  var PRI_ATTR = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
+  var PRI_ATTR = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi', warpcaller: 'bond' };
   function priAttr() { return PRI_ATTR[E.run && E.run.cls] || 'might'; }
   function resolveScale(s) { return s === 'pri' ? priAttr() : s; }
 
@@ -734,6 +739,7 @@
     if (sc === 'might') v += attr('might') * B.attrs.mightDmgPerPoint * mul;
     if (sc === 'tech') v += attr('tech') * mul;
     if (sc === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * mul + statN(p, 'psiPow');
+    if (sc === 'bond') v += attr('bond') * B.attrs.bondPetPerPoint * mul;
     return Math.round(v);   // damage is always a whole number (no decimals)
   }
 
@@ -854,6 +860,71 @@
   function aliveEnemies() { return E.combat.enemies.filter(function (e) { return e.alive; }); }
   E.aliveEnemies = aliveEnemies;
 
+  /* ---- The Warpcaller's pets (targetable ally units) --------------------- */
+  function aliveAllies() { return E.combat ? E.combat.allies.filter(function (a) { return a.alive; }) : []; }
+  E.aliveAllies = aliveAllies;
+  // A pet's effective action value: BOND scaling + per-pet buffs + pack buffs.
+  function petPower(a) {
+    return Math.round(attr('bond') * B.attrs.bondPetPerPoint) + (a.bonusDmg || 0) + statN(E.combat.player, 'pack');
+  }
+  E.petPower = petPower;
+  function mkAlly(id) {
+    var def = ns.PETS[id];
+    var hp = def.hp + Math.round(attr('bond') * 0.5);
+    return { id: id, def: def, hp: hp, maxHp: hp, block: 0, statuses: {}, alive: true, bonusDmg: 0 };
+  }
+  function summonPet(id, n) {
+    var c = E.combat, cap = 6;
+    for (var i = 0; i < (n || 1); i++) {
+      if (aliveAllies().length >= cap) break;
+      c.allies.push(mkAlly(id));
+      emit('petSummon', { idx: c.allies.length - 1, id: id });
+    }
+  }
+  E.summonPet = summonPet;
+  function dealToAlly(a, idx, amount) {
+    var blocked = Math.min(a.block, amount);
+    a.block -= blocked;
+    var hp = amount - blocked;
+    a.hp -= hp;
+    emit('petHurt', { idx: idx, amount: amount, hpDmg: hp, hpAfter: Math.max(0, a.hp), blockAfter: a.block });
+    if (a.hp <= 0 && a.alive) {
+      a.alive = false;
+      emit('petDie', { idx: idx });
+      var sy = statN(E.combat.player, 'symbiosis');   // pet dies -> master gains Shield + draws
+      if (sy > 0) { gainBlock(sy); drawCards(1); }
+    }
+    return hp;
+  }
+  // A living pet soaks a single-target enemy attack (the pack shields the master).
+  function soakTarget() {
+    var pets = aliveAllies();
+    return pets.length ? pets[Math.floor(rnd() * pets.length)] : null;
+  }
+  // Pets act after your turn, before the enemy strikes back.
+  function petsAct() {
+    var c = E.combat;
+    aliveAllies().forEach(function (a) {
+      if (c.over || E.run.phase === 'dead') return;
+      var idx = c.allies.indexOf(a), act = a.def.act, pw = petPower(a);
+      emit('petAct', { idx: idx, t: act.t });
+      if (act.t === 'attack') {
+        var pool = aliveEnemies(); if (!pool.length) return;
+        var en = pick(pool);
+        dealToEnemy(en, c.enemies.indexOf(en), (act.d || 0) + pw, { noCrit: true, src: 'pet' });
+      } else if (act.t === 'burn') {
+        var p2 = aliveEnemies(); if (!p2.length) return;
+        var e2 = pick(p2), bv = act.v + Math.floor(pw * 0.5);
+        addStatus(e2, 'burn', bv); emit('status', { who: 'enemy', idx: c.enemies.indexOf(e2), s: 'burn', v: bv });
+      } else if (act.t === 'block') {
+        gainBlock(act.v + Math.floor(pw * 0.5));
+      } else if (act.t === 'heal') {
+        heal(act.v + Math.floor(pw * 0.5));
+      }
+    });
+  }
+  E.petsAct = petsAct;
+
   function handHasCurse() {
     var c = E.combat;
     return !!(c && c.hand.some(function (cd) { return ns.CARDS[cd.id].type === 'curse'; }));
@@ -927,7 +998,8 @@
           var bsc = resolveScale(f.scale);
           var bonus = bsc === 'tech' ? attr('tech') * B.attrs.techBlockPerPoint
                     : bsc === 'might' ? attr('might') * B.attrs.mightBlockPerPoint
-                    : bsc === 'psi' ? attr('psi') * B.attrs.psiBlockPerPoint : 0;
+                    : bsc === 'psi' ? attr('psi') * B.attrs.psiBlockPerPoint
+                    : bsc === 'bond' ? attr('bond') * B.attrs.bondBlockPerPoint : 0;
           gainBlock(f.v + bonus, true);
           break;
         }
@@ -940,6 +1012,7 @@
         }
         case 'draw': drawCards(f.v); break;
         case 'energy': c.energy += f.v; break;
+        case 'pet': summonPet(f.id, f.n || 1); break;   // Warpcaller: summon a pet
         case 'status': {
           if (f.who === 'self') {
             addStatus(p, f.s, f.v);
@@ -1002,6 +1075,27 @@
             var pw = 0;
             c.consumed.forEach(function (cc) { if (ns.CARDS[cc.id].type === 'power') pw++; });
             if (pw > 0) gainBlock(f.v * pw, true);
+          } else if (f.id === 'frenzy') {
+            // PACK FRENZY: the whole pack acts again, right now.
+            petsAct();
+          } else if (f.id === 'cull') {
+            // CULL: sacrifice every pet, deal f.v per pet culled to the target.
+            var pets = aliveAllies(), nc = pets.length;
+            pets.forEach(function (a) { a.alive = false; emit('petDie', { idx: c.allies.indexOf(a) }); var sy = statN(p, 'symbiosis'); if (sy > 0) { gainBlock(sy); drawCards(1); } });
+            if (nc > 0) {
+              var cEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+              if (cEn) totalDealt += dealToEnemy(cEn, c.enemies.indexOf(cEn), f.v * nc + Math.round(attr('bond') * B.attrs.bondPetPerPoint), { crit: crit, roll: roll });
+            }
+          } else if (f.id === 'feed') {
+            // FEED THE ALPHA: sacrifice the weakest pet to permanently empower the strongest.
+            var live = aliveAllies();
+            if (live.length >= 1) {
+              var weak = live.slice().sort(function (a, b) { return a.hp - b.hp; })[0];
+              var strong = live.slice().sort(function (a, b) { return (b.bonusDmg || 0) - (a.bonusDmg || 0); })[0];
+              if (live.length > 1 && weak !== strong) { weak.alive = false; emit('petDie', { idx: c.allies.indexOf(weak) }); }
+              strong.bonusDmg = (strong.bonusDmg || 0) + f.v;
+              emit('petAct', { idx: c.allies.indexOf(strong), t: 'feed' });
+            }
           }
           break;
         }
@@ -1138,6 +1232,10 @@
     }
     if (checkWin()) return;
 
+    // the pack strikes (after turrets/entropy, before the enemy retaliates)
+    petsAct();
+    if (checkWin()) return;
+
     // player status ticks
     if (statN(p, 'burn')) { hurtPlayer(statN(p, 'burn'), { pure: true }); addStatus(p, 'burn', -B.status.burnTick); }
     if (r.phase === 'dead') return;
@@ -1184,7 +1282,11 @@
         var totalToPlayer = 0;
         for (var h = 0; h < hits; h++) {
           if (r.phase === 'dead') break;
-          totalToPlayer += hurtPlayer(dmg, m.pierce ? { pure: true } : undefined);   // pierce ignores Shield
+          // ~50% of single hits are bodied by a pet — the pack shields the fragile
+          // master, but never fully; pierce ignores pets entirely.
+          var soak = (!m.pierce && rnd() < 0.5) ? soakTarget() : null;
+          if (soak) { dealToAlly(soak, c.allies.indexOf(soak), dmg); continue; }
+          totalToPlayer += hurtPlayer(dmg, m.pierce ? { pure: true } : undefined);   // pierce ignores Shield (and pets)
           var th = statN(p, 'thorns') + art('thorns');
           if (th > 0 && en.alive) {
             dealToEnemy(en, idx, th, { noCrit: true, noWeak: true });
@@ -1564,7 +1666,7 @@
       r.hp = r.maxHp;
     } else {
       r.hp = c.hp; r.maxHp = c.hp;
-      r.attrs = { might: c.might, tech: c.tech, psi: c.psi };
+      r.attrs = { might: c.might, tech: c.tech, psi: c.psi, bond: c.bond || 0 };
       if (E.hasEcho('ascendant_core')) r.attrs[CLASS_STAT[clsId]] += 2; // legacy stat
       r.credits = B.player.startCredits;
       r.deck = ns.STARTER_DECKS[clsId].map(function (id) { return mkCard(id, false); });
