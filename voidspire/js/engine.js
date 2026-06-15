@@ -960,6 +960,8 @@
         var pool = aliveEnemies(); if (!pool.length) return;
         var en = pick(pool);
         dealToEnemy(en, c.enemies.indexOf(en), (act.d || 0) + pw, { noCrit: true, src: 'pet' });
+        var feast = statN(c.player, 'feast');   // Savage Feast: the captain heals off the hunt
+        if (feast > 0) heal(feast);
       } else if (act.t === 'burn') {
         var p2 = aliveEnemies(); if (!p2.length) return;
         var e2 = pick(p2), bv = act.v + Math.floor(pw * 0.5);

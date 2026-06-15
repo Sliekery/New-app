@@ -204,9 +204,14 @@ function botCombat() {
       if (pw.length && (c.turn <= 3 || E.run.cls === 'warpcaller')) choice = pw[0];
     }
     if (choice < 0) {
-      var ba = -1, bd = -1;
+      var ba = -1, bd = -1, nLive = c.allies ? c.allies.filter(function (a) { return a.alive; }).length : 0;
       playable.forEach(function (idx) {
-        if (VS.CARDS[c.hand[idx].id].type !== 'attack') return;
+        var cdef = VS.CARDS[c.hand[idx].id];
+        if (cdef.type !== 'attack') return;
+        // Cull discipline: don't blow the whole pack as a chip attack — hold it
+        // until the pack is big enough to make the sacrifice pay (or it's lethal,
+        // which the kill tier above already handles).
+        if (cdef.fx.some(function (f) { return f.k === 'special' && f.id === 'cull'; }) && nLive < 4) return;
         // DoT-aware: lay/stack Burn proactively instead of treating it as 0 dmg
         var dmg = estCardDamage(card0(c, idx), c.enemies[target], true);
         if (dmg > bd) { bd = dmg; ba = idx; }
@@ -237,8 +242,8 @@ var CLASS_ATTR = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
 // cards (and shuns the others) so we can see how each archetype performs when a
 // player actually commits to it, rather than the greedy grab-bag of the parity run.
 var WC_ARCH = {
-  wall:    ['summon_warden', 'summon_leech', 'entrench', 'aegis', 'summon_behemoth', 'kennel', 'summon_totem'],
-  alpha:   ['summon_dire', 'feed_the_alpha', 'pack_frenzy', 'apex_predator', 'howl', 'summon_totem'],
+  wall:    ['summon_warden', 'summon_leech', 'entrench', 'aegis', 'summon_behemoth'],
+  alpha:   ['summon_dire', 'savage_feast', 'feed_the_alpha', 'pack_frenzy', 'apex_predator'],
   butcher: ['summon_stinger', 'bloodbond', 'spawn_brood', 'symbiotic_bond', 'feeding_frenzy', 'overgrowth', 'cull_the_weak', 'the_swarmlord'],
 };
 var WC_FLEX = ['claw_swipe', 'summon_maw', 'howl', 'kennel', 'summon_totem'];   // fine in any build

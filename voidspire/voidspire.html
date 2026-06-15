@@ -931,7 +931,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       psiBlockPerPoint: 1,      // bonus block per PSI on primary-scaling skills
       bondBlockPerPoint: 1,     // bonus block per BOND on primary-scaling skills
       psiDmgPerPoint: 1.4,      // bonus damage per PSI on psi-scaling attacks
-      bondPetPerPoint: 0.3,     // bonus to a pet's action per point of BOND (the Warpcaller's scaling)
+      bondPetPerPoint: 0.2,     // bonus to a pet's action per point of BOND (the Warpcaller's scaling)
       eventCheckBonusDiv: 1,    // event check bonus = attr / this (rounded down)
     },
 
@@ -1073,7 +1073,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
     platedArmor: 'Plated Armor', barricade: 'Barricade', bloodPact: 'Blood Pact',
     pack: 'Pack Fury', symbiosis: 'Symbiosis', brood: 'Brood', slots: 'Kennel',
-    bulwark: 'Bulwark', bloodscent: 'Bloodscent',
+    bulwark: 'Bulwark', bloodscent: 'Bloodscent', feast: 'Savage Feast',
   };
 
   // The Warpcaller's pets (targetable ally units). act: what they do each turn.
@@ -1081,17 +1081,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // looks like a varied menagerie. Art lives in ns.PET_MODELS.
   ns.PETS = {
     // -- generic / Butcher fuel --
-    maw:      { name: 'Maw',     hp: 4,  act: { t: 'attack', d: 3 }, color: '#7b8cff', models: ['wretch'] },
-    spawnling:{ name: 'Spawnling', hp: 1, act: { t: 'attack', d: 1 }, onDie: { dmg: 3 }, color: '#8d9bff', models: ['crawler'] },  // 1 HP body that bursts for 3 on death
+    maw:      { name: 'Maw',     hp: 4,  act: { t: 'attack', d: 2 }, color: '#7b8cff', models: ['wretch'] },
+    spawnling:{ name: 'Spawnling', hp: 2, act: { t: 'attack', d: 1 }, onDie: { dmg: 4 }, color: '#8d9bff', models: ['crawler'] },  // cheap body that bursts for 4 on death
     stinger:  { name: 'Stinger', hp: 3,  act: { t: 'burn', v: 2 },   color: '#9b7bff', models: ['stinger', 'spore'] },
     // -- Wall --
-    warden:   { name: 'Warden',  hp: 9,  act: { t: 'block', v: 3 },  color: '#6bd8ff', models: ['sentinel'] },
+    warden:   { name: 'Warden',  hp: 7,  act: { t: 'block', v: 3 },  color: '#6bd8ff', models: ['sentinel'] },
     leech:    { name: 'Leech',   hp: 5,  act: { t: 'heal', v: 2 },   color: '#6bff9d', models: ['leech'] },
-    behemoth: { name: 'Behemoth', hp: 16, act: { t: 'block', v: 5 }, size: 2, color: '#6bd8ff', models: ['warden_beast'] },
+    behemoth: { name: 'Behemoth', hp: 13, act: { t: 'block', v: 4 }, size: 2, color: '#6bd8ff', models: ['warden_beast'] },
     // -- support (all) --
     totem:    { name: 'Totem',   hp: 7,  act: { t: 'support', v: 2 }, color: '#ffd24a', models: ['totem'] },
-    // -- Alpha apex --
-    dire_maw: { name: 'Dire Maw', hp: 10, act: { t: 'attack', d: 5 }, size: 2, color: '#5e6bff', models: ['wretch'] },
+    // -- Alpha apex (tanky bruiser: takes the hits AND deals them) --
+    dire_maw: { name: 'Dire Maw', hp: 14, act: { t: 'attack', d: 4 }, size: 2, color: '#5e6bff', models: ['wretch'] },
   };
 
   // 9 distinct void-beast silhouettes (+ the Warpcaller avatar = 10 models).
@@ -1629,10 +1629,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
 
     /* =================== Warpcaller (the ship captain & their crew) ===================
-     * Three archetypes share one menagerie:
-     *   THE WALL    — durable formation you protect & sustain (warden/leech/behemoth + Bulwark)
-     *   THE ALPHA   — funnel everything into one apex beast (dire maw + Feed/Apex/Pack Fury)
-     *   THE BUTCHER — pets are disposable ammo; profit when they die (spawnlings + Symbiosis/Bloodscent/Cull)
+     * Three self-sufficient builds — each carries its OWN defense + offense, so no
+     * single archetype hoards survival:
+     *   THE WALL    — DEF hard block (warden/behemoth + Bulwark/Aegis); OFF slow BOND chip
+     *   THE ALPHA   — DEF lifesteal (Savage Feast) + tanky apex; OFF one buffed beast, raced
+     *   THE BUTCHER — DEF a body-wall that shields you as it dies (Symbiosis); OFF Bloodscent + Cull
      * ------------------------------------------------------------------------------------ */
 
     /* ---- shared core ---- */
@@ -1649,8 +1650,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
     howl: {
       name: 'Howl', cls: 'warpcaller', type: 'skill', rarity: 1, cost: 1,
-      fx: [{ k: 'status', s: 'pack', v: 2, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'pack', v: 3, who: 'self' }] },
+      fx: [{ k: 'status', s: 'pack', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'pack', v: 2, who: 'self' }] },
     },
     summon_totem: {
       name: 'Raise Totem', cls: 'warpcaller', type: 'skill', rarity: 2, cost: 1,
@@ -1664,7 +1665,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       up: { fx: [{ k: 'status', s: 'slots', v: 3, who: 'self' }] },
     },
 
-    /* ---- THE WALL (protect & sustain the formation) ---- */
+    /* ---- THE WALL — DEFENSE: hard block & sustain. OFFENSE: slow BOND chip.
+     *      Survive forever, win by attrition. (Strongest build, so tuned down.) ---- */
     summon_warden: {
       name: 'Summon Warden', cls: 'warpcaller', type: 'skill', rarity: 1, cost: 1,
       fx: [{ k: 'pet', id: 'warden', n: 1 }],
@@ -1677,16 +1679,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       text: 'Summon a Leech — each turn it heals the pet in FRONT of it. Place it behind your tank.',
       up: { fx: [{ k: 'pet', id: 'leech', n: 1 }, { k: 'draw', v: 1 }], text: 'Summon a Leech. Draw 1.' },
     },
-    entrench: {   // the Wall's engine: the front pet digs in every turn
+    entrench: {   // the Wall's payoff: a planted front tank digs in, escalating
       name: 'Entrench', cls: 'warpcaller', type: 'power', rarity: 2, cost: 1,
-      fx: [{ k: 'status', s: 'bulwark', v: 3, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'bulwark', v: 5, who: 'self' }] },
+      fx: [{ k: 'status', s: 'bulwark', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'bulwark', v: 3, who: 'self' }] },
     },
     aegis: {   // formation-wide defensive burst
       name: 'Aegis', cls: 'warpcaller', type: 'skill', rarity: 2, cost: 1,
-      fx: [{ k: 'special', id: 'packshield', v: 5 }],
-      text: 'Every pet gains 5 Block.',
-      up: { fx: [{ k: 'special', id: 'packshield', v: 8 }], text: 'Every pet gains 8 Block.' },
+      fx: [{ k: 'special', id: 'packshield', v: 4 }],
+      text: 'Every pet gains 4 Block.',
+      up: { fx: [{ k: 'special', id: 'packshield', v: 6 }], text: 'Every pet gains 6 Block.' },
     },
     summon_behemoth: {
       name: 'Summon Behemoth', cls: 'warpcaller', type: 'skill', rarity: 3, cost: 2,
@@ -1695,12 +1697,18 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       up: { fx: [{ k: 'pet', id: 'behemoth', n: 1 }, { k: 'block', v: 5, scale: 'bond' }], text: 'Summon a Behemoth (2 slots). Gain Shield.' },
     },
 
-    /* ---- THE ALPHA (one apex beast, everything funneled in) ---- */
+    /* ---- THE ALPHA — DEFENSE: lifesteal off the hunt (Savage Feast) + a tanky
+     *      apex. OFFENSE: funnel every buff into one beast and race them down. ---- */
     summon_dire: {
       name: 'Summon Dire Maw', cls: 'warpcaller', type: 'skill', rarity: 2, cost: 2,
       fx: [{ k: 'pet', id: 'dire_maw', n: 1 }],
-      text: 'Summon a Dire Maw (2 slots) — a huge beast that savages a random enemy each turn. Your apex.',
-      up: { fx: [{ k: 'pet', id: 'dire_maw', n: 1 }, { k: 'status', s: 'pack', v: 2, who: 'self' }], text: 'Summon a Dire Maw (2 slots). Gain 2 Pack Fury.' },
+      text: 'Summon a Dire Maw (2 slots, 14 HP) — a huge beast that savages a random enemy each turn. Your apex; it can take hits AND deal them.',
+      up: { fx: [{ k: 'pet', id: 'dire_maw', n: 1 }, { k: 'status', s: 'pack', v: 2, who: 'self' }], text: 'Summon a Dire Maw (2 slots, 14 HP). Gain 2 Pack Fury.' },
+    },
+    savage_feast: {   // the Alpha's defense — the captain heals off every kill-blow
+      name: 'Savage Feast', cls: 'warpcaller', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'feast', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'feast', v: 3, who: 'self' }] },
     },
     feed_the_alpha: {
       name: 'Feed the Alpha', cls: 'warpcaller', type: 'skill', rarity: 2, cost: 1,
@@ -1716,12 +1724,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
     apex_predator: {   // pure buff, no sacrifice — the Alpha's payoff power
       name: 'Apex Predator', cls: 'warpcaller', type: 'power', rarity: 3, cost: 2,
-      fx: [{ k: 'special', id: 'empower', v: 5 }, { k: 'status', s: 'pack', v: 1, who: 'self' }],
-      text: 'Your strongest pet permanently gains +5 to its action. Gain 1 Pack Fury.',
-      up: { fx: [{ k: 'special', id: 'empower', v: 8 }, { k: 'status', s: 'pack', v: 2, who: 'self' }], text: 'Your strongest pet permanently gains +8 to its action. Gain 2 Pack Fury.' },
+      fx: [{ k: 'special', id: 'empower', v: 6 }, { k: 'status', s: 'pack', v: 1, who: 'self' }],
+      text: 'Your strongest pet permanently gains +6 to its action. Gain 1 Pack Fury.',
+      up: { fx: [{ k: 'special', id: 'empower', v: 9 }, { k: 'status', s: 'pack', v: 2, who: 'self' }], text: 'Your strongest pet permanently gains +9 to its action. Gain 2 Pack Fury.' },
     },
 
-    /* ---- THE BUTCHER (disposable ammo; profit when pets die) ---- */
+    /* ---- THE BUTCHER — DEFENSE: a churning body-wall that shields you as it
+     *      dies (Symbiosis). OFFENSE: Bloodscent escalation + Cull burst. ---- */
     summon_stinger: {
       name: 'Summon Stinger', cls: 'warpcaller', type: 'skill', rarity: 1, cost: 1,
       fx: [{ k: 'pet', id: 'stinger', n: 1 }],
@@ -1740,15 +1749,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       text: 'Summon 3 Spawnlings (1 HP; each bursts for 3 when it dies).',
       up: { fx: [{ k: 'pet', id: 'spawnling', n: 4 }], text: 'Summon 4 Spawnlings (1 HP; each bursts for 3 when it dies).' },
     },
-    symbiotic_bond: {
+    symbiotic_bond: {   // the Butcher's defense: each body that dies armors you
       name: 'Symbiotic Bond', cls: 'warpcaller', type: 'power', rarity: 2, cost: 1,
-      fx: [{ k: 'status', s: 'symbiosis', v: 5, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'symbiosis', v: 8, who: 'self' }] },
+      fx: [{ k: 'status', s: 'symbiosis', v: 6, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'symbiosis', v: 9, who: 'self' }] },
     },
     feeding_frenzy: {   // escalating rage as the pack is fed into the grinder
       name: 'Feeding Frenzy', cls: 'warpcaller', type: 'power', rarity: 2, cost: 1,
-      fx: [{ k: 'status', s: 'bloodscent', v: 1, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'bloodscent', v: 2, who: 'self' }] },
+      fx: [{ k: 'status', s: 'bloodscent', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'bloodscent', v: 3, who: 'self' }] },
     },
     overgrowth: {
       name: 'Overgrowth', cls: 'warpcaller', type: 'power', rarity: 3, cost: 2,
@@ -1757,9 +1766,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
     cull_the_weak: {
       name: 'Cull the Weak', cls: 'warpcaller', type: 'attack', rarity: 3, cost: 1, exhaust: true,
-      fx: [{ k: 'special', id: 'cull', v: 6 }],
-      text: 'Sacrifice your whole pack. Deal 6 damage to the target for each pet culled.',
-      up: { fx: [{ k: 'special', id: 'cull', v: 9 }], text: 'Sacrifice your whole pack. Deal 9 damage to the target for each pet culled.' },
+      fx: [{ k: 'special', id: 'cull', v: 7 }],
+      text: 'Sacrifice your whole pack. Deal 7 damage to the target for each pet culled.',
+      up: { fx: [{ k: 'special', id: 'cull', v: 10 }], text: 'Sacrifice your whole pack. Deal 10 damage to the target for each pet culled.' },
     },
     the_swarmlord: {   // Butcher capstone (boss reward)
       name: 'The Swarmlord', cls: 'warpcaller', type: 'power', rarity: 4, pool: 'boss', cost: 3,
@@ -1903,6 +1912,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         else if (f.s === 'symbiosis') parts.push('Whenever a pet dies, gain ' + f.v + ' Shield and draw a card.');
         else if (f.s === 'bloodscent') parts.push('Your pets deal +' + f.v + ' with their actions, and +1 more for every pet that dies (Bloodscent).');
         else if (f.s === 'bulwark') parts.push('At the start of each turn, your FRONT pet gains ' + f.v + ' Block (Bulwark).');
+        else if (f.s === 'feast') parts.push('Whenever one of your pets attacks, heal ' + f.v + ' HP (Savage Feast).');
         else if (f.s === 'brood') parts.push('At the start of each turn, summon ' + (f.v > 1 ? f.v + ' Spawnlings' : 'a Spawnling') + '.');
         else if (f.s === 'slots') parts.push('+' + f.v + ' formation slot' + (f.v > 1 ? 's' : '') + ' (room for more or bigger pets).');
         else if (f.who === 'self') parts.push('Gain ' + f.v + ' ' + n + '.');
@@ -4132,6 +4142,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         var pool = aliveEnemies(); if (!pool.length) return;
         var en = pick(pool);
         dealToEnemy(en, c.enemies.indexOf(en), (act.d || 0) + pw, { noCrit: true, src: 'pet' });
+        var feast = statN(c.player, 'feast');   // Savage Feast: the captain heals off the hunt
+        if (feast > 0) heal(feast);
       } else if (act.t === 'burn') {
         var p2 = aliveEnemies(); if (!p2.length) return;
         var e2 = pick(p2), bv = act.v + Math.floor(pw * 0.5);

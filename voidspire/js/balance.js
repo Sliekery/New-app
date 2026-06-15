@@ -31,7 +31,7 @@
       psiBlockPerPoint: 1,      // bonus block per PSI on primary-scaling skills
       bondBlockPerPoint: 1,     // bonus block per BOND on primary-scaling skills
       psiDmgPerPoint: 1.4,      // bonus damage per PSI on psi-scaling attacks
-      bondPetPerPoint: 0.3,     // bonus to a pet's action per point of BOND (the Warpcaller's scaling)
+      bondPetPerPoint: 0.2,     // bonus to a pet's action per point of BOND (the Warpcaller's scaling)
       eventCheckBonusDiv: 1,    // event check bonus = attr / this (rounded down)
     },
 
