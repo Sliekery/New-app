@@ -243,6 +243,86 @@
       vx: (Math.random() < 0.5 ? -1 : 1) * (120 + Math.random() * 130), vy: 0,
       len: 6 + Math.random() * 10, life: 0.16 + Math.random() * 0.22, age: 0, color: color, size: 1.6 });
   };
+  // A ring that can be a rotating regular polygon (sides>=3) and grow/shrink
+  // its radius from rFrom to rTo over its life. The shape vocabulary for
+  // shields, sigils and shockwaves.
+  R.polyRing = function (x, y, color, rFrom, rTo, sides, life, spin, lw) {
+    particles.push({ kind: 'ring', x: x, y: y, r0: rFrom, r1: rTo, sides: sides || 0,
+      rot0: Math.random() * Math.PI, spin: spin || 0, life: life || 0.5, age: 0, color: color, lw: lw || 2 });
+  };
+  // Jagged lightning between two points (chain/arc/tesla attacks).
+  R.arc = function (x0, y0, x1, y1, color, segs, jitter) {
+    segs = segs || 7; jitter = jitter || 11;
+    var pts = [];
+    for (var s = 0; s <= segs; s++) {
+      var t = s / segs, x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t;
+      if (s > 0 && s < segs) { x += (Math.random() - 0.5) * jitter * 2; y += (Math.random() - 0.5) * jitter * 2; }
+      pts.push([x, y]);
+    }
+    particles.push({ kind: 'bolt', pts: pts, life: 0.18, age: 0, color: color, lw: 2.2 });
+    particles.push({ kind: 'bolt', pts: pts, life: 0.1, age: 0, color: '#ffffff', lw: 1 });
+  };
+  // Thick piercing beam (railgun / lance), bright core, quick decay.
+  R.beamBolt = function (x0, y0, x1, y1, color, width) {
+    particles.push({ kind: 'beam', x0: x0, y0: y0, x1: x1, y1: y1, life: 0.24, age: 0, color: color, w: width || 5 });
+    particles.push({ kind: 'beam', x0: x0, y0: y0, x1: x1, y1: y1, life: 0.15, age: 0, color: '#ffffff', w: (width || 5) * 0.4 });
+  };
+  // Orbital strike: a streak that falls from above onto a target + impact ring.
+  R.strike = function (x, y, color, power) {
+    particles.push({ kind: 'streak', x: x, y: -12, vx: 0, vy: (y + 12) / 0.16, len: 28 + power * 8, life: 0.16, age: 0, color: color, size: 2.5 + power });
+    R.ring(x, y, color, 34 + power * 12, 0.45);
+    burst(x, y, color, 8 + power * 3);
+  };
+  // Directional pellet spread (frag / cluster / shotgun) with gravity drop.
+  R.shards = function (x, y, color, n, dir, spread) {
+    for (var i = 0; i < n; i++) {
+      var ang = dir + (Math.random() - 0.5) * (spread || 1.0), sp = 150 + Math.random() * 170;
+      particles.push({ kind: 'streak', x: x, y: y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, grav: 130,
+        len: 7, life: 0.3 + Math.random() * 0.25, age: 0, color: color, size: 1.5 });
+    }
+  };
+  // Tangential blades whirling around a centre (Whirlwind).
+  R.spiral = function (x, y, color, n, r) {
+    r = r || 30;
+    for (var i = 0; i < n; i++) {
+      var ang = i / n * Math.PI * 2, px = x + Math.cos(ang) * r, py = y + Math.sin(ang) * r, sp = 210;
+      particles.push({ kind: 'streak', x: px, y: py, vx: -Math.sin(ang) * sp, vy: Math.cos(ang) * sp, len: 15, life: 0.28, age: 0, color: color, size: 2 });
+    }
+  };
+  // Rotating warding sigil — counter-spinning polygons + orbiting motes (PSI).
+  R.sigil = function (x, y, color, r) {
+    r = r || 32;
+    R.polyRing(x, y, color, r, r, 6, 0.6, 4, 2);
+    R.polyRing(x, y, color, r * 0.62, r * 0.62, 3, 0.6, -5.5, 1.6);
+    for (var i = 0; i < 8; i++) { var a = i / 8 * Math.PI * 2; particles.push({ x: x + Math.cos(a) * r, y: y + Math.sin(a) * r, vx: -Math.sin(a) * 38, vy: Math.cos(a) * 38, life: 0.5, age: 0, color: color, size: 1.6 }); }
+  };
+  // Big multi-ring detonation (AoE bombs / capstones). Scales with power.
+  R.nova = function (x, y, color, power) {
+    R.ring(x, y, '#ffffff', 18 + power * 10, 0.24);
+    R.ring(x, y, color, 48 + power * 20, 0.5);
+    R.ring(x, y, color, 78 + power * 30, 0.68);
+    burst(x, y, color, 16 + power * 8); burst(x, y, '#ffffff', 6 + power * 3);
+  };
+  R.shake = function (v) { screenShake = Math.max(screenShake, v || 0.6); };
+
+  /* ---- class shields (one per archetype) --------------------------------- */
+  // Vanguard: heavy plated barrier — a tilted square plate snaps inward.
+  R.shieldVan = function (x, y, col) {
+    R.polyRing(x, y, col, 56, 30, 4, 0.42, 0.6, 4);
+    R.polyRing(x, y, '#fff3d6', 42, 24, 4, 0.3, 0.6, 2);
+    burst(x, y, col, 9);
+  };
+  // Technomancer: hexagonal energy field — two counter-rotating hexes shimmer.
+  R.shieldTech = function (x, y, col) {
+    R.polyRing(x, y, col, 22, 46, 6, 0.5, 3, 2);
+    R.polyRing(x, y, '#bff6ff', 18, 40, 6, 0.46, -4, 1.5);
+    for (var i = 0; i < 8; i++) { var a = i / 8 * Math.PI * 2; particles.push({ x: x + Math.cos(a) * 44, y: y + Math.sin(a) * 44, vx: 0, vy: 0, life: 0.42, age: 0, color: col, size: 1.6 }); }
+  };
+  // Void Adept: warding sigil ward — spinning glyphs of containment.
+  R.shieldVoid = function (x, y, col) {
+    R.sigil(x, y, col, 40);
+    R.polyRing(x, y, '#f0d6ff', 48, 30, 3, 0.4, 6, 1.5);
+  };
 
   function factionColor(def) {
     if (def.color) return def.color;   // faction-less bosses (the finale) carry their own colour
@@ -1044,7 +1124,27 @@
       if (p.kind === 'ring') {
         var r = p.r0 + (p.r1 - p.r0) * (p.age / p.life);
         ctx.strokeStyle = p.color; ctx.lineWidth = p.lw || 2;
-        ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath();
+        if (p.sides && p.sides >= 3) {           // rotating regular polygon
+          var rot = (p.rot0 || 0) + (p.spin || 0) * p.age;
+          for (var s = 0; s <= p.sides; s++) {
+            var ang = rot + s / p.sides * Math.PI * 2, px = p.x + Math.cos(ang) * r, py = p.y + Math.sin(ang) * r;
+            if (s === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+        } else { ctx.arc(p.x, p.y, r, 0, Math.PI * 2); }
+        ctx.stroke();
+        continue;
+      }
+      if (p.kind === 'bolt') {                    // static jagged lightning
+        ctx.strokeStyle = p.color; ctx.lineWidth = p.lw || 2;
+        ctx.beginPath();
+        for (var b = 0; b < p.pts.length; b++) { if (b === 0) ctx.moveTo(p.pts[b][0], p.pts[b][1]); else ctx.lineTo(p.pts[b][0], p.pts[b][1]); }
+        ctx.stroke();
+        continue;
+      }
+      if (p.kind === 'beam') {                    // thick piercing beam, tapers out
+        ctx.strokeStyle = p.color; ctx.lineWidth = Math.max(0.5, p.w * a); ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(p.x0, p.y0); ctx.lineTo(p.x1, p.y1); ctx.stroke(); ctx.lineCap = 'butt';
         continue;
       }
       if (p.grav) p.vy += p.grav * dt;          // negative grav floats upward
