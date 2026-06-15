@@ -19,6 +19,7 @@
     regen: 'Regen', plate: 'Plating', thorns: 'Thorns', psiPow: 'Psi Focus',
     strPerTurn: 'Warlord', turret: 'Turret', drone: 'Drone Swarm', entropy: 'Entropy',
     retaliate: 'Riposte', momentum: 'Momentum', fullauto: 'Full Auto',
+    parry: 'Parry', bloodrage: 'Blood Rage', vengeance: 'Vengeance',
     reactor: 'Reactor', retain: 'Phase Lock',
     feelNoPain: 'Resolve', darkEmbrace: 'Salvage', thousandCuts: 'Blade Array',
     afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
@@ -511,6 +512,44 @@
       text: 'Deal an additional 2 damage for each Momentum you have.',
       up: { fx: [{ k: 'dmg', v: 5, scale: 'might' }, { k: 'special', id: 'unload', v: 3 }], text: 'Deal an additional 3 damage for each Momentum you have.' },
     },
+    // --- BLOODFORGE: spend life to stoke Might; defend by parrying (deflect + riposte),
+    //     not turtling. Stacked Strength powers your attacks, your parries, and the cashout. ---
+    blood_rage: {   // the anchor — every drop of your own blood makes you stronger
+      name: 'Blood Rage', cls: 'vanguard', type: 'power', rarity: 3, cost: 1,
+      fx: [{ k: 'status', s: 'bloodrage', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'bloodrage', v: 2, who: 'self' }] },
+    },
+    deflect: {   // the parry stance — Bloodforge's defence, and it bites back
+      name: 'Deflect', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'status', s: 'parry', v: 6, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'parry', v: 9, who: 'self' }] },
+    },
+    vengeance: {   // the sustain anchor — trade blows and feed on the exchange
+      name: 'Vengeance', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'vengeance', v: 4, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'vengeance', v: 6, who: 'self' }] },
+    },
+    counterstrike: {   // parry + a jab — defend forward
+      name: 'Counterstrike', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'status', s: 'parry', v: 4, who: 'self' }],
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'status', s: 'parry', v: 5, who: 'self' }] },
+    },
+    crimson_pact: {   // ⚡0 blood-fuelled jab — cheap, and it feeds Blood Rage
+      name: 'Crimson Pact', cls: 'vanguard', type: 'attack', rarity: 1, cost: 0,
+      fx: [{ k: 'hploss', v: 3 }, { k: 'dmg', v: 6, scale: 'might' }],
+      up: { fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 8, scale: 'might' }] },
+    },
+    whet_the_blade: {   // pure HP -> Might conversion (doubles with Blood Rage)
+      name: 'Whet the Blade', cls: 'vanguard', type: 'skill', rarity: 2, cost: 0,
+      fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'str', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'hploss', v: 1 }, { k: 'status', s: 'str', v: 2, who: 'self' }] },
+    },
+    bloodbath: {   // the cashout — pour all your stacked Might into one brutal blow, and drink deep
+      name: 'Bloodbath', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
+      fx: [{ k: 'special', id: 'bloodbath', v: 4 }, { k: 'special', id: 'drain' }],
+      text: 'Deal damage equal to 4× your Strength. Heal for half the damage dealt.',
+      up: { fx: [{ k: 'special', id: 'bloodbath', v: 5 }, { k: 'special', id: 'drain' }], text: 'Deal damage equal to 5× your Strength. Heal for half the damage dealt.' },
+    },
 
     /* -- Technomancer -- */
     arc_welder: {
@@ -910,6 +949,9 @@
         else if (f.s === 'retaliate') parts.push('Whenever you gain Shield, deal ' + f.v + ' damage to a random enemy (Riposte).');
         else if (f.s === 'momentum') parts.push('Gain ' + f.v + ' Momentum (your attacks deal +1 each this turn).');
         else if (f.s === 'fullauto') parts.push('Whenever you play an Attack, gain ' + f.v + ' Momentum (Full Auto).');
+        else if (f.s === 'parry') parts.push('Gain ' + f.v + ' Parry: it absorbs damage like Shield, and every blow you parry strikes the attacker back (scales with Might).');
+        else if (f.s === 'bloodrage') parts.push('Whenever you lose HP to your own cards, gain ' + f.v + ' Might (Blood Rage).');
+        else if (f.s === 'vengeance') parts.push('After you take a hit or parry a blow, your next Attack heals ' + f.v + ' HP (Vengeance).');
         else if (f.s === 'entropy') parts.push('At end of turn, apply ' + f.v + ' Burn to ALL enemies.');
         else if (f.s === 'reactor') parts.push('Gain +' + f.v + ' Energy at the start of each turn.');
         else if (f.s === 'retain') parts.push('Shield no longer expires.');

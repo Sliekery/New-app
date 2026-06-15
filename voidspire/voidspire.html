@@ -1069,6 +1069,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     regen: 'Regen', plate: 'Plating', thorns: 'Thorns', psiPow: 'Psi Focus',
     strPerTurn: 'Warlord', turret: 'Turret', drone: 'Drone Swarm', entropy: 'Entropy',
     retaliate: 'Riposte', momentum: 'Momentum', fullauto: 'Full Auto',
+    parry: 'Parry', bloodrage: 'Blood Rage', vengeance: 'Vengeance',
     reactor: 'Reactor', retain: 'Phase Lock',
     feelNoPain: 'Resolve', darkEmbrace: 'Salvage', thousandCuts: 'Blade Array',
     afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
@@ -1561,6 +1562,44 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       text: 'Deal an additional 2 damage for each Momentum you have.',
       up: { fx: [{ k: 'dmg', v: 5, scale: 'might' }, { k: 'special', id: 'unload', v: 3 }], text: 'Deal an additional 3 damage for each Momentum you have.' },
     },
+    // --- BLOODFORGE: spend life to stoke Might; defend by parrying (deflect + riposte),
+    //     not turtling. Stacked Strength powers your attacks, your parries, and the cashout. ---
+    blood_rage: {   // the anchor — every drop of your own blood makes you stronger
+      name: 'Blood Rage', cls: 'vanguard', type: 'power', rarity: 3, cost: 1,
+      fx: [{ k: 'status', s: 'bloodrage', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'bloodrage', v: 2, who: 'self' }] },
+    },
+    deflect: {   // the parry stance — Bloodforge's defence, and it bites back
+      name: 'Deflect', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'status', s: 'parry', v: 6, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'parry', v: 9, who: 'self' }] },
+    },
+    vengeance: {   // the sustain anchor — trade blows and feed on the exchange
+      name: 'Vengeance', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'vengeance', v: 4, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'vengeance', v: 6, who: 'self' }] },
+    },
+    counterstrike: {   // parry + a jab — defend forward
+      name: 'Counterstrike', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'status', s: 'parry', v: 4, who: 'self' }],
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'status', s: 'parry', v: 5, who: 'self' }] },
+    },
+    crimson_pact: {   // ⚡0 blood-fuelled jab — cheap, and it feeds Blood Rage
+      name: 'Crimson Pact', cls: 'vanguard', type: 'attack', rarity: 1, cost: 0,
+      fx: [{ k: 'hploss', v: 3 }, { k: 'dmg', v: 6, scale: 'might' }],
+      up: { fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 8, scale: 'might' }] },
+    },
+    whet_the_blade: {   // pure HP -> Might conversion (doubles with Blood Rage)
+      name: 'Whet the Blade', cls: 'vanguard', type: 'skill', rarity: 2, cost: 0,
+      fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'str', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'hploss', v: 1 }, { k: 'status', s: 'str', v: 2, who: 'self' }] },
+    },
+    bloodbath: {   // the cashout — pour all your stacked Might into one brutal blow, and drink deep
+      name: 'Bloodbath', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
+      fx: [{ k: 'special', id: 'bloodbath', v: 4 }, { k: 'special', id: 'drain' }],
+      text: 'Deal damage equal to 4× your Strength. Heal for half the damage dealt.',
+      up: { fx: [{ k: 'special', id: 'bloodbath', v: 5 }, { k: 'special', id: 'drain' }], text: 'Deal damage equal to 5× your Strength. Heal for half the damage dealt.' },
+    },
 
     /* -- Technomancer -- */
     arc_welder: {
@@ -1960,6 +1999,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         else if (f.s === 'retaliate') parts.push('Whenever you gain Shield, deal ' + f.v + ' damage to a random enemy (Riposte).');
         else if (f.s === 'momentum') parts.push('Gain ' + f.v + ' Momentum (your attacks deal +1 each this turn).');
         else if (f.s === 'fullauto') parts.push('Whenever you play an Attack, gain ' + f.v + ' Momentum (Full Auto).');
+        else if (f.s === 'parry') parts.push('Gain ' + f.v + ' Parry: it absorbs damage like Shield, and every blow you parry strikes the attacker back (scales with Might).');
+        else if (f.s === 'bloodrage') parts.push('Whenever you lose HP to your own cards, gain ' + f.v + ' Might (Blood Rage).');
+        else if (f.s === 'vengeance') parts.push('After you take a hit or parry a blow, your next Attack heals ' + f.v + ' HP (Vengeance).');
         else if (f.s === 'entropy') parts.push('At end of turn, apply ' + f.v + ' Burn to ALL enemies.');
         else if (f.s === 'reactor') parts.push('Gain +' + f.v + ' Energy at the start of each turn.');
         else if (f.s === 'retain') parts.push('Shield no longer expires.');
@@ -2088,6 +2130,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     shield_bash: 'shieldStrike', reckless_charge: 'blade', suppressing_barrage: 'shell', rallying_shout: 'might',
     frenzy: 'burst', bloodlust: 'drain', riposte_protocol: 'shieldStrike',
     rapid_fire: 'rifle', trigger_discipline: 'reload', hail_of_lead: 'burst', full_auto: 'might', unload: 'cannon',
+    blood_rage: 'might', deflect: 'shieldStrike', counterstrike: 'blade', crimson_pact: 'drain', whet_the_blade: 'blade', bloodbath: 'skull', vengeance: 'drain',
   };
   var TYPE_DEFAULT = { attack: 'rifle', skill: 'shield', power: 'core', curse: 'skull' };
 
@@ -3856,6 +3899,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (c.turn === 1 && E.hasEcho('cursed_inheritance')) c.hand.push(mkCard('recurring_curse', false));
     // block expiry (Retain / Barricade keep your Shield)
     if (!statN(p, 'retain') && !statN(p, 'barricade')) p.block = 0;
+    if (p.statuses.parry) p.statuses.parry = 0;   // Parry is a per-turn stance (like block)
     // energy (with optional carry-over from Overflow Reactor)
     c.energy = maxEnergy() + (art('energyCarry') > 0 ? leftover : 0);
     if (c.turn === 1) c.energy += art('energyTurn1');
@@ -4088,6 +4132,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
     var hpDmg = amount - blocked;
     r.hp -= hpDmg;
+    if (c && hpDmg > 0 && !opts.pure) c.avengeArmed = true;   // taking a real hit arms Vengeance
     emit('dmg', { who: 'player', amount: amount, hpDmg: hpDmg, hpAfter: Math.max(0, r.hp), blockAfter: p ? p.block : 0 });
     // Reactive Plating: the first HP damage each combat grants Shield
     if (c && hpDmg > 0 && !c.reactiveUsed && !opts.pure) {
@@ -4320,6 +4365,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           hurtPlayer(f.v, { pure: true });
           var bp = statN(p, 'bloodPact');   // BLOOD PACT: spilled HP feeds your Psi
           if (bp > 0) { addStatus(p, 'psiPow', bp); emit('status', { who: 'player', s: 'psiPow', v: bp }); }
+          var brg = statN(p, 'bloodrage');  // BLOOD RAGE: spending life stokes your Might (Bloodforge)
+          if (brg > 0) { addStatus(p, 'str', brg); emit('status', { who: 'player', s: 'str', v: brg }); }
           break;
         }
         case 'draw': drawCards(f.v); break;
@@ -4382,6 +4429,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             var oEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             var od = f.v * (c.cardsThisTurn || 0) + statN(p, 'str') + art('flatDmg');
             if (oEn && od > 0) totalDealt += dealToEnemy(oEn, c.enemies.indexOf(oEn), od, { crit: crit, roll: roll });
+          } else if (f.id === 'bloodbath') {
+            // BLOODFORGE cashout: convert your stacked Might into one brutal blow.
+            var bEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            var bd = f.v * statN(p, 'str') + art('flatDmg');
+            if (bEn && bd > 0) totalDealt += dealToEnemy(bEn, c.enemies.indexOf(bEn), bd, { crit: crit, roll: roll });
           } else if (f.id === 'unload') {
             // FUSILLADE cashout: dump every point of built-up Momentum into one hit.
             var uEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
@@ -4475,6 +4527,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     for (var rep = 0; rep < times; rep++) {
       if (c.over) break;
       totalDealt += applyCardFx(fx, ctx);
+    }
+    // VENGEANCE: a connecting Attack, after you took a hit or parried, heals you.
+    if (def.type === 'attack' && totalDealt > 0 && c.avengeArmed && statN(p, 'vengeance') > 0) {
+      heal(statN(p, 'vengeance'));
+      c.avengeArmed = false;
     }
     // Void-Touched drawback: pay HP each time the corrupted card is played
     if (card.vtouch && r.phase !== 'dead') hurtPlayer(ns.VTOUCH_HP, { pure: true });
@@ -4625,6 +4682,23 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             var absorbed = Math.min(remaining, front.hp + front.block);
             dealToAlly(front, absorbed);
             remaining -= absorbed;
+          }
+          // Parry (Bloodforge): deflect like a shield, but every parried blow ripostes
+          // the attacker for a Might-scaled counter. The berserker turns defence into offence.
+          if (remaining > 0 && !m.pierce) {
+            var pv = statN(p, 'parry');
+            if (pv > 0) {
+              var deflected = Math.min(remaining, pv);
+              addStatus(p, 'parry', -deflected);
+              remaining -= deflected;
+              emit('block', { who: 'player', amount: 0, blockAfter: p.block });
+              if (deflected > 0 && en.alive) {
+                var rip = 1 + statN(p, 'str') + attr('might');   // riposte scales with the Might you've stacked
+                dealToEnemy(en, idx, rip, { noCrit: true, noWeak: true });
+                c.avengeArmed = true;   // parrying a blow also arms Vengeance
+                if (!en.alive) break;
+              }
+            }
           }
           if (remaining > 0) {
             totalToPlayer += hurtPlayer(remaining, m.pierce ? { pure: true } : undefined);
@@ -6637,8 +6711,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // defense / engine). Debuffs (vuln/weak/burn) are NOT shown here.
   var POWER_CAT = {
     str: 'off', strPerTurn: 'off', psiPow: 'off', plague: 'off', entropy: 'off', thousandCuts: 'off',
-    momentum: 'off', fullauto: 'off', retaliate: 'off',
-    plate: 'def', platedArmor: 'def', feelNoPain: 'def', afterImage: 'def', barricade: 'def', retain: 'def', thorns: 'def', regen: 'def',
+    momentum: 'off', fullauto: 'off', retaliate: 'off', bloodrage: 'off',
+    plate: 'def', platedArmor: 'def', feelNoPain: 'def', afterImage: 'def', barricade: 'def', retain: 'def', thorns: 'def', regen: 'def', parry: 'def', vengeance: 'def',
     turret: 'sp', drone: 'sp', echo: 'sp', reactor: 'sp', darkEmbrace: 'sp', corruption: 'sp', bloodPact: 'sp',
   };
   var CAT_COL = { off: '#ffb02e', def: '#41d8ff', sp: '#c86bff' };

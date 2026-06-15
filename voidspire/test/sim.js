@@ -78,6 +78,9 @@ function estCardDamage(card, target, includeDot) {
     if (f.k === 'special' && f.id === 'unload') {
       total += f.v * (c.player.statuses.momentum || 0);  // Fusillade cashout scales with built Momentum
     }
+    if (f.k === 'special' && f.id === 'bloodbath') {
+      total += f.v * (c.player.statuses.str || 0);        // Bloodforge cashout scales with stacked Strength
+    }
     if (f.k === 'special' && f.id === 'cull') {
       // CULL: sacrifice the whole pack, f.v damage per pet (Butcher finisher).
       var pets = (c.allies || []).filter(function (a) { return a.alive; }).length;
@@ -98,6 +101,7 @@ function estCardBlock(card) {
       var sc = f.scale === 'pri' ? PRI_ATTR[VS.engine.run.cls] : f.scale;
       total += f.v + ((sc === 'tech' || sc === 'might' || sc === 'psi') ? VS.engine.attr(sc) : 0);
     }
+    if (f.k === 'status' && f.s === 'parry') total += f.v;   // Parry deflects like block (Bloodforge)
     if (f.k === 'special' && f.id === 'powerSurge') {
       var c = VS.engine.combat, pw = 0;
       c.consumed.forEach(function (cc) { if (VS.CARDS[cc.id].type === 'power') pw++; });
@@ -255,6 +259,8 @@ var ENGINES = {
   // Vanguard engines
   fusillade: { cls: 'vanguard', core: ['rapid_fire', 'trigger_discipline', 'hail_of_lead', 'full_auto', 'unload', 'burst_fire', 'frenzy', 'reckless_charge'],
                flex: ['pulse_rifle', 'combat_shield', 'war_cry', 'suppressing_fire', 'bayonet_charge', 'brace', 'reload', 'rallying_shout', 'munitions_dump'] },
+  bloodforge: { cls: 'vanguard', core: ['blood_rage', 'deflect', 'vengeance', 'counterstrike', 'crimson_pact', 'whet_the_blade', 'bloodbath', 'frenzy', 'limit_break', 'heavy_ordnance', 'combat_stims', 'bloodlust'],
+                flex: ['pulse_rifle', 'war_cry', 'rallying_shout', 'bayonet_charge', 'executioner', 'adrenal_surge'] },
 };
 var FLEX_OF = { warpcaller: ['claw_swipe', 'summon_maw', 'howl', 'kennel', 'summon_totem'] };  // per-class default flex
 var PILOT = null;   // an ENGINES key — null = default greedy draft

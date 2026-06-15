@@ -604,6 +604,7 @@
     if (c.turn === 1 && E.hasEcho('cursed_inheritance')) c.hand.push(mkCard('recurring_curse', false));
     // block expiry (Retain / Barricade keep your Shield)
     if (!statN(p, 'retain') && !statN(p, 'barricade')) p.block = 0;
+    if (p.statuses.parry) p.statuses.parry = 0;   // Parry is a per-turn stance (like block)
     // energy (with optional carry-over from Overflow Reactor)
     c.energy = maxEnergy() + (art('energyCarry') > 0 ? leftover : 0);
     if (c.turn === 1) c.energy += art('energyTurn1');
@@ -836,6 +837,7 @@
     }
     var hpDmg = amount - blocked;
     r.hp -= hpDmg;
+    if (c && hpDmg > 0 && !opts.pure) c.avengeArmed = true;   // taking a real hit arms Vengeance
     emit('dmg', { who: 'player', amount: amount, hpDmg: hpDmg, hpAfter: Math.max(0, r.hp), blockAfter: p ? p.block : 0 });
     // Reactive Plating: the first HP damage each combat grants Shield
     if (c && hpDmg > 0 && !c.reactiveUsed && !opts.pure) {
@@ -1068,6 +1070,8 @@
           hurtPlayer(f.v, { pure: true });
           var bp = statN(p, 'bloodPact');   // BLOOD PACT: spilled HP feeds your Psi
           if (bp > 0) { addStatus(p, 'psiPow', bp); emit('status', { who: 'player', s: 'psiPow', v: bp }); }
+          var brg = statN(p, 'bloodrage');  // BLOOD RAGE: spending life stokes your Might (Bloodforge)
+          if (brg > 0) { addStatus(p, 'str', brg); emit('status', { who: 'player', s: 'str', v: brg }); }
           break;
         }
         case 'draw': drawCards(f.v); break;
@@ -1130,6 +1134,11 @@
             var oEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             var od = f.v * (c.cardsThisTurn || 0) + statN(p, 'str') + art('flatDmg');
             if (oEn && od > 0) totalDealt += dealToEnemy(oEn, c.enemies.indexOf(oEn), od, { crit: crit, roll: roll });
+          } else if (f.id === 'bloodbath') {
+            // BLOODFORGE cashout: convert your stacked Might into one brutal blow.
+            var bEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            var bd = f.v * statN(p, 'str') + art('flatDmg');
+            if (bEn && bd > 0) totalDealt += dealToEnemy(bEn, c.enemies.indexOf(bEn), bd, { crit: crit, roll: roll });
           } else if (f.id === 'unload') {
             // FUSILLADE cashout: dump every point of built-up Momentum into one hit.
             var uEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
@@ -1223,6 +1232,11 @@
     for (var rep = 0; rep < times; rep++) {
       if (c.over) break;
       totalDealt += applyCardFx(fx, ctx);
+    }
+    // VENGEANCE: a connecting Attack, after you took a hit or parried, heals you.
+    if (def.type === 'attack' && totalDealt > 0 && c.avengeArmed && statN(p, 'vengeance') > 0) {
+      heal(statN(p, 'vengeance'));
+      c.avengeArmed = false;
     }
     // Void-Touched drawback: pay HP each time the corrupted card is played
     if (card.vtouch && r.phase !== 'dead') hurtPlayer(ns.VTOUCH_HP, { pure: true });
@@ -1373,6 +1387,23 @@
             var absorbed = Math.min(remaining, front.hp + front.block);
             dealToAlly(front, absorbed);
             remaining -= absorbed;
+          }
+          // Parry (Bloodforge): deflect like a shield, but every parried blow ripostes
+          // the attacker for a Might-scaled counter. The berserker turns defence into offence.
+          if (remaining > 0 && !m.pierce) {
+            var pv = statN(p, 'parry');
+            if (pv > 0) {
+              var deflected = Math.min(remaining, pv);
+              addStatus(p, 'parry', -deflected);
+              remaining -= deflected;
+              emit('block', { who: 'player', amount: 0, blockAfter: p.block });
+              if (deflected > 0 && en.alive) {
+                var rip = 1 + statN(p, 'str') + attr('might');   // riposte scales with the Might you've stacked
+                dealToEnemy(en, idx, rip, { noCrit: true, noWeak: true });
+                c.avengeArmed = true;   // parrying a blow also arms Vengeance
+                if (!en.alive) break;
+              }
+            }
           }
           if (remaining > 0) {
             totalToPlayer += hurtPlayer(remaining, m.pierce ? { pure: true } : undefined);

@@ -2,14 +2,14 @@
 
 _Auto-generated from the game data (`node test/cardsdoc.js`). Effect text is exactly what the game shows; numbers are the base values **before** any MIGHT/TECH/PSI/BOND scaling._
 
-**123 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Warpcaller](#warpcaller) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
+**130 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Warpcaller](#warpcaller) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
 
 
 ---
 
 ## Vanguard
 
-_Shock trooper — MIGHT weapons & raw aggression. (37 cards)_
+_Shock trooper — MIGHT weapons & raw aggression. (44 cards)_
 
 
 ### Starter
@@ -23,6 +23,15 @@ _Shock trooper — MIGHT weapons & raw aggression. (37 cards)_
 - **Burst Fire**  — Attack · ⚡1
     - Base: Deal 3 damage 2 times.
     - Upgraded: Deal 3 damage 3 times.
+- **Counterstrike**  — Attack · ⚡1
+    - Base: Deal 4 damage. Gain 4 Parry: it absorbs damage like Shield, and every blow you parry strikes the attacker back (scales with Might).
+    - Upgraded: Deal 6 damage. Gain 5 Parry: it absorbs damage like Shield, and every blow you parry strikes the attacker back (scales with Might).
+- **Crimson Pact**  — Attack · ⚡0
+    - Base: Lose 3 HP. Deal 6 damage.
+    - Upgraded: Lose 2 HP. Deal 8 damage.
+- **Deflect**  — Skill · ⚡1
+    - Base: Gain 6 Parry: it absorbs damage like Shield, and every blow you parry strikes the attacker back (scales with Might).
+    - Upgraded: Gain 9 Parry: it absorbs damage like Shield, and every blow you parry strikes the attacker back (scales with Might).
 - **Frag Grenade**  — Attack · ⚡1
     - Base: Deal 5 damage to ALL enemies.
     - Upgraded: Deal 8 damage to ALL enemies.
@@ -98,6 +107,12 @@ _Shock trooper — MIGHT weapons & raw aggression. (37 cards)_
 - **Unload**  — Attack · ⚡2
     - Base: Deal an additional 2 damage for each Momentum you have.
     - Upgraded: Deal an additional 3 damage for each Momentum you have.
+- **Vengeance**  — Power · ⚡1
+    - Base: After you take a hit or parry a blow, your next Attack heals 4 HP (Vengeance).
+    - Upgraded: After you take a hit or parry a blow, your next Attack heals 6 HP (Vengeance).
+- **Whet the Blade**  — Skill · ⚡0
+    - Base: Lose 2 HP. Gain 2 Might.
+    - Upgraded: Lose 1 HP. Gain 2 Might.
 - **Whirlwind**  — Attack · ⚡X
     - Base: Deal 5 damage to ALL enemies, X times (X = current Energy).
     - Upgraded: Deal 8 damage to ALL enemies, X times (X = current Energy).
@@ -107,6 +122,12 @@ _Shock trooper — MIGHT weapons & raw aggression. (37 cards)_
 - **Barricade Protocol**  — Power · ⚡2 → 1
     - Base: Your Shield no longer expires at the start of your turn.
     - Upgraded: _(no change)_
+- **Blood Rage**  — Power · ⚡1
+    - Base: Whenever you lose HP to your own cards, gain 1 Might (Blood Rage).
+    - Upgraded: Whenever you lose HP to your own cards, gain 2 Might (Blood Rage).
+- **Bloodbath**  — Attack · ⚡2
+    - Base: Deal damage equal to 4× your Strength. Heal for half the damage dealt.
+    - Upgraded: Deal damage equal to 5× your Strength. Heal for half the damage dealt.
 - **Bloodlust**  — Power · ⚡1
     - Base: Gain +1 Energy at the start of each turn. Lose 6 HP.
     - Upgraded: Gain +1 Energy at the start of each turn. Lose 3 HP.
