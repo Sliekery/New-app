@@ -11,8 +11,9 @@
   var R = ns.render;
   var B = ns.BALANCE;
 
-  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile;
+  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $manifest;
   var selected = -1;        // selected hand index
+  var manifestSel = -1;     // selected pet in the Manifest (tap-to-swap reorder)
   var targeting = false;
   var locked = false;       // input lock while timeline plays
   var toastTimer = null;
@@ -227,6 +228,13 @@
     $potionTip.id = 'potion-tip';
     $game.appendChild($potionTip);
 
+    // The Warpcaller's Crew Manifest — the interactive formation panel (left of
+    // the hand). Lists each pet with its model + HP/action; tap two cells to swap
+    // their order. The front cell (top) is the one single-target attacks strike.
+    $manifest = el('div', '', '');
+    $manifest.id = 'manifest';
+    $game.appendChild($manifest);
+
     document.getElementById('battlefield').addEventListener('pointerdown', onFieldTap);
     document.addEventListener('pointermove', onDragMove);
     document.addEventListener('pointerup', onDragEnd);
@@ -411,6 +419,7 @@
     $potions.style.display = on ? 'flex' : 'none';
     if (!on) { $hint.style.display = 'none'; onPotionCancel(); hidePotionTip(); }
     R.combatVisible = on;
+    if (!on && $manifest) { $manifest.style.display = 'none'; manifestSel = -1; }
   }
 
   /* ====================== HUD ====================== */
@@ -418,7 +427,7 @@
 
   function updateHUD() {
     var r = E.run;
-    if (!r) { $hud.innerHTML = ''; setHud(false); return; }
+    if (!r) { $hud.innerHTML = ''; setHud(false); renderManifest(); return; }
     setHud(true);
     var c = E.combat;
     var fac = ns.FACTIONS[r.faction];
@@ -478,8 +487,67 @@
     if (deckBtn) deckBtn.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); showDeckModal(); });
     var menuBtn = $hud.querySelector('[data-act="menu"]');
     if (menuBtn) menuBtn.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); showMenu(); });
+
+    renderManifest();
   }
   U.updateHUD = updateHUD;
+
+  /* ====================== CREW MANIFEST (Warpcaller) ====================== */
+  // icon glyph + colour per pet action, mirroring the on-field readout.
+  var MF_ACT = {
+    atk:     ['▶', '#ff6a6a'],   // ▶ strike
+    burn:    ['≈', '#ff8a3d'],   // ≈ burn
+    block:   ['⬡', '#6bd8ff'],   // ⬡ shield
+    heal:    ['✚', '#6bff9d'],   // ✚ mend
+    support: ['✦', '#ffd24a'],   // ✦ buff (adjacent)
+  };
+  function renderManifest() {
+    if (!$manifest) return;
+    var c = E.combat;
+    var show = !!c && !!E.run && E.run.cls === 'warpcaller' && R.combatVisible && !c.over;
+    $manifest.style.display = show ? 'flex' : 'none';
+    if (!show) { manifestSel = -1; return; }
+    var allies = c.allies;
+    if (manifestSel >= allies.length) manifestSel = -1;
+    var html = '<div class="mf-head">PACK <b>' + E.petSlots() + '/' + E.maxSlots() + '</b></div>';
+    if (!allies.length) {
+      html += '<div class="mf-empty">no units<br>summoned</div>';
+    } else {
+      allies.forEach(function (a, i) {
+        var info = E.petInfo(a), ac = MF_ACT[info.icon] || MF_ACT.atk;
+        var sz = a.def.size || 1, col = a.def.color || '#7b8cff';
+        var m = a.model && ns.PET_MODELS[a.model] && ns.PET_MODELS[a.model].art;
+        var svg = m ? artSVG(m, 'mf-art', col) : '';
+        var hpPct = Math.max(0, a.hp / a.maxHp);
+        var cls = 'mf-cell' + (i === 0 ? ' front' : '') + (i === manifestSel ? ' sel' : '') + (sz > 1 ? ' big' : '');
+        html += '<div class="' + cls + '" data-mf="' + i + '">' +
+          (i === 0 ? '<span class="mf-front">FRONT</span>' : '') +
+          (sz > 1 ? '<span class="mf-size">' + sz + '□</span>' : '') +
+          '<div class="mf-fig">' + svg + '</div>' +
+          '<div class="mf-hp"><div class="mf-hp-fill" style="transform:scaleX(' + hpPct.toFixed(3) +
+            ');background:' + (hpPct > 0.3 ? col : '#ff5b6b') + '"></div></div>' +
+          '<div class="mf-stats"><span class="mf-act" style="color:' + ac[1] + '">' + ac[0] + info.val + '</span>' +
+          '<span class="mf-hpn">♥' + Math.max(0, Math.ceil(a.hp)) + '</span></div>' +
+        '</div>';
+      });
+    }
+    $manifest.innerHTML = html;
+    $manifest.querySelectorAll('[data-mf]').forEach(function (cell) {
+      cell.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); onManifestTap(+cell.dataset.mf); });
+    });
+  }
+  U.renderManifest = renderManifest;
+  // Tap a pet to pick it up, tap another cell to swap their positions.
+  function onManifestTap(i) {
+    if (locked || !E.combat || E.combat.over) return;
+    var allies = E.combat.allies;
+    if (allies.length < 2) return;            // nothing to reorder with one pet
+    SFX.tap();
+    if (manifestSel < 0) { manifestSel = i; }
+    else if (manifestSel === i) { manifestSel = -1; }  // tap again to cancel
+    else { E.swapPets(manifestSel, i); manifestSel = -1; }
+    renderManifest();
+  }
 
   /* ====================== TITLE ====================== */
   var CLASS_INFO = {
