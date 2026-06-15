@@ -47,7 +47,7 @@
     shock_coil: 'bolt', emp_blast: 'bolt', railgun: 'cannon',
     leech_coil: 'drain',
     mind_spike: 'psiBolt', psy_lance: 'psiBolt', eldritch_storm: 'vortex',
-    void_grasp: 'grasp', tk_crush: 'grasp',
+    tk_crush: 'grasp',
     combat_shield: 'shield', overshield: 'shield', bulwark: 'shield', brace: 'shield',
     guard_protocol: 'shield', fortify_matrix: 'shield', entrench_field: 'shieldStrike',
     adrenal_surge: 'bolt', overclock: 'bolt', reload: 'reload', combat_scan: 'scan', premonition: 'eye',

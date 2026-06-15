@@ -2,7 +2,7 @@
 
 _Auto-generated from the game data (`node test/cardsdoc.js`). Effect text is exactly what the game shows; numbers are the base values **before** any MIGHT/TECH/PSI/BOND scaling._
 
-**112 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Warpcaller](#warpcaller) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
+**111 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Warpcaller](#warpcaller) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
 
 
 ---
@@ -45,8 +45,8 @@ _Shock trooper — MIGHT weapons & raw aggression. (25 cards)_
     - Base: Deal 5 damage for each Vulnerable, Weak, and Burn on the target.
     - Upgraded: Deal 8 damage for each Vulnerable, Weak, and Burn on the target.
 - **Bulwark**  — Skill · ⚡2
-    - Base: Gain 13 Shield. Gain 3 Thorns.
-    - Upgraded: Gain 17 Shield. Gain 4 Thorns.
+    - Base: Gain 12 Shield. Draw 1 card.
+    - Upgraded: Gain 16 Shield. Draw 1 card.
 - **Bunker Down**  — Skill · ⚡2
     - Base: Gain 8 Shield. Plated Armor 3: each turn gain that much Shield, then it drops by 1.
     - Upgraded: Gain 12 Shield. Plated Armor 4: each turn gain that much Shield, then it drops by 1.
@@ -54,8 +54,8 @@ _Shock trooper — MIGHT weapons & raw aggression. (25 cards)_
     - Base: Deal 4 damage to ALL enemies 2 times.
     - Upgraded: Deal 6 damage to ALL enemies 2 times.
 - **Combat Stims**  — Power · ⚡1
-    - Base: Gain 2 Might.
-    - Upgraded: Gain 3 Might.
+    - Base: Gain 3 Might. Lose 3 HP.
+    - Upgraded: Gain 4 Might. Lose 2 HP.
 - **Executioner Round**  — Attack · ⚡2
     - Base: Double damage if the target is below 30% HP.
     - Upgraded: Deal 14 damage. Double damage if the target is below 30% HP.
@@ -181,8 +181,8 @@ _Machine-priest — TECH shields, turrets & reactors. (24 cards)_
     - Base: Gain +1 Energy at the start of each turn.
     - Upgraded: _(no change)_
 - **Drone Swarm**  — Power · ⚡2
-    - Base: Turret: deal 6 damage each turn.
-    - Upgraded: Turret: deal 8 damage each turn.
+    - Base: Drone Swarm: deal 4 damage to ALL enemies each turn.
+    - Upgraded: Drone Swarm: deal 6 damage to ALL enemies each turn.
 - **Echo Core**  — Power · ⚡2 → 1
     - Base: The first Attack you play each turn is played twice.
     - Upgraded: _(no change)_
@@ -200,7 +200,7 @@ _Machine-priest — TECH shields, turrets & reactors. (24 cards)_
 
 ## Void Adept
 
-_Sanctioned psyker — PSI burns, hexes & blasts. (24 cards)_
+_Sanctioned psyker — PSI burns, hexes & blasts. (23 cards)_
 
 
 ### Starter
@@ -214,9 +214,9 @@ _Sanctioned psyker — PSI burns, hexes & blasts. (24 cards)_
 - **Hemorrhage**  — Skill · ⚡0  _(Exhaust)_
     - Base: Lose 2 HP. Gain 2 Energy. Exhaust.
     - Upgraded: Lose 1 HP. Gain 2 Energy. Exhaust.
-- **Hex Weave**  — Skill · ⚡0
-    - Base: Apply 2 Burn.
-    - Upgraded: Apply 4 Burn.
+- **Hex Weave**  — Skill · ⚡1
+    - Base: Apply 2 Burn to ALL enemies.
+    - Upgraded: Apply 3 Burn to ALL enemies.
 - **Premonition**  — Skill · ⚡1
     - Base: Draw 2 cards. Gain 3 Shield.
     - Upgraded: Draw 2 cards. Gain 6 Shield.
@@ -230,8 +230,8 @@ _Sanctioned psyker — PSI burns, hexes & blasts. (24 cards)_
     - Base: Deal 5 damage. Apply 2 Vulnerable.
     - Upgraded: Deal 7 damage. Apply 3 Vulnerable.
 - **Void Siphon**  — Attack · ⚡1
-    - Base: Deal 6 damage. Apply 1 Vulnerable.
-    - Upgraded: Deal 8 damage. Apply 2 Vulnerable.
+    - Base: Heal for half the total damage dealt.
+    - Upgraded: Deal 6 damage to ALL enemies. Heal for half the total damage dealt.
 
 ### Uncommon
 
@@ -256,9 +256,6 @@ _Sanctioned psyker — PSI burns, hexes & blasts. (24 cards)_
 - **Telekinetic Crush**  — Attack · ⚡2
     - Base: Deal 5 damage.
     - Upgraded: Deal 9 damage.
-- **Void Grasp**  — Attack · ⚡2
-    - Base: Heal for half the damage dealt.
-    - Upgraded: Deal 13 damage. Heal for half the damage dealt.
 - **Wither**  — Skill · ⚡1
     - Base: Apply 3 Burn. Apply 2 Weak.
     - Upgraded: Apply 5 Burn. Apply 2 Weak.

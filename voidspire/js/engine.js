@@ -1288,6 +1288,10 @@
         dealToEnemy(en, c.enemies.indexOf(en), tv + attr('tech'), { noCrit: true, noWeak: true });
       }
     }
+    var drv = statN(p, 'drone');     // Drone Swarm: an AoE turret — strafes ALL enemies
+    if (drv > 0 && !c.over) {
+      c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, drv + attr('tech'), { noCrit: true, noWeak: true }); });
+    }
     var ev = statN(p, 'entropy');
     if (ev > 0) {
       var espread = 0;

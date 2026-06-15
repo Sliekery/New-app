@@ -1280,7 +1280,7 @@
     nano_repair: 'repair', overclock: 'overclock',
     // -- Void Adept --
     mind_spike: 'psiBolt', psy_lance: 'psiBolt', void_bolt: 'psiBolt', void_siphon: 'psiBolt',
-    mind_storm: 'psiStorm', tk_crush: 'crush', void_grasp: 'drainBolt', exsanguinate: 'drainBolt',
+    mind_storm: 'psiStorm', tk_crush: 'crush', exsanguinate: 'drainBolt',
     soul_burn: 'ignite', hex_weave: 'ignite', wither: 'ignite', catalyst: 'ignite',
     mind_fracture: 'hex', unravel: 'reap', eldritch_storm: 'psiRain',
     psionic_focus: 'sigil', blood_pact: 'sigil', entropy_field: 'sigil', mind_array: 'sigil', plague_engine: 'sigil',

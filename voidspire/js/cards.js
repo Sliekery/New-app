@@ -17,7 +17,7 @@
   var STATUS_NAMES = {
     str: 'Might', vuln: 'Vulnerable', weak: 'Weak', burn: 'Burn',
     regen: 'Regen', plate: 'Plating', thorns: 'Thorns', psiPow: 'Psi Focus',
-    strPerTurn: 'Warlord', turret: 'Turret', entropy: 'Entropy',
+    strPerTurn: 'Warlord', turret: 'Turret', drone: 'Drone Swarm', entropy: 'Entropy',
     reactor: 'Reactor', retain: 'Phase Lock',
     feelNoPain: 'Resolve', darkEmbrace: 'Salvage', thousandCuts: 'Blade Array',
     afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
@@ -181,15 +181,15 @@
       text: 'Deal damage equal to your Shield.',
       up: { fx: [{ k: 'special', id: 'shieldSlam15' }], text: 'Deal damage equal to 150% of your Shield.' },
     },
-    bulwark: {
+    bulwark: {   // heavy block + tempo (Riot Shield = thorns, Bunker Down = engine)
       name: 'Bulwark', cls: 'vanguard', type: 'skill', rarity: 2, cost: 2,
-      fx: [{ k: 'block', v: 13, scale: 'pri' }, { k: 'status', s: 'thorns', v: 3, who: 'self' }],
-      up: { fx: [{ k: 'block', v: 17, scale: 'pri' }, { k: 'status', s: 'thorns', v: 4, who: 'self' }] },
+      fx: [{ k: 'block', v: 12, scale: 'pri' }, { k: 'draw', v: 1 }],
+      up: { fx: [{ k: 'block', v: 16, scale: 'pri' }, { k: 'draw', v: 1 }] },
     },
-    combat_stims: {
+    combat_stims: {   // aggressive Might spike at an HP cost (War Cry = safe Str + draw)
       name: 'Combat Stims', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
-      fx: [{ k: 'status', s: 'str', v: 2, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'str', v: 3, who: 'self' }] },
+      fx: [{ k: 'status', s: 'str', v: 3, who: 'self' }, { k: 'hploss', v: 3 }],
+      up: { fx: [{ k: 'status', s: 'str', v: 4, who: 'self' }, { k: 'hploss', v: 2 }] },
     },
     adrenal_surge: {
       name: 'Adrenal Surge', cls: 'vanguard', type: 'skill', rarity: 2, cost: 0, exhaust: true,
@@ -278,10 +278,10 @@
       fx: [{ k: 'status', s: 'burn', v: 4, who: 'target' }],
       up: { fx: [{ k: 'status', s: 'burn', v: 7, who: 'target' }] },
     },
-    hex_weave: {
-      name: 'Hex Weave', cls: 'voidadept', type: 'skill', rarity: 1, cost: 0,
-      fx: [{ k: 'status', s: 'burn', v: 2, who: 'target' }],
-      up: { fx: [{ k: 'status', s: 'burn', v: 4, who: 'target' }] },
+    hex_weave: {   // seed Burn across the whole field (Soul Burn = one big stack)
+      name: 'Hex Weave', cls: 'voidadept', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'status', s: 'burn', v: 2, who: 'allEnemies' }],
+      up: { fx: [{ k: 'status', s: 'burn', v: 3, who: 'allEnemies' }] },
     },
     premonition: {
       name: 'Premonition', cls: 'voidadept', type: 'skill', rarity: 1, cost: 1,
@@ -292,12 +292,6 @@
       name: 'Mind Fracture', cls: 'voidadept', type: 'skill', rarity: 2, cost: 1,
       fx: [{ k: 'status', s: 'vuln', v: 1, who: 'target' }, { k: 'status', s: 'weak', v: 1, who: 'target' }, { k: 'draw', v: 1 }],
       up: { fx: [{ k: 'status', s: 'vuln', v: 2, who: 'target' }, { k: 'status', s: 'weak', v: 2, who: 'target' }, { k: 'draw', v: 1 }] },
-    },
-    void_grasp: {
-      name: 'Void Grasp', cls: 'voidadept', type: 'attack', rarity: 2, cost: 2,
-      fx: [{ k: 'dmg', v: 9, scale: 'psi' }, { k: 'special', id: 'drain' }],
-      text: 'Heal for half the damage dealt.',
-      up: { fx: [{ k: 'dmg', v: 13, scale: 'psi' }, { k: 'special', id: 'drain' }] },
     },
     tk_crush: {
       name: 'Telekinetic Crush', cls: 'voidadept', type: 'attack', rarity: 2, cost: 2,
@@ -521,10 +515,10 @@
       fx: [{ k: 'status', s: 'turret', v: 3, who: 'self' }, { k: 'status', s: 'plate', v: 2, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'turret', v: 4, who: 'self' }, { k: 'status', s: 'plate', v: 3, who: 'self' }] },
     },
-    drone_swarm: {
+    drone_swarm: {   // an AoE turret — strafes every enemy (Deploy Turret hits one)
       name: 'Drone Swarm', cls: 'technomancer', type: 'power', rarity: 3, cost: 2,
-      fx: [{ k: 'status', s: 'turret', v: 6, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'turret', v: 8, who: 'self' }] },
+      fx: [{ k: 'status', s: 'drone', v: 4, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'drone', v: 6, who: 'self' }] },
     },
     cogwork_surge: {
       name: 'Cogwork Surge', cls: 'technomancer', type: 'skill', rarity: 2, cost: 1,
@@ -555,10 +549,11 @@
       text: 'Heal for half the damage dealt.',
       up: { fx: [{ k: 'hploss', v: 3 }, { k: 'dmg', v: 14, scale: 'psi' }, { k: 'special', id: 'drain' }] },
     },
-    void_siphon: {
+    void_siphon: {   // the class's only AoE — drains life from the whole field
       name: 'Void Siphon', cls: 'voidadept', type: 'attack', rarity: 1, cost: 1,
-      fx: [{ k: 'dmg', v: 6, scale: 'psi' }, { k: 'status', s: 'vuln', v: 1, who: 'target' }],
-      up: { fx: [{ k: 'dmg', v: 8, scale: 'psi' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }] },
+      fx: [{ k: 'dmg', v: 4, scale: 'psi', all: true }, { k: 'special', id: 'drain' }],
+      text: 'Heal for half the total damage dealt.',
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'psi', all: true }, { k: 'special', id: 'drain' }] },
     },
     unravel: {
       name: 'Unravel', cls: 'voidadept', type: 'attack', rarity: 3, cost: 1,
@@ -843,6 +838,7 @@
       if (f.k === 'status') {
         var n = STATUS_NAMES[f.s] || f.s;
         if (f.s === 'turret') parts.push('Turret: deal ' + (f.v + (ctx ? ctx.attrs.tech : 0)) + ' damage each turn.');
+        else if (f.s === 'drone') parts.push('Drone Swarm: deal ' + (f.v + (ctx ? ctx.attrs.tech : 0)) + ' damage to ALL enemies each turn.');
         else if (f.s === 'entropy') parts.push('At end of turn, apply ' + f.v + ' Burn to ALL enemies.');
         else if (f.s === 'reactor') parts.push('Gain +' + f.v + ' Energy at the start of each turn.');
         else if (f.s === 'retain') parts.push('Shield no longer expires.');
