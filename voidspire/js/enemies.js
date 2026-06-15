@@ -288,6 +288,112 @@
         [-0.22,-0.56, 0.22,-0.56],
       ], e: [[-0.1,-0.42],[0.1,-0.42],[0,0.12],[-0.16,0.7],[0.16,0.7]] },
     },
+
+    /* ============ THE RECURSION ECHOES (NG+5 easter-egg tributes) ============
+     * Faction-less homages to four wanderers from another spire, redrawn as
+     * void-warped silhouettes. Each is summoned only at the Heart on loop 6 and
+     * is chosen to COUNTER the player's dominant build (see engine counterAxis).
+     * Tuned to be nearly unbeatable once the loop multiplier is applied.        */
+
+    // Homage to the red bruiser — counters BULWARK/block: escalating Strength and
+    // Sundering blows that ignore your Shield, so turtling only delays the end.
+    tribute_ironclad: { rampStr: 2, final: true,
+      name: 'THE DREADCLAD', color: '#ff6a4a', hp: 104, size: 1.45, boss: true, ai: 'cycle',
+      moves: [
+        { t: 'buff', s: 'str', v: 3 },
+        { t: 'attack', d: 12, pierce: true },
+        { t: 'attack', d: 9, hits: 2 },
+        { t: 'block', b: 20 },
+        { t: 'attack', d: 22, pierce: true },
+        { t: 'attack', d: 16 },
+      ],
+      // horned war-helm, slab pauldrons, a colossal greatsword raised high
+      art: { p: [
+        [-0.2,-0.95, 0.2,-0.95, 0.26,-0.7, -0.26,-0.7, -0.2,-0.95],
+        [-0.2,-0.95, -0.42,-1.22], [0.2,-0.95, 0.42,-1.22],
+        [-0.4,-0.65, 0.4,-0.65, 0.55,-0.1, 0.45,0.5, -0.45,0.5, -0.55,-0.1, -0.4,-0.65],
+        [-0.26,-0.5, 0.26,-0.5], [0,-0.5, 0,0.4],
+        [-0.4,-0.62, -0.72,-0.72, -0.74,-0.3, -0.5,-0.24],
+        [0.4,-0.62, 0.72,-0.72, 0.74,-0.3, 0.5,-0.24],
+        [0.62,-0.35, 0.98,-1.32], [0.8,-0.86, 1.08,-0.96], [0.8,-0.86, 0.56,-0.78],
+        [-0.2,0.5, -0.28,0.95, -0.08,0.95, -0.04,0.5],
+        [0.2,0.5, 0.28,0.95, 0.08,0.95, 0.04,0.5],
+      ], e: [[-0.08,-0.82],[0.08,-0.82]] },
+    },
+    // Homage to the green knife-dancer — counters AGGRO/Strength: evades behind
+    // walls of block, Weakens your blows and rots you with poison; striking it
+    // hurts you (Thorns). Raw damage gets you nowhere.
+    tribute_silent: { thorns: 5, final: true,
+      name: 'THE NIGHTSHADE', color: '#54ffa0', hp: 90, size: 1.3, boss: true, ai: 'cycle',
+      moves: [
+        { t: 'block', b: 22 },
+        { t: 'debuff', s: 'weak', v: 2 },
+        { t: 'debuff', s: 'burn', v: 6 },
+        { t: 'attack', d: 8, hits: 2 },
+        { t: 'block', b: 18 },
+        { t: 'debuff', s: 'weak', v: 2 },
+        { t: 'attack', d: 15 },
+      ],
+      // deep cowl, twin envenomed blades flung wide, a tattered void-cloak
+      art: { p: [
+        [0,-1.0, 0.35,-0.6, 0.3,-0.2, -0.3,-0.2, -0.35,-0.6, 0,-1.0],
+        [-0.16,-0.55, 0,-0.7, 0.16,-0.55, 0.12,-0.3, -0.12,-0.3, -0.16,-0.55],
+        [-0.3,-0.2, -0.44,0.4, -0.28,0.5, -0.34,0.96, 0.34,0.96, 0.28,0.5, 0.44,0.4, 0.3,-0.2],
+        [-0.3,-0.06, -0.7,0.1, -0.62,0.32],
+        [-0.7,0.1, -1.06,-0.16], [-0.96,-0.06, -1.0,0.13],
+        [0.3,-0.06, 0.7,0.1, 0.62,0.32],
+        [0.7,0.1, 1.06,-0.16], [0.96,-0.06, 1.0,0.13],
+      ], e: [[-0.09,-0.46],[0.09,-0.46]] },
+    },
+    // Homage to the orb-wielding automaton — counters ENGINE/Powers: it SHORTS
+    // OUT your powers and out-scales you with lightning volleys.
+    tribute_defect: { rampStr: 1, final: true,
+      name: 'THE DERELICT', color: '#5ad8ff', hp: 96, size: 1.4, boss: true, ai: 'cycle',
+      moves: [
+        { t: 'disrupt' },
+        { t: 'attack', d: 7, hits: 3 },
+        { t: 'block', b: 16 },
+        { t: 'disrupt' },
+        { t: 'buff', s: 'str', v: 2 },
+        { t: 'attack', d: 13 },
+        { t: 'attack', d: 9, hits: 2 },
+      ],
+      // a hovering core: visored head, finned chassis, orbs caged around it
+      art: { p: [
+        [-0.25,-0.7, 0.25,-0.7, 0.32,-0.4, 0.25,-0.1, -0.25,-0.1, -0.32,-0.4, -0.25,-0.7],
+        [-0.15,-0.55, 0.15,-0.55, 0.15,-0.32, -0.15,-0.32, -0.15,-0.55],
+        [-0.35,-0.1, 0.35,-0.1, 0.45,0.42, 0,0.62, -0.45,0.42, -0.35,-0.1],
+        [0,0.02, 0.13,0.2, 0,0.4, -0.13,0.2, 0,0.02],
+        [-0.35,0.02, -0.62,0.06, -0.6,0.38],
+        [0.35,0.02, 0.62,0.06, 0.6,0.38],
+        [-0.86,-0.4, -0.72,-0.52, -0.58,-0.4, -0.72,-0.28, -0.86,-0.4],
+        [0.86,-0.4, 0.72,-0.52, 0.58,-0.4, 0.72,-0.28, 0.86,-0.4],
+        [0,-1.02, 0.13,-0.91, 0,-0.8, -0.13,-0.91, 0,-1.02],
+      ], e: [[0,-0.42]] },
+    },
+    // Homage to the purple ascetic — counters AFFLICTION/DoT: it CLEANSES your
+    // poisons each turn, mends its wounds, then unleashes a Wrath strike.
+    tribute_watcher: { cleanse: 1, regen: 4, final: true,
+      name: 'THE ASCENDANT', color: '#c98bff', hp: 98, size: 1.38, boss: true, ai: 'cycle',
+      moves: [
+        { t: 'heal', v: 14 },
+        { t: 'block', b: 24 },
+        { t: 'attack', d: 27 },
+        { t: 'debuff', s: 'weak', v: 2 },
+        { t: 'heal', v: 12 },
+        { t: 'attack', d: 12, hits: 2 },
+      ],
+      // cowled ascetic, hands in prayer, a third eye and a broken halo overhead
+      art: { p: [
+        [0,-0.95, 0.28,-0.65, 0.24,-0.3, -0.24,-0.3, -0.28,-0.65, 0,-0.95],
+        [-0.24,-0.3, -0.42,0.4, -0.3,0.55, -0.36,0.96, 0.36,0.96, 0.3,0.55, 0.42,0.4, 0.24,-0.3],
+        [0,-0.3, 0,0.92],
+        [-0.24,0.02, -0.05,0.22, 0.05,0.22, 0.24,0.02],
+        [-0.05,0.22, 0,0.48, 0.05,0.22],
+        [0,-1.28, 0.34,-1.12, 0.34,-0.96], [0,-1.28, -0.34,-1.12, -0.34,-0.96],
+        [-0.34,-0.96, 0.34,-0.96],
+      ], e: [[-0.09,-0.55],[0.09,-0.55],[0,-0.74]] },
+    },
   };
 
   ns.FINAL_BOSS = 'unmaker';

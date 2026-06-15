@@ -155,6 +155,7 @@
   // A planar DAG woven by random walks on a fixed column grid, so paths
   // branch and merge without edge crossings. Boss sits above the top row.
   function generateMap(sector) {
+    if (E.run && (E.run.loop || 1) === B.run.heartLoop) return heartMap();
     var M = B.map, ROWS = M.rows, COLS = M.cols;
     var rowObjs = [];
     for (var i = 0; i < ROWS; i++) rowObjs.push({});
@@ -428,6 +429,53 @@
     return (1 + B.run.loopPower * ((E.run.loop || 1) - 1)) * (1 + art('worldPower'));
   }
   E.worldPowerMult = worldPowerMult;
+
+  /* ---- The Heart gauntlet (NG+ easter egg) ---------------------------------
+   * Score the run into 4 build axes and face the tribute that hard-counters
+   * the dominant one. */
+  var COUNTER_BOSS = { aggro: 'tribute_silent', bulwark: 'tribute_ironclad', affliction: 'tribute_watcher', engine: 'tribute_defect' };
+  function counterAxis(r) {
+    r = r || E.run;
+    var sc = { aggro: 0, bulwark: 0, affliction: 0, engine: 0 };
+    sc.aggro += (r.attrs.might || 0) * 2;
+    sc.bulwark += (r.attrs.tech || 0) * 1.5;
+    sc.affliction += (r.attrs.psi || 0) * 1.5;
+    (r.deck || []).forEach(function (card) {
+      var def = ns.CARDS[card.id]; if (!def) return;
+      if (def.type === 'power') sc.engine += 2;
+      (def.fx || []).forEach(function (f) {
+        if (f.k === 'block') sc.bulwark += 1.2;
+        if (f.k === 'draw') sc.engine += 0.5;
+        if (f.k === 'dmg' && !f.all) sc.aggro += (f.v >= 10 ? 1.5 : 0.5);
+        if (f.k === 'status') {
+          if (f.s === 'str' || f.s === 'strPerTurn') sc.aggro += 2;
+          else if (f.s === 'burn' || f.s === 'plague' || f.s === 'entropy') sc.affliction += 2;
+          else if (f.s === 'vuln' || f.s === 'weak') sc.affliction += 1;
+          else if (f.s === 'plate' || f.s === 'platedArmor' || f.s === 'barricade' || f.s === 'afterImage' || f.s === 'feelNoPain' || f.s === 'thorns') sc.bulwark += 2;
+          else if (f.s === 'turret' || f.s === 'echo' || f.s === 'reactor' || f.s === 'thousandCuts') sc.engine += 2;
+        }
+        if (f.k === 'special') {
+          if (f.id === 'shieldSlam' || f.id === 'shieldSlam15' || f.id === 'doubleBlock') sc.bulwark += 2;
+          else if (f.id === 'limitBreak') sc.aggro += 2;
+          else if (f.id === 'catalyst' || f.id === 'catalyst3') sc.affliction += 2;
+          else if (f.id === 'reap' || f.id === 'overdrive') sc.engine += 1;
+        }
+      });
+    });
+    var best = 'aggro', bv = -1;
+    ['aggro', 'bulwark', 'affliction', 'engine'].forEach(function (a) { if (sc[a] > bv) { bv = sc[a]; best = a; } });
+    return best;
+  }
+  E.counterAxis = counterAxis;
+  E.counterBossId = function (r) { return COUNTER_BOSS[counterAxis(r)]; };
+  E.isHeartLoop = function () { return (E.run.loop || 1) === B.run.heartLoop; };
+
+  // The Heart gauntlet's tiny map: one Heart node, then the tribute boss.
+  function heartMap() {
+    var heart = { row: 0, col: 0, type: 'rest', heart: true, edges: ['boss'], parents: [], visited: false };
+    var boss = { row: 1, col: 0, type: 'boss', edges: [], parents: [0], visited: false };
+    return { rows: [[heart]], boss: boss, ROWS: 1, COLS: 1 };
+  }
   function scaledHp(base, s) { return Math.round(base * B.scaling.hpMul(s) * worldPowerMult()); }
   function scaledDmg(base, s) { return Math.round(base * B.scaling.dmgMul(s) * worldPowerMult()); }
 
@@ -448,7 +496,8 @@
     var r = E.run;
     var ids, isFinal = false;
     if (kind === 'boss') {
-      if (r.sector === B.run.finale) { ids = [ns.FINAL_BOSS]; isFinal = true; }
+      if ((r.loop || 1) === B.run.heartLoop) { ids = [E.counterBossId(r)]; isFinal = true; }
+      else if (r.sector === B.run.finale) { ids = [ns.FINAL_BOSS]; isFinal = true; }
       else ids = [ns.BOSSES[r.faction]];
     } else if (kind === 'elite') {
       ids = [ns.ELITES[r.faction]];
@@ -613,8 +662,9 @@
     if (m.t === 'attack') {
       var d = scaledDmg(m.d, s) + statN(en, 'str');
       if (statN(en, 'weak')) d = Math.floor(d * B.status.weakMult);
-      return { icon: 'atk', label: m.hits ? d + '×' + m.hits : '' + d };
+      return { icon: 'atk', label: (m.hits ? d + '×' + m.hits : '' + d) + (m.pierce ? '⊘' : '') };
     }
+    if (m.t === 'disrupt') return { icon: 'debuff', label: '✕' };
     if (m.t === 'drain') {
       var dd = scaledDmg(m.d, s) + statN(en, 'str');
       if (statN(en, 'weak')) dd = Math.floor(dd * B.status.weakMult);
@@ -1120,6 +1170,10 @@
       }
       // passive: escalate Strength every turn
       if (en.def.rampStr) { addStatus(en, 'str', en.def.rampStr); emit('status', { who: 'enemy', idx: idx, s: 'str', v: en.def.rampStr }); }
+      // passive: cleanse its own afflictions (the Ascendant — counters Burn/DoT)
+      if (en.def.cleanse) {
+        ['burn', 'vuln', 'weak'].forEach(function (st) { if (statN(en, st) > 0) { en.statuses[st] = 0; emit('status', { who: 'enemy', idx: idx, s: st, v: 0 }); } });
+      }
       en.block = 0;
       var m = en.intent;
       emit('enemyMove', { idx: idx, move: m });
@@ -1130,7 +1184,7 @@
         var totalToPlayer = 0;
         for (var h = 0; h < hits; h++) {
           if (r.phase === 'dead') break;
-          totalToPlayer += hurtPlayer(dmg);
+          totalToPlayer += hurtPlayer(dmg, m.pierce ? { pure: true } : undefined);   // pierce ignores Shield
           var th = statN(p, 'thorns') + art('thorns');
           if (th > 0 && en.alive) {
             dealToEnemy(en, idx, th, { noCrit: true, noWeak: true });
@@ -1163,6 +1217,18 @@
       } else if (m.t === 'debuff') {
         addStatus(p, m.s, m.v);
         emit('status', { who: 'player', s: m.s, v: m.v });
+      } else if (m.t === 'disrupt') {
+        // THE DERELICT's signature: short out one of your Powers (counters engines)
+        var powers = Object.keys(p.statuses).filter(function (k) { return p.statuses[k] > 0 && k !== 'vuln' && k !== 'weak' && k !== 'burn'; });
+        if (powers.length) {
+          var pk = powers[Math.floor(rnd() * powers.length)];
+          p.statuses[pk] = 0;
+          emit('status', { who: 'player', s: pk, v: 0 });
+          emit('disrupt', { idx: idx, s: pk });
+        } else {
+          c.discard.push(mkCard('void_taint', false));
+          emit('curse', { idx: idx, card: 'void_taint' });
+        }
       } else if (m.t === 'unmake') {
         // THE UNMAKER's signature: erase your defences, jam your deck, knit itself
         if (p.block > 0) { p.block = 0; emit('block', { who: 'player', amount: 0, blockAfter: 0 }); }

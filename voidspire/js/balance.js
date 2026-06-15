@@ -123,6 +123,8 @@
                    // Beat it to win; you may then enter the Recurrence (NG+ loop).
       loopPower: 0.12, // each Recurrence loop multiplies enemy HP & damage by
                        // (1 + loopPower*(loop-1)) on top of normal sector scaling.
+      heartLoop: 6,    // NG+5 (loop 6): the secret Heart gauntlet — a single
+                       // Heart node then a build-countering tribute boss.
     },
 
     /* ---- Void Echoes (Recurrence / NG+ special relics) ------------------ */

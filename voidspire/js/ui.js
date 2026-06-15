@@ -2119,8 +2119,12 @@
     updateHUD();
     var r = E.run;
     var s = overlayScreen(true);
-    s.appendChild(el('h2', 'screen-title', 'Field Camp'));
-    s.appendChild(el('div', 'screen-sub', 'THE GUNS GO QUIET FOR A WHILE'));
+    var node = E.currentNode && E.currentNode();
+    var atHeart = node && node.heart;
+    s.appendChild(el('h2', 'screen-title', atHeart ? 'The Destroyed Heart' : 'Field Camp'));
+    s.appendChild(el('div', 'screen-sub', atHeart
+      ? 'A VAST RUINED HEART, LONG DEAD. ITS LAST WARMTH IS YOURS — STEEL YOURSELF.'
+      : 'THE GUNS GO QUIET FOR A WHILE'));
     var cbar = makeConfirmBar();
     var healAmt = Math.round(r.maxHp * B.rewards.restHealPct);
     var h = el('div', 'panel-btn cyan',
@@ -2264,9 +2268,26 @@
     }
   }
 
+  var TRIBUTE_TEASE = {
+    tribute_ironclad: 'Something vast and armoured waits beyond the Heart.',
+    tribute_silent: 'A green blade glints in the dark beyond the Heart.',
+    tribute_defect: 'Cold machine-light hums beyond the Heart.',
+    tribute_watcher: 'A serene, terrible presence waits beyond the Heart.',
+  };
   function showSectorIntro() {
     updateHUD();
     var r = E.run;
+    if (E.isHeartLoop && E.isHeartLoop()) {
+      var s2 = overlayScreen();
+      s2.appendChild(el('div', 'sector-banner victory-banner', 'THE RECURSION DEEPENS'));
+      s2.appendChild(el('div', 'screen-sub', 'NG+5 · THE LOOP BENDS BACK ON ITSELF'));
+      var teaser = (E.counterBossId && TRIBUTE_TEASE[E.counterBossId(r)]) || '';
+      s2.appendChild(el('div', 'event-text', 'You fall through the floor of the world and into a chamber that should not be — a vast, destroyed Heart, long cold. Echoes of other wanderers haunt the dark. ' + teaser + ' Rest here. There is no further down.'));
+      var b2 = el('button', 'btn', 'APPROACH THE HEART');
+      b2.addEventListener('pointerdown', function () { SFX.play(); E.beginSector(); U.refresh(); });
+      s2.appendChild(b2);
+      return;
+    }
     var fac = ns.FACTIONS[r.faction];
     var s = overlayScreen();
     s.appendChild(el('div', 'sector-banner', 'SECTOR ' + r.sector));
@@ -2286,10 +2307,17 @@
     var r = E.run;
     SFX.win();
     R.flash();
+    var heartWin = (r.loop === B.run.heartLoop);
     var s = overlayScreen();
-    s.appendChild(el('div', 'sector-banner victory-banner', 'THE UNMAKER FALLS'));
-    var loopTxt = r.loop > 1 ? 'LOOP ' + r.loop + ' CONQUERED' : 'THE DESCENT IS CONQUERED';
-    s.appendChild(el('div', 'screen-sub', loopTxt));
+    if (heartWin) {
+      s.appendChild(el('div', 'sector-banner victory-banner', 'THE TRIBUTE IS UNMADE'));
+      s.appendChild(el('div', 'screen-sub', 'YOU OUTLASTED AN ECHO OF ANOTHER SPIRE — A FEAT ALMOST NONE WILL SEE'));
+      s.appendChild(el('div', 'event-text', 'The wanderer dissolves into stardust. For an instant the Recurrence falters... then, somewhere far below, it begins again. You have gone where the loop forgets to end.'));
+    } else {
+      s.appendChild(el('div', 'sector-banner victory-banner', 'THE UNMAKER FALLS'));
+      var loopTxt = r.loop > 1 ? 'LOOP ' + r.loop + ' CONQUERED' : 'THE DESCENT IS CONQUERED';
+      s.appendChild(el('div', 'screen-sub', loopTxt));
+    }
     s.appendChild(el('div', 'big-score', E.score() + ' PTS'));
     var lines = [
       'LOOP: ' + r.loop,
