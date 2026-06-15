@@ -40,6 +40,31 @@
     o.connect(g); g.connect(ac.destination);
     o.start(); o.stop(ac.currentTime + dur);
   }
+  // 8-bit noise burst with an optional swept low-pass (explosions, sizzle, sweeps).
+  function noise(dur, vol, f0, f1) {
+    var ac = audio();
+    if (!ac) return;
+    var n = Math.max(1, Math.floor(ac.sampleRate * dur));
+    var buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0);
+    for (var i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    var src = ac.createBufferSource(); src.buffer = buf;
+    var g = ac.createGain();
+    g.gain.setValueAtTime(vol || 0.05, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
+    if (f0) {
+      var bq = ac.createBiquadFilter(); bq.type = 'lowpass';
+      bq.frequency.setValueAtTime(f0, ac.currentTime);
+      bq.frequency.exponentialRampToValueAtTime(Math.max(60, f1 || f0), ac.currentTime + dur);
+      src.connect(bq); bq.connect(g);
+    } else src.connect(g);
+    g.connect(ac.destination); src.start(); src.stop(ac.currentTime + dur);
+  }
+  // Stepped arpeggio — the classic chiptune "rising power-up" / cluster.
+  function arp(freqs, step, dur, type, vol) {
+    freqs.forEach(function (f, i) {
+      setTimeout(function () { beep(f, dur || 0.07, type || 'square', vol || 0.035); }, i * (step || 45));
+    });
+  }
   var SFX = {
     tap: function () { beep(660, 0.05, 'square', 0.025); },
     play: function () { beep(440, 0.08, 'square', 0.035, 220); },
@@ -1080,18 +1105,95 @@
     blinkPile(consumed ? null : $discardPile, fx.color);
   }
 
+  // Classify a card by what it actually does, so every card gets a fitting
+  // 8-bit sound + vector cast animation (space / old-school philosophy).
+  function cardFlavor(def, fx) {
+    var sp = []; fx.forEach(function (f) { if (f.k === 'special') sp.push(f.id); });
+    if (sp.indexOf('fiendFire') >= 0) return 'multiAttack';
+    if (sp.indexOf('catalyst') >= 0 || sp.indexOf('catalyst3') >= 0) return 'burn';
+    if (sp.indexOf('reap') >= 0 || sp.indexOf('overdrive') >= 0 || sp.indexOf('shieldSlam') >= 0 || sp.indexOf('shieldSlam15') >= 0) return 'attack';
+    if (sp.indexOf('doubleBlock') >= 0) return 'block';
+    if (sp.indexOf('limitBreak') >= 0) return 'buff';
+    if (sp.indexOf('drain') >= 0) return 'drain';
+    if (def.type === 'power') return 'power';
+    if (fx.some(function (f) { return f.k === 'status' && f.s === 'burn'; })) return 'burn';
+    if (fx.some(function (f) { return f.k === 'hploss'; }) && !fx.some(function (f) { return f.k === 'dmg'; })) return 'drain';
+    var dmg = fx.filter(function (f) { return f.k === 'dmg'; });
+    var allHit = dmg.some(function (f) { return f.all; }) || fx.some(function (f) { return f.k === 'status' && f.who === 'allEnemies'; });
+    if (dmg.length) {
+      if (allHit) return 'aoe';
+      if (dmg.some(function (f) { return (f.hits || 1) > 1 || f.xcost; })) return 'multiAttack';
+      if (fx.some(function (f) { return f.k === 'hploss'; })) return 'drain';   // blood attacks
+      return 'attack';
+    }
+    if (fx.some(function (f) { return f.k === 'block'; })) return 'block';
+    if (fx.some(function (f) { return f.k === 'heal'; })) return 'heal';
+    if (fx.some(function (f) { return f.k === 'status' && f.who === 'target'; })) return 'debuff';
+    if (fx.some(function (f) { return f.k === 'status' && (f.who === 'self' || f.who === 'allEnemies'); })) return 'buff';
+    return 'utility';
+  }
+
+  function cardSound(flavor, heavy) {
+    switch (flavor) {
+      case 'attack':      beep(heavy ? 190 : 320, 0.11, 'square', 0.05, heavy ? -90 : -170); break;
+      case 'multiAttack': arp([540, 600, 660, 720], 34, 0.05, 'square', 0.032); break;
+      case 'aoe':         noise(0.28, 0.06, 2000, 180); beep(120, 0.22, 'sawtooth', 0.045, -70); break;
+      case 'block':       beep(300, 0.06, 'triangle', 0.05); setTimeout(function () { beep(460, 0.09, 'triangle', 0.042); }, 42); break;
+      case 'power':       arp([392, 523, 659, 784], 52, 0.1, 'square', 0.04); break;
+      case 'buff':        beep(440, 0.13, 'square', 0.04, 240); break;
+      case 'debuff':      beep(400, 0.17, 'sawtooth', 0.04, -210); break;
+      case 'burn':        noise(0.3, 0.045, 3200, 600); beep(900 + Math.random() * 220, 0.05, 'square', 0.02); break;
+      case 'heal':        arp([523, 659, 784], 62, 0.13, 'sine', 0.05); break;
+      case 'drain':       beep(150, 0.24, 'sawtooth', 0.05, 130); break;
+      default:            beep(460, 0.07, 'square', 0.03, 150); break; // utility / cantrip
+    }
+  }
+
+  function cardCastAnim(flavor, targetIdx) {
+    var c = E.combat; if (!c) return;
+    var pp = R.playerXY();
+    var col = (CLASS_FX[E.run.cls] || CLASS_FX.vanguard).color;
+    var ti = (targetIdx >= 0 && c.enemies[targetIdx] && c.enemies[targetIdx].alive)
+      ? targetIdx : c.enemies.findIndex(function (e) { return e.alive; });
+    var tp = ti >= 0 ? R.enemyPos(ti) : null;
+    switch (flavor) {
+      case 'attack':
+        if (tp) R.shot(pp.x + 8, pp.y - 10, tp.x, tp.y, col);
+        break;
+      case 'multiAttack':
+        if (tp) { R.shot(pp.x + 8, pp.y - 10, tp.x, tp.y, col); setTimeout(function () { R.shot(pp.x + 8, pp.y - 10, tp.x, tp.y, col); }, 70); setTimeout(function () { R.shot(pp.x + 8, pp.y - 10, tp.x, tp.y, col); }, 140); }
+        break;
+      case 'aoe':
+        R.ring(pp.x, pp.y - 6, col, 72, 0.5);
+        c.enemies.forEach(function (en, idx) { if (en.alive) { var ep = R.enemyPos(idx); if (ep) { R.shot(pp.x + 8, pp.y - 10, ep.x, ep.y, col); R.ring(ep.x, ep.y, col, 38, 0.4); } } });
+        break;
+      case 'block':  R.ring(pp.x, pp.y - 6, '#7fe9ff', 42, 0.42); R.ring(pp.x, pp.y - 6, col, 30, 0.3); break;
+      case 'power':  R.aura(pp.x, pp.y - 6, col); R.ring(pp.x, pp.y - 6, col, 56, 0.6); break;
+      case 'buff':   R.aura(pp.x, pp.y - 6, col); break;
+      case 'heal':   R.aura(pp.x, pp.y - 6, '#5dff88'); break;
+      case 'burn':   if (tp) R.embers(tp.x, tp.y, '#ff7a1e', 16); break;
+      case 'debuff': if (tp) R.glitch(tp.x, tp.y, col); break;
+      case 'drain':  if (tp) R.shot(tp.x, tp.y, pp.x + 8, pp.y - 10, '#c86bff'); R.implode(pp.x, pp.y - 6, '#c86bff', 32, 38, 12); break;
+      default:       R.ring(pp.x, pp.y - 6, col, 26, 0.3); break;
+    }
+  }
+
   function playCardAt(i, targetIdx) {
     setTargeting(false);
     if (i < 0 || !E.canPlay(i)) { renderHand(); return; }
     var card = E.combat.hand[i], def = ns.CARDS[card.id];
     var wasAttack = def.type === 'attack';
+    var castFx = ns.cardFx(def, card.up, card.vtouch);
+    var flavor = cardFlavor(def, castFx);
+    var heavy = castFx.some(function (f) { return f.k === 'dmg' && (f.v >= 12 || (f.scaleMul || 1) >= 2); });
     var srcEl = $hand.children[i];
     var srcRect = srcEl ? srcEl.getBoundingClientRect() : null;
     var clone = srcEl ? srcEl.cloneNode(true) : null;
     E.events.length = 0;
     var ok = E.playCard(i, targetIdx);
     if (!ok) { renderHand(); return; }
-    SFX.play();
+    cardSound(flavor, heavy);
+    cardCastAnim(flavor, targetIdx);
     if (wasAttack) R.playerLunge();
     var evts = E.events.slice();
     E.events.length = 0;

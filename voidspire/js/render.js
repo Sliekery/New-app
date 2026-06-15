@@ -204,6 +204,46 @@
     burst(v.x, v.y, '#ffffff', 8);
   }
 
+  /* ---- card-cast vector FX (8-bit, space/old-school) --------------------- */
+  // A directed tracer/projectile from (x0,y0) to a target — vector streak +
+  // trailing sparks. Reaches the target in ~0.13s for snappy attack feel.
+  R.shot = function (x0, y0, x1, y1, color) {
+    var dx = x1 - x0, dy = y1 - y0, d = Math.sqrt(dx * dx + dy * dy) || 1;
+    var sp = Math.max(440, d / 0.13);
+    particles.push({ kind: 'streak', x: x0, y: y0, vx: dx / d * sp, vy: dy / d * sp,
+      len: 16, life: d / sp, age: 0, color: color, size: 2 });
+    for (var i = 0; i < 4; i++) particles.push({
+      x: x0 + (Math.random() - 0.5) * 6, y: y0 + (Math.random() - 0.5) * 6,
+      vx: dx / d * sp * 0.45 * (0.6 + Math.random() * 0.6), vy: dy / d * sp * 0.45 * (0.6 + Math.random() * 0.6),
+      life: 0.16 + Math.random() * 0.14, age: 0, color: color, size: 1 + Math.random() });
+  };
+  // Expanding vector shockwave ring (AoE / impacts / shield bloom).
+  R.ring = function (x, y, color, maxR, life) {
+    particles.push({ kind: 'ring', x: x, y: y, r0: 5, r1: maxR || 60, life: life || 0.42, age: 0, color: color, lw: 2 });
+  };
+  // Upward flickering embers (Burn / fire). Floats up and slows.
+  R.embers = function (x, y, color, n) {
+    for (var i = 0; i < (n || 12); i++) particles.push({
+      x: x + (Math.random() - 0.5) * 22, y: y + (Math.random() - 0.5) * 12,
+      vx: (Math.random() - 0.5) * 30, vy: -(50 + Math.random() * 95), grav: -55,
+      life: 0.4 + Math.random() * 0.55, age: 0, color: Math.random() < 0.4 ? '#ffd23d' : color, size: 1 + Math.random() * 2 });
+  };
+  // Buff/power aura: a ring pulse + rising sparks in the class colour.
+  R.aura = function (x, y, color) {
+    R.ring(x, y, color, 46, 0.5);
+    for (var i = 0; i < 14; i++) particles.push({
+      x: x + (Math.random() - 0.5) * 34, y: y + (Math.random() - 0.5) * 42,
+      vx: (Math.random() - 0.5) * 22, vy: -(38 + Math.random() * 70),
+      life: 0.5 + Math.random() * 0.5, age: 0, color: color, size: 1 + Math.random() * 1.8 });
+  };
+  // Debuff/hex: horizontal glitch shards that streak sideways then vanish.
+  R.glitch = function (x, y, color) {
+    for (var i = 0; i < 10; i++) particles.push({ kind: 'streak',
+      x: x + (Math.random() - 0.5) * 28, y: y + (Math.random() - 0.5) * 34,
+      vx: (Math.random() < 0.5 ? -1 : 1) * (120 + Math.random() * 130), vy: 0,
+      len: 6 + Math.random() * 10, life: 0.16 + Math.random() * 0.22, age: 0, color: color, size: 1.6 });
+  };
+
   function factionColor(def) {
     if (def.color) return def.color;   // faction-less bosses (the finale) carry their own colour
     var f = ns.FACTIONS[def.faction];
@@ -999,10 +1039,23 @@
       var p = particles[i];
       p.age += dt;
       if (p.age >= p.life) { particles.splice(i, 1); continue; }
-      p.x += p.vx * dt; p.y += p.vy * dt;
-      p.vx *= 0.96; p.vy *= 0.96;
       var a = 1 - p.age / p.life;
       ctx.globalAlpha = a;
+      if (p.kind === 'ring') {
+        var r = p.r0 + (p.r1 - p.r0) * (p.age / p.life);
+        ctx.strokeStyle = p.color; ctx.lineWidth = p.lw || 2;
+        ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.stroke();
+        continue;
+      }
+      if (p.grav) p.vy += p.grav * dt;          // negative grav floats upward
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      if (p.kind === 'streak') {                 // tracers keep their speed
+        var d = Math.sqrt(p.vx * p.vx + p.vy * p.vy) || 1;
+        ctx.strokeStyle = p.color; ctx.lineWidth = p.size || 2;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx / d * p.len, p.y - p.vy / d * p.len); ctx.stroke();
+        continue;
+      }
+      p.vx *= 0.96; p.vy *= 0.96;
       ctx.fillStyle = p.color;
       ctx.fillRect(p.x, p.y, p.size, p.size);
     }
