@@ -29,11 +29,12 @@
   // `models` = candidate visual models (picked at random on summon) so the pack
   // looks like a varied menagerie. Art lives in ns.PET_MODELS.
   ns.PETS = {
-    maw:      { name: 'Maw',     hp: 9,  act: { t: 'attack', d: 5 }, color: '#7b8cff', models: ['wretch'] },
-    stinger:  { name: 'Stinger', hp: 6,  act: { t: 'burn', v: 3 },   color: '#9b7bff', models: ['stinger', 'spore'] },
-    warden:   { name: 'Warden',  hp: 16, act: { t: 'block', v: 5 },  color: '#6bd8ff', models: ['sentinel'] },
-    leech:    { name: 'Leech',   hp: 7,  act: { t: 'heal', v: 3 },   color: '#6bff9d', models: ['leech'] },
-    dire_maw: { name: 'Dire Maw', hp: 18, act: { t: 'attack', d: 9 }, color: '#5e6bff', models: ['wretch'] },
+    maw:      { name: 'Maw',     hp: 5,  act: { t: 'attack', d: 5 }, color: '#7b8cff', models: ['wretch'] },
+    stinger:  { name: 'Stinger', hp: 4,  act: { t: 'burn', v: 3 },   color: '#9b7bff', models: ['stinger', 'spore'] },
+    warden:   { name: 'Warden',  hp: 10, act: { t: 'block', v: 5 },  color: '#6bd8ff', models: ['sentinel'] },
+    leech:    { name: 'Leech',   hp: 5,  act: { t: 'heal', v: 3 },   color: '#6bff9d', models: ['leech'] },
+    totem:    { name: 'Totem',   hp: 7,  act: { t: 'support', v: 2 }, color: '#ffd24a', models: ['totem'] },
+    dire_maw: { name: 'Dire Maw', hp: 11, act: { t: 'attack', d: 9 }, color: '#5e6bff', models: ['wretch'] },
   };
 
   // 9 distinct void-beast silhouettes (+ the Warpcaller avatar = 10 models).
@@ -89,6 +90,15 @@
           [-0.16,-0.18, -0.12,-0.02], [0.16,-0.18, 0.12,-0.02], [-0.06,0.04, 0.06,0.04],
           [0,0.28, -0.08,0.5, 0.04,0.62], [-0.2,0.2, -0.34,0.46], [0.2,0.2, 0.34,0.46]],
       e: [[-0.1,-0.1],[0.1,-0.1]] } },
+    totem: { name: 'Totem', art: {
+      p: [[-0.3,-0.5, 0.3,-0.5, 0.3,-0.3, -0.3,-0.3, -0.3,-0.5],
+          [-0.36,-0.3, 0.36,-0.3, 0.34,0.0, -0.34,0.0, -0.36,-0.3],
+          [-0.3,0.0, 0.3,0.0, 0.24,0.42, -0.24,0.42, -0.3,0.0],
+          [-0.12,-0.44, 0.12,-0.44, 0.12,-0.36, -0.12,-0.36],
+          [0,-0.2, 0.12,-0.12, 0,-0.04, -0.12,-0.12, 0,-0.2],
+          [-0.36,-0.26, -0.52,-0.34], [0.36,-0.26, 0.52,-0.34],
+          [-0.22,0.42, -0.24,0.58], [0.22,0.42, 0.24,0.58]],
+      e: [[-0.07,-0.4],[0.07,-0.4]] } },
     dire_maw: { name: 'Dire Maw', art: {
       p: [[-0.66,-0.4, -0.1,-0.56, 0.24,-0.36, 0.14,0.04, -0.36,0.1, -0.7,-0.14, -0.66,-0.4],
           [-0.58,-0.04, -0.5,0.2], [-0.4,-0.1, -0.34,0.18], [-0.2,-0.12, -0.14,0.16], [0.0,-0.12, 0.06,0.12],
@@ -587,8 +597,20 @@
     summon_warden: {
       name: 'Summon Warden', cls: 'warpcaller', type: 'skill', rarity: 1, cost: 1,
       fx: [{ k: 'pet', id: 'warden', n: 1 }],
-      text: 'Summon a Warden (a tanky beast that bodies hits and shields you each turn).',
-      up: { fx: [{ k: 'pet', id: 'warden', n: 1 }, { k: 'block', v: 4, scale: 'bond' }], text: 'Summon a Warden. Gain Shield.' },
+      text: 'Summon a Warden — your tank. Put it FRONT to body single-target hits; it shields you each turn.',
+      up: { fx: [{ k: 'pet', id: 'warden', n: 1 }, { k: 'block', v: 4, scale: 'bond' }], text: 'Summon a Warden (tank). Gain Shield.' },
+    },
+    summon_leech: {
+      name: 'Summon Leech', cls: 'warpcaller', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'pet', id: 'leech', n: 1 }],
+      text: 'Summon a Leech — each turn it heals the pet in FRONT of it. Place it behind your tank.',
+      up: { fx: [{ k: 'pet', id: 'leech', n: 1 }, { k: 'draw', v: 1 }], text: 'Summon a Leech. Draw 1.' },
+    },
+    summon_totem: {
+      name: 'Raise Totem', cls: 'warpcaller', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'pet', id: 'totem', n: 1 }],
+      text: 'Summon a Totem — the pets on EITHER SIDE of it deal +3 with their actions. Place it in the middle of the line.',
+      up: { cost: 0, fx: [{ k: 'pet', id: 'totem', n: 1 }], text: 'Summon a Totem — the pets on either side of it deal +3 with their actions.' },
     },
     bloodbond: {   // glass-cannon: pay HP for a fast pack
       name: 'Blood Bond', cls: 'warpcaller', type: 'skill', rarity: 1, cost: 0,

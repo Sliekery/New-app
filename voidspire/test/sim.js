@@ -135,6 +135,12 @@ function botCombat() {
   while (E.run.phase === 'combat' && guard++ < 400) {
     var c = E.combat;
     if (c.over || aliveIdx().length === 0) break;
+    // Warpcaller: keep a sensible formation — tank front, healer behind it,
+    // support mid, attackers in the back (a competent player would position).
+    if (E.run.cls === 'warpcaller' && c.allies.length > 1) {
+      var PRI = { block: 0, heal: 1, support: 2, burn: 3, attack: 4 };
+      c.allies.sort(function (a, b) { return (PRI[a.def.act.t] == null ? 9 : PRI[a.def.act.t]) - (PRI[b.def.act.t] == null ? 9 : PRI[b.def.act.t]); });
+    }
     var playable = [];
     for (var i = 0; i < c.hand.length; i++) if (E.canPlay(i)) playable.push(i);
     if (playable.length === 0) { E.endTurn(); continue; }

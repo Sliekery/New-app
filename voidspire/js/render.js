@@ -1168,7 +1168,7 @@
     (art.e || []).forEach(function (e) { ctx.beginPath(); ctx.arc(x + e[0] * sz, y + e[1] * sz, Math.max(1, sz * 0.04), 0, 7); ctx.fill(); });
     ctx.restore();
   }
-  var ACT_COL = { atk: '#ff6a6a', burn: '#ff8a3d', block: '#6bd8ff', heal: '#6bff9d' };
+  var ACT_COL = { atk: '#ff6a6a', burn: '#ff8a3d', block: '#6bd8ff', heal: '#6bff9d', support: '#ffd24a' };
   // A pet's action readout: a small icon + the (BOND-scaled) value it will do.
   function drawPetAction(info, x, y) {
     var col = ACT_COL[info.icon] || '#cfe0ff';
@@ -1179,6 +1179,7 @@
     if (info.icon === 'atk') { ctx.moveTo(ix - s, y - s); ctx.lineTo(ix + s, y); ctx.lineTo(ix - s, y + s); ctx.closePath(); ctx.fill(); }
     else if (info.icon === 'burn') { ctx.moveTo(ix, y - s - 1); ctx.quadraticCurveTo(ix + s, y, ix, y + s); ctx.quadraticCurveTo(ix - s, y, ix, y - s - 1); ctx.fill(); }
     else if (info.icon === 'block') { for (var k = 0; k <= 6; k++) { var a = k / 6 * 6.283, xx = ix + Math.cos(a) * s, yy = y + Math.sin(a) * s; if (k === 0) ctx.moveTo(xx, yy); else ctx.lineTo(xx, yy); } ctx.stroke(); }
+    else if (info.icon === 'support') { for (var q = 0; q < 4; q++) { var aa = q / 4 * 6.283; ctx.moveTo(ix, y); ctx.lineTo(ix + Math.cos(aa) * (s + 1), y + Math.sin(aa) * (s + 1)); } ctx.stroke(); }   // sparkle
     else { ctx.moveTo(ix - s, y); ctx.lineTo(ix + s, y); ctx.moveTo(ix, y - s); ctx.lineTo(ix, y + s); ctx.stroke(); }
     ctx.shadowBlur = 0; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'left'; ctx.fillText('' + info.val, x + 1, y + 3.5);
     ctx.restore();

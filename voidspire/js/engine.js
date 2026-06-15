@@ -615,7 +615,8 @@
     var bg = art('burnGrow');
     if (bg > 0) c.enemies.forEach(function (en, i) { if (en.alive && statN(en, 'burn') > 0) { addStatus(en, 'burn', bg); emit('status', { who: 'enemy', idx: i, s: 'burn', v: bg }); } });
     var aoe = art('aoeTurnStart');
-    var draws = B.player.drawPerTurn + art('drawTurn') + (c.turn === 1 ? art('drawStart') : 0);
+    var baseDraw = (E.run.cls === 'warpcaller') ? B.player.drawPerTurn - 1 : B.player.drawPerTurn; // smaller hand: you trade cards for formation control
+    var draws = baseDraw + art('drawTurn') + (c.turn === 1 ? art('drawStart') : 0);
     drawCards(draws);
     c.echoReady = statN(p, 'echo') > 0;   // Echo Core: first attack each turn plays twice
     emit('turnStart', { turn: c.turn });
@@ -865,57 +866,79 @@
   E.aliveAllies = aliveAllies;
   // A pet's effective action value: BOND scaling + per-pet buffs + pack buffs.
   function petPower(a) {
-    return Math.round(attr('bond') * B.attrs.bondPetPerPoint) + (a.bonusDmg || 0) + statN(E.combat.player, 'pack');
+    return Math.round(attr('bond') * B.attrs.bondPetPerPoint) + (a.bonusDmg || 0) + statN(E.combat.player, 'pack') + adjacentTotem(a);
   }
   E.petPower = petPower;
+  // The pack is an ordered formation; c.allies holds only LIVING pets, front first.
+  function frontAlly() { var p = aliveAllies(); return p.length ? p[0] : null; }
+  E.frontAlly = frontAlly;
+  // Sum of adjacent Totems' buff (placement matters — keep a Totem in the middle).
+  function adjacentTotem(a) {
+    var c = E.combat; if (!c) return 0;
+    var i = c.allies.indexOf(a), buff = 0;
+    [i - 1, i + 1].forEach(function (j) { var n = c.allies[j]; if (n && n.alive && n.def.act.t === 'support') buff += n.def.act.v; });
+    return buff;
+  }
   function mkAlly(id) {
     var def = ns.PETS[id];
-    var hp = def.hp + Math.round(attr('bond') * 0.5);
+    var hp = def.hp + Math.round(attr('bond') * 0.3);
     var models = def.models || [];
     var model = models.length ? models[Math.floor(rnd() * models.length)] : null;
     return { id: id, def: def, hp: hp, maxHp: hp, block: 0, statuses: {}, alive: true, bonusDmg: 0, model: model };
   }
-  // What a pet will do this turn (icon + scaled value) — for the on-field readout.
+  // What a pet will do this turn (icon + scaled value) — for the Manifest readout.
   E.petInfo = function (a) {
     var act = a.def.act, pw = petPower(a);
     if (act.t === 'attack') return { icon: 'atk', val: (act.d || 0) + pw };
     if (act.t === 'burn') return { icon: 'burn', val: act.v + Math.floor(pw * 0.5) };
     if (act.t === 'block') return { icon: 'block', val: act.v + Math.floor(pw * 0.5) };
+    if (act.t === 'support') return { icon: 'support', val: act.v };
     return { icon: 'heal', val: act.v + Math.floor(pw * 0.5) };
   };
   function summonPet(id, n) {
     var c = E.combat, cap = 6;
     for (var i = 0; i < (n || 1); i++) {
-      if (aliveAllies().length >= cap) break;
-      c.allies.push(mkAlly(id));
+      if (c.allies.length >= cap) break;
+      c.allies.push(mkAlly(id));   // joins the BACK of the formation
       emit('petSummon', { idx: c.allies.length - 1, id: id });
     }
   }
   E.summonPet = summonPet;
-  function dealToAlly(a, idx, amount) {
+  // Remove a pet from the formation (death/sacrifice) and fire on-death effects.
+  function killAlly(a, sacrifice) {
+    var c = E.combat, i = c.allies.indexOf(a);
+    if (i < 0 || !a.alive) return;
+    a.alive = false;
+    c.allies.splice(i, 1);
+    emit('petDie', { idx: i });
+    if (!sacrifice) {
+      var sy = statN(c.player, 'symbiosis');   // a pet dies -> master gains Shield + draws
+      if (sy > 0) { gainBlock(sy); drawCards(1); }
+    }
+  }
+  E.killAlly = killAlly;
+  function dealToAlly(a, amount) {
+    var i = E.combat.allies.indexOf(a);
     var blocked = Math.min(a.block, amount);
     a.block -= blocked;
     var hp = amount - blocked;
     a.hp -= hp;
-    emit('petHurt', { idx: idx, amount: amount, hpDmg: hp, hpAfter: Math.max(0, a.hp), blockAfter: a.block });
-    if (a.hp <= 0 && a.alive) {
-      a.alive = false;
-      emit('petDie', { idx: idx });
-      var sy = statN(E.combat.player, 'symbiosis');   // pet dies -> master gains Shield + draws
-      if (sy > 0) { gainBlock(sy); drawCards(1); }
-    }
+    emit('petHurt', { idx: i, amount: amount, hpDmg: hp, hpAfter: Math.max(0, a.hp), blockAfter: a.block });
+    if (a.hp <= 0 && a.alive) killAlly(a);
     return hp;
   }
-  // A living pet soaks a single-target enemy attack (the pack shields the master).
-  function soakTarget() {
-    var pets = aliveAllies();
-    return pets.length ? pets[Math.floor(rnd() * pets.length)] : null;
-  }
-  // Pets act after your turn, before the enemy strikes back.
+  // Reorder the formation (the Manifest's tap-swap). Indices into the living line.
+  E.swapPets = function (i, j) {
+    var L = E.combat && E.combat.allies; if (!L) return false;
+    if (i < 0 || j < 0 || i >= L.length || j >= L.length || i === j) return false;
+    var t = L[i]; L[i] = L[j]; L[j] = t; emit('petReorder', {}); return true;
+  };
+  // Pets act after your turn, before the enemy strikes back. Position matters:
+  // the Leech heals the pet directly in FRONT of it.
   function petsAct() {
     var c = E.combat;
-    aliveAllies().forEach(function (a) {
-      if (c.over || E.run.phase === 'dead') return;
+    c.allies.slice().forEach(function (a) {
+      if (c.over || E.run.phase === 'dead' || !a.alive) return;
       var idx = c.allies.indexOf(a), act = a.def.act, pw = petPower(a);
       emit('petAct', { idx: idx, t: act.t });
       if (act.t === 'attack') {
@@ -929,8 +952,12 @@
       } else if (act.t === 'block') {
         gainBlock(act.v + Math.floor(pw * 0.5));
       } else if (act.t === 'heal') {
-        heal(act.v + Math.floor(pw * 0.5));
+        var hv = act.v + Math.floor(pw * 0.5);
+        var ahead = idx > 0 ? c.allies[idx - 1] : a;   // heals the pet in front of it (else itself)
+        ahead.hp = Math.min(ahead.maxHp, ahead.hp + hv);
+        emit('petHurt', { idx: c.allies.indexOf(ahead), amount: 0, hpDmg: -hv, hpAfter: ahead.hp });
       }
+      // support (Totem) does nothing offensive — its buff is the adjacency bonus.
     });
   }
   E.petsAct = petsAct;
@@ -1090,8 +1117,8 @@
             petsAct();
           } else if (f.id === 'cull') {
             // CULL: sacrifice every pet, deal f.v per pet culled to the target.
-            var pets = aliveAllies(), nc = pets.length;
-            pets.forEach(function (a) { a.alive = false; emit('petDie', { idx: c.allies.indexOf(a) }); var sy = statN(p, 'symbiosis'); if (sy > 0) { gainBlock(sy); drawCards(1); } });
+            var pets = aliveAllies(), nc = pets.length, sytot = statN(p, 'symbiosis');
+            pets.forEach(function (a) { killAlly(a, true); if (sytot > 0) { gainBlock(sytot); drawCards(1); } });
             if (nc > 0) {
               var cEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
               if (cEn) totalDealt += dealToEnemy(cEn, c.enemies.indexOf(cEn), f.v * nc + Math.round(attr('bond') * B.attrs.bondPetPerPoint), { crit: crit, roll: roll });
@@ -1102,7 +1129,7 @@
             if (live.length >= 1) {
               var weak = live.slice().sort(function (a, b) { return a.hp - b.hp; })[0];
               var strong = live.slice().sort(function (a, b) { return (b.bonusDmg || 0) - (a.bonusDmg || 0); })[0];
-              if (live.length > 1 && weak !== strong) { weak.alive = false; emit('petDie', { idx: c.allies.indexOf(weak) }); }
+              if (live.length > 1 && weak !== strong) killAlly(weak, true);
               strong.bonusDmg = (strong.bonusDmg || 0) + f.v;
               emit('petAct', { idx: c.allies.indexOf(strong), t: 'feed' });
             }
@@ -1292,15 +1319,23 @@
         var totalToPlayer = 0;
         for (var h = 0; h < hits; h++) {
           if (r.phase === 'dead') break;
-          // ~50% of single hits are bodied by a pet — the pack shields the fragile
-          // master, but never fully; pierce ignores pets entirely.
-          var soak = (!m.pierce && rnd() < 0.5) ? soakTarget() : null;
-          if (soak) { dealToAlly(soak, c.allies.indexOf(soak), dmg); continue; }
-          totalToPlayer += hurtPlayer(dmg, m.pierce ? { pure: true } : undefined);   // pierce ignores Shield (and pets)
-          var th = statN(p, 'thorns') + art('thorns');
-          if (th > 0 && en.alive) {
-            dealToEnemy(en, idx, th, { noCrit: true, noWeak: true });
-            if (!en.alive) break;
+          // The formation soaks single-target hits FRONT-to-back, but each pet only
+          // absorbs up to its own HP+Shield — overflow carries through to the next
+          // pet and finally to the fragile master. Pierce ignores pets entirely.
+          var remaining = dmg;
+          while (remaining > 0 && !m.pierce) {
+            var front = frontAlly(); if (!front) break;
+            var absorbed = Math.min(remaining, front.hp + front.block);
+            dealToAlly(front, absorbed);
+            remaining -= absorbed;
+          }
+          if (remaining > 0) {
+            totalToPlayer += hurtPlayer(remaining, m.pierce ? { pure: true } : undefined);
+            var th = statN(p, 'thorns') + art('thorns');
+            if (th > 0 && en.alive) {
+              dealToEnemy(en, idx, th, { noCrit: true, noWeak: true });
+              if (!en.alive) break;
+            }
           }
         }
         if (m.t === 'drain' && en.alive) {
