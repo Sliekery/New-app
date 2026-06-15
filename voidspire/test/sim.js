@@ -244,24 +244,37 @@ var CLASS_ATTR = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
 // The Warpcaller's three builds. When PILOT is set, the bot drafts that build's
 // cards (and shuns the others) so we can see how each archetype performs when a
 // player actually commits to it, rather than the greedy grab-bag of the parity run.
-var WC_ARCH = {
-  wall:    ['summon_warden', 'summon_leech', 'entrench', 'aegis', 'summon_behemoth'],
-  alpha:   ['summon_dire', 'savage_feast', 'feed_the_alpha', 'pack_frenzy', 'apex_predator'],
-  butcher: ['summon_stinger', 'bloodbond', 'spawn_brood', 'symbiotic_bond', 'feeding_frenzy', 'overgrowth', 'cull_the_weak', 'the_swarmlord'],
+// Class build engines: { cls, core (draft toward), flex (welcome) }. When PILOT
+// names one, the bot commits to it so we can measure the build's ceiling instead
+// of the greedy grab-bag. Reusable across classes.
+var ENGINES = {
+  // Warpcaller archetypes
+  wall:    { cls: 'warpcaller', core: ['summon_warden', 'summon_leech', 'entrench', 'aegis', 'summon_behemoth'] },
+  alpha:   { cls: 'warpcaller', core: ['summon_dire', 'savage_feast', 'feed_the_alpha', 'pack_frenzy', 'apex_predator'] },
+  butcher: { cls: 'warpcaller', core: ['summon_stinger', 'bloodbond', 'spawn_brood', 'symbiotic_bond', 'feeding_frenzy', 'overgrowth', 'cull_the_weak', 'the_swarmlord'] },
+  // Vanguard engines
+  fusillade: { cls: 'vanguard', core: ['rapid_fire', 'trigger_discipline', 'hail_of_lead', 'full_auto', 'unload', 'burst_fire', 'frenzy', 'reckless_charge'],
+               flex: ['pulse_rifle', 'combat_shield', 'war_cry', 'suppressing_fire', 'bayonet_charge', 'brace', 'reload', 'rallying_shout', 'munitions_dump'] },
 };
-var WC_FLEX = ['claw_swipe', 'summon_maw', 'howl', 'kennel', 'summon_totem'];   // fine in any build
-var PILOT = null;   // 'wall' | 'alpha' | 'butcher' — null = default greedy draft
+var FLEX_OF = { warpcaller: ['claw_swipe', 'summon_maw', 'howl', 'kennel', 'summon_totem'] };  // per-class default flex
+var PILOT = null;   // an ENGINES key — null = default greedy draft
 function setPilot(a) { PILOT = a; }
+function pilotSpec() {
+  if (!PILOT || !ENGINES[PILOT]) return null;
+  var e = ENGINES[PILOT];
+  return { cls: e.cls, core: e.core, flex: e.flex || FLEX_OF[e.cls] || [] };
+}
 
 function scoreRewardCard(cid) {
   var def = VS.CARDS[cid];
   var s = def.rarity * 3;
   if (def.cls === VS.engine.run.cls) s += 2;
   if (VS.engine.run.deck.length > 22 && def.rarity === 1) s -= 6;
-  if (PILOT && def.cls === 'warpcaller') {
-    if (WC_ARCH[PILOT].indexOf(cid) >= 0) s += 12;        // commit hard to the build
-    else if (WC_FLEX.indexOf(cid) >= 0) s += 3;           // flex cards are welcome
-    else s -= 8;                                          // shun off-archetype Warpcaller cards
+  var sp = pilotSpec();
+  if (sp && def.cls === sp.cls) {
+    if (sp.core.indexOf(cid) >= 0) s += 12;              // commit hard to the build
+    else if (sp.flex.indexOf(cid) >= 0) s += 3;          // flex cards are welcome
+    else s -= 8;                                         // shun off-engine cards of this class
   }
   return s;
 }
