@@ -1155,22 +1155,63 @@
     }
     ctx.restore();
   }
-  // The Warpcaller's pack: drawn live from combat state, just below the master.
+  // Draw a pet's chosen creature model (vector silhouette).
+  function drawPetModel(art, x, y, sz, col) {
+    ctx.save();
+    ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.shadowColor = col; ctx.shadowBlur = 5; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    art.p.forEach(function (poly) {
+      ctx.beginPath();
+      for (var i = 0; i < poly.length; i += 2) { var px = x + poly[i] * sz, py = y + poly[i + 1] * sz; if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); }
+      ctx.stroke();
+    });
+    ctx.fillStyle = '#eaf2ff'; ctx.shadowBlur = 3;
+    (art.e || []).forEach(function (e) { ctx.beginPath(); ctx.arc(x + e[0] * sz, y + e[1] * sz, Math.max(1, sz * 0.04), 0, 7); ctx.fill(); });
+    ctx.restore();
+  }
+  var ACT_COL = { atk: '#ff6a6a', burn: '#ff8a3d', block: '#6bd8ff', heal: '#6bff9d' };
+  // A pet's action readout: a small icon + the (BOND-scaled) value it will do.
+  function drawPetAction(info, x, y) {
+    var col = ACT_COL[info.icon] || '#cfe0ff';
+    ctx.save();
+    ctx.fillStyle = col; ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 3; ctx.lineWidth = 1.3;
+    var ix = x - 7, s = 3;
+    ctx.beginPath();
+    if (info.icon === 'atk') { ctx.moveTo(ix - s, y - s); ctx.lineTo(ix + s, y); ctx.lineTo(ix - s, y + s); ctx.closePath(); ctx.fill(); }
+    else if (info.icon === 'burn') { ctx.moveTo(ix, y - s - 1); ctx.quadraticCurveTo(ix + s, y, ix, y + s); ctx.quadraticCurveTo(ix - s, y, ix, y - s - 1); ctx.fill(); }
+    else if (info.icon === 'block') { for (var k = 0; k <= 6; k++) { var a = k / 6 * 6.283, xx = ix + Math.cos(a) * s, yy = y + Math.sin(a) * s; if (k === 0) ctx.moveTo(xx, yy); else ctx.lineTo(xx, yy); } ctx.stroke(); }
+    else { ctx.moveTo(ix - s, y); ctx.lineTo(ix + s, y); ctx.moveTo(ix, y - s); ctx.lineTo(ix, y + s); ctx.stroke(); }
+    ctx.shadowBlur = 0; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'left'; ctx.fillText('' + info.val, x + 1, y + 3.5);
+    ctx.restore();
+  }
+  // The Warpcaller's pack: drawn live from combat state, below the master, each
+  // with its creature model, HP bar/number, and what it will do this turn.
   function drawAllies() {
     var c = ns.engine.combat; if (!c || !c.allies) return;
     var live = c.allies.filter(function (a) { return a.alive; });
     if (!live.length) return;
-    var p = R.playerXY(), scale = Math.min(W, H) * 0.09, sz = scale * 0.3;
-    var n = live.length, gap = sz * 2.1, baseX = p.x + scale * 0.4, baseY = p.y + scale * 1.05;
+    var p = R.playerXY(), scale = Math.min(W, H) * 0.09;
+    var n = live.length;
+    var sz = scale * 0.4 * (n > 4 ? 4 / n : 1);     // shrink the pack if it gets large
+    // lay the pack out left-to-right beside the master, fitting before the enemy line
+    var baseX = p.x + scale * 0.55, baseY = p.y + scale * 1.15;
+    var avail = Math.max(sz * 2.2, (W * 0.44 - baseX));
+    var gap = Math.min(sz * 2.4, avail / Math.max(1, n));
     live.forEach(function (a, i) {
       var col = a.def.color || '#7b8cff';
-      var x = baseX + (i - (n - 1) / 2) * gap, y = baseY + (i % 2) * 3 + Math.sin(t * 2 + i) * 1.5;
-      drawPetGlyph(a.def.act.t, x, y, sz * (a.def.hp >= 16 ? 1.25 : 1), col);
-      var w = sz * 1.7, hp = Math.max(0, a.hp / a.maxHp);
+      var x = baseX + (i + 0.5) * gap, y = baseY + (i % 2) * (sz * 0.4) + Math.sin(t * 2 + i) * 1.5;
+      var msz = sz * (a.def.hp >= 16 ? 1.3 : 1);
+      var art = a.model && ns.PET_MODELS[a.model] && ns.PET_MODELS[a.model].art;
+      if (art) drawPetModel(art, x, y, msz, col); else drawPetGlyph(a.def.act.t, x, y, msz, col);
+      // HP bar + number
+      var bw = msz * 1.5, hp = Math.max(0, a.hp / a.maxHp);
       ctx.save();
-      ctx.globalAlpha = 0.7; ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(x - w / 2, y + sz + 3, w, 2.5);
-      ctx.fillStyle = col; ctx.fillRect(x - w / 2, y + sz + 3, w * hp, 2.5);
+      ctx.fillStyle = 'rgba(255,255,255,0.16)'; ctx.fillRect(x - bw / 2, y + msz * 0.72 + 2, bw, 3);
+      ctx.fillStyle = hp > 0.3 ? col : '#ff5b6b'; ctx.fillRect(x - bw / 2, y + msz * 0.72 + 2, bw * hp, 3);
+      ctx.fillStyle = '#9fb6c0'; ctx.font = '8px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(Math.max(0, Math.ceil(a.hp)) + '', x, y + msz * 0.72 + 14);
       ctx.restore();
+      // action readout above the creature
+      drawPetAction(ns.engine.petInfo(a), x, y - msz * 0.95);
     });
   }
 

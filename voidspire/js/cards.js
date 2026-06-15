@@ -29,11 +29,11 @@
   // `models` = candidate visual models (picked at random on summon) so the pack
   // looks like a varied menagerie. Art lives in ns.PET_MODELS.
   ns.PETS = {
-    maw:      { name: 'Maw',     hp: 9,  act: { t: 'attack', d: 5 }, color: '#7b8cff', models: ['maw_hound', 'crawler', 'wretch'] },
+    maw:      { name: 'Maw',     hp: 9,  act: { t: 'attack', d: 5 }, color: '#7b8cff', models: ['wretch'] },
     stinger:  { name: 'Stinger', hp: 6,  act: { t: 'burn', v: 3 },   color: '#9b7bff', models: ['stinger', 'spore'] },
-    warden:   { name: 'Warden',  hp: 16, act: { t: 'block', v: 5 },  color: '#6bd8ff', models: ['warden_beast', 'sentinel'] },
+    warden:   { name: 'Warden',  hp: 16, act: { t: 'block', v: 5 },  color: '#6bd8ff', models: ['sentinel'] },
     leech:    { name: 'Leech',   hp: 7,  act: { t: 'heal', v: 3 },   color: '#6bff9d', models: ['leech'] },
-    dire_maw: { name: 'Dire Maw', hp: 18, act: { t: 'attack', d: 9 }, color: '#5e6bff', models: ['dire_maw'] },
+    dire_maw: { name: 'Dire Maw', hp: 18, act: { t: 'attack', d: 9 }, color: '#5e6bff', models: ['wretch'] },
   };
 
   // 9 distinct void-beast silhouettes (+ the Warpcaller avatar = 10 models).

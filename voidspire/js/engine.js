@@ -871,8 +871,18 @@
   function mkAlly(id) {
     var def = ns.PETS[id];
     var hp = def.hp + Math.round(attr('bond') * 0.5);
-    return { id: id, def: def, hp: hp, maxHp: hp, block: 0, statuses: {}, alive: true, bonusDmg: 0 };
+    var models = def.models || [];
+    var model = models.length ? models[Math.floor(rnd() * models.length)] : null;
+    return { id: id, def: def, hp: hp, maxHp: hp, block: 0, statuses: {}, alive: true, bonusDmg: 0, model: model };
   }
+  // What a pet will do this turn (icon + scaled value) — for the on-field readout.
+  E.petInfo = function (a) {
+    var act = a.def.act, pw = petPower(a);
+    if (act.t === 'attack') return { icon: 'atk', val: (act.d || 0) + pw };
+    if (act.t === 'burn') return { icon: 'burn', val: act.v + Math.floor(pw * 0.5) };
+    if (act.t === 'block') return { icon: 'block', val: act.v + Math.floor(pw * 0.5) };
+    return { icon: 'heal', val: act.v + Math.floor(pw * 0.5) };
+  };
   function summonPet(id, n) {
     var c = E.combat, cap = 6;
     for (var i = 0; i < (n || 1); i++) {
