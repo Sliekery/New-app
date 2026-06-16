@@ -147,7 +147,10 @@ html, body {
   pointer-events: auto; font-size: 10px; letter-spacing: 1px;
   border: 1px solid var(--green-dim); color: var(--text);
   background: rgba(10, 30, 18, 0.65); padding: 4px 8px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
 }
+#hud .icon-btn[data-act="map"] { padding: 4px 7px; color: var(--green); }
+#hud .icon-btn[data-act="map"] svg { width: 16px; height: 16px; display: block; filter: drop-shadow(0 0 3px rgba(93,255,136,0.4)); }
 #hud .artifact-row {
   margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; pointer-events: auto;
 }
@@ -944,9 +947,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   z-index: 26; display: none; flex-direction: row; align-items: flex-end; gap: 6px;
 }
 .belt-lbl {
-  position: absolute; left: 1px; top: -12px;
-  font: 7px monospace; letter-spacing: 2px; color: var(--text-dim);
+  position: absolute; left: 1px; top: -16px; white-space: nowrap;
+  font: 8px monospace; letter-spacing: 2px; color: var(--text-dim);
 }
+.belt-lbl .belt-cr { font-size: 11px; font-weight: bold; color: var(--amber); text-shadow: var(--glow-a); letter-spacing: 1px; }
+/* read-only star-chart preview: a RETURN button back to the live screen */
+.map-screen .map-back { position: absolute; top: 14px; left: 16px; z-index: 6; padding: 7px 13px; font-size: 11px; letter-spacing: 1px; }
 .potion-chip {
   width: 34px; height: 38px; display: flex; align-items: center; justify-content: center;
   border: 1px solid rgba(93,255,136,0.4); background: rgba(5, 20, 18, 0.82);
@@ -8058,6 +8064,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   /* ====================== HUD ====================== */
   function setHud(on) { if ($hud) $hud.style.display = on ? '' : 'none'; }
 
+  // star-chart glyph for the top map button (two nodes on a flight path)
+  var MAP_ICON = '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M4.5 13.5 13 4.5" stroke-dasharray="2 2"/><circle cx="4.5" cy="13.5" r="2.2"/><circle cx="13" cy="4.5" r="2.2"/></svg>';
   function updateHUD() {
     var r = E.run;
     if (!r) { $hud.innerHTML = ''; setHud(false); renderManifest(); renderRail(); return; }
@@ -8067,38 +8076,38 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var hpPct = Math.max(0, r.hp / r.maxHp);
     var inCombat = !!c && r.phase === 'combat';   // in combat, HP/shield live on the cockpit gauge
 
-    var html = '<div class="row">';
+    var onMap = r.phase === 'map';
+    var html = '';
+    // HP + credits ride the top only OUTSIDE combat (in combat they live on the
+    // cockpit gauge / the stim dock); relics live on the rail, not up here.
     if (!inCombat) {
-      html += '<div class="hp-wrap"><div class="hp-bar">' +
+      html += '<div class="row"><div class="hp-wrap"><div class="hp-bar">' +
         '<div class="hp-fill" style="transform:scaleX(' + hpPct.toFixed(3) + ')"></div>' +
         '<div class="hp-text">' + Math.max(0, r.hp) + ' / ' + r.maxHp + '</div>' +
-        '</div></div>';
-      if (c && c.player.block > 0) html += '<div class="shield-chip">⬡' + c.player.block + '</div>';
+        '</div></div>' +
+        ((c && c.player.block > 0) ? '<div class="shield-chip">⬡' + c.player.block + '</div>' : '') +
+        '<div class="stat"><b>¢' + r.credits + '</b></div></div>';
     }
-    html += '<div class="stat"><b>¢' + r.credits + '</b></div>' +
-      '</div>' +
-      '<div class="row2">' +
+    html += '<div class="row2">' +
       [['MGT', 'might'], ['TEC', 'tech'], ['PSI', 'psi'], ['BND', 'bond']].map(function (a) {
         var v = E.attr(a[1]); return v > 0 ? '<span class="attr">' + a[0] + ' <b>' + v + '</b></span>' : '';
       }).join('') +
-      '<span class="attr" style="color:' + fac.color + '">' + (r.loop > 1 ? 'L' + r.loop + '·' : '') + 'S' + r.sector + ' ▴' + Math.max(0, r.mapRow + 1) + '/' + (B.map.rows + 1) + '</span>' +
+      (onMap ? '<span class="attr" style="color:' + fac.color + '">' + (r.loop > 1 ? 'L' + r.loop + '·' : '') + 'S' + r.sector + ' ▴' + Math.max(0, r.mapRow + 1) + '/' + (B.map.rows + 1) + '</span>' : '') +
       '<span class="spacer"></span>' +
-      '<button class="icon-btn" data-act="deck">DECK ' + r.deck.length + '</button>' +
+      (onMap ? '' : '<button class="icon-btn" data-act="map" title="Star chart">' + MAP_ICON + '</button>') +
       '<button class="icon-btn" data-act="menu">≡</button>' +
       '</div>';
 
-    if (r.artifacts.length) {
+    // relics show here ONLY on the star chart (where you toggle them on/off);
+    // in combat they live on the cockpit rail instead.
+    if (onMap && r.artifacts.length) {
       html += '<div class="artifact-row">';
-      var onMap = r.phase === 'map';
       r.artifacts.forEach(function (id, i) {
         var a = ns.ARTIFACTS[id], cls = 'artifact-chip';
-        if (a.quest) {
-          var qs = E.questState(id);
-          cls += qs.done ? ' quest-done' : ' quest';
-        }
+        if (a.quest) { var qs = E.questState(id); cls += qs.done ? ' quest-done' : ' quest'; }
         var uses = E.relicUsesLeft(id), spent = uses != null && uses <= 0;
         if (!E.relicActive(id)) cls += ' relic-off';
-        if (onMap && !spent) cls += ' relic-toggle';
+        if (!spent) cls += ' relic-toggle';
         var badge = (uses != null) ? '<span class="relic-uses">' + uses + '</span>' : '';
         html += '<div class="' + cls + '" data-art="' + i + '">' + artSVG(a.art, 'art-icon') + badge + '</div>';
       });
@@ -8125,7 +8134,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       chip.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
         var id = r.artifacts[+chip.dataset.art];
-        if (r.phase === 'map' && E.toggleRelic(id)) {   // on the star chart, tap toggles a relic
+        if (r.phase === 'map' && E.toggleRelic(id)) {   // tap toggles a relic on the chart
           SFX.tap(); updateHUD();
           toast(ns.ARTIFACTS[id].name + (E.relicActive(id) ? ' — ONLINE' : ' — OFFLINE'), 1400);
         } else {
@@ -8133,8 +8142,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         }
       });
     });
-    var deckBtn = $hud.querySelector('[data-act="deck"]');
-    if (deckBtn) deckBtn.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); showDeckModal(); });
+    var mapBtn = $hud.querySelector('[data-act="map"]');
+    if (mapBtn) mapBtn.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); SFX.tap(); showMap(true); });
     var menuBtn = $hud.querySelector('[data-act="menu"]');
     if (menuBtn) menuBtn.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); showMenu(); });
 
@@ -8528,14 +8537,19 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }).join('') + '</g>';
   }
 
-  function showMap() {
+  function showMap(preview) {
     updateHUD();
     var r = E.run, m = r.map;
     var s = overlayScreen(true);
     s.classList.add('map-screen');
     s.appendChild(el('h2', 'screen-title', 'Sector ' + r.sector + ' · Star Chart'));
     var started = r.mapRow >= 0;
-    s.appendChild(el('div', 'screen-sub', esc(ns.FACTIONS[r.faction].name.toUpperCase()) + ' TERRITORY · ' + (started ? 'CHOOSE THE NEXT JUMP' : 'CHOOSE YOUR ENTRY POINT')));
+    s.appendChild(el('div', 'screen-sub', esc(ns.FACTIONS[r.faction].name.toUpperCase()) + ' TERRITORY · ' + (preview ? 'TACTICAL VIEW' : started ? 'CHOOSE THE NEXT JUMP' : 'CHOOSE YOUR ENTRY POINT')));
+    if (preview) {
+      var back = el('button', 'btn map-back', '◀ RETURN');
+      back.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); SFX.tap(); U.refresh(); });
+      s.appendChild(back);
+    }
 
     var COLS = m.COLS, ROWS = m.ROWS;
     var land = isLandscape();
@@ -8629,6 +8643,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     s.appendChild(lanebar);
 
     wrap.addEventListener('pointerdown', function (ev) {
+      if (preview) return;   // read-only star-chart view (e.g. opened mid-combat)
       var g = ev.target.closest ? ev.target.closest('.mapnode') : null;
       if (!g || !g.classList.contains('reachable')) return;
       var row = +g.getAttribute('data-row'), col = +g.getAttribute('data-col');
@@ -8694,7 +8709,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var r = E.run;
     $potions.innerHTML = '';
     if (!E.combat) return;
-    $potions.appendChild(el('div', 'belt-lbl', 'STIMS'));
+    $potions.appendChild(el('div', 'belt-lbl', '<b class="belt-cr">¢' + r.credits + '</b> STIMS'));
     var slots = E.potionSlots();
     for (var i = 0; i < slots; i++) {
       var pid = (r.potions || [])[i];
