@@ -1516,9 +1516,6 @@
     if (!E.combat || E.run.phase !== 'combat') return;
     var rect = ev.currentTarget.getBoundingClientRect();
     var x = ev.clientX - rect.left, y = ev.clientY - rect.top;
-    // power gauge: tap to expand / collapse the augmentation readout
-    if (selected < 0 && R.gaugeHit(x, y)) { SFX.tap(); R.toggleReadout(); return; }
-    if (R.isReadoutOpen()) { R.closeReadout(); if (selected < 0) return; }   // tap elsewhere dismisses it
     var idx = R.enemyAt(x, y);
     if (selected >= 0) {
       var si = selected;
