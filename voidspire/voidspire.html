@@ -7505,20 +7505,22 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
   // 'auto' picks the layout from the viewport's aspect ratio so the game fits
   // any screen (phone portrait, PC landscape...). portrait/landscape force it.
-  // Default (auto) is portrait — the game is portrait-first, and on desktop the
-  // portrait frame scales up to a big crisp "phone" rather than a stretched wide
-  // layout with tiny cards. HORIZONTAL is still available via the toggle.
   function isLandscape() {
-    return orient === 'landscape';
+    if (orient === 'landscape') return true;
+    if (orient === 'portrait') return false;
+    return (window.innerWidth / Math.max(1, window.innerHeight)) >= 1.1;
   }
-  // Portrait scale-to-fit: a fixed design frame scaled uniformly to the window.
-  var DESIGN_W = 400, DESIGN_H = 868;
+  // Scale-to-fit: render at a fixed design frame, then scale the whole #game
+  // uniformly to fill the window — so a big screen looks like a bigger, crisp
+  // version of the same layout (cards/HUD stay proportional, the canvas
+  // re-renders sharp). A design size per orientation.
+  var DESIGN = { portrait: [400, 868], landscape: [1024, 600] };
   function applyScale() {
     if (!$game) return;
-    if (isLandscape()) { $game.classList.remove('scaled'); $game.style.removeProperty('--ui-scale'); return; }
-    var s = Math.min(window.innerWidth / DESIGN_W, window.innerHeight / DESIGN_H);
-    $game.style.setProperty('--design-w', DESIGN_W + 'px');
-    $game.style.setProperty('--design-h', DESIGN_H + 'px');
+    var d = isLandscape() ? DESIGN.landscape : DESIGN.portrait;
+    var s = Math.min(window.innerWidth / d[0], window.innerHeight / d[1]);
+    $game.style.setProperty('--design-w', d[0] + 'px');
+    $game.style.setProperty('--design-h', d[1] + 'px');
     $game.style.setProperty('--ui-scale', s.toFixed(4));
     $game.classList.add('scaled');
   }
