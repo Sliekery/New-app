@@ -944,7 +944,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .map-screen .map-back { position: absolute; top: 14px; left: 16px; z-index: 6; padding: 7px 13px; font-size: 11px; letter-spacing: 1px; }
 
 /* ===== Gamble den (dice / wheel / cards) ===== */
-.gamble-stage { display: flex; align-items: center; justify-content: center; min-height: 150px; margin: 6px 0 10px; width: 100%; }
+.gamble-stage { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 168px; margin: 6px 0 10px; width: 100%; }
+.dice-game { display: flex; flex-direction: column; align-items: center; gap: 16px; }
 .gamble-panel { width: 100%; max-width: 360px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .gamble-prompt { font: 10px monospace; letter-spacing: 1px; color: var(--amber); text-shadow: var(--glow-a); margin-bottom: 2px; }
 .gamble-rolling { font: 12px monospace; letter-spacing: 3px; color: var(--cyan); text-shadow: var(--glow-c); animation: gPulse 0.7s ease-in-out infinite; }
@@ -962,22 +963,27 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .die .pip.on { background: #ffe6ad; box-shadow: 0 0 5px rgba(255,176,46,0.9); }
 .die.rolling { animation: gShake 0.12s linear infinite; }
 @keyframes gShake { 0%{transform:translate(0,0) rotate(0)} 25%{transform:translate(-2px,1px) rotate(-6deg)} 75%{transform:translate(2px,-1px) rotate(6deg)} 100%{transform:translate(0,0)} }
-.dice-sum { margin-top: 12px; font: 13px monospace; color: var(--text-dim); letter-spacing: 1px; }
-.dice-sum b { color: var(--amber); font-size: 18px; text-shadow: var(--glow-a); }
-/* wheel */
-.wheel-wrap { position: relative; width: 168px; height: 168px; }
-.wheel-ptr { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); color: var(--cyan); font-size: 18px; z-index: 2; text-shadow: var(--glow-c); }
-.g-wheel { width: 168px; height: 168px; transition: transform 2.2s cubic-bezier(0.17,0.67,0.18,1); filter: drop-shadow(0 0 10px rgba(0,0,0,0.6)); }
-/* blackjack */
-.bj { display: flex; flex-direction: column; gap: 12px; }
-.bj-row { display: flex; align-items: center; gap: 7px; }
+.dice-sum { font: 13px monospace; color: var(--text-dim); letter-spacing: 1px; }
+.dice-sum b { color: var(--amber); font-size: 20px; text-shadow: var(--glow-a); }
+/* wheel — a vector nav dial: spinning segmented disk inside a fixed reticle */
+.wheel-wrap { position: relative; width: 176px; height: 176px; }
+.wheel-ptr { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); color: var(--cyan); font-size: 18px; z-index: 3; text-shadow: var(--glow-c); }
+.g-wheel { position: absolute; inset: 4px; width: calc(100% - 8px); height: calc(100% - 8px); z-index: 0;
+  transition: transform 2.3s cubic-bezier(0.16,0.7,0.16,1); filter: drop-shadow(0 0 6px rgba(65,216,255,0.25)); }
+.wheel-fixed { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+/* blackjack — dealt cards flip face-up */
+.bj { display: flex; flex-direction: column; gap: 14px; }
+.bj-row { display: flex; align-items: center; gap: 8px; }
 .bj-lbl { font: 9px monospace; letter-spacing: 1px; color: var(--text-dim); width: 44px; }
-.bj-total { font: 16px monospace; color: var(--amber); margin-left: 4px; text-shadow: var(--glow-a); }
-.g-card { width: 38px; height: 54px; border: 1.5px solid var(--cyan); border-radius: 5px; background: rgba(6,18,26,0.95);
-  display: flex; align-items: center; justify-content: center; color: #eafcff; font: bold 17px monospace; box-shadow: 0 0 8px rgba(65,216,255,0.25);
-  animation: gDeal 0.32s ease-out both; }
-.g-card.back { background: repeating-linear-gradient(45deg, #102634, #102634 4px, #0a1822 4px, #0a1822 8px); color: transparent; }
-@keyframes gDeal { 0% { transform: translateY(-22px) rotate(-8deg); opacity: 0 } 100% { transform: none; opacity: 1 } }
+.bj-total { font: 17px monospace; color: var(--amber); margin-left: 4px; text-shadow: var(--glow-a); animation: gFade 0.4s ease-out both; animation-delay: 1s; }
+@keyframes gFade { from { opacity: 0 } to { opacity: 1 } }
+.g-card2 { width: 42px; height: 58px; opacity: 0; animation: gFade 0.22s ease-out forwards;
+  transition: transform 0.15s ease-in; transform-origin: center; }
+.g-card2.flip { transform: scaleX(0.06); }
+.gc2 { width: 100%; height: 100%; border: 1.5px solid var(--cyan); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.gc2.back { background: repeating-linear-gradient(45deg, #102a3a, #102a3a 4px, #0a1a26 4px, #0a1a26 8px); box-shadow: inset 0 0 8px rgba(65,216,255,0.15); }
+.gc2.front { background: rgba(6,18,26,0.96); color: #eafcff; font: bold 18px monospace; box-shadow: inset 0 0 10px rgba(65,216,255,0.18); animation: gPop 0.18s ease-out; }
+@keyframes gPop { 0% { box-shadow: 0 0 14px rgba(65,216,255,0.6) } 100% { box-shadow: inset 0 0 10px rgba(65,216,255,0.18) } }
 .potion-chip {
   width: 34px; height: 38px; display: flex; align-items: center; justify-content: center;
   border: 1px solid rgba(93,255,136,0.4); background: rgba(5, 20, 18, 0.82);

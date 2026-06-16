@@ -2278,22 +2278,39 @@
     return h;
   }
   function wheelHTML(N, winSegs, rot) {
-    var svg = '<svg viewBox="-50 -50 100 100" class="g-wheel" style="transform:rotate(' + rot + 'deg)">';
+    var R = 46, segs = '';
     for (var i = 0; i < N; i++) {
       var a0 = (i / N) * 2 * Math.PI - Math.PI / 2, a1 = ((i + 1) / N) * 2 * Math.PI - Math.PI / 2;
-      var x0 = (46 * Math.cos(a0)).toFixed(1), y0 = (46 * Math.sin(a0)).toFixed(1), x1 = (46 * Math.cos(a1)).toFixed(1), y1 = (46 * Math.sin(a1)).toFixed(1);
-      svg += '<path d="M0 0 L' + x0 + ' ' + y0 + ' A46 46 0 0 1 ' + x1 + ' ' + y1 + ' Z" fill="' + (i < winSegs ? '#15633f' : '#601d26') + '" stroke="#0a1014" stroke-width="0.6"/>';
+      var x0 = (R * Math.cos(a0)).toFixed(1), y0 = (R * Math.sin(a0)).toFixed(1), x1 = (R * Math.cos(a1)).toFixed(1), y1 = (R * Math.sin(a1)).toFixed(1);
+      var col = i < winSegs ? '#41ff9d' : '#ff4a6e';
+      segs += '<path d="M0 0 L' + x0 + ' ' + y0 + ' A' + R + ' ' + R + ' 0 0 1 ' + x1 + ' ' + y1 + ' Z" fill="' + col + '" fill-opacity="0.09"/>';
+      segs += '<path d="M' + x0 + ' ' + y0 + ' A' + R + ' ' + R + ' 0 0 1 ' + x1 + ' ' + y1 + '" fill="none" stroke="' + col + '" stroke-width="3" stroke-opacity="0.9"/>';
+      segs += '<line x1="0" y1="0" x2="' + x0 + '" y2="' + y0 + '" stroke="rgba(127,224,255,0.30)" stroke-width="0.5"/>';
     }
-    return svg + '<circle r="46" fill="none" stroke="#7fe0ff" stroke-width="1.2"/><circle r="6" fill="#0a1014" stroke="#7fe0ff"/></svg>';
+    return '<svg class="g-wheel" viewBox="-50 -50 100 100" style="transform:rotate(' + rot + 'deg)">' + segs +
+      '<circle r="' + R + '" fill="none" stroke="#7fe0ff" stroke-width="0.9"/></svg>';
+  }
+  function wheelReticle(N) {
+    var ticks = '';
+    for (var i = 0; i < N; i++) {
+      var a = (i / N) * 2 * Math.PI - Math.PI / 2, c = Math.cos(a), s = Math.sin(a);
+      ticks += '<line x1="' + (47 * c).toFixed(1) + '" y1="' + (47 * s).toFixed(1) + '" x2="' + (52 * c).toFixed(1) + '" y2="' + (52 * s).toFixed(1) + '" stroke="#3a6b78" stroke-width="1"/>';
+    }
+    return '<svg class="wheel-fixed" viewBox="-56 -56 112 112">' +
+      '<circle r="54.5" fill="none" stroke="rgba(127,224,255,0.22)" stroke-width="0.7"/>' +
+      '<circle r="50" fill="none" stroke="#274652" stroke-width="0.8"/>' + ticks +
+      '<line x1="-6" y1="0" x2="6" y2="0" stroke="#3a6b78" stroke-width="0.6"/><line x1="0" y1="-6" x2="0" y2="6" stroke="#3a6b78" stroke-width="0.6"/>' +
+      '<circle r="9" fill="#06121a" stroke="#7fe0ff" stroke-width="1.2"/><circle r="2.4" fill="#7fe0ff"/></svg>';
   }
   function cardHTML(v, i) {
     var face = v >= 11 ? 'A' : '' + v;
-    return '<div class="g-card" style="animation-delay:' + (i * 0.14) + 's"><span>' + face + '</span></div>';
+    return '<div class="g-card"><div class="gc-inner" style="animation-delay:' + (i * 0.18) + 's">' +
+      '<div class="gc-face gc-back"></div><div class="gc-face gc-front"><span>' + face + '</span></div></div></div>';
   }
   function gambleStageIdle(game) {
-    if (game === 'bones') return '<div class="dice-row"><div class="die">' + diePips(5) + '</div><div class="die">' + diePips(2) + '</div></div>';
-    if (game === 'wheel') return '<div class="wheel-wrap"><div class="wheel-ptr">▼</div>' + wheelHTML(12, 6, 0) + '</div>';
-    return '<div class="bj"><div class="bj-row"><span class="bj-lbl">HOUSE</span><div class="g-card back"></div><div class="g-card back"></div></div></div>';
+    if (game === 'bones') return '<div class="dice-game"><div class="dice-row"><div class="die">' + diePips(5) + '</div><div class="die">' + diePips(2) + '</div></div></div>';
+    if (game === 'wheel') return '<div class="wheel-wrap"><div class="wheel-ptr">▼</div>' + wheelReticle(12) + wheelHTML(12, 6, 0) + '</div>';
+    return '<div class="bj"><div class="bj-row"><span class="bj-lbl">HOUSE</span><div class="g-card2"><div class="gc2 back"></div></div><div class="g-card2"><div class="gc2 back"></div></div></div></div>';
   }
   function showGamble(ev) {
     updateHUD();
@@ -2359,7 +2376,7 @@
   }
   function rd6() { return 1 + Math.floor(Math.random() * 6); }
   function animateBones(stage, d) {
-    stage.innerHTML = '<div class="dice-row"><div class="die rolling"></div><div class="die rolling"></div></div><div class="dice-sum"></div>';
+    stage.innerHTML = '<div class="dice-game"><div class="dice-row"><div class="die rolling"></div><div class="die rolling"></div></div><div class="dice-sum"></div></div>';
     var dice = stage.querySelectorAll('.die'), sum = stage.querySelector('.dice-sum'), t = 0;
     var iv = setInterval(function () {
       t++;
@@ -2372,16 +2389,31 @@
     }, 95);
   }
   function animateWheel(stage, d) {
-    stage.innerHTML = '<div class="wheel-wrap"><div class="wheel-ptr">▼</div>' + wheelHTML(d.N, d.winSegs, 0) + '</div>';
+    stage.innerHTML = '<div class="wheel-wrap"><div class="wheel-ptr">▼</div>' + wheelReticle(d.N) + wheelHTML(d.N, d.winSegs, 0) + '</div>';
     var w = stage.querySelector('.g-wheel');
     var finalRot = d.spins * 360 - ((d.seg + 0.5) / d.N) * 360;
     requestAnimationFrame(function () { requestAnimationFrame(function () { w.style.transform = 'rotate(' + finalRot + 'deg)'; }); });
   }
   function animateCards(stage, d) {
     function row(lbl, hand, total) {
-      return '<div class="bj-row"><span class="bj-lbl">' + lbl + '</span>' + hand.map(function (v, i) { return cardHTML(v, i); }).join('') + '<span class="bj-total">' + total + '</span></div>';
+      return '<div class="bj-row"><span class="bj-lbl">' + lbl + '</span>' +
+        hand.map(function (v) { return '<div class="g-card2" data-v="' + v + '"><div class="gc2 back"></div></div>'; }).join('') +
+        '<span class="bj-total" style="opacity:0">' + total + '</span></div>';
     }
     stage.innerHTML = '<div class="bj">' + row('YOU', d.player, d.pTotal) + row('HOUSE', d.dealer, d.dTotal) + '</div>';
+    var cards = stage.querySelectorAll('.g-card2'), totals = stage.querySelectorAll('.bj-total');
+    cards.forEach(function (card, i) {
+      setTimeout(function () {
+        card.classList.add('flip');                    // squash edge-on
+        setTimeout(function () {
+          var v = +card.dataset.v, face = v >= 11 ? 'A' : '' + v;
+          var inner = card.querySelector('.gc2');
+          inner.className = 'gc2 front'; inner.innerHTML = '<span>' + face + '</span>';
+          card.classList.remove('flip');               // open face-up
+        }, 150);
+      }, 230 + i * 170);
+    });
+    setTimeout(function () { totals.forEach(function (t) { t.style.opacity = '1'; }); }, 230 + cards.length * 170 + 220);
   }
 
   function showEvent() {
