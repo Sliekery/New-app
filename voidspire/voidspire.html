@@ -7169,83 +7169,61 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var hp = Math.max(0, Math.round(R.player.hp)), maxHp = R.player.maxHp || 1;
     var block = Math.round(R.player.block || 0), energy = c.energy || 0;
     var frac = Math.max(0, Math.min(1, hp / maxHp));
-    var by = py + scale * 1.62, h = Math.max(12, scale * 0.42);
-    var capW = h * 1.7, barW = scale * 3.7;
-    var bx = px - scale * 1.2;                   // left edge of the energy cap
-    var barX = bx + capW - h * 0.4, barEnd = barX + barW;   // HP bar tucks behind the cap
-    var sk = h * 0.42;                           // slant amount
-    var blueFill = '#2f9fd6', blueLine = '#7fe0ff';
+    var h = Math.max(12, scale * 0.42);
+    var by = py + scale * 1.66;                  // top of the HP bar
+    var capW = h * 1.12;                          // energy box
+    var bx = px - scale * 1.18;                   // left edge of the energy box
+    var barX = bx + capW + h * 0.5, barW = scale * 3.5, barEnd = barX + barW;
+    var GREEN = '#5dff88', GREEN_DIM = '#43806a', CYAN = '#41d8ff';
+    var hpCol = frac > 0.5 ? GREEN : frac > 0.25 ? '#ffb02e' : '#ff4a5e';
     ctx.save();
-    ctx.lineJoin = 'miter'; ctx.lineCap = 'butt';
+    ctx.lineJoin = 'miter'; ctx.lineCap = 'butt'; ctx.textBaseline = 'middle';
 
-    // ===== 1. GREEN HP BAR — sits behind the energy cap & shield bar =====
-    function barPath() {
-      ctx.beginPath();
-      ctx.moveTo(barX + sk, by); ctx.lineTo(barEnd, by); ctx.lineTo(barEnd - sk, by + h);
-      ctx.lineTo(barX, by + h); ctx.closePath();
-    }
-    barPath(); ctx.fillStyle = 'rgba(4,12,14,0.92)'; ctx.fill();
-    ctx.save(); barPath(); ctx.clip();
-    var fillW = barW * frac;
-    var hpCol = frac > 0.5 ? '#5dff88' : frac > 0.25 ? '#ffb02e' : '#ff4a5e';
-    ctx.fillStyle = hpCol; ctx.globalAlpha = 0.32; ctx.fillRect(barX, by, fillW + sk, h);
-    ctx.globalAlpha = 0.4; ctx.strokeStyle = hpCol; ctx.lineWidth = 1;
-    for (var gx = barX - h; gx < barX + fillW; gx += 6) {
-      ctx.beginPath(); ctx.moveTo(gx + sk, by); ctx.lineTo(gx - h + sk, by + h); ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = hpCol; ctx.lineWidth = 2; ctx.shadowColor = hpCol; ctx.shadowBlur = 6;
-    ctx.beginPath(); ctx.moveTo(barX + fillW + sk, by); ctx.lineTo(barX + fillW, by + h); ctx.stroke();
+    // ===== ENERGY — small outlined box with an up-arrow, far left =====
+    ctx.strokeStyle = CYAN; ctx.lineWidth = 1.5; ctx.shadowColor = CYAN; ctx.shadowBlur = 5;
+    ctx.strokeRect(bx, by, capW, h);
     ctx.shadowBlur = 0;
-    ctx.restore();
-    barPath(); ctx.strokeStyle = '#3a6b58'; ctx.lineWidth = 1.5; ctx.stroke();
-
-    // ===== 2. SHIELD BAR — solid (opaque), segmented, overlaps the lower HP
-    //         bar and peeks below; grows / shrinks with shield =====
-    if (block > 0) {
-      var shTop = by + h * 0.5, shH = h * 0.74;
-      var sw = Math.max(h * 0.9, Math.min(1, block / maxHp) * barW);   // capped at HP width
-      var shPath = function (w) {
-        ctx.beginPath();
-        ctx.moveTo(barX + sk, shTop); ctx.lineTo(barX + w + sk, shTop);
-        ctx.lineTo(barX + w, shTop + shH); ctx.lineTo(barX, shTop + shH); ctx.closePath();
-      };
-      ctx.save(); shPath(sw); ctx.clip();
-      ctx.fillStyle = blueFill; ctx.fillRect(barX - sk, shTop, sw + sk * 2 + 2, shH);  // solid: hides HP behind it
-      ctx.strokeStyle = 'rgba(6,22,34,0.6)'; ctx.lineWidth = 1.6;                       // segment dividers
-      for (var vx = barX + 11; vx < barX + sw; vx += 11) {
-        ctx.beginPath(); ctx.moveTo(vx + sk, shTop); ctx.lineTo(vx, shTop + shH); ctx.stroke();
-      }
-      ctx.restore();
-      shPath(sw); ctx.strokeStyle = blueLine; ctx.lineWidth = 1.5; ctx.shadowColor = '#41d8ff'; ctx.shadowBlur = 6; ctx.stroke(); ctx.shadowBlur = 0;
-    }
-
-    // ===== 3. ENERGY CAP — solid blue, taller than the HP bar, on top, left =====
-    var capH = h * 1.34, capTop = by - (capH - h) / 2, csk = capH * 0.42;
+    var axc = bx + capW / 2, atop = by - h * 0.36;          // arrow above the box
     ctx.beginPath();
-    ctx.moveTo(bx + csk, capTop); ctx.lineTo(bx + capW, capTop); ctx.lineTo(bx + capW + csk, capTop + capH);
-    ctx.lineTo(bx, capTop + capH); ctx.closePath();
-    ctx.fillStyle = blueFill; ctx.fill();
-    ctx.strokeStyle = blueLine; ctx.lineWidth = 1.6; ctx.shadowColor = '#41d8ff'; ctx.shadowBlur = 7; ctx.stroke();
+    ctx.moveTo(axc, atop); ctx.lineTo(axc - h * 0.24, atop + h * 0.28); ctx.lineTo(axc + h * 0.24, atop + h * 0.28); ctx.closePath();
+    ctx.fillStyle = CYAN; ctx.fill();
+    ctx.fillStyle = '#eafcff'; ctx.font = 'bold ' + Math.round(h * 0.66) + 'px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('' + energy, bx + capW / 2, by + h / 2 + 0.5);
+
+    // ===== HP BAR — clean outline + number + thin progress underline =====
+    ctx.strokeStyle = GREEN_DIM; ctx.lineWidth = 1.5; ctx.shadowColor = 'rgba(93,255,136,0.35)'; ctx.shadowBlur = 4;
+    ctx.strokeRect(barX, by, barW, h);
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = hpCol; ctx.lineWidth = 2.4; ctx.shadowColor = hpCol; ctx.shadowBlur = 5;
+    ctx.beginPath(); ctx.moveTo(barX + 1.5, by + h - 1.6); ctx.lineTo(barX + 1.5 + (barW - 3) * frac, by + h - 1.6); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#eaffef'; ctx.shadowColor = '#000'; ctx.shadowBlur = 3;
+    ctx.font = 'bold ' + Math.round(h * 0.56) + 'px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(hp + ' / ' + maxHp, (barX + barEnd) / 2, by + h * 0.46);
     ctx.shadowBlur = 0;
 
-    // ===== 4. NUMBERS (on top of everything) =====
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#f2fdff'; ctx.shadowColor = '#04121c'; ctx.shadowBlur = 2;
-    ctx.font = 'bold ' + Math.round(capH * 0.6) + 'px monospace'; ctx.textAlign = 'center';
-    ctx.fillText('' + energy, bx + capW * 0.52 + csk * 0.5, capTop + capH / 2 + 0.5);
-    // HP number — ride high so the shield bar doesn't cover it
-    var hpNumX = (Math.max(barX, bx + capW) + barEnd) / 2;
-    ctx.fillStyle = '#eaffef'; ctx.shadowColor = '#000'; ctx.shadowBlur = 3;
-    ctx.font = 'bold ' + Math.round(h * 0.5) + 'px monospace';
-    ctx.fillText(hp + ' / ' + maxHp, hpNumX, by + h * (block > 0 ? 0.32 : 0.5) + 0.5);
-    ctx.shadowBlur = 0;
-    // shield number, in the shield bar
+    // ===== SHIELD — hexagon value + a hatched "vector line" beneath the HP bar
+    //       (lines only, no fill, no overlap with the HP bar) =====
     if (block > 0) {
-      ctx.fillStyle = '#f2fdff'; ctx.shadowColor = '#04121c'; ctx.shadowBlur = 2;
-      ctx.font = 'bold ' + Math.round(h * 0.48) + 'px monospace'; ctx.textAlign = 'left';
-      ctx.fillText('⬡' + block, Math.max(barX + sk + 4, bx + capW + 3), by + h * 0.87);
-      ctx.shadowBlur = 0;
+      var r = h * 0.36, hyc = by + h + r + h * 0.16, hxc = barX + r;
+      // hexagon node holding the value
+      ctx.beginPath();
+      for (var i = 0; i < 6; i++) { var a = Math.PI / 6 + i * Math.PI / 3, hx = hxc + r * Math.cos(a), hy = hyc + r * Math.sin(a); i ? ctx.lineTo(hx, hy) : ctx.moveTo(hx, hy); }
+      ctx.closePath();
+      ctx.strokeStyle = CYAN; ctx.lineWidth = 1.5; ctx.shadowColor = CYAN; ctx.shadowBlur = 5; ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.fillStyle = '#eafcff'; ctx.font = 'bold ' + Math.round(r * 1.0) + 'px monospace'; ctx.textAlign = 'center';
+      ctx.fillText('' + block, hxc, hyc + 0.5);
+      // vector line extending right, length = shield (capped at the HP bar end)
+      var ls = hxc + r + 3, maxLen = barEnd - ls;
+      var len = Math.min(1, block / maxHp) * maxLen, hh = h * 0.46;
+      ctx.strokeStyle = 'rgba(65,216,255,0.95)'; ctx.lineWidth = 1.4; ctx.shadowColor = CYAN; ctx.shadowBlur = 3;
+      ctx.beginPath(); ctx.moveTo(ls, hyc); ctx.lineTo(ls + len, hyc); ctx.stroke(); ctx.shadowBlur = 0;
+      // hatch ticks along the line, + an end cap
+      ctx.lineWidth = 1.1;
+      for (var tx = ls + 5; tx < ls + len; tx += 6) {
+        ctx.beginPath(); ctx.moveTo(tx, hyc - hh / 2); ctx.lineTo(tx - hh * 0.5, hyc + hh / 2); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.moveTo(ls + len, hyc - hh / 2); ctx.lineTo(ls + len, hyc + hh / 2); ctx.stroke();
     }
     ctx.restore();
   }
