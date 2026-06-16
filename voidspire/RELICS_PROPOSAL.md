@@ -43,22 +43,23 @@ Rarity weighting on drops: Common 55 / Uncommon 30 / Rare 15; Boss pool is separ
 
 ## 3. Proposed roster
 
-### Common (8) — low power, but each has a *hook* (a trigger / condition / counter), never a flat stat
-| Relic | Effect | Build |
+### Common (8) — weak, but hung on *VOIDSPIRE-native* systems so they don't read as generic
+Each leans on a system this game has and StS doesn't: the **d20 crit/roll dice**, **Stims**,
+the **sector / lane / fog map**, the **credit economy**, or the **MGT/TEC/PSI/BND attributes**.
+| Relic | Effect | System |
 |---|---|---|
-| Cold Barrel | Your **first attack each combat deals +6**. | [N] one satisfying opener |
-| Dead-Man's Plating | If you **end your turn with no Shield**, gain **4 Shield**. | [N] conditional — play around it |
-| Trauma Uplink | The **first time you take damage each combat, draw 2 cards**. | [N] trigger |
-| Kinetic Counter | Every **8th attack** you play deals **double**. | [N] a counter that builds |
-| Ranging Shot | At the start of combat, apply **1 Vulnerable** to a random enemy. | [N] tiny edge |
-| Scrap Magnet | Enemies drop **+3 credits** when they die. | [N] active economy |
-| Adrenaline Pump | **+1 Energy on your first turn** of each combat. | [E] tempo (existing) |
-| Last Stand | While **below half HP**, your attacks deal **+2**. | [N] conditional, risk-reward |
+| Misfire Capacitor | When your **crit die rolls a 1**, gain **1 Energy** this turn. | [N] dice — bad luck → tempo |
+| Marksman's Cadence | Each **crit** you land lowers your crit threshold by **1** for the rest of combat (resets next combat). | [N] dice — crit momentum |
+| Field Rations | Start each **sector** holding a random **Common Stim**. | [N] stims × sectors |
+| Counterpressure Gel | Whenever you **use a Stim**, deal **4** to a random enemy. | [N] stims become offense |
+| Charged Idle | End a turn having played **no cards** → **+2 Energy** next turn. | [N] novel "charge-up" decision |
+| Black-Market Chip | While you hold **under 15 credits**, draw **+1 card** each turn. | [N] economy inversion (rewards spending) |
+| Scout Relay | Reveal **1 extra row** of the star chart ahead of the fog. | [N] map / fog utility |
+| Resonant Core | Your **core attribute** counts as **+1 higher while you hold no Shield**. | [N] attribute × condition |
 
-*Design note:* commons stay weak (a small burst, a 4-Shield top-up, one extra Vulnerable),
-but each creates a micro-moment or a thing to play around instead of a passive number going up.
-The old flat commons (Power Fist, Void Lens, Aegis Core, Med-Bay Tap, etc.) are cut or pushed
-down to "filler" status; we keep a couple as plain-but-fine if we need pool size.
+*Design note:* still low-impact (a stray Energy, one Stim, a single extra card), but each pokes a
+system unique to this game — so they feel like VOIDSPIRE relics, not re-skinned StS ones. The old
+flat commons (Power Fist, Void Lens, Aegis Core, Med-Bay Tap…) are cut.
 
 ### Uncommon (8)
 | Relic | Effect | Build |
