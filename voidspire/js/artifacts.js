@@ -9,6 +9,10 @@
   ns.ARTIFACTS = {
     aegis_core:      { name: 'Aegis Core',        tier: 1, k: 'blockStart',      v: 8,    desc: 'Start each combat with 8 Shield.',
       art: { p: [[0,-1, 0.87,-0.5, 0.87,0.5, 0,1, -0.87,0.5, -0.87,-0.5, 0,-1]], e: [[0,0]] } },
+    overcharged_reactor: { name: 'Overcharged Reactor', tier: 2, hooks: [{ k: 'energyEveryTurn', v: 1 }], uses: 5, desc: '+1 Energy each turn — but the core burns out after 5 fights.',
+      art: { p: [[0,-0.72, 0.62,-0.36, 0.62,0.36, 0,0.72, -0.62,0.36, -0.62,-0.36, 0,-0.72], [0,-0.34, 0,0.34], [-0.28,-0.16, 0.28,0.16], [-0.28,0.16, 0.28,-0.16]], e: [[0,0]] } },
+    berserkers_yoke: { name: "Berserker's Yoke", tier: 1, hooks: [{ k: 'flatDmg', v: 4 }, { k: 'dmgTakenMult', v: 0.2 }], desc: 'Your attacks deal +4, but you take 20% more damage. Switch it off on the star chart when you turn fragile.',
+      art: { p: [[-0.75,0.1, 0.75,0.1], [-0.5,0.1, -0.5,-0.32], [0,0.1, 0,-0.4], [0.5,0.1, 0.5,-0.32], [-0.75,0.1, -0.62,0.4], [0.75,0.1, 0.62,0.4]], e: [[0,-0.55]] } },
     servo_skull:     { name: 'Servo Skull',       tier: 1, k: 'drawStart',       v: 2,    desc: 'Draw 2 extra cards on your first turn.',
       art: { p: [[-0.6,-0.1, -0.6,-0.55, -0.25,-0.85, 0.25,-0.85, 0.6,-0.55, 0.6,-0.1, 0.35,0.15, 0.35,0.5, -0.35,0.5, -0.35,0.15, -0.6,-0.1], [-0.2,0.5, -0.2,0.75], [0,0.5, 0,0.8], [0.2,0.5, 0.2,0.75], [0,-0.85, 0,-1.1]], e: [[-0.25,-0.3],[0.25,-0.3]] } },
     blood_chalice:   { name: 'Blood Chalice',     tier: 1, k: 'healAfterCombat', v: 5,    desc: 'Heal 5 HP after every combat.',

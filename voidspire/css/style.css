@@ -336,7 +336,18 @@ html, body {
 .rp-empty { color: var(--text-dim); font-style: italic; font-size: 9px; padding: 2px 0; }
 .rp-relic { padding: 3px 0; border-bottom: 1px solid rgba(93,255,136,0.08); }
 .rp-relic .rp-name { color: var(--amber); font-size: 10px; }
+.rp-relic.off .rp-name { color: var(--text-dim); }
 .rp-relic-desc { color: var(--text-dim); font-size: 8.5px; line-height: 1.3; padding: 1px 0 0 12px; }
+.rp-state { font-size: 7px; padding: 0 3px; margin-left: 6px; border: 1px solid; letter-spacing: 0.5px; }
+.rp-state.on { color: var(--green); border-color: var(--green-dim); }
+.rp-state.off { color: var(--text-dim); border-color: var(--text-dim); }
+.rp-spent { font-size: 7px; color: var(--red); margin-left: 6px; }
+.rp-dur { font-size: 8px; color: var(--amber); }
+/* relic toggle state on the map HUD chips */
+.artifact-chip { position: relative; }
+.artifact-chip.relic-off { opacity: 0.32; filter: grayscale(0.75); }
+.artifact-chip.relic-toggle { cursor: pointer; }
+.relic-uses { position: absolute; bottom: -3px; right: -3px; font-size: 8px; font-weight: bold; color: var(--amber); background: rgba(4,8,10,0.92); border: 1px solid var(--amber); border-radius: 7px; padding: 0 2px; line-height: 1.1; }
 
 /* ===== Crew Manifest — the Warpcaller's interactive formation panel ===== */
 #manifest {

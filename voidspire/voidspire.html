@@ -347,7 +347,18 @@ html, body {
 .rp-empty { color: var(--text-dim); font-style: italic; font-size: 9px; padding: 2px 0; }
 .rp-relic { padding: 3px 0; border-bottom: 1px solid rgba(93,255,136,0.08); }
 .rp-relic .rp-name { color: var(--amber); font-size: 10px; }
+.rp-relic.off .rp-name { color: var(--text-dim); }
 .rp-relic-desc { color: var(--text-dim); font-size: 8.5px; line-height: 1.3; padding: 1px 0 0 12px; }
+.rp-state { font-size: 7px; padding: 0 3px; margin-left: 6px; border: 1px solid; letter-spacing: 0.5px; }
+.rp-state.on { color: var(--green); border-color: var(--green-dim); }
+.rp-state.off { color: var(--text-dim); border-color: var(--text-dim); }
+.rp-spent { font-size: 7px; color: var(--red); margin-left: 6px; }
+.rp-dur { font-size: 8px; color: var(--amber); }
+/* relic toggle state on the map HUD chips */
+.artifact-chip { position: relative; }
+.artifact-chip.relic-off { opacity: 0.32; filter: grayscale(0.75); }
+.artifact-chip.relic-toggle { cursor: pointer; }
+.relic-uses { position: absolute; bottom: -3px; right: -3px; font-size: 8px; font-weight: bold; color: var(--amber); background: rgba(4,8,10,0.92); border: 1px solid var(--amber); border-radius: 7px; padding: 0 2px; line-height: 1.1; }
 
 /* ===== Crew Manifest — the Warpcaller's interactive formation panel ===== */
 #manifest {
@@ -966,8 +977,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     <div id="toast"></div>
   </div>
   <div id="crt"></div>
-<script>
 
+  <script>
 /* =========================================================================
  * VOIDSPIRE — balance.js
  * Every tunable number in the game lives here. Tweak freely.
@@ -1126,6 +1137,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
+</script>
+  <script>
 /* =========================================================================
  * VOIDSPIRE — cards.js
  * Card definitions. Effects are declarative; descriptions auto-generate.
@@ -2199,6 +2212,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
+</script>
+  <script>
 /* =========================================================================
  * VOIDSPIRE — cardart.js
  * Vector glyphs for cards (polylines in a -1..1 box, same format as enemy /
@@ -2300,6 +2315,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
+</script>
+  <script>
 /* =========================================================================
  * VOIDSPIRE — artifacts.js
  * Passive relics. Each has a single declarative hook the engine checks.
@@ -2311,6 +2328,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   ns.ARTIFACTS = {
     aegis_core:      { name: 'Aegis Core',        tier: 1, k: 'blockStart',      v: 8,    desc: 'Start each combat with 8 Shield.',
       art: { p: [[0,-1, 0.87,-0.5, 0.87,0.5, 0,1, -0.87,0.5, -0.87,-0.5, 0,-1]], e: [[0,0]] } },
+    overcharged_reactor: { name: 'Overcharged Reactor', tier: 2, hooks: [{ k: 'energyEveryTurn', v: 1 }], uses: 5, desc: '+1 Energy each turn — but the core burns out after 5 fights.',
+      art: { p: [[0,-0.72, 0.62,-0.36, 0.62,0.36, 0,0.72, -0.62,0.36, -0.62,-0.36, 0,-0.72], [0,-0.34, 0,0.34], [-0.28,-0.16, 0.28,0.16], [-0.28,0.16, 0.28,-0.16]], e: [[0,0]] } },
+    berserkers_yoke: { name: "Berserker's Yoke", tier: 1, hooks: [{ k: 'flatDmg', v: 4 }, { k: 'dmgTakenMult', v: 0.2 }], desc: 'Your attacks deal +4, but you take 20% more damage. Switch it off on the star chart when you turn fragile.',
+      art: { p: [[-0.75,0.1, 0.75,0.1], [-0.5,0.1, -0.5,-0.32], [0,0.1, 0,-0.4], [0.5,0.1, 0.5,-0.32], [-0.75,0.1, -0.62,0.4], [0.75,0.1, 0.62,0.4]], e: [[0,-0.55]] } },
     servo_skull:     { name: 'Servo Skull',       tier: 1, k: 'drawStart',       v: 2,    desc: 'Draw 2 extra cards on your first turn.',
       art: { p: [[-0.6,-0.1, -0.6,-0.55, -0.25,-0.85, 0.25,-0.85, 0.6,-0.55, 0.6,-0.1, 0.35,0.15, 0.35,0.5, -0.35,0.5, -0.35,0.15, -0.6,-0.1], [-0.2,0.5, -0.2,0.75], [0,0.5, 0,0.8], [0.2,0.5, 0.2,0.75], [0,-0.85, 0,-1.1]], e: [[-0.25,-0.3],[0.25,-0.3]] } },
     blood_chalice:   { name: 'Blood Chalice',     tier: 1, k: 'healAfterCombat', v: 5,    desc: 'Heal 5 HP after every combat.',
@@ -2422,6 +2443,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
+</script>
+  <script>
 /* =========================================================================
  * VOIDSPIRE — augments.js
  * "Augment Protocols": the level-up reward pool. After each boss you draft
@@ -2508,6 +2531,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
+</script>
+  <script>
 /* =========================================================================
  * VOIDSPIRE — potions.js
  * One-shot consumables carried into combat. Tap a belt slot to use one;
@@ -2607,6 +2632,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
+</script>
+  <script>
 /* =========================================================================
  * VOIDSPIRE — echoes.js
  * "Void Echoes": the special relics of the Recurrence (NG+ loop). After you
@@ -2687,6 +2714,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
+</script>
+  <script>
 /* =========================================================================
  * VOIDSPIRE — enemies.js
  * Enemy stats, AI patterns, faction encounter packs, and vector art.
@@ -3124,6 +3153,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
+</script>
+  <script>
 /* =========================================================================
  * VOIDSPIRE — events.js
  * Short decision events. Choices may carry a d20 skill check:
@@ -3445,6 +3476,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
+</script>
+  <script>
 /* =========================================================================
  * VOIDSPIRE — engine.js
  * All game logic. No DOM access: state in, events out (ns.engine.events),
@@ -3502,6 +3535,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       credits: B.player.startCredits,
       deck: deck,
       artifacts: [],
+      relicOff: {},        // relics switched off (toggled on the star chart)
+      relicUses: {},       // remaining durability for relics that have it
       sector: 1,
       faction: pick(Object.keys(ns.FACTIONS)),
       map: null,
@@ -3523,10 +3558,19 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     E.save();
   };
 
+  // A relic only applies while it's switched ON and not spent (durability > 0).
+  E.relicActive = function (id) {
+    var r = E.run; if (!r) return true;
+    if (r.relicOff && r.relicOff[id]) return false;
+    if (r.relicUses && r.relicUses[id] != null && r.relicUses[id] <= 0) return false;
+    return true;
+  };
+
   /* Effective attribute incl. artifacts */
   function attr(name) {
     var v = E.run.attrs[name] || 0;
     for (var i = 0; i < E.run.artifacts.length; i++) {
+      if (!E.relicActive(E.run.artifacts[i])) continue;
       var a = ns.ARTIFACTS[E.run.artifacts[i]];
       if (a.k === 'attr' && a.a === name) v += a.v;
     }
@@ -3545,8 +3589,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function art(k) {
     var t = 0, owned = E.run.artifacts;
     for (var i = 0; i < owned.length; i++) {
+      if (!E.relicActive(owned[i])) continue;   // toggled off, or spent (durability 0)
       var a = ns.ARTIFACTS[owned[i]];
       if (a.k === k) t += a.v;
+      if (a.hooks) for (var hh = 0; hh < a.hooks.length; hh++) if (a.hooks[hh].k === k) t += a.hooks[hh].v;  // multi-effect / tradeoff relics
       if (a.done && a.done.k === k && E.run.questDone && E.run.questDone[owned[i]]) t += a.done.v;
     }
     var aug = E.run.augments || [];
@@ -5181,11 +5227,35 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
   E.randomArtifact = randomArtifact;
 
+  // Flip a relic on/off — only allowed between fights, on the star chart.
+  E.toggleRelic = function (id) {
+    var r = E.run;
+    if (!r || r.phase !== 'map') return false;
+    if (r.artifacts.indexOf(id) < 0) return false;
+    if (r.relicUses && r.relicUses[id] != null && r.relicUses[id] <= 0) return false; // spent: can't re-enable
+    r.relicOff = r.relicOff || {};
+    r.relicOff[id] = !r.relicOff[id];
+    E.save();
+    return true;
+  };
+  E.relicUsesLeft = function (id) { return E.run && E.run.relicUses ? E.run.relicUses[id] : undefined; };
+  // After a fight, active relics with durability burn a charge.
+  function tickRelicDurability() {
+    var r = E.run; if (!r || !r.relicUses) return;
+    r.artifacts.forEach(function (id) {
+      if (r.relicUses[id] != null && r.relicUses[id] > 0 && E.relicActive(id)) {
+        r.relicUses[id] -= 1;
+        if (r.relicUses[id] <= 0) emit('relicSpent', { id: id });
+      }
+    });
+  }
+
   function addArtifact(id) {
     var r = E.run;
     if (r.artifacts.indexOf(id) >= 0) return; // no duplicates
     r.artifacts.push(id);
     var a = ns.ARTIFACTS[id];
+    if (a.uses) { r.relicUses = r.relicUses || {}; r.relicUses[id] = a.uses; }   // durability charge
     if (a.k === 'maxHp') { r.maxHp += a.v; r.hp += a.v; }
     if (a.special === 'glassCannon') { var lose = Math.round(r.maxHp * 0.25); r.maxHp -= lose; r.hp = Math.min(r.hp, r.maxHp); }
     if (a.quest && !r.questDone[id]) r.quests[id] = r.quests[id] || 0;
@@ -5195,6 +5265,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   function winCombat() {
     var r = E.run, kind = E.combat.kind, cc = E.combat;
+    tickRelicDurability();   // active durability relics burn a charge per fight
     // quest credit: combats won without ever gaining Shield / without losing HP
     if (!cc.playedShield) questProgress('noShieldWin', 1);
     if (r.hp >= cc.startHp) questProgress('flawlessWin', 1);
@@ -5825,6 +5896,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
+</script>
+  <script>
 /* =========================================================================
  * VOIDSPIRE — render.js
  * Canvas battlefield: starfield, vector line-art entities, particles.
@@ -7285,6 +7358,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
+</script>
+  <script>
 /* =========================================================================
  * VOIDSPIRE — music.js
  * Procedural deep-synthwave background bed. Pure Web Audio (no files): a dark
@@ -7462,6 +7537,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
+</script>
+  <script>
 /* =========================================================================
  * VOIDSPIRE — ui.js
  * DOM screens, one-finger combat interaction, action timeline playback.
@@ -7957,13 +8034,18 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     if (r.artifacts.length) {
       html += '<div class="artifact-row">';
+      var onMap = r.phase === 'map';
       r.artifacts.forEach(function (id, i) {
         var a = ns.ARTIFACTS[id], cls = 'artifact-chip';
         if (a.quest) {
           var qs = E.questState(id);
           cls += qs.done ? ' quest-done' : ' quest';
         }
-        html += '<div class="' + cls + '" data-art="' + i + '">' + artSVG(a.art, 'art-icon') + '</div>';
+        var uses = E.relicUsesLeft(id), spent = uses != null && uses <= 0;
+        if (!E.relicActive(id)) cls += ' relic-off';
+        if (onMap && !spent) cls += ' relic-toggle';
+        var badge = (uses != null) ? '<span class="relic-uses">' + uses + '</span>' : '';
+        html += '<div class="' + cls + '" data-art="' + i + '">' + artSVG(a.art, 'art-icon') + badge + '</div>';
       });
       html += '</div>';
     }
@@ -7987,7 +8069,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $hud.querySelectorAll('[data-art]').forEach(function (chip) {
       chip.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
-        toast(artifactTip(r.artifacts[+chip.dataset.art]), 2800);
+        var id = r.artifacts[+chip.dataset.art];
+        if (r.phase === 'map' && E.toggleRelic(id)) {   // on the star chart, tap toggles a relic
+          SFX.tap(); updateHUD();
+          toast(ns.ARTIFACTS[id].name + (E.relicActive(id) ? ' — ONLINE' : ' — OFFLINE'), 1400);
+        } else {
+          toast(artifactTip(id), 2800);
+        }
       });
     });
     var deckBtn = $hud.querySelector('[data-act="deck"]');
@@ -8164,10 +8252,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function relicsPanelHTML() {
     var r = E.run;
     if (!r.artifacts.length) return '<div class="rp-empty">no relics</div>';
-    return r.artifacts.map(function (id) {
-      var a = ns.ARTIFACTS[id];
-      return '<div class="rp-relic"><span class="rp-name">◆ ' + esc(a.name) + '</span><div class="rp-relic-desc">' + esc(a.desc) + '</div></div>';
+    var h = r.artifacts.map(function (id) {
+      var a = ns.ARTIFACTS[id], active = E.relicActive(id), uses = E.relicUsesLeft(id);
+      var spent = uses != null && uses <= 0;
+      var tag = spent ? '<span class="rp-spent">SPENT</span>' : '<span class="rp-state ' + (active ? 'on' : 'off') + '">' + (active ? 'ONLINE' : 'OFFLINE') + '</span>';
+      var dur = uses != null && !spent ? ' <span class="rp-dur">' + uses + ' left</span>' : '';
+      return '<div class="rp-relic' + (active ? '' : ' off') + '"><span class="rp-name">◆ ' + esc(a.name) + tag + dur + '</span>' +
+        '<div class="rp-relic-desc">' + esc(a.desc) + '</div></div>';
     }).join('');
+    return h + '<div class="rp-sub">toggle relics on the star chart</div>';
   }
   function wireRailPanel(k) {
     if (k !== 'buffs') return;
@@ -10535,6 +10628,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
+</script>
+  <script>
 /* =========================================================================
  * VOIDSPIRE — main.js
  * Boot, resize handling, render loop.
@@ -10579,6 +10674,5 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 })(window.VS = window.VS || {});
 
 </script>
-
 </body>
 </html>

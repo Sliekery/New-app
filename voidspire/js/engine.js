@@ -55,6 +55,8 @@
       credits: B.player.startCredits,
       deck: deck,
       artifacts: [],
+      relicOff: {},        // relics switched off (toggled on the star chart)
+      relicUses: {},       // remaining durability for relics that have it
       sector: 1,
       faction: pick(Object.keys(ns.FACTIONS)),
       map: null,
@@ -76,10 +78,19 @@
     E.save();
   };
 
+  // A relic only applies while it's switched ON and not spent (durability > 0).
+  E.relicActive = function (id) {
+    var r = E.run; if (!r) return true;
+    if (r.relicOff && r.relicOff[id]) return false;
+    if (r.relicUses && r.relicUses[id] != null && r.relicUses[id] <= 0) return false;
+    return true;
+  };
+
   /* Effective attribute incl. artifacts */
   function attr(name) {
     var v = E.run.attrs[name] || 0;
     for (var i = 0; i < E.run.artifacts.length; i++) {
+      if (!E.relicActive(E.run.artifacts[i])) continue;
       var a = ns.ARTIFACTS[E.run.artifacts[i]];
       if (a.k === 'attr' && a.a === name) v += a.v;
     }
@@ -98,8 +109,10 @@
   function art(k) {
     var t = 0, owned = E.run.artifacts;
     for (var i = 0; i < owned.length; i++) {
+      if (!E.relicActive(owned[i])) continue;   // toggled off, or spent (durability 0)
       var a = ns.ARTIFACTS[owned[i]];
       if (a.k === k) t += a.v;
+      if (a.hooks) for (var hh = 0; hh < a.hooks.length; hh++) if (a.hooks[hh].k === k) t += a.hooks[hh].v;  // multi-effect / tradeoff relics
       if (a.done && a.done.k === k && E.run.questDone && E.run.questDone[owned[i]]) t += a.done.v;
     }
     var aug = E.run.augments || [];
@@ -1734,11 +1747,35 @@
   }
   E.randomArtifact = randomArtifact;
 
+  // Flip a relic on/off — only allowed between fights, on the star chart.
+  E.toggleRelic = function (id) {
+    var r = E.run;
+    if (!r || r.phase !== 'map') return false;
+    if (r.artifacts.indexOf(id) < 0) return false;
+    if (r.relicUses && r.relicUses[id] != null && r.relicUses[id] <= 0) return false; // spent: can't re-enable
+    r.relicOff = r.relicOff || {};
+    r.relicOff[id] = !r.relicOff[id];
+    E.save();
+    return true;
+  };
+  E.relicUsesLeft = function (id) { return E.run && E.run.relicUses ? E.run.relicUses[id] : undefined; };
+  // After a fight, active relics with durability burn a charge.
+  function tickRelicDurability() {
+    var r = E.run; if (!r || !r.relicUses) return;
+    r.artifacts.forEach(function (id) {
+      if (r.relicUses[id] != null && r.relicUses[id] > 0 && E.relicActive(id)) {
+        r.relicUses[id] -= 1;
+        if (r.relicUses[id] <= 0) emit('relicSpent', { id: id });
+      }
+    });
+  }
+
   function addArtifact(id) {
     var r = E.run;
     if (r.artifacts.indexOf(id) >= 0) return; // no duplicates
     r.artifacts.push(id);
     var a = ns.ARTIFACTS[id];
+    if (a.uses) { r.relicUses = r.relicUses || {}; r.relicUses[id] = a.uses; }   // durability charge
     if (a.k === 'maxHp') { r.maxHp += a.v; r.hp += a.v; }
     if (a.special === 'glassCannon') { var lose = Math.round(r.maxHp * 0.25); r.maxHp -= lose; r.hp = Math.min(r.hp, r.maxHp); }
     if (a.quest && !r.questDone[id]) r.quests[id] = r.quests[id] || 0;
@@ -1748,6 +1785,7 @@
 
   function winCombat() {
     var r = E.run, kind = E.combat.kind, cc = E.combat;
+    tickRelicDurability();   // active durability relics burn a charge per fight
     // quest credit: combats won without ever gaining Shield / without losing HP
     if (!cc.playedShield) questProgress('noShieldWin', 1);
     if (r.hp >= cc.startHp) questProgress('flawlessWin', 1);

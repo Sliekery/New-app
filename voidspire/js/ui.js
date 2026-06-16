@@ -493,13 +493,18 @@
 
     if (r.artifacts.length) {
       html += '<div class="artifact-row">';
+      var onMap = r.phase === 'map';
       r.artifacts.forEach(function (id, i) {
         var a = ns.ARTIFACTS[id], cls = 'artifact-chip';
         if (a.quest) {
           var qs = E.questState(id);
           cls += qs.done ? ' quest-done' : ' quest';
         }
-        html += '<div class="' + cls + '" data-art="' + i + '">' + artSVG(a.art, 'art-icon') + '</div>';
+        var uses = E.relicUsesLeft(id), spent = uses != null && uses <= 0;
+        if (!E.relicActive(id)) cls += ' relic-off';
+        if (onMap && !spent) cls += ' relic-toggle';
+        var badge = (uses != null) ? '<span class="relic-uses">' + uses + '</span>' : '';
+        html += '<div class="' + cls + '" data-art="' + i + '">' + artSVG(a.art, 'art-icon') + badge + '</div>';
       });
       html += '</div>';
     }
@@ -523,7 +528,13 @@
     $hud.querySelectorAll('[data-art]').forEach(function (chip) {
       chip.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
-        toast(artifactTip(r.artifacts[+chip.dataset.art]), 2800);
+        var id = r.artifacts[+chip.dataset.art];
+        if (r.phase === 'map' && E.toggleRelic(id)) {   // on the star chart, tap toggles a relic
+          SFX.tap(); updateHUD();
+          toast(ns.ARTIFACTS[id].name + (E.relicActive(id) ? ' — ONLINE' : ' — OFFLINE'), 1400);
+        } else {
+          toast(artifactTip(id), 2800);
+        }
       });
     });
     var deckBtn = $hud.querySelector('[data-act="deck"]');
@@ -700,10 +711,15 @@
   function relicsPanelHTML() {
     var r = E.run;
     if (!r.artifacts.length) return '<div class="rp-empty">no relics</div>';
-    return r.artifacts.map(function (id) {
-      var a = ns.ARTIFACTS[id];
-      return '<div class="rp-relic"><span class="rp-name">◆ ' + esc(a.name) + '</span><div class="rp-relic-desc">' + esc(a.desc) + '</div></div>';
+    var h = r.artifacts.map(function (id) {
+      var a = ns.ARTIFACTS[id], active = E.relicActive(id), uses = E.relicUsesLeft(id);
+      var spent = uses != null && uses <= 0;
+      var tag = spent ? '<span class="rp-spent">SPENT</span>' : '<span class="rp-state ' + (active ? 'on' : 'off') + '">' + (active ? 'ONLINE' : 'OFFLINE') + '</span>';
+      var dur = uses != null && !spent ? ' <span class="rp-dur">' + uses + ' left</span>' : '';
+      return '<div class="rp-relic' + (active ? '' : ' off') + '"><span class="rp-name">◆ ' + esc(a.name) + tag + dur + '</span>' +
+        '<div class="rp-relic-desc">' + esc(a.desc) + '</div></div>';
     }).join('');
+    return h + '<div class="rp-sub">toggle relics on the star chart</div>';
   }
   function wireRailPanel(k) {
     if (k !== 'buffs') return;
