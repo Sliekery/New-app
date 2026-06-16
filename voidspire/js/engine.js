@@ -590,6 +590,8 @@
     var def = ns.ENEMIES[id];
     var s = E.run.sector;
     var hp = scaledHp(def.hp, s);
+    var hs = art('enemyHpScale');   // Famine Engine: enemies start weakened
+    if (hs > 0) hp = Math.max(1, Math.round(hp * (1 - hs / 100)));
     var en = {
       id: id, def: def, hp: hp, maxHp: hp, block: 0,
       statuses: {}, moveIdx: 0, lastMove: -1, intent: null, alive: true,
@@ -642,6 +644,7 @@
       startHp: r.hp,
       cardsThisTurn: 0,
       reactiveUsed: false,
+      firstPowerUsed: false,   // Resonance Coil / Void Conduit: first Power each combat
       over: false,
       isFinal: isFinal,
     };
@@ -671,6 +674,7 @@
   function gainBlock(n, played) {
     var c = E.combat, p = c.player;
     if (n <= 0) return;
+    if (art('noShield') > 0) return;   // tradeoff relics that forbid Shield entirely
     p.block += n;
     if (played) c.playedShield = true;
     emit('block', { who: 'player', amount: n, blockAfter: p.block });
@@ -768,6 +772,7 @@
         if (c.discard.length === 0) return;
         c.drawPile = shuffle(c.discard);
         c.discard = [];
+        if (art('reshuffleShield') > 0) gainBlock(art('reshuffleShield'));   // Reclaimer Unit
       }
       c.hand.push(c.drawPile.pop());
     }
@@ -883,6 +888,7 @@
     if (statN(c.player, 'weak') && !opts.noWeak) amount = Math.floor(amount * B.status.weakMult);
     if (statN(en, 'vuln')) { amount = Math.floor(amount * B.status.vulnMult); amount += art('vulnDmg'); }
     if (opts.execute && en.hp <= en.maxHp * 0.30) amount *= 2;
+    if (!opts.noCrit && art('executeBonus') > 0 && en.hp <= en.maxHp * 0.25) amount *= 2;   // Execution Protocol
     if (opts.crit) {
       amount = Math.floor(amount * B.dice.critMult);
       var cv = art('critVuln');
@@ -900,6 +906,8 @@
       if (en.def.enrage) { addStatus(en, 'str', en.def.enrage); emit('status', { who: 'enemy', idx: idx, s: 'str', v: en.def.enrage }); }
       if (en.def.thorns) hurtPlayer(en.def.thorns, { pure: true });
     }
+    var ls = art('lifestealPct');   // Vampiric Array: attacks heal a % of damage dealt
+    if (ls > 0 && hpDmg > 0 && byAttack) heal(Math.floor(hpDmg * ls / 100));
     if (en.hp <= 0 && en.alive) {
       en.alive = false;
       E.run.kills++;
@@ -1443,6 +1451,7 @@
     if (def.type === 'attack') {
       roll = d20();
       crit = roll >= B.dice.critThreshold - art('critBonus');
+      if (roll === 1 && art('critDie1Energy') > 0) c.energy += art('critDie1Energy');   // Misfire Capacitor
     }
 
     var ctx = { tgt: tgt, crit: crit, roll: roll, flags: flags, xval: xval, appliedBurn: false };
@@ -1494,6 +1503,11 @@
       trackBurn(pl * spread);
     }
 
+    // Resonance Coil: the first Power each combat draws a card
+    if (def.type === 'power' && !c.firstPowerUsed) {
+      c.firstPowerUsed = true;
+      var fpd = art('firstPowerDraw'); if (fpd > 0) drawCards(fpd);
+    }
     // route the played card: powers are consumed, exhaust cards (and skills
     // under Corruption) exhaust, everything else discards
     if (def.type === 'power') c.consumed.push(card);
@@ -1802,6 +1816,7 @@
     }
 
     var credits = creditRange(kind);
+    if (art('noCredits') > 0) credits = 0;   // Famine Engine: no salvage
     r.credits += credits;
     questProgress('creditsAtOnce', r.credits);
     var hb = art('healAfterCombat');

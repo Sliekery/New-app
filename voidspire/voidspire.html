@@ -2442,9 +2442,32 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     overflow_reactor: { name: 'Overflow Reactor', tier: 2, k: 'energyCarry', v: 1,
       desc: 'Unused Energy carries over to your next turn.',
       art: { p: [[-0.5,-0.5, 0.5,-0.5, 0.5,0.6, -0.5,0.6, -0.5,-0.5], [-0.22,-0.5, -0.22,-0.72, 0.22,-0.72, 0.22,-0.5], [-0.22,0.15, 0.02,-0.22, 0.02,0.05, 0.26,-0.32]], e: [] } },
-    glass_cannon: { name: 'Glass Cannon', tier: 2, k: 'dmgMult', v: 0.5, special: 'glassCannon',
+    glass_cannon: { name: 'Glass Cannon', tier: 2, rarity: 'boss', k: 'dmgMult', v: 0.5, special: 'glassCannon',
       desc: 'Deal 50% more damage — but your Max HP is permanently reduced by 25%.',
       art: { p: [[0.6,0, 0.42,0.42, 0,0.6, -0.42,0.42, -0.6,0, -0.42,-0.42, 0,-0.6, 0.42,-0.42, 0.6,0], [-0.72,0, 0.72,0], [0,-0.72, 0,0.72], [0.16,-0.6, 0.0,-0.2, 0.2,0.1, 0.0,0.5]], e: [] } },
+
+    /* ============ New tradeoff / engine relics (rework batch 1) ============ */
+    singularity_core: { name: 'Singularity Core', tier: 2, rarity: 'boss',
+      hooks: [{ k: 'energyEveryTurn', v: 1 }, { k: 'noShield', v: 1 }],
+      desc: '+1 Energy every turn — but you can no longer gain Shield. Switch it off on the star chart when you need to turtle.',
+      art: { p: [[0,-0.95, 0.95,0, 0,0.95, -0.95,0, 0,-0.95], [0,-0.45, 0,0.45], [-0.45,0, 0.45,0], [-0.72,-0.72, 0.72,0.72]], e: [[0,0]] } },
+    vampiric_array: { name: 'Vampiric Array', tier: 1, rarity: 'rare',
+      hooks: [{ k: 'lifestealPct', v: 20 }, { k: 'noShield', v: 1 }],
+      desc: 'Your attacks heal you for 20% of the damage dealt — but you can no longer gain Shield.',
+      art: { p: [[-0.55,-0.7, 0,-0.2, 0.55,-0.7], [-0.55,-0.7, -0.3,0.1, 0,0.7, 0.3,0.1, 0.55,-0.7], [0,0.1, 0,0.7]], e: [[0,-0.35]] } },
+    famine_engine: { name: 'Famine Engine', tier: 2, rarity: 'boss',
+      hooks: [{ k: 'enemyHpScale', v: 20 }, { k: 'noCredits', v: 1 }],
+      desc: 'Enemies start each combat at 20% less HP — but you gain no credits from combat.',
+      art: { p: [[0,-0.85, 0.7,-0.45, 0.7,0.35, 0,0.75, -0.7,0.35, -0.7,-0.45, 0,-0.85], [-0.3,-0.25, 0.3,-0.25], [-0.2,0.05, 0.2,0.05], [-0.1,0.32, 0.1,0.32]], e: [] } },
+    misfire_capacitor: { name: 'Misfire Capacitor', tier: 1, rarity: 'common', k: 'critDie1Energy', v: 1,
+      desc: 'When your crit die rolls a 1, gain 1 Energy this turn.',
+      art: { p: [[-0.5,-0.5, 0.5,-0.5, 0.5,0.5, -0.5,0.5, -0.5,-0.5], [0.1,-0.55, -0.2,-0.05, 0.15,-0.05, -0.15,0.55]], e: [[-0.28,-0.28],[0.28,0.28]] } },
+    reclaimer_unit: { name: 'Reclaimer Unit', tier: 1, rarity: 'common', k: 'reshuffleShield', v: 3,
+      desc: 'Whenever your draw pile reshuffles, gain 3 Shield.',
+      art: { p: [[0.55,-0.2, 0.55,-0.55, 0.2,-0.55], [0.55,-0.55, 0.1,-0.1, -0.35,-0.45], [-0.55,0.2, -0.55,0.55, -0.2,0.55], [-0.55,0.55, -0.1,0.1, 0.35,0.45]], e: [] } },
+    resonance_coil: { name: 'Resonance Coil', tier: 1, rarity: 'common', k: 'firstPowerDraw', v: 1,
+      desc: 'The first Power you play each combat, draw a card.',
+      art: { p: [[-0.7,0, -0.5,-0.4, -0.1,-0.4, 0.1,0, -0.1,0.4, -0.5,0.4, -0.7,0, 0.7,0], [0.7,0, 0.5,-0.35, 0.2,-0.35]], e: [[-0.3,0]] } },
 
     /* ============ Quest relics (complete the task → unlock the reward) ============ */
     offline_shield: { name: 'Offline Shield', tier: 2,
@@ -4124,6 +4147,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var def = ns.ENEMIES[id];
     var s = E.run.sector;
     var hp = scaledHp(def.hp, s);
+    var hs = art('enemyHpScale');   // Famine Engine: enemies start weakened
+    if (hs > 0) hp = Math.max(1, Math.round(hp * (1 - hs / 100)));
     var en = {
       id: id, def: def, hp: hp, maxHp: hp, block: 0,
       statuses: {}, moveIdx: 0, lastMove: -1, intent: null, alive: true,
@@ -4176,6 +4201,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       startHp: r.hp,
       cardsThisTurn: 0,
       reactiveUsed: false,
+      firstPowerUsed: false,   // Resonance Coil / Void Conduit: first Power each combat
       over: false,
       isFinal: isFinal,
     };
@@ -4205,6 +4231,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function gainBlock(n, played) {
     var c = E.combat, p = c.player;
     if (n <= 0) return;
+    if (art('noShield') > 0) return;   // tradeoff relics that forbid Shield entirely
     p.block += n;
     if (played) c.playedShield = true;
     emit('block', { who: 'player', amount: n, blockAfter: p.block });
@@ -4302,6 +4329,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         if (c.discard.length === 0) return;
         c.drawPile = shuffle(c.discard);
         c.discard = [];
+        if (art('reshuffleShield') > 0) gainBlock(art('reshuffleShield'));   // Reclaimer Unit
       }
       c.hand.push(c.drawPile.pop());
     }
@@ -4417,6 +4445,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (statN(c.player, 'weak') && !opts.noWeak) amount = Math.floor(amount * B.status.weakMult);
     if (statN(en, 'vuln')) { amount = Math.floor(amount * B.status.vulnMult); amount += art('vulnDmg'); }
     if (opts.execute && en.hp <= en.maxHp * 0.30) amount *= 2;
+    if (!opts.noCrit && art('executeBonus') > 0 && en.hp <= en.maxHp * 0.25) amount *= 2;   // Execution Protocol
     if (opts.crit) {
       amount = Math.floor(amount * B.dice.critMult);
       var cv = art('critVuln');
@@ -4434,6 +4463,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       if (en.def.enrage) { addStatus(en, 'str', en.def.enrage); emit('status', { who: 'enemy', idx: idx, s: 'str', v: en.def.enrage }); }
       if (en.def.thorns) hurtPlayer(en.def.thorns, { pure: true });
     }
+    var ls = art('lifestealPct');   // Vampiric Array: attacks heal a % of damage dealt
+    if (ls > 0 && hpDmg > 0 && byAttack) heal(Math.floor(hpDmg * ls / 100));
     if (en.hp <= 0 && en.alive) {
       en.alive = false;
       E.run.kills++;
@@ -4977,6 +5008,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (def.type === 'attack') {
       roll = d20();
       crit = roll >= B.dice.critThreshold - art('critBonus');
+      if (roll === 1 && art('critDie1Energy') > 0) c.energy += art('critDie1Energy');   // Misfire Capacitor
     }
 
     var ctx = { tgt: tgt, crit: crit, roll: roll, flags: flags, xval: xval, appliedBurn: false };
@@ -5028,6 +5060,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       trackBurn(pl * spread);
     }
 
+    // Resonance Coil: the first Power each combat draws a card
+    if (def.type === 'power' && !c.firstPowerUsed) {
+      c.firstPowerUsed = true;
+      var fpd = art('firstPowerDraw'); if (fpd > 0) drawCards(fpd);
+    }
     // route the played card: powers are consumed, exhaust cards (and skills
     // under Corruption) exhaust, everything else discards
     if (def.type === 'power') c.consumed.push(card);
@@ -5336,6 +5373,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
 
     var credits = creditRange(kind);
+    if (art('noCredits') > 0) credits = 0;   // Famine Engine: no salvage
     r.credits += credits;
     questProgress('creditsAtOnce', r.credits);
     var hb = art('healAfterCombat');
