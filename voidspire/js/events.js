@@ -25,6 +25,18 @@
       ],
     },
     {
+      id: 'salvage_drone', title: 'SALVAGE DRONE',
+      art: { c: '#ffb02e', p: [[-0.6,-0.35, 0.6,-0.35, 0.6,0.45, -0.6,0.45, -0.6,-0.35], [-0.6,-0.05, 0.6,-0.05], [-0.2,-0.35, -0.2,0.45], [0.2,-0.35, 0.2,0.45], [-0.4,-0.35, -0.52,-0.7], [0.4,-0.35, 0.52,-0.7], [-0.52,-0.7, 0.52,-0.7]], e: [[0,0.2]], m: [-0.14,0.34, 0.14,0.34] },
+      text: 'A battered logistics drone, its faction markings scoured off, blocks the corridor. It chirps and unfolds a tray of scavenged ordnance and strange off-doctrine salvage-tech — yours, for scrip or a favor.',
+      choices: [
+        { label: 'Buy salvage', sub: '¢40', cost: 40, outcome: { text: 'The drone takes the scrip and disgorges a piece of tech no faction would admit to making.', fx: { card: 'colorless' } } },
+        { label: 'Strip it for parts', sub: 'TECH check, DC 13', check: { attr: 'tech', dc: 13 },
+          success: { text: 'You crack the housing and pull the good stuff for free.', fx: { card: 'colorless' } },
+          fail: { text: 'It discharges a capacitor into your gauntlet and trundles off.', fx: { hp: -9 } } },
+        { label: 'Wave it off', outcome: { text: 'You have no use for someone else’s junk. It rolls away into the dark.', fx: {} } },
+      ],
+    },
+    {
       id: 'wounded_marine', title: 'WOUNDED MARINE',
       art: { c: '#5dff88', p: [[-0.55,-0.5, -0.45,-0.85, 0.45,-0.85, 0.55,-0.5, 0.55,0.0, 0.4,0.2, -0.4,0.2, -0.55,0.0, -0.55,-0.5], [-0.4,-0.5, 0.4,-0.5, 0.35,-0.15, -0.35,-0.15, -0.4,-0.5], [0.15,-0.85, 0.05,-0.5, 0.2,-0.32], [-0.85,0.7, -0.6,0.32, 0.6,0.32, 0.85,0.7], [-0.3,0.45, -0.1,0.45]], e: [[-0.15,-0.32],[0.15,-0.32]], m: [-0.1,0.0, 0.1,0.0] },
       text: 'A marine of the 9th Voidborne slumps against a bulkhead, suit breached, breath ragged. “Took six of them with me,” she rasps. “Take my rig. Make it count.”',

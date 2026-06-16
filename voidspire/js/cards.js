@@ -901,6 +901,32 @@
       up: { fx: [{ k: 'draw', v: 4 }, { k: 'status', s: 'psiPow', v: 1, who: 'self' }] },
     },
 
+    /* ====== Colorless salvage-tech (shop & event only — never in fight rewards) ====== */
+    recon: {   // Scry — sculpt your next draws
+      name: 'Recon', cls: 'any', type: 'skill', rarity: 1, pool: 'colorless', cost: 0,
+      fx: [{ k: 'special', id: 'scry', v: 3, draw: 1 }],
+      text: 'Scry 3 (look at the top 3 cards of your draw pile and discard any number). Draw 1.',
+      up: { fx: [{ k: 'special', id: 'scry', v: 5, draw: 1 }], text: 'Scry 5 (look at the top 5 cards of your draw pile and discard any number). Draw 1.' },
+    },
+    requisition: {   // Tutor — find your combo piece
+      name: 'Requisition', cls: 'any', type: 'skill', rarity: 2, pool: 'colorless', cost: 1,
+      fx: [{ k: 'special', id: 'tutor' }],
+      text: 'Search your draw pile and put any card into your hand.',
+      up: { cost: 0, fx: [{ k: 'special', id: 'tutor' }], text: 'Search your draw pile and put any card into your hand.' },
+    },
+    salvage_cache: {   // Discover — generate a choice of cards
+      name: 'Salvage Cache', cls: 'any', type: 'skill', rarity: 2, pool: 'colorless', cost: 1, exhaust: true,
+      fx: [{ k: 'special', id: 'discover' }],
+      text: 'Discover: add one of 3 random cards to your hand.',
+      up: { fx: [{ k: 'special', id: 'discover' }, { k: 'draw', v: 1 }], text: 'Discover: add one of 3 random cards to your hand. Draw 1.' },
+    },
+    fusion_charge: {   // Primed — a ticking delayed bomb
+      name: 'Fusion Charge', cls: 'any', type: 'skill', rarity: 3, pool: 'colorless', cost: 1,
+      fx: [{ k: 'special', id: 'primed', v: 30, t: 3 }],
+      text: 'Primed 3: in 3 turns, detonate for 30 damage to ALL enemies.',
+      up: { fx: [{ k: 'special', id: 'primed', v: 45, t: 3 }], text: 'Primed 3: in 3 turns, detonate for 45 damage to ALL enemies.' },
+    },
+
     /* ---------------- Curses ---------------- */
     void_taint: {
       name: 'Void Taint', cls: 'curse', type: 'curse', rarity: -1, cost: 0, unplayable: true,

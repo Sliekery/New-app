@@ -133,6 +133,14 @@ html, body {
 }
 .status-chip.buff { border-color: var(--green-dim); color: var(--green); }
 .status-chip.debuff { border-color: #804; color: var(--red); }
+.status-chip.primed { border-color: var(--amber); color: var(--amber); text-shadow: 0 0 6px rgba(255,176,46,0.5); }
+/* in-combat card pickers (Scry/Tutor/Discover) */
+.card-grid .card.pick-ditch { opacity: 0.4; filter: grayscale(0.7); border-color: var(--red); }
+.card-grid .card.pick-ditch::after {
+  content: 'DISCARD'; position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%) rotate(-12deg);
+  text-align: center; color: var(--red); font-size: 13px; letter-spacing: 2px; text-shadow: 0 0 6px #000;
+}
+.btn.ghost { opacity: 0.7; border-style: dashed; }
 
 /* ========================= HAND ========================= */
 #hand {

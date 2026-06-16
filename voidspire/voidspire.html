@@ -144,6 +144,14 @@ html, body {
 }
 .status-chip.buff { border-color: var(--green-dim); color: var(--green); }
 .status-chip.debuff { border-color: #804; color: var(--red); }
+.status-chip.primed { border-color: var(--amber); color: var(--amber); text-shadow: 0 0 6px rgba(255,176,46,0.5); }
+/* in-combat card pickers (Scry/Tutor/Discover) */
+.card-grid .card.pick-ditch { opacity: 0.4; filter: grayscale(0.7); border-color: var(--red); }
+.card-grid .card.pick-ditch::after {
+  content: 'DISCARD'; position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%) rotate(-12deg);
+  text-align: center; color: var(--red); font-size: 13px; letter-spacing: 2px; text-shadow: 0 0 6px #000;
+}
+.btn.ghost { opacity: 0.7; border-style: dashed; }
 
 /* ========================= HAND ========================= */
 #hand {
@@ -1951,6 +1959,32 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       up: { fx: [{ k: 'draw', v: 4 }, { k: 'status', s: 'psiPow', v: 1, who: 'self' }] },
     },
 
+    /* ====== Colorless salvage-tech (shop & event only — never in fight rewards) ====== */
+    recon: {   // Scry — sculpt your next draws
+      name: 'Recon', cls: 'any', type: 'skill', rarity: 1, pool: 'colorless', cost: 0,
+      fx: [{ k: 'special', id: 'scry', v: 3, draw: 1 }],
+      text: 'Scry 3 (look at the top 3 cards of your draw pile and discard any number). Draw 1.',
+      up: { fx: [{ k: 'special', id: 'scry', v: 5, draw: 1 }], text: 'Scry 5 (look at the top 5 cards of your draw pile and discard any number). Draw 1.' },
+    },
+    requisition: {   // Tutor — find your combo piece
+      name: 'Requisition', cls: 'any', type: 'skill', rarity: 2, pool: 'colorless', cost: 1,
+      fx: [{ k: 'special', id: 'tutor' }],
+      text: 'Search your draw pile and put any card into your hand.',
+      up: { cost: 0, fx: [{ k: 'special', id: 'tutor' }], text: 'Search your draw pile and put any card into your hand.' },
+    },
+    salvage_cache: {   // Discover — generate a choice of cards
+      name: 'Salvage Cache', cls: 'any', type: 'skill', rarity: 2, pool: 'colorless', cost: 1, exhaust: true,
+      fx: [{ k: 'special', id: 'discover' }],
+      text: 'Discover: add one of 3 random cards to your hand.',
+      up: { fx: [{ k: 'special', id: 'discover' }, { k: 'draw', v: 1 }], text: 'Discover: add one of 3 random cards to your hand. Draw 1.' },
+    },
+    fusion_charge: {   // Primed — a ticking delayed bomb
+      name: 'Fusion Charge', cls: 'any', type: 'skill', rarity: 3, pool: 'colorless', cost: 1,
+      fx: [{ k: 'special', id: 'primed', v: 30, t: 3 }],
+      text: 'Primed 3: in 3 turns, detonate for 30 damage to ALL enemies.',
+      up: { fx: [{ k: 'special', id: 'primed', v: 45, t: 3 }], text: 'Primed 3: in 3 turns, detonate for 45 damage to ALL enemies.' },
+    },
+
     /* ---------------- Curses ---------------- */
     void_taint: {
       name: 'Void Taint', cls: 'curse', type: 'curse', rarity: -1, cost: 0, unplayable: true,
@@ -3047,6 +3081,18 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       ],
     },
     {
+      id: 'salvage_drone', title: 'SALVAGE DRONE',
+      art: { c: '#ffb02e', p: [[-0.6,-0.35, 0.6,-0.35, 0.6,0.45, -0.6,0.45, -0.6,-0.35], [-0.6,-0.05, 0.6,-0.05], [-0.2,-0.35, -0.2,0.45], [0.2,-0.35, 0.2,0.45], [-0.4,-0.35, -0.52,-0.7], [0.4,-0.35, 0.52,-0.7], [-0.52,-0.7, 0.52,-0.7]], e: [[0,0.2]], m: [-0.14,0.34, 0.14,0.34] },
+      text: 'A battered logistics drone, its faction markings scoured off, blocks the corridor. It chirps and unfolds a tray of scavenged ordnance and strange off-doctrine salvage-tech — yours, for scrip or a favor.',
+      choices: [
+        { label: 'Buy salvage', sub: '¢40', cost: 40, outcome: { text: 'The drone takes the scrip and disgorges a piece of tech no faction would admit to making.', fx: { card: 'colorless' } } },
+        { label: 'Strip it for parts', sub: 'TECH check, DC 13', check: { attr: 'tech', dc: 13 },
+          success: { text: 'You crack the housing and pull the good stuff for free.', fx: { card: 'colorless' } },
+          fail: { text: 'It discharges a capacitor into your gauntlet and trundles off.', fx: { hp: -9 } } },
+        { label: 'Wave it off', outcome: { text: 'You have no use for someone else’s junk. It rolls away into the dark.', fx: {} } },
+      ],
+    },
+    {
       id: 'wounded_marine', title: 'WOUNDED MARINE',
       art: { c: '#5dff88', p: [[-0.55,-0.5, -0.45,-0.85, 0.45,-0.85, 0.55,-0.5, 0.55,0.0, 0.4,0.2, -0.4,0.2, -0.55,0.0, -0.55,-0.5], [-0.4,-0.5, 0.4,-0.5, 0.35,-0.15, -0.35,-0.15, -0.4,-0.5], [0.15,-0.85, 0.05,-0.5, 0.2,-0.32], [-0.85,0.7, -0.6,0.32, 0.6,0.32, 0.85,0.7], [-0.3,0.45, -0.1,0.45]], e: [[-0.15,-0.32],[0.15,-0.32]], m: [-0.1,0.0, 0.1,0.0] },
       text: 'A marine of the 9th Voidborne slumps against a bulkhead, suit breached, breath ragged. “Took six of them with me,” she rasps. “Take my rig. Make it count.”',
@@ -3861,6 +3907,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       energy: 0,
       hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
       player: { block: 0, statuses: {} },
+      pending: null,       // an in-combat choice awaiting a pick (Scry/Tutor/Discover)
+      primed: [],          // armed delayed detonations (Primed)
       echoReady: false,
       playedShield: false,
       startHp: r.hp,
@@ -3948,6 +3996,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (spt > 0) addStatus(p, 'str', spt);
     var rstk = statN(p, 'restock');    // Quartermaster: rack spent shells back each turn (Bandolier reload loop)
     if (rstk > 0) for (var rk = 0; rk < rstk; rk++) reloadShell();
+    if (c.primed.length) {             // Primed: tick down armed detonations; fire at zero
+      c.primed = c.primed.filter(function (pr) {
+        pr.turns -= 1;
+        if (pr.turns <= 0) {
+          c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, pr.dmg, { noCrit: true, noWeak: true }); });
+          emit('primedBlast', { dmg: pr.dmg });
+          return false;
+        }
+        return true;
+      });
+    }
     var brood = statN(p, 'brood');     // Overgrowth: birth a disposable Spawnling each turn
     if (brood > 0 && c.turn > 1) summonPet('spawnling', brood);
     var bw = statN(p, 'bulwark');      // Entrench: the front pet digs in (gains block) each turn
@@ -4372,6 +4431,81 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // Burn applied to an enemy by the player (for the Burn quest).
   function trackBurn(n) { questProgress('burnTotal', n); }
 
+  /* ---- Colorless tech: in-combat choices (Scry / Tutor / Discover) ----------
+   * These set c.pending and wait for a UI pick. Headless (E.interactive false,
+   * the sim/tests) auto-resolves immediately with a sensible heuristic. */
+  function startScry(n, drawAfter) {
+    var c = E.combat, avail = Math.min(n, c.drawPile.length);
+    if (avail === 0) { if (drawAfter) drawCards(drawAfter); return; }
+    // drawPile.pop() draws from the END, so the "top" is the last `avail` cards.
+    c.pending = { kind: 'scry', cards: c.drawPile.slice(c.drawPile.length - avail).reverse(), draw: drawAfter || 0 };
+    emit('choice', { kind: 'scry' });
+    if (!E.interactive) E.resolveScry(c.pending.cards.filter(function (cd) {
+      var def = ns.CARDS[cd.id]; return def.type === 'curse' || def.unplayable;   // bot: ditch junk
+    }).map(function (cd) { return cd.uid; }));
+  }
+  E.resolveScry = function (discardUids) {
+    var c = E.combat; if (!c.pending || c.pending.kind !== 'scry') return;
+    (discardUids || []).forEach(function (uid) {
+      var card = c.pending.cards.filter(function (cd) { return cd.uid === uid; })[0];
+      var ix = card ? c.drawPile.indexOf(card) : -1;
+      if (ix >= 0) { c.drawPile.splice(ix, 1); c.discard.push(card); }
+    });
+    if (c.pending.draw) drawCards(c.pending.draw);
+    c.pending = null; emit('choiceDone', { kind: 'scry' });
+  };
+  function startTutor() {
+    var c = E.combat;
+    var legal = c.drawPile.filter(function (cd) { return ns.CARDS[cd.id].type !== 'curse'; });
+    if (!legal.length) return;
+    c.pending = { kind: 'tutor', cards: c.drawPile.slice().reverse() };
+    emit('choice', { kind: 'tutor' });
+    if (!E.interactive) {   // bot: grab the highest-rarity non-curse card
+      var best = legal[0];
+      legal.forEach(function (cd) { if (ns.CARDS[cd.id].rarity > ns.CARDS[best.id].rarity) best = cd; });
+      E.resolveTutor(best.uid);
+    }
+  }
+  E.resolveTutor = function (uid) {
+    var c = E.combat; if (!c.pending || c.pending.kind !== 'tutor') return;
+    var ix = -1; for (var i = 0; i < c.drawPile.length; i++) if (c.drawPile[i].uid === uid) ix = i;
+    if (ix >= 0 && c.hand.length < B.player.maxHand) c.hand.push(c.drawPile.splice(ix, 1)[0]);
+    c.pending = null; emit('choiceDone', { kind: 'tutor' });
+  };
+  function discoverOptions(n) {
+    var keys = Object.keys(ns.CARDS).filter(function (k) {
+      var cd = ns.CARDS[k];
+      return !cd.pool && cd.type !== 'curse' && cd.rarity >= 1 && (cd.cls === E.run.cls || cd.cls === 'any');
+    });
+    var out = [];
+    for (var i = 0; i < n && keys.length; i++) out.push(keys.splice(Math.floor(rnd() * keys.length), 1)[0]);
+    return out;
+  }
+  function startDiscover() {
+    var c = E.combat, opts = discoverOptions(3);
+    if (!opts.length) return;
+    c.pending = { kind: 'discover', cards: opts.map(function (id) { return mkCard(id, false); }) };
+    emit('choice', { kind: 'discover' });
+    if (!E.interactive) {   // bot: take the highest-rarity option
+      var best = c.pending.cards[0];
+      c.pending.cards.forEach(function (cd) { if (ns.CARDS[cd.id].rarity > ns.CARDS[best.id].rarity) best = cd; });
+      E.resolveDiscover(best.uid);
+    }
+  }
+  E.resolveDiscover = function (uid) {
+    var c = E.combat; if (!c.pending || c.pending.kind !== 'discover') return;
+    var card = c.pending.cards.filter(function (cd) { return cd.uid === uid; })[0];
+    if (card && c.hand.length < B.player.maxHand) c.hand.push(card);
+    c.pending = null; emit('choiceDone', { kind: 'discover' });
+  };
+
+  // Roll a colorless card (shop/event stock — these never appear in fight rewards).
+  function rollColorlessCard() {
+    var keys = Object.keys(ns.CARDS).filter(function (k) { return ns.CARDS[k].pool === 'colorless'; });
+    return keys.length ? pick(keys) : null;
+  }
+  E.rollColorlessCard = rollColorlessCard;
+
   // Resolve a card's effects once. Echo can call this twice. ctx carries the
   // shared roll/crit/target and an appliedBurn flag for Contagion.
   function applyCardFx(fx, ctx) {
@@ -4483,6 +4617,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             if (oEn && od > 0) totalDealt += dealToEnemy(oEn, c.enemies.indexOf(oEn), od, { crit: crit, roll: roll });
           } else if (f.id === 'reload') {
             reloadShell();   // on-demand restock (a random exhausted Attack)
+          } else if (f.id === 'scry') {
+            startScry(f.v, f.draw || 0);
+          } else if (f.id === 'tutor') {
+            startTutor();
+          } else if (f.id === 'discover') {
+            startDiscover();
+          } else if (f.id === 'primed') {
+            // PRIMED: arm a delayed detonation that goes off in f.t turns.
+            c.primed.push({ turns: f.t, dmg: f.v });
+            emit('primed', { turns: f.t, dmg: f.v });
           } else if (f.id === 'bloodbath') {
             // BLOODFORGE cashout: convert your stacked Might into one brutal blow.
             var bEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
@@ -5274,6 +5418,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (fx.card) {
       var cid;
       if (fx.card === 'random') cid = rollRewardCard(0);
+      else if (fx.card === 'colorless') cid = rollColorlessCard() || rollRewardCard(0);
       else if (fx.card === 'rare') {
         var rares = Object.keys(ns.CARDS).filter(function (k) {
           var c = ns.CARDS[k];
@@ -5358,6 +5503,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       seen[cid] = true;
       cards.push({ id: cid, cost: B.shop.cardCost[ns.CARDS[cid].rarity] || 35, sold: false });
     }
+    var col = rollColorlessCard();   // every shop stocks one piece of salvage-tech
+    if (col) cards.push({ id: col, cost: (B.shop.cardCost[ns.CARDS[col].rarity] || 35) + 10, sold: false });
     var aid = randomArtifact(1);
     var pid = (rnd() < B.potions.shopChance) ? rollPotion() : null;
     r.shop = {
@@ -7264,6 +7411,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   /* ====================== init ====================== */
   U.init = function () {
+    E.interactive = true;   // in-combat choices (Scry/Tutor/Discover) wait for a player pick
     $game = document.getElementById('game');
     $hud = document.getElementById('hud');
     $hand = document.getElementById('hand');
@@ -7545,6 +7693,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       Object.keys(st).forEach(function (k) {
         if (st[k] <= 0 || (k !== 'vuln' && k !== 'weak' && k !== 'burn')) return;
         chips += '<span class="status-chip debuff">' + esc(ns.STATUS_NAMES[k] || k) + ' ' + st[k] + '</span>';
+      });
+      (c.primed || []).forEach(function (pr) {   // armed delayed detonations (Fusion Charge)
+        chips += '<span class="status-chip primed">⏱ ' + pr.dmg + ' in ' + pr.turns + '</span>';
       });
       if (chips) html += '<div class="status-row">' + chips + '</div>';
     }
@@ -8054,6 +8205,50 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var btn = el('button', 'btn', 'CLOSE');
     btn.addEventListener('pointerdown', function () { SFX.tap(); if (wasCombat) showCombat(); else U.refresh(); });
     s.appendChild(btn);
+  }
+
+  // In-combat card pickers for the colorless tech (Scry / Tutor / Discover).
+  function showChoiceModal() {
+    var c = E.combat, p = c && c.pending;
+    if (!p) { afterAction(false); return; }
+    var s = overlayScreen(true);
+    var titles = { scry: 'SCRY', tutor: 'REQUISITION', discover: 'DISCOVER' };
+    var subs = {
+      scry: 'TAP CARDS TO DISCARD THEM — THE REST STAY ON TOP OF YOUR DECK',
+      tutor: 'TAP A CARD TO PULL IT INTO YOUR HAND',
+      discover: 'TAP A CARD TO ADD IT TO YOUR HAND',
+    };
+    s.appendChild(el('h2', 'screen-title', titles[p.kind]));
+    s.appendChild(el('div', 'screen-sub', subs[p.kind]));
+    var marked = {};
+    var grid = el('div', 'card-grid');
+    p.cards.forEach(function (card) {
+      var ce = cardEl(card.id, card.up, card.vtouch);
+      ce.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation(); SFX.tap();
+        if (p.kind === 'scry') {
+          if (marked[card.uid]) { delete marked[card.uid]; ce.classList.remove('pick-ditch'); }
+          else { marked[card.uid] = true; ce.classList.add('pick-ditch'); }
+        } else if (p.kind === 'tutor') { E.resolveTutor(card.uid); finishChoice(); }
+        else { E.resolveDiscover(card.uid); finishChoice(); }
+      });
+      grid.appendChild(ce);
+    });
+    s.appendChild(grid);
+    if (p.kind === 'scry') {
+      var done = el('button', 'btn', 'CONFIRM');
+      done.addEventListener('pointerdown', function () { SFX.tap(); E.resolveScry(Object.keys(marked).map(Number)); finishChoice(); });
+      s.appendChild(done);
+    } else {
+      var skip = el('button', 'btn ghost', p.kind === 'tutor' ? 'TAKE NOTHING' : 'SKIP');
+      skip.addEventListener('pointerdown', function () { SFX.tap(); c.pending = null; finishChoice(); });
+      s.appendChild(skip);
+    }
+  }
+  function finishChoice() {
+    hideOverlay();
+    showCombat();
+    afterAction(false);
   }
 
   /* ---- shared card markup ---------------------------------------------- */
@@ -8610,7 +8805,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     lock(true);
     playTimeline(evts, 70, function () {
       lock(false);
-      afterAction(false);
+      if (E.combat && E.combat.pending) showChoiceModal();   // Scry/Tutor/Discover need a pick
+      else afterAction(false);
     });
     // hand & energy update immediately — feels snappy
     renderHand();

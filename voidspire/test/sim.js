@@ -526,7 +526,7 @@ VS.EVENTS.forEach(function (ev) {
     var outs = [ch.outcome, ch.success, ch.fail].filter(Boolean).concat(ch.gamble || []);
     if (outs.length === 0) throw new Error('event ' + ev.id + ' choice with no outcome');
     outs.forEach(function (o) {
-      if (o.fx && o.fx.card && o.fx.card !== 'random' && o.fx.card !== 'rare' && !VS.CARDS[o.fx.card])
+      if (o.fx && o.fx.card && o.fx.card !== 'random' && o.fx.card !== 'rare' && o.fx.card !== 'colorless' && !VS.CARDS[o.fx.card])
         throw new Error('event ' + ev.id + ' grants unknown card ' + o.fx.card);
       if (o.fx && o.fx.curse && !VS.CARDS[o.fx.curse])
         throw new Error('event ' + ev.id + ' grants unknown curse ' + o.fx.curse);

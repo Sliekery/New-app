@@ -530,6 +530,8 @@
       energy: 0,
       hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
       player: { block: 0, statuses: {} },
+      pending: null,       // an in-combat choice awaiting a pick (Scry/Tutor/Discover)
+      primed: [],          // armed delayed detonations (Primed)
       echoReady: false,
       playedShield: false,
       startHp: r.hp,
@@ -617,6 +619,17 @@
     if (spt > 0) addStatus(p, 'str', spt);
     var rstk = statN(p, 'restock');    // Quartermaster: rack spent shells back each turn (Bandolier reload loop)
     if (rstk > 0) for (var rk = 0; rk < rstk; rk++) reloadShell();
+    if (c.primed.length) {             // Primed: tick down armed detonations; fire at zero
+      c.primed = c.primed.filter(function (pr) {
+        pr.turns -= 1;
+        if (pr.turns <= 0) {
+          c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, pr.dmg, { noCrit: true, noWeak: true }); });
+          emit('primedBlast', { dmg: pr.dmg });
+          return false;
+        }
+        return true;
+      });
+    }
     var brood = statN(p, 'brood');     // Overgrowth: birth a disposable Spawnling each turn
     if (brood > 0 && c.turn > 1) summonPet('spawnling', brood);
     var bw = statN(p, 'bulwark');      // Entrench: the front pet digs in (gains block) each turn
@@ -1041,6 +1054,81 @@
   // Burn applied to an enemy by the player (for the Burn quest).
   function trackBurn(n) { questProgress('burnTotal', n); }
 
+  /* ---- Colorless tech: in-combat choices (Scry / Tutor / Discover) ----------
+   * These set c.pending and wait for a UI pick. Headless (E.interactive false,
+   * the sim/tests) auto-resolves immediately with a sensible heuristic. */
+  function startScry(n, drawAfter) {
+    var c = E.combat, avail = Math.min(n, c.drawPile.length);
+    if (avail === 0) { if (drawAfter) drawCards(drawAfter); return; }
+    // drawPile.pop() draws from the END, so the "top" is the last `avail` cards.
+    c.pending = { kind: 'scry', cards: c.drawPile.slice(c.drawPile.length - avail).reverse(), draw: drawAfter || 0 };
+    emit('choice', { kind: 'scry' });
+    if (!E.interactive) E.resolveScry(c.pending.cards.filter(function (cd) {
+      var def = ns.CARDS[cd.id]; return def.type === 'curse' || def.unplayable;   // bot: ditch junk
+    }).map(function (cd) { return cd.uid; }));
+  }
+  E.resolveScry = function (discardUids) {
+    var c = E.combat; if (!c.pending || c.pending.kind !== 'scry') return;
+    (discardUids || []).forEach(function (uid) {
+      var card = c.pending.cards.filter(function (cd) { return cd.uid === uid; })[0];
+      var ix = card ? c.drawPile.indexOf(card) : -1;
+      if (ix >= 0) { c.drawPile.splice(ix, 1); c.discard.push(card); }
+    });
+    if (c.pending.draw) drawCards(c.pending.draw);
+    c.pending = null; emit('choiceDone', { kind: 'scry' });
+  };
+  function startTutor() {
+    var c = E.combat;
+    var legal = c.drawPile.filter(function (cd) { return ns.CARDS[cd.id].type !== 'curse'; });
+    if (!legal.length) return;
+    c.pending = { kind: 'tutor', cards: c.drawPile.slice().reverse() };
+    emit('choice', { kind: 'tutor' });
+    if (!E.interactive) {   // bot: grab the highest-rarity non-curse card
+      var best = legal[0];
+      legal.forEach(function (cd) { if (ns.CARDS[cd.id].rarity > ns.CARDS[best.id].rarity) best = cd; });
+      E.resolveTutor(best.uid);
+    }
+  }
+  E.resolveTutor = function (uid) {
+    var c = E.combat; if (!c.pending || c.pending.kind !== 'tutor') return;
+    var ix = -1; for (var i = 0; i < c.drawPile.length; i++) if (c.drawPile[i].uid === uid) ix = i;
+    if (ix >= 0 && c.hand.length < B.player.maxHand) c.hand.push(c.drawPile.splice(ix, 1)[0]);
+    c.pending = null; emit('choiceDone', { kind: 'tutor' });
+  };
+  function discoverOptions(n) {
+    var keys = Object.keys(ns.CARDS).filter(function (k) {
+      var cd = ns.CARDS[k];
+      return !cd.pool && cd.type !== 'curse' && cd.rarity >= 1 && (cd.cls === E.run.cls || cd.cls === 'any');
+    });
+    var out = [];
+    for (var i = 0; i < n && keys.length; i++) out.push(keys.splice(Math.floor(rnd() * keys.length), 1)[0]);
+    return out;
+  }
+  function startDiscover() {
+    var c = E.combat, opts = discoverOptions(3);
+    if (!opts.length) return;
+    c.pending = { kind: 'discover', cards: opts.map(function (id) { return mkCard(id, false); }) };
+    emit('choice', { kind: 'discover' });
+    if (!E.interactive) {   // bot: take the highest-rarity option
+      var best = c.pending.cards[0];
+      c.pending.cards.forEach(function (cd) { if (ns.CARDS[cd.id].rarity > ns.CARDS[best.id].rarity) best = cd; });
+      E.resolveDiscover(best.uid);
+    }
+  }
+  E.resolveDiscover = function (uid) {
+    var c = E.combat; if (!c.pending || c.pending.kind !== 'discover') return;
+    var card = c.pending.cards.filter(function (cd) { return cd.uid === uid; })[0];
+    if (card && c.hand.length < B.player.maxHand) c.hand.push(card);
+    c.pending = null; emit('choiceDone', { kind: 'discover' });
+  };
+
+  // Roll a colorless card (shop/event stock — these never appear in fight rewards).
+  function rollColorlessCard() {
+    var keys = Object.keys(ns.CARDS).filter(function (k) { return ns.CARDS[k].pool === 'colorless'; });
+    return keys.length ? pick(keys) : null;
+  }
+  E.rollColorlessCard = rollColorlessCard;
+
   // Resolve a card's effects once. Echo can call this twice. ctx carries the
   // shared roll/crit/target and an appliedBurn flag for Contagion.
   function applyCardFx(fx, ctx) {
@@ -1152,6 +1240,16 @@
             if (oEn && od > 0) totalDealt += dealToEnemy(oEn, c.enemies.indexOf(oEn), od, { crit: crit, roll: roll });
           } else if (f.id === 'reload') {
             reloadShell();   // on-demand restock (a random exhausted Attack)
+          } else if (f.id === 'scry') {
+            startScry(f.v, f.draw || 0);
+          } else if (f.id === 'tutor') {
+            startTutor();
+          } else if (f.id === 'discover') {
+            startDiscover();
+          } else if (f.id === 'primed') {
+            // PRIMED: arm a delayed detonation that goes off in f.t turns.
+            c.primed.push({ turns: f.t, dmg: f.v });
+            emit('primed', { turns: f.t, dmg: f.v });
           } else if (f.id === 'bloodbath') {
             // BLOODFORGE cashout: convert your stacked Might into one brutal blow.
             var bEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
@@ -1943,6 +2041,7 @@
     if (fx.card) {
       var cid;
       if (fx.card === 'random') cid = rollRewardCard(0);
+      else if (fx.card === 'colorless') cid = rollColorlessCard() || rollRewardCard(0);
       else if (fx.card === 'rare') {
         var rares = Object.keys(ns.CARDS).filter(function (k) {
           var c = ns.CARDS[k];
@@ -2027,6 +2126,8 @@
       seen[cid] = true;
       cards.push({ id: cid, cost: B.shop.cardCost[ns.CARDS[cid].rarity] || 35, sold: false });
     }
+    var col = rollColorlessCard();   // every shop stocks one piece of salvage-tech
+    if (col) cards.push({ id: col, cost: (B.shop.cardCost[ns.CARDS[col].rarity] || 35) + 10, sold: false });
     var aid = randomArtifact(1);
     var pid = (rnd() < B.potions.shopChance) ? rollPotion() : null;
     r.shop = {

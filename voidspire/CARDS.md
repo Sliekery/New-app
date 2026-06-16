@@ -2,7 +2,7 @@
 
 _Auto-generated from the game data (`node test/cardsdoc.js`). Effect text is exactly what the game shows; numbers are the base values **before** any MIGHT/TECH/PSI/BOND scaling._
 
-**135 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Warpcaller](#warpcaller) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
+**139 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Warpcaller](#warpcaller) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
 
 
 ---
@@ -457,7 +457,7 @@ _Ship captain — BOND pets in a positional formation (Wall / Alpha / Butcher). 
 
 ## Neutral (any class)
 
-_Colourless cards any class can draft (starters, boss & event pool). (12 cards)_
+_Colourless cards any class can draft (starters, boss & event pool). (16 cards)_
 
 
 ### Starter
@@ -480,6 +480,9 @@ _Colourless cards any class can draft (starters, boss & event pool). (12 cards)_
 - **Med Stim**  — Skill · ⚡1  _(Exhaust)_
     - Base: Heal 5 HP. Exhaust.
     - Upgraded: Heal 8 HP. Exhaust.
+- **Recon**  — Skill · ⚡0
+    - Base: Scry 3 (look at the top 3 cards of your draw pile and discard any number). Draw 1.
+    - Upgraded: Scry 5 (look at the top 5 cards of your draw pile and discard any number). Draw 1.
 - **Scrap Shot**  — Attack · ⚡0
     - Base: Deal 3 damage.
     - Upgraded: Deal 5 damage.
@@ -489,6 +492,12 @@ _Colourless cards any class can draft (starters, boss & event pool). (12 cards)_
 - **Guard Protocol**  — Skill · ⚡1  _(Retain)_
     - Base: Gain 6 Shield. Retain.
     - Upgraded: Gain 9 Shield. Retain.
+- **Requisition**  — Skill · ⚡1 → 0
+    - Base: Search your draw pile and put any card into your hand.
+    - Upgraded: _(no change)_
+- **Salvage Cache**  — Skill · ⚡1  _(Exhaust)_
+    - Base: Discover: add one of 3 random cards to your hand.
+    - Upgraded: Discover: add one of 3 random cards to your hand. Draw 1.
 - **Salvage Protocol**  — Power · ⚡1 → 0
     - Base: Whenever a card is Exhausted, draw 1 card.
     - Upgraded: _(no change)_
@@ -504,6 +513,9 @@ _Colourless cards any class can draft (starters, boss & event pool). (12 cards)_
 - **Forbidden Lore**  — Skill · ⚡1  _(event reward only; Exhaust)_
     - Base: Draw 3 cards. Gain 1 Psi Focus. Exhaust.
     - Upgraded: Draw 4 cards. Gain 1 Psi Focus. Exhaust.
+- **Fusion Charge**  — Skill · ⚡1
+    - Base: Primed 3: in 3 turns, detonate for 30 damage to ALL enemies.
+    - Upgraded: Primed 3: in 3 turns, detonate for 45 damage to ALL enemies.
 
 ### Legendary
 

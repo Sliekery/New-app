@@ -190,6 +190,7 @@
 
   /* ====================== init ====================== */
   U.init = function () {
+    E.interactive = true;   // in-combat choices (Scry/Tutor/Discover) wait for a player pick
     $game = document.getElementById('game');
     $hud = document.getElementById('hud');
     $hand = document.getElementById('hand');
@@ -471,6 +472,9 @@
       Object.keys(st).forEach(function (k) {
         if (st[k] <= 0 || (k !== 'vuln' && k !== 'weak' && k !== 'burn')) return;
         chips += '<span class="status-chip debuff">' + esc(ns.STATUS_NAMES[k] || k) + ' ' + st[k] + '</span>';
+      });
+      (c.primed || []).forEach(function (pr) {   // armed delayed detonations (Fusion Charge)
+        chips += '<span class="status-chip primed">⏱ ' + pr.dmg + ' in ' + pr.turns + '</span>';
       });
       if (chips) html += '<div class="status-row">' + chips + '</div>';
     }
@@ -980,6 +984,50 @@
     var btn = el('button', 'btn', 'CLOSE');
     btn.addEventListener('pointerdown', function () { SFX.tap(); if (wasCombat) showCombat(); else U.refresh(); });
     s.appendChild(btn);
+  }
+
+  // In-combat card pickers for the colorless tech (Scry / Tutor / Discover).
+  function showChoiceModal() {
+    var c = E.combat, p = c && c.pending;
+    if (!p) { afterAction(false); return; }
+    var s = overlayScreen(true);
+    var titles = { scry: 'SCRY', tutor: 'REQUISITION', discover: 'DISCOVER' };
+    var subs = {
+      scry: 'TAP CARDS TO DISCARD THEM — THE REST STAY ON TOP OF YOUR DECK',
+      tutor: 'TAP A CARD TO PULL IT INTO YOUR HAND',
+      discover: 'TAP A CARD TO ADD IT TO YOUR HAND',
+    };
+    s.appendChild(el('h2', 'screen-title', titles[p.kind]));
+    s.appendChild(el('div', 'screen-sub', subs[p.kind]));
+    var marked = {};
+    var grid = el('div', 'card-grid');
+    p.cards.forEach(function (card) {
+      var ce = cardEl(card.id, card.up, card.vtouch);
+      ce.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation(); SFX.tap();
+        if (p.kind === 'scry') {
+          if (marked[card.uid]) { delete marked[card.uid]; ce.classList.remove('pick-ditch'); }
+          else { marked[card.uid] = true; ce.classList.add('pick-ditch'); }
+        } else if (p.kind === 'tutor') { E.resolveTutor(card.uid); finishChoice(); }
+        else { E.resolveDiscover(card.uid); finishChoice(); }
+      });
+      grid.appendChild(ce);
+    });
+    s.appendChild(grid);
+    if (p.kind === 'scry') {
+      var done = el('button', 'btn', 'CONFIRM');
+      done.addEventListener('pointerdown', function () { SFX.tap(); E.resolveScry(Object.keys(marked).map(Number)); finishChoice(); });
+      s.appendChild(done);
+    } else {
+      var skip = el('button', 'btn ghost', p.kind === 'tutor' ? 'TAKE NOTHING' : 'SKIP');
+      skip.addEventListener('pointerdown', function () { SFX.tap(); c.pending = null; finishChoice(); });
+      s.appendChild(skip);
+    }
+  }
+  function finishChoice() {
+    hideOverlay();
+    showCombat();
+    afterAction(false);
   }
 
   /* ---- shared card markup ---------------------------------------------- */
@@ -1536,7 +1584,8 @@
     lock(true);
     playTimeline(evts, 70, function () {
       lock(false);
-      afterAction(false);
+      if (E.combat && E.combat.pending) showChoiceModal();   // Scry/Tutor/Discover need a pick
+      else afterAction(false);
     });
     // hand & energy update immediately — feels snappy
     renderHand();
