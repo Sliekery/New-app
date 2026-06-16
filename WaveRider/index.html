@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#1a0033" />
+<title>WAVE RIDER</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: #1a0033;
+    font-family: 'Courier New', monospace;
+    user-select: none; -webkit-user-select: none; touch-action: none;
+  }
+  #game { position: fixed; inset: 0; }
+  canvas { display: block; }
+
+  /* ---------- HUD ---------- */
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    padding: env(safe-area-inset-top, 12px) 18px 0;
+    padding-top: max(env(safe-area-inset-top), 16px);
+    display: flex; justify-content: space-between; align-items: flex-start;
+    pointer-events: none; z-index: 10;
+  }
+  .hud-block { text-shadow: 0 0 8px currentColor, 0 0 16px currentColor; }
+  .hud-label {
+    font-size: 11px; letter-spacing: 3px; opacity: 0.75;
+    color: #00e5ff; margin-bottom: 2px;
+  }
+  .hud-value {
+    font-size: 30px; font-weight: bold; letter-spacing: 1px;
+    color: #ff44cc; line-height: 1;
+  }
+  #score-block { text-align: left; }
+  #right-block { text-align: right; }
+  #combo {
+    font-size: 14px; color: #ffe600; margin-top: 6px; letter-spacing: 2px;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  #combo.show { opacity: 1; }
+
+  /* ---------- Overlays ---------- */
+  .overlay {
+    position: fixed; inset: 0; z-index: 20;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 24px;
+    background: radial-gradient(ellipse at center, rgba(40,0,70,0.55) 0%, rgba(10,0,25,0.85) 100%);
+    backdrop-filter: blur(2px);
+  }
+  .overlay.hidden { display: none; }
+
+  .title {
+    font-size: clamp(40px, 13vw, 92px); font-weight: bold; letter-spacing: 6px;
+    background: linear-gradient(180deg, #ff44cc 0%, #ff8ad8 40%, #ffd84d 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 18px rgba(255,68,204,0.6));
+    line-height: 0.95;
+  }
+  .subtitle { font-size: 13px; letter-spacing: 6px; color: #00e5ff; margin-top: 10px;
+    text-shadow: 0 0 10px #00e5ff; }
+
+  .panel {
+    margin-top: 28px; color: #e7d6ff; font-size: 15px; line-height: 1.9;
+    letter-spacing: 1px; max-width: 340px;
+  }
+  .panel .key { color: #ffe600; }
+
+  .btn {
+    margin-top: 30px; pointer-events: auto; cursor: pointer;
+    padding: 16px 44px; font-family: inherit; font-size: 18px; font-weight: bold;
+    letter-spacing: 4px; color: #1a0033; border: none; border-radius: 4px;
+    background: linear-gradient(180deg, #00e5ff, #00a6ff);
+    box-shadow: 0 0 22px rgba(0,229,255,0.7), inset 0 -3px 0 rgba(0,0,0,0.25);
+    transition: transform 0.08s ease;
+  }
+  .btn:active { transform: scale(0.95); }
+
+  .final-score { margin-top: 22px; }
+  .final-score .fs-label { font-size: 12px; letter-spacing: 4px; color: #00e5ff; }
+  .final-score .fs-val { font-size: 64px; font-weight: bold; color: #ff44cc;
+    text-shadow: 0 0 20px #ff44cc; line-height: 1; }
+  .best { margin-top: 10px; font-size: 14px; letter-spacing: 2px; color: #ffe600;
+    text-shadow: 0 0 10px #ffe600; }
+  .new-best { animation: pulse 0.8s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+  #flash {
+    position: fixed; inset: 0; z-index: 15; pointer-events: none;
+    background: #ff2266; opacity: 0; transition: opacity 0.12s;
+  }
+  .credit { position: fixed; bottom: 10px; left: 0; right: 0; text-align: center;
+    font-size: 10px; letter-spacing: 3px; color: rgba(231,214,255,0.4); z-index: 21; }
+</style>
+</head>
+<body>
+  <div id="game"></div>
+  <div id="flash"></div>
+
+  <div id="hud">
+    <div id="score-block" class="hud-block">
+      <div class="hud-label">SCORE</div>
+      <div id="score" class="hud-value">0</div>
+      <div id="combo">x1</div>
+    </div>
+    <div id="right-block" class="hud-block">
+      <div class="hud-label">SPEED</div>
+      <div id="speed" class="hud-value" style="color:#00e5ff;">1.0</div>
+    </div>
+  </div>
+
+  <div id="start" class="overlay">
+    <div class="title">WAVE<br>RIDER</div>
+    <div class="subtitle">▸ N E O N &nbsp; F L I G H T ◂</div>
+    <div class="panel">
+      Steer your ship through the neon hoops.<br>
+      <span class="key">One finger</span> — touch &amp; drag to fly.<br>
+      Chain hoops for combo multipliers.
+    </div>
+    <button id="start-btn" class="btn">PLAY</button>
+  </div>
+
+  <div id="gameover" class="overlay hidden">
+    <div class="title" style="font-size: clamp(34px,10vw,70px);">GAME&nbsp;OVER</div>
+    <div class="final-score">
+      <div class="fs-label">SCORE</div>
+      <div id="final-score" class="fs-val">0</div>
+    </div>
+    <div id="best-line" class="best">BEST &nbsp;0</div>
+    <button id="retry-btn" class="btn">RETRY</button>
+  </div>
+
+  <div class="credit">WAVE RIDER · DRAG TO FLY</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+// ============================================================
+//  WAVE RIDER — a vaporwave 3D hoop-flying game
+// ============================================================
+
+const COLORS = {
+  pink:   0xff44cc,
+  cyan:   0x00e5ff,
+  purple: 0x9d4edd,
+  yellow: 0xffe600,
+  sunTop: 0xffd84d,
+  sunBot: 0xff2d7e,
+};
+
+// ---------- Renderer / scene / camera ----------
+const container = document.getElementById('game');
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x2a004f, 0.012);
+
+const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 600);
+camera.position.set(0, 2.2, 8);
+
+// ---------- Lights ----------
+scene.add(new THREE.AmbientLight(0x8866ff, 0.9));
+const keyLight = new THREE.DirectionalLight(0xff66cc, 1.1);
+keyLight.position.set(3, 8, 10);
+scene.add(keyLight);
+const rimLight = new THREE.DirectionalLight(0x00e5ff, 0.8);
+rimLight.position.set(-5, 3, -6);
+scene.add(rimLight);
+
+// ============================================================
+//  Vaporwave backdrop: gradient sky + retro sun
+// ============================================================
+function makeSkyDome() {
+  const geo = new THREE.SphereGeometry(300, 32, 16);
+  const mat = new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    uniforms: {
+      top:    { value: new THREE.Color(0x1a0033) },
+      mid:    { value: new THREE.Color(0x7a1a8c) },
+      bottom: { value: new THREE.Color(0xff2d7e) },
+    },
+    vertexShader: `
+      varying vec3 vPos;
+      void main(){ vPos = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }
+    `,
+    fragmentShader: `
+      varying vec3 vPos;
+      uniform vec3 top; uniform vec3 mid; uniform vec3 bottom;
+      void main(){
+        float h = normalize(vPos).y;
+        vec3 c = h > 0.0 ? mix(mid, top, smoothstep(0.0, 0.6, h))
+                         : mix(mid, bottom, smoothstep(0.0, -0.4, h));
+        gl_FragColor = vec4(c, 1.0);
+      }
+    `,
+  });
+  return new THREE.Mesh(geo, mat);
+}
+scene.add(makeSkyDome());
+
+// Retro sun with horizontal scan-line cutouts
+function makeSun() {
+  const geo = new THREE.CircleGeometry(60, 64);
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: { top: { value: new THREE.Color(COLORS.sunTop) }, bot: { value: new THREE.Color(COLORS.sunBot) } },
+    vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+    fragmentShader: `
+      varying vec2 vUv; uniform vec3 top; uniform vec3 bot;
+      void main(){
+        float y = vUv.y;
+        vec3 col = mix(bot, top, y);
+        // horizontal bands (cut lower half)
+        float band = step(0.5, fract((y - 0.02) * 22.0));
+        float alpha = 1.0;
+        if (y < 0.46) alpha = band;     // stripes only in lower portion
+        gl_FragColor = vec4(col, alpha);
+      }
+    `,
+  });
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(0, 22, -260);
+  return m;
+}
+scene.add(makeSun());
+
+// Distant wireframe mountains
+function makeMountains(z, color, scale) {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ color, wireframe: true, transparent: true, opacity: 0.55 });
+  for (let i = 0; i < 9; i++) {
+    const h = (4 + Math.random() * 9) * scale;
+    const w = (10 + Math.random() * 8) * scale;
+    const geo = new THREE.ConeGeometry(w, h, 4);
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set((i - 4) * 22 * scale + (Math.random() - 0.5) * 10, h / 2 - 2, 0);
+    m.rotation.y = Math.PI / 4;
+    group.add(m);
+  }
+  group.position.z = z;
+  return group;
+}
+scene.add(makeMountains(-200, COLORS.purple, 1.4));
+scene.add(makeMountains(-150, COLORS.pink, 1.0));
+
+// ============================================================
+//  Neon grid floor (scrolls toward camera)
+// ============================================================
+const GRID_DEPTH = 400;
+function makeGrid() {
+  const grid = new THREE.GridHelper(GRID_DEPTH, 120, COLORS.cyan, COLORS.pink);
+  grid.position.y = -3;
+  grid.material.transparent = true;
+  grid.material.opacity = 0.6;
+  return grid;
+}
+const gridA = makeGrid();
+const gridB = makeGrid();
+gridB.position.z = -GRID_DEPTH;
+scene.add(gridA, gridB);
+
+// Glowing floor plane under the grid
+const floorMat = new THREE.MeshBasicMaterial({ color: 0x2a004f, transparent: true, opacity: 0.85 });
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(GRID_DEPTH, GRID_DEPTH * 2), floorMat);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = -3.05;
+floor.position.z = -GRID_DEPTH / 2;
+scene.add(floor);
+
+// ============================================================
+//  Player ship
+// ============================================================
+const ship = new THREE.Group();
+(function buildShip() {
+  const body = new THREE.Mesh(
+    new THREE.ConeGeometry(0.45, 1.7, 6),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: COLORS.pink, emissiveIntensity: 0.5, metalness: 0.6, roughness: 0.25 })
+  );
+  body.rotation.x = Math.PI / 2;
+  ship.add(body);
+
+  const wingMat = new THREE.MeshStandardMaterial({ color: COLORS.cyan, emissive: COLORS.cyan, emissiveIntensity: 0.7, metalness: 0.4, roughness: 0.3, side: THREE.DoubleSide });
+  const wingGeo = new THREE.BufferGeometry();
+  wingGeo.setAttribute('position', new THREE.Float32BufferAttribute([0,0,0.4,  1.1,0,-0.5,  0,0,-0.6], 3));
+  wingGeo.computeVertexNormals();
+  const wingL = new THREE.Mesh(wingGeo, wingMat); ship.add(wingL);
+  const wingR = wingL.clone(); wingR.scale.x = -1; ship.add(wingR);
+
+  // engine glow
+  const glow = new THREE.Mesh(
+    new THREE.SphereGeometry(0.28, 16, 16),
+    new THREE.MeshBasicMaterial({ color: COLORS.cyan, transparent: true, opacity: 0.9 })
+  );
+  glow.position.z = 0.85;
+  glow.scale.set(1, 1, 1.6);
+  ship.add(glow);
+  ship.userData.glow = glow;
+
+  const light = new THREE.PointLight(COLORS.cyan, 2, 8);
+  light.position.z = 1;
+  ship.add(light);
+})();
+ship.position.set(0, 0, 4);
+scene.add(ship);
+
+// ============================================================
+//  Hoops
+// ============================================================
+const HOOP_RADIUS = 2.2;
+const hoops = [];
+const hoopMatBase = { metalness: 0.3, roughness: 0.4 };
+
+function makeHoop() {
+  const group = new THREE.Group();
+  const color = Math.random() > 0.5 ? COLORS.cyan : COLORS.pink;
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(HOOP_RADIUS, 0.22, 12, 40),
+    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.4, ...hoopMatBase })
+  );
+  group.add(ring);
+  // inner faint disc to read the opening
+  const disc = new THREE.Mesh(
+    new THREE.RingGeometry(HOOP_RADIUS - 0.25, HOOP_RADIUS, 40),
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.18, side: THREE.DoubleSide })
+  );
+  group.add(disc);
+  const light = new THREE.PointLight(color, 1.5, 10);
+  group.add(light);
+  group.userData = { ring, color, scored: false, passed: false, baseColor: color };
+  return group;
+}
+
+// ============================================================
+//  Game state
+// ============================================================
+const state = {
+  running: false,
+  score: 0,
+  combo: 1,
+  comboTimer: 0,
+  speed: 0.55,          // world units per frame at 60fps
+  baseSpeed: 0.55,
+  spawnZ: -40,
+  spawnGap: 24,
+  nextSpawn: -40,
+  best: parseInt(localStorage.getItem('waveRiderBest') || '0', 10),
+};
+
+// finger / pointer target in normalized [-1,1]
+const input = { x: 0, y: 0, active: false };
+
+function resetGame() {
+  for (const h of hoops) scene.remove(h);
+  hoops.length = 0;
+  state.score = 0;
+  state.combo = 1;
+  state.comboTimer = 0;
+  state.speed = state.baseSpeed;
+  state.nextSpawn = -40;
+  ship.position.set(0, 0, 4);
+  input.x = 0; input.y = 0;
+  // pre-fill a few hoops ahead
+  for (let z = -40; z > -160; z -= state.spawnGap) spawnHoopAt(z);
+  updateHUD();
+}
+
+function spawnHoopAt(z) {
+  const h = makeHoop();
+  const spread = 4.2;
+  h.position.set((Math.random() * 2 - 1) * spread, (Math.random() * 2 - 1) * 2.2, z);
+  hoops.push(h);
+  scene.add(h);
+  state.nextSpawn = z - state.spawnGap;
+}
+
+// ============================================================
+//  HUD
+// ============================================================
+const elScore = document.getElementById('score');
+const elSpeed = document.getElementById('speed');
+const elCombo = document.getElementById('combo');
+function updateHUD() {
+  elScore.textContent = state.score;
+  elSpeed.textContent = (state.speed / state.baseSpeed).toFixed(1);
+  if (state.combo > 1) { elCombo.textContent = 'x' + state.combo; elCombo.classList.add('show'); }
+  else elCombo.classList.remove('show');
+}
+
+const flashEl = document.getElementById('flash');
+function flash(color, strength) {
+  flashEl.style.background = color;
+  flashEl.style.opacity = strength;
+  setTimeout(() => { flashEl.style.opacity = 0; }, 120);
+}
+
+// ============================================================
+//  Collision / scoring
+//  Pass cleanly through a hoop -> points x combo & a little faster.
+//  Miss the opening -> combo resets. Miss 3 in a row -> game over.
+// ============================================================
+let missStreak = 0;
+function checkHoops() {
+  for (const h of hoops) {
+    const d = h.userData;
+    // ship sits near z≈4; hoops travel toward +z into the ship
+    if (d.passed || h.position.z < ship.position.z - 0.6 || h.position.z > ship.position.z + 0.6) continue;
+    d.passed = true;
+
+    const dx = ship.position.x - h.position.x;
+    const dy = ship.position.y - h.position.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < HOOP_RADIUS - 0.35) {
+      // clean pass
+      state.score += 10 * state.combo;
+      state.combo = Math.min(state.combo + 1, 9);
+      state.comboTimer = 2.2;
+      state.speed = Math.min(state.speed + 0.012, state.baseSpeed * 3.2);
+      d.ring.material.emissiveIntensity = 3.0;
+      d.ring.material.color.setHex(COLORS.yellow);
+      d.ring.material.emissive.setHex(COLORS.yellow);
+      flash('#00e5ff', 0.16);
+      pulseShip();
+      missStreak = 0;
+    } else {
+      // clipped the rim
+      state.combo = 1;
+      state.comboTimer = 0;
+      missStreak++;
+      flash('#ff2266', 0.28);
+      d.ring.material.color.setHex(0xff2266);
+      d.ring.material.emissive.setHex(0xff2266);
+      if (missStreak >= 3) { updateHUD(); endGame(); return; }
+    }
+    updateHUD();
+  }
+}
+
+let shipPulse = 0;
+function pulseShip() { shipPulse = 1; }
+
+// ============================================================
+//  Main loop
+// ============================================================
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const step = dt * 60; // normalize to 60fps units
+
+  // scroll grids
+  if (state.running) {
+    for (const g of [gridA, gridB]) {
+      g.position.z += state.speed * step;
+      if (g.position.z > GRID_DEPTH) g.position.z -= GRID_DEPTH * 2;
+    }
+  }
+
+  if (state.running) {
+    // move ship toward finger target (smooth)
+    const targetX = input.x * 5.0;
+    const targetY = input.y * 2.8;
+    ship.position.x += (targetX - ship.position.x) * Math.min(1, 0.12 * step);
+    ship.position.y += (targetY - ship.position.y) * Math.min(1, 0.12 * step);
+
+    // bank / pitch the ship for feel
+    const vx = targetX - ship.position.x;
+    const vy = targetY - ship.position.y;
+    ship.rotation.z += (-vx * 0.35 - ship.rotation.z) * 0.15 * step;
+    ship.rotation.x += (vy * 0.2 - ship.rotation.x) * 0.15 * step;
+    ship.position.y += Math.sin(performance.now() * 0.004) * 0.004 * step; // idle bob
+
+    // engine glow flicker
+    const glow = ship.userData.glow;
+    glow.scale.z = 1.6 + Math.sin(performance.now() * 0.02) * 0.3 + state.speed * 0.4;
+
+    // ship hit-pulse scale
+    if (shipPulse > 0) { shipPulse = Math.max(0, shipPulse - dt * 4); }
+    const s = 1 + shipPulse * 0.25;
+    ship.scale.setScalar(s);
+
+    // move hoops toward player
+    for (let i = hoops.length - 1; i >= 0; i--) {
+      const h = hoops[i];
+      h.position.z += state.speed * step;
+      h.rotation.z += 0.01 * step;
+      if (h.position.z > 12) { scene.remove(h); hoops.splice(i, 1); }
+    }
+
+    // spawn new hoops as we advance
+    while (state.nextSpawn > -180 && hoops.length < 14) {
+      // keep a rolling buffer ahead
+      const furthest = hoops.reduce((m, h) => Math.min(m, h.position.z), 0);
+      if (furthest > -160) spawnHoopAt(furthest - state.spawnGap);
+      else break;
+    }
+
+    checkHoops();
+
+    // combo decay
+    if (state.comboTimer > 0) {
+      state.comboTimer -= dt;
+      if (state.comboTimer <= 0 && state.combo > 1) { state.combo = 1; updateHUD(); }
+    }
+
+    // gradual difficulty: tighten gap & nudge speed
+    state.speed = Math.min(state.speed + dt * 0.004, state.baseSpeed * 3.2);
+    if (Math.floor(state.score / 100) > 0) {
+      state.spawnGap = Math.max(15, 24 - Math.floor(state.score / 100) * 0.8);
+    }
+    updateHUD();
+  }
+
+  // camera eases behind ship
+  camera.position.x += (ship.position.x * 0.45 - camera.position.x) * 0.08 * step;
+  camera.position.y += (2.2 + ship.position.y * 0.3 - camera.position.y) * 0.08 * step;
+  camera.lookAt(ship.position.x * 0.5, ship.position.y * 0.4, -10);
+
+  renderer.render(scene, camera);
+}
+animate();
+
+// ============================================================
+//  Input — one finger (pointer) drag-to-fly
+// ============================================================
+const canvas = renderer.domElement;
+function setTargetFromEvent(clientX, clientY) {
+  input.x = (clientX / window.innerWidth) * 2 - 1;
+  input.y = -((clientY / window.innerHeight) * 2 - 1) * 0.9 + 0.1;
+  input.x = Math.max(-1, Math.min(1, input.x));
+  input.y = Math.max(-1, Math.min(1, input.y));
+}
+function onMove(e) {
+  if (!input.active) return;
+  const t = e.touches ? e.touches[0] : e;
+  setTargetFromEvent(t.clientX, t.clientY);
+  e.preventDefault();
+}
+function onDown(e) {
+  input.active = true;
+  const t = e.touches ? e.touches[0] : e;
+  setTargetFromEvent(t.clientX, t.clientY);
+  e.preventDefault();
+}
+function onUp() { input.active = false; }
+
+canvas.addEventListener('touchstart', onDown, { passive: false });
+canvas.addEventListener('touchmove', onMove, { passive: false });
+canvas.addEventListener('touchend', onUp);
+canvas.addEventListener('mousedown', onDown);
+window.addEventListener('mousemove', onMove);
+window.addEventListener('mouseup', onUp);
+// also allow hover-steer on desktop without holding
+window.addEventListener('mousemove', (e) => { if (state.running && !input.active) setTargetFromEvent(e.clientX, e.clientY); });
+
+// ============================================================
+//  UI flow
+// ============================================================
+const startOverlay = document.getElementById('start');
+const overOverlay = document.getElementById('gameover');
+const startBtn = document.getElementById('start-btn');
+const retryBtn = document.getElementById('retry-btn');
+const finalScoreEl = document.getElementById('final-score');
+const bestLineEl = document.getElementById('best-line');
+
+function startGame() {
+  startOverlay.classList.add('hidden');
+  overOverlay.classList.add('hidden');
+  missStreak = 0;
+  resetGame();
+  state.running = true;
+}
+
+function endGame() {
+  if (!state.running) return;
+  state.running = false;
+  finalScoreEl.textContent = state.score;
+  if (state.score > state.best) {
+    state.best = state.score;
+    localStorage.setItem('waveRiderBest', String(state.best));
+    bestLineEl.textContent = 'NEW BEST! ' + state.best;
+    bestLineEl.classList.add('new-best');
+  } else {
+    bestLineEl.textContent = 'BEST  ' + state.best;
+    bestLineEl.classList.remove('new-best');
+  }
+  overOverlay.classList.remove('hidden');
+}
+
+startBtn.addEventListener('click', startGame);
+retryBtn.addEventListener('click', startGame);
+
+// ============================================================
+//  Resize
+// ============================================================
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// show best on start screen subtitle if any
+if (state.best > 0) {
+  document.querySelector('.panel').insertAdjacentHTML('beforeend',
+    `<br><span style="color:#ffe600;">BEST &nbsp;${state.best}</span>`);
+}
+</script>
+</body>
+</html>
