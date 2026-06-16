@@ -730,6 +730,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .starchart .hex2 { fill: none; stroke: var(--nc); stroke-width: 1; opacity: 0.4; }
 .starchart .glyph { color: var(--nc); }
 .starchart .hazring { fill: none; stroke: #ff4a5e; stroke-width: 1.4; stroke-dasharray: 2.5 3; opacity: 0.85; }
+.starchart .mapnode.fogged { opacity: 0.5; }
+.starchart .mapnode.fogged .hex { stroke-dasharray: 3 3; }
+.starchart .fogq { fill: var(--nc); font: 700 15px monospace; text-anchor: middle; opacity: 0.8; }
+.starchart .boss-label { fill: #ff8a8a; font: 700 11px monospace; text-anchor: middle; letter-spacing: 1px; filter: drop-shadow(0 0 4px rgba(255,74,94,0.6)); }
 .map-lanes { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; margin-top: 6px; font-size: 9px; letter-spacing: 1px; }
 .lane-key { color: var(--lc); display: inline-flex; align-items: center; gap: 5px; }
 .lane-key .lane-dash { width: 16px; height: 0; border-top: 2px solid var(--lc); box-shadow: 0 0 4px var(--lc); }

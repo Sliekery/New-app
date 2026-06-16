@@ -282,6 +282,15 @@
   }
   E.currentNode = currentNode;
 
+  // The sector's boss (for the map telegraph).
+  E.sectorBossId = function () {
+    var r = E.run;
+    if ((r.loop || 1) === B.run.heartLoop) return E.counterBossId(r);
+    if (r.sector === B.run.finale) return ns.FINAL_BOSS;
+    return ns.BOSSES[r.faction];
+  };
+  E.sectorBossName = function () { var d = ns.ENEMIES[E.sectorBossId()]; return d ? d.name : 'SECTOR BOSS'; };
+
   E.mapReachable = function () {
     var r = E.run, m = r.map;
     if (!m) return [];

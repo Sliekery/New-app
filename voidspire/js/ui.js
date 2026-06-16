@@ -715,6 +715,9 @@
     var W = land ? (ROWS + 1) * step : COLS * lane;
     var H = land ? COLS * lane : (ROWS + 1) * step;
     var reach = E.mapReachable(), cur = E.currentNode();
+    // fog of war: you scout ~3 rows ahead; further nodes show only their lane,
+    // not the encounter, and resolve as you advance.
+    var revealRow = (r.mapRow < 0 ? -1 : r.mapRow) + 3;
 
     // portrait flows bottom->top; landscape flows left->right (boss at the far end)
     function xy(node) {
@@ -749,12 +752,14 @@
     }
     // nodes (glowing hex frames with reticle brackets on reachable ones)
     function nodeMarkup(node) {
-      var p = xy(node), icon = ns.MAP_ICONS[node.type] || ns.MAP_ICONS.fight;
       var isBoss = node.type === 'boss';
+      var fogged = !isBoss && !node.visited && node.row > revealRow;
+      var p = xy(node), icon = ns.MAP_ICONS[node.type] || ns.MAP_ICONS.fight;
+      var nc = fogged ? (LANE_COLOR[node.lane] || '#5e8a6c') : icon.color;   // fogged: show only the lane
       var hexR = isBoss ? 29 : 20, size = isBoss ? 24 : 15;
       var reachable = reach.indexOf(node) >= 0;
       var state = node === cur ? 'current' : node.visited ? 'visited' : reachable ? 'reachable' : 'locked';
-      var g = '<g class="mapnode ' + state + ' nt-' + node.type + '" data-row="' + node.row + '" data-col="' + node.col + '" style="--nc:' + icon.color + '">';
+      var g = '<g class="mapnode ' + state + (fogged ? ' fogged' : '') + ' nt-' + node.type + '" data-row="' + node.row + '" data-col="' + node.col + '" style="--nc:' + nc + '">';
       if (reachable) {
         g += '<circle class="pulse" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + hexR + '"/>';
         g += '<circle class="pulse p2" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + hexR + '"/>';
@@ -763,13 +768,17 @@
       if (node.hazard) g += '<circle class="hazring" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + (hexR + 4) + '"/>';
       g += '<polygon class="hex" points="' + hexPts(p.x, p.y, hexR) + '"/>';
       if (isBoss) g += '<polygon class="hex2" points="' + hexPts(p.x, p.y, hexR + 5) + '"/>';
-      g += '<g class="glyph">' + mapIconPaths(icon, p.x, p.y, size) + '</g>';
+      if (fogged) g += '<text class="fogq" x="' + p.x.toFixed(1) + '" y="' + (p.y + size * 0.42).toFixed(1) + '">?</text>';
+      else g += '<g class="glyph">' + mapIconPaths(icon, p.x, p.y, size) + '</g>';
       if (reachable) g += cornerTicks(p.x, p.y, hexR + 5);
       g += '<circle class="hit" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + (hexR + 10) + '"/>';
       return g + '</g>';
     }
     m.rows.forEach(function (row) { row.forEach(function (n) { svg += nodeMarkup(n); }); });
     svg += nodeMarkup(m.boss);
+    // boss telegraph: name the sector boss looming at the end of the chart
+    var bxy = xy(m.boss);
+    svg += '<text class="boss-label" x="' + bxy.x.toFixed(1) + '" y="' + (bxy.y + (land ? 50 : 46)).toFixed(1) + '">' + esc(E.sectorBossName()) + '</text>';
     svg += '</svg>';
 
     var wrap = el('div', 'map-wrap' + (land ? ' land' : ''));
