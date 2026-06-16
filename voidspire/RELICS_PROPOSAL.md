@@ -103,8 +103,9 @@ flat commons (Power Fist, Void Lens, Aegis Core, Med-Bay Tap…) are cut.
 | Phoenix Protocol ⭐NEW 🔋 | **2 charges** — drop below 25% HP → **heal 15** and spend a charge. | [N] 🔋 |
 
 ### Class-specific relics (FINAL — 2 per class = 8)
-Only drop for / are only offered to their class, and supercharge that class's fantasy.
-All **[N]** (need engine support for the class mechanic). Legend: ⚠ downside · 🔌 togglable · 🔋 charges.
+**These never drop.** They are class-locked (`cls`) and earned ONLY via that class's
+**quest chain** (see §7) — at the end you pick **1 of the 2**; the other is locked for the
+rest of the run. All **[N]**. Legend: ⚠ downside · 🔌 togglable · 🔋 charges.
 
 **Vanguard — MIGHT brawler · execute**
 | Relic | Effect |
@@ -130,9 +131,46 @@ All **[N]** (need engine support for the class mechanic). Legend: ⚠ downside �
 | Blood Bond | Whenever one of your pets attacks, **heal 1 HP**. |
 | Brood Womb | Your pets start with **+3 HP**. |
 
-### Quest (keep, lightly retuned) (5)
-Offline Shield · Berserker's Pact · Pacifist Doctrine · Flawless Protocol · Soul Ledger.
-(War Chest folds into the economy theme; can keep or cut.)
+### Quest relics (general) — deepened into build-commitments
+No longer "do a task → start with +X". Each is a payoff that **reshapes a system**:
+| Relic | Task | Reward (build-defining) |
+|---|---|---|
+| Offline Shield ⚠ | Win **3** combats without gaining Shield | You can no longer gain Shield — but start **each turn** with **8 Plated Armor** (decays 1/turn). |
+| Berserker's Pact | Kill **15** enemies | Permanently gain **+1 Might every time you clear an Elite** (stacks all run). |
+| Pacifist Doctrine | Skip **3** card rewards | Draw **+1 card each turn**; your deck can't grow any further this run. |
+| Flawless Protocol | Win **2** combats taking no damage | The **first hit you'd take each combat is fully prevented**. |
+| Soul Ledger | Apply **60** Burn to enemies | Burn on enemies **no longer decreases** at end of turn (it just keeps ticking). |
+
+(War Chest's "+1 energy at 220 credits" is dropped — energy is reserved for rare/boss now.)
+
+---
+
+## 7. Class quest chains — how you earn your signature relic
+Class relics are **not** random drops. Each class runs a **3-step quest chain** that auto-tracks
+from the start of the run and rewards playing that class's mechanic. Steps complete **in order**
+(each fires a toast). Finishing step 3 opens a **pick screen**: choose **1 of your 2** class
+relics — the **other is locked out for the rest of the run** (it returns in NG+/Recurrence).
+
+| Class | Chain | Step 1 | Step 2 | Step 3 | Then pick |
+|---|---|---|---|---|---|
+| Vanguard | The Warpath | Kill **8** enemies | Deal **40** damage in a single turn | Kill a **full-HP** enemy in one turn | Recoilless Frame / Execution Protocol |
+| Technomancer | Forge Liturgy | Gain **80** total Shield | Hold **30** Shield at once | Win a fight **without dropping below your starting HP** | Forge Reserve / Capacitive Plating |
+| Void-adept | The Long Hunger | Apply **40** Burn | Stack **10** Burn on one enemy | **Kill** an enemy with Burn | Hexweaver / Void Conduit |
+| Warpcaller | Brood Covenant | Summon **10** pets | Have **4** pets alive at once | A **pet lands the killing blow on an Elite** | Blood Bond / Brood Womb |
+
+Engine: a per-run `classQuest = { step: 0..3, picked: id|null, locked: id|null }`; trackers hang
+off existing events (kill / damage-this-turn / shield-gained / burn-applied / pet-summoned).
+Step 3 → a `class-relic` pick phase (reuse the boss-artifact screen).
+
+---
+
+## 8. Build plan (staged, each its own commit + tests)
+1. **Engine hooks** — add the ~15 new `art(k)` keys / `special` handlers the relics need.
+2. **Relic data** — rewrite `artifacts.js` to the new roster (rarity, `cls`, `uses`, `charges`, `hooks`).
+3. **Acquisition** — pick-1-of-N at treasure/elite, beacons drop no relic, fewer event relics, rarity-weighted pool, class relics excluded from all drops.
+4. **Class quest chains** — tracker + step toasts + the pick-1-of-2 screen + run lockout.
+5. **Charges UI** — show/spend charges on the rail relics panel (we already have toggle + durability).
+6. Balance pass via `node test/sim.js`.
 
 ---
 
