@@ -301,11 +301,14 @@ html, body {
   background: rgba(5, 20, 28, 0.85); padding: 7px 12px;
 }
 
-/* ===== Cockpit rail — right-edge buttons + tactical panels ===== */
+/* ===== Cockpit rail — left-edge buttons (beside the pilot) + tactical panels ===== */
 #rail {
-  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  position: absolute; left: 4px; top: 50%; transform: translateY(-50%);
   z-index: 28; display: none; flex-direction: column; gap: 6px; pointer-events: auto;
 }
+/* leader line linking an open panel back to its button */
+#rail-line { position: absolute; left: 0; top: 0; z-index: 28; pointer-events: none; overflow: visible; }
+#rail-line polyline { filter: drop-shadow(0 0 3px currentColor); opacity: 0.85; }
 .rail-btn {
   width: 38px; height: 40px; border: 1px solid var(--rc); background: rgba(6,16,22,0.85);
   color: var(--rc); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
@@ -317,27 +320,28 @@ html, body {
 .rail-btn .rk-ic { font-size: 13px; line-height: 1; }
 .rail-btn .rk-n { font-size: 8px; opacity: 0.85; }
 #rail-panel {
-  position: absolute; z-index: 29; min-width: 152px; max-width: 240px;
-  border: 1px solid var(--green-dim); background: rgba(5,13,17,0.96);
-  padding: 6px 9px 7px; pointer-events: auto;
-  box-shadow: 0 0 16px rgba(0,0,0,0.7);
+  position: absolute; z-index: 29; min-width: 158px; max-width: 232px;
+  border: 1px solid var(--rc); background: rgba(5,13,17,0.94);
+  padding: 5px 8px 6px; pointer-events: auto;
+  box-shadow: 0 0 14px rgba(0,0,0,0.7), inset 0 0 18px rgba(0,0,0,0.35);
   clip-path: polygon(0 6px, 6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
 }
-.rp-title { color: var(--rc); font-size: 9px; letter-spacing: 1.5px; border-bottom: 1px solid rgba(93,255,136,0.25); margin-bottom: 5px; padding-bottom: 4px; text-shadow: 0 0 5px var(--rc); }
+.rp-title { color: var(--rc); font-size: 9px; letter-spacing: 1.5px; border-bottom: 1px solid var(--rc); margin-bottom: 5px; padding-bottom: 4px; text-shadow: 0 0 5px var(--rc); opacity: 0.95; }
+.rp-scroll { max-height: 196px; overflow-y: auto; overflow-x: hidden; padding-right: 2px; }
+.rp-scroll::-webkit-scrollbar { width: 5px; }
+.rp-scroll::-webkit-scrollbar-thumb { background: var(--rc); opacity: 0.5; }
+.rp-scroll::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
 .rp-sub { color: var(--text-dim); font-size: 7.5px; letter-spacing: 1px; margin: 5px 0 2px; }
-.rp-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 2px 0; font-size: 10px; }
-.rp-name { color: var(--text); }
-.rp-val { color: var(--green); font-weight: bold; }
+.rp-row { display: flex; align-items: center; gap: 7px; padding: 2px 0; font-size: 10px; }
+.rp-dot { color: var(--rc); font-size: 8px; opacity: 0.7; }
+.rp-name { color: var(--text); flex: 1; }
+.rp-val { color: var(--green); font-weight: bold; margin-left: auto; }
 .rp-val.rp-bad { color: var(--red); }
-.rp-power { cursor: pointer; }
-.rp-power .rp-name { flex: 1; }
-.rp-box { color: var(--amber); margin-right: 5px; font-size: 11px; }
-.rp-text { color: var(--text-dim); font-size: 8.5px; line-height: 1.35; padding: 1px 0 4px 16px; }
+.rp-exp { cursor: pointer; }
+.rp-box { color: var(--rc); font-size: 11px; line-height: 1; }
+.rp-text { color: var(--text-dim); font-size: 8.5px; line-height: 1.35; padding: 1px 0 4px 18px; }
+.rp-relic-name.off { color: var(--text-dim); text-decoration: line-through; opacity: 0.7; }
 .rp-empty { color: var(--text-dim); font-style: italic; font-size: 9px; padding: 2px 0; }
-.rp-relic { padding: 3px 0; border-bottom: 1px solid rgba(93,255,136,0.08); }
-.rp-relic .rp-name { color: var(--amber); font-size: 10px; }
-.rp-relic.off .rp-name { color: var(--text-dim); }
-.rp-relic-desc { color: var(--text-dim); font-size: 8.5px; line-height: 1.3; padding: 1px 0 0 12px; }
 .rp-state { font-size: 7px; padding: 0 3px; margin-left: 6px; border: 1px solid; letter-spacing: 0.5px; }
 .rp-state.on { color: var(--green); border-color: var(--green-dim); }
 .rp-state.off { color: var(--text-dim); border-color: var(--text-dim); }
@@ -351,7 +355,7 @@ html, body {
 
 /* ===== Crew Manifest — the Warpcaller's interactive formation panel ===== */
 #manifest {
-  position: absolute; left: 4px; top: 50%; transform: translateY(-54%);
+  position: absolute; left: 48px; top: 50%; transform: translateY(-54%);
   z-index: 28; display: none; flex-direction: column; gap: 4px;
   width: 52px; pointer-events: auto;
 }

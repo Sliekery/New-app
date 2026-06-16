@@ -312,11 +312,14 @@ html, body {
   background: rgba(5, 20, 28, 0.85); padding: 7px 12px;
 }
 
-/* ===== Cockpit rail — right-edge buttons + tactical panels ===== */
+/* ===== Cockpit rail — left-edge buttons (beside the pilot) + tactical panels ===== */
 #rail {
-  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  position: absolute; left: 4px; top: 50%; transform: translateY(-50%);
   z-index: 28; display: none; flex-direction: column; gap: 6px; pointer-events: auto;
 }
+/* leader line linking an open panel back to its button */
+#rail-line { position: absolute; left: 0; top: 0; z-index: 28; pointer-events: none; overflow: visible; }
+#rail-line polyline { filter: drop-shadow(0 0 3px currentColor); opacity: 0.85; }
 .rail-btn {
   width: 38px; height: 40px; border: 1px solid var(--rc); background: rgba(6,16,22,0.85);
   color: var(--rc); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
@@ -328,27 +331,28 @@ html, body {
 .rail-btn .rk-ic { font-size: 13px; line-height: 1; }
 .rail-btn .rk-n { font-size: 8px; opacity: 0.85; }
 #rail-panel {
-  position: absolute; z-index: 29; min-width: 152px; max-width: 240px;
-  border: 1px solid var(--green-dim); background: rgba(5,13,17,0.96);
-  padding: 6px 9px 7px; pointer-events: auto;
-  box-shadow: 0 0 16px rgba(0,0,0,0.7);
+  position: absolute; z-index: 29; min-width: 158px; max-width: 232px;
+  border: 1px solid var(--rc); background: rgba(5,13,17,0.94);
+  padding: 5px 8px 6px; pointer-events: auto;
+  box-shadow: 0 0 14px rgba(0,0,0,0.7), inset 0 0 18px rgba(0,0,0,0.35);
   clip-path: polygon(0 6px, 6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
 }
-.rp-title { color: var(--rc); font-size: 9px; letter-spacing: 1.5px; border-bottom: 1px solid rgba(93,255,136,0.25); margin-bottom: 5px; padding-bottom: 4px; text-shadow: 0 0 5px var(--rc); }
+.rp-title { color: var(--rc); font-size: 9px; letter-spacing: 1.5px; border-bottom: 1px solid var(--rc); margin-bottom: 5px; padding-bottom: 4px; text-shadow: 0 0 5px var(--rc); opacity: 0.95; }
+.rp-scroll { max-height: 196px; overflow-y: auto; overflow-x: hidden; padding-right: 2px; }
+.rp-scroll::-webkit-scrollbar { width: 5px; }
+.rp-scroll::-webkit-scrollbar-thumb { background: var(--rc); opacity: 0.5; }
+.rp-scroll::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
 .rp-sub { color: var(--text-dim); font-size: 7.5px; letter-spacing: 1px; margin: 5px 0 2px; }
-.rp-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 2px 0; font-size: 10px; }
-.rp-name { color: var(--text); }
-.rp-val { color: var(--green); font-weight: bold; }
+.rp-row { display: flex; align-items: center; gap: 7px; padding: 2px 0; font-size: 10px; }
+.rp-dot { color: var(--rc); font-size: 8px; opacity: 0.7; }
+.rp-name { color: var(--text); flex: 1; }
+.rp-val { color: var(--green); font-weight: bold; margin-left: auto; }
 .rp-val.rp-bad { color: var(--red); }
-.rp-power { cursor: pointer; }
-.rp-power .rp-name { flex: 1; }
-.rp-box { color: var(--amber); margin-right: 5px; font-size: 11px; }
-.rp-text { color: var(--text-dim); font-size: 8.5px; line-height: 1.35; padding: 1px 0 4px 16px; }
+.rp-exp { cursor: pointer; }
+.rp-box { color: var(--rc); font-size: 11px; line-height: 1; }
+.rp-text { color: var(--text-dim); font-size: 8.5px; line-height: 1.35; padding: 1px 0 4px 18px; }
+.rp-relic-name.off { color: var(--text-dim); text-decoration: line-through; opacity: 0.7; }
 .rp-empty { color: var(--text-dim); font-style: italic; font-size: 9px; padding: 2px 0; }
-.rp-relic { padding: 3px 0; border-bottom: 1px solid rgba(93,255,136,0.08); }
-.rp-relic .rp-name { color: var(--amber); font-size: 10px; }
-.rp-relic.off .rp-name { color: var(--text-dim); }
-.rp-relic-desc { color: var(--text-dim); font-size: 8.5px; line-height: 1.3; padding: 1px 0 0 12px; }
 .rp-state { font-size: 7px; padding: 0 3px; margin-left: 6px; border: 1px solid; letter-spacing: 0.5px; }
 .rp-state.on { color: var(--green); border-color: var(--green-dim); }
 .rp-state.off { color: var(--text-dim); border-color: var(--text-dim); }
@@ -362,7 +366,7 @@ html, body {
 
 /* ===== Crew Manifest — the Warpcaller's interactive formation panel ===== */
 #manifest {
-  position: absolute; left: 4px; top: 50%; transform: translateY(-54%);
+  position: absolute; left: 48px; top: 50%; transform: translateY(-54%);
   z-index: 28; display: none; flex-direction: column; gap: 4px;
   width: 52px; pointer-events: auto;
 }
@@ -7552,7 +7556,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   var R = ns.render;
   var B = ns.BALANCE;
 
-  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $manifest, $rail, $railPanel;
+  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $manifest, $rail, $railPanel, $railLine;
   var railOpen = null;      // which rail panel is open ('buffs'|'debuffs'|'relics'|'draw'|'discard') or null
   var selected = -1;        // selected hand index
   var manifestSel = -1;     // selected pet in the Manifest (tap-to-swap reorder)
@@ -7784,6 +7788,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $rail = el('div', '', '');
     $rail.id = 'rail';
     $game.appendChild($rail);
+    // leader line tying an open panel back to the button it sprang from
+    $railLine = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    $railLine.setAttribute('id', 'rail-line');
+    $railLine.innerHTML = '<polyline points="" fill="none" stroke-width="1.4" /><circle r="2.2" />';
+    $railLine.style.display = 'none';
+    $game.appendChild($railLine);
     $railPanel = el('div', '', '');
     $railPanel.id = 'rail-panel';
     $railPanel.style.display = 'none';
@@ -8186,60 +8196,99 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         '<span class="rk-ic">' + it.ic + '</span><span class="rk-n">' + it.n + '</span></button>';
     }).join('');
     $rail.querySelectorAll('[data-rk]').forEach(function (btn) {
-      btn.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); onRailTap(btn.dataset.rk, btn); });
+      btn.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); onRailTap(btn.dataset.rk); });
     });
     if (railOpen === 'buffs' || railOpen === 'debuffs' || railOpen === 'relics') renderRailPanel(railOpen);
   }
   U.renderRail = renderRail;
 
-  function onRailTap(k, btn) {
+  function onRailTap(k) {
     if (locked) return;
     SFX.tap();
     if (k === 'draw' || k === 'discard') { closeRail(); if (E.combat) showPileModal(k); return; }
     if (railOpen === k) { closeRail(); renderRail(); return; }
-    railOpen = k; renderRail(); renderRailPanel(k, btn);
+    // renderRail() rebuilds the buttons (detaching any passed node), then renders
+    // the panel against the fresh button it re-queries — so don't pass a stale ref.
+    railOpen = k; renderRail();
   }
   function closeRail() {
     if (!railOpen) return;
     railOpen = null;
     if ($railPanel) $railPanel.style.display = 'none';
+    if ($railLine) $railLine.style.display = 'none';
     if ($rail) $rail.querySelectorAll('.rail-btn.active').forEach(function (b) { b.classList.remove('active'); });
   }
 
+  var RAIL_COL = { buffs: '#5dff88', debuffs: '#ff4a5e', relics: '#ffb02e' };
   function renderRailPanel(k, btn) {
     if (!$railPanel) return;
     btn = btn || ($rail && $rail.querySelector('[data-rk="' + k + '"]'));
     if (!btn) return;
+    var col = RAIL_COL[k] || '#5dff88';
     var title = { buffs: 'BUFFS & POWERS', debuffs: 'DEBUFFS', relics: 'RELICS' }[k] || k.toUpperCase();
     var body = k === 'buffs' ? buffsPanelHTML() : k === 'debuffs' ? debuffsPanelHTML() : relicsPanelHTML();
-    $railPanel.innerHTML = '<div class="rp-title" style="--rc:' + (k === 'debuffs' ? '#ff4a5e' : k === 'relics' ? '#ffb02e' : '#5dff88') + '">' + title + '</div>' + body;
+    $railPanel.style.setProperty('--rc', col);
+    $railPanel.innerHTML = '<div class="rp-title">' + title + '</div><div class="rp-scroll">' + body + '</div>';
     $railPanel.style.display = 'block';
     positionRailPanel(btn);
     wireRailPanel(k);
   }
+  // The callout floats just off the rail (battlefield side) and a leader line
+  // links it to the button it sprang from — vector HUD, not a free-floating box.
   function positionRailPanel(btn) {
     if (!btn || !$railPanel || !$game) return;
-    var scale = uiScale || 1;
     var gr = $game.getBoundingClientRect(), br = btn.getBoundingClientRect();
-    var gameH = $game.clientHeight;
+    var gameW = $game.clientWidth, gameH = $game.clientHeight;
+    var scale = gr.width / gameW || 1;   // true on-screen scale (uiScale may be stale)
+    var btnCX = (br.left + br.width / 2 - gr.left) / scale;
     var btnCY = (br.top + br.height / 2 - gr.top) / scale;
-    var ph = $railPanel.offsetHeight;
+    var railRight = (br.right - gr.left) / scale;
+    var pw = $railPanel.offsetWidth, ph = $railPanel.offsetHeight;
+    // rail lives on the left edge -> panel opens to the right of it
+    var left = railRight + 16;
+    if (left + pw > gameW - 8) left = Math.max(8, gameW - 8 - pw);
     var top = Math.max(8, Math.min(gameH - ph - 8, btnCY - ph / 2));
+    $railPanel.style.left = left + 'px';
+    $railPanel.style.right = 'auto';
     $railPanel.style.top = top + 'px';
-    $railPanel.style.right = (($rail ? $rail.offsetWidth : 40) + 8) + 'px';
+    drawRailLine(btnCX, btnCY, railRight, left, top, ph);
+  }
+  function drawRailLine(btnCX, btnCY, railRight, panelLeft, panelTop, panelH) {
+    if (!$railLine) return;
+    var gw = $game.clientWidth, gh = $game.clientHeight;
+    $railLine.setAttribute('width', gw); $railLine.setAttribute('height', gh);
+    $railLine.setAttribute('viewBox', '0 0 ' + gw + ' ' + gh);
+    var col = RAIL_COL[railOpen] || '#5dff88';
+    // elbow: button -> out into the gap -> up/down to the panel's near edge
+    var anchorY = Math.max(panelTop + 7, Math.min(panelTop + panelH - 7, btnCY));
+    var midX = (railRight + panelLeft) / 2;
+    var pts = (railRight) + ',' + btnCY + ' ' + midX + ',' + btnCY + ' ' + midX + ',' + anchorY + ' ' + panelLeft + ',' + anchorY;
+    var line = $railLine.querySelector('polyline'), dot = $railLine.querySelector('circle');
+    line.setAttribute('points', pts); line.setAttribute('stroke', col);
+    dot.setAttribute('cx', railRight); dot.setAttribute('cy', btnCY); dot.setAttribute('fill', col);
+    $railLine.style.display = 'block';
   }
 
+  // one expandable □ row + its hidden detail line (powers, relics)
+  function rpExpRow(eid, head, detail) {
+    return '<div class="rp-row rp-exp" data-eid="' + eid + '"><span class="rp-box">□</span>' + head + '</div>' +
+      '<div class="rp-text" data-et="' + eid + '" style="display:none">' + detail + '</div>';
+  }
+  // a plain readout row (buffs / debuffs): bullet · name · value
+  function rpReadRow(name, val, bad) {
+    return '<div class="rp-row"><span class="rp-dot">◇</span><span class="rp-name">' + esc(name) +
+      '</span><span class="rp-val' + (bad ? ' rp-bad' : '') + '">' + val + '</span></div>';
+  }
   function buffsPanelHTML() {
     var buffs = railBuffs(), powers = railPowers();
     if (!buffs.length && !powers.length) return '<div class="rp-empty">no active buffs</div>';
     var h = '';
-    buffs.forEach(function (b) { h += '<div class="rp-row"><span class="rp-name">' + esc(b.name) + '</span><span class="rp-val">' + b.val + '</span></div>'; });
+    buffs.forEach(function (b) { h += rpReadRow(b.name, b.val, false); });
     if (powers.length) {
-      h += '<div class="rp-sub">POWERS · tap □ for details</div>';
+      h += '<div class="rp-sub">POWERS · tap □ for text</div>';
       powers.forEach(function (cc, i) {
         var d = ns.CARDS[cc.id];
-        h += '<div class="rp-row rp-power" data-pi="' + i + '"><span class="rp-box">□</span><span class="rp-name">' + esc(d.name) + '</span></div>' +
-          '<div class="rp-text" data-pt="' + i + '" style="display:none">' + esc(ns.cardDesc(d, cc.up, null, cc.vtouch)) + '</div>';
+        h += rpExpRow('p' + i, '<span class="rp-name">' + esc(d.name) + '</span>', esc(ns.cardDesc(d, cc.up, null, cc.vtouch)));
       });
     }
     return h;
@@ -8247,30 +8296,30 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function debuffsPanelHTML() {
     var d = railDebuffs();
     if (!d.length) return '<div class="rp-empty">no debuffs</div>';
-    return d.map(function (x) { return '<div class="rp-row"><span class="rp-name">' + esc(x.name) + '</span><span class="rp-val rp-bad">' + x.val + '</span></div>'; }).join('');
+    return d.map(function (x) { return rpReadRow(x.name, x.val, true); }).join('');
   }
   function relicsPanelHTML() {
     var r = E.run;
     if (!r.artifacts.length) return '<div class="rp-empty">no relics</div>';
-    var h = r.artifacts.map(function (id) {
+    var h = r.artifacts.map(function (id, i) {
       var a = ns.ARTIFACTS[id], active = E.relicActive(id), uses = E.relicUsesLeft(id);
       var spent = uses != null && uses <= 0;
       var tag = spent ? '<span class="rp-spent">SPENT</span>' : '<span class="rp-state ' + (active ? 'on' : 'off') + '">' + (active ? 'ONLINE' : 'OFFLINE') + '</span>';
       var dur = uses != null && !spent ? ' <span class="rp-dur">' + uses + ' left</span>' : '';
-      return '<div class="rp-relic' + (active ? '' : ' off') + '"><span class="rp-name">◆ ' + esc(a.name) + tag + dur + '</span>' +
-        '<div class="rp-relic-desc">' + esc(a.desc) + '</div></div>';
+      var head = '<span class="rp-name rp-relic-name' + (active ? '' : ' off') + '">' + esc(a.name) + '</span>' + tag + dur;
+      return rpExpRow('r' + i, head, esc(a.desc));
     }).join('');
     return h + '<div class="rp-sub">toggle relics on the star chart</div>';
   }
   function wireRailPanel(k) {
-    if (k !== 'buffs') return;
-    $railPanel.querySelectorAll('.rp-power').forEach(function (row) {
+    var btn = $rail.querySelector('[data-rk="' + k + '"]');
+    $railPanel.querySelectorAll('.rp-exp').forEach(function (row) {
       row.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation(); SFX.tap();
-        var i = row.dataset.pi, txt = $railPanel.querySelector('.rp-text[data-pt="' + i + '"]'), box = row.querySelector('.rp-box');
+        var id = row.dataset.eid, txt = $railPanel.querySelector('.rp-text[data-et="' + id + '"]'), box = row.querySelector('.rp-box');
         var open = txt.style.display === 'none';
         txt.style.display = open ? 'block' : 'none'; box.textContent = open ? '▣' : '□';
-        positionRailPanel($rail.querySelector('[data-rk="buffs"]'));
+        positionRailPanel(btn);
       });
     });
   }

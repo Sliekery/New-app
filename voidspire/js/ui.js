@@ -11,7 +11,7 @@
   var R = ns.render;
   var B = ns.BALANCE;
 
-  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $manifest, $rail, $railPanel;
+  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $manifest, $rail, $railPanel, $railLine;
   var railOpen = null;      // which rail panel is open ('buffs'|'debuffs'|'relics'|'draw'|'discard') or null
   var selected = -1;        // selected hand index
   var manifestSel = -1;     // selected pet in the Manifest (tap-to-swap reorder)
@@ -243,6 +243,12 @@
     $rail = el('div', '', '');
     $rail.id = 'rail';
     $game.appendChild($rail);
+    // leader line tying an open panel back to the button it sprang from
+    $railLine = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    $railLine.setAttribute('id', 'rail-line');
+    $railLine.innerHTML = '<polyline points="" fill="none" stroke-width="1.4" /><circle r="2.2" />';
+    $railLine.style.display = 'none';
+    $game.appendChild($railLine);
     $railPanel = el('div', '', '');
     $railPanel.id = 'rail-panel';
     $railPanel.style.display = 'none';
@@ -645,60 +651,99 @@
         '<span class="rk-ic">' + it.ic + '</span><span class="rk-n">' + it.n + '</span></button>';
     }).join('');
     $rail.querySelectorAll('[data-rk]').forEach(function (btn) {
-      btn.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); onRailTap(btn.dataset.rk, btn); });
+      btn.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); onRailTap(btn.dataset.rk); });
     });
     if (railOpen === 'buffs' || railOpen === 'debuffs' || railOpen === 'relics') renderRailPanel(railOpen);
   }
   U.renderRail = renderRail;
 
-  function onRailTap(k, btn) {
+  function onRailTap(k) {
     if (locked) return;
     SFX.tap();
     if (k === 'draw' || k === 'discard') { closeRail(); if (E.combat) showPileModal(k); return; }
     if (railOpen === k) { closeRail(); renderRail(); return; }
-    railOpen = k; renderRail(); renderRailPanel(k, btn);
+    // renderRail() rebuilds the buttons (detaching any passed node), then renders
+    // the panel against the fresh button it re-queries — so don't pass a stale ref.
+    railOpen = k; renderRail();
   }
   function closeRail() {
     if (!railOpen) return;
     railOpen = null;
     if ($railPanel) $railPanel.style.display = 'none';
+    if ($railLine) $railLine.style.display = 'none';
     if ($rail) $rail.querySelectorAll('.rail-btn.active').forEach(function (b) { b.classList.remove('active'); });
   }
 
+  var RAIL_COL = { buffs: '#5dff88', debuffs: '#ff4a5e', relics: '#ffb02e' };
   function renderRailPanel(k, btn) {
     if (!$railPanel) return;
     btn = btn || ($rail && $rail.querySelector('[data-rk="' + k + '"]'));
     if (!btn) return;
+    var col = RAIL_COL[k] || '#5dff88';
     var title = { buffs: 'BUFFS & POWERS', debuffs: 'DEBUFFS', relics: 'RELICS' }[k] || k.toUpperCase();
     var body = k === 'buffs' ? buffsPanelHTML() : k === 'debuffs' ? debuffsPanelHTML() : relicsPanelHTML();
-    $railPanel.innerHTML = '<div class="rp-title" style="--rc:' + (k === 'debuffs' ? '#ff4a5e' : k === 'relics' ? '#ffb02e' : '#5dff88') + '">' + title + '</div>' + body;
+    $railPanel.style.setProperty('--rc', col);
+    $railPanel.innerHTML = '<div class="rp-title">' + title + '</div><div class="rp-scroll">' + body + '</div>';
     $railPanel.style.display = 'block';
     positionRailPanel(btn);
     wireRailPanel(k);
   }
+  // The callout floats just off the rail (battlefield side) and a leader line
+  // links it to the button it sprang from — vector HUD, not a free-floating box.
   function positionRailPanel(btn) {
     if (!btn || !$railPanel || !$game) return;
-    var scale = uiScale || 1;
     var gr = $game.getBoundingClientRect(), br = btn.getBoundingClientRect();
-    var gameH = $game.clientHeight;
+    var gameW = $game.clientWidth, gameH = $game.clientHeight;
+    var scale = gr.width / gameW || 1;   // true on-screen scale (uiScale may be stale)
+    var btnCX = (br.left + br.width / 2 - gr.left) / scale;
     var btnCY = (br.top + br.height / 2 - gr.top) / scale;
-    var ph = $railPanel.offsetHeight;
+    var railRight = (br.right - gr.left) / scale;
+    var pw = $railPanel.offsetWidth, ph = $railPanel.offsetHeight;
+    // rail lives on the left edge -> panel opens to the right of it
+    var left = railRight + 16;
+    if (left + pw > gameW - 8) left = Math.max(8, gameW - 8 - pw);
     var top = Math.max(8, Math.min(gameH - ph - 8, btnCY - ph / 2));
+    $railPanel.style.left = left + 'px';
+    $railPanel.style.right = 'auto';
     $railPanel.style.top = top + 'px';
-    $railPanel.style.right = (($rail ? $rail.offsetWidth : 40) + 8) + 'px';
+    drawRailLine(btnCX, btnCY, railRight, left, top, ph);
+  }
+  function drawRailLine(btnCX, btnCY, railRight, panelLeft, panelTop, panelH) {
+    if (!$railLine) return;
+    var gw = $game.clientWidth, gh = $game.clientHeight;
+    $railLine.setAttribute('width', gw); $railLine.setAttribute('height', gh);
+    $railLine.setAttribute('viewBox', '0 0 ' + gw + ' ' + gh);
+    var col = RAIL_COL[railOpen] || '#5dff88';
+    // elbow: button -> out into the gap -> up/down to the panel's near edge
+    var anchorY = Math.max(panelTop + 7, Math.min(panelTop + panelH - 7, btnCY));
+    var midX = (railRight + panelLeft) / 2;
+    var pts = (railRight) + ',' + btnCY + ' ' + midX + ',' + btnCY + ' ' + midX + ',' + anchorY + ' ' + panelLeft + ',' + anchorY;
+    var line = $railLine.querySelector('polyline'), dot = $railLine.querySelector('circle');
+    line.setAttribute('points', pts); line.setAttribute('stroke', col);
+    dot.setAttribute('cx', railRight); dot.setAttribute('cy', btnCY); dot.setAttribute('fill', col);
+    $railLine.style.display = 'block';
   }
 
+  // one expandable □ row + its hidden detail line (powers, relics)
+  function rpExpRow(eid, head, detail) {
+    return '<div class="rp-row rp-exp" data-eid="' + eid + '"><span class="rp-box">□</span>' + head + '</div>' +
+      '<div class="rp-text" data-et="' + eid + '" style="display:none">' + detail + '</div>';
+  }
+  // a plain readout row (buffs / debuffs): bullet · name · value
+  function rpReadRow(name, val, bad) {
+    return '<div class="rp-row"><span class="rp-dot">◇</span><span class="rp-name">' + esc(name) +
+      '</span><span class="rp-val' + (bad ? ' rp-bad' : '') + '">' + val + '</span></div>';
+  }
   function buffsPanelHTML() {
     var buffs = railBuffs(), powers = railPowers();
     if (!buffs.length && !powers.length) return '<div class="rp-empty">no active buffs</div>';
     var h = '';
-    buffs.forEach(function (b) { h += '<div class="rp-row"><span class="rp-name">' + esc(b.name) + '</span><span class="rp-val">' + b.val + '</span></div>'; });
+    buffs.forEach(function (b) { h += rpReadRow(b.name, b.val, false); });
     if (powers.length) {
-      h += '<div class="rp-sub">POWERS · tap □ for details</div>';
+      h += '<div class="rp-sub">POWERS · tap □ for text</div>';
       powers.forEach(function (cc, i) {
         var d = ns.CARDS[cc.id];
-        h += '<div class="rp-row rp-power" data-pi="' + i + '"><span class="rp-box">□</span><span class="rp-name">' + esc(d.name) + '</span></div>' +
-          '<div class="rp-text" data-pt="' + i + '" style="display:none">' + esc(ns.cardDesc(d, cc.up, null, cc.vtouch)) + '</div>';
+        h += rpExpRow('p' + i, '<span class="rp-name">' + esc(d.name) + '</span>', esc(ns.cardDesc(d, cc.up, null, cc.vtouch)));
       });
     }
     return h;
@@ -706,30 +751,30 @@
   function debuffsPanelHTML() {
     var d = railDebuffs();
     if (!d.length) return '<div class="rp-empty">no debuffs</div>';
-    return d.map(function (x) { return '<div class="rp-row"><span class="rp-name">' + esc(x.name) + '</span><span class="rp-val rp-bad">' + x.val + '</span></div>'; }).join('');
+    return d.map(function (x) { return rpReadRow(x.name, x.val, true); }).join('');
   }
   function relicsPanelHTML() {
     var r = E.run;
     if (!r.artifacts.length) return '<div class="rp-empty">no relics</div>';
-    var h = r.artifacts.map(function (id) {
+    var h = r.artifacts.map(function (id, i) {
       var a = ns.ARTIFACTS[id], active = E.relicActive(id), uses = E.relicUsesLeft(id);
       var spent = uses != null && uses <= 0;
       var tag = spent ? '<span class="rp-spent">SPENT</span>' : '<span class="rp-state ' + (active ? 'on' : 'off') + '">' + (active ? 'ONLINE' : 'OFFLINE') + '</span>';
       var dur = uses != null && !spent ? ' <span class="rp-dur">' + uses + ' left</span>' : '';
-      return '<div class="rp-relic' + (active ? '' : ' off') + '"><span class="rp-name">◆ ' + esc(a.name) + tag + dur + '</span>' +
-        '<div class="rp-relic-desc">' + esc(a.desc) + '</div></div>';
+      var head = '<span class="rp-name rp-relic-name' + (active ? '' : ' off') + '">' + esc(a.name) + '</span>' + tag + dur;
+      return rpExpRow('r' + i, head, esc(a.desc));
     }).join('');
     return h + '<div class="rp-sub">toggle relics on the star chart</div>';
   }
   function wireRailPanel(k) {
-    if (k !== 'buffs') return;
-    $railPanel.querySelectorAll('.rp-power').forEach(function (row) {
+    var btn = $rail.querySelector('[data-rk="' + k + '"]');
+    $railPanel.querySelectorAll('.rp-exp').forEach(function (row) {
       row.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation(); SFX.tap();
-        var i = row.dataset.pi, txt = $railPanel.querySelector('.rp-text[data-pt="' + i + '"]'), box = row.querySelector('.rp-box');
+        var id = row.dataset.eid, txt = $railPanel.querySelector('.rp-text[data-et="' + id + '"]'), box = row.querySelector('.rp-box');
         var open = txt.style.display === 'none';
         txt.style.display = open ? 'block' : 'none'; box.textContent = open ? '▣' : '□';
-        positionRailPanel($rail.querySelector('[data-rk="buffs"]'));
+        positionRailPanel(btn);
       });
     });
   }
