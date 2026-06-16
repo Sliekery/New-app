@@ -611,25 +611,47 @@
   }
 
   /* ====================== COCKPIT RAIL ====================== */
-  function railBuffs() {
-    var c = E.combat; if (!c) return [];
-    var st = c.player.statuses, out = [];
-    Object.keys(st).forEach(function (k) {
-      if (st[k] <= 0 || k === 'vuln' || k === 'weak' || k === 'burn') return;
-      out.push({ name: ns.STATUS_NAMES[k] || k, val: st[k] });
-    });
-    return out;
-  }
   function railDebuffs() {
     var c = E.combat; if (!c) return [];
     var st = c.player.statuses, out = [];
     ['vuln', 'weak', 'burn'].forEach(function (k) { if (st[k] > 0) out.push({ name: ns.STATUS_NAMES[k] || k, val: st[k] }); });
     return out;
   }
+  // universal combat stats: always shown on top as buffs, never folded into a
+  // power's row (so Might from Combat Stims still reads as "Might" up top).
+  var CORE_BUFF = { str: 1, regen: 1, plate: 1, platedArmor: 1, thorns: 1, barricade: 1 };
+  var BUFF_PRIORITY = ['str', 'block', 'regen', 'plate', 'platedArmor', 'thorns', 'barricade'];
+  // the self-status a power maintains (its "value"), if any
+  function powerSelfStatus(cc) {
+    var d = ns.CARDS[cc.id]; if (!d) return null;
+    var fx = (cc.up && d.up && d.up.fx) ? d.up.fx : d.fx;
+    if (!fx) return null;
+    for (var i = 0; i < fx.length; i++) { var f = fx[i]; if (f.k === 'status' && (f.who === 'self' || f.who == null)) return f.s; }
+    return null;
+  }
   function railPowers() {
     var c = E.combat; if (!c) return [];
     var seen = {}, out = [];
     c.consumed.forEach(function (cc) { var d = ns.CARDS[cc.id]; if (d && d.type === 'power' && !seen[cc.id]) { seen[cc.id] = true; out.push(cc); } });
+    return out;
+  }
+  function railBuffs() {
+    var c = E.combat; if (!c) return [];
+    var st = c.player.statuses;
+    // non-core statuses that a played power owns -> shown on the power, not here
+    var owned = {};
+    railPowers().forEach(function (cc) { var s = powerSelfStatus(cc); if (s && !CORE_BUFF[s]) owned[s] = 1; });
+    var out = [];
+    if (c.player.block > 0) out.push({ key: 'block', name: 'Shield', val: Math.round(c.player.block) });
+    Object.keys(st).forEach(function (k) {
+      if (st[k] <= 0 || k === 'vuln' || k === 'weak' || k === 'burn' || owned[k]) return;
+      out.push({ key: k, name: ns.STATUS_NAMES[k] || k, val: st[k] });
+    });
+    out.sort(function (a, b) {
+      var ap = BUFF_PRIORITY.indexOf(a.key), bp = BUFF_PRIORITY.indexOf(b.key);
+      if (ap < 0) ap = 99; if (bp < 0) bp = 99;
+      return ap !== bp ? ap - bp : (a.name < b.name ? -1 : 1);
+    });
     return out;
   }
 
@@ -737,15 +759,15 @@
   function buffsPanelHTML() {
     var buffs = railBuffs(), powers = railPowers();
     if (!buffs.length && !powers.length) return '<div class="rp-empty">no active buffs</div>';
-    var h = '';
+    // Might / Shield / Regen etc. ride on top; powers follow in the order played.
+    var st = E.combat.player.statuses, h = '';
     buffs.forEach(function (b) { h += rpReadRow(b.name, b.val, false); });
-    if (powers.length) {
-      h += '<div class="rp-sub">POWERS · tap □ for text</div>';
-      powers.forEach(function (cc, i) {
-        var d = ns.CARDS[cc.id];
-        h += rpExpRow('p' + i, '<span class="rp-name">' + esc(d.name) + '</span>', esc(ns.cardDesc(d, cc.up, null, cc.vtouch)));
-      });
-    }
+    powers.forEach(function (cc, i) {
+      var d = ns.CARDS[cc.id], sKey = powerSelfStatus(cc);
+      var val = (sKey && !CORE_BUFF[sKey] && st[sKey] > 0) ? st[sKey] : null;
+      var head = '<span class="rp-name">' + esc(d.name) + '</span>' + (val != null ? '<span class="rp-val">' + val + '</span>' : '');
+      h += rpExpRow('p' + i, head, esc(ns.cardDesc(d, cc.up, null, cc.vtouch)));
+    });
     return h;
   }
   function debuffsPanelHTML() {

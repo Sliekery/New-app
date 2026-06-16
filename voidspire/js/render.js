@@ -1290,33 +1290,50 @@
       ctx.lineTo(barX, by + h); ctx.closePath();
     }
     barPath(); ctx.fillStyle = 'rgba(4,12,14,0.9)'; ctx.fill();
-    // HP fill (clipped to the bar shape)
+    // HP fill (clipped to the bar shape) — translucent fill + diagonal hatch
     ctx.save(); barPath(); ctx.clip();
     var fillW = (barW) * frac;
     var hpCol = frac > 0.5 ? '#5dff88' : frac > 0.25 ? '#ffb02e' : '#ff4a5e';
-    ctx.fillStyle = hpCol; ctx.globalAlpha = 0.32; ctx.fillRect(barX, by, fillW + sk, h); ctx.globalAlpha = 1;
+    ctx.fillStyle = hpCol; ctx.globalAlpha = 0.3; ctx.fillRect(barX, by, fillW + sk, h);
+    ctx.globalAlpha = 0.4; ctx.strokeStyle = hpCol; ctx.lineWidth = 1;
+    for (var gx = barX - h; gx < barX + fillW; gx += 6) {
+      ctx.beginPath(); ctx.moveTo(gx + sk, by); ctx.lineTo(gx - h + sk, by + h); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
     // leading edge tick
     ctx.strokeStyle = hpCol; ctx.lineWidth = 2; ctx.shadowColor = hpCol; ctx.shadowBlur = 6;
     ctx.beginPath(); ctx.moveTo(barX + fillW + sk, by); ctx.lineTo(barX + fillW, by + h); ctx.stroke();
     ctx.shadowBlur = 0;
-    // shield overlay: hatched, capped at the bar width
-    if (block > 0) {
-      var sw = Math.min(1, block / maxHp) * barW;
-      ctx.strokeStyle = 'rgba(65,216,255,0.85)'; ctx.lineWidth = 1.2;
-      for (var hx = barX - h; hx < barX + sw; hx += 5) {
-        ctx.beginPath(); ctx.moveTo(hx + sk, by); ctx.lineTo(hx - h + sk, by + h); ctx.stroke();
-      }
-      ctx.fillStyle = 'rgba(65,216,255,0.12)'; ctx.fillRect(barX, by, sw + sk, h);
-    }
     ctx.restore();
     barPath(); ctx.strokeStyle = '#3a6b58'; ctx.lineWidth = 1.5; ctx.stroke();
-    // numbers: HP centered, shield value at the front
+    // HP number, centered
     ctx.fillStyle = '#eaffef'; ctx.shadowColor = '#000'; ctx.shadowBlur = 3;
     ctx.font = 'bold ' + Math.round(h * 0.62) + 'px monospace'; ctx.textAlign = 'center';
     ctx.fillText(hp + ' / ' + maxHp, (barX + barEnd) / 2, by + h / 2 + 0.5);
+    ctx.shadowBlur = 0;
+
+    // --- dynamic shield bar: a separate hatched rail beneath the HP bar ---
     if (block > 0) {
-      ctx.fillStyle = '#bfeeff'; ctx.textAlign = 'left'; ctx.font = 'bold ' + Math.round(h * 0.6) + 'px monospace';
-      ctx.fillText('⬡' + block, barX + 4 + sk, by + h / 2 + 0.5);
+      var shH = h * 0.56, shY = by + h + 2, ssk = shH * 0.42;
+      var sw = Math.min(1, block / maxHp) * barW;   // graphic caps at the HP bar width
+      var shPath = function (w) {
+        ctx.beginPath();
+        ctx.moveTo(barX + ssk, shY); ctx.lineTo(barX + w + ssk, shY);
+        ctx.lineTo(barX + w, shY + shH); ctx.lineTo(barX, shY + shH); ctx.closePath();
+      };
+      ctx.save(); shPath(sw); ctx.clip();
+      ctx.fillStyle = 'rgba(65,216,255,0.16)'; ctx.fillRect(barX, shY, sw + ssk + 2, shH);
+      ctx.strokeStyle = 'rgba(65,216,255,0.9)'; ctx.lineWidth = 1.1;
+      for (var sx = barX - shH; sx < barX + sw + shH; sx += 5) {
+        ctx.beginPath(); ctx.moveTo(sx + ssk, shY); ctx.lineTo(sx - shH + ssk, shY + shH); ctx.stroke();
+      }
+      ctx.restore();
+      shPath(sw); ctx.strokeStyle = '#41d8ff'; ctx.lineWidth = 1.4; ctx.shadowColor = '#41d8ff'; ctx.shadowBlur = 6; ctx.stroke(); ctx.shadowBlur = 0;
+      // shield value — keeps climbing even when the bar itself is capped
+      ctx.fillStyle = '#dff6ff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 3;
+      ctx.font = 'bold ' + Math.round(shH * 0.86) + 'px monospace'; ctx.textAlign = 'left';
+      ctx.fillText('⬡' + block, barX + ssk + 3, shY + shH / 2 + 0.5);
+      ctx.shadowBlur = 0;
     }
     ctx.restore();
   }
