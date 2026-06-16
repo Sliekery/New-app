@@ -303,22 +303,26 @@ html, body {
 
 /* ===== Cockpit rail — left-edge buttons (beside the pilot) + tactical panels ===== */
 #rail {
-  position: absolute; left: 4px; top: 50%; transform: translateY(-50%);
-  z-index: 28; display: none; flex-direction: column; gap: 6px; pointer-events: auto;
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  z-index: 28; display: none; flex-direction: column; gap: 7px; pointer-events: auto;
 }
 /* leader line linking an open panel back to its button */
 #rail-line { position: absolute; left: 0; top: 0; z-index: 28; pointer-events: none; overflow: visible; }
 #rail-line polyline { filter: drop-shadow(0 0 3px currentColor); opacity: 0.85; }
 .rail-btn {
-  width: 38px; height: 40px; border: 1px solid var(--rc); background: rgba(6,16,22,0.85);
+  width: 34px; height: 34px; border: 1px solid var(--rc); background: rgba(6,16,22,0.82);
   color: var(--rc); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
   cursor: pointer; position: relative; transition: background 0.12s, box-shadow 0.12s;
   clip-path: polygon(0 5px, 5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
 }
+/* each rail item = a switch nub + the box, so it reads like a toggle row */
+.rail-row { display: flex; align-items: center; gap: 4px; }
+.rk-sw { flex: 0 0 auto; width: 7px; height: 2px; background: var(--rc); opacity: 0.75; box-shadow: 0 0 4px var(--rc); }
 .rail-btn:active { transform: scale(0.94); }
 .rail-btn.active { background: var(--rc); color: #04080a; box-shadow: 0 0 11px var(--rc); }
-.rail-btn .rk-ic { font-size: 13px; line-height: 1; }
-.rail-btn .rk-n { font-size: 8px; opacity: 0.85; }
+.rail-btn .rk-ic { width: 15px; height: 15px; line-height: 0; }
+.rail-btn .rk-ic svg { width: 15px; height: 15px; display: block; }
+.rail-btn .rk-n { font-size: 8px; opacity: 0.85; font-family: monospace; }
 #rail-panel {
   position: absolute; z-index: 29; min-width: 158px; max-width: 232px;
   border: 1px solid var(--rc); background: rgba(5,13,17,0.94);

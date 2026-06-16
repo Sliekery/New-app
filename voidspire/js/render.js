@@ -1265,27 +1265,29 @@
     var hp = Math.max(0, Math.round(R.player.hp)), maxHp = R.player.maxHp || 1;
     var block = Math.round(R.player.block || 0), energy = c.energy || 0;
     var frac = Math.max(0, Math.min(1, hp / maxHp));
-    var h = Math.max(12, scale * 0.42);
+    var h = Math.max(10, scale * 0.30);             // slimmer console line
     var GREEN = '#5dff88', GDIM = '#2c6047', CY = '#41d8ff', DIM = '#46585f';
     var hpCol = frac > 0.5 ? GREEN : frac > 0.25 ? '#ffb02e' : '#ff4a5e';
-    var fs = Math.round(h * 0.62);                 // readout font
-    var cy = py + scale * 1.82;                     // vertical center of the console line
+    var fs = Math.round(h * 0.72);                 // readout font
+    var cy = py + scale * 1.74;                     // vertical center of the console line
     ctx.save();
     ctx.lineJoin = 'miter'; ctx.lineCap = 'butt'; ctx.textBaseline = 'middle';
     ctx.font = 'bold ' + fs + 'px monospace';
 
-    // one slim terminal line: ▲energy │ ▮▮▮ hp/max │ ⬡shield — anchored left,
-    // shield grows off the right end so the rest never shifts.
-    var cells = 12, cw = h * 0.6, chh = h * 0.92, gap = h * 0.45, divH = h * 1.05;
-    var cx = px - scale * 1.62;
+    // one slim terminal line: ▲energy │ ▮▮▮ hp/max │ ⬡shield — centered under
+    // the character (on the HP core); shield trails off the right when present.
+    var cells = 12, cw = h * 0.62, chh = h * 0.96, gap = h * 0.46, divH = h * 1.05;
+    var eStr = '' + energy, hpTxt = hp + '/' + maxHp;
+    var coreW = h * 0.62 + ctx.measureText(eStr).width + gap * 2 + cells * cw + gap * 0.7 + ctx.measureText(hpTxt).width;
+    var cx = px - coreW / 2;
 
     // energy — up-triangle + value
     var tcx = cx + h * 0.28;
     ctx.beginPath(); ctx.moveTo(tcx, cy - h * 0.34); ctx.lineTo(tcx - h * 0.3, cy + h * 0.18); ctx.lineTo(tcx + h * 0.3, cy + h * 0.18); ctx.closePath();
     ctx.fillStyle = CY; ctx.shadowColor = CY; ctx.shadowBlur = 4; ctx.fill(); ctx.shadowBlur = 0;
     cx += h * 0.62; ctx.textAlign = 'left'; ctx.fillStyle = '#eafcff';
-    ctx.fillText('' + energy, cx, cy + 0.5);
-    cx += ctx.measureText('' + energy).width + gap;
+    ctx.fillText(eStr, cx, cy + 0.5);
+    cx += ctx.measureText(eStr).width + gap;
 
     // divider
     L(cx, cy - divH / 2, cx, cy + divH / 2, DIM, 1); cx += gap;
@@ -1305,7 +1307,7 @@
 
     // HP number
     ctx.fillStyle = '#eaffef'; ctx.shadowColor = '#000'; ctx.shadowBlur = 3;
-    var hpTxt = hp + '/' + maxHp; ctx.fillText(hpTxt, cx, cy + 0.5); ctx.shadowBlur = 0;
+    ctx.fillText(hpTxt, cx, cy + 0.5); ctx.shadowBlur = 0;
     cx += ctx.measureText(hpTxt).width + gap;
 
     // divider + shield hexagon (only when shielded)

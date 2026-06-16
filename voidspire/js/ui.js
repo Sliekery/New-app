@@ -655,6 +655,17 @@
     return out;
   }
 
+  // thin vector glyphs for the rail switches (stroke = the button's colour)
+  function svgIc(body) {
+    return '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>';
+  }
+  var RAIL_ICON = {
+    buffs: svgIc('<path d="M8 13V4"/><path d="M4.3 7.7 8 4l3.7 3.7"/>'),
+    debuffs: svgIc('<path d="M8 3v9"/><path d="M4.3 8.3 8 12l3.7-3.7"/>'),
+    relics: svgIc('<path d="M8 2.3 13.7 8 8 13.7 2.3 8Z"/><path d="M8 5.6 10.4 8 8 10.4 5.6 8Z"/>'),
+    draw: svgIc('<rect x="5.4" y="4" width="7" height="9" rx="0.6"/><path d="M3.4 6.2V11a1.6 1.6 0 0 0 1.6 1.6h4.4"/>'),
+    discard: svgIc('<rect x="4.4" y="3.6" width="7" height="9" rx="0.6"/><path d="M6.2 6.1 9.7 9.6M9.7 6.1 6.2 9.6"/>'),
+  };
   function renderRail() {
     if (!$rail) return;
     var c = E.combat;
@@ -662,15 +673,16 @@
     $rail.style.display = show ? 'flex' : 'none';
     if (!show) { closeRail(); return; }
     var items = [
-      { k: 'buffs', ic: '▲', col: '#5dff88', n: railBuffs().length + railPowers().length },
-      { k: 'debuffs', ic: '▽', col: '#ff4a5e', n: railDebuffs().length },
-      { k: 'relics', ic: '◆', col: '#ffb02e', n: E.run.artifacts.length },
-      { k: 'draw', ic: '▤', col: '#41d8ff', n: c.drawPile.length },
-      { k: 'discard', ic: '▥', col: '#9fb6c0', n: c.discard.length },
+      { k: 'buffs', ic: RAIL_ICON.buffs, col: '#5dff88', n: railBuffs().length + railPowers().length },
+      { k: 'debuffs', ic: RAIL_ICON.debuffs, col: '#ff4a5e', n: railDebuffs().length },
+      { k: 'relics', ic: RAIL_ICON.relics, col: '#ffb02e', n: E.run.artifacts.length },
+      { k: 'draw', ic: RAIL_ICON.draw, col: '#41d8ff', n: c.drawPile.length },
+      { k: 'discard', ic: RAIL_ICON.discard, col: '#9fb6c0', n: c.discard.length },
     ];
     $rail.innerHTML = items.map(function (it) {
-      return '<button class="rail-btn' + (railOpen === it.k ? ' active' : '') + '" data-rk="' + it.k + '" style="--rc:' + it.col + '">' +
-        '<span class="rk-ic">' + it.ic + '</span><span class="rk-n">' + it.n + '</span></button>';
+      return '<div class="rail-row" style="--rc:' + it.col + '"><span class="rk-sw"></span>' +
+        '<button class="rail-btn' + (railOpen === it.k ? ' active' : '') + '" data-rk="' + it.k + '">' +
+        '<span class="rk-ic">' + it.ic + '</span><span class="rk-n">' + it.n + '</span></button></div>';
     }).join('');
     $rail.querySelectorAll('[data-rk]').forEach(function (btn) {
       btn.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); onRailTap(btn.dataset.rk); });

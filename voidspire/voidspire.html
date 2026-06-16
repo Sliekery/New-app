@@ -314,22 +314,26 @@ html, body {
 
 /* ===== Cockpit rail — left-edge buttons (beside the pilot) + tactical panels ===== */
 #rail {
-  position: absolute; left: 4px; top: 50%; transform: translateY(-50%);
-  z-index: 28; display: none; flex-direction: column; gap: 6px; pointer-events: auto;
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  z-index: 28; display: none; flex-direction: column; gap: 7px; pointer-events: auto;
 }
 /* leader line linking an open panel back to its button */
 #rail-line { position: absolute; left: 0; top: 0; z-index: 28; pointer-events: none; overflow: visible; }
 #rail-line polyline { filter: drop-shadow(0 0 3px currentColor); opacity: 0.85; }
 .rail-btn {
-  width: 38px; height: 40px; border: 1px solid var(--rc); background: rgba(6,16,22,0.85);
+  width: 34px; height: 34px; border: 1px solid var(--rc); background: rgba(6,16,22,0.82);
   color: var(--rc); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
   cursor: pointer; position: relative; transition: background 0.12s, box-shadow 0.12s;
   clip-path: polygon(0 5px, 5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
 }
+/* each rail item = a switch nub + the box, so it reads like a toggle row */
+.rail-row { display: flex; align-items: center; gap: 4px; }
+.rk-sw { flex: 0 0 auto; width: 7px; height: 2px; background: var(--rc); opacity: 0.75; box-shadow: 0 0 4px var(--rc); }
 .rail-btn:active { transform: scale(0.94); }
 .rail-btn.active { background: var(--rc); color: #04080a; box-shadow: 0 0 11px var(--rc); }
-.rail-btn .rk-ic { font-size: 13px; line-height: 1; }
-.rail-btn .rk-n { font-size: 8px; opacity: 0.85; }
+.rail-btn .rk-ic { width: 15px; height: 15px; line-height: 0; }
+.rail-btn .rk-ic svg { width: 15px; height: 15px; display: block; }
+.rail-btn .rk-n { font-size: 8px; opacity: 0.85; font-family: monospace; }
 #rail-panel {
   position: absolute; z-index: 29; min-width: 158px; max-width: 232px;
   border: 1px solid var(--rc); background: rgba(5,13,17,0.94);
@@ -7169,27 +7173,29 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var hp = Math.max(0, Math.round(R.player.hp)), maxHp = R.player.maxHp || 1;
     var block = Math.round(R.player.block || 0), energy = c.energy || 0;
     var frac = Math.max(0, Math.min(1, hp / maxHp));
-    var h = Math.max(12, scale * 0.42);
+    var h = Math.max(10, scale * 0.30);             // slimmer console line
     var GREEN = '#5dff88', GDIM = '#2c6047', CY = '#41d8ff', DIM = '#46585f';
     var hpCol = frac > 0.5 ? GREEN : frac > 0.25 ? '#ffb02e' : '#ff4a5e';
-    var fs = Math.round(h * 0.62);                 // readout font
-    var cy = py + scale * 1.82;                     // vertical center of the console line
+    var fs = Math.round(h * 0.72);                 // readout font
+    var cy = py + scale * 1.74;                     // vertical center of the console line
     ctx.save();
     ctx.lineJoin = 'miter'; ctx.lineCap = 'butt'; ctx.textBaseline = 'middle';
     ctx.font = 'bold ' + fs + 'px monospace';
 
-    // one slim terminal line: ▲energy │ ▮▮▮ hp/max │ ⬡shield — anchored left,
-    // shield grows off the right end so the rest never shifts.
-    var cells = 12, cw = h * 0.6, chh = h * 0.92, gap = h * 0.45, divH = h * 1.05;
-    var cx = px - scale * 1.62;
+    // one slim terminal line: ▲energy │ ▮▮▮ hp/max │ ⬡shield — centered under
+    // the character (on the HP core); shield trails off the right when present.
+    var cells = 12, cw = h * 0.62, chh = h * 0.96, gap = h * 0.46, divH = h * 1.05;
+    var eStr = '' + energy, hpTxt = hp + '/' + maxHp;
+    var coreW = h * 0.62 + ctx.measureText(eStr).width + gap * 2 + cells * cw + gap * 0.7 + ctx.measureText(hpTxt).width;
+    var cx = px - coreW / 2;
 
     // energy — up-triangle + value
     var tcx = cx + h * 0.28;
     ctx.beginPath(); ctx.moveTo(tcx, cy - h * 0.34); ctx.lineTo(tcx - h * 0.3, cy + h * 0.18); ctx.lineTo(tcx + h * 0.3, cy + h * 0.18); ctx.closePath();
     ctx.fillStyle = CY; ctx.shadowColor = CY; ctx.shadowBlur = 4; ctx.fill(); ctx.shadowBlur = 0;
     cx += h * 0.62; ctx.textAlign = 'left'; ctx.fillStyle = '#eafcff';
-    ctx.fillText('' + energy, cx, cy + 0.5);
-    cx += ctx.measureText('' + energy).width + gap;
+    ctx.fillText(eStr, cx, cy + 0.5);
+    cx += ctx.measureText(eStr).width + gap;
 
     // divider
     L(cx, cy - divH / 2, cx, cy + divH / 2, DIM, 1); cx += gap;
@@ -7209,7 +7215,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     // HP number
     ctx.fillStyle = '#eaffef'; ctx.shadowColor = '#000'; ctx.shadowBlur = 3;
-    var hpTxt = hp + '/' + maxHp; ctx.fillText(hpTxt, cx, cy + 0.5); ctx.shadowBlur = 0;
+    ctx.fillText(hpTxt, cx, cy + 0.5); ctx.shadowBlur = 0;
     cx += ctx.measureText(hpTxt).width + gap;
 
     // divider + shield hexagon (only when shielded)
@@ -8202,6 +8208,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return out;
   }
 
+  // thin vector glyphs for the rail switches (stroke = the button's colour)
+  function svgIc(body) {
+    return '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>';
+  }
+  var RAIL_ICON = {
+    buffs: svgIc('<path d="M8 13V4"/><path d="M4.3 7.7 8 4l3.7 3.7"/>'),
+    debuffs: svgIc('<path d="M8 3v9"/><path d="M4.3 8.3 8 12l3.7-3.7"/>'),
+    relics: svgIc('<path d="M8 2.3 13.7 8 8 13.7 2.3 8Z"/><path d="M8 5.6 10.4 8 8 10.4 5.6 8Z"/>'),
+    draw: svgIc('<rect x="5.4" y="4" width="7" height="9" rx="0.6"/><path d="M3.4 6.2V11a1.6 1.6 0 0 0 1.6 1.6h4.4"/>'),
+    discard: svgIc('<rect x="4.4" y="3.6" width="7" height="9" rx="0.6"/><path d="M6.2 6.1 9.7 9.6M9.7 6.1 6.2 9.6"/>'),
+  };
   function renderRail() {
     if (!$rail) return;
     var c = E.combat;
@@ -8209,15 +8226,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $rail.style.display = show ? 'flex' : 'none';
     if (!show) { closeRail(); return; }
     var items = [
-      { k: 'buffs', ic: '▲', col: '#5dff88', n: railBuffs().length + railPowers().length },
-      { k: 'debuffs', ic: '▽', col: '#ff4a5e', n: railDebuffs().length },
-      { k: 'relics', ic: '◆', col: '#ffb02e', n: E.run.artifacts.length },
-      { k: 'draw', ic: '▤', col: '#41d8ff', n: c.drawPile.length },
-      { k: 'discard', ic: '▥', col: '#9fb6c0', n: c.discard.length },
+      { k: 'buffs', ic: RAIL_ICON.buffs, col: '#5dff88', n: railBuffs().length + railPowers().length },
+      { k: 'debuffs', ic: RAIL_ICON.debuffs, col: '#ff4a5e', n: railDebuffs().length },
+      { k: 'relics', ic: RAIL_ICON.relics, col: '#ffb02e', n: E.run.artifacts.length },
+      { k: 'draw', ic: RAIL_ICON.draw, col: '#41d8ff', n: c.drawPile.length },
+      { k: 'discard', ic: RAIL_ICON.discard, col: '#9fb6c0', n: c.discard.length },
     ];
     $rail.innerHTML = items.map(function (it) {
-      return '<button class="rail-btn' + (railOpen === it.k ? ' active' : '') + '" data-rk="' + it.k + '" style="--rc:' + it.col + '">' +
-        '<span class="rk-ic">' + it.ic + '</span><span class="rk-n">' + it.n + '</span></button>';
+      return '<div class="rail-row" style="--rc:' + it.col + '"><span class="rk-sw"></span>' +
+        '<button class="rail-btn' + (railOpen === it.k ? ' active' : '') + '" data-rk="' + it.k + '">' +
+        '<span class="rk-ic">' + it.ic + '</span><span class="rk-n">' + it.n + '</span></button></div>';
     }).join('');
     $rail.querySelectorAll('[data-rk]').forEach(function (btn) {
       btn.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); onRailTap(btn.dataset.rk); });
