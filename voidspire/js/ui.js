@@ -18,6 +18,7 @@
   var locked = false;       // input lock while timeline plays
   var toastTimer = null;
   var orient = 'auto';  // 'auto' (fit to screen) | 'portrait' | 'landscape' (persisted)
+  var uiScale = 1;      // current #game transform scale — drag offsets divide by it
 
   /* ====================== tiny synth ====================== */
   var AC = null, muted = false;
@@ -285,6 +286,7 @@
     if (!$game) return;
     var d = isLandscape() ? DESIGN.landscape : DESIGN.portrait;
     var s = Math.min(window.innerWidth / d[0], window.innerHeight / d[1]);
+    uiScale = s || 1;
     $game.style.setProperty('--design-w', d[0] + 'px');
     $game.style.setProperty('--design-h', d[1] + 'px');
     $game.style.setProperty('--ui-scale', s.toFixed(4));
@@ -903,7 +905,7 @@
       potionDrag.el.classList.add('dragging');
     }
     if (potionDrag.moved) {
-      potionDrag.el.style.transform = 'translate(' + potionDrag.dx + 'px,' + potionDrag.dy + 'px) scale(1.12)';
+      potionDrag.el.style.transform = 'translate(' + (potionDrag.dx / uiScale) + 'px,' + (potionDrag.dy / uiScale) + 'px) scale(1.12)';
       var armed = !overPotionArea(ev);            // armed everywhere except back over the belt
       potionDrag.el.classList.toggle('will-play', armed);
       R.targeting = armed && E.aliveEnemies().length > 0;  // show reticles as drop hints
@@ -1140,7 +1142,9 @@
     }
     if (drag.moved) {
       var lift = Math.min(0, drag.dy);
-      drag.el.style.transform = 'translate(' + drag.dx + 'px,' + drag.dy + 'px) scale(' + (1 + Math.min(0.25, -lift / 400)) + ')';
+      // the card lives inside the scaled #game frame, so divide the screen-space
+      // drag offset by the scale to keep the card pinned under the finger
+      drag.el.style.transform = 'translate(' + (drag.dx / uiScale) + 'px,' + (drag.dy / uiScale) + 'px) scale(' + (1 + Math.min(0.25, -lift / 400)) + ')';
       var armed = canDropPlay(ev);
       drag.el.classList.toggle('will-play', armed);
     }
