@@ -273,6 +273,25 @@ function pilotSpec() {
   return { cls: e.cls, core: e.core, flex: e.flex || FLEX_OF[e.cls] || [] };
 }
 
+// the bot can't manage relic toggles, so it values clean upside and shuns
+// downsides it can't switch off.
+function scoreRelic(id) {
+  var a = VS.ARTIFACTS[id]; if (!a) return 0;
+  var s = 5;
+  var hooks = a.hooks || (a.k ? [{ k: a.k, v: a.v }] : []);
+  hooks.forEach(function (h) {
+    if (h.k === 'noShield' || h.k === 'noCredits' || h.k === 'dmgTakenMult') s -= 9;
+    if (h.k === 'enemyHpScale' || h.k === 'lifestealPct' || h.k === 'flatDmg' || h.k === 'energyEveryTurn' || h.k === 'blockStart' || h.k === 'strStart') s += 3;
+  });
+  if (a.special === 'glassCannon') s -= 4;
+  if (a.uses) s -= 2;
+  return s;
+}
+function bestRelic(ids) {
+  var bi = 0, bs = -1e9;
+  ids.forEach(function (id, i) { var sc = scoreRelic(id); if (sc > bs) { bs = sc; bi = i; } });
+  return { idx: bi, score: bs };
+}
 function scoreRewardCard(cid) {
   var def = VS.CARDS[cid];
   var s = def.rarity * 3;
@@ -374,9 +393,19 @@ function step() {
       E.enterNode(node);
       break;
     }
-    case 'treasure': E.finishTreasure(); break;
+    case 'treasure':
+      if (r.treasure && r.treasure.choices && r.treasure.choices.length) {
+        var tp = bestRelic(r.treasure.choices);
+        if (tp.score > 0) E.takeTreasureArtifact(tp.idx);
+      }
+      E.finishTreasure();
+      break;
     case 'combat': botCombat(); break;
     case 'reward': {
+      if (r.reward.artifactChoices && r.reward.artifactChoices.length && !r.reward.artifactPicked) {
+        var rp = bestRelic(r.reward.artifactChoices);
+        if (rp.score > 0) E.takeRewardArtifact(rp.idx);
+      }
       var bi = -1, bs = 0;
       r.reward.cards.forEach(function (cid, i) {
         var s = scoreRewardCard(cid);
