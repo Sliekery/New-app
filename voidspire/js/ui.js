@@ -1073,22 +1073,30 @@
   /* ====================== TREASURE ====================== */
   function showTreasure() {
     updateHUD();
-    var r = E.run;
+    var r = E.run, t = r.treasure;
     var s = overlayScreen(true);
     s.appendChild(el('h2', 'screen-title', 'Supply Cache'));
-    s.appendChild(el('div', 'screen-sub', 'A SEALED CACHE, LONG FORGOTTEN'));
-    if (r.treasure) {
-      var a = ns.ARTIFACTS[r.treasure];
-      var fr = el('div', 'comm-frame');
-      fr.innerHTML = artSVG(a.art, 'portrait', '#ffb02e');
-      s.appendChild(fr);
-      s.appendChild(el('div', 'gain-list', '<div>◆ ' + esc(a.name) + ' — ' + esc(a.desc) + '</div>'));
-    } else {
-      s.appendChild(el('div', 'gain-list', '<div>Relic vault already full — salvaged for +40 credits.</div>'));
+    if (!t || !t.choices || !t.choices.length) {
+      s.appendChild(el('div', 'screen-sub', 'RELIC VAULT FULL — SALVAGED FOR +40 CREDITS'));
+      var btn0 = el('button', 'btn', 'CONTINUE');
+      btn0.addEventListener('pointerdown', function () { SFX.coin(); E.finishTreasure(); U.refresh(); });
+      s.appendChild(btn0);
+      return;
     }
-    var btn = el('button', 'btn', 'TAKE IT');
-    btn.addEventListener('pointerdown', function () { SFX.coin(); E.finishTreasure(); U.refresh(); });
-    s.appendChild(btn);
+    s.appendChild(el('div', 'screen-sub', 'CHOOSE ONE RELIC — THE REST RESEAL'));
+    var cbar = makeConfirmBar();
+    t.choices.forEach(function (id, i) {
+      var a = ns.ARTIFACTS[id];
+      var btn = el('div', 'panel-btn amber',
+        '<div class="pb-title"><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + '</div><div class="pb-desc">' + esc(a.desc) + '</div>');
+      s.appendChild(btn);
+      selectConfirm(s, btn, cbar, 'Take <b>' + esc(a.name) + '</b>?<span class="cb-note">' + esc(a.desc) + '</span>',
+        function () { SFX.coin(); E.takeTreasureArtifact(i); E.finishTreasure(); U.refresh(); }, 'amber');
+    });
+    s.appendChild(cbar.el);
+    var skip = el('button', 'btn', 'LEAVE IT');
+    skip.addEventListener('pointerdown', function () { E.finishTreasure(); U.refresh(); });
+    s.appendChild(skip);
   }
 
   /* ====================== COMBAT ====================== */
@@ -2126,14 +2134,35 @@
     var s = overlayScreen(true);
     s.appendChild(el('h2', 'screen-title', rw.kind === 'boss' ? 'Sector Boss Eliminated' : rw.kind === 'elite' ? 'Elite Eliminated' : 'Hostiles Eliminated'));
     var subParts = ['+' + rw.credits + ' CREDITS'];
-    if (rw.artifact) subParts.push('RELIC: ' + ns.ARTIFACTS[rw.artifact].name.toUpperCase());
     if (rw.bonusArtifact) subParts.push('TITHE: ' + ns.ARTIFACTS[rw.bonusArtifact].name.toUpperCase());
     s.appendChild(el('div', 'screen-sub', subParts.join(' · ')));
-    [rw.artifact, rw.bonusArtifact].forEach(function (aid) {
-      if (!aid) return;
-      var a = ns.ARTIFACTS[aid];
-      s.appendChild(el('div', 'gain-list', '<div><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + ' — ' + esc(a.desc) + '</div>'));
-    });
+    if (rw.bonusArtifact) {   // the Unmaker's Tithe relic is auto-granted
+      var ab = ns.ARTIFACTS[rw.bonusArtifact];
+      s.appendChild(el('div', 'gain-list', '<div><span class="pb-icon">' + artSVG(ab.art) + '</span>' + esc(ab.name) + ' — ' + esc(ab.desc) + '</div>'));
+    }
+    if (rw.artifactChoices && rw.artifactChoices.length && !rw.artifactPicked) {   // elite: pick 1 of 2
+      s.appendChild(el('div', 'screen-sub', 'CHOOSE A RELIC'));
+      var acbar = makeConfirmBar();
+      rw.artifactChoices.forEach(function (aid, i) {
+        var a = ns.ARTIFACTS[aid];
+        var apb = el('div', 'panel-btn amber',
+          '<div class="pb-title"><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + '</div><div class="pb-desc">' + esc(a.desc) + '</div>');
+        s.appendChild(apb);
+        selectConfirm(s, apb, acbar, 'Take <b>' + esc(a.name) + '</b>?<span class="cb-note">' + esc(a.desc) + '</span>',
+          function () { SFX.coin(); E.takeRewardArtifact(i); showReward(); }, 'amber');
+      });
+      s.appendChild(acbar.el);
+    } else if (rw.artifact) {
+      var ap = ns.ARTIFACTS[rw.artifact];
+      s.appendChild(el('div', 'gain-list', '<div><span class="pb-icon">' + artSVG(ap.art) + '</span>' + esc(ap.name) + ' — ' + esc(ap.desc) + '</div>'));
+    }
+    // make the relic choice resolve before the rest of the reward
+    if (rw.artifactChoices && rw.artifactChoices.length && !rw.artifactPicked) {
+      var skipR = el('button', 'btn dim small', 'LEAVE THE RELIC');
+      skipR.addEventListener('pointerdown', function () { SFX.tap(); rw.artifactPicked = true; showReward(); });
+      s.appendChild(skipR);
+      return;
+    }
 
     if (rw.potion && !rw.potionTaken) {
       var pot = ns.POTIONS[rw.potion];

@@ -388,12 +388,21 @@
 
   function startTreasure() {
     var r = E.run;
-    var aid = randomArtifact(1);
-    if (aid) { r.treasure = aid; addArtifact(aid); }
+    var choices = randomArtifactChoices(1, 3);
+    if (choices.length) r.treasure = { choices: choices, picked: false, pickedId: null };
     else { r.treasure = null; r.credits += 40; }
     r.phase = 'treasure';
     E.save();
   }
+  E.takeTreasureArtifact = function (i) {
+    var r = E.run;
+    if (!r.treasure || r.treasure.picked) return;
+    var id = (r.treasure.choices || [])[i];
+    if (!id) return;
+    addArtifact(id);
+    r.treasure.picked = true; r.treasure.pickedId = id;
+    E.save();
+  };
   E.finishTreasure = function () { E.run.treasure = null; nodeComplete(); };
 
   function nodeComplete() {
@@ -1753,13 +1762,26 @@
   }
   E.rollLegendary = rollLegendary;
 
+  function artifactDroppable(k, tier) {
+    var a = ns.ARTIFACTS[k];
+    if (!a || a.tier !== tier) return false;
+    if (E.run.artifacts.indexOf(k) >= 0) return false;            // already owned
+    if (a.cls && a.cls !== E.run.cls) return false;               // class-locked: only its class
+    if (a.questOnly) return false;                                // earned via quest chain, never dropped
+    return true;
+  }
   function randomArtifact(tier) {
-    var pool = Object.keys(ns.ARTIFACTS).filter(function (k) {
-      return ns.ARTIFACTS[k].tier === tier && E.run.artifacts.indexOf(k) < 0;
-    });
+    var pool = Object.keys(ns.ARTIFACTS).filter(function (k) { return artifactDroppable(k, tier); });
     if (pool.length === 0) return null;
     return pick(pool);
   }
+  // N distinct random artifacts of a tier (for pick-1-of-N rewards)
+  function randomArtifactChoices(tier, n) {
+    var pool = Object.keys(ns.ARTIFACTS).filter(function (k) { return artifactDroppable(k, tier); });
+    shuffle(pool);
+    return pool.slice(0, Math.min(n, pool.length));
+  }
+  E.randomArtifactChoices = randomArtifactChoices;
   E.randomArtifact = randomArtifact;
 
   // Flip a relic on/off — only allowed between fights, on the star chart.
@@ -1840,8 +1862,10 @@
       // Distress Beacon: its risk pays in salvage-tech (a guaranteed colorless card)
       if (kind === 'beacon' && cards.length) { var col = rollColorlessCard(); if (col) cards[cards.length - 1] = col; }
     }
-    var artifactDrop = (kind === 'elite' || kind === 'beacon') ? randomArtifact(1) : null;
-    if (artifactDrop) addArtifact(artifactDrop);
+    // Elites offer a pick-1-of-2 relic (chosen on the reward screen); beacons no
+    // longer hand out a relic (they keep their colorless-card payoff).
+    var artifactChoices = (kind === 'elite') ? randomArtifactChoices(1, 2) : [];
+    var artifactDrop = null;   // no auto-grant; picked from artifactChoices
     // The Unmaker's Tithe: an extra relic from every elite & boss
     var bonusArtifact = null;
     if (E.hasEcho('unmaker_tithe') && (kind === 'elite' || kind === 'boss')) {
@@ -1850,12 +1874,22 @@
     }
     var dropP = (kind === 'boss') ? B.potions.bossDropChance : B.potions.dropChance;
     var potionDrop = (rnd() < dropP) ? rollPotion() : null;
-    r.reward = { credits: credits, cards: cards, artifact: artifactDrop, bonusArtifact: bonusArtifact, potion: potionDrop, potionTaken: false, cardTaken: false, kind: kind };
+    r.reward = { credits: credits, cards: cards, artifact: artifactDrop, artifactChoices: artifactChoices, artifactPicked: false, bonusArtifact: bonusArtifact, potion: potionDrop, potionTaken: false, cardTaken: false, kind: kind };
     r.phase = 'reward';
     emit('win', { kind: kind, credits: credits });
     E.save();
   }
 
+  E.takeRewardArtifact = function (i) {
+    var r = E.run;
+    if (!r.reward || r.reward.artifactPicked) return;
+    var id = (r.reward.artifactChoices || [])[i];
+    if (!id) return;
+    addArtifact(id);
+    r.reward.artifactPicked = true;
+    r.reward.artifact = id;
+    E.save();
+  };
   E.takeRewardCard = function (i) {
     var r = E.run;
     if (!r.reward || r.reward.cardTaken) return;
