@@ -53,8 +53,8 @@ the **sector / lane / fog map**, the **credit economy**, or the **MGT/TEC/PSI/BN
 | Field Rations | Start each **sector** holding a random **Common Stim**. | [N] stims × sectors |
 | Counterpressure Gel | Whenever you **use a Stim**, deal **4** to a random enemy. | [N] stims become offense |
 | Charged Idle | End a turn having played **no cards** → **+2 Energy** next turn. | [N] novel "charge-up" decision |
-| Black-Market Chip | While you hold **under 15 credits**, draw **+1 card** each turn. | [N] economy inversion (rewards spending) |
-| Scout Relay | Reveal **1 extra row** of the star chart ahead of the fog. | [N] map / fog utility |
+| Resonance Coil | The **first Power you play each combat, draw a card**. | [N] Power card-type synergy |
+| Reclaimer Unit | Whenever your **draw pile reshuffles**, gain **3 Shield**. | [N] rewards thin / fast-cycling decks |
 | Resonant Core | Your **core attribute** counts as **+1 higher while you hold no Shield**. | [N] attribute × condition |
 
 *Design note:* still low-impact (a stray Energy, one Stim, a single extra card), but each pokes a
