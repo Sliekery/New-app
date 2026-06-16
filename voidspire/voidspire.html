@@ -984,14 +984,19 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     /* ---- Branching map (Slay-the-Spire-style star chart) ------------- */
     map: {
-      rows: 7,             // content rows per sector (the boss sits above them)
-      cols: 4,             // max horizontal lanes
-      paths: 6,            // random-walk paths used to weave the chart
-      typeWeights: { fight: 50, event: 16, random: 11, shop: 6, rest: 6, elite: 14, treasure: 5 },
-      eliteFromRow: 2,     // no elite (mini-boss) nodes before this row (0-based)
-      shopRestFromRow: 1,  // no shop/rest nodes before this row
-      treasureRow: -1,     // -1 = no dedicated treasure row (treasure is an occasional node)
-      restBeforeBoss: false, // rest is a routing choice with opportunity cost, not a freebie
+      rows: 12,            // content rows per sector (the boss sits above them)
+      cols: 5,             // max horizontal lanes
+      paths: 7,            // random-walk paths used to weave the chart
+      // a sector reads as three acts: a safe Approach, the dangerous Push, and
+      // a Final Approach that ends on a guaranteed rest before the boss.
+      act1End: 3,          // rows 1..act1End  = Approach (fights/events only)
+      act2End: 8,          // rows act1End+1..act2End = The Push (elites/shops/forges...)
+      actWeights: {
+        approach: { fight: 60, event: 30, treasure: 6 },
+        push:     { fight: 30, event: 14, random: 8, elite: 18, shop: 11, rest: 10, treasure: 6 },
+        final:    { fight: 40, event: 18, random: 8, shop: 11, rest: 12, elite: 7, treasure: 6 },
+      },
+      restBeforeBoss: true, // the top content row is always a rest (catch your breath)
     },
 
     /* ---- Rewards ------------------------------------------------------ */
@@ -3599,23 +3604,23 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
 
   function assignTypes(rows, sector) {
-    var M = B.map, ROWS = M.rows;
+    var M = B.map, ROWS = M.rows, A = M.actWeights;
     for (var r = 0; r < ROWS; r++) {
-      var isFirst = (r === 0), isLast = (r === ROWS - 1), isTreasure = (r === M.treasureRow);
+      var isFirst = (r === 0), isLast = (r === ROWS - 1);
+      // the three acts gate which encounters can appear at each depth
+      var weights = (r <= M.act1End) ? A.approach : (r <= M.act2End) ? A.push : A.final;
       rows[r].forEach(function (node) {
-        if (isFirst) { node.type = 'fight'; return; }
-        if (isLast && M.restBeforeBoss) { node.type = 'rest'; return; }
-        if (isTreasure) { node.type = 'treasure'; return; }
-        var t = weightedType(M.typeWeights), tries = 0;
+        if (isFirst) { node.type = 'fight'; return; }                 // entry row: all fights
+        if (isLast && M.restBeforeBoss) { node.type = 'rest'; return; } // catch your breath before the boss
+        var t = weightedType(weights), tries = 0;
         while (tries++ < 16) {
-          if (t === 'elite' && r < M.eliteFromRow) { t = weightedType(M.typeWeights); continue; }
-          if ((t === 'shop' || t === 'rest') && r < M.shopRestFromRow) { t = weightedType(M.typeWeights); continue; }
-          if (t === 'shop' || t === 'rest' || t === 'elite') {
+          // don't stack two of the same "special" node back-to-back on a path
+          if (t === 'shop' || t === 'rest' || t === 'elite' || t === 'forge') {
             var clash = node.parents.some(function (pc) {
               var pn = rows[r - 1].find(function (x) { return x.col === pc; });
               return pn && pn.type === t;
             });
-            if (clash) { t = weightedType(M.typeWeights); continue; }
+            if (clash) { t = weightedType(weights); continue; }
           }
           break;
         }

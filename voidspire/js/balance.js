@@ -63,14 +63,19 @@
 
     /* ---- Branching map (Slay-the-Spire-style star chart) ------------- */
     map: {
-      rows: 7,             // content rows per sector (the boss sits above them)
-      cols: 4,             // max horizontal lanes
-      paths: 6,            // random-walk paths used to weave the chart
-      typeWeights: { fight: 50, event: 16, random: 11, shop: 6, rest: 6, elite: 14, treasure: 5 },
-      eliteFromRow: 2,     // no elite (mini-boss) nodes before this row (0-based)
-      shopRestFromRow: 1,  // no shop/rest nodes before this row
-      treasureRow: -1,     // -1 = no dedicated treasure row (treasure is an occasional node)
-      restBeforeBoss: false, // rest is a routing choice with opportunity cost, not a freebie
+      rows: 12,            // content rows per sector (the boss sits above them)
+      cols: 5,             // max horizontal lanes
+      paths: 7,            // random-walk paths used to weave the chart
+      // a sector reads as three acts: a safe Approach, the dangerous Push, and
+      // a Final Approach that ends on a guaranteed rest before the boss.
+      act1End: 3,          // rows 1..act1End  = Approach (fights/events only)
+      act2End: 8,          // rows act1End+1..act2End = The Push (elites/shops/forges...)
+      actWeights: {
+        approach: { fight: 60, event: 30, treasure: 6 },
+        push:     { fight: 30, event: 14, random: 8, elite: 18, shop: 11, rest: 10, treasure: 6 },
+        final:    { fight: 40, event: 18, random: 8, shop: 11, rest: 12, elite: 7, treasure: 6 },
+      },
+      restBeforeBoss: true, // the top content row is always a rest (catch your breath)
     },
 
     /* ---- Rewards ------------------------------------------------------ */

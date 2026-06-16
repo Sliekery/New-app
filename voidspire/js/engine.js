@@ -209,23 +209,23 @@
   }
 
   function assignTypes(rows, sector) {
-    var M = B.map, ROWS = M.rows;
+    var M = B.map, ROWS = M.rows, A = M.actWeights;
     for (var r = 0; r < ROWS; r++) {
-      var isFirst = (r === 0), isLast = (r === ROWS - 1), isTreasure = (r === M.treasureRow);
+      var isFirst = (r === 0), isLast = (r === ROWS - 1);
+      // the three acts gate which encounters can appear at each depth
+      var weights = (r <= M.act1End) ? A.approach : (r <= M.act2End) ? A.push : A.final;
       rows[r].forEach(function (node) {
-        if (isFirst) { node.type = 'fight'; return; }
-        if (isLast && M.restBeforeBoss) { node.type = 'rest'; return; }
-        if (isTreasure) { node.type = 'treasure'; return; }
-        var t = weightedType(M.typeWeights), tries = 0;
+        if (isFirst) { node.type = 'fight'; return; }                 // entry row: all fights
+        if (isLast && M.restBeforeBoss) { node.type = 'rest'; return; } // catch your breath before the boss
+        var t = weightedType(weights), tries = 0;
         while (tries++ < 16) {
-          if (t === 'elite' && r < M.eliteFromRow) { t = weightedType(M.typeWeights); continue; }
-          if ((t === 'shop' || t === 'rest') && r < M.shopRestFromRow) { t = weightedType(M.typeWeights); continue; }
-          if (t === 'shop' || t === 'rest' || t === 'elite') {
+          // don't stack two of the same "special" node back-to-back on a path
+          if (t === 'shop' || t === 'rest' || t === 'elite' || t === 'forge') {
             var clash = node.parents.some(function (pc) {
               var pn = rows[r - 1].find(function (x) { return x.col === pc; });
               return pn && pn.type === t;
             });
-            if (clash) { t = weightedType(M.typeWeights); continue; }
+            if (clash) { t = weightedType(weights); continue; }
           }
           break;
         }
