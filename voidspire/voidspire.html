@@ -7170,77 +7170,81 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var block = Math.round(R.player.block || 0), energy = c.energy || 0;
     var frac = Math.max(0, Math.min(1, hp / maxHp));
     var by = py + scale * 1.62, h = Math.max(12, scale * 0.42);
-    var capW = h * 1.5, barW = scale * 3.7;
-    var bx = px - scale * 1.15;                 // left edge of the energy cap
-    var barX = bx + capW + 3, barEnd = barX + barW;
+    var capW = h * 1.7, barW = scale * 3.7;
+    var bx = px - scale * 1.2;                   // left edge of the energy cap
+    var barX = bx + capW - h * 0.4, barEnd = barX + barW;   // HP bar tucks behind the cap
     var sk = h * 0.42;                           // slant amount
+    var blueFill = '#2f9fd6', blueLine = '#7fe0ff';
     ctx.save();
     ctx.lineJoin = 'miter'; ctx.lineCap = 'butt';
 
-    // --- energy cap (slanted hex) ---
-    ctx.beginPath();
-    ctx.moveTo(bx + sk, by); ctx.lineTo(bx + capW, by); ctx.lineTo(bx + capW + sk, by + h);
-    ctx.lineTo(bx, by + h); ctx.closePath();
-    ctx.fillStyle = 'rgba(5,18,26,0.92)'; ctx.fill();
-    ctx.strokeStyle = '#41d8ff'; ctx.lineWidth = 1.6; ctx.shadowColor = '#41d8ff'; ctx.shadowBlur = 7; ctx.stroke();
-    ctx.shadowBlur = 0; ctx.fillStyle = '#9fe9ff';
-    ctx.font = 'bold ' + Math.round(h * 0.7) + 'px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('' + energy, bx + capW * 0.55 + sk * 0.5, by + h / 2 + 0.5);
-
-    // --- HP bar frame ---
+    // ===== 1. GREEN HP BAR — sits behind the energy cap & shield bar =====
     function barPath() {
       ctx.beginPath();
       ctx.moveTo(barX + sk, by); ctx.lineTo(barEnd, by); ctx.lineTo(barEnd - sk, by + h);
       ctx.lineTo(barX, by + h); ctx.closePath();
     }
-    // --- dynamic shield bar: hatched, layered BEHIND the HP bar and offset
-    //     down so it peeks out beneath it (overlapping plates) ---
-    if (block > 0) {
-      var shOffY = h * 0.5;
-      var sw = Math.min(1, block / maxHp) * barW;   // graphic caps at the HP bar width
-      var shPath = function (w) {
-        ctx.beginPath();
-        ctx.moveTo(barX + sk, by + shOffY); ctx.lineTo(barX + w + sk, by + shOffY);
-        ctx.lineTo(barX + w, by + shOffY + h); ctx.lineTo(barX, by + shOffY + h); ctx.closePath();
-      };
-      ctx.save(); shPath(sw); ctx.clip();
-      ctx.fillStyle = 'rgba(65,216,255,0.18)'; ctx.fillRect(barX, by + shOffY, sw + sk + 2, h);
-      ctx.strokeStyle = 'rgba(65,216,255,0.9)'; ctx.lineWidth = 1.1;
-      for (var sx = barX - h; sx < barX + sw + h; sx += 5) {
-        ctx.beginPath(); ctx.moveTo(sx + sk, by + shOffY); ctx.lineTo(sx - h + sk, by + shOffY + h); ctx.stroke();
-      }
-      ctx.restore();
-      shPath(sw); ctx.strokeStyle = '#41d8ff'; ctx.lineWidth = 1.4; ctx.shadowColor = '#41d8ff'; ctx.shadowBlur = 6; ctx.stroke(); ctx.shadowBlur = 0;
-    }
-
-    barPath(); ctx.fillStyle = 'rgba(4,12,14,0.9)'; ctx.fill();
-    // HP fill (clipped to the bar shape) — translucent fill + diagonal hatch
+    barPath(); ctx.fillStyle = 'rgba(4,12,14,0.92)'; ctx.fill();
     ctx.save(); barPath(); ctx.clip();
-    var fillW = (barW) * frac;
+    var fillW = barW * frac;
     var hpCol = frac > 0.5 ? '#5dff88' : frac > 0.25 ? '#ffb02e' : '#ff4a5e';
-    ctx.fillStyle = hpCol; ctx.globalAlpha = 0.3; ctx.fillRect(barX, by, fillW + sk, h);
+    ctx.fillStyle = hpCol; ctx.globalAlpha = 0.32; ctx.fillRect(barX, by, fillW + sk, h);
     ctx.globalAlpha = 0.4; ctx.strokeStyle = hpCol; ctx.lineWidth = 1;
     for (var gx = barX - h; gx < barX + fillW; gx += 6) {
       ctx.beginPath(); ctx.moveTo(gx + sk, by); ctx.lineTo(gx - h + sk, by + h); ctx.stroke();
     }
     ctx.globalAlpha = 1;
-    // leading edge tick
     ctx.strokeStyle = hpCol; ctx.lineWidth = 2; ctx.shadowColor = hpCol; ctx.shadowBlur = 6;
     ctx.beginPath(); ctx.moveTo(barX + fillW + sk, by); ctx.lineTo(barX + fillW, by + h); ctx.stroke();
     ctx.shadowBlur = 0;
     ctx.restore();
     barPath(); ctx.strokeStyle = '#3a6b58'; ctx.lineWidth = 1.5; ctx.stroke();
-    // HP number, centered
-    ctx.fillStyle = '#eaffef'; ctx.shadowColor = '#000'; ctx.shadowBlur = 3;
-    ctx.font = 'bold ' + Math.round(h * 0.62) + 'px monospace'; ctx.textAlign = 'center';
-    ctx.fillText(hp + ' / ' + maxHp, (barX + barEnd) / 2, by + h / 2 + 0.5);
+
+    // ===== 2. SHIELD BAR — solid (opaque), segmented, overlaps the lower HP
+    //         bar and peeks below; grows / shrinks with shield =====
+    if (block > 0) {
+      var shTop = by + h * 0.5, shH = h * 0.74;
+      var sw = Math.max(h * 0.9, Math.min(1, block / maxHp) * barW);   // capped at HP width
+      var shPath = function (w) {
+        ctx.beginPath();
+        ctx.moveTo(barX + sk, shTop); ctx.lineTo(barX + w + sk, shTop);
+        ctx.lineTo(barX + w, shTop + shH); ctx.lineTo(barX, shTop + shH); ctx.closePath();
+      };
+      ctx.save(); shPath(sw); ctx.clip();
+      ctx.fillStyle = blueFill; ctx.fillRect(barX - sk, shTop, sw + sk * 2 + 2, shH);  // solid: hides HP behind it
+      ctx.strokeStyle = 'rgba(6,22,34,0.6)'; ctx.lineWidth = 1.6;                       // segment dividers
+      for (var vx = barX + 11; vx < barX + sw; vx += 11) {
+        ctx.beginPath(); ctx.moveTo(vx + sk, shTop); ctx.lineTo(vx, shTop + shH); ctx.stroke();
+      }
+      ctx.restore();
+      shPath(sw); ctx.strokeStyle = blueLine; ctx.lineWidth = 1.5; ctx.shadowColor = '#41d8ff'; ctx.shadowBlur = 6; ctx.stroke(); ctx.shadowBlur = 0;
+    }
+
+    // ===== 3. ENERGY CAP — solid blue, taller than the HP bar, on top, left =====
+    var capH = h * 1.34, capTop = by - (capH - h) / 2, csk = capH * 0.42;
+    ctx.beginPath();
+    ctx.moveTo(bx + csk, capTop); ctx.lineTo(bx + capW, capTop); ctx.lineTo(bx + capW + csk, capTop + capH);
+    ctx.lineTo(bx, capTop + capH); ctx.closePath();
+    ctx.fillStyle = blueFill; ctx.fill();
+    ctx.strokeStyle = blueLine; ctx.lineWidth = 1.6; ctx.shadowColor = '#41d8ff'; ctx.shadowBlur = 7; ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // shield value — sits in the peeking strip; number keeps climbing past the cap
+    // ===== 4. NUMBERS (on top of everything) =====
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#f2fdff'; ctx.shadowColor = '#04121c'; ctx.shadowBlur = 2;
+    ctx.font = 'bold ' + Math.round(capH * 0.6) + 'px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('' + energy, bx + capW * 0.52 + csk * 0.5, capTop + capH / 2 + 0.5);
+    // HP number — ride high so the shield bar doesn't cover it
+    var hpNumX = (Math.max(barX, bx + capW) + barEnd) / 2;
+    ctx.fillStyle = '#eaffef'; ctx.shadowColor = '#000'; ctx.shadowBlur = 3;
+    ctx.font = 'bold ' + Math.round(h * 0.5) + 'px monospace';
+    ctx.fillText(hp + ' / ' + maxHp, hpNumX, by + h * (block > 0 ? 0.32 : 0.5) + 0.5);
+    ctx.shadowBlur = 0;
+    // shield number, in the shield bar
     if (block > 0) {
-      ctx.fillStyle = '#dff6ff'; ctx.shadowColor = '#031018'; ctx.shadowBlur = 3;
-      ctx.font = 'bold ' + Math.round(h * 0.48) + 'px monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-      ctx.fillText('⬡' + block, barX + sk + 4, by + h * 1.25);
+      ctx.fillStyle = '#f2fdff'; ctx.shadowColor = '#04121c'; ctx.shadowBlur = 2;
+      ctx.font = 'bold ' + Math.round(h * 0.48) + 'px monospace'; ctx.textAlign = 'left';
+      ctx.fillText('⬡' + block, Math.max(barX + sk + 4, bx + capW + 3), by + h * 0.87);
       ctx.shadowBlur = 0;
     }
     ctx.restore();
