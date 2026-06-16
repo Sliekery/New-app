@@ -433,7 +433,7 @@
   function combatChrome(on) {
     $hand.style.display = on ? 'flex' : 'none';
     $controls.style.display = on ? 'flex' : 'none';
-    $energy.style.display = on ? 'block' : 'none';
+    $energy.style.display = 'none';   // energy now lives on the cockpit gauge
     $counts.style.display = 'none';
     $drawPile.style.display = on ? 'block' : 'none';
     $discardPile.style.display = on ? 'block' : 'none';
@@ -453,13 +453,16 @@
     var c = E.combat;
     var fac = ns.FACTIONS[r.faction];
     var hpPct = Math.max(0, r.hp / r.maxHp);
+    var inCombat = !!c && r.phase === 'combat';   // in combat, HP/shield live on the cockpit gauge
 
-    var html = '<div class="row">' +
-      '<div class="hp-wrap"><div class="hp-bar">' +
-      '<div class="hp-fill" style="transform:scaleX(' + hpPct.toFixed(3) + ')"></div>' +
-      '<div class="hp-text">' + Math.max(0, r.hp) + ' / ' + r.maxHp + '</div>' +
-      '</div></div>';
-    if (c && c.player.block > 0) html += '<div class="shield-chip">⬡' + c.player.block + '</div>';
+    var html = '<div class="row">';
+    if (!inCombat) {
+      html += '<div class="hp-wrap"><div class="hp-bar">' +
+        '<div class="hp-fill" style="transform:scaleX(' + hpPct.toFixed(3) + ')"></div>' +
+        '<div class="hp-text">' + Math.max(0, r.hp) + ' / ' + r.maxHp + '</div>' +
+        '</div></div>';
+      if (c && c.player.block > 0) html += '<div class="shield-chip">⬡' + c.player.block + '</div>';
+    }
     html += '<div class="stat"><b>¢' + r.credits + '</b></div>' +
       '</div>' +
       '<div class="row2">' +

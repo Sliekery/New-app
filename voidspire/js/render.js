@@ -1252,6 +1252,73 @@
 
     // archetype shield: a persistent ward around you while you hold Shield
     if (R.player.block > 0) drawPlayerShield(r, p.x, p.y + bob, scale, R.player.block);
+
+    // the cockpit gauge — energy cap + HP bar + shield overlay, below the figure
+    if (R.combatVisible) drawPlayerGauge(p.x, p.y, scale);
+  }
+
+  // A sci-fi vector readout under the character: a slanted ENERGY cap on the
+  // front, then the HP bar (with number), and a hatched SHIELD overlay that
+  // grows over the bar but never past its end.
+  function drawPlayerGauge(px, py, scale) {
+    var c = ns.engine.combat; if (!c) return;
+    var hp = Math.max(0, Math.round(R.player.hp)), maxHp = R.player.maxHp || 1;
+    var block = Math.round(R.player.block || 0), energy = c.energy || 0;
+    var frac = Math.max(0, Math.min(1, hp / maxHp));
+    var by = py + scale * 1.62, h = Math.max(12, scale * 0.42);
+    var capW = h * 1.5, barW = scale * 3.7;
+    var bx = px - scale * 1.15;                 // left edge of the energy cap
+    var barX = bx + capW + 3, barEnd = barX + barW;
+    var sk = h * 0.42;                           // slant amount
+    ctx.save();
+    ctx.lineJoin = 'miter'; ctx.lineCap = 'butt';
+
+    // --- energy cap (slanted hex) ---
+    ctx.beginPath();
+    ctx.moveTo(bx + sk, by); ctx.lineTo(bx + capW, by); ctx.lineTo(bx + capW + sk, by + h);
+    ctx.lineTo(bx, by + h); ctx.closePath();
+    ctx.fillStyle = 'rgba(5,18,26,0.92)'; ctx.fill();
+    ctx.strokeStyle = '#41d8ff'; ctx.lineWidth = 1.6; ctx.shadowColor = '#41d8ff'; ctx.shadowBlur = 7; ctx.stroke();
+    ctx.shadowBlur = 0; ctx.fillStyle = '#9fe9ff';
+    ctx.font = 'bold ' + Math.round(h * 0.7) + 'px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('' + energy, bx + capW * 0.55 + sk * 0.5, by + h / 2 + 0.5);
+
+    // --- HP bar frame ---
+    function barPath() {
+      ctx.beginPath();
+      ctx.moveTo(barX + sk, by); ctx.lineTo(barEnd, by); ctx.lineTo(barEnd - sk, by + h);
+      ctx.lineTo(barX, by + h); ctx.closePath();
+    }
+    barPath(); ctx.fillStyle = 'rgba(4,12,14,0.9)'; ctx.fill();
+    // HP fill (clipped to the bar shape)
+    ctx.save(); barPath(); ctx.clip();
+    var fillW = (barW) * frac;
+    var hpCol = frac > 0.5 ? '#5dff88' : frac > 0.25 ? '#ffb02e' : '#ff4a5e';
+    ctx.fillStyle = hpCol; ctx.globalAlpha = 0.32; ctx.fillRect(barX, by, fillW + sk, h); ctx.globalAlpha = 1;
+    // leading edge tick
+    ctx.strokeStyle = hpCol; ctx.lineWidth = 2; ctx.shadowColor = hpCol; ctx.shadowBlur = 6;
+    ctx.beginPath(); ctx.moveTo(barX + fillW + sk, by); ctx.lineTo(barX + fillW, by + h); ctx.stroke();
+    ctx.shadowBlur = 0;
+    // shield overlay: hatched, capped at the bar width
+    if (block > 0) {
+      var sw = Math.min(1, block / maxHp) * barW;
+      ctx.strokeStyle = 'rgba(65,216,255,0.85)'; ctx.lineWidth = 1.2;
+      for (var hx = barX - h; hx < barX + sw; hx += 5) {
+        ctx.beginPath(); ctx.moveTo(hx + sk, by); ctx.lineTo(hx - h + sk, by + h); ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(65,216,255,0.12)'; ctx.fillRect(barX, by, sw + sk, h);
+    }
+    ctx.restore();
+    barPath(); ctx.strokeStyle = '#3a6b58'; ctx.lineWidth = 1.5; ctx.stroke();
+    // numbers: HP centered, shield value at the front
+    ctx.fillStyle = '#eaffef'; ctx.shadowColor = '#000'; ctx.shadowBlur = 3;
+    ctx.font = 'bold ' + Math.round(h * 0.62) + 'px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(hp + ' / ' + maxHp, (barX + barEnd) / 2, by + h / 2 + 0.5);
+    if (block > 0) {
+      ctx.fillStyle = '#bfeeff'; ctx.textAlign = 'left'; ctx.font = 'bold ' + Math.round(h * 0.6) + 'px monospace';
+      ctx.fillText('⬡' + block, barX + 4 + sk, by + h / 2 + 0.5);
+    }
+    ctx.restore();
   }
 
   /* ---- power gauge: active Powers as a stacked "battle augmentation" meter,
