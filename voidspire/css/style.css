@@ -43,6 +43,19 @@ html, body {
   margin: 0 auto;
   overflow: hidden;
 }
+/* portrait scale-to-fit: render at a fixed design size, then scale the whole
+ * frame uniformly to fill the window (so desktop looks like a bigger, crisp
+ * phone — cards/HUD stay proportional and the canvas re-renders sharp). */
+#game.scaled {
+  inset: auto;
+  left: 50%; top: 50%;
+  width: var(--design-w, 400px);
+  height: var(--design-h, 868px);
+  max-width: none;
+  margin: 0;
+  transform: translate(-50%, -50%) scale(var(--ui-scale, 1));
+  transform-origin: center center;
+}
 /* horizontal / landscape display mode (auto-selected by aspect, or forced) */
 #game.landscape {
   max-width: none;

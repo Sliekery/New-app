@@ -271,15 +271,28 @@
   }
   // 'auto' picks the layout from the viewport's aspect ratio so the game fits
   // any screen (phone portrait, PC landscape...). portrait/landscape force it.
+  // Default (auto) is portrait — the game is portrait-first, and on desktop the
+  // portrait frame scales up to a big crisp "phone" rather than a stretched wide
+  // layout with tiny cards. HORIZONTAL is still available via the toggle.
   function isLandscape() {
-    if (orient === 'landscape') return true;
-    if (orient === 'portrait') return false;
-    return (window.innerWidth / Math.max(1, window.innerHeight)) >= 1.1;
+    return orient === 'landscape';
+  }
+  // Portrait scale-to-fit: a fixed design frame scaled uniformly to the window.
+  var DESIGN_W = 400, DESIGN_H = 868;
+  function applyScale() {
+    if (!$game) return;
+    if (isLandscape()) { $game.classList.remove('scaled'); $game.style.removeProperty('--ui-scale'); return; }
+    var s = Math.min(window.innerWidth / DESIGN_W, window.innerHeight / DESIGN_H);
+    $game.style.setProperty('--design-w', DESIGN_W + 'px');
+    $game.style.setProperty('--design-h', DESIGN_H + 'px');
+    $game.style.setProperty('--ui-scale', s.toFixed(4));
+    $game.classList.add('scaled');
   }
   function applyOrient() {
     var land = isLandscape();
     lastLandscape = land;
     if ($game) $game.classList.toggle('landscape', land);
+    applyScale();                              // set the frame scale before the canvas reads its box
     if (R.resize) R.resize();
     if (E.combat && R.syncCombat) R.syncCombat();
   }
@@ -298,6 +311,7 @@
   U.onResize = function () {
     var land = isLandscape();
     if ($game) $game.classList.toggle('landscape', land);
+    applyScale();
     if (R.resize) R.resize();
     if (E.combat && R.syncCombat) R.syncCombat();
     if (land !== lastLandscape) {
