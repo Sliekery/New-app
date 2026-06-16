@@ -418,6 +418,12 @@ function step() {
     case 'event': {
       var ev = E.getEvent();
       if (!ev) throw new Error('no current event');
+      if (ev.gambleDen) {   // bet 25% when flush, else walk
+        var gi = E.gambleInfo();
+        if (r.credits >= 60) { E.gamblePlay(0.25); E.gambleClaim(); }
+        E.gambleFinish();
+        break;
+      }
       var res = E.eventChoose(eventChoiceIdx(ev));
       if (!res) throw new Error('eventChoose returned null');
       break;

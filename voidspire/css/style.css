@@ -942,6 +942,42 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .belt-lbl .belt-cr { font-size: 11px; font-weight: bold; color: var(--amber); text-shadow: var(--glow-a); letter-spacing: 1px; }
 /* read-only star-chart preview: a RETURN button back to the live screen */
 .map-screen .map-back { position: absolute; top: 14px; left: 16px; z-index: 6; padding: 7px 13px; font-size: 11px; letter-spacing: 1px; }
+
+/* ===== Gamble den (dice / wheel / cards) ===== */
+.gamble-stage { display: flex; align-items: center; justify-content: center; min-height: 150px; margin: 6px 0 10px; width: 100%; }
+.gamble-panel { width: 100%; max-width: 360px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.gamble-prompt { font: 10px monospace; letter-spacing: 1px; color: var(--amber); text-shadow: var(--glow-a); margin-bottom: 2px; }
+.gamble-rolling { font: 12px monospace; letter-spacing: 3px; color: var(--cyan); text-shadow: var(--glow-c); animation: gPulse 0.7s ease-in-out infinite; }
+@keyframes gPulse { 0%,100% { opacity: 0.5 } 50% { opacity: 1 } }
+.gamble-result { font: bold 15px monospace; letter-spacing: 2px; padding: 4px 0; }
+.gamble-result.win { color: var(--green); text-shadow: var(--glow-g); }
+.gamble-result.lose { color: var(--red); text-shadow: 0 0 8px rgba(255,74,94,0.6); }
+.gamble-payout { font: 11px monospace; color: var(--text); letter-spacing: 0.5px; text-align: center; }
+.gamble-lost { font: 11px monospace; color: var(--text-dim); }
+/* dice */
+.dice-row { display: flex; gap: 18px; }
+.die { display: grid; grid-template-columns: repeat(3,1fr); grid-template-rows: repeat(3,1fr); width: 58px; height: 58px; padding: 7px; gap: 2px;
+  border: 1.5px solid var(--amber); background: rgba(20,14,4,0.9); border-radius: 9px; box-shadow: 0 0 12px rgba(255,176,46,0.25); }
+.die .pip { align-self: center; justify-self: center; width: 9px; height: 9px; border-radius: 50%; background: transparent; }
+.die .pip.on { background: #ffe6ad; box-shadow: 0 0 5px rgba(255,176,46,0.9); }
+.die.rolling { animation: gShake 0.12s linear infinite; }
+@keyframes gShake { 0%{transform:translate(0,0) rotate(0)} 25%{transform:translate(-2px,1px) rotate(-6deg)} 75%{transform:translate(2px,-1px) rotate(6deg)} 100%{transform:translate(0,0)} }
+.dice-sum { margin-top: 12px; font: 13px monospace; color: var(--text-dim); letter-spacing: 1px; }
+.dice-sum b { color: var(--amber); font-size: 18px; text-shadow: var(--glow-a); }
+/* wheel */
+.wheel-wrap { position: relative; width: 168px; height: 168px; }
+.wheel-ptr { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); color: var(--cyan); font-size: 18px; z-index: 2; text-shadow: var(--glow-c); }
+.g-wheel { width: 168px; height: 168px; transition: transform 2.2s cubic-bezier(0.17,0.67,0.18,1); filter: drop-shadow(0 0 10px rgba(0,0,0,0.6)); }
+/* blackjack */
+.bj { display: flex; flex-direction: column; gap: 12px; }
+.bj-row { display: flex; align-items: center; gap: 7px; }
+.bj-lbl { font: 9px monospace; letter-spacing: 1px; color: var(--text-dim); width: 44px; }
+.bj-total { font: 16px monospace; color: var(--amber); margin-left: 4px; text-shadow: var(--glow-a); }
+.g-card { width: 38px; height: 54px; border: 1.5px solid var(--cyan); border-radius: 5px; background: rgba(6,18,26,0.95);
+  display: flex; align-items: center; justify-content: center; color: #eafcff; font: bold 17px monospace; box-shadow: 0 0 8px rgba(65,216,255,0.25);
+  animation: gDeal 0.32s ease-out both; }
+.g-card.back { background: repeating-linear-gradient(45deg, #102634, #102634 4px, #0a1822 4px, #0a1822 8px); color: transparent; }
+@keyframes gDeal { 0% { transform: translateY(-22px) rotate(-8deg); opacity: 0 } 100% { transform: none; opacity: 1 } }
 .potion-chip {
   width: 34px; height: 38px; display: flex; align-items: center; justify-content: center;
   border: 1px solid rgba(93,255,136,0.4); background: rgba(5, 20, 18, 0.82);

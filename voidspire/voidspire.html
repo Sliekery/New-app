@@ -953,6 +953,42 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .belt-lbl .belt-cr { font-size: 11px; font-weight: bold; color: var(--amber); text-shadow: var(--glow-a); letter-spacing: 1px; }
 /* read-only star-chart preview: a RETURN button back to the live screen */
 .map-screen .map-back { position: absolute; top: 14px; left: 16px; z-index: 6; padding: 7px 13px; font-size: 11px; letter-spacing: 1px; }
+
+/* ===== Gamble den (dice / wheel / cards) ===== */
+.gamble-stage { display: flex; align-items: center; justify-content: center; min-height: 150px; margin: 6px 0 10px; width: 100%; }
+.gamble-panel { width: 100%; max-width: 360px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.gamble-prompt { font: 10px monospace; letter-spacing: 1px; color: var(--amber); text-shadow: var(--glow-a); margin-bottom: 2px; }
+.gamble-rolling { font: 12px monospace; letter-spacing: 3px; color: var(--cyan); text-shadow: var(--glow-c); animation: gPulse 0.7s ease-in-out infinite; }
+@keyframes gPulse { 0%,100% { opacity: 0.5 } 50% { opacity: 1 } }
+.gamble-result { font: bold 15px monospace; letter-spacing: 2px; padding: 4px 0; }
+.gamble-result.win { color: var(--green); text-shadow: var(--glow-g); }
+.gamble-result.lose { color: var(--red); text-shadow: 0 0 8px rgba(255,74,94,0.6); }
+.gamble-payout { font: 11px monospace; color: var(--text); letter-spacing: 0.5px; text-align: center; }
+.gamble-lost { font: 11px monospace; color: var(--text-dim); }
+/* dice */
+.dice-row { display: flex; gap: 18px; }
+.die { display: grid; grid-template-columns: repeat(3,1fr); grid-template-rows: repeat(3,1fr); width: 58px; height: 58px; padding: 7px; gap: 2px;
+  border: 1.5px solid var(--amber); background: rgba(20,14,4,0.9); border-radius: 9px; box-shadow: 0 0 12px rgba(255,176,46,0.25); }
+.die .pip { align-self: center; justify-self: center; width: 9px; height: 9px; border-radius: 50%; background: transparent; }
+.die .pip.on { background: #ffe6ad; box-shadow: 0 0 5px rgba(255,176,46,0.9); }
+.die.rolling { animation: gShake 0.12s linear infinite; }
+@keyframes gShake { 0%{transform:translate(0,0) rotate(0)} 25%{transform:translate(-2px,1px) rotate(-6deg)} 75%{transform:translate(2px,-1px) rotate(6deg)} 100%{transform:translate(0,0)} }
+.dice-sum { margin-top: 12px; font: 13px monospace; color: var(--text-dim); letter-spacing: 1px; }
+.dice-sum b { color: var(--amber); font-size: 18px; text-shadow: var(--glow-a); }
+/* wheel */
+.wheel-wrap { position: relative; width: 168px; height: 168px; }
+.wheel-ptr { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); color: var(--cyan); font-size: 18px; z-index: 2; text-shadow: var(--glow-c); }
+.g-wheel { width: 168px; height: 168px; transition: transform 2.2s cubic-bezier(0.17,0.67,0.18,1); filter: drop-shadow(0 0 10px rgba(0,0,0,0.6)); }
+/* blackjack */
+.bj { display: flex; flex-direction: column; gap: 12px; }
+.bj-row { display: flex; align-items: center; gap: 7px; }
+.bj-lbl { font: 9px monospace; letter-spacing: 1px; color: var(--text-dim); width: 44px; }
+.bj-total { font: 16px monospace; color: var(--amber); margin-left: 4px; text-shadow: var(--glow-a); }
+.g-card { width: 38px; height: 54px; border: 1.5px solid var(--cyan); border-radius: 5px; background: rgba(6,18,26,0.95);
+  display: flex; align-items: center; justify-content: center; color: #eafcff; font: bold 17px monospace; box-shadow: 0 0 8px rgba(65,216,255,0.25);
+  animation: gDeal 0.32s ease-out both; }
+.g-card.back { background: repeating-linear-gradient(45deg, #102634, #102634 4px, #0a1822 4px, #0a1822 8px); color: transparent; }
+@keyframes gDeal { 0% { transform: translateY(-22px) rotate(-8deg); opacity: 0 } 100% { transform: none; opacity: 1 } }
 .potion-chip {
   width: 34px; height: 38px; display: flex; align-items: center; justify-content: center;
   border: 1px solid rgba(93,255,136,0.4); background: rgba(5, 20, 18, 0.82);
@@ -3271,6 +3307,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   'use strict';
 
   ns.EVENTS = [
+    {
+      id: 'sabacc_den', title: 'SABACC DEN', gambleDen: true,
+      art: { c: '#ffb02e', p: [[-0.7,-0.6, 0.7,-0.6, 0.7,0.6, -0.7,0.6, -0.7,-0.6], [-0.4,-0.3, -0.4,0.3], [0,-0.3, 0,0.3], [0.4,-0.3, 0.4,0.3], [-0.55,0, 0.55,0]], e: [[-0.4,0],[0.4,0]], m: [-0.12,0.3, 0.12,0.3] },
+      text: 'A back-room game runs hot behind a salvage bar — a cup of bones, a battered wheel, a deck of marked cards. The house grins through a cracked rebreather. "Care to test your luck, traveler? Stake your scrip — the bolder the bet, the richer the prize."',
+    },
     {
       id: 'cryopod', title: 'DERELICT CRYOPOD',
       art: { c: '#41d8ff', p: [[-0.55,-0.95, 0.55,-0.95, 0.7,-0.3, 0.7,0.7, -0.7,0.7, -0.7,-0.3, -0.55,-0.95], [-0.4,-0.7, 0.4,-0.7, 0.45,0.1, -0.45,0.1, -0.4,-0.7], [-0.18,-0.45, 0.18,-0.45, 0.22,-0.1, 0,0.02, -0.22,-0.1, -0.18,-0.45], [0.45,-0.55, 0.62,-0.6], [-0.45,-0.25, -0.62,-0.15], [-0.5,0.4, 0.5,0.4]], e: [[-0.08,-0.3],[0.08,-0.3]], m: [-0.07,-0.1, 0.07,-0.1] },
@@ -5947,6 +5988,83 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     r.currentEvent = null;
     nodeComplete();
   };
+
+  /* ---------------- Gamble den (dice / wheel / cards) ------------------- */
+  var GAMBLE_GAMES = ['bones', 'wheel', 'cards'];
+  var CLASS_CORE = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi', warpcaller: 'bond' };
+  function coreAttrName() { return CLASS_CORE[E.run.cls] || 'might'; }
+  function coreAttr() { return attr(coreAttrName()); }
+  function clampP(p) { return Math.max(0.15, Math.min(0.82, p)); }
+  function gambleTiers() {
+    var cr = E.run.credits, core = coreAttr();
+    var base = { '0.25': 0.55, '0.5': 0.46, '1': 0.38 };
+    return [
+      { frac: 0.25, prize: 'potion', label: 'a Stim', cost: Math.floor(cr * 0.25), p: clampP(base['0.25'] + 0.02 * core) },
+      { frac: 0.5, prize: 'card', label: 'an Uncommon / Rare card', cost: Math.floor(cr * 0.5), p: clampP(base['0.5'] + 0.02 * core) },
+      { frac: 1, prize: 'relic', label: 'a Relic', cost: cr, p: clampP(base['1'] + 0.02 * core) },
+    ];
+  }
+  E.gambleStart = function () { E.run.gamble = { game: pick(GAMBLE_GAMES), phase: 'bet', result: null }; E.save(); };
+  E.gambleInfo = function () {
+    if (!E.run.gamble) E.gambleStart();
+    var g = E.run.gamble;
+    return { game: g.game, phase: g.phase, credits: E.run.credits, core: coreAttr(), coreName: coreAttrName(), tiers: gambleTiers(), result: g.result };
+  };
+  E.gamblePlay = function (frac) {
+    var r = E.run, g = r.gamble; if (!g || g.phase !== 'bet') return null;
+    var tier = null, ts = gambleTiers();
+    for (var i = 0; i < ts.length; i++) if (ts[i].frac === frac) tier = ts[i];
+    if (!tier || tier.cost <= 0 || r.credits < tier.cost) return null;
+    r.credits -= tier.cost;
+    var won = rnd() < tier.p;
+    g.result = { won: won, frac: frac, prize: tier.prize, cost: tier.cost, p: tier.p, detail: gambleResolve(g.game, won, tier.p), claimed: false };
+    g.phase = 'reveal';
+    E.save();
+    return g.result;
+  };
+  function gambleResolve(game, won, p) {
+    if (game === 'bones') {
+      var T = 8, a, b, guard = 0;
+      do { a = ri(1, 6); b = ri(1, 6); guard++; } while (((a + b >= T) !== won) && guard < 80);
+      return { a: a, b: b, target: T };
+    }
+    if (game === 'wheel') {
+      var N = 12, winSegs = Math.max(1, Math.min(N - 1, Math.round(p * N)));
+      var seg = won ? Math.floor(rnd() * winSegs) : winSegs + Math.floor(rnd() * (N - winSegs));
+      return { N: N, winSegs: winSegs, seg: seg, spins: 4 + Math.floor(rnd() * 3) };
+    }
+    var pl, dl, guard2 = 0;
+    do { pl = 15 + ri(0, 6); dl = 15 + ri(0, 6); guard2++; } while (((pl > dl && pl <= 21) !== won) && guard2 < 120);
+    return { player: handFor(pl), dealer: handFor(dl), pTotal: pl, dTotal: dl };
+  }
+  function handFor(total) {
+    var a = Math.max(2, Math.min(11, total - ri(7, 11)));
+    var b = total - a;
+    if (b < 2) { b = 2; a = total - 2; }
+    return [Math.min(11, Math.max(2, a)), Math.min(11, Math.max(2, b))];
+  }
+  function rollGambleCard() {
+    var r = E.run, pool = Object.keys(ns.CARDS).filter(function (k) {
+      var c = ns.CARDS[k];
+      return c.rarity >= 2 && c.rarity <= 3 && !c.pool && (c.cls === r.cls || c.cls === 'any');
+    });
+    return pool.length ? pick(pool) : rollRewardCard(0.5);
+  }
+  E.gambleClaim = function () {
+    var r = E.run, g = r.gamble, res = g && g.result;
+    if (!res || res.claimed) return null;
+    res.claimed = true;
+    var got = {};
+    if (res.won) {
+      if (res.prize === 'potion') { var pid = rollPotion(); if (pid && E.addPotion(pid)) got.potion = pid; else { r.credits += 40; got.credits = 40; } }
+      else if (res.prize === 'card') { var cid = rollGambleCard(); r.deck.push(mkCard(cid, false)); got.card = cid; }
+      else if (res.prize === 'relic') { var aid = randomArtifact(1); if (aid) { addArtifact(aid); got.relic = aid; } else { r.credits += 80; got.credits = 80; } }
+    }
+    E.save();
+    return got;
+  };
+  E.gambleFinish = function () { E.run.gamble = null; E.run.eventResult = null; E.run.currentEvent = null; nodeComplete(); };
+
 
   /* Resolve a pending deck pick (remove / upgrade / dupe). deckIdx into run.deck */
   E.applyPick = function (deckIdx) {
@@ -9961,9 +10079,124 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
 
   /* ====================== EVENT ====================== */
+  /* ====================== GAMBLE DEN ====================== */
+  var DIE_PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+  function diePips(v) {
+    var on = DIE_PIPS[v] || [], h = '';
+    for (var i = 0; i < 9; i++) h += '<span class="pip' + (on.indexOf(i) >= 0 ? ' on' : '') + '"></span>';
+    return h;
+  }
+  function wheelHTML(N, winSegs, rot) {
+    var svg = '<svg viewBox="-50 -50 100 100" class="g-wheel" style="transform:rotate(' + rot + 'deg)">';
+    for (var i = 0; i < N; i++) {
+      var a0 = (i / N) * 2 * Math.PI - Math.PI / 2, a1 = ((i + 1) / N) * 2 * Math.PI - Math.PI / 2;
+      var x0 = (46 * Math.cos(a0)).toFixed(1), y0 = (46 * Math.sin(a0)).toFixed(1), x1 = (46 * Math.cos(a1)).toFixed(1), y1 = (46 * Math.sin(a1)).toFixed(1);
+      svg += '<path d="M0 0 L' + x0 + ' ' + y0 + ' A46 46 0 0 1 ' + x1 + ' ' + y1 + ' Z" fill="' + (i < winSegs ? '#15633f' : '#601d26') + '" stroke="#0a1014" stroke-width="0.6"/>';
+    }
+    return svg + '<circle r="46" fill="none" stroke="#7fe0ff" stroke-width="1.2"/><circle r="6" fill="#0a1014" stroke="#7fe0ff"/></svg>';
+  }
+  function cardHTML(v, i) {
+    var face = v >= 11 ? 'A' : '' + v;
+    return '<div class="g-card" style="animation-delay:' + (i * 0.14) + 's"><span>' + face + '</span></div>';
+  }
+  function gambleStageIdle(game) {
+    if (game === 'bones') return '<div class="dice-row"><div class="die">' + diePips(5) + '</div><div class="die">' + diePips(2) + '</div></div>';
+    if (game === 'wheel') return '<div class="wheel-wrap"><div class="wheel-ptr">▼</div>' + wheelHTML(12, 6, 0) + '</div>';
+    return '<div class="bj"><div class="bj-row"><span class="bj-lbl">HOUSE</span><div class="g-card back"></div><div class="g-card back"></div></div></div>';
+  }
+  function showGamble(ev) {
+    updateHUD();
+    var info = E.gambleInfo();
+    var s = overlayScreen(true);
+    s.classList.add('gamble-screen');
+    var frame = el('div', 'comm-frame'); frame.innerHTML = artSVG(ev.art, 'portrait', ev.art.c); s.appendChild(frame);
+    s.appendChild(el('h2', 'screen-title', esc(ev.title)));
+    var gn = { bones: 'BONES · TWO DICE', wheel: 'THE WHEEL', cards: 'THE CUT · 21' }[info.game];
+    s.appendChild(el('div', 'screen-sub', gn + ' · FORTUNE +' + (info.core * 2) + '% [' + info.coreName.toUpperCase() + ']'));
+    var stage = el('div', 'gamble-stage'); s.appendChild(stage);
+    var panel = el('div', 'gamble-panel'); s.appendChild(panel);
+    if (info.phase === 'bet') gambleBet(ev, info, stage, panel);
+    else gambleReveal(ev, info, stage, panel);
+  }
+  function gambleBet(ev, info, stage, panel) {
+    stage.innerHTML = gambleStageIdle(info.game);
+    panel.appendChild(el('div', 'gamble-prompt', 'STAKE YOUR SCRIP — ¢' + info.credits + ' ON HAND'));
+    info.tiers.forEach(function (t) {
+      var afford = t.cost > 0 && info.credits >= t.cost;
+      var btn = el('div', 'panel-btn amber' + (afford ? '' : ' disabled'),
+        '<div class="pb-title">' + Math.round(t.frac * 100) + '% · ¢' + t.cost + '  →  ' + esc(t.label) + '</div>' +
+        '<div class="pb-desc">' + Math.round(t.p * 100) + '% to win · lose the stake on a bust</div>');
+      if (afford) btn.addEventListener('pointerdown', function () { SFX.tap(); E.gamblePlay(t.frac); showGamble(ev); });
+      panel.appendChild(btn);
+    });
+    var walk = el('button', 'btn dim small', 'WALK AWAY');
+    walk.addEventListener('pointerdown', function () { SFX.tap(); E.gambleFinish(); U.refresh(); });
+    panel.appendChild(walk);
+  }
+  function gambleReveal(ev, info, stage, panel) {
+    var res = info.result, d = res.detail, game = info.game;
+    if (game === 'bones') animateBones(stage, d);
+    else if (game === 'wheel') animateWheel(stage, d);
+    else animateCards(stage, d);
+    panel.innerHTML = '<div class="gamble-rolling">' + (game === 'wheel' ? 'THE WHEEL SPINS…' : game === 'cards' ? 'THE DEAL…' : 'THE BONES TUMBLE…') + '</div>';
+    var dur = game === 'wheel' ? 2400 : game === 'cards' ? 1500 : 1300;
+    setTimeout(function () {
+      SFX[res.won ? 'coin' : 'tap']();
+      panel.innerHTML = '';
+      panel.appendChild(el('div', 'gamble-result ' + (res.won ? 'win' : 'lose'), res.won ? '✦ FORTUNE FAVORS YOU' : '✕ THE HOUSE TAKES IT'));
+      if (res.won) {
+        var claim = el('button', 'btn', 'CLAIM ' + (res.prize === 'potion' ? 'STIM' : res.prize === 'card' ? 'CARD' : 'RELIC'));
+        claim.addEventListener('pointerdown', function () {
+          SFX.coin(); claim.remove();
+          gamblePayout(panel, E.gambleClaim());
+          var cont = el('button', 'btn', 'LEAVE'); cont.addEventListener('pointerdown', function () { E.gambleFinish(); U.refresh(); }); panel.appendChild(cont);
+        });
+        panel.appendChild(claim);
+      } else {
+        panel.appendChild(el('div', 'gamble-lost', 'You stake ¢' + res.cost + ' and walk away lighter.'));
+        var cont2 = el('button', 'btn', 'LEAVE'); cont2.addEventListener('pointerdown', function () { SFX.tap(); E.gambleFinish(); U.refresh(); }); panel.appendChild(cont2);
+      }
+    }, dur);
+  }
+  function gamblePayout(panel, got) {
+    got = got || {};
+    var msg = got.potion ? 'STIM WON · ' + esc(ns.POTIONS[got.potion].name)
+      : got.card ? 'CARD WON · ' + esc(ns.CARDS[got.card].name) + ' added to your deck'
+      : got.relic ? 'RELIC WON · ' + esc(ns.ARTIFACTS[got.relic].name)
+      : got.credits ? 'No room — salvaged for +' + got.credits + ' credits' : '';
+    if (msg) panel.appendChild(el('div', 'gamble-payout', msg));
+  }
+  function rd6() { return 1 + Math.floor(Math.random() * 6); }
+  function animateBones(stage, d) {
+    stage.innerHTML = '<div class="dice-row"><div class="die rolling"></div><div class="die rolling"></div></div><div class="dice-sum"></div>';
+    var dice = stage.querySelectorAll('.die'), sum = stage.querySelector('.dice-sum'), t = 0;
+    var iv = setInterval(function () {
+      t++;
+      if (t >= 12) {
+        clearInterval(iv);
+        dice[0].innerHTML = diePips(d.a); dice[1].innerHTML = diePips(d.b);
+        dice[0].classList.remove('rolling'); dice[1].classList.remove('rolling');
+        sum.innerHTML = '<b>' + (d.a + d.b) + '</b> · need ' + d.target + '+';
+      } else { dice[0].innerHTML = diePips(rd6()); dice[1].innerHTML = diePips(rd6()); }
+    }, 95);
+  }
+  function animateWheel(stage, d) {
+    stage.innerHTML = '<div class="wheel-wrap"><div class="wheel-ptr">▼</div>' + wheelHTML(d.N, d.winSegs, 0) + '</div>';
+    var w = stage.querySelector('.g-wheel');
+    var finalRot = d.spins * 360 - ((d.seg + 0.5) / d.N) * 360;
+    requestAnimationFrame(function () { requestAnimationFrame(function () { w.style.transform = 'rotate(' + finalRot + 'deg)'; }); });
+  }
+  function animateCards(stage, d) {
+    function row(lbl, hand, total) {
+      return '<div class="bj-row"><span class="bj-lbl">' + lbl + '</span>' + hand.map(function (v, i) { return cardHTML(v, i); }).join('') + '<span class="bj-total">' + total + '</span></div>';
+    }
+    stage.innerHTML = '<div class="bj">' + row('YOU', d.player, d.pTotal) + row('HOUSE', d.dealer, d.dTotal) + '</div>';
+  }
+
   function showEvent() {
     updateHUD();
     var ev = E.getEvent();
+    if (ev && ev.gambleDen) return showGamble(ev);
     var s = overlayScreen();
 
     var frame = el('div', 'comm-frame talking');

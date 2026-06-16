@@ -2364,6 +2364,83 @@
     nodeComplete();
   };
 
+  /* ---------------- Gamble den (dice / wheel / cards) ------------------- */
+  var GAMBLE_GAMES = ['bones', 'wheel', 'cards'];
+  var CLASS_CORE = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi', warpcaller: 'bond' };
+  function coreAttrName() { return CLASS_CORE[E.run.cls] || 'might'; }
+  function coreAttr() { return attr(coreAttrName()); }
+  function clampP(p) { return Math.max(0.15, Math.min(0.82, p)); }
+  function gambleTiers() {
+    var cr = E.run.credits, core = coreAttr();
+    var base = { '0.25': 0.55, '0.5': 0.46, '1': 0.38 };
+    return [
+      { frac: 0.25, prize: 'potion', label: 'a Stim', cost: Math.floor(cr * 0.25), p: clampP(base['0.25'] + 0.02 * core) },
+      { frac: 0.5, prize: 'card', label: 'an Uncommon / Rare card', cost: Math.floor(cr * 0.5), p: clampP(base['0.5'] + 0.02 * core) },
+      { frac: 1, prize: 'relic', label: 'a Relic', cost: cr, p: clampP(base['1'] + 0.02 * core) },
+    ];
+  }
+  E.gambleStart = function () { E.run.gamble = { game: pick(GAMBLE_GAMES), phase: 'bet', result: null }; E.save(); };
+  E.gambleInfo = function () {
+    if (!E.run.gamble) E.gambleStart();
+    var g = E.run.gamble;
+    return { game: g.game, phase: g.phase, credits: E.run.credits, core: coreAttr(), coreName: coreAttrName(), tiers: gambleTiers(), result: g.result };
+  };
+  E.gamblePlay = function (frac) {
+    var r = E.run, g = r.gamble; if (!g || g.phase !== 'bet') return null;
+    var tier = null, ts = gambleTiers();
+    for (var i = 0; i < ts.length; i++) if (ts[i].frac === frac) tier = ts[i];
+    if (!tier || tier.cost <= 0 || r.credits < tier.cost) return null;
+    r.credits -= tier.cost;
+    var won = rnd() < tier.p;
+    g.result = { won: won, frac: frac, prize: tier.prize, cost: tier.cost, p: tier.p, detail: gambleResolve(g.game, won, tier.p), claimed: false };
+    g.phase = 'reveal';
+    E.save();
+    return g.result;
+  };
+  function gambleResolve(game, won, p) {
+    if (game === 'bones') {
+      var T = 8, a, b, guard = 0;
+      do { a = ri(1, 6); b = ri(1, 6); guard++; } while (((a + b >= T) !== won) && guard < 80);
+      return { a: a, b: b, target: T };
+    }
+    if (game === 'wheel') {
+      var N = 12, winSegs = Math.max(1, Math.min(N - 1, Math.round(p * N)));
+      var seg = won ? Math.floor(rnd() * winSegs) : winSegs + Math.floor(rnd() * (N - winSegs));
+      return { N: N, winSegs: winSegs, seg: seg, spins: 4 + Math.floor(rnd() * 3) };
+    }
+    var pl, dl, guard2 = 0;
+    do { pl = 15 + ri(0, 6); dl = 15 + ri(0, 6); guard2++; } while (((pl > dl && pl <= 21) !== won) && guard2 < 120);
+    return { player: handFor(pl), dealer: handFor(dl), pTotal: pl, dTotal: dl };
+  }
+  function handFor(total) {
+    var a = Math.max(2, Math.min(11, total - ri(7, 11)));
+    var b = total - a;
+    if (b < 2) { b = 2; a = total - 2; }
+    return [Math.min(11, Math.max(2, a)), Math.min(11, Math.max(2, b))];
+  }
+  function rollGambleCard() {
+    var r = E.run, pool = Object.keys(ns.CARDS).filter(function (k) {
+      var c = ns.CARDS[k];
+      return c.rarity >= 2 && c.rarity <= 3 && !c.pool && (c.cls === r.cls || c.cls === 'any');
+    });
+    return pool.length ? pick(pool) : rollRewardCard(0.5);
+  }
+  E.gambleClaim = function () {
+    var r = E.run, g = r.gamble, res = g && g.result;
+    if (!res || res.claimed) return null;
+    res.claimed = true;
+    var got = {};
+    if (res.won) {
+      if (res.prize === 'potion') { var pid = rollPotion(); if (pid && E.addPotion(pid)) got.potion = pid; else { r.credits += 40; got.credits = 40; } }
+      else if (res.prize === 'card') { var cid = rollGambleCard(); r.deck.push(mkCard(cid, false)); got.card = cid; }
+      else if (res.prize === 'relic') { var aid = randomArtifact(1); if (aid) { addArtifact(aid); got.relic = aid; } else { r.credits += 80; got.credits = 80; } }
+    }
+    E.save();
+    return got;
+  };
+  E.gambleFinish = function () { E.run.gamble = null; E.run.eventResult = null; E.run.currentEvent = null; nodeComplete(); };
+
+
   /* Resolve a pending deck pick (remove / upgrade / dupe). deckIdx into run.deck */
   E.applyPick = function (deckIdx) {
     var r = E.run;

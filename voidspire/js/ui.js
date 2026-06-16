@@ -2270,9 +2270,124 @@
   }
 
   /* ====================== EVENT ====================== */
+  /* ====================== GAMBLE DEN ====================== */
+  var DIE_PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+  function diePips(v) {
+    var on = DIE_PIPS[v] || [], h = '';
+    for (var i = 0; i < 9; i++) h += '<span class="pip' + (on.indexOf(i) >= 0 ? ' on' : '') + '"></span>';
+    return h;
+  }
+  function wheelHTML(N, winSegs, rot) {
+    var svg = '<svg viewBox="-50 -50 100 100" class="g-wheel" style="transform:rotate(' + rot + 'deg)">';
+    for (var i = 0; i < N; i++) {
+      var a0 = (i / N) * 2 * Math.PI - Math.PI / 2, a1 = ((i + 1) / N) * 2 * Math.PI - Math.PI / 2;
+      var x0 = (46 * Math.cos(a0)).toFixed(1), y0 = (46 * Math.sin(a0)).toFixed(1), x1 = (46 * Math.cos(a1)).toFixed(1), y1 = (46 * Math.sin(a1)).toFixed(1);
+      svg += '<path d="M0 0 L' + x0 + ' ' + y0 + ' A46 46 0 0 1 ' + x1 + ' ' + y1 + ' Z" fill="' + (i < winSegs ? '#15633f' : '#601d26') + '" stroke="#0a1014" stroke-width="0.6"/>';
+    }
+    return svg + '<circle r="46" fill="none" stroke="#7fe0ff" stroke-width="1.2"/><circle r="6" fill="#0a1014" stroke="#7fe0ff"/></svg>';
+  }
+  function cardHTML(v, i) {
+    var face = v >= 11 ? 'A' : '' + v;
+    return '<div class="g-card" style="animation-delay:' + (i * 0.14) + 's"><span>' + face + '</span></div>';
+  }
+  function gambleStageIdle(game) {
+    if (game === 'bones') return '<div class="dice-row"><div class="die">' + diePips(5) + '</div><div class="die">' + diePips(2) + '</div></div>';
+    if (game === 'wheel') return '<div class="wheel-wrap"><div class="wheel-ptr">▼</div>' + wheelHTML(12, 6, 0) + '</div>';
+    return '<div class="bj"><div class="bj-row"><span class="bj-lbl">HOUSE</span><div class="g-card back"></div><div class="g-card back"></div></div></div>';
+  }
+  function showGamble(ev) {
+    updateHUD();
+    var info = E.gambleInfo();
+    var s = overlayScreen(true);
+    s.classList.add('gamble-screen');
+    var frame = el('div', 'comm-frame'); frame.innerHTML = artSVG(ev.art, 'portrait', ev.art.c); s.appendChild(frame);
+    s.appendChild(el('h2', 'screen-title', esc(ev.title)));
+    var gn = { bones: 'BONES · TWO DICE', wheel: 'THE WHEEL', cards: 'THE CUT · 21' }[info.game];
+    s.appendChild(el('div', 'screen-sub', gn + ' · FORTUNE +' + (info.core * 2) + '% [' + info.coreName.toUpperCase() + ']'));
+    var stage = el('div', 'gamble-stage'); s.appendChild(stage);
+    var panel = el('div', 'gamble-panel'); s.appendChild(panel);
+    if (info.phase === 'bet') gambleBet(ev, info, stage, panel);
+    else gambleReveal(ev, info, stage, panel);
+  }
+  function gambleBet(ev, info, stage, panel) {
+    stage.innerHTML = gambleStageIdle(info.game);
+    panel.appendChild(el('div', 'gamble-prompt', 'STAKE YOUR SCRIP — ¢' + info.credits + ' ON HAND'));
+    info.tiers.forEach(function (t) {
+      var afford = t.cost > 0 && info.credits >= t.cost;
+      var btn = el('div', 'panel-btn amber' + (afford ? '' : ' disabled'),
+        '<div class="pb-title">' + Math.round(t.frac * 100) + '% · ¢' + t.cost + '  →  ' + esc(t.label) + '</div>' +
+        '<div class="pb-desc">' + Math.round(t.p * 100) + '% to win · lose the stake on a bust</div>');
+      if (afford) btn.addEventListener('pointerdown', function () { SFX.tap(); E.gamblePlay(t.frac); showGamble(ev); });
+      panel.appendChild(btn);
+    });
+    var walk = el('button', 'btn dim small', 'WALK AWAY');
+    walk.addEventListener('pointerdown', function () { SFX.tap(); E.gambleFinish(); U.refresh(); });
+    panel.appendChild(walk);
+  }
+  function gambleReveal(ev, info, stage, panel) {
+    var res = info.result, d = res.detail, game = info.game;
+    if (game === 'bones') animateBones(stage, d);
+    else if (game === 'wheel') animateWheel(stage, d);
+    else animateCards(stage, d);
+    panel.innerHTML = '<div class="gamble-rolling">' + (game === 'wheel' ? 'THE WHEEL SPINS…' : game === 'cards' ? 'THE DEAL…' : 'THE BONES TUMBLE…') + '</div>';
+    var dur = game === 'wheel' ? 2400 : game === 'cards' ? 1500 : 1300;
+    setTimeout(function () {
+      SFX[res.won ? 'coin' : 'tap']();
+      panel.innerHTML = '';
+      panel.appendChild(el('div', 'gamble-result ' + (res.won ? 'win' : 'lose'), res.won ? '✦ FORTUNE FAVORS YOU' : '✕ THE HOUSE TAKES IT'));
+      if (res.won) {
+        var claim = el('button', 'btn', 'CLAIM ' + (res.prize === 'potion' ? 'STIM' : res.prize === 'card' ? 'CARD' : 'RELIC'));
+        claim.addEventListener('pointerdown', function () {
+          SFX.coin(); claim.remove();
+          gamblePayout(panel, E.gambleClaim());
+          var cont = el('button', 'btn', 'LEAVE'); cont.addEventListener('pointerdown', function () { E.gambleFinish(); U.refresh(); }); panel.appendChild(cont);
+        });
+        panel.appendChild(claim);
+      } else {
+        panel.appendChild(el('div', 'gamble-lost', 'You stake ¢' + res.cost + ' and walk away lighter.'));
+        var cont2 = el('button', 'btn', 'LEAVE'); cont2.addEventListener('pointerdown', function () { SFX.tap(); E.gambleFinish(); U.refresh(); }); panel.appendChild(cont2);
+      }
+    }, dur);
+  }
+  function gamblePayout(panel, got) {
+    got = got || {};
+    var msg = got.potion ? 'STIM WON · ' + esc(ns.POTIONS[got.potion].name)
+      : got.card ? 'CARD WON · ' + esc(ns.CARDS[got.card].name) + ' added to your deck'
+      : got.relic ? 'RELIC WON · ' + esc(ns.ARTIFACTS[got.relic].name)
+      : got.credits ? 'No room — salvaged for +' + got.credits + ' credits' : '';
+    if (msg) panel.appendChild(el('div', 'gamble-payout', msg));
+  }
+  function rd6() { return 1 + Math.floor(Math.random() * 6); }
+  function animateBones(stage, d) {
+    stage.innerHTML = '<div class="dice-row"><div class="die rolling"></div><div class="die rolling"></div></div><div class="dice-sum"></div>';
+    var dice = stage.querySelectorAll('.die'), sum = stage.querySelector('.dice-sum'), t = 0;
+    var iv = setInterval(function () {
+      t++;
+      if (t >= 12) {
+        clearInterval(iv);
+        dice[0].innerHTML = diePips(d.a); dice[1].innerHTML = diePips(d.b);
+        dice[0].classList.remove('rolling'); dice[1].classList.remove('rolling');
+        sum.innerHTML = '<b>' + (d.a + d.b) + '</b> · need ' + d.target + '+';
+      } else { dice[0].innerHTML = diePips(rd6()); dice[1].innerHTML = diePips(rd6()); }
+    }, 95);
+  }
+  function animateWheel(stage, d) {
+    stage.innerHTML = '<div class="wheel-wrap"><div class="wheel-ptr">▼</div>' + wheelHTML(d.N, d.winSegs, 0) + '</div>';
+    var w = stage.querySelector('.g-wheel');
+    var finalRot = d.spins * 360 - ((d.seg + 0.5) / d.N) * 360;
+    requestAnimationFrame(function () { requestAnimationFrame(function () { w.style.transform = 'rotate(' + finalRot + 'deg)'; }); });
+  }
+  function animateCards(stage, d) {
+    function row(lbl, hand, total) {
+      return '<div class="bj-row"><span class="bj-lbl">' + lbl + '</span>' + hand.map(function (v, i) { return cardHTML(v, i); }).join('') + '<span class="bj-total">' + total + '</span></div>';
+    }
+    stage.innerHTML = '<div class="bj">' + row('YOU', d.player, d.pTotal) + row('HOUSE', d.dealer, d.dTotal) + '</div>';
+  }
+
   function showEvent() {
     updateHUD();
     var ev = E.getEvent();
+    if (ev && ev.gambleDen) return showGamble(ev);
     var s = overlayScreen();
 
     var frame = el('div', 'comm-frame talking');
