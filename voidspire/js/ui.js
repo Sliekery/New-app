@@ -1137,16 +1137,20 @@
     var pot = ns.POTIONS[pid];
     var rarTag = pot.rarity === 3 ? 'RARE' : pot.rarity === 2 ? 'UNCOMMON' : 'COMMON';
     $potionTip.innerHTML =
-      '<div class="pt-name">' + esc(pot.name) + ' <span class="pt-tag">STIM · ' + rarTag + '</span></div>' +
-      '<div class="pt-desc">' + esc(pot.desc) + '</div>';
+      '<div class="pt-panel"><div class="pt-name">' + esc(pot.name) + ' <span class="pt-tag">STIM · ' + rarTag + '</span></div>' +
+      '<div class="pt-desc">' + esc(pot.desc) + '</div></div><div class="pt-ptr"></div>';
     $potionTip.style.display = 'block';
+    // float the tactical callout centred ABOVE the slot, pointer aimed at it
     var gr = $game.getBoundingClientRect(), cr = chipEl.getBoundingClientRect();
-    // belt sits low-left now, so float the tip just ABOVE the slot
-    var tipH = $potionTip.getBoundingClientRect().height || 56;
-    var tipW = $potionTip.getBoundingClientRect().width || 188;
+    var scale = gr.width / $game.clientWidth || 1;
+    var slotCX = (cr.left + cr.width / 2 - gr.left) / scale;
+    var slotTop = (cr.top - gr.top) / scale;
+    var tipW = $potionTip.offsetWidth, tipH = $potionTip.offsetHeight;
+    var left = Math.max(6, Math.min($game.clientWidth - tipW - 6, slotCX - tipW / 2));
     $potionTip.style.right = 'auto';
-    $potionTip.style.left = Math.max(6, Math.min(gr.width - tipW - 6, Math.round(cr.left - gr.left))) + 'px';
-    $potionTip.style.top = Math.max(6, Math.round(cr.top - gr.top - tipH - 8)) + 'px';
+    $potionTip.style.left = left + 'px';
+    $potionTip.style.top = Math.max(6, slotTop - tipH - 11) + 'px';
+    $potionTip.style.setProperty('--ptr', (slotCX - left) + 'px');
   }
   function hidePotionTip() { $potionTip.style.display = 'none'; }
 

@@ -80,7 +80,7 @@ html, body {
    cards (the "unified bar"); the hand keeps clear of the flanks. */
 #game.landscape #combat-dock { height: 88px; }
 #game.landscape #energy-pip { bottom: calc(env(safe-area-inset-bottom, 0px) + 22px); }
-#game.landscape #potion-belt { left: 76px; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); }
+#game.landscape #potion-belt { left: 116px; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); }
 #game.landscape #combat-controls { bottom: calc(env(safe-area-inset-bottom, 0px) + 22px); }
 #game.landscape #hand { padding: 0 132px 0 184px; }
 
@@ -925,7 +925,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 /* ========================= POTION BELT ========================= */
 /* the STIM belt — a row of injector slots in the dock, just right of energy */
 #potion-belt {
-  position: absolute; left: 70px;
+  position: absolute; left: 112px;
   bottom: calc(env(safe-area-inset-bottom, 0px) + 156px);
   z-index: 26; display: none; flex-direction: row; align-items: flex-end; gap: 6px;
 }
@@ -949,15 +949,21 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .potion-chip .pot-icon svg, .potion-chip svg.vec { width: 100%; height: 100%; }
 
 /* hover / press tooltip */
-#potion-tip {
-  position: absolute; z-index: 80; display: none; width: 188px; padding: 8px 10px;
-  border: 1px solid var(--green-dim); background: rgba(6, 16, 13, 0.97);
-  box-shadow: 0 0 18px rgba(0,0,0,0.6); pointer-events: none;
-  clip-path: polygon(0 8px, 8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+/* stim inspect = a tactical callout above the slot, matching the rail panels */
+#potion-tip { position: absolute; z-index: 80; display: none; width: 188px; pointer-events: none; --rc: #ffb02e; }
+#potion-tip .pt-panel {
+  border: 1px solid var(--rc); background: rgba(12, 9, 4, 0.96); padding: 6px 9px 8px;
+  box-shadow: 0 0 14px rgba(0,0,0,0.7), inset 0 0 18px rgba(0,0,0,0.3);
+  clip-path: polygon(0 6px, 6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
 }
-#potion-tip .pt-name { font-size: 12px; letter-spacing: 1px; color: var(--text); margin-bottom: 4px; }
-#potion-tip .pt-tag { font-size: 8px; letter-spacing: 1px; color: var(--text-dim); }
-#potion-tip .pt-desc { font-size: 11px; line-height: 1.4; color: var(--text); }
+#potion-tip .pt-name { font-size: 11px; letter-spacing: 1px; color: var(--rc); text-shadow: 0 0 5px var(--rc); border-bottom: 1px solid var(--rc); padding-bottom: 4px; margin-bottom: 5px; }
+#potion-tip .pt-tag { font-size: 7.5px; letter-spacing: 1px; color: var(--text-dim); text-shadow: none; }
+#potion-tip .pt-desc { font-size: 10px; line-height: 1.4; color: var(--text); }
+#potion-tip .pt-ptr {
+  position: absolute; bottom: -7px; left: var(--ptr, 50%); transform: translateX(-50%);
+  width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent;
+  border-top: 7px solid var(--rc); filter: drop-shadow(0 1px 3px rgba(255,176,46,0.5));
+}
 
 .victory-banner { color: var(--amber); text-shadow: 0 0 18px rgba(255,176,46,0.7); }
 
