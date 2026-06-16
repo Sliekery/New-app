@@ -198,8 +198,28 @@
     var boss = { row: ROWS, col: Math.floor((COLS - 1) / 2), type: 'boss', edges: [], parents: [], visited: false };
     rows[ROWS - 1].forEach(function (n) { n.edges = ['boss']; });
 
+    // Lanes: the chart's columns split into three braided "highways", each with a
+    // character. Which lane sits where is randomised per sector for replay variety.
+    var laneNames = shuffle(['gauntlet', 'supply', 'frontier']);
+    rows.forEach(function (row) { row.forEach(function (n) { n.lane = laneNames[Math.min(2, Math.floor(n.col / COLS * 3))]; }); });
+
     assignTypes(rows, sector);
-    return { rows: rows, boss: boss, ROWS: ROWS, COLS: COLS };
+    markHazards(rows);
+    return { rows: rows, boss: boss, ROWS: ROWS, COLS: COLS, lanes: laneNames };
+  }
+
+  // Some nodes in the Push sit in "hot zones" — entering them costs HP (you fight
+  // your way in), but they're worth it. Concentrated on the Gauntlet lane.
+  function markHazards(rows) {
+    var M = B.map;
+    for (var r = M.act1End + 1; r <= M.act2End; r++) {
+      rows[r].forEach(function (n) {
+        if (n.type === 'fight' || n.type === 'event' || n.type === 'treasure' || n.type === 'rift') {
+          var chance = n.lane === 'gauntlet' ? 0.45 : n.lane === 'frontier' ? 0.22 : 0.08;
+          if (rnd() < chance) n.hazard = 4 + ri(0, 5);
+        }
+      });
+    }
   }
 
   function weightedType(weights) {
@@ -208,15 +228,32 @@
     return pick(pool);
   }
 
+  // Each lane skews which encounters show up along it (applied on top of the act
+  // weights in the Push/Final): Gauntlet = danger & loot, Supply = sustain & shops,
+  // Frontier = the unknown.
+  var LANE_BIAS = {
+    gauntlet: { elite: 2.4, beacon: 2.4, treasure: 2.0, fight: 1.3, rest: 0.3, shop: 0.4, market: 0.4, forge: 0.4 },
+    supply:   { shop: 2.4, market: 2.4, rest: 2.2, forge: 2.4, elite: 0.3, beacon: 0.2, fight: 0.7, rift: 0.4 },
+    frontier: { event: 2.2, rift: 2.6, random: 2.2, fight: 0.9, elite: 0.6, beacon: 0.7 },
+  };
+  function laneWeights(base, lane) {
+    var bias = LANE_BIAS[lane]; if (!bias) return base;
+    var out = {};
+    Object.keys(base).forEach(function (t) { out[t] = Math.max(1, Math.round(base[t] * (bias[t] || 1))); });
+    return out;
+  }
+
   function assignTypes(rows, sector) {
     var M = B.map, ROWS = M.rows, A = M.actWeights;
     for (var r = 0; r < ROWS; r++) {
       var isFirst = (r === 0), isLast = (r === ROWS - 1);
       // the three acts gate which encounters can appear at each depth
-      var weights = (r <= M.act1End) ? A.approach : (r <= M.act2End) ? A.push : A.final;
+      var base = (r <= M.act1End) ? A.approach : (r <= M.act2End) ? A.push : A.final;
+      var laneBiased = (r > M.act1End);   // Approach stays a gentle, lane-neutral on-ramp
       rows[r].forEach(function (node) {
         if (isFirst) { node.type = 'fight'; return; }                 // entry row: all fights
         if (isLast && M.restBeforeBoss) { node.type = 'rest'; return; } // catch your breath before the boss
+        var weights = laneBiased ? laneWeights(base, node.lane) : base;
         var t = weightedType(weights), tries = 0;
         while (tries++ < 16) {
           // don't stack two of the same "special" node back-to-back on a path
@@ -271,6 +308,7 @@
     var r = E.run;
     r.mapRow = node.row; r.mapCol = node.col;
     node.visited = true;
+    if (node.hazard > 0) { hurtPlayer(node.hazard, { pure: true }); emit('hazard', { dmg: node.hazard }); }
     var t = node.type;
     if (t === 'random') { t = resolveRandomNode(); node.resolved = t; }
     E.startNode(t);

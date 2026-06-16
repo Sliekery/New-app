@@ -644,6 +644,8 @@
     rest: 'Field camp', treasure: 'Supply cache',
     forge: 'Forge', beacon: 'Distress beacon', market: 'Black market', rift: 'Void rift',
   };
+  var LANE_COLOR = { gauntlet: '#ff5b6b', supply: '#41d8ff', frontier: '#c86bff' };
+  var LANE_LABEL = { gauntlet: 'GAUNTLET · danger & loot', supply: 'SUPPLY · sustain & shops', frontier: 'FRONTIER · the unknown' };
   var NODE_DESC = {
     fight: 'A standard enemy pack. Salvage and a card reward on victory.',
     elite: 'A dangerous mini-boss — but it drops a relic.',
@@ -736,7 +738,8 @@
           var t = targetOf(node, tc); if (!t) return;
           var a = xy(node), b = xy(t);
           var cls = (node === cur && reach.indexOf(t) >= 0) ? 'live' : (node.visited && t.visited) ? 'trav' : 'dim';
-          svg += '<line class="edge ' + cls + '" x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) + '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1) + '"/>';
+          var lc = LANE_COLOR[node.lane] || '#9fb6c0', op = cls === 'dim' ? 0.32 : cls === 'trav' ? 0.7 : 1;
+          svg += '<line class="edge ' + cls + '" style="stroke:' + lc + ';opacity:' + op + '" x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) + '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1) + '"/>';
           if (cls !== 'dim') {
             var mx = ((a.x + b.x) / 2).toFixed(1), my = ((a.y + b.y) / 2).toFixed(1);
             svg += '<circle class="waypt ' + cls + '" cx="' + mx + '" cy="' + my + '" r="1.8"/>';
@@ -757,6 +760,7 @@
         g += '<circle class="pulse p2" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + hexR + '"/>';
       }
       g += '<polygon class="hexfill" points="' + hexPts(p.x, p.y, hexR) + '"/>';
+      if (node.hazard) g += '<circle class="hazring" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + (hexR + 4) + '"/>';
       g += '<polygon class="hex" points="' + hexPts(p.x, p.y, hexR) + '"/>';
       if (isBoss) g += '<polygon class="hex2" points="' + hexPts(p.x, p.y, hexR + 5) + '"/>';
       g += '<g class="glyph">' + mapIconPaths(icon, p.x, p.y, size) + '</g>';
@@ -779,6 +783,13 @@
         '<svg viewBox="0 0 48 48">' + mapIconPaths(ic, 24, 24, 17) + '</svg></span>' + esc(NODE_LABEL[t]) + '</span>';
     });
     s.appendChild(legend);
+
+    // lane key — which highway is which this sector
+    var lanebar = el('div', 'map-lanes');
+    (m.lanes || []).forEach(function (ln) {
+      lanebar.innerHTML += '<span class="lane-key" style="--lc:' + LANE_COLOR[ln] + '"><span class="lane-dash"></span>' + esc(LANE_LABEL[ln]) + '</span>';
+    });
+    s.appendChild(lanebar);
 
     wrap.addEventListener('pointerdown', function (ev) {
       var g = ev.target.closest ? ev.target.closest('.mapnode') : null;

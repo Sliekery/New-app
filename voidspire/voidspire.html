@@ -740,6 +740,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .starchart .hex { fill: none; stroke: var(--nc); stroke-width: 1.4; stroke-linejoin: round; opacity: 0.85; }
 .starchart .hex2 { fill: none; stroke: var(--nc); stroke-width: 1; opacity: 0.4; }
 .starchart .glyph { color: var(--nc); }
+.starchart .hazring { fill: none; stroke: #ff4a5e; stroke-width: 1.4; stroke-dasharray: 2.5 3; opacity: 0.85; }
+.map-lanes { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; margin-top: 6px; font-size: 9px; letter-spacing: 1px; }
+.lane-key { color: var(--lc); display: inline-flex; align-items: center; gap: 5px; }
+.lane-key .lane-dash { width: 16px; height: 0; border-top: 2px solid var(--lc); box-shadow: 0 0 4px var(--lc); }
 .starchart .glyph polyline { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .starchart .glyph .gdot { fill: currentColor; stroke: none; }
 .starchart .ticks { stroke: var(--green); stroke-width: 1.6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
@@ -3593,8 +3597,28 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var boss = { row: ROWS, col: Math.floor((COLS - 1) / 2), type: 'boss', edges: [], parents: [], visited: false };
     rows[ROWS - 1].forEach(function (n) { n.edges = ['boss']; });
 
+    // Lanes: the chart's columns split into three braided "highways", each with a
+    // character. Which lane sits where is randomised per sector for replay variety.
+    var laneNames = shuffle(['gauntlet', 'supply', 'frontier']);
+    rows.forEach(function (row) { row.forEach(function (n) { n.lane = laneNames[Math.min(2, Math.floor(n.col / COLS * 3))]; }); });
+
     assignTypes(rows, sector);
-    return { rows: rows, boss: boss, ROWS: ROWS, COLS: COLS };
+    markHazards(rows);
+    return { rows: rows, boss: boss, ROWS: ROWS, COLS: COLS, lanes: laneNames };
+  }
+
+  // Some nodes in the Push sit in "hot zones" — entering them costs HP (you fight
+  // your way in), but they're worth it. Concentrated on the Gauntlet lane.
+  function markHazards(rows) {
+    var M = B.map;
+    for (var r = M.act1End + 1; r <= M.act2End; r++) {
+      rows[r].forEach(function (n) {
+        if (n.type === 'fight' || n.type === 'event' || n.type === 'treasure' || n.type === 'rift') {
+          var chance = n.lane === 'gauntlet' ? 0.45 : n.lane === 'frontier' ? 0.22 : 0.08;
+          if (rnd() < chance) n.hazard = 4 + ri(0, 5);
+        }
+      });
+    }
   }
 
   function weightedType(weights) {
@@ -3603,15 +3627,32 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return pick(pool);
   }
 
+  // Each lane skews which encounters show up along it (applied on top of the act
+  // weights in the Push/Final): Gauntlet = danger & loot, Supply = sustain & shops,
+  // Frontier = the unknown.
+  var LANE_BIAS = {
+    gauntlet: { elite: 2.4, beacon: 2.4, treasure: 2.0, fight: 1.3, rest: 0.3, shop: 0.4, market: 0.4, forge: 0.4 },
+    supply:   { shop: 2.4, market: 2.4, rest: 2.2, forge: 2.4, elite: 0.3, beacon: 0.2, fight: 0.7, rift: 0.4 },
+    frontier: { event: 2.2, rift: 2.6, random: 2.2, fight: 0.9, elite: 0.6, beacon: 0.7 },
+  };
+  function laneWeights(base, lane) {
+    var bias = LANE_BIAS[lane]; if (!bias) return base;
+    var out = {};
+    Object.keys(base).forEach(function (t) { out[t] = Math.max(1, Math.round(base[t] * (bias[t] || 1))); });
+    return out;
+  }
+
   function assignTypes(rows, sector) {
     var M = B.map, ROWS = M.rows, A = M.actWeights;
     for (var r = 0; r < ROWS; r++) {
       var isFirst = (r === 0), isLast = (r === ROWS - 1);
       // the three acts gate which encounters can appear at each depth
-      var weights = (r <= M.act1End) ? A.approach : (r <= M.act2End) ? A.push : A.final;
+      var base = (r <= M.act1End) ? A.approach : (r <= M.act2End) ? A.push : A.final;
+      var laneBiased = (r > M.act1End);   // Approach stays a gentle, lane-neutral on-ramp
       rows[r].forEach(function (node) {
         if (isFirst) { node.type = 'fight'; return; }                 // entry row: all fights
         if (isLast && M.restBeforeBoss) { node.type = 'rest'; return; } // catch your breath before the boss
+        var weights = laneBiased ? laneWeights(base, node.lane) : base;
         var t = weightedType(weights), tries = 0;
         while (tries++ < 16) {
           // don't stack two of the same "special" node back-to-back on a path
@@ -3666,6 +3707,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var r = E.run;
     r.mapRow = node.row; r.mapCol = node.col;
     node.visited = true;
+    if (node.hazard > 0) { hurtPlayer(node.hazard, { pure: true }); emit('hazard', { dmg: node.hazard }); }
     var t = node.type;
     if (t === 'random') { t = resolveRandomNode(); node.resolved = t; }
     E.startNode(t);
@@ -7935,6 +7977,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     rest: 'Field camp', treasure: 'Supply cache',
     forge: 'Forge', beacon: 'Distress beacon', market: 'Black market', rift: 'Void rift',
   };
+  var LANE_COLOR = { gauntlet: '#ff5b6b', supply: '#41d8ff', frontier: '#c86bff' };
+  var LANE_LABEL = { gauntlet: 'GAUNTLET · danger & loot', supply: 'SUPPLY · sustain & shops', frontier: 'FRONTIER · the unknown' };
   var NODE_DESC = {
     fight: 'A standard enemy pack. Salvage and a card reward on victory.',
     elite: 'A dangerous mini-boss — but it drops a relic.',
@@ -8027,7 +8071,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           var t = targetOf(node, tc); if (!t) return;
           var a = xy(node), b = xy(t);
           var cls = (node === cur && reach.indexOf(t) >= 0) ? 'live' : (node.visited && t.visited) ? 'trav' : 'dim';
-          svg += '<line class="edge ' + cls + '" x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) + '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1) + '"/>';
+          var lc = LANE_COLOR[node.lane] || '#9fb6c0', op = cls === 'dim' ? 0.32 : cls === 'trav' ? 0.7 : 1;
+          svg += '<line class="edge ' + cls + '" style="stroke:' + lc + ';opacity:' + op + '" x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) + '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1) + '"/>';
           if (cls !== 'dim') {
             var mx = ((a.x + b.x) / 2).toFixed(1), my = ((a.y + b.y) / 2).toFixed(1);
             svg += '<circle class="waypt ' + cls + '" cx="' + mx + '" cy="' + my + '" r="1.8"/>';
@@ -8048,6 +8093,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         g += '<circle class="pulse p2" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + hexR + '"/>';
       }
       g += '<polygon class="hexfill" points="' + hexPts(p.x, p.y, hexR) + '"/>';
+      if (node.hazard) g += '<circle class="hazring" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + (hexR + 4) + '"/>';
       g += '<polygon class="hex" points="' + hexPts(p.x, p.y, hexR) + '"/>';
       if (isBoss) g += '<polygon class="hex2" points="' + hexPts(p.x, p.y, hexR + 5) + '"/>';
       g += '<g class="glyph">' + mapIconPaths(icon, p.x, p.y, size) + '</g>';
@@ -8070,6 +8116,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         '<svg viewBox="0 0 48 48">' + mapIconPaths(ic, 24, 24, 17) + '</svg></span>' + esc(NODE_LABEL[t]) + '</span>';
     });
     s.appendChild(legend);
+
+    // lane key — which highway is which this sector
+    var lanebar = el('div', 'map-lanes');
+    (m.lanes || []).forEach(function (ln) {
+      lanebar.innerHTML += '<span class="lane-key" style="--lc:' + LANE_COLOR[ln] + '"><span class="lane-dash"></span>' + esc(LANE_LABEL[ln]) + '</span>';
+    });
+    s.appendChild(lanebar);
 
     wrap.addEventListener('pointerdown', function (ev) {
       var g = ev.target.closest ? ev.target.closest('.mapnode') : null;
