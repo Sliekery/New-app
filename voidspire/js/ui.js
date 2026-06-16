@@ -420,6 +420,7 @@
       case 'forge': return showForge();
       case 'rift': return showRift();
       case 'levelup': return showLevelUp();
+      case 'class-relic': return showClassRelic();
       case 'boss-artifact': return showBossArtifact();
       case 'sector-intro': return showSectorIntro();
       case 'victory': return showVictory();
@@ -2741,6 +2742,24 @@
         function () { E.eventAddCard(cid); done(); }, 'cyan');
     });
     s.appendChild(grid);
+    s.appendChild(cbar.el);
+  }
+
+  function showClassRelic() {
+    updateHUD();
+    var r = E.run, chain = E.classChain && E.classChain();
+    var s = overlayScreen(true);
+    s.appendChild(el('h2', 'screen-title', chain ? chain.name + ' · Complete' : 'Signature Relic'));
+    s.appendChild(el('div', 'screen-sub', 'CLAIM ONE — THE OTHER IS LOST FOR THIS RUN'));
+    var cbar = makeConfirmBar();
+    (chain ? chain.relics : []).forEach(function (id, i) {
+      var a = ns.ARTIFACTS[id];
+      var btn = el('div', 'panel-btn amber',
+        '<div class="pb-title"><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + '</div><div class="pb-desc">' + esc(a.desc) + '</div>');
+      s.appendChild(btn);
+      selectConfirm(s, btn, cbar, 'Claim <b>' + esc(a.name) + '</b>?<span class="cb-note">' + esc(a.desc) + '</span>',
+        function () { SFX.coin(); E.takeClassRelic(i); E.finishClassRelic(); U.refresh(); }, 'amber');
+    });
     s.appendChild(cbar.el);
   }
 

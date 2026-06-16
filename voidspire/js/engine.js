@@ -67,6 +67,7 @@
       kills: 0, nodesCleared: 0,
       pendingPick: null, pendingAddCard: null,
       quests: {}, questDone: {},
+      classQuest: { step: 0, prog: 0, ready: false, picked: null, locked: null },
       augments: [], augmentDeckop: null, augmentOffer: null,
       potions: [], won: false,
       loop: 1, echoes: [], loadout: [], echoOffer: null,
@@ -156,6 +157,48 @@
     var a = ns.ARTIFACTS[id];
     if (!a || !a.quest) return null;
     return { goal: a.quest.goal, progress: (E.run.quests && E.run.quests[id]) || 0, done: !!(E.run.questDone && E.run.questDone[id]) };
+  };
+
+  /* ---------------- Class quest chains (earn your signature relic) -------- */
+  var CLASS_CHAINS = {
+    vanguard: { name: 'The Warpath', relics: ['recoilless_frame', 'execution_protocol'], steps: [
+      { track: 'kills', goal: 8, label: 'Kill 8 enemies' },
+      { track: 'turnDamage', goal: 45, atOnce: true, label: 'Deal 45 damage in a single turn' },
+      { track: 'turnDamage', goal: 80, atOnce: true, label: 'Deal 80 damage in a single turn' } ] },
+    technomancer: { name: 'Forge Liturgy', relics: ['forge_reserve', 'capacitive_plating'], steps: [
+      { track: 'shieldGained', goal: 80, label: 'Gain 80 Shield' },
+      { track: 'shieldAtOnce', goal: 30, atOnce: true, label: 'Hold 30 Shield at once' },
+      { track: 'shieldGained', goal: 200, label: 'Gain 200 Shield total' } ] },
+    voidadept: { name: 'The Long Hunger', relics: ['hexweaver', 'void_conduit'], steps: [
+      { track: 'burnApplied', goal: 40, label: 'Apply 40 Burn' },
+      { track: 'burnAtOnce', goal: 10, atOnce: true, label: 'Stack 10 Burn on one enemy' },
+      { track: 'burnApplied', goal: 120, label: 'Apply 120 Burn total' } ] },
+    warpcaller: { name: 'Brood Covenant', relics: ['blood_bond', 'brood_womb'], steps: [
+      { track: 'petsSummoned', goal: 10, label: 'Summon 10 pets' },
+      { track: 'petsAlive', goal: 4, atOnce: true, label: 'Have 4 pets alive at once' },
+      { track: 'petsSummoned', goal: 22, label: 'Summon 22 pets total' } ] },
+  };
+  E.classChain = function () { return CLASS_CHAINS[E.run && E.run.cls]; };
+  function classQuestTick(track, amount) {
+    var r = E.run, q = r.classQuest;
+    if (!q || q.ready || q.picked) return;
+    var chain = CLASS_CHAINS[r.cls]; if (!chain) return;
+    var step = chain.steps[q.step]; if (!step || step.track !== track) return;
+    q.prog = step.atOnce ? Math.max(q.prog, amount) : q.prog + amount;
+    if (q.prog >= step.goal) {
+      q.step++; q.prog = 0;
+      if (q.step >= chain.steps.length) { q.ready = true; emit('classQuestReady', { name: chain.name }); }
+      else emit('classQuestStep', { step: q.step, total: chain.steps.length, label: chain.steps[q.step].label, name: chain.name });
+    }
+  }
+  E.classQuestTick = classQuestTick;
+  E.takeClassRelic = function (i) {
+    var r = E.run, q = r.classQuest, chain = CLASS_CHAINS[r.cls];
+    if (!q || !q.ready || q.picked || !chain) return;
+    var id = chain.relics[i]; if (!id) return;
+    addArtifact(id);
+    q.picked = id; q.locked = chain.relics[1 - i]; q.ready = false;
+    E.save();
   };
 
   E.score = function () {
@@ -409,11 +452,22 @@
     var r = E.run;
     r.nodesCleared++;
     var node = currentNode();
-    if (node && node.type === 'boss') r.phase = 'levelup';
-    else r.phase = 'map';
+    var next = (node && node.type === 'boss') ? 'levelup' : 'map';
+    if (r.classQuest && r.classQuest.ready && !r.classQuest.picked) {
+      r.classQuest.nextPhase = next;     // claim your signature relic before moving on
+      r.phase = 'class-relic';
+    } else {
+      r.phase = next;
+    }
     E.save();
   }
   E.nodeComplete = nodeComplete;
+  E.finishClassRelic = function () {
+    var r = E.run;
+    r.phase = (r.classQuest && r.classQuest.nextPhase) || 'map';
+    if (r.classQuest) r.classQuest.nextPhase = null;
+    E.save();
+  };
 
   /* ---------------- Level up: Augment Protocol draft ------------------- */
   var CLASS_STAT = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi', warpcaller: 'bond' };
@@ -665,7 +719,7 @@
     if (vstart > 0) c.player.statuses.vuln = vstart;
     var pa = art('platedArmorStart');
     if (pa > 0) c.player.statuses.platedArmor = pa;
-    var bs = art('blockStart');
+    var bs = art('blockStart') + art('blockStartTechMul') * attr('tech');   // Forge Reserve scales with TECH
     if (bs > 0) { c.player.block = bs; } // relic Shield is passive, not "played"
     var ws = art('weakStart');
     if (ws > 0) c.enemies.forEach(function (en, i) { addStatus(en, 'weak', ws); });
@@ -685,6 +739,8 @@
     if (n <= 0) return;
     if (art('noShield') > 0) return;   // tradeoff relics that forbid Shield entirely
     p.block += n;
+    classQuestTick('shieldGained', n);
+    classQuestTick('shieldAtOnce', p.block);
     if (played) c.playedShield = true;
     emit('block', { who: 'player', amount: n, blockAfter: p.block });
     var st = art('shieldThorns');
@@ -702,6 +758,11 @@
       var poolW = aliveEnemies();
       if (poolW.length) { var enW = pick(poolW); addStatus(enW, 'weak', sw); emit('status', { who: 'enemy', idx: c.enemies.indexOf(enW), s: 'weak', v: sw }); }
     }
+    var spp = art('shieldPingPct');   // Capacitive Plating: Shield gains chip a random enemy
+    if (spp > 0 && !c.over) {
+      var d = Math.floor(n * spp / 100);
+      if (d > 0) { var poolP = aliveEnemies(); if (poolP.length) { var enP = pick(poolP); dealToEnemy(enP, c.enemies.indexOf(enP), d, { noCrit: true, noWeak: true }); } }
+    }
   }
 
   /* ---------------- Combat: turn structure ------------------------------ */
@@ -712,6 +773,15 @@
   function addStatus(ent, s, v) {
     ent.statuses[s] = (ent.statuses[s] || 0) + v;
     if (ent.statuses[s] <= 0) delete ent.statuses[s];
+    var isEnemy = E.combat && E.combat.enemies.indexOf(ent) >= 0;
+    if (v > 0 && isEnemy && (s === 'weak' || s === 'vuln')) {
+      var hx = art('hexweaver');                       // Hexweaver: Weak/Vuln also Burns
+      if (hx > 0) addStatus(ent, 'burn', hx);
+    }
+    if (v > 0 && isEnemy && s === 'burn') {
+      classQuestTick('burnApplied', v);
+      classQuestTick('burnAtOnce', ent.statuses.burn);
+    }
   }
 
   function startPlayerTurn() {
@@ -719,12 +789,15 @@
     var leftover = c.energy;
     c.turn++;
     c.cardsThisTurn = 0;
+    c.nonAttacksThisTurn = 0;   // Recoilless Frame: per-turn non-attack limit
+    c.turnDamage = 0;           // class quest: damage dealt this turn
     c.momentum = 0;   // Momentum Engine resets each turn
     if (p.statuses.momentum) p.statuses.momentum = 0;   // Fusillade: Momentum is a per-turn combo
     // Cursed Inheritance: a curse is lodged in hand at the start of combat
     if (c.turn === 1 && E.hasEcho('cursed_inheritance')) c.hand.push(mkCard('recurring_curse', false));
-    // block expiry (Retain / Barricade keep your Shield)
-    if (!statN(p, 'retain') && !statN(p, 'barricade')) p.block = 0;
+    // block expiry (Retain / Barricade keep your Shield). Turn 1 has no prior
+    // turn to expire, so combat-start Shield (Aegis Core / Forge Reserve) persists.
+    if (c.turn > 1 && !statN(p, 'retain') && !statN(p, 'barricade')) p.block = 0;
     if (p.statuses.parry) p.statuses.parry = 0;   // Parry is a per-turn stance (like block)
     // energy (with optional carry-over from Overflow Reactor)
     c.energy = maxEnergy() + (art('energyCarry') > 0 ? leftover : 0);
@@ -853,6 +926,7 @@
     if (def.xcost) return 0;
     var c = ns.cardCost(def, up);
     if (E.combat && def.type === 'skill' && statN(E.combat.player, 'corruption') > 0) return 0;
+    if (E.combat && def.type === 'power' && !E.combat.firstPowerUsed && art('firstPowerFree') > 0) return 0;   // Void Conduit
     if (E.combat && E.combat.cardsThisTurn === 0) {
       var ff = art('firstCardFree');
       if (ff > 0) c = Math.max(0, c - ff);
@@ -917,10 +991,12 @@
     }
     var ls = art('lifestealPct');   // Vampiric Array: attacks heal a % of damage dealt
     if (ls > 0 && hpDmg > 0 && byAttack) heal(Math.floor(hpDmg * ls / 100));
+    if (byAttack && hpDmg > 0) { c.turnDamage = (c.turnDamage || 0) + hpDmg; classQuestTick('turnDamage', c.turnDamage); }
     if (en.hp <= 0 && en.alive) {
       en.alive = false;
       E.run.kills++;
       questProgress('kills', 1);
+      classQuestTick('kills', 1);
       var hk = art('healOnKill'); if (hk > 0) heal(hk);
       var sk = art('strOnKill'); if (sk > 0) { addStatus(c.player, 'str', sk); emit('status', { who: 'player', s: 'str', v: sk }); }
       var kd = art('killDraw'); if (kd > 0) drawCards(kd);
@@ -1030,7 +1106,7 @@
   }
   function mkAlly(id) {
     var def = ns.PETS[id];
-    var hp = def.hp + Math.round(attr('bond') * 0.3);
+    var hp = def.hp + Math.round(attr('bond') * 0.3) + art('petBonusHp');   // Brood Womb
     var models = def.models || [];
     var model = models.length ? models[Math.floor(rnd() * models.length)] : null;
     return { id: id, def: def, hp: hp, maxHp: hp, block: 0, statuses: {}, alive: true, bonusDmg: 0, model: model };
@@ -1055,6 +1131,8 @@
       if (petSlots() + sz > maxSlots()) break;   // no room -> the summon fizzles
       c.allies.push(mkAlly(id));                  // joins the BACK of the formation
       emit('petSummon', { idx: c.allies.length - 1, id: id });
+      classQuestTick('petsSummoned', 1);
+      classQuestTick('petsAlive', c.allies.length);
     }
   }
   E.summonPet = summonPet;
@@ -1106,6 +1184,7 @@
         var pool = aliveEnemies(); if (!pool.length) return;
         var en = pick(pool);
         dealToEnemy(en, c.enemies.indexOf(en), (act.d || 0) + pw, { noCrit: true, src: 'pet' });
+        var bb = art('petAttackHeal'); if (bb > 0) heal(bb);   // Blood Bond
         var feast = statN(c.player, 'feast');   // Savage Feast: the captain heals off the hunt
         if (feast > 0) heal(feast);
       } else if (act.t === 'burn') {
@@ -1147,6 +1226,9 @@
     var card = c.hand[handIdx];
     if (!card) return false;
     var info = E.cardInfo(card);
+    // Recoilless Frame: at most N non-attack cards per turn
+    var lim = art('maxNonAttack');
+    if (lim > 0 && info.type !== 'attack' && (c.nonAttacksThisTurn || 0) >= lim) return false;
     return !info.unplayable && info.cost <= c.energy;
   };
 
@@ -1524,6 +1606,7 @@
     else c.discard.push(card);
 
     c.cardsThisTurn++;
+    if (def.type !== 'attack') c.nonAttacksThisTurn = (c.nonAttacksThisTurn || 0) + 1;   // Recoilless Frame
     if (E.hasEcho('momentum_engine')) c.momentum = (c.momentum || 0) + 1; // each card buffs the next
     if (def.type === 'attack') { var fauto = statN(p, 'fullauto'); if (fauto > 0) addStatus(p, 'momentum', fauto); } // Full Auto: each shot builds Momentum
     emit('cardPlayed', { id: card.id, crit: crit, roll: roll });

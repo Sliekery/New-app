@@ -472,6 +472,12 @@ function step() {
       }
       break;
     }
+    case 'class-relic': {
+      var crel = (E.classChain && E.classChain()) ? E.classChain().relics : [];
+      var crp = bestRelic(crel);
+      E.takeClassRelic(crp.idx); E.finishClassRelic();
+      break;
+    }
     case 'boss-artifact': {
       // a competent player avoids the downside relic when its drawback isn't earned
       var opts = r.bossArtifacts || [];
