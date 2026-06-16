@@ -7193,6 +7193,26 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       ctx.moveTo(barX + sk, by); ctx.lineTo(barEnd, by); ctx.lineTo(barEnd - sk, by + h);
       ctx.lineTo(barX, by + h); ctx.closePath();
     }
+    // --- dynamic shield bar: hatched, layered BEHIND the HP bar and offset
+    //     down so it peeks out beneath it (overlapping plates) ---
+    if (block > 0) {
+      var shOffY = h * 0.5;
+      var sw = Math.min(1, block / maxHp) * barW;   // graphic caps at the HP bar width
+      var shPath = function (w) {
+        ctx.beginPath();
+        ctx.moveTo(barX + sk, by + shOffY); ctx.lineTo(barX + w + sk, by + shOffY);
+        ctx.lineTo(barX + w, by + shOffY + h); ctx.lineTo(barX, by + shOffY + h); ctx.closePath();
+      };
+      ctx.save(); shPath(sw); ctx.clip();
+      ctx.fillStyle = 'rgba(65,216,255,0.18)'; ctx.fillRect(barX, by + shOffY, sw + sk + 2, h);
+      ctx.strokeStyle = 'rgba(65,216,255,0.9)'; ctx.lineWidth = 1.1;
+      for (var sx = barX - h; sx < barX + sw + h; sx += 5) {
+        ctx.beginPath(); ctx.moveTo(sx + sk, by + shOffY); ctx.lineTo(sx - h + sk, by + shOffY + h); ctx.stroke();
+      }
+      ctx.restore();
+      shPath(sw); ctx.strokeStyle = '#41d8ff'; ctx.lineWidth = 1.4; ctx.shadowColor = '#41d8ff'; ctx.shadowBlur = 6; ctx.stroke(); ctx.shadowBlur = 0;
+    }
+
     barPath(); ctx.fillStyle = 'rgba(4,12,14,0.9)'; ctx.fill();
     // HP fill (clipped to the bar shape) — translucent fill + diagonal hatch
     ctx.save(); barPath(); ctx.clip();
@@ -7216,27 +7236,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     ctx.fillText(hp + ' / ' + maxHp, (barX + barEnd) / 2, by + h / 2 + 0.5);
     ctx.shadowBlur = 0;
 
-    // --- dynamic shield bar: a separate hatched rail beneath the HP bar ---
+    // shield value — sits in the peeking strip; number keeps climbing past the cap
     if (block > 0) {
-      var shH = h * 0.56, shY = by + h + 2, ssk = shH * 0.42;
-      var sw = Math.min(1, block / maxHp) * barW;   // graphic caps at the HP bar width
-      var shPath = function (w) {
-        ctx.beginPath();
-        ctx.moveTo(barX + ssk, shY); ctx.lineTo(barX + w + ssk, shY);
-        ctx.lineTo(barX + w, shY + shH); ctx.lineTo(barX, shY + shH); ctx.closePath();
-      };
-      ctx.save(); shPath(sw); ctx.clip();
-      ctx.fillStyle = 'rgba(65,216,255,0.16)'; ctx.fillRect(barX, shY, sw + ssk + 2, shH);
-      ctx.strokeStyle = 'rgba(65,216,255,0.9)'; ctx.lineWidth = 1.1;
-      for (var sx = barX - shH; sx < barX + sw + shH; sx += 5) {
-        ctx.beginPath(); ctx.moveTo(sx + ssk, shY); ctx.lineTo(sx - shH + ssk, shY + shH); ctx.stroke();
-      }
-      ctx.restore();
-      shPath(sw); ctx.strokeStyle = '#41d8ff'; ctx.lineWidth = 1.4; ctx.shadowColor = '#41d8ff'; ctx.shadowBlur = 6; ctx.stroke(); ctx.shadowBlur = 0;
-      // shield value — keeps climbing even when the bar itself is capped
-      ctx.fillStyle = '#dff6ff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 3;
-      ctx.font = 'bold ' + Math.round(shH * 0.86) + 'px monospace'; ctx.textAlign = 'left';
-      ctx.fillText('⬡' + block, barX + ssk + 3, shY + shH / 2 + 0.5);
+      ctx.fillStyle = '#dff6ff'; ctx.shadowColor = '#031018'; ctx.shadowBlur = 3;
+      ctx.font = 'bold ' + Math.round(h * 0.48) + 'px monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText('⬡' + block, barX + sk + 4, by + h * 1.25);
       ctx.shadowBlur = 0;
     }
     ctx.restore();
