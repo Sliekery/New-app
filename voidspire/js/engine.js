@@ -281,12 +281,50 @@
   E.startNode = function (type) {
     var r = E.run;
     r.nodeType = type;
-    if (type === 'fight' || type === 'elite' || type === 'boss') startCombat(type);
+    if (type === 'fight' || type === 'elite' || type === 'boss' || type === 'beacon') startCombat(type);
     else if (type === 'event') startEvent();
-    else if (type === 'shop') { buildShop(); r.phase = 'shop'; }
+    else if (type === 'shop') { buildShop(false); r.phase = 'shop'; }
+    else if (type === 'market') { buildShop(true); r.phase = 'shop'; }
     else if (type === 'rest') r.phase = 'rest';
+    else if (type === 'forge') { r.phase = 'forge'; E.save(); }
+    else if (type === 'rift') startRift();
     else if (type === 'treasure') startTreasure();
   };
+
+  /* ---- Void Rift: a chaotic anomaly — one big boon paired with a bane ----- */
+  var RIFTS = [
+    { boon: 'A surge of power floods your frame.', bane: 'but the void takes its tax in blood.', fx: { attr: 1, hp: -14 } },
+    { boon: 'You scavenge a cache of fleet scrip.', bane: 'and a parasite-curse latches to your deck.', fx: { credits: 90, curse: true } },
+    { boon: 'The rift mends your wounds completely.', bane: 'but strips the cred from your account.', fx: { healPct: 1, loseCredits: true } },
+    { boon: 'Forbidden schematics burn into your mind.', bane: 'searing your max vitality away.', fx: { card: 'rare', maxhp: -8 } },
+    { boon: 'A relic phases out of the anomaly.', bane: 'as a wound opens that will not close.', fx: { artifact: true, hp: -18 } },
+    { boon: 'Time folds — you draft from the future.', bane: 'paying with a sliver of your soul.', fx: { card: 'colorless', maxhp: -6 } },
+  ];
+  function startRift() {
+    var r = E.run;
+    r.rift = RIFTS[Math.floor(rnd() * RIFTS.length)];
+    var f = r.rift.fx, gained = [];
+    if (f.attr) { var a = E.classStat(); r.attrs[a] = (r.attrs[a] || 0) + f.attr; gained.push('+' + f.attr + ' ' + a.toUpperCase()); }
+    if (f.hp < 0) { r.hp = Math.max(1, r.hp + f.hp); gained.push(f.hp + ' HP'); }
+    if (f.maxhp) { r.maxHp = Math.max(20, r.maxHp + f.maxhp); r.hp = Math.min(r.hp, r.maxHp); gained.push(f.maxhp + ' Max HP'); }
+    if (f.healPct) { heal(Math.ceil(r.maxHp * f.healPct)); gained.push('Full heal'); }
+    if (f.credits) { r.credits += f.credits; gained.push('+¢' + f.credits); }
+    if (f.loseCredits) { gained.push('Lost ¢' + r.credits); r.credits = 0; }
+    if (f.curse) { r.deck.push(mkCard(pick(['void_taint', 'shrapnel']), false)); gained.push('A Curse'); }
+    if (f.card) {
+      var cid = f.card === 'colorless' ? (rollColorlessCard() || rollRewardCard(0)) : f.card === 'rare' ? (function () { var rr = Object.keys(ns.CARDS).filter(function (k) { var cc = ns.CARDS[k]; return cc.rarity === 3 && !cc.pool && (cc.cls === r.cls || cc.cls === 'any'); }); return rr.length ? pick(rr) : rollRewardCard(0); })() : f.card;
+      r.deck.push(mkCard(cid, false)); gained.push('Card: ' + ns.CARDS[cid].name);
+    }
+    if (f.artifact) { var aid = randomArtifact(1); if (aid) { addArtifact(aid); gained.push('Relic: ' + ns.ARTIFACTS[aid].name); } else { r.credits += 60; gained.push('+¢60'); } }
+    r.rift.gained = gained;
+    r.phase = 'rift';
+    E.save();
+  }
+  E.finishRift = function () { E.run.rift = null; nodeComplete(); };
+
+  /* ---- Forge: deck-sculpting node — upgrade or remove one card ----------- */
+  E.forgePick = function (action) { E.run.pendingPick = (action === 'remove') ? 'remove' : 'upgrade'; E.save(); };
+  E.finishForge = function () { E.run.pendingPick = null; nodeComplete(); };
 
   function startTreasure() {
     var r = E.run;
@@ -501,7 +539,7 @@
       if ((r.loop || 1) === B.run.heartLoop) { ids = [E.counterBossId(r)]; isFinal = true; }
       else if (r.sector === B.run.finale) { ids = [ns.FINAL_BOSS]; isFinal = true; }
       else ids = [ns.BOSSES[r.faction]];
-    } else if (kind === 'elite') {
+    } else if (kind === 'elite' || kind === 'beacon') {
       ids = [ns.ELITES[r.faction]];
       if (r.sector >= 3 && rnd() < B.sector.eliteChance2Enemies) ids.push(ns.ELITE_MINIONS[r.faction]);
     } else {
@@ -1675,7 +1713,8 @@
     questProgress('creditsAtOnce', r.credits);
     var hb = art('healAfterCombat');
     if (hb > 0) heal(hb);
-    var rareBoost = (kind === 'elite' || kind === 'boss') ? B.rewards.eliteRareChance : 0;
+    var eliteTier = (kind === 'elite' || kind === 'boss' || kind === 'beacon');
+    var rareBoost = eliteTier ? B.rewards.eliteRareChance : 0;
     var cards = [], seen = {};
     // Salvage Doctrine forgoes card rewards (the deck grows from kills instead)
     if (!E.hasEcho('salvage_doctrine')) {
@@ -1690,8 +1729,10 @@
         var leg = rollLegendary();
         if (leg) cards[0] = leg;
       }
+      // Distress Beacon: its risk pays in salvage-tech (a guaranteed colorless card)
+      if (kind === 'beacon' && cards.length) { var col = rollColorlessCard(); if (col) cards[cards.length - 1] = col; }
     }
-    var artifactDrop = (kind === 'elite') ? randomArtifact(1) : null;
+    var artifactDrop = (kind === 'elite' || kind === 'beacon') ? randomArtifact(1) : null;
     if (artifactDrop) addArtifact(artifactDrop);
     // The Unmaker's Tithe: an extra relic from every elite & boss
     var bonusArtifact = null;
@@ -2117,25 +2158,31 @@
   E.cancelPick = function () { E.run.pendingPick = null; };
 
   /* ---------------- Shop --------------------------------------------------- */
-  function buildShop() {
+  // market=true -> Black Market: salvage-tech heavy + cheap card removal.
+  function buildShop(market) {
     var r = E.run;
     var cards = [], seen = {};
-    for (var i = 0; i < 3; i++) {
+    var nNormal = market ? 2 : 3, nColorless = market ? 2 : 1;
+    for (var i = 0; i < nNormal; i++) {
       var cid = rollRewardCard(0.06), guard = 0;
       while (seen[cid] && guard++ < 20) cid = rollRewardCard(0.06);
       seen[cid] = true;
       cards.push({ id: cid, cost: B.shop.cardCost[ns.CARDS[cid].rarity] || 35, sold: false });
     }
-    var col = rollColorlessCard();   // every shop stocks one piece of salvage-tech
-    if (col) cards.push({ id: col, cost: (B.shop.cardCost[ns.CARDS[col].rarity] || 35) + 10, sold: false });
+    for (var k = 0; k < nColorless; k++) {
+      var col = rollColorlessCard();
+      if (col && !seen[col]) { seen[col] = true; cards.push({ id: col, cost: (B.shop.cardCost[ns.CARDS[col].rarity] || 35) + (market ? -5 : 10), sold: false }); }
+    }
     var aid = randomArtifact(1);
     var pid = (rnd() < B.potions.shopChance) ? rollPotion() : null;
     r.shop = {
+      market: !!market,
       cards: cards,
-      artifact: aid ? { id: aid, cost: B.shop.artifactCost, sold: false } : null,
+      artifact: aid ? { id: aid, cost: B.shop.artifactCost - (market ? 15 : 0), sold: false } : null,
       potion: pid ? { id: pid, cost: B.potions.shopCost[ns.POTIONS[pid].rarity] || 40, sold: false } : null,
       healUsed: false,
       removeUsed: false,
+      removeDiscount: market ? 15 : 0,
     };
   }
 

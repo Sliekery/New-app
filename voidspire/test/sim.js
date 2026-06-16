@@ -416,6 +416,15 @@ function step() {
       if (r.hp < r.maxHp * 0.65) E.restHeal();
       else { E.restUpgrade(); E.restFinishUpgrade(pickUpgradeIdx()); }
       break;
+    case 'forge': {
+      // strip junk if any, else upgrade a strong card
+      var junk = r.deck.some(function (c) { return VS.CARDS[c.id].type === 'curse' || (c.id === 'pulse_rifle' && !c.up); });
+      if (junk) { E.forgePick('remove'); E.applyPick(pickRemoveIdx()); }
+      else { E.forgePick('upgrade'); E.applyPick(pickUpgradeIdx()); }
+      E.finishForge();
+      break;
+    }
+    case 'rift': E.finishRift(); break;
     case 'levelup': {
       // augment draft: a competent player heals when low, otherwise takes a
       // straightforward module/stat and avoids pacts & fiddly deck-ops

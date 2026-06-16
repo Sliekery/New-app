@@ -391,6 +391,8 @@
       case 'event-result': return showEventResult(false);
       case 'shop': return showShop();
       case 'rest': return showRest();
+      case 'forge': return showForge();
+      case 'rift': return showRift();
       case 'levelup': return showLevelUp();
       case 'boss-artifact': return showBossArtifact();
       case 'sector-intro': return showSectorIntro();
@@ -640,6 +642,7 @@
     fight: 'Hostile contact', elite: 'Mini-boss (elite)', boss: 'Sector boss',
     event: 'Unknown signal', random: 'Uncharted', shop: 'Free trader',
     rest: 'Field camp', treasure: 'Supply cache',
+    forge: 'Forge', beacon: 'Distress beacon', market: 'Black market', rift: 'Void rift',
   };
   var NODE_DESC = {
     fight: 'A standard enemy pack. Salvage and a card reward on victory.',
@@ -650,6 +653,10 @@
     shop: 'A trader. Spend credits on cards, relics and repairs.',
     rest: 'A quiet camp. Heal up, or refine a card.',
     treasure: 'A sealed cache holding a free relic.',
+    forge: 'A weapons-forge: upgrade or strip a card from your deck.',
+    beacon: 'A trap fight — but the risk pays in a relic and salvage-tech.',
+    market: 'A black market: off-doctrine salvage-tech and cheap removal.',
+    rift: 'A void anomaly. A great boon, paired with a price.',
   };
 
   function mapJit(row, col, axis) { return ((row * 13 + col * 7 + axis * 5) % 7 - 3) * 4; }
@@ -766,7 +773,7 @@
     s.appendChild(wrap);
 
     var legend = el('div', 'map-legend');
-    ['fight', 'elite', 'event', 'random', 'shop', 'rest', 'treasure', 'boss'].forEach(function (t) {
+    ['fight', 'elite', 'beacon', 'event', 'rift', 'shop', 'market', 'forge', 'rest', 'treasure', 'boss'].forEach(function (t) {
       var ic = ns.MAP_ICONS[t];
       legend.innerHTML += '<span class="leg"><span class="leg-ic" style="color:' + ic.color + '">' +
         '<svg viewBox="0 0 48 48">' + mapIconPaths(ic, 24, 24, 17) + '</svg></span>' + esc(NODE_LABEL[t]) + '</span>';
@@ -2180,7 +2187,7 @@
     var r = E.run;
     var sh = r.shop;
     var s = overlayScreen(true);
-    s.appendChild(el('h2', 'screen-title', 'Free Trader'));
+    s.appendChild(el('h2', 'screen-title', sh.market ? 'Black Market' : 'Free Trader'));
     s.appendChild(el('div', 'screen-sub', '“EVERYTHING IS FOR SALE.” · ¢' + r.credits));
     var cbar = makeConfirmBar();
 
@@ -2283,6 +2290,54 @@
         });
       }, 'amber');
     s.appendChild(cbar.el);
+  }
+
+  /* ====================== FORGE (deck-sculpting node) ====================== */
+  function showForge() {
+    updateHUD();
+    var s = overlayScreen(true);
+    s.appendChild(el('h2', 'screen-title', 'Forge'));
+    s.appendChild(el('div', 'screen-sub', 'A WEAPONS-FORGE GLOWS IN THE WRECK · TEMPER YOUR ARSENAL'));
+    var cbar = makeConfirmBar();
+    function pick(action, label, cls, msg) {
+      var btn = el('div', 'panel-btn ' + cls, label);
+      s.appendChild(btn);
+      selectConfirm(s, btn, cbar, msg, function () {
+        E.forgePick(action);
+        showPickModal(action, function () {
+          if (E.run.pendingPick) { E.cancelPick(); showForge(); return; }
+          E.finishForge(); U.refresh();
+        });
+      }, cls);
+    }
+    pick('upgrade', '<div class="pb-title">▲ UPGRADE A CARD</div><div class="pb-desc">Permanently upgrade one card in your deck.</div>', 'amber', 'Upgrade a card at the forge?');
+    pick('remove', '<div class="pb-title">✕ STRIP A CARD</div><div class="pb-desc">Permanently remove one card from your deck.</div>', 'red', 'Strip a card from your deck?');
+    var skip = el('div', 'panel-btn', '<div class="pb-title">→ MOVE ON</div><div class="pb-desc">Leave the forge cold and jump onward.</div>');
+    s.appendChild(skip);
+    selectConfirm(s, skip, cbar, 'Leave the forge?', function () { E.finishForge(); U.refresh(); }, '');
+    s.appendChild(cbar.el);
+  }
+
+  /* ====================== VOID RIFT (anomaly node) ====================== */
+  function showRift() {
+    updateHUD();
+    var r = E.run, rift = r.rift;
+    if (!rift) { U.refresh(); return; }
+    var s = overlayScreen();
+    s.appendChild(el('h2', 'screen-title', 'Void Rift'));
+    s.appendChild(el('div', 'screen-sub', 'REALITY FRAYS · THE ANOMALY GIVES, AND IT TAKES'));
+    s.appendChild(resourceLine());
+    var body = el('div', '', '');
+    body.appendChild(el('div', 'event-text event-result-text', esc(rift.boon + ' ' + rift.bane)));
+    if (rift.gained && rift.gained.length) {
+      var gl = el('div', 'gain-list');
+      rift.gained.forEach(function (g) { gl.appendChild(el('div', '', esc(g))); });
+      body.appendChild(gl);
+    }
+    s.appendChild(body);
+    var btn = el('button', 'btn', 'CONTINUE');
+    btn.addEventListener('pointerdown', function () { SFX.tap(); E.finishRift(); U.refresh(); });
+    s.appendChild(btn);
   }
 
   /* ====================== LEVEL UP: AUGMENT DRAFT ====================== */

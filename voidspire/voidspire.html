@@ -992,9 +992,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       act1End: 3,          // rows 1..act1End  = Approach (fights/events only)
       act2End: 8,          // rows act1End+1..act2End = The Push (elites/shops/forges...)
       actWeights: {
-        approach: { fight: 60, event: 30, treasure: 6 },
-        push:     { fight: 30, event: 14, random: 8, elite: 18, shop: 11, rest: 10, treasure: 6 },
-        final:    { fight: 40, event: 18, random: 8, shop: 11, rest: 12, elite: 7, treasure: 6 },
+        approach: { fight: 54, event: 28, rift: 6, treasure: 6 },
+        push:     { fight: 24, event: 11, random: 6, elite: 15, beacon: 8, shop: 9, market: 5, rest: 8, forge: 7, rift: 4, treasure: 4 },
+        final:    { fight: 34, event: 13, random: 6, shop: 8, market: 4, rest: 11, elite: 6, forge: 7, rift: 3, treasure: 6 },
       },
       restBeforeBoss: true, // the top content row is always a rest (catch your breath)
     },
@@ -3676,12 +3676,50 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   E.startNode = function (type) {
     var r = E.run;
     r.nodeType = type;
-    if (type === 'fight' || type === 'elite' || type === 'boss') startCombat(type);
+    if (type === 'fight' || type === 'elite' || type === 'boss' || type === 'beacon') startCombat(type);
     else if (type === 'event') startEvent();
-    else if (type === 'shop') { buildShop(); r.phase = 'shop'; }
+    else if (type === 'shop') { buildShop(false); r.phase = 'shop'; }
+    else if (type === 'market') { buildShop(true); r.phase = 'shop'; }
     else if (type === 'rest') r.phase = 'rest';
+    else if (type === 'forge') { r.phase = 'forge'; E.save(); }
+    else if (type === 'rift') startRift();
     else if (type === 'treasure') startTreasure();
   };
+
+  /* ---- Void Rift: a chaotic anomaly — one big boon paired with a bane ----- */
+  var RIFTS = [
+    { boon: 'A surge of power floods your frame.', bane: 'but the void takes its tax in blood.', fx: { attr: 1, hp: -14 } },
+    { boon: 'You scavenge a cache of fleet scrip.', bane: 'and a parasite-curse latches to your deck.', fx: { credits: 90, curse: true } },
+    { boon: 'The rift mends your wounds completely.', bane: 'but strips the cred from your account.', fx: { healPct: 1, loseCredits: true } },
+    { boon: 'Forbidden schematics burn into your mind.', bane: 'searing your max vitality away.', fx: { card: 'rare', maxhp: -8 } },
+    { boon: 'A relic phases out of the anomaly.', bane: 'as a wound opens that will not close.', fx: { artifact: true, hp: -18 } },
+    { boon: 'Time folds — you draft from the future.', bane: 'paying with a sliver of your soul.', fx: { card: 'colorless', maxhp: -6 } },
+  ];
+  function startRift() {
+    var r = E.run;
+    r.rift = RIFTS[Math.floor(rnd() * RIFTS.length)];
+    var f = r.rift.fx, gained = [];
+    if (f.attr) { var a = E.classStat(); r.attrs[a] = (r.attrs[a] || 0) + f.attr; gained.push('+' + f.attr + ' ' + a.toUpperCase()); }
+    if (f.hp < 0) { r.hp = Math.max(1, r.hp + f.hp); gained.push(f.hp + ' HP'); }
+    if (f.maxhp) { r.maxHp = Math.max(20, r.maxHp + f.maxhp); r.hp = Math.min(r.hp, r.maxHp); gained.push(f.maxhp + ' Max HP'); }
+    if (f.healPct) { heal(Math.ceil(r.maxHp * f.healPct)); gained.push('Full heal'); }
+    if (f.credits) { r.credits += f.credits; gained.push('+¢' + f.credits); }
+    if (f.loseCredits) { gained.push('Lost ¢' + r.credits); r.credits = 0; }
+    if (f.curse) { r.deck.push(mkCard(pick(['void_taint', 'shrapnel']), false)); gained.push('A Curse'); }
+    if (f.card) {
+      var cid = f.card === 'colorless' ? (rollColorlessCard() || rollRewardCard(0)) : f.card === 'rare' ? (function () { var rr = Object.keys(ns.CARDS).filter(function (k) { var cc = ns.CARDS[k]; return cc.rarity === 3 && !cc.pool && (cc.cls === r.cls || cc.cls === 'any'); }); return rr.length ? pick(rr) : rollRewardCard(0); })() : f.card;
+      r.deck.push(mkCard(cid, false)); gained.push('Card: ' + ns.CARDS[cid].name);
+    }
+    if (f.artifact) { var aid = randomArtifact(1); if (aid) { addArtifact(aid); gained.push('Relic: ' + ns.ARTIFACTS[aid].name); } else { r.credits += 60; gained.push('+¢60'); } }
+    r.rift.gained = gained;
+    r.phase = 'rift';
+    E.save();
+  }
+  E.finishRift = function () { E.run.rift = null; nodeComplete(); };
+
+  /* ---- Forge: deck-sculpting node — upgrade or remove one card ----------- */
+  E.forgePick = function (action) { E.run.pendingPick = (action === 'remove') ? 'remove' : 'upgrade'; E.save(); };
+  E.finishForge = function () { E.run.pendingPick = null; nodeComplete(); };
 
   function startTreasure() {
     var r = E.run;
@@ -3896,7 +3934,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       if ((r.loop || 1) === B.run.heartLoop) { ids = [E.counterBossId(r)]; isFinal = true; }
       else if (r.sector === B.run.finale) { ids = [ns.FINAL_BOSS]; isFinal = true; }
       else ids = [ns.BOSSES[r.faction]];
-    } else if (kind === 'elite') {
+    } else if (kind === 'elite' || kind === 'beacon') {
       ids = [ns.ELITES[r.faction]];
       if (r.sector >= 3 && rnd() < B.sector.eliteChance2Enemies) ids.push(ns.ELITE_MINIONS[r.faction]);
     } else {
@@ -5070,7 +5108,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     questProgress('creditsAtOnce', r.credits);
     var hb = art('healAfterCombat');
     if (hb > 0) heal(hb);
-    var rareBoost = (kind === 'elite' || kind === 'boss') ? B.rewards.eliteRareChance : 0;
+    var eliteTier = (kind === 'elite' || kind === 'boss' || kind === 'beacon');
+    var rareBoost = eliteTier ? B.rewards.eliteRareChance : 0;
     var cards = [], seen = {};
     // Salvage Doctrine forgoes card rewards (the deck grows from kills instead)
     if (!E.hasEcho('salvage_doctrine')) {
@@ -5085,8 +5124,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         var leg = rollLegendary();
         if (leg) cards[0] = leg;
       }
+      // Distress Beacon: its risk pays in salvage-tech (a guaranteed colorless card)
+      if (kind === 'beacon' && cards.length) { var col = rollColorlessCard(); if (col) cards[cards.length - 1] = col; }
     }
-    var artifactDrop = (kind === 'elite') ? randomArtifact(1) : null;
+    var artifactDrop = (kind === 'elite' || kind === 'beacon') ? randomArtifact(1) : null;
     if (artifactDrop) addArtifact(artifactDrop);
     // The Unmaker's Tithe: an extra relic from every elite & boss
     var bonusArtifact = null;
@@ -5512,25 +5553,31 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   E.cancelPick = function () { E.run.pendingPick = null; };
 
   /* ---------------- Shop --------------------------------------------------- */
-  function buildShop() {
+  // market=true -> Black Market: salvage-tech heavy + cheap card removal.
+  function buildShop(market) {
     var r = E.run;
     var cards = [], seen = {};
-    for (var i = 0; i < 3; i++) {
+    var nNormal = market ? 2 : 3, nColorless = market ? 2 : 1;
+    for (var i = 0; i < nNormal; i++) {
       var cid = rollRewardCard(0.06), guard = 0;
       while (seen[cid] && guard++ < 20) cid = rollRewardCard(0.06);
       seen[cid] = true;
       cards.push({ id: cid, cost: B.shop.cardCost[ns.CARDS[cid].rarity] || 35, sold: false });
     }
-    var col = rollColorlessCard();   // every shop stocks one piece of salvage-tech
-    if (col) cards.push({ id: col, cost: (B.shop.cardCost[ns.CARDS[col].rarity] || 35) + 10, sold: false });
+    for (var k = 0; k < nColorless; k++) {
+      var col = rollColorlessCard();
+      if (col && !seen[col]) { seen[col] = true; cards.push({ id: col, cost: (B.shop.cardCost[ns.CARDS[col].rarity] || 35) + (market ? -5 : 10), sold: false }); }
+    }
     var aid = randomArtifact(1);
     var pid = (rnd() < B.potions.shopChance) ? rollPotion() : null;
     r.shop = {
+      market: !!market,
       cards: cards,
-      artifact: aid ? { id: aid, cost: B.shop.artifactCost, sold: false } : null,
+      artifact: aid ? { id: aid, cost: B.shop.artifactCost - (market ? 15 : 0), sold: false } : null,
       potion: pid ? { id: pid, cost: B.potions.shopCost[ns.POTIONS[pid].rarity] || 40, sold: false } : null,
       healUsed: false,
       removeUsed: false,
+      removeDiscount: market ? 15 : 0,
     };
   }
 
@@ -5695,6 +5742,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     shop:     { color: '#ffb02e', p: [[0.0,-0.62, 0.44,-0.44, 0.62,0.0, 0.44,0.44, 0.0,0.62, -0.44,0.44, -0.62,0.0, -0.44,-0.44, 0.0,-0.62], [0.0,-0.82, 0.0,0.82], [-0.22,-0.28, 0.22,-0.28], [-0.22,0.28, 0.22,0.28]] },
     rest:     { color: '#5dff88', p: [[0.0,0.62, -0.42,0.2, -0.26,-0.22, 0.02,0.1, 0.12,-0.55, 0.32,-0.1, 0.42,0.26, 0.0,0.62], [0.0,0.62, 0.0,0.1]] },
     treasure: { color: '#ffb02e', p: [[-0.6,-0.08, 0.6,-0.08, 0.6,0.55, -0.6,0.55, -0.6,-0.08], [-0.6,-0.08, -0.5,-0.5, 0.5,-0.5, 0.6,-0.08], [-0.12,0.1, 0.12,0.1, 0.12,0.32, -0.12,0.32, -0.12,0.1]], e: [[0,0.2]] },
+    // -- new node types --
+    forge:    { color: '#7fd8ff', p: [[-0.55,0.25, 0.5,0.25, 0.62,0.05, -0.2,0.05, -0.55,0.25], [-0.18,0.25, -0.18,0.6, 0.18,0.6, 0.18,0.25], [-0.5,-0.55, -0.1,-0.2], [-0.62,-0.62, -0.18,-0.32, -0.32,-0.55, -0.62,-0.62]] },
+    beacon:   { color: '#ff7a4a', p: [[0,-0.55, 0,0.55], [-0.32,0.55, 0.32,0.55], [0,-0.55, -0.26,-0.18], [0,-0.55, 0.26,-0.18], [0.22,-0.62, 0.42,-0.45], [0.3,-0.74, 0.58,-0.5]], e: [[0,-0.5]] },
+    market:   { color: '#c89bff', p: [[-0.45,-0.08, 0.45,-0.08, 0.56,0.58, -0.56,0.58, -0.45,-0.08], [-0.26,-0.08, -0.26,-0.34, 0.26,-0.34, 0.26,-0.08], [-0.18,0.18, 0.18,0.18]], e: [[0,0.36]] },
+    rift:     { color: '#d86bff', p: [[0,-0.55, 0.42,-0.28, 0.46,0.22, 0.08,0.46, -0.28,0.28, -0.3,-0.08, 0.04,-0.22, 0.2,0.06]], e: [[0,0]] },
   };
 
   var canvas, ctx, W = 0, H = 0, dpr = 1;
@@ -7630,6 +7682,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       case 'event-result': return showEventResult(false);
       case 'shop': return showShop();
       case 'rest': return showRest();
+      case 'forge': return showForge();
+      case 'rift': return showRift();
       case 'levelup': return showLevelUp();
       case 'boss-artifact': return showBossArtifact();
       case 'sector-intro': return showSectorIntro();
@@ -7879,6 +7933,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     fight: 'Hostile contact', elite: 'Mini-boss (elite)', boss: 'Sector boss',
     event: 'Unknown signal', random: 'Uncharted', shop: 'Free trader',
     rest: 'Field camp', treasure: 'Supply cache',
+    forge: 'Forge', beacon: 'Distress beacon', market: 'Black market', rift: 'Void rift',
   };
   var NODE_DESC = {
     fight: 'A standard enemy pack. Salvage and a card reward on victory.',
@@ -7889,6 +7944,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     shop: 'A trader. Spend credits on cards, relics and repairs.',
     rest: 'A quiet camp. Heal up, or refine a card.',
     treasure: 'A sealed cache holding a free relic.',
+    forge: 'A weapons-forge: upgrade or strip a card from your deck.',
+    beacon: 'A trap fight — but the risk pays in a relic and salvage-tech.',
+    market: 'A black market: off-doctrine salvage-tech and cheap removal.',
+    rift: 'A void anomaly. A great boon, paired with a price.',
   };
 
   function mapJit(row, col, axis) { return ((row * 13 + col * 7 + axis * 5) % 7 - 3) * 4; }
@@ -8005,7 +8064,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     s.appendChild(wrap);
 
     var legend = el('div', 'map-legend');
-    ['fight', 'elite', 'event', 'random', 'shop', 'rest', 'treasure', 'boss'].forEach(function (t) {
+    ['fight', 'elite', 'beacon', 'event', 'rift', 'shop', 'market', 'forge', 'rest', 'treasure', 'boss'].forEach(function (t) {
       var ic = ns.MAP_ICONS[t];
       legend.innerHTML += '<span class="leg"><span class="leg-ic" style="color:' + ic.color + '">' +
         '<svg viewBox="0 0 48 48">' + mapIconPaths(ic, 24, 24, 17) + '</svg></span>' + esc(NODE_LABEL[t]) + '</span>';
@@ -9419,7 +9478,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var r = E.run;
     var sh = r.shop;
     var s = overlayScreen(true);
-    s.appendChild(el('h2', 'screen-title', 'Free Trader'));
+    s.appendChild(el('h2', 'screen-title', sh.market ? 'Black Market' : 'Free Trader'));
     s.appendChild(el('div', 'screen-sub', '“EVERYTHING IS FOR SALE.” · ¢' + r.credits));
     var cbar = makeConfirmBar();
 
@@ -9522,6 +9581,54 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         });
       }, 'amber');
     s.appendChild(cbar.el);
+  }
+
+  /* ====================== FORGE (deck-sculpting node) ====================== */
+  function showForge() {
+    updateHUD();
+    var s = overlayScreen(true);
+    s.appendChild(el('h2', 'screen-title', 'Forge'));
+    s.appendChild(el('div', 'screen-sub', 'A WEAPONS-FORGE GLOWS IN THE WRECK · TEMPER YOUR ARSENAL'));
+    var cbar = makeConfirmBar();
+    function pick(action, label, cls, msg) {
+      var btn = el('div', 'panel-btn ' + cls, label);
+      s.appendChild(btn);
+      selectConfirm(s, btn, cbar, msg, function () {
+        E.forgePick(action);
+        showPickModal(action, function () {
+          if (E.run.pendingPick) { E.cancelPick(); showForge(); return; }
+          E.finishForge(); U.refresh();
+        });
+      }, cls);
+    }
+    pick('upgrade', '<div class="pb-title">▲ UPGRADE A CARD</div><div class="pb-desc">Permanently upgrade one card in your deck.</div>', 'amber', 'Upgrade a card at the forge?');
+    pick('remove', '<div class="pb-title">✕ STRIP A CARD</div><div class="pb-desc">Permanently remove one card from your deck.</div>', 'red', 'Strip a card from your deck?');
+    var skip = el('div', 'panel-btn', '<div class="pb-title">→ MOVE ON</div><div class="pb-desc">Leave the forge cold and jump onward.</div>');
+    s.appendChild(skip);
+    selectConfirm(s, skip, cbar, 'Leave the forge?', function () { E.finishForge(); U.refresh(); }, '');
+    s.appendChild(cbar.el);
+  }
+
+  /* ====================== VOID RIFT (anomaly node) ====================== */
+  function showRift() {
+    updateHUD();
+    var r = E.run, rift = r.rift;
+    if (!rift) { U.refresh(); return; }
+    var s = overlayScreen();
+    s.appendChild(el('h2', 'screen-title', 'Void Rift'));
+    s.appendChild(el('div', 'screen-sub', 'REALITY FRAYS · THE ANOMALY GIVES, AND IT TAKES'));
+    s.appendChild(resourceLine());
+    var body = el('div', '', '');
+    body.appendChild(el('div', 'event-text event-result-text', esc(rift.boon + ' ' + rift.bane)));
+    if (rift.gained && rift.gained.length) {
+      var gl = el('div', 'gain-list');
+      rift.gained.forEach(function (g) { gl.appendChild(el('div', '', esc(g))); });
+      body.appendChild(gl);
+    }
+    s.appendChild(body);
+    var btn = el('button', 'btn', 'CONTINUE');
+    btn.addEventListener('pointerdown', function () { SFX.tap(); E.finishRift(); U.refresh(); });
+    s.appendChild(btn);
   }
 
   /* ====================== LEVEL UP: AUGMENT DRAFT ====================== */
