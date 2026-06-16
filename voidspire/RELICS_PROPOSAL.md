@@ -96,47 +96,33 @@ Rarity weighting on drops: Common 55 / Uncommon 30 / Rare 15; Boss pool is separ
 | Overload Cell ⭐NEW 🔋 | **3 charges** — spend one to make your next attack deal **triple**. +1 charge per boss. | [N] 🔋 |
 | Phoenix Protocol ⭐NEW 🔋 | **2 charges** — drop below 25% HP → **heal 15** and spend a charge. | [N] 🔋 |
 
-### Class-specific relics (5 per class = 20 — you'll trim)
-These only drop for / are only offered to their class, and supercharge that class's
-fantasy. (The general-pool **Kindler** and **Pack Harness** fold into the Void-adept and
-Warpcaller sets below — drop them from the Uncommon pool.) Mostly **[N]** since class
-mechanics need engine support.
+### Class-specific relics (FINAL — 2 per class = 8)
+Only drop for / are only offered to their class, and supercharge that class's fantasy.
+All **[N]** (need engine support for the class mechanic). Legend: ⚠ downside · 🔌 togglable · 🔋 charges.
 
-**Vanguard — MIGHT brawler · ammo · execute**
+**Vanguard — MIGHT brawler · execute**
 | Relic | Effect |
 |---|---|
-| Hollow-Points | Attacks deal **+1 for each Might** you have. [N] |
-| Recoilless Frame ⚠🔌 | Attacks deal **+5**, but you may play at most **1 non-attack card** per turn. [N] |
-| Open Bolt | The **first Attack you play each turn costs 0**. [N] |
-| Execution Protocol | Your attacks deal **double** to enemies below **25% HP**. [N] |
-| Blood Redline ⚠🔌 | While **below half HP**, your attacks deal **+50%**. [N] |
+| Recoilless Frame ⚠🔌 | Attacks deal **+5**, but you may play at most **1 non-attack card** per turn. |
+| Execution Protocol | Your attacks deal **double** to enemies below **25% HP**. |
 
-**Technomancer — TECH shields · turrets · turtle**
+**Technomancer — TECH shields · turrets**
 | Relic | Effect |
 |---|---|
-| Phase Barricade ⚠🔌 | Your Shield **doesn't expire** at end of turn — but you take **+2 from every hit**. [N] |
-| Drone Foundry | Your turrets & drones **trigger twice** each turn. [N] |
-| Capacitive Plating | Whenever you gain Shield, deal **1 per 3 Shield gained** to a random enemy. [N] |
-| Coolant Loop | At the start of your turn, **heal 1 HP per 4 Shield** you hold. [N] |
-| Forge Reserve 🔋 | **2 charges** — spend one to instantly gain **Shield = TECH × 3**; +1 charge per boss. [N] |
+| Forge Reserve 🔋 | **2 charges** — spend one to instantly gain **Shield = TECH × 3**; +1 charge per boss. |
+| Capacitive Plating | Whenever you gain Shield, deal **1 per 3 Shield gained** to a random enemy. |
 
-**Void-adept — PSI burn · hex · void tax**
+**Void-adept — PSI burn · hex**
 | Relic | Effect |
 |---|---|
-| Pyre Sigil | Your **Burn deals +50%** when it ticks. [N] |
-| Hexweaver | Whenever you apply **Weak or Vulnerable, also apply 2 Burn**. [N] |
-| Entropy Lens ⚠🔌 | Enemies take **+25% damage from all sources** — but you start each combat with **2 Vulnerable**. [N] |
-| Void Conduit | The **first Power you play each combat costs 0**. [N] |
-| Soul Siphon 🔋 | **3 charges** — spend one to **deal 6 to an enemy and heal 6**; +1 per boss. [N] |
+| Hexweaver | Whenever you apply **Weak or Vulnerable, also apply 2 Burn**. |
+| Void Conduit | The **first Power you play each combat costs 0**. |
 
-**Warpcaller — BOND pack · pets · sacrifice**
+**Warpcaller — BOND pack · pets**
 | Relic | Effect |
 |---|---|
-| Brood Womb | Your pets start with **+3 HP**. [N] |
-| Blood Bond | Whenever one of your pets attacks, **heal 1 HP**. [N] |
-| Hive Resilience | When a pet dies, **summon a Spawnling** in its place. [N] |
-| Apex Pheromones ⚠🔌 | Your pets deal **+50% damage** — but you have **1 fewer pet slot**. [N] |
-| Devour Protocol 🔋⚠ | **2 charges** — **sacrifice a pet** to gain **+3 Might and 8 Shield**; +1 per boss. [N] |
+| Blood Bond | Whenever one of your pets attacks, **heal 1 HP**. |
+| Brood Womb | Your pets start with **+3 HP**. |
 
 ### Quest (keep, lightly retuned) (5)
 Offline Shield · Berserker's Pact · Pacifist Doctrine · Flawless Protocol · Soul Ledger.
