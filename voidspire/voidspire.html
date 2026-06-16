@@ -90,10 +90,12 @@ html, body {
 /* landscape: the dock goes slim and energy/stims/END ride INLINE beside the
    cards (the "unified bar"); the hand keeps clear of the flanks. */
 #game.landscape #combat-dock { height: 88px; }
-#game.landscape #energy-pip { bottom: calc(env(safe-area-inset-bottom, 0px) + 22px); }
-#game.landscape #potion-belt { left: 116px; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); }
-#game.landscape #combat-controls { bottom: calc(env(safe-area-inset-bottom, 0px) + 22px); }
-#game.landscape #hand { padding: 0 132px 0 184px; }
+#game.landscape #energy-pip { left: 58px; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); }
+#game.landscape #potion-belt { left: 160px; bottom: calc(env(safe-area-inset-bottom, 0px) + 22px); }
+#game.landscape #combat-controls { right: 60px; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); }
+#game.landscape #draw-pile { left: 8px; }
+#game.landscape #discard-pile { right: 8px; }
+#game.landscape #hand { padding: 0 142px 0 280px; }
 
 #battlefield { position: absolute; inset: 0; width: 100%; height: 100%; }
 
@@ -8043,8 +8045,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $dock.style.display = on ? 'block' : 'none';
     $energy.style.display = on ? 'flex' : 'none';   // energy lives in the bottom dock now
     $counts.style.display = 'none';
-    $drawPile.style.display = 'none';      // draw/discard now live on the cockpit rail
-    $discardPile.style.display = 'none';
+    $drawPile.style.display = on ? 'block' : 'none';   // piles ride the dock corners (per-class art)
+    $discardPile.style.display = on ? 'block' : 'none';
     if (!on && $rail) { $rail.style.display = 'none'; closeRail(); }
     $potions.style.display = on ? 'flex' : 'none';
     if (!on) { $hint.style.display = 'none'; onPotionCancel(); hidePotionTip(); }
@@ -8263,8 +8265,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       { k: 'buffs', ic: RAIL_ICON.buffs, col: '#5dff88', n: railBuffs().length + railPowers().length },
       { k: 'debuffs', ic: RAIL_ICON.debuffs, col: '#ff4a5e', n: railDebuffs().length },
       { k: 'relics', ic: RAIL_ICON.relics, col: '#ffb02e', n: E.run.artifacts.length },
-      { k: 'draw', ic: RAIL_ICON.draw, col: '#41d8ff', n: c.drawPile.length },
-      { k: 'discard', ic: RAIL_ICON.discard, col: '#9fb6c0', n: c.discard.length },
     ];
     $rail.innerHTML = items.map(function (it) {
       return '<div class="rail-row" style="--rc:' + it.col + '"><span class="rk-sw"></span>' +

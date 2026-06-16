@@ -462,8 +462,8 @@
     $dock.style.display = on ? 'block' : 'none';
     $energy.style.display = on ? 'flex' : 'none';   // energy lives in the bottom dock now
     $counts.style.display = 'none';
-    $drawPile.style.display = 'none';      // draw/discard now live on the cockpit rail
-    $discardPile.style.display = 'none';
+    $drawPile.style.display = on ? 'block' : 'none';   // piles ride the dock corners (per-class art)
+    $discardPile.style.display = on ? 'block' : 'none';
     if (!on && $rail) { $rail.style.display = 'none'; closeRail(); }
     $potions.style.display = on ? 'flex' : 'none';
     if (!on) { $hint.style.display = 'none'; onPotionCancel(); hidePotionTip(); }
@@ -682,8 +682,6 @@
       { k: 'buffs', ic: RAIL_ICON.buffs, col: '#5dff88', n: railBuffs().length + railPowers().length },
       { k: 'debuffs', ic: RAIL_ICON.debuffs, col: '#ff4a5e', n: railDebuffs().length },
       { k: 'relics', ic: RAIL_ICON.relics, col: '#ffb02e', n: E.run.artifacts.length },
-      { k: 'draw', ic: RAIL_ICON.draw, col: '#41d8ff', n: c.drawPile.length },
-      { k: 'discard', ic: RAIL_ICON.discard, col: '#9fb6c0', n: c.discard.length },
     ];
     $rail.innerHTML = items.map(function (it) {
       return '<div class="rail-row" style="--rc:' + it.col + '"><span class="rk-sw"></span>' +
