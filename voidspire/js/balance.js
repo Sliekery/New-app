@@ -54,6 +54,9 @@
       dmgMul: function (s) { return 1 + 0.165 * (s - 1) + 0.017 * (s - 1) * (s - 1); },
       // extra flat strength enemies gain every N sectors (late-game pressure)
       strEverySectors: 3,
+      // within-sector ramp: enemies at the top of a (now 12-row) sector hit this
+      // much harder than at the entry, to match the deck you've assembled.
+      depthBonus: 0.18,
     },
 
     /* ---- Sector / encounters ---------------------------------------- */

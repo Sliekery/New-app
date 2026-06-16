@@ -563,8 +563,15 @@
     var boss = { row: 1, col: 0, type: 'boss', edges: [], parents: [0], visited: false };
     return { rows: [[heart]], boss: boss, ROWS: 1, COLS: 1 };
   }
-  function scaledHp(base, s) { return Math.round(base * B.scaling.hpMul(s) * worldPowerMult()); }
-  function scaledDmg(base, s) { return Math.round(base * B.scaling.dmgMul(s) * worldPowerMult()); }
+  // deeper into a sector = tougher, to keep pace with the deck you've been
+  // building across its (now longer) rows.
+  function depthMult() {
+    var r = E.run; if (!r || r.mapRow == null) return 1;
+    var prog = Math.min(1, Math.max(0, r.mapRow) / Math.max(1, B.map.rows - 1));
+    return 1 + prog * (B.scaling.depthBonus || 0);
+  }
+  function scaledHp(base, s) { return Math.round(base * B.scaling.hpMul(s) * worldPowerMult() * depthMult()); }
+  function scaledDmg(base, s) { return Math.round(base * B.scaling.dmgMul(s) * worldPowerMult() * depthMult()); }
 
   function mkEnemy(id) {
     var def = ns.ENEMIES[id];
