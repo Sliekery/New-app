@@ -11,7 +11,7 @@
   var R = ns.render;
   var B = ns.BALANCE;
 
-  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $manifest, $rail, $railPanel, $railLine;
+  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $manifest, $rail, $railPanel, $railLine, $dock;
   var railOpen = null;      // which rail panel is open ('buffs'|'debuffs'|'relics'|'draw'|'discard') or null
   var selected = -1;        // selected hand index
   var manifestSel = -1;     // selected pet in the Manifest (tap-to-swap reorder)
@@ -200,6 +200,11 @@
     $overlay = document.getElementById('overlay');
     $floaters = document.getElementById('floaters');
     $toast = document.getElementById('toast');
+
+    // unified bottom dock frame (energy │ stims │ cards │ END all ride on it)
+    $dock = el('div', '', '');
+    $dock.id = 'combat-dock';
+    $game.appendChild($dock);
 
     $energy = el('div', '', '');
     $energy.id = 'energy-pip';
@@ -454,7 +459,8 @@
   function combatChrome(on) {
     $hand.style.display = on ? 'flex' : 'none';
     $controls.style.display = on ? 'flex' : 'none';
-    $energy.style.display = 'none';   // energy now lives on the cockpit gauge
+    $dock.style.display = on ? 'block' : 'none';
+    $energy.style.display = on ? 'flex' : 'none';   // energy lives in the bottom dock now
     $counts.style.display = 'none';
     $drawPile.style.display = 'none';      // draw/discard now live on the cockpit rail
     $discardPile.style.display = 'none';
@@ -1106,6 +1112,7 @@
     var r = E.run;
     $potions.innerHTML = '';
     if (!E.combat) return;
+    $potions.appendChild(el('div', 'belt-lbl', 'STIMS'));
     var slots = E.potionSlots();
     for (var i = 0; i < slots; i++) {
       var pid = (r.potions || [])[i];
@@ -1130,15 +1137,16 @@
     var pot = ns.POTIONS[pid];
     var rarTag = pot.rarity === 3 ? 'RARE' : pot.rarity === 2 ? 'UNCOMMON' : 'COMMON';
     $potionTip.innerHTML =
-      '<div class="pt-name">' + esc(pot.name) + ' <span class="pt-tag">' + rarTag + '</span></div>' +
+      '<div class="pt-name">' + esc(pot.name) + ' <span class="pt-tag">STIM · ' + rarTag + '</span></div>' +
       '<div class="pt-desc">' + esc(pot.desc) + '</div>';
     $potionTip.style.display = 'block';
     var gr = $game.getBoundingClientRect(), cr = chipEl.getBoundingClientRect();
-    // sit to the LEFT of the belt (which hugs the right edge)
-    $potionTip.style.left = 'auto';
-    $potionTip.style.right = Math.round(gr.right - cr.left + 10) + 'px';
+    // belt sits low-left now, so float the tip just ABOVE the slot
     var tipH = $potionTip.getBoundingClientRect().height || 56;
-    $potionTip.style.top = Math.max(6, Math.round(cr.top - gr.top - (tipH - cr.height) / 2)) + 'px';
+    var tipW = $potionTip.getBoundingClientRect().width || 188;
+    $potionTip.style.right = 'auto';
+    $potionTip.style.left = Math.max(6, Math.min(gr.width - tipW - 6, Math.round(cr.left - gr.left))) + 'px';
+    $potionTip.style.top = Math.max(6, Math.round(cr.top - gr.top - tipH - 8)) + 'px';
   }
   function hidePotionTip() { $potionTip.style.display = 'none'; }
 
@@ -1231,10 +1239,15 @@
     $controls.appendChild(btn);
   }
 
+  // bolt-in-a-hexagon energy glyph (the indicator that sits left of the cards)
+  var ENERGY_GLYPH = '<svg class="en-ic" viewBox="0 0 24 24" fill="none">' +
+    '<path d="M12 2.4 21 7.2v9.6L12 21.6 3 16.8V7.2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>' +
+    '<path d="M13 6.2 8.4 12.8h3.4L11 17.8l4.6-6.6h-3.4Z" fill="currentColor"/></svg>';
   function updateEnergy() {
     var c = E.combat;
     if (!c) return;
-    $energy.textContent = '⚡ ' + c.energy;
+    var mx = E.maxEnergy ? E.maxEnergy() : c.energy;
+    $energy.innerHTML = ENERGY_GLYPH + '<span class="en-n">' + c.energy + '<span class="en-mx">/' + mx + '</span></span>';
   }
 
   var CLASS_COLOR = { vanguard: '#ffb02e', technomancer: '#41d8ff', voidadept: '#c86bff' };

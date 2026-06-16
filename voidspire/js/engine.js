@@ -693,6 +693,7 @@
 
   /* ---------------- Combat: turn structure ------------------------------ */
   function maxEnergy() { return B.player.baseEnergy + art('energyEveryTurn') + (statN(E.combat.player, 'reactor')); }
+  E.maxEnergy = function () { return E.combat ? maxEnergy() : (B.player.baseEnergy || 0); };
 
   function statN(ent, s) { return ent.statuses[s] || 0; }
   function addStatus(ent, s, v) {

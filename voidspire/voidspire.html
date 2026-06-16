@@ -87,6 +87,14 @@ html, body {
 #game.landscape .screen > .comm-frame { flex-basis: auto; }
 #game.landscape .card-grid { max-width: 760px; }
 
+/* landscape: the dock goes slim and energy/stims/END ride INLINE beside the
+   cards (the "unified bar"); the hand keeps clear of the flanks. */
+#game.landscape #combat-dock { height: 88px; }
+#game.landscape #energy-pip { bottom: calc(env(safe-area-inset-bottom, 0px) + 22px); }
+#game.landscape #potion-belt { left: 76px; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px); }
+#game.landscape #combat-controls { bottom: calc(env(safe-area-inset-bottom, 0px) + 22px); }
+#game.landscape #hand { padding: 0 132px 0 184px; }
+
 #battlefield { position: absolute; inset: 0; width: 100%; height: 100%; }
 
 /* ---- CRT overlay ---- */
@@ -298,19 +306,36 @@ html, body {
 }
 
 /* ========================= COMBAT CONTROLS ========================= */
+/* ===== unified bottom dock: energy │ stims │ cards │ END all ride on it ===== */
+#combat-dock {
+  position: absolute; left: 8px; right: 8px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
+  height: 200px; z-index: 19; display: none; pointer-events: none;
+  border: 1px solid rgba(65,216,255,0.18);
+  background: linear-gradient(180deg, rgba(8,18,26,0) 0%, rgba(7,16,24,0.55) 78%);
+  clip-path: polygon(0 11px, 11px 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%);
+}
 #combat-controls {
-  position: absolute; right: 8px;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 160px);
-  z-index: 25; display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
+  position: absolute; right: 14px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 158px);
+  z-index: 27; display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
 }
+#combat-controls .btn {
+  font-size: 11px; letter-spacing: 2px; padding: 9px 14px; line-height: 1.05;
+  border: 1px solid var(--green); color: var(--green); background: rgba(6,18,12,0.85);
+  text-shadow: var(--glow-g); box-shadow: 0 0 10px rgba(93,255,136,0.18);
+  clip-path: polygon(0 7px, 7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
+}
+/* energy — bolt-in-a-hex glyph + value, sitting left of the cards */
 #energy-pip {
-  position: absolute; left: 8px;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 160px);
-  z-index: 25;
-  font-size: 17px; color: var(--cyan); text-shadow: var(--glow-c);
-  border: 1px solid rgba(65,216,255,0.55);
-  background: rgba(5, 20, 28, 0.85); padding: 7px 12px;
+  position: absolute; left: 14px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 156px);
+  z-index: 27; display: none; flex-direction: row; align-items: center; gap: 7px;
+  color: var(--cyan);
 }
+#energy-pip .en-ic { width: 34px; height: 34px; filter: drop-shadow(0 0 5px rgba(65,216,255,0.55)); }
+#energy-pip .en-n { font: bold 22px monospace; color: #eafcff; text-shadow: 0 0 7px rgba(65,216,255,0.7); }
+#energy-pip .en-mx { font-size: 12px; color: var(--text-dim); text-shadow: none; }
 
 /* ===== Cockpit rail — left-edge buttons (beside the pilot) + tactical panels ===== */
 #rail {
@@ -909,15 +934,21 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 
 /* ========================= POTION BELT ========================= */
+/* the STIM belt — a row of injector slots in the dock, just right of energy */
 #potion-belt {
-  position: absolute; right: 8px;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 218px);
-  z-index: 26; display: none; flex-direction: column; gap: 6px;
+  position: absolute; left: 70px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 156px);
+  z-index: 26; display: none; flex-direction: row; align-items: flex-end; gap: 6px;
+}
+.belt-lbl {
+  position: absolute; left: 1px; top: -12px;
+  font: 7px monospace; letter-spacing: 2px; color: var(--text-dim);
 }
 .potion-chip {
-  width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
-  border: 1px solid rgba(93,255,136,0.4); background: rgba(5, 20, 18, 0.85);
+  width: 34px; height: 38px; display: flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(93,255,136,0.4); background: rgba(5, 20, 18, 0.82);
   cursor: grab; touch-action: none; transition: border-color 0.1s, box-shadow 0.1s;
+  clip-path: polygon(0 5px, 5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
 }
 .potion-chip.empty {
   border-style: dashed; border-color: rgba(94,138,108,0.35); background: rgba(5,14,11,0.5);
@@ -4181,6 +4212,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   /* ---------------- Combat: turn structure ------------------------------ */
   function maxEnergy() { return B.player.baseEnergy + art('energyEveryTurn') + (statN(E.combat.player, 'reactor')); }
+  E.maxEnergy = function () { return E.combat ? maxEnergy() : (B.player.baseEnergy || 0); };
 
   function statN(ent, s) { return ent.statuses[s] || 0; }
   function addStatus(ent, s, v) {
@@ -7171,7 +7203,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function drawPlayerGauge(px, py, scale) {
     var c = ns.engine.combat; if (!c) return;
     var hp = Math.max(0, Math.round(R.player.hp)), maxHp = R.player.maxHp || 1;
-    var block = Math.round(R.player.block || 0), energy = c.energy || 0;
+    var block = Math.round(R.player.block || 0);
     var frac = Math.max(0, Math.min(1, hp / maxHp));
     var h = Math.max(10, scale * 0.30);             // slimmer console line
     var GREEN = '#5dff88', GDIM = '#2c6047', CY = '#41d8ff', DIM = '#46585f';
@@ -7182,23 +7214,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     ctx.lineJoin = 'miter'; ctx.lineCap = 'butt'; ctx.textBaseline = 'middle';
     ctx.font = 'bold ' + fs + 'px monospace';
 
-    // one slim terminal line: ▲energy │ ▮▮▮ hp/max │ ⬡shield — centered under
-    // the character (on the HP core); shield trails off the right when present.
+    // slim terminal line: ▮▮▮ hp/max │ ⬡shield — centered on the HP core under
+    // the character (energy now lives in the bottom dock, beside the cards).
     var cells = 12, cw = h * 0.62, chh = h * 0.96, gap = h * 0.46, divH = h * 1.05;
-    var eStr = '' + energy, hpTxt = hp + '/' + maxHp;
-    var coreW = h * 0.62 + ctx.measureText(eStr).width + gap * 2 + cells * cw + gap * 0.7 + ctx.measureText(hpTxt).width;
+    var hpTxt = hp + '/' + maxHp;
+    var coreW = cells * cw + gap * 0.7 + ctx.measureText(hpTxt).width;
     var cx = px - coreW / 2;
-
-    // energy — up-triangle + value
-    var tcx = cx + h * 0.28;
-    ctx.beginPath(); ctx.moveTo(tcx, cy - h * 0.34); ctx.lineTo(tcx - h * 0.3, cy + h * 0.18); ctx.lineTo(tcx + h * 0.3, cy + h * 0.18); ctx.closePath();
-    ctx.fillStyle = CY; ctx.shadowColor = CY; ctx.shadowBlur = 4; ctx.fill(); ctx.shadowBlur = 0;
-    cx += h * 0.62; ctx.textAlign = 'left'; ctx.fillStyle = '#eafcff';
-    ctx.fillText(eStr, cx, cy + 0.5);
-    cx += ctx.measureText(eStr).width + gap;
-
-    // divider
-    L(cx, cy - divH / 2, cx, cy + divH / 2, DIM, 1); cx += gap;
 
     // HP — segmented LED cells, lit up to the HP fraction
     var lit = Math.round(frac * cells);
@@ -7214,6 +7235,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     cx += cells * cw + gap * 0.7;
 
     // HP number
+    ctx.textAlign = 'left';
     ctx.fillStyle = '#eaffef'; ctx.shadowColor = '#000'; ctx.shadowBlur = 3;
     ctx.fillText(hpTxt, cx, cy + 0.5); ctx.shadowBlur = 0;
     cx += ctx.measureText(hpTxt).width + gap;
@@ -7564,7 +7586,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   var R = ns.render;
   var B = ns.BALANCE;
 
-  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $manifest, $rail, $railPanel, $railLine;
+  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $manifest, $rail, $railPanel, $railLine, $dock;
   var railOpen = null;      // which rail panel is open ('buffs'|'debuffs'|'relics'|'draw'|'discard') or null
   var selected = -1;        // selected hand index
   var manifestSel = -1;     // selected pet in the Manifest (tap-to-swap reorder)
@@ -7753,6 +7775,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $overlay = document.getElementById('overlay');
     $floaters = document.getElementById('floaters');
     $toast = document.getElementById('toast');
+
+    // unified bottom dock frame (energy │ stims │ cards │ END all ride on it)
+    $dock = el('div', '', '');
+    $dock.id = 'combat-dock';
+    $game.appendChild($dock);
 
     $energy = el('div', '', '');
     $energy.id = 'energy-pip';
@@ -8007,7 +8034,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function combatChrome(on) {
     $hand.style.display = on ? 'flex' : 'none';
     $controls.style.display = on ? 'flex' : 'none';
-    $energy.style.display = 'none';   // energy now lives on the cockpit gauge
+    $dock.style.display = on ? 'block' : 'none';
+    $energy.style.display = on ? 'flex' : 'none';   // energy lives in the bottom dock now
     $counts.style.display = 'none';
     $drawPile.style.display = 'none';      // draw/discard now live on the cockpit rail
     $discardPile.style.display = 'none';
@@ -8659,6 +8687,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var r = E.run;
     $potions.innerHTML = '';
     if (!E.combat) return;
+    $potions.appendChild(el('div', 'belt-lbl', 'STIMS'));
     var slots = E.potionSlots();
     for (var i = 0; i < slots; i++) {
       var pid = (r.potions || [])[i];
@@ -8683,15 +8712,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var pot = ns.POTIONS[pid];
     var rarTag = pot.rarity === 3 ? 'RARE' : pot.rarity === 2 ? 'UNCOMMON' : 'COMMON';
     $potionTip.innerHTML =
-      '<div class="pt-name">' + esc(pot.name) + ' <span class="pt-tag">' + rarTag + '</span></div>' +
+      '<div class="pt-name">' + esc(pot.name) + ' <span class="pt-tag">STIM · ' + rarTag + '</span></div>' +
       '<div class="pt-desc">' + esc(pot.desc) + '</div>';
     $potionTip.style.display = 'block';
     var gr = $game.getBoundingClientRect(), cr = chipEl.getBoundingClientRect();
-    // sit to the LEFT of the belt (which hugs the right edge)
-    $potionTip.style.left = 'auto';
-    $potionTip.style.right = Math.round(gr.right - cr.left + 10) + 'px';
+    // belt sits low-left now, so float the tip just ABOVE the slot
     var tipH = $potionTip.getBoundingClientRect().height || 56;
-    $potionTip.style.top = Math.max(6, Math.round(cr.top - gr.top - (tipH - cr.height) / 2)) + 'px';
+    var tipW = $potionTip.getBoundingClientRect().width || 188;
+    $potionTip.style.right = 'auto';
+    $potionTip.style.left = Math.max(6, Math.min(gr.width - tipW - 6, Math.round(cr.left - gr.left))) + 'px';
+    $potionTip.style.top = Math.max(6, Math.round(cr.top - gr.top - tipH - 8)) + 'px';
   }
   function hidePotionTip() { $potionTip.style.display = 'none'; }
 
@@ -8784,10 +8814,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $controls.appendChild(btn);
   }
 
+  // bolt-in-a-hexagon energy glyph (the indicator that sits left of the cards)
+  var ENERGY_GLYPH = '<svg class="en-ic" viewBox="0 0 24 24" fill="none">' +
+    '<path d="M12 2.4 21 7.2v9.6L12 21.6 3 16.8V7.2Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>' +
+    '<path d="M13 6.2 8.4 12.8h3.4L11 17.8l4.6-6.6h-3.4Z" fill="currentColor"/></svg>';
   function updateEnergy() {
     var c = E.combat;
     if (!c) return;
-    $energy.textContent = '⚡ ' + c.energy;
+    var mx = E.maxEnergy ? E.maxEnergy() : c.energy;
+    $energy.innerHTML = ENERGY_GLYPH + '<span class="en-n">' + c.energy + '<span class="en-mx">/' + mx + '</span></span>';
   }
 
   var CLASS_COLOR = { vanguard: '#ffb02e', technomancer: '#41d8ff', voidadept: '#c86bff' };
