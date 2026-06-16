@@ -90,9 +90,9 @@ html, body {
 /* landscape: the dock goes slim and energy/stims/END ride INLINE beside the
    cards (the "unified bar"); the hand keeps clear of the flanks. */
 #game.landscape #combat-dock { height: 88px; }
-#game.landscape #energy-pip { left: 58px; bottom: calc(env(safe-area-inset-bottom, 0px) + 48px); }
-#game.landscape #potion-belt { left: 160px; bottom: calc(env(safe-area-inset-bottom, 0px) + 46px); }
-#game.landscape #combat-controls { right: 60px; bottom: calc(env(safe-area-inset-bottom, 0px) + 48px); }
+#game.landscape #energy-pip { left: 58px; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); }
+#game.landscape #potion-belt { left: 160px; bottom: calc(env(safe-area-inset-bottom, 0px) + 22px); }
+#game.landscape #combat-controls { right: 60px; bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); }
 #game.landscape #draw-pile { left: 8px; }
 #game.landscape #discard-pile { right: 8px; }
 #game.landscape #hand { padding: 0 142px 0 280px; }
@@ -179,7 +179,7 @@ html, body {
 /* ========================= HAND ========================= */
 #hand {
   position: absolute; left: 0; right: 0;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 30px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
   height: 148px; z-index: 30;
   display: flex; justify-content: center; align-items: flex-end;
   padding: 0 50px; pointer-events: none;   /* leave corners for the draw/discard piles */
@@ -311,7 +311,7 @@ html, body {
 /* ===== unified bottom dock: energy │ stims │ cards │ END all ride on it ===== */
 #combat-dock {
   position: absolute; left: 8px; right: 8px;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 30px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
   height: 200px; z-index: 19; display: none; pointer-events: none;
   border: 1px solid rgba(65,216,255,0.18);
   background: linear-gradient(180deg, rgba(8,18,26,0) 0%, rgba(7,16,24,0.55) 78%);
@@ -319,7 +319,7 @@ html, body {
 }
 #combat-controls {
   position: absolute; right: 14px;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 182px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 158px);
   z-index: 27; display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
 }
 #combat-controls .btn {
@@ -331,7 +331,7 @@ html, body {
 /* energy — bolt-in-a-hex glyph + value, sitting left of the cards */
 #energy-pip {
   position: absolute; left: 14px;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 180px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 156px);
   z-index: 27; display: none; flex-direction: row; align-items: center; gap: 7px;
   color: var(--cyan);
 }
@@ -431,7 +431,7 @@ html, body {
 
 /* ===== draw / discard piles (tap to inspect) ===== */
 #draw-pile, #discard-pile {
-  position: absolute; bottom: calc(env(safe-area-inset-bottom, 0px) + 30px);
+  position: absolute; bottom: calc(env(safe-area-inset-bottom, 0px) + 6px);
   z-index: 29; width: 44px; text-align: center; pointer-events: auto; cursor: pointer;
 }
 #draw-pile { left: 5px; }
@@ -939,7 +939,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 /* the STIM belt — a row of injector slots in the dock, just right of energy */
 #potion-belt {
   position: absolute; left: 112px;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 180px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 156px);
   z-index: 26; display: none; flex-direction: row; align-items: flex-end; gap: 6px;
 }
 .belt-lbl {
