@@ -488,14 +488,10 @@
 
     var onMap = r.phase === 'map';
     var html = '';
-    // HP + credits ride the top only OUTSIDE combat (in combat they live on the
-    // cockpit gauge / the stim dock); relics live on the rail, not up here.
+    // Out of combat, only the credits ride the top right (HP readout will return
+    // in a later pass). In combat, HP is on the gauge and credits on the dock.
     if (!inCombat) {
-      html += '<div class="row"><div class="hp-wrap"><div class="hp-bar">' +
-        '<div class="hp-fill" style="transform:scaleX(' + hpPct.toFixed(3) + ')"></div>' +
-        '<div class="hp-text">' + Math.max(0, r.hp) + ' / ' + r.maxHp + '</div>' +
-        '</div></div>' +
-        ((c && c.player.block > 0) ? '<div class="shield-chip">⬡' + c.player.block + '</div>' : '') +
+      html += '<div class="row"><span class="spacer"></span>' +
         '<div class="stat"><b>¢' + r.credits + '</b></div></div>';
     }
     html += '<div class="row2">' +
