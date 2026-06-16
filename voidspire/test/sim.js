@@ -572,6 +572,7 @@ Object.keys(VS.STARTER_DECKS).forEach(function (cls) {
 });
 VS.EVENTS.forEach(function (ev) {
   if (!ev.art) throw new Error('event ' + ev.id + ' has no portrait art');
+  if (ev.gambleDen) return;   // custom gamble screen, no text choices
   ev.choices.forEach(function (ch) {
     var outs = [ch.outcome, ch.success, ch.fail].filter(Boolean).concat(ch.gamble || []);
     if (outs.length === 0) throw new Error('event ' + ev.id + ' choice with no outcome');
