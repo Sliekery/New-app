@@ -301,6 +301,43 @@ html, body {
   background: rgba(5, 20, 28, 0.85); padding: 7px 12px;
 }
 
+/* ===== Cockpit rail — right-edge buttons + tactical panels ===== */
+#rail {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  z-index: 28; display: none; flex-direction: column; gap: 6px; pointer-events: auto;
+}
+.rail-btn {
+  width: 38px; height: 40px; border: 1px solid var(--rc); background: rgba(6,16,22,0.85);
+  color: var(--rc); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  cursor: pointer; position: relative; transition: background 0.12s, box-shadow 0.12s;
+  clip-path: polygon(0 5px, 5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
+}
+.rail-btn:active { transform: scale(0.94); }
+.rail-btn.active { background: var(--rc); color: #04080a; box-shadow: 0 0 11px var(--rc); }
+.rail-btn .rk-ic { font-size: 13px; line-height: 1; }
+.rail-btn .rk-n { font-size: 8px; opacity: 0.85; }
+#rail-panel {
+  position: absolute; z-index: 29; min-width: 152px; max-width: 240px;
+  border: 1px solid var(--green-dim); background: rgba(5,13,17,0.96);
+  padding: 6px 9px 7px; pointer-events: auto;
+  box-shadow: 0 0 16px rgba(0,0,0,0.7);
+  clip-path: polygon(0 6px, 6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+}
+.rp-title { color: var(--rc); font-size: 9px; letter-spacing: 1.5px; border-bottom: 1px solid rgba(93,255,136,0.25); margin-bottom: 5px; padding-bottom: 4px; text-shadow: 0 0 5px var(--rc); }
+.rp-sub { color: var(--text-dim); font-size: 7.5px; letter-spacing: 1px; margin: 5px 0 2px; }
+.rp-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 2px 0; font-size: 10px; }
+.rp-name { color: var(--text); }
+.rp-val { color: var(--green); font-weight: bold; }
+.rp-val.rp-bad { color: var(--red); }
+.rp-power { cursor: pointer; }
+.rp-power .rp-name { flex: 1; }
+.rp-box { color: var(--amber); margin-right: 5px; font-size: 11px; }
+.rp-text { color: var(--text-dim); font-size: 8.5px; line-height: 1.35; padding: 1px 0 4px 16px; }
+.rp-empty { color: var(--text-dim); font-style: italic; font-size: 9px; padding: 2px 0; }
+.rp-relic { padding: 3px 0; border-bottom: 1px solid rgba(93,255,136,0.08); }
+.rp-relic .rp-name { color: var(--amber); font-size: 10px; }
+.rp-relic-desc { color: var(--text-dim); font-size: 8.5px; line-height: 1.3; padding: 1px 0 0 12px; }
+
 /* ===== Crew Manifest — the Warpcaller's interactive formation panel ===== */
 #manifest {
   position: absolute; left: 4px; top: 50%; transform: translateY(-54%);

@@ -11,7 +11,8 @@
   var R = ns.render;
   var B = ns.BALANCE;
 
-  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $manifest;
+  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $manifest, $rail, $railPanel;
+  var railOpen = null;      // which rail panel is open ('buffs'|'debuffs'|'relics'|'draw'|'discard') or null
   var selected = -1;        // selected hand index
   var manifestSel = -1;     // selected pet in the Manifest (tap-to-swap reorder)
   var targeting = false;
@@ -237,6 +238,20 @@
     $manifest.id = 'manifest';
     $game.appendChild($manifest);
 
+    // Cockpit rail — the buttons docked to the right edge (Buffs/Debuffs/Relics/
+    // Draw/Discard); each opens a tactical panel above or below it.
+    $rail = el('div', '', '');
+    $rail.id = 'rail';
+    $game.appendChild($rail);
+    $railPanel = el('div', '', '');
+    $railPanel.id = 'rail-panel';
+    $railPanel.style.display = 'none';
+    $game.appendChild($railPanel);
+    // a tap anywhere else closes an open panel
+    document.addEventListener('pointerdown', function (ev) {
+      if (railOpen && !$rail.contains(ev.target) && !$railPanel.contains(ev.target)) closeRail();
+    }, true);
+
     document.getElementById('battlefield').addEventListener('pointerdown', onFieldTap);
     document.addEventListener('pointermove', onDragMove);
     document.addEventListener('pointerup', onDragEnd);
@@ -435,8 +450,9 @@
     $controls.style.display = on ? 'flex' : 'none';
     $energy.style.display = 'none';   // energy now lives on the cockpit gauge
     $counts.style.display = 'none';
-    $drawPile.style.display = on ? 'block' : 'none';
-    $discardPile.style.display = on ? 'block' : 'none';
+    $drawPile.style.display = 'none';      // draw/discard now live on the cockpit rail
+    $discardPile.style.display = 'none';
+    if (!on && $rail) { $rail.style.display = 'none'; closeRail(); }
     $potions.style.display = on ? 'flex' : 'none';
     if (!on) { $hint.style.display = 'none'; onPotionCancel(); hidePotionTip(); }
     R.combatVisible = on;
@@ -448,7 +464,7 @@
 
   function updateHUD() {
     var r = E.run;
-    if (!r) { $hud.innerHTML = ''; setHud(false); renderManifest(); return; }
+    if (!r) { $hud.innerHTML = ''; setHud(false); renderManifest(); renderRail(); return; }
     setHud(true);
     var c = E.combat;
     var fac = ns.FACTIONS[r.faction];
@@ -516,6 +532,7 @@
     if (menuBtn) menuBtn.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); showMenu(); });
 
     renderManifest();
+    renderRail();
   }
   U.updateHUD = updateHUD;
 
@@ -574,6 +591,131 @@
     else if (manifestSel === i) { manifestSel = -1; }  // tap again to cancel
     else { E.swapPets(manifestSel, i); manifestSel = -1; }
     renderManifest();
+  }
+
+  /* ====================== COCKPIT RAIL ====================== */
+  function railBuffs() {
+    var c = E.combat; if (!c) return [];
+    var st = c.player.statuses, out = [];
+    Object.keys(st).forEach(function (k) {
+      if (st[k] <= 0 || k === 'vuln' || k === 'weak' || k === 'burn') return;
+      out.push({ name: ns.STATUS_NAMES[k] || k, val: st[k] });
+    });
+    return out;
+  }
+  function railDebuffs() {
+    var c = E.combat; if (!c) return [];
+    var st = c.player.statuses, out = [];
+    ['vuln', 'weak', 'burn'].forEach(function (k) { if (st[k] > 0) out.push({ name: ns.STATUS_NAMES[k] || k, val: st[k] }); });
+    return out;
+  }
+  function railPowers() {
+    var c = E.combat; if (!c) return [];
+    var seen = {}, out = [];
+    c.consumed.forEach(function (cc) { var d = ns.CARDS[cc.id]; if (d && d.type === 'power' && !seen[cc.id]) { seen[cc.id] = true; out.push(cc); } });
+    return out;
+  }
+
+  function renderRail() {
+    if (!$rail) return;
+    var c = E.combat;
+    var show = !!c && E.run && E.run.phase === 'combat' && R.combatVisible;
+    $rail.style.display = show ? 'flex' : 'none';
+    if (!show) { closeRail(); return; }
+    var items = [
+      { k: 'buffs', ic: '▲', col: '#5dff88', n: railBuffs().length + railPowers().length },
+      { k: 'debuffs', ic: '▽', col: '#ff4a5e', n: railDebuffs().length },
+      { k: 'relics', ic: '◆', col: '#ffb02e', n: E.run.artifacts.length },
+      { k: 'draw', ic: '▤', col: '#41d8ff', n: c.drawPile.length },
+      { k: 'discard', ic: '▥', col: '#9fb6c0', n: c.discard.length },
+    ];
+    $rail.innerHTML = items.map(function (it) {
+      return '<button class="rail-btn' + (railOpen === it.k ? ' active' : '') + '" data-rk="' + it.k + '" style="--rc:' + it.col + '">' +
+        '<span class="rk-ic">' + it.ic + '</span><span class="rk-n">' + it.n + '</span></button>';
+    }).join('');
+    $rail.querySelectorAll('[data-rk]').forEach(function (btn) {
+      btn.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); onRailTap(btn.dataset.rk, btn); });
+    });
+    if (railOpen === 'buffs' || railOpen === 'debuffs' || railOpen === 'relics') renderRailPanel(railOpen);
+  }
+  U.renderRail = renderRail;
+
+  function onRailTap(k, btn) {
+    if (locked) return;
+    SFX.tap();
+    if (k === 'draw' || k === 'discard') { closeRail(); if (E.combat) showPileModal(k); return; }
+    if (railOpen === k) { closeRail(); renderRail(); return; }
+    railOpen = k; renderRail(); renderRailPanel(k, btn);
+  }
+  function closeRail() {
+    if (!railOpen) return;
+    railOpen = null;
+    if ($railPanel) $railPanel.style.display = 'none';
+    if ($rail) $rail.querySelectorAll('.rail-btn.active').forEach(function (b) { b.classList.remove('active'); });
+  }
+
+  function renderRailPanel(k, btn) {
+    if (!$railPanel) return;
+    btn = btn || ($rail && $rail.querySelector('[data-rk="' + k + '"]'));
+    if (!btn) return;
+    var title = { buffs: 'BUFFS & POWERS', debuffs: 'DEBUFFS', relics: 'RELICS' }[k] || k.toUpperCase();
+    var body = k === 'buffs' ? buffsPanelHTML() : k === 'debuffs' ? debuffsPanelHTML() : relicsPanelHTML();
+    $railPanel.innerHTML = '<div class="rp-title" style="--rc:' + (k === 'debuffs' ? '#ff4a5e' : k === 'relics' ? '#ffb02e' : '#5dff88') + '">' + title + '</div>' + body;
+    $railPanel.style.display = 'block';
+    positionRailPanel(btn);
+    wireRailPanel(k);
+  }
+  function positionRailPanel(btn) {
+    if (!btn || !$railPanel || !$game) return;
+    var scale = uiScale || 1;
+    var gr = $game.getBoundingClientRect(), br = btn.getBoundingClientRect();
+    var gameH = $game.clientHeight;
+    var btnCY = (br.top + br.height / 2 - gr.top) / scale;
+    var ph = $railPanel.offsetHeight;
+    var top = Math.max(8, Math.min(gameH - ph - 8, btnCY - ph / 2));
+    $railPanel.style.top = top + 'px';
+    $railPanel.style.right = (($rail ? $rail.offsetWidth : 40) + 8) + 'px';
+  }
+
+  function buffsPanelHTML() {
+    var buffs = railBuffs(), powers = railPowers();
+    if (!buffs.length && !powers.length) return '<div class="rp-empty">no active buffs</div>';
+    var h = '';
+    buffs.forEach(function (b) { h += '<div class="rp-row"><span class="rp-name">' + esc(b.name) + '</span><span class="rp-val">' + b.val + '</span></div>'; });
+    if (powers.length) {
+      h += '<div class="rp-sub">POWERS · tap □ for details</div>';
+      powers.forEach(function (cc, i) {
+        var d = ns.CARDS[cc.id];
+        h += '<div class="rp-row rp-power" data-pi="' + i + '"><span class="rp-box">□</span><span class="rp-name">' + esc(d.name) + '</span></div>' +
+          '<div class="rp-text" data-pt="' + i + '" style="display:none">' + esc(ns.cardDesc(d, cc.up, null, cc.vtouch)) + '</div>';
+      });
+    }
+    return h;
+  }
+  function debuffsPanelHTML() {
+    var d = railDebuffs();
+    if (!d.length) return '<div class="rp-empty">no debuffs</div>';
+    return d.map(function (x) { return '<div class="rp-row"><span class="rp-name">' + esc(x.name) + '</span><span class="rp-val rp-bad">' + x.val + '</span></div>'; }).join('');
+  }
+  function relicsPanelHTML() {
+    var r = E.run;
+    if (!r.artifacts.length) return '<div class="rp-empty">no relics</div>';
+    return r.artifacts.map(function (id) {
+      var a = ns.ARTIFACTS[id];
+      return '<div class="rp-relic"><span class="rp-name">◆ ' + esc(a.name) + '</span><div class="rp-relic-desc">' + esc(a.desc) + '</div></div>';
+    }).join('');
+  }
+  function wireRailPanel(k) {
+    if (k !== 'buffs') return;
+    $railPanel.querySelectorAll('.rp-power').forEach(function (row) {
+      row.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation(); SFX.tap();
+        var i = row.dataset.pi, txt = $railPanel.querySelector('.rp-text[data-pt="' + i + '"]'), box = row.querySelector('.rp-box');
+        var open = txt.style.display === 'none';
+        txt.style.display = open ? 'block' : 'none'; box.textContent = open ? '▣' : '□';
+        positionRailPanel($rail.querySelector('[data-rk="buffs"]'));
+      });
+    });
   }
 
   /* ====================== TITLE ====================== */
