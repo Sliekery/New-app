@@ -43,17 +43,22 @@ Rarity weighting on drops: Common 55 / Uncommon 30 / Rare 15; Boss pool is separ
 
 ## 3. Proposed roster
 
-### Common (8)
+### Common (8) — low power, but each has a *hook* (a trigger / condition / counter), never a flat stat
 | Relic | Effect | Build |
 |---|---|---|
-| Power Fist | Start combat with **1 Might**. | [E] |
-| Aegis Core | Start combat with **8 Shield**. | [E] |
-| Servo Skull | Draw **2 extra** cards on turn 1. | [E] |
-| Void Lens | Attacks deal **+2**. | [E] |
-| Targeting Visor | Crit on a d20 of **17+**. | [E] |
-| Thornmail Husk | Attackers take **3**. | [E] |
-| Salvager Rig | **+25% credits** from combat. | [E] |
-| Med-Bay Tap | Heal **6 HP** after each combat. | [E] (consolidates the 4 heal relics into one) |
+| Cold Barrel | Your **first attack each combat deals +6**. | [N] one satisfying opener |
+| Dead-Man's Plating | If you **end your turn with no Shield**, gain **4 Shield**. | [N] conditional — play around it |
+| Trauma Uplink | The **first time you take damage each combat, draw 2 cards**. | [N] trigger |
+| Kinetic Counter | Every **8th attack** you play deals **double**. | [N] a counter that builds |
+| Ranging Shot | At the start of combat, apply **1 Vulnerable** to a random enemy. | [N] tiny edge |
+| Scrap Magnet | Enemies drop **+3 credits** when they die. | [N] active economy |
+| Adrenaline Pump | **+1 Energy on your first turn** of each combat. | [E] tempo (existing) |
+| Last Stand | While **below half HP**, your attacks deal **+2**. | [N] conditional, risk-reward |
+
+*Design note:* commons stay weak (a small burst, a 4-Shield top-up, one extra Vulnerable),
+but each creates a micro-moment or a thing to play around instead of a passive number going up.
+The old flat commons (Power Fist, Void Lens, Aegis Core, Med-Bay Tap, etc.) are cut or pushed
+down to "filler" status; we keep a couple as plain-but-fine if we need pool size.
 
 ### Uncommon (8)
 | Relic | Effect | Build |
