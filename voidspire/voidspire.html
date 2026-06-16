@@ -7170,63 +7170,62 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var block = Math.round(R.player.block || 0), energy = c.energy || 0;
     var frac = Math.max(0, Math.min(1, hp / maxHp));
     var h = Math.max(12, scale * 0.42);
-    var by = py + scale * 1.66;                  // top of the HP bar
-    var capW = h * 1.12;                          // energy box
-    var bx = px - scale * 1.18;                   // left edge of the energy box
-    var barX = bx + capW + h * 0.5, barW = scale * 3.5, barEnd = barX + barW;
-    var GREEN = '#5dff88', GREEN_DIM = '#43806a', CYAN = '#41d8ff';
+    var GREEN = '#5dff88', GDIM = '#2c6047', CY = '#41d8ff', DIM = '#46585f';
     var hpCol = frac > 0.5 ? GREEN : frac > 0.25 ? '#ffb02e' : '#ff4a5e';
+    var fs = Math.round(h * 0.62);                 // readout font
+    var cy = py + scale * 1.82;                     // vertical center of the console line
     ctx.save();
     ctx.lineJoin = 'miter'; ctx.lineCap = 'butt'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold ' + fs + 'px monospace';
 
-    // ===== ENERGY — small outlined box with an up-arrow, far left =====
-    ctx.strokeStyle = CYAN; ctx.lineWidth = 1.5; ctx.shadowColor = CYAN; ctx.shadowBlur = 5;
-    ctx.strokeRect(bx, by, capW, h);
-    ctx.shadowBlur = 0;
-    var axc = bx + capW / 2, atop = by - h * 0.36;          // arrow above the box
-    ctx.beginPath();
-    ctx.moveTo(axc, atop); ctx.lineTo(axc - h * 0.24, atop + h * 0.28); ctx.lineTo(axc + h * 0.24, atop + h * 0.28); ctx.closePath();
-    ctx.fillStyle = CYAN; ctx.fill();
-    ctx.fillStyle = '#eafcff'; ctx.font = 'bold ' + Math.round(h * 0.66) + 'px monospace'; ctx.textAlign = 'center';
-    ctx.fillText('' + energy, bx + capW / 2, by + h / 2 + 0.5);
+    // one slim terminal line: ▲energy │ ▮▮▮ hp/max │ ⬡shield — anchored left,
+    // shield grows off the right end so the rest never shifts.
+    var cells = 12, cw = h * 0.6, chh = h * 0.92, gap = h * 0.45, divH = h * 1.05;
+    var cx = px - scale * 1.62;
 
-    // ===== HP BAR — clean outline + number + thin progress underline =====
-    ctx.strokeStyle = GREEN_DIM; ctx.lineWidth = 1.5; ctx.shadowColor = 'rgba(93,255,136,0.35)'; ctx.shadowBlur = 4;
-    ctx.strokeRect(barX, by, barW, h);
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = hpCol; ctx.lineWidth = 2.4; ctx.shadowColor = hpCol; ctx.shadowBlur = 5;
-    ctx.beginPath(); ctx.moveTo(barX + 1.5, by + h - 1.6); ctx.lineTo(barX + 1.5 + (barW - 3) * frac, by + h - 1.6); ctx.stroke();
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = '#eaffef'; ctx.shadowColor = '#000'; ctx.shadowBlur = 3;
-    ctx.font = 'bold ' + Math.round(h * 0.56) + 'px monospace'; ctx.textAlign = 'center';
-    ctx.fillText(hp + ' / ' + maxHp, (barX + barEnd) / 2, by + h * 0.46);
-    ctx.shadowBlur = 0;
+    // energy — up-triangle + value
+    var tcx = cx + h * 0.28;
+    ctx.beginPath(); ctx.moveTo(tcx, cy - h * 0.34); ctx.lineTo(tcx - h * 0.3, cy + h * 0.18); ctx.lineTo(tcx + h * 0.3, cy + h * 0.18); ctx.closePath();
+    ctx.fillStyle = CY; ctx.shadowColor = CY; ctx.shadowBlur = 4; ctx.fill(); ctx.shadowBlur = 0;
+    cx += h * 0.62; ctx.textAlign = 'left'; ctx.fillStyle = '#eafcff';
+    ctx.fillText('' + energy, cx, cy + 0.5);
+    cx += ctx.measureText('' + energy).width + gap;
 
-    // ===== SHIELD — hexagon value + a hatched "vector line" beneath the HP bar
-    //       (lines only, no fill, no overlap with the HP bar) =====
-    if (block > 0) {
-      var r = h * 0.36, hyc = by + h + r + h * 0.16, hxc = barX + r;
-      // hexagon node holding the value
-      ctx.beginPath();
-      for (var i = 0; i < 6; i++) { var a = Math.PI / 6 + i * Math.PI / 3, hx = hxc + r * Math.cos(a), hy = hyc + r * Math.sin(a); i ? ctx.lineTo(hx, hy) : ctx.moveTo(hx, hy); }
-      ctx.closePath();
-      ctx.strokeStyle = CYAN; ctx.lineWidth = 1.5; ctx.shadowColor = CYAN; ctx.shadowBlur = 5; ctx.stroke(); ctx.shadowBlur = 0;
-      ctx.fillStyle = '#eafcff'; ctx.font = 'bold ' + Math.round(r * 1.0) + 'px monospace'; ctx.textAlign = 'center';
-      ctx.fillText('' + block, hxc, hyc + 0.5);
-      // vector line extending right, length = shield (capped at the HP bar end)
-      var ls = hxc + r + 3, maxLen = barEnd - ls;
-      var len = Math.min(1, block / maxHp) * maxLen, hh = h * 0.46;
-      ctx.strokeStyle = 'rgba(65,216,255,0.95)'; ctx.lineWidth = 1.4; ctx.shadowColor = CYAN; ctx.shadowBlur = 3;
-      ctx.beginPath(); ctx.moveTo(ls, hyc); ctx.lineTo(ls + len, hyc); ctx.stroke(); ctx.shadowBlur = 0;
-      // hatch ticks along the line, + an end cap
-      ctx.lineWidth = 1.1;
-      for (var tx = ls + 5; tx < ls + len; tx += 6) {
-        ctx.beginPath(); ctx.moveTo(tx, hyc - hh / 2); ctx.lineTo(tx - hh * 0.5, hyc + hh / 2); ctx.stroke();
+    // divider
+    L(cx, cy - divH / 2, cx, cy + divH / 2, DIM, 1); cx += gap;
+
+    // HP — segmented LED cells, lit up to the HP fraction
+    var lit = Math.round(frac * cells);
+    for (var i = 0; i < cells; i++) {
+      var rx = cx + i * cw;
+      if (i < lit) {
+        ctx.fillStyle = hpCol; ctx.shadowColor = hpCol; ctx.shadowBlur = 3;
+        ctx.fillRect(rx, cy - chh / 2, cw - 2.4, chh); ctx.shadowBlur = 0;
+      } else {
+        ctx.strokeStyle = GDIM; ctx.lineWidth = 1; ctx.strokeRect(rx + 0.5, cy - chh / 2 + 0.5, cw - 3, chh - 1);
       }
-      ctx.beginPath(); ctx.moveTo(ls + len, hyc - hh / 2); ctx.lineTo(ls + len, hyc + hh / 2); ctx.stroke();
+    }
+    cx += cells * cw + gap * 0.7;
+
+    // HP number
+    ctx.fillStyle = '#eaffef'; ctx.shadowColor = '#000'; ctx.shadowBlur = 3;
+    var hpTxt = hp + '/' + maxHp; ctx.fillText(hpTxt, cx, cy + 0.5); ctx.shadowBlur = 0;
+    cx += ctx.measureText(hpTxt).width + gap;
+
+    // divider + shield hexagon (only when shielded)
+    if (block > 0) {
+      L(cx, cy - divH / 2, cx, cy + divH / 2, DIM, 1); cx += gap;
+      var r = h * 0.62, hxc = cx + r;
+      ctx.beginPath();
+      for (var k = 0; k < 6; k++) { var a = Math.PI / 6 + k * Math.PI / 3, hx = hxc + r * Math.cos(a), hy = cy + r * Math.sin(a); k ? ctx.lineTo(hx, hy) : ctx.moveTo(hx, hy); }
+      ctx.closePath();
+      ctx.strokeStyle = CY; ctx.lineWidth = 1.5; ctx.shadowColor = CY; ctx.shadowBlur = 5; ctx.stroke(); ctx.shadowBlur = 0;
+      ctx.fillStyle = '#dff6ff'; ctx.textAlign = 'center'; ctx.font = 'bold ' + Math.round(h * 0.5) + 'px monospace';
+      ctx.fillText('' + block, hxc, cy + 0.5);
     }
     ctx.restore();
   }
+  function L(x1, y1, x2, y2, col, w) { ctx.strokeStyle = col; ctx.lineWidth = w || 1; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
 
   /* ---- power gauge: active Powers as a stacked "battle augmentation" meter,
    *      tap to expand a docked tactical readout (names + values) ----------- */
