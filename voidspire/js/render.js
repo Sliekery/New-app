@@ -1181,30 +1181,39 @@
     }
     ctx.stroke();
   }
-  // The Shield you're holding, drawn as your archetype's ward (scales with it).
+  // The Shield you're holding, drawn as your archetype's themed barrier (scales with it).
   function drawPlayerShield(r, cx, cy, scale, blk) {
-    var rad = scale * 1.5, pulse = 0.5 + Math.sin(t * 3) * 0.12, i, col;
-    ctx.save();
-    ctx.shadowBlur = 8;
-    if (r.cls === 'technomancer') {            // hexagonal energy field
-      col = '#41d8ff'; ctx.strokeStyle = col; ctx.shadowColor = col; ctx.lineWidth = 2;
-      ctx.globalAlpha = pulse; shieldPoly(cx, cy, rad, 6, t * 0.4);
-      ctx.globalAlpha = pulse * 0.6; shieldPoly(cx, cy, rad * 0.82, 6, -t * 0.3 + 0.5);
-    } else if (r.cls === 'voidadept') {        // warding ring of orbiting glyphs
-      col = '#c86bff'; ctx.strokeStyle = col; ctx.shadowColor = col; ctx.lineWidth = 1.4;
-      ctx.globalAlpha = pulse * 0.7; ctx.beginPath(); ctx.arc(cx, cy, rad, 0, 7); ctx.stroke();
-      var runes = Math.max(3, Math.min(9, Math.ceil(blk / 4)));
-      ctx.globalAlpha = pulse;
-      for (i = 0; i < runes; i++) {
-        var a = t * 0.6 + i * (6.283 / runes), x = cx + Math.cos(a) * rad, y = cy + Math.sin(a) * rad * 0.92;
-        ctx.beginPath(); ctx.moveTo(x, y - 3); ctx.lineTo(x - 2.6, y + 2.2); ctx.lineTo(x + 2.6, y + 2.2); ctx.closePath(); ctx.stroke();
-      }
-    } else {                                    // vanguard: stacked plated barrier
-      col = '#ffb02e'; ctx.strokeStyle = col; ctx.shadowColor = col;
+    var c = ctx, sc = scale, sy = cy - scale * 0.42, TAU2 = Math.PI * 2;
+    var pcol = (CLASS_ART[r.cls] || CLASS_ART.vanguard).color, p, i, a;
+    c.save();
+    if (r.cls === 'vanguard') {                 // aegis half-dome bubble (in front)
+      var vx = cx + sc * 0.2; p = 0.45 + Math.sin(t * 3.5) * 0.16;
+      c.strokeStyle = pcol; c.shadowColor = pcol; c.shadowBlur = 10;
+      c.lineWidth = 2.4; c.globalAlpha = 0.7 + p * 0.3;
+      c.beginPath(); c.ellipse(vx, sy, sc * 0.95, sc * 1.15, 0, -1.35, 1.35); c.stroke();
+      c.lineWidth = 1.2; c.globalAlpha = p * 0.5;
+      c.beginPath(); c.ellipse(vx, sy, sc * 0.78, sc * 0.95, 0, -1.3, 1.3); c.stroke();
+      for (i = -2; i <= 2; i++) { c.globalAlpha = p * 0.4; c.beginPath(); c.moveTo(vx, sy + i * sc * 0.4); c.lineTo(vx + sc * 0.92, sy + i * sc * 0.28); c.stroke(); }
+    } else if (r.cls === 'technomancer') {      // hologrid dome (wireframe sphere)
+      p = 0.5 + Math.sin(t * 3.5) * 0.15;
+      c.strokeStyle = pcol; c.shadowColor = pcol; c.shadowBlur = 9; c.lineWidth = 1.6; c.globalAlpha = 0.7 + p * 0.3;
+      c.beginPath(); c.arc(cx, sy, sc * 1.3, 0, TAU2); c.stroke();
+      c.lineWidth = 1; c.globalAlpha = p * 0.5;
+      for (i = 1; i < 4; i++) { c.beginPath(); c.ellipse(cx, sy, sc * 1.3, sc * 1.3 * Math.cos(i / 4 * Math.PI / 2), 0, 0, TAU2); c.stroke(); }
+      for (i = 0; i < 6; i++) { a = i / 6 * Math.PI; c.beginPath(); c.ellipse(cx, sy, sc * 1.3 * Math.sin(a + 0.01), sc * 1.3, a, 0, TAU2); c.stroke(); }
+    } else if (r.cls === 'voidadept') {         // fracture barrier (cracked-glass plane in front)
+      var fx = cx + sc * 0.6; p = 0.5 + Math.sin(t * 4) * 0.16;
+      c.strokeStyle = pcol; c.shadowColor = pcol; c.shadowBlur = 9; c.lineWidth = 2; c.globalAlpha = 0.8;
+      c.beginPath(); c.moveTo(fx, sy - sc * 1.15); c.lineTo(fx + sc * 0.22, sy - sc * 0.4); c.lineTo(fx + sc * 0.12, sy + sc * 0.4); c.lineTo(fx, sy + sc * 1.15); c.lineTo(fx - sc * 0.2, sy + sc * 0.4); c.lineTo(fx - sc * 0.1, sy - sc * 0.4); c.closePath(); c.stroke();
+      c.lineWidth = 1; c.globalAlpha = p * 0.6;
+      c.beginPath(); c.moveTo(fx, sy - sc * 1.15); c.lineTo(fx, sy + sc * 1.15); c.moveTo(fx - sc * 0.15, sy); c.lineTo(fx + sc * 0.18, sy - sc * 0.1); c.moveTo(fx - sc * 0.05, sy - sc * 0.5); c.lineTo(fx + sc * 0.12, sy - sc * 0.4); c.moveTo(fx - sc * 0.12, sy + sc * 0.5); c.lineTo(fx + sc * 0.08, sy + sc * 0.4); c.stroke();
+    } else {                                    // warpcaller (unchanged): stacked plated barrier
+      var rad = scale * 1.5, pulse = 0.5 + Math.sin(t * 3) * 0.12, col = '#ffb02e';
+      c.shadowBlur = 8; c.strokeStyle = col; c.shadowColor = col;
       var plates = Math.max(1, Math.min(4, Math.ceil(blk / 9)));
-      for (i = 0; i < plates; i++) { ctx.lineWidth = 3 - i * 0.4; ctx.globalAlpha = pulse * (1 - i * 0.18); shieldPoly(cx, cy, rad - i * 5, 4, Math.PI / 4); }
+      for (i = 0; i < plates; i++) { c.lineWidth = 3 - i * 0.4; c.globalAlpha = pulse * (1 - i * 0.18); shieldPoly(cx, cy, rad - i * 5, 4, Math.PI / 4); }
     }
-    ctx.restore();
+    c.restore();
   }
 
   // A summoned pet's silhouette, keyed by what it does.
