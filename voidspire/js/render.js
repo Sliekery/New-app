@@ -823,6 +823,64 @@
     ctx.restore();
   }
 
+  // ---- Fire-Control HP bar: targeting brackets + cyan shield line + status chips ----
+  var ST_AB = { vuln: 'V', weak: 'W', burn: 'B', str: 'S', regen: 'R', plate: 'P', platedArmor: 'P', barricade: 'BR', thorns: 'T', parry: 'PY', momentum: 'M', poison: 'PO', plague: 'PL', entropy: 'EN', psiPow: 'Ψ', strPerTurn: 'S', feelNoPain: 'FN', afterImage: 'AI', retain: 'RT' };
+  function statusChipList(st) {
+    if (!st) return [];
+    var out = [];
+    Object.keys(st).forEach(function (k) {
+      if (st[k] <= 0) return;
+      out.push({ ab: ST_AB[k] || k.slice(0, 1).toUpperCase(), val: st[k], col: STATUS_COLORS[k] || '#9bb0a6' });
+    });
+    return out;
+  }
+  function fcBrackets(bx, by, bw, bh, col) {
+    ctx.strokeStyle = col; ctx.lineWidth = 1.2;
+    var c = Math.min(6, bh * 0.9);
+    var pts = [[bx, by, 1, 1], [bx + bw, by, -1, 1], [bx, by + bh, 1, -1], [bx + bw, by + bh, -1, -1]];
+    ctx.beginPath();
+    for (var i = 0; i < 4; i++) { var p = pts[i]; ctx.moveTo(p[0] + p[2] * c, p[1]); ctx.lineTo(p[0], p[1]); ctx.lineTo(p[0], p[1] + p[3] * c); }
+    ctx.stroke();
+  }
+  function fcChips(cx, y, chips, fp) {
+    ctx.font = 'bold ' + fp + 'px ui-monospace, monospace'; ctx.textBaseline = 'middle';
+    var gap = 3, h = fp + 6, i;
+    var ws = chips.map(function (c) { return Math.max(15, ctx.measureText(c.ab + c.val).width + 7); });
+    var total = -gap; for (i = 0; i < ws.length; i++) total += ws[i] + gap;
+    var x = cx - total / 2;
+    for (i = 0; i < chips.length; i++) {
+      var c = chips[i], w = ws[i];
+      ctx.fillStyle = 'rgba(8,12,17,0.85)'; ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = c.col; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+      ctx.fillStyle = c.col; ctx.textAlign = 'center';
+      ctx.fillText(c.ab + c.val, x + w / 2, y + h / 2 + 0.5);
+      x += w + gap;
+    }
+  }
+  // cx = centre, midY = vertical centre of the bar.
+  function drawHpBarFC(cx, midY, bw, h, frac, hpColr, hpTxt, shield, shMax, statuses, opt) {
+    opt = opt || {};
+    var bx = cx - bw / 2, by = midY - h / 2, fp = opt.font || 8.5;
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.09)'; ctx.fillRect(bx, by, bw, h);
+    ctx.fillStyle = hpColr; ctx.shadowColor = hpColr; ctx.shadowBlur = 4;
+    ctx.fillRect(bx, by, bw * Math.max(0, Math.min(1, frac)), h); ctx.shadowBlur = 0;
+    fcBrackets(bx - 3, by - 3, bw + 6, h + 6, '#6f8a98');
+    if (shield > 0) {
+      var sw = bw * Math.max(0.05, Math.min(1, shield / Math.max(1, shMax)));
+      ctx.fillStyle = '#41d8ff'; ctx.shadowColor = '#41d8ff'; ctx.shadowBlur = 5;
+      ctx.fillRect(bx, by - 4, sw, 2.5); ctx.shadowBlur = 0;
+      ctx.fillStyle = '#9fe9ff'; ctx.font = 'bold ' + fp + 'px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText('⬢' + shield, bx + bw + 6, by + h / 2);
+    }
+    ctx.font = 'bold ' + fp + 'px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#f2fff6'; ctx.shadowColor = '#04140c'; ctx.shadowBlur = 3;
+    ctx.fillText(hpTxt, cx, midY + 0.5); ctx.shadowBlur = 0;
+    var chips = statusChipList(statuses);
+    if (chips.length) fcChips(cx, by + h + 5, chips, opt.chipFont || 8);
+    ctx.restore();
+  }
+
   function drawEnemy(v, idx) {
     var dying = !v.alive;
     var dieDur = 0.45;
@@ -879,30 +937,13 @@
 
     if (dying) return;
 
-    // hp bar
+    // hp bar — Fire-Control: bracketed bar, cyan shield line, status chips
     v.dispHp += (v.hp - v.dispHp) * 0.18;
     if (Math.abs(v.dispHp - v.hp) < 0.4) v.dispHp = v.hp;
-    var bw = Math.max(46, Math.min(96, v.r * 2.1));
-    var bx = v.x - bw / 2, by = v.y + v.r + 14;
-    ctx.fillStyle = 'rgba(6, 14, 10, 0.85)';
-    ctx.fillRect(bx, by, bw, 6);
-    ctx.fillStyle = color;
-    ctx.globalAlpha = 0.9;
-    ctx.fillRect(bx + 1, by + 1, (bw - 2) * Math.max(0, v.dispHp / v.maxHp), 4);
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = 'rgba(184, 230, 196, 0.35)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, 5);
-    ctx.fillStyle = 'rgba(184, 230, 196, 0.9)';
-    ctx.font = '9px ui-monospace, monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(Math.max(0, Math.round(v.dispHp)) + '/' + v.maxHp, v.x, by + 16);
-
-    // block (shield) — clear cyan badge at the HP bar's left edge
-    if (v.block > 0) drawBlockBadge(bx - 13, by + 2, v.block);
-
-    // statuses — colour-coded pills under the HP bar
-    drawEnemyStatuses(v, by);
+    var bw = Math.max(54, Math.min(104, v.r * 2.1));
+    var midY = v.y + v.r + 19;
+    drawHpBarFC(v.x, midY, bw, 7, Math.max(0, v.dispHp / v.maxHp), color,
+      Math.max(0, Math.round(v.dispHp)) + '/' + v.maxHp, v.block, v.maxHp, v.en.statuses, { font: 8.5, chipFont: 8 });
 
     // intent
     drawIntent(v);
