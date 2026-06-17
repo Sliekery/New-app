@@ -58,7 +58,7 @@
     entropy_field: 'flame', iron_resolve: 'shield', reckless_protocol: 'core',
     overload_capacitor: 'core', echo_core: 'core', mind_array: 'hex', plague_engine: 'flame',
     salvage_protocol: 'core',
-    void_taint: 'vortex', shrapnel: 'shell', recurring_curse: 'skull',
+    void_taint: 'vortex', shrapnel: 'shell', recurring_curse: 'skull', void_swarm: 'hex',
     // expansion
     war_cry: 'might', cluster_munitions: 'shell', bunker_down: 'shield',
     arc_welder: 'bolt', static_lance: 'bolt', shield_battery: 'core',

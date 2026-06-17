@@ -315,6 +315,13 @@ html, body {
   border-color: var(--green);
 }
 .card.unplayable-curse { filter: saturate(0.5) brightness(0.8); }
+/* a card pinned by a neighbouring Void Swarm curse */
+.card.swarm-disabled { opacity: 0.4; filter: grayscale(0.7) brightness(0.7); }
+.card.swarm-disabled::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: repeating-linear-gradient(45deg, rgba(200,107,255,0.16) 0 6px, transparent 6px 12px);
+  border: 1px solid rgba(200,107,255,0.45);
+}
 .card.dragging {
   transition: none;
   z-index: 60;

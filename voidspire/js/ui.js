@@ -1428,6 +1428,7 @@
         (info.vtouch ? ' vtouched' : '') +
         (info.cost > c.energy && !info.unplayable ? ' unaffordable' : '') +
         (info.unplayable ? ' unplayable-curse' : '') +
+        (!info.unplayable && E.swarmDisabled(i) ? ' swarm-disabled' : '') +
         (deal ? ' deal' : '') +
         (i === selected ? ' selected' : ''));
       if (deal) d.style.setProperty('--d', (i * 55) + 'ms');
@@ -1527,6 +1528,7 @@
 
     var info = d.info;
     if (info.unplayable) { setTargeting(false); toast('UNPLAYABLE — a curse weighs down your deck'); return; }
+    if (E.swarmDisabled(d.idx)) { setTargeting(false); toast('DISABLED — a Void Swarm grips this card'); return; }
     if (!E.canPlay(d.idx)) { setTargeting(false); toast('NOT ENOUGH ENERGY'); return; }
 
     var multi = E.aliveEnemies().length > 1;
@@ -2009,7 +2011,7 @@
         case 'dmg': return 90;            // staggers enemy multi-hits on the player
         case 'die': return 140;
         case 'block': case 'heal': case 'status': return 60;
-        case 'curse': return 100; case 'summon': return 160; case 'infect': return 120;
+        case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120;
         case 'revive': return 260; case 'salvage': return 80; case 'win': return 250;
         default: return 0;
       }
@@ -2148,6 +2150,16 @@
               toast('INFECTED — ' + ns.CARDS[e.card].name.toUpperCase() + ' burrows into your deck', 2200);
               floater(pp.x + 30, pp.y - 44, '☣ INFECTED', 'status');
               SFX.curse && SFX.curse();
+            }, d);
+          })(e, delay);
+          delay += 120;
+          break;
+        case 'absorb':
+          (function (e, d) {
+            setTimeout(function () {
+              var pos = R.enemyPos(e.idx);
+              floater(pos.x, pos.y - 36, 'ABSORBED', 'block');
+              if (e.card) toast('OVERLOAD — a VOID SWARM is flung into your deck (it disables its neighbours in hand)', 2400);
             }, d);
           })(e, delay);
           delay += 120;

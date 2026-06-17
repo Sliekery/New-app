@@ -200,6 +200,20 @@
       // void-shard: faceted body, single eye, jagged spikes and trailing tendrils
       art: { p: [[0,-0.58, 0.46,-0.12, 0.26,0.5, -0.26,0.5, -0.46,-0.12, 0,-0.58], [-0.46,-0.12, -0.72,-0.34], [0.46,-0.12, 0.72,-0.34], [-0.26,0.5, -0.36,0.82], [0.26,0.5, 0.36,0.82], [0,0.5, 0,0.84], [0,-0.58, 0.1,-0.84]], e: [[0,-0.02]] },
     },
+    // Void Drone — caps every hit at its absorb threshold; an over-threshold
+    // blow flings a Void Swarm curse into your deck. Chip it down with small or
+    // multi-hit attacks; big single nukes are wasted AND punished.
+    void_drone: {
+      name: 'Void Drone', faction: 'voidspawn', hp: 24, size: 0.95, ai: 'random',
+      absorb: { threshold: 8, card: 'void_swarm' },
+      moves: [
+        { t: 'attack', d: 6, w: 4 },
+        { t: 'block', b: 6, w: 2 },
+        { t: 'debuff', s: 'weak', v: 2, w: 2 },
+      ],
+      // void hover-drone: funnel hull, twin antenna pods, stalked eye, landing struts
+      art: { p: [[-0.68,-0.55, 0.68,-0.55, 0.42,0.45, -0.42,0.45, -0.68,-0.55], [-0.5,-0.28, 0.5,-0.28], [-0.44,-0.02, 0.44,-0.02], [-0.3,-0.55, -0.3,-0.8, -0.12,-0.8, -0.12,-0.55], [0.12,-0.55, 0.12,-0.82, 0.3,-0.82, 0.3,-0.55], [-0.21,-0.8, -0.21,-0.98], [0.21,-0.82, 0.21,-1.0], [0.68,-0.16, 0.98,-0.1], [-0.42,0.45, -0.5,0.7, -0.22,0.7, -0.2,0.45], [0.2,0.45, 0.22,0.7, 0.5,0.7, 0.42,0.45]], e: [[1.0,-0.1],[0,-0.15]] },
+    },
     husk_stalker: { grounded: true,
       name: 'Husk Stalker', faction: 'voidspawn', hp: 18, size: 0.8, ai: 'random',
       moves: [
@@ -480,6 +494,7 @@
       ['husk_stalker', 'void_larva'],
       ['psy_wraith', 'void_larva'],
       ['husk_stalker', 'voidling', 'voidling'],
+      ['void_drone', 'void_larva'],
       ['brood_maw', 'void_larva'],
       ['revenant', 'husk_stalker'],
       ['psy_wraith', 'revenant', 'void_larva'],

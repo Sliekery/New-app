@@ -326,6 +326,13 @@ html, body {
   border-color: var(--green);
 }
 .card.unplayable-curse { filter: saturate(0.5) brightness(0.8); }
+/* a card pinned by a neighbouring Void Swarm curse */
+.card.swarm-disabled { opacity: 0.4; filter: grayscale(0.7) brightness(0.7); }
+.card.swarm-disabled::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: repeating-linear-gradient(45deg, rgba(200,107,255,0.16) 0 6px, transparent 6px 12px);
+  border: 1px solid rgba(200,107,255,0.45);
+}
 .card.dragging {
   transition: none;
   z-index: 60;
@@ -2306,6 +2313,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       name: 'Recurring Dread', cls: 'curse', type: 'curse', rarity: -1, cost: 0, unplayable: true, retain: true,
       fx: [], text: 'Unplayable. A fragment of the loop, lodged in your mind — it will not leave.',
     },
+    void_swarm: {
+      name: 'Void Swarm', cls: 'curse', type: 'curse', rarity: -1, cost: 0, unplayable: true, disableNeighbors: true,
+      fx: [], text: 'Unplayable. While in your hand, the cards to its left and right cannot be played.',
+    },
   };
 
   /* ---- Starter decks ------------------------------------------------- */
@@ -2473,7 +2484,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     entropy_field: 'flame', iron_resolve: 'shield', reckless_protocol: 'core',
     overload_capacitor: 'core', echo_core: 'core', mind_array: 'hex', plague_engine: 'flame',
     salvage_protocol: 'core',
-    void_taint: 'vortex', shrapnel: 'shell', recurring_curse: 'skull',
+    void_taint: 'vortex', shrapnel: 'shell', recurring_curse: 'skull', void_swarm: 'hex',
     // expansion
     war_cry: 'might', cluster_munitions: 'shell', bunker_down: 'shield',
     arc_welder: 'bolt', static_lance: 'bolt', shield_battery: 'core',
@@ -3181,6 +3192,20 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // void-shard: faceted body, single eye, jagged spikes and trailing tendrils
       art: { p: [[0,-0.58, 0.46,-0.12, 0.26,0.5, -0.26,0.5, -0.46,-0.12, 0,-0.58], [-0.46,-0.12, -0.72,-0.34], [0.46,-0.12, 0.72,-0.34], [-0.26,0.5, -0.36,0.82], [0.26,0.5, 0.36,0.82], [0,0.5, 0,0.84], [0,-0.58, 0.1,-0.84]], e: [[0,-0.02]] },
     },
+    // Void Drone — caps every hit at its absorb threshold; an over-threshold
+    // blow flings a Void Swarm curse into your deck. Chip it down with small or
+    // multi-hit attacks; big single nukes are wasted AND punished.
+    void_drone: {
+      name: 'Void Drone', faction: 'voidspawn', hp: 24, size: 0.95, ai: 'random',
+      absorb: { threshold: 8, card: 'void_swarm' },
+      moves: [
+        { t: 'attack', d: 6, w: 4 },
+        { t: 'block', b: 6, w: 2 },
+        { t: 'debuff', s: 'weak', v: 2, w: 2 },
+      ],
+      // void hover-drone: funnel hull, twin antenna pods, stalked eye, landing struts
+      art: { p: [[-0.68,-0.55, 0.68,-0.55, 0.42,0.45, -0.42,0.45, -0.68,-0.55], [-0.5,-0.28, 0.5,-0.28], [-0.44,-0.02, 0.44,-0.02], [-0.3,-0.55, -0.3,-0.8, -0.12,-0.8, -0.12,-0.55], [0.12,-0.55, 0.12,-0.82, 0.3,-0.82, 0.3,-0.55], [-0.21,-0.8, -0.21,-0.98], [0.21,-0.82, 0.21,-1.0], [0.68,-0.16, 0.98,-0.1], [-0.42,0.45, -0.5,0.7, -0.22,0.7, -0.2,0.45], [0.2,0.45, 0.22,0.7, 0.5,0.7, 0.42,0.45]], e: [[1.0,-0.1],[0,-0.15]] },
+    },
     husk_stalker: { grounded: true,
       name: 'Husk Stalker', faction: 'voidspawn', hp: 18, size: 0.8, ai: 'random',
       moves: [
@@ -3461,6 +3486,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       ['husk_stalker', 'void_larva'],
       ['psy_wraith', 'void_larva'],
       ['husk_stalker', 'voidling', 'voidling'],
+      ['void_drone', 'void_larva'],
       ['brood_maw', 'void_larva'],
       ['revenant', 'husk_stalker'],
       ['psy_wraith', 'revenant', 'void_larva'],
@@ -4874,6 +4900,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var cv = art('critVuln');
       if (cv > 0 && en.alive) { addStatus(en, 'vuln', cv); emit('status', { who: 'enemy', idx: idx, s: 'vuln', v: cv }); }
     }
+    // Void Drone: each hit is capped at its absorb threshold; a hit that would
+    // exceed it spits a Void Swarm curse into your deck (unless the blow lands the kill).
+    var overAbsorb = false;
+    if (en.def.absorb && amount > en.def.absorb.threshold) { overAbsorb = true; amount = en.def.absorb.threshold; }
     var blocked = Math.min(en.block, amount);
     en.block -= blocked;
     var hpDmg = amount - blocked;
@@ -4899,6 +4929,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var kd = art('killDraw'); if (kd > 0) drawCards(kd);
       emit('die', { idx: idx });
       echoKill(idx);
+    }
+    if (overAbsorb) {
+      var swarmed = null;
+      if (en.alive && c) { c.discard.push(mkCard(en.def.absorb.card, false)); swarmed = en.def.absorb.card; }
+      emit('absorb', { idx: idx, card: swarmed });
     }
     return hpDmg;
   }
@@ -5117,11 +5152,20 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return false;
   }
 
+  // Void Swarm: a curse that disables the hand cards immediately left and right.
+  function swarmDisabled(handIdx) {
+    var c = E.combat; if (!c) return false;
+    var L = c.hand[handIdx - 1], R = c.hand[handIdx + 1];
+    return !!((L && ns.CARDS[L.id].disableNeighbors) || (R && ns.CARDS[R.id].disableNeighbors));
+  }
+  E.swarmDisabled = swarmDisabled;
+
   E.canPlay = function (handIdx) {
     var c = E.combat;
     if (!c || c.over) return false;
     var card = c.hand[handIdx];
     if (!card) return false;
+    if (swarmDisabled(handIdx)) return false;
     var info = E.cardInfo(card);
     // Recoilless Frame: at most N non-attack cards per turn
     var lim = art('maxNonAttack');
@@ -9742,6 +9786,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         (info.vtouch ? ' vtouched' : '') +
         (info.cost > c.energy && !info.unplayable ? ' unaffordable' : '') +
         (info.unplayable ? ' unplayable-curse' : '') +
+        (!info.unplayable && E.swarmDisabled(i) ? ' swarm-disabled' : '') +
         (deal ? ' deal' : '') +
         (i === selected ? ' selected' : ''));
       if (deal) d.style.setProperty('--d', (i * 55) + 'ms');
@@ -9841,6 +9886,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     var info = d.info;
     if (info.unplayable) { setTargeting(false); toast('UNPLAYABLE — a curse weighs down your deck'); return; }
+    if (E.swarmDisabled(d.idx)) { setTargeting(false); toast('DISABLED — a Void Swarm grips this card'); return; }
     if (!E.canPlay(d.idx)) { setTargeting(false); toast('NOT ENOUGH ENERGY'); return; }
 
     var multi = E.aliveEnemies().length > 1;
@@ -10323,7 +10369,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         case 'dmg': return 90;            // staggers enemy multi-hits on the player
         case 'die': return 140;
         case 'block': case 'heal': case 'status': return 60;
-        case 'curse': return 100; case 'summon': return 160; case 'infect': return 120;
+        case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120;
         case 'revive': return 260; case 'salvage': return 80; case 'win': return 250;
         default: return 0;
       }
@@ -10462,6 +10508,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
               toast('INFECTED — ' + ns.CARDS[e.card].name.toUpperCase() + ' burrows into your deck', 2200);
               floater(pp.x + 30, pp.y - 44, '☣ INFECTED', 'status');
               SFX.curse && SFX.curse();
+            }, d);
+          })(e, delay);
+          delay += 120;
+          break;
+        case 'absorb':
+          (function (e, d) {
+            setTimeout(function () {
+              var pos = R.enemyPos(e.idx);
+              floater(pos.x, pos.y - 36, 'ABSORBED', 'block');
+              if (e.card) toast('OVERLOAD — a VOID SWARM is flung into your deck (it disables its neighbours in hand)', 2400);
             }, d);
           })(e, delay);
           delay += 120;

@@ -1004,6 +1004,10 @@
       var cv = art('critVuln');
       if (cv > 0 && en.alive) { addStatus(en, 'vuln', cv); emit('status', { who: 'enemy', idx: idx, s: 'vuln', v: cv }); }
     }
+    // Void Drone: each hit is capped at its absorb threshold; a hit that would
+    // exceed it spits a Void Swarm curse into your deck (unless the blow lands the kill).
+    var overAbsorb = false;
+    if (en.def.absorb && amount > en.def.absorb.threshold) { overAbsorb = true; amount = en.def.absorb.threshold; }
     var blocked = Math.min(en.block, amount);
     en.block -= blocked;
     var hpDmg = amount - blocked;
@@ -1029,6 +1033,11 @@
       var kd = art('killDraw'); if (kd > 0) drawCards(kd);
       emit('die', { idx: idx });
       echoKill(idx);
+    }
+    if (overAbsorb) {
+      var swarmed = null;
+      if (en.alive && c) { c.discard.push(mkCard(en.def.absorb.card, false)); swarmed = en.def.absorb.card; }
+      emit('absorb', { idx: idx, card: swarmed });
     }
     return hpDmg;
   }
@@ -1247,11 +1256,20 @@
     return false;
   }
 
+  // Void Swarm: a curse that disables the hand cards immediately left and right.
+  function swarmDisabled(handIdx) {
+    var c = E.combat; if (!c) return false;
+    var L = c.hand[handIdx - 1], R = c.hand[handIdx + 1];
+    return !!((L && ns.CARDS[L.id].disableNeighbors) || (R && ns.CARDS[R.id].disableNeighbors));
+  }
+  E.swarmDisabled = swarmDisabled;
+
   E.canPlay = function (handIdx) {
     var c = E.combat;
     if (!c || c.over) return false;
     var card = c.hand[handIdx];
     if (!card) return false;
+    if (swarmDisabled(handIdx)) return false;
     var info = E.cardInfo(card);
     // Recoilless Frame: at most N non-attack cards per turn
     var lim = art('maxNonAttack');

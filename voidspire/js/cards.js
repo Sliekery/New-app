@@ -990,6 +990,10 @@
       name: 'Recurring Dread', cls: 'curse', type: 'curse', rarity: -1, cost: 0, unplayable: true, retain: true,
       fx: [], text: 'Unplayable. A fragment of the loop, lodged in your mind — it will not leave.',
     },
+    void_swarm: {
+      name: 'Void Swarm', cls: 'curse', type: 'curse', rarity: -1, cost: 0, unplayable: true, disableNeighbors: true,
+      fx: [], text: 'Unplayable. While in your hand, the cards to its left and right cannot be played.',
+    },
   };
 
   /* ---- Starter decks ------------------------------------------------- */

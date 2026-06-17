@@ -610,5 +610,28 @@ if (E.combat && E.combat.enemies[0].alive) {
 }
 VS.ENEMIES.voidling.infect.chance = oldInfect;
 
+/* Void Drone: caps each hit at its absorb threshold; overkill spawns Void Swarm */
+var oldVD = VS.PACKS.voidspawn;
+VS.PACKS.voidspawn = [['void_drone']];
+E.seed(3); E.newRun('vanguard'); E.run.faction = 'voidspawn'; E.run.sector = 1; E.run.nodeIdx = 0;
+E.startNode('fight');
+VS.PACKS.voidspawn = oldVD;
+var vdrone = E.combat.enemies[0];
+vdrone.hp = vdrone.maxHp = 40; vdrone.block = 0;
+E.combat.energy = 5; E.combat.player.statuses.str = 20;     // guarantee an over-threshold hit
+setHand(['pulse_rifle']);
+var vhp0 = vdrone.hp, sw0 = E.combat.discard.filter(function (c) { return c.id === 'void_swarm'; }).length;
+playId('pulse_rifle', 0);
+ok('Void Drone caps a hit at its absorb threshold (<=8)', vhp0 - vdrone.hp <= 8 && vhp0 - vdrone.hp > 0);
+ok('Over-threshold hit spawns a Void Swarm into the deck', E.combat.discard.filter(function (c) { return c.id === 'void_swarm'; }).length === sw0 + 1);
+
+/* Void Swarm: disables the hand cards to its immediate left and right */
+E.combat.energy = 5;
+setHand(['pulse_rifle', 'void_swarm', 'combat_shield']);
+ok('Void Swarm disables the card to its left', !E.canPlay(0));
+ok('Void Swarm disables the card to its right', !E.canPlay(2));
+setHand(['pulse_rifle', 'combat_shield', 'void_swarm']);
+ok('a non-adjacent card stays playable', E.canPlay(0));
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);
