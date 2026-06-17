@@ -651,5 +651,19 @@ var whp0 = E.run.hp;
 E.endTurn();                                    // enemy phase: it fires the reduced hit
 ok('Siege Walker fires the reduced megahit and resets', E.run.hp < whp0 && (whp0 - E.run.hp) <= primed && !wk.charging);
 
+/* Jammer: its beam deals damage AND burns (exhausts) a card from the deck */
+var oldHier = VS.PACKS.hierarchy;
+VS.PACKS.hierarchy = [['jammer']];
+E.seed(4); E.newRun('vanguard'); E.run.faction = 'hierarchy'; E.run.sector = 1; E.run.nodeIdx = 0;
+E.startNode('fight');
+VS.PACKS.hierarchy = oldHier;
+var jm = E.combat.enemies[0];
+jm.intent = { t: 'attack', d: 6, jam: true };       // force the jamming beam
+var exhBefore = E.combat.exhaust.length;
+var jhp0 = E.run.hp;
+E.endTurn();
+ok('Jammer beam deals damage', E.run.hp < jhp0);
+ok('Jammer burns a card into the exhaust pile', E.combat.exhaust.length === exhBefore + 1);
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

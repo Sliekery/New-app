@@ -51,6 +51,18 @@
       // squat acolyte: dome head, methane tank, hose, hands cupping a plasma orb
       art: { p: [[-0.2,-0.6, 0.2,-0.6, 0.3,-0.4, -0.3,-0.4, -0.2,-0.6], [-0.1,-0.4, -0.14,-0.28, 0.14,-0.28, 0.1,-0.4], [-0.35,-0.4, 0.35,-0.4, 0.5,0.35, 0.3,0.6, -0.3,0.6, -0.5,0.35, -0.35,-0.4], [-0.15,-0.6, 0,-1.0, 0.15,-0.6], [0,-1.0, 0,-0.62], [0.13,-0.78, 0.34,-0.6, 0.28,-0.42], [-0.35,-0.15, -0.55,0.05, -0.32,0.2], [0.35,-0.15, 0.55,0.05, 0.32,0.2], [-0.16,0.1, 0,-0.05, 0.16,0.1, 0,0.26, -0.16,0.1], [-0.3,0.6, -0.38,0.8, -0.14,0.8], [0.3,0.6, 0.38,0.8, 0.14,0.8]], e: [[-0.08,-0.5],[0.08,-0.5],[0,0.1]] },
     },
+    // Jammer — a tripod laser turret. Its beam deals damage AND burns (exhausts)
+    // a card out of your deck for the rest of the fight. Whittles your options.
+    jammer: { grounded: true,
+      name: 'Jammer', faction: 'hierarchy', hp: 20, size: 0.9, ai: 'random',
+      moves: [
+        { t: 'attack', d: 6, jam: true, w: 4 },   // jamming beam: damage + burn a card
+        { t: 'attack', d: 9, w: 2 },
+        { t: 'block', b: 6, w: 2 },
+      ],
+      // laser turret: trapezoid head, twin emitter rods, focusing lens, tripod legs
+      art: { p: [[-0.55,-0.2, 0.55,-0.2, 0.4,0.25, -0.4,0.25, -0.55,-0.2], [-0.4,-0.05, 0.4,-0.05], [-0.28,-0.2, -0.28,-0.62], [-0.37,-0.62, -0.19,-0.62], [0.12,-0.2, 0.12,-0.72], [0.03,-0.72, 0.21,-0.72], [-0.4,0.25, -0.72,0.85], [0,0.25, 0,0.9], [0.4,0.25, 0.72,0.85], [-0.82,0.85, -0.62,0.85], [0.62,0.85, 0.82,0.85], [-0.1,0.9, 0.1,0.9]], e: [[0,0.06]] },
+    },
     honor_guard: { grounded: true,
       name: 'Honor Guard', faction: 'hierarchy', hp: 48, size: 1.0, elite: true, ai: 'cycle',
       moves: [
@@ -483,6 +495,7 @@
       ['zealot_warrior'],
       ['plasma_acolyte', 'drone_skirmisher'],
       ['zealot_warrior', 'drone_skirmisher'],
+      ['jammer', 'drone_skirmisher'],
       ['iron_zealot', 'drone_skirmisher'],
       ['dominus', 'zealot_warrior'],
       ['dominus', 'iron_zealot', 'drone_skirmisher'],

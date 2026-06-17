@@ -910,7 +910,7 @@
       if (m.walkerFire) return { icon: 'charge', label: '⚡' + d };
       var nh = m.hits || 0;
       if (m.hitsPer) nh = Math.max(1, aliveEnemies().filter(function (e) { return e.id === m.hitsPer; }).length);
-      return { icon: 'atk', label: (nh ? d + '×' + nh : '' + d) + (m.pierce ? '⊘' : '') };
+      return { icon: 'atk', label: (nh ? d + '×' + nh : '' + d) + (m.pierce ? '⊘' : '') + (m.jam ? '⊗' : '') };
     }
     if (m.t === 'wk_charge') return { icon: 'charge', label: 'WIND-UP' };
     if (m.t === 'disrupt') return { icon: 'debuff', label: '✕' };
@@ -1834,6 +1834,16 @@
           var icard = en.def.infect.card || 'void_taint';
           r.deck.push(mkCard(icard, false));
           emit('infect', { idx: idx, card: icard });
+        }
+        // Jammer: the laser also burns (exhausts) a card out of this combat.
+        if (m.jam && r.phase !== 'dead') {
+          var jpools = [c.drawPile, c.hand], jburned = null;
+          for (var jp = 0; jp < jpools.length && !jburned; jp++) {
+            var jpool = jpools[jp], jcand = [];
+            for (var ji = 0; ji < jpool.length; ji++) if (ns.CARDS[jpool[ji].id].type !== 'curse') jcand.push(ji);
+            if (jcand.length) { jburned = jpool.splice(jcand[Math.floor(rnd() * jcand.length)], 1)[0]; c.exhaust.push(jburned); }
+          }
+          emit('jam', { idx: idx, card: jburned ? jburned.id : null });
         }
       } else if (m.t === 'block') {
         var bb = scaledDmg(m.b, s);

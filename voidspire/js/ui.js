@@ -2011,7 +2011,7 @@
         case 'dmg': return 90;            // staggers enemy multi-hits on the player
         case 'die': return 140;
         case 'block': case 'heal': case 'status': return 60;
-        case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120; case 'charge': return 100;
+        case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120; case 'charge': return 100; case 'jam': return 120;
         case 'revive': return 260; case 'salvage': return 80; case 'win': return 250;
         default: return 0;
       }
@@ -2173,6 +2173,16 @@
             }, d);
           })(e, delay);
           delay += 100;
+          break;
+        case 'jam':
+          (function (e, d) {
+            setTimeout(function () {
+              floater(pp.x + 30, pp.y - 44, '⊗ JAMMED', 'status');
+              if (e.card) toast('JAMMED — ' + ns.CARDS[e.card].name.toUpperCase() + ' is burned out of this combat', 2200);
+              SFX.curse && SFX.curse();
+            }, d);
+          })(e, delay);
+          delay += 120;
           break;
         case 'cardPlayed':
           if (e.roll !== null && e.roll !== undefined) {
