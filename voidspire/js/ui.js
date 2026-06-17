@@ -1648,7 +1648,9 @@
         clone.style.left = rect.left + 'px'; clone.style.top = rect.top + 'px';
         clone.style.width = w + 'px'; clone.style.height = h + 'px';
         clone.style.setProperty('--beam', fx.color);
-        $game.appendChild(clone);
+        // body, not $game: #game is transform-scaled, which would make this
+        // position:fixed ghost resolve against the game's local (scaled) space.
+        document.body.appendChild(clone);
         setTimeout(function () { clone.remove(); }, fx.life + 80);
       }
       if (fx.mode === 'shatter') { R.burst(cx, cy, fx.color, 22); R.burst(cx, cy, '#fff3d6', 9); }
@@ -1680,7 +1682,9 @@
         clone.style.setProperty('--tx', tx.toFixed(1) + 'px');
         clone.style.setProperty('--ty', ty.toFixed(1) + 'px');
       }
-      $game.appendChild(clone);
+      // body, not $game: #game is transform-scaled, which would otherwise
+      // resolve this position:fixed ghost against the game's scaled space.
+      document.body.appendChild(clone);
       setTimeout(function () { clone.remove(); }, (consumed ? cf.eLife : cf.dLife) + 90);
     }
 
