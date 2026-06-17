@@ -148,6 +148,33 @@
     burst(p.x, p.y, '#ff4a5e', 12);
   };
   R.playerLunge = function () { R.player.lungeT = t; };
+  // Short card-play animation, keyed by card type: 'attack' | 'defend' | 'utility'.
+  R.playerAnim = function (type) {
+    R.player.animT = t; R.player.animType = type;
+    if (type === 'attack') R.player.lungeT = t;
+    var p = R.playerXY(), sc = Math.min(W, H) * 0.1125;
+    var run = ns.engine.run;
+    var col = ((run && CLASS_ART[run.cls]) || CLASS_ART.vanguard).color;
+    if (type === 'defend') burst(p.x, p.y - sc * 0.35, col, 9);
+    else if (type === 'utility') burst(p.x, p.y - sc * 0.5, col, 11);
+  };
+  // A transient ring drawn during a defend/utility animation.
+  function drawAnimRing(px, py, sc, prog, type, col) {
+    ctx.save();
+    ctx.globalAlpha = (1 - prog) * 0.75;
+    ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 10; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+    var cy = py - sc * 0.35;
+    if (type === 'defend') {                          // hexagonal ward snapping shut
+      var rr = sc * (0.85 - prog * 0.32);
+      ctx.beginPath();
+      for (var i = 0; i < 6; i++) { var a = -Math.PI / 2 + i * Math.PI / 3, x = px + Math.cos(a) * rr, y = cy + Math.sin(a) * rr * 1.15; if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+      ctx.closePath(); ctx.stroke();
+    } else {                                          // utility — energy ring rising off the figure
+      var ry = cy - prog * sc * 0.8, rr2 = sc * (0.3 + prog * 0.7);
+      ctx.beginPath(); ctx.ellipse(px, ry, rr2, rr2 * 0.32, 0, 0, 7); ctx.stroke();
+    }
+    ctx.restore();
+  }
   R.enemyLunge = function (idx) {
     var v = R.views[idx];
     if (v) v.lungeT = t;
@@ -1270,12 +1297,18 @@
     var scale = Math.min(W, H) * 0.1125;
     var bob = Math.sin(t * 1.6) * 1.4;
     var flash = (t - R.player.flashT < 0.15);
-    // lunge toward the enemy line when attacking
-    var px = p.x;
-    var lu = (t - (R.player.lungeT || -9)) / 0.28;
-    if (lu >= 0 && lu < 1) px += Math.sin(lu * Math.PI) * 18;
+    var px = p.x, py = p.y + bob, sc = scale, glow = flash ? 14 : 9;
+    // card-play animation: attack lunge / defend brace / utility surge
+    var adt = t - (R.player.animT || -9), atype = R.player.animType, aprog = -1;
+    if (adt >= 0 && adt < 0.42) {
+      aprog = adt / 0.42;
+      var s = Math.sin(aprog * Math.PI);   // ease 0 -> 1 -> 0
+      if (atype === 'attack') { px += s * 26; sc *= 1 + s * 0.05; }
+      else if (atype === 'defend') { py += s * 10; sc *= 1 - s * 0.06; glow += s * 6; }
+      else if (atype === 'utility') { py -= s * 12; sc *= 1 + s * 0.08; glow += s * 8; }
+    }
     var art = CLASS_ART[r.cls] || CLASS_ART.vanguard;
-    strokePaths(art.p, px, p.y + bob, scale, flash ? '#ff4a5e' : art.color, flash ? 14 : 9, 1);
+    strokePaths(art.p, px, py, sc, flash ? '#ff4a5e' : art.color, glow, 1);
 
     // glowing eye/visor points
     ctx.save();
@@ -1283,14 +1316,17 @@
     ctx.shadowColor = art.color;
     ctx.shadowBlur = 7;
     (art.e || []).forEach(function (e) {
-      var ex = px + e[0] * scale, ey = p.y + bob + e[1] * scale;
-      var es = Math.max(1.5, scale * 0.055);
+      var ex = px + e[0] * sc, ey = py + e[1] * sc;
+      var es = Math.max(1.5, sc * 0.055);
       ctx.fillRect(ex - es / 2, ey - es / 2, es, es);
     });
     ctx.restore();
 
-    // subtle class-identity effects
-    drawPlayerFx(r, px, p.y + bob, scale, art.color);
+    // transient ring during a defend / utility animation
+    if (aprog >= 0 && (atype === 'defend' || atype === 'utility')) drawAnimRing(px, py, sc, aprog, atype, art.color);
+
+    // subtle class-identity effects (follow the animated figure)
+    drawPlayerFx(r, px, py, sc, art.color);
 
     // archetype shield: a persistent ward around you while you hold Shield
     if (R.player.block > 0) drawPlayerShield(r, p.x, p.y + bob, scale, R.player.block);

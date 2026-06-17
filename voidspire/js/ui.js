@@ -1938,7 +1938,6 @@
     setTargeting(false);
     if (i < 0 || !E.canPlay(i)) { renderHand(); return; }
     var card = E.combat.hand[i], def = ns.CARDS[card.id];
-    var wasAttack = def.type === 'attack';
     var castFx = ns.cardFx(def, card.up, card.vtouch);
     var flavor = cardFlavor(def, castFx);
     var srcEl = $hand.children[i];
@@ -1948,7 +1947,7 @@
     var ok = E.playCard(i, targetIdx);
     if (!ok) { renderHand(); return; }
     playCardFX(card, def, targetIdx, flavor);
-    if (wasAttack) R.playerLunge();
+    R.playerAnim(def.type === 'attack' ? 'attack' : def.type === 'power' ? 'utility' : 'defend');
     var evts = E.events.slice();
     E.events.length = 0;
     lock(true);
