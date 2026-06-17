@@ -450,6 +450,7 @@
       for (var i = 0; i < kids.length; i++) {
         kids[i].style.setProperty('--d', Math.min(i * 55, 440) + 'ms');
       }
+      fitCards(s);   // auto-scale any preview-card descriptions to fit
     }, 0);
     return s;
   }
@@ -1417,7 +1418,24 @@
       });
       $hand.appendChild(d);
     });
+    fitCards($hand);
   }
+
+  // Auto-scale each card's description down until it fits its box (the standard
+  // card-game fix for variable text length — no clipping, no overflow).
+  function fitOne(desc) {
+    desc.style.fontSize = '';                 // reset to the CSS default
+    var cs = parseFloat(getComputedStyle(desc).fontSize) || 8.5;
+    var guard = 0;
+    while (desc.scrollHeight > desc.clientHeight + 0.5 && cs > 5.5 && guard++ < 14) {
+      cs -= 0.4; desc.style.fontSize = cs.toFixed(2) + 'px';
+    }
+  }
+  function fitCards(root) {
+    if (!root) return;
+    (root.querySelectorAll ? root : document).querySelectorAll('.card .cdesc').forEach(fitOne);
+  }
+  U.fitCards = fitCards;
 
   /* ---- swipe-to-play -------------------------------------------------- */
   // Swipe a card up to play it; drag it onto an enemy to choose the target.
