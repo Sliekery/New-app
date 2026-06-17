@@ -633,5 +633,23 @@ ok('Void Swarm disables the card to its right', !E.canPlay(2));
 setHand(['pulse_rifle', 'combat_shield', 'void_swarm']);
 ok('a non-adjacent card stays playable', E.canPlay(0));
 
+/* Siege Walker: charges a megahit; damage during the wind-up reduces it */
+var oldRust = VS.PACKS.rust;
+VS.PACKS.rust = [['siege_walker']];
+E.seed(5); E.newRun('vanguard'); E.run.faction = 'rust'; E.run.sector = 2; E.run.nodeIdx = 0;
+E.startNode('fight');
+VS.PACKS.rust = oldRust;
+var wk = E.combat.enemies[0];
+ok('Siege Walker telegraphs a wind-up first', E.intentInfo(wk).label === 'WIND-UP');
+E.endTurn();                                   // enemy phase: it charges
+ok('Siege Walker primes a megahit while charging', wk.charging === true && wk.pendingHit > 0);
+var primed = wk.pendingHit;
+E.combat.energy = 9; setHand(['pulse_rifle', 'pulse_rifle']);
+playId('pulse_rifle', 0);                       // damage it during the charge window
+ok('damage during the charge whittles the pending hit', wk.pendingHit < primed);
+var whp0 = E.run.hp;
+E.endTurn();                                    // enemy phase: it fires the reduced hit
+ok('Siege Walker fires the reduced megahit and resets', E.run.hp < whp0 && (whp0 - E.run.hp) <= primed && !wk.charging);
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

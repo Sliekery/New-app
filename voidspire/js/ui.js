@@ -2011,7 +2011,7 @@
         case 'dmg': return 90;            // staggers enemy multi-hits on the player
         case 'die': return 140;
         case 'block': case 'heal': case 'status': return 60;
-        case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120;
+        case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120; case 'charge': return 100;
         case 'revive': return 260; case 'salvage': return 80; case 'win': return 250;
         default: return 0;
       }
@@ -2163,6 +2163,16 @@
             }, d);
           })(e, delay);
           delay += 120;
+          break;
+        case 'charge':
+          (function (e, d) {
+            setTimeout(function () {
+              var pos = R.enemyPos(e.idx);
+              floater(pos.x, pos.y - 36, '⚡ PRIMING', 'status');
+              toast('WIND-UP — damage it now to weaken the incoming hit', 1900);
+            }, d);
+          })(e, delay);
+          delay += 100;
           break;
         case 'cardPlayed':
           if (e.roll !== null && e.roll !== undefined) {

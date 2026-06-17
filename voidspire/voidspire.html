@@ -3143,6 +3143,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // little walker: box chassis, visor, stub antenna, two stub legs, side arms
       art: { p: [[-0.45,-0.28, 0.45,-0.28, 0.45,0.22, -0.45,0.22, -0.45,-0.28], [-0.27,-0.06, 0.27,-0.06], [0,-0.28, 0,-0.58], [-0.1,-0.58, 0.1,-0.58], [-0.28,0.22, -0.28,0.52, -0.44,0.52], [0.28,0.22, 0.28,0.52, 0.44,0.52], [-0.45,-0.02, -0.66,-0.06], [0.45,-0.02, 0.66,-0.06]], e: [[0,-0.17]] },
     },
+    // Siege Walker — fires a MASSIVE blow every other turn. On its wind-up turn
+    // it deals nothing but is exposed: damage dealt while it charges whittles the
+    // incoming hit down (to a floor). Soften it, or brace for the full payload.
+    siege_walker: { grounded: true,
+      name: 'Siege Walker', faction: 'rust', hp: 42, size: 1.25, ai: 'cycle',
+      charge: { dmg: 28, cap: 22 },     // megahit 28; reducible by up to 22 (floor 6)
+      moves: [{ t: 'attack', d: 6 }],   // unused (charge state machine drives it), kept for validation
+      // striding war-walker: rounded hull + visor, twin antennae, cannon arm, four angular legs
+      art: { p: [[-0.85,-0.45, 0.25,-0.55, 0.45,-0.35, 0.45,0.05, 0.25,0.25, -0.85,0.25, -0.95,0.05, -0.95,-0.25, -0.85,-0.45], [-0.8,-0.2, -0.45,-0.2], [-0.65,-0.5, -0.68,-0.82], [-0.4,-0.52, -0.4,-0.78], [0.45,-0.1, 0.86,-0.1, 0.88,0.02], [-0.55,0.25, -0.85,0.75, -0.7,0.78], [-0.15,0.25, -0.28,0.62, -0.12,0.66], [0.2,0.25, 0.28,0.62, 0.44,0.64], [0.4,0.2, 0.66,0.6, 0.8,0.62]], e: [[-0.62,-0.12]] },
+    },
     iron_butcher: { grounded: true,
       name: 'Iron Butcher', faction: 'rust', hp: 52, size: 1.05, elite: true, ai: 'cycle',
       moves: [
@@ -3476,6 +3486,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       ['swarm_core', 'swarm_drone'],
       ['forge_walker', 'scrap_hound'],
       ['drop_ship'],
+      ['siege_walker'],
       ['rust_sentinel', 'scrap_hound'],
       ['forge_acolyte', 'forge_walker'],
       ['rust_sentinel', 'forge_acolyte', 'scrap_hound'],
@@ -4766,6 +4777,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   function chooseIntent(en) {
     var def = en.def, mv;
+    if (def.charge) {
+      // Walker: alternate between winding up and firing a (whittle-able) megahit.
+      en.intent = en.charging ? { t: 'attack', walkerFire: true } : { t: 'wk_charge' };
+      return;
+    }
     if (def.dropship) {
       // Drop Ship telegraph: shielded strafing while escorts live, then an armed
       // self-destruct countdown once the pod activates.
@@ -4796,12 +4812,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var m = en.intent, s = E.run.sector;
     if (!m) return { icon: '?', label: '' };
     if (m.t === 'attack') {
-      var d = scaledDmg(m.d, s) + statN(en, 'str');
+      var d = (m.walkerFire ? Math.max(0, en.pendingHit || 0) : scaledDmg(m.d, s)) + statN(en, 'str');
       if (statN(en, 'weak')) d = Math.floor(d * B.status.weakMult);
+      if (m.walkerFire) return { icon: 'charge', label: '⚡' + d };
       var nh = m.hits || 0;
       if (m.hitsPer) nh = Math.max(1, aliveEnemies().filter(function (e) { return e.id === m.hitsPer; }).length);
       return { icon: 'atk', label: (nh ? d + '×' + nh : '' + d) + (m.pierce ? '⊘' : '') };
     }
+    if (m.t === 'wk_charge') return { icon: 'charge', label: 'WIND-UP' };
     if (m.t === 'disrupt') return { icon: 'debuff', label: '✕' };
     if (m.t === 'drain') {
       var dd = scaledDmg(m.d, s) + statN(en, 'str');
@@ -4935,6 +4953,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       if (en.alive && c) { c.discard.push(mkCard(en.def.absorb.card, false)); swarmed = en.def.absorb.card; }
       emit('absorb', { idx: idx, card: swarmed });
     }
+    // Walker: damage dealt while it charges whittles down the pending megahit.
+    if (en.def.charge && en.charging && hpDmg > 0) en.pendingHit = Math.max(en.pendingFloor || 0, en.pendingHit - hpDmg);
     return hpDmg;
   }
 
@@ -5669,7 +5689,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var m = en.intent;
       emit('enemyMove', { idx: idx, move: m });
       if (m.t === 'attack' || m.t === 'drain') {
-        var dmg = scaledDmg(m.d, s) + statN(en, 'str');
+        var dmg = (m.walkerFire ? Math.max(0, en.pendingHit) : scaledDmg(m.d, s)) + statN(en, 'str');
         if (statN(en, 'weak')) dmg = Math.floor(dmg * B.status.weakMult);
         var hits = m.hits || 1;
         if (m.hitsPer) hits = Math.max(1, aliveEnemies().filter(function (e) { return e.id === m.hitsPer; }).length); // one volley per living minion
@@ -5770,7 +5790,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       } else if (m.t === 'curse') {
         c.discard.push(mkCard(m.card, false));
         emit('curse', { idx: idx, card: m.card });
+      } else if (m.t === 'wk_charge') {
+        // Walker winds up: no attack this turn, but it primes a massive blow that
+        // damage dealt to it next turn will whittle down (to a floor).
+        en.charging = true;
+        en.pendingHit = scaledDmg(en.def.charge.dmg, s);
+        en.pendingFloor = Math.max(0, en.pendingHit - scaledDmg(en.def.charge.cap, s));
+        emit('charge', { idx: idx });
       }
+      // Walker discharged its primed blow this turn — reset the cycle.
+      if (en.def && en.def.charge && m.walkerFire) { en.charging = false; en.pendingHit = 0; }
       // enemy debuff ticks after acting
       if (statN(en, 'vuln')) addStatus(en, 'vuln', -1);
       if (statN(en, 'weak')) addStatus(en, 'weak', -1);
@@ -7692,6 +7721,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       ctx.beginPath(); ctx.arc(x - 4, y + 1, 2, 0, 7); ctx.stroke();
       ctx.beginPath(); ctx.arc(x - 9, y + 4, 1.6, 0, 7); ctx.stroke();
       label = '+';
+    } else if (info.icon === 'charge') {
+      col = '#ff4a5e';
+      ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 9;
+      ctx.beginPath();                                   // lightning bolt = primed megahit
+      ctx.moveTo(x - 4, y - 7); ctx.lineTo(x - 9, y + 1); ctx.lineTo(x - 5, y + 1);
+      ctx.lineTo(x - 8, y + 7); ctx.lineTo(x - 1, y - 2); ctx.lineTo(x - 5, y - 2); ctx.closePath();
+      ctx.stroke();
     } else if (info.icon === 'fuse') {
       col = '#ff8a2e';
       ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8;
@@ -10369,7 +10405,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         case 'dmg': return 90;            // staggers enemy multi-hits on the player
         case 'die': return 140;
         case 'block': case 'heal': case 'status': return 60;
-        case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120;
+        case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120; case 'charge': return 100;
         case 'revive': return 260; case 'salvage': return 80; case 'win': return 250;
         default: return 0;
       }
@@ -10521,6 +10557,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             }, d);
           })(e, delay);
           delay += 120;
+          break;
+        case 'charge':
+          (function (e, d) {
+            setTimeout(function () {
+              var pos = R.enemyPos(e.idx);
+              floater(pos.x, pos.y - 36, '⚡ PRIMING', 'status');
+              toast('WIND-UP — damage it now to weaken the incoming hit', 1900);
+            }, d);
+          })(e, delay);
+          delay += 100;
           break;
         case 'cardPlayed':
           if (e.roll !== null && e.roll !== undefined) {

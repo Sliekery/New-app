@@ -870,6 +870,11 @@
 
   function chooseIntent(en) {
     var def = en.def, mv;
+    if (def.charge) {
+      // Walker: alternate between winding up and firing a (whittle-able) megahit.
+      en.intent = en.charging ? { t: 'attack', walkerFire: true } : { t: 'wk_charge' };
+      return;
+    }
     if (def.dropship) {
       // Drop Ship telegraph: shielded strafing while escorts live, then an armed
       // self-destruct countdown once the pod activates.
@@ -900,12 +905,14 @@
     var m = en.intent, s = E.run.sector;
     if (!m) return { icon: '?', label: '' };
     if (m.t === 'attack') {
-      var d = scaledDmg(m.d, s) + statN(en, 'str');
+      var d = (m.walkerFire ? Math.max(0, en.pendingHit || 0) : scaledDmg(m.d, s)) + statN(en, 'str');
       if (statN(en, 'weak')) d = Math.floor(d * B.status.weakMult);
+      if (m.walkerFire) return { icon: 'charge', label: '⚡' + d };
       var nh = m.hits || 0;
       if (m.hitsPer) nh = Math.max(1, aliveEnemies().filter(function (e) { return e.id === m.hitsPer; }).length);
       return { icon: 'atk', label: (nh ? d + '×' + nh : '' + d) + (m.pierce ? '⊘' : '') };
     }
+    if (m.t === 'wk_charge') return { icon: 'charge', label: 'WIND-UP' };
     if (m.t === 'disrupt') return { icon: 'debuff', label: '✕' };
     if (m.t === 'drain') {
       var dd = scaledDmg(m.d, s) + statN(en, 'str');
@@ -1039,6 +1046,8 @@
       if (en.alive && c) { c.discard.push(mkCard(en.def.absorb.card, false)); swarmed = en.def.absorb.card; }
       emit('absorb', { idx: idx, card: swarmed });
     }
+    // Walker: damage dealt while it charges whittles down the pending megahit.
+    if (en.def.charge && en.charging && hpDmg > 0) en.pendingHit = Math.max(en.pendingFloor || 0, en.pendingHit - hpDmg);
     return hpDmg;
   }
 
@@ -1773,7 +1782,7 @@
       var m = en.intent;
       emit('enemyMove', { idx: idx, move: m });
       if (m.t === 'attack' || m.t === 'drain') {
-        var dmg = scaledDmg(m.d, s) + statN(en, 'str');
+        var dmg = (m.walkerFire ? Math.max(0, en.pendingHit) : scaledDmg(m.d, s)) + statN(en, 'str');
         if (statN(en, 'weak')) dmg = Math.floor(dmg * B.status.weakMult);
         var hits = m.hits || 1;
         if (m.hitsPer) hits = Math.max(1, aliveEnemies().filter(function (e) { return e.id === m.hitsPer; }).length); // one volley per living minion
@@ -1874,7 +1883,16 @@
       } else if (m.t === 'curse') {
         c.discard.push(mkCard(m.card, false));
         emit('curse', { idx: idx, card: m.card });
+      } else if (m.t === 'wk_charge') {
+        // Walker winds up: no attack this turn, but it primes a massive blow that
+        // damage dealt to it next turn will whittle down (to a floor).
+        en.charging = true;
+        en.pendingHit = scaledDmg(en.def.charge.dmg, s);
+        en.pendingFloor = Math.max(0, en.pendingHit - scaledDmg(en.def.charge.cap, s));
+        emit('charge', { idx: idx });
       }
+      // Walker discharged its primed blow this turn — reset the cycle.
+      if (en.def && en.def.charge && m.walkerFire) { en.charging = false; en.pendingHit = 0; }
       // enemy debuff ticks after acting
       if (statN(en, 'vuln')) addStatus(en, 'vuln', -1);
       if (statN(en, 'weak')) addStatus(en, 'weak', -1);

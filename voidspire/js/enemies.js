@@ -151,6 +151,16 @@
       // little walker: box chassis, visor, stub antenna, two stub legs, side arms
       art: { p: [[-0.45,-0.28, 0.45,-0.28, 0.45,0.22, -0.45,0.22, -0.45,-0.28], [-0.27,-0.06, 0.27,-0.06], [0,-0.28, 0,-0.58], [-0.1,-0.58, 0.1,-0.58], [-0.28,0.22, -0.28,0.52, -0.44,0.52], [0.28,0.22, 0.28,0.52, 0.44,0.52], [-0.45,-0.02, -0.66,-0.06], [0.45,-0.02, 0.66,-0.06]], e: [[0,-0.17]] },
     },
+    // Siege Walker — fires a MASSIVE blow every other turn. On its wind-up turn
+    // it deals nothing but is exposed: damage dealt while it charges whittles the
+    // incoming hit down (to a floor). Soften it, or brace for the full payload.
+    siege_walker: { grounded: true,
+      name: 'Siege Walker', faction: 'rust', hp: 42, size: 1.25, ai: 'cycle',
+      charge: { dmg: 28, cap: 22 },     // megahit 28; reducible by up to 22 (floor 6)
+      moves: [{ t: 'attack', d: 6 }],   // unused (charge state machine drives it), kept for validation
+      // striding war-walker: rounded hull + visor, twin antennae, cannon arm, four angular legs
+      art: { p: [[-0.85,-0.45, 0.25,-0.55, 0.45,-0.35, 0.45,0.05, 0.25,0.25, -0.85,0.25, -0.95,0.05, -0.95,-0.25, -0.85,-0.45], [-0.8,-0.2, -0.45,-0.2], [-0.65,-0.5, -0.68,-0.82], [-0.4,-0.52, -0.4,-0.78], [0.45,-0.1, 0.86,-0.1, 0.88,0.02], [-0.55,0.25, -0.85,0.75, -0.7,0.78], [-0.15,0.25, -0.28,0.62, -0.12,0.66], [0.2,0.25, 0.28,0.62, 0.44,0.64], [0.4,0.2, 0.66,0.6, 0.8,0.62]], e: [[-0.62,-0.12]] },
+    },
     iron_butcher: { grounded: true,
       name: 'Iron Butcher', faction: 'rust', hp: 52, size: 1.05, elite: true, ai: 'cycle',
       moves: [
@@ -484,6 +494,7 @@
       ['swarm_core', 'swarm_drone'],
       ['forge_walker', 'scrap_hound'],
       ['drop_ship'],
+      ['siege_walker'],
       ['rust_sentinel', 'scrap_hound'],
       ['forge_acolyte', 'forge_walker'],
       ['rust_sentinel', 'forge_acolyte', 'scrap_hound'],

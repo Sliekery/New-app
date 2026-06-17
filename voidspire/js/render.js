@@ -897,6 +897,13 @@
       ctx.beginPath(); ctx.arc(x - 4, y + 1, 2, 0, 7); ctx.stroke();
       ctx.beginPath(); ctx.arc(x - 9, y + 4, 1.6, 0, 7); ctx.stroke();
       label = '+';
+    } else if (info.icon === 'charge') {
+      col = '#ff4a5e';
+      ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 9;
+      ctx.beginPath();                                   // lightning bolt = primed megahit
+      ctx.moveTo(x - 4, y - 7); ctx.lineTo(x - 9, y + 1); ctx.lineTo(x - 5, y + 1);
+      ctx.lineTo(x - 8, y + 7); ctx.lineTo(x - 1, y - 2); ctx.lineTo(x - 5, y - 2); ctx.closePath();
+      ctx.stroke();
     } else if (info.icon === 'fuse') {
       col = '#ff8a2e';
       ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8;
