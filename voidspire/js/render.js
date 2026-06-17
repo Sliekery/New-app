@@ -897,6 +897,16 @@
       ctx.beginPath(); ctx.arc(x - 4, y + 1, 2, 0, 7); ctx.stroke();
       ctx.beginPath(); ctx.arc(x - 9, y + 4, 1.6, 0, 7); ctx.stroke();
       label = '+';
+    } else if (info.icon === 'corrupt') {
+      col = '#c86bff';
+      ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8;
+      ctx.beginPath();                                   // spiral = building corruption
+      for (var ci = 0; ci < 22; ci++) {
+        var ang = ci * 0.6, rad = ci * 0.28;
+        var px = x - 6 + Math.cos(ang) * rad, py = y + Math.sin(ang) * rad;
+        if (ci === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
     } else if (info.icon === 'charge') {
       col = '#ff4a5e';
       ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 9;

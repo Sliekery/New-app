@@ -665,5 +665,19 @@ E.endTurn();
 ok('Jammer beam deals damage', E.run.hp < jhp0);
 ok('Jammer burns a card into the exhaust pile', E.combat.exhaust.length === exhBefore + 1);
 
+/* Void Shard: counts down 6 turns, then permanently corrupts a card (+1 cost) */
+var oldVoid = VS.PACKS.voidspawn;
+VS.PACKS.voidspawn = [['void_shard']];
+E.seed(7); E.newRun('vanguard'); E.run.faction = 'voidspawn'; E.run.sector = 1; E.run.nodeIdx = 0;
+E.startNode('fight');
+VS.PACKS.voidspawn = oldVoid;
+var shard = E.combat.enemies[0];
+ok('Void Shard telegraphs a 6-turn corruption countdown', E.intentInfo(shard).label === '⟳6');
+var corruptBefore = E.run.deck.filter(function (c) { return c.corrupt; }).length;
+for (var st = 0; st < 6 && E.run.phase === 'combat' && shard.alive; st++) E.endTurn();
+ok('Void Shard corrupts a card after 6 turns', E.run.deck.filter(function (c) { return c.corrupt; }).length === corruptBefore + 1);
+var baseCost = E.effCost(VS.CARDS['pulse_rifle'], false);
+ok('a Void-Corrupted card costs 1 more', E.effCost(VS.CARDS['pulse_rifle'], false, { corrupt: true }) === baseCost + 1);
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

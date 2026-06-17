@@ -236,6 +236,16 @@
       // void hover-drone: funnel hull, twin antenna pods, stalked eye, landing struts
       art: { p: [[-0.68,-0.55, 0.68,-0.55, 0.42,0.45, -0.42,0.45, -0.68,-0.55], [-0.5,-0.28, 0.5,-0.28], [-0.44,-0.02, 0.44,-0.02], [-0.3,-0.55, -0.3,-0.8, -0.12,-0.8, -0.12,-0.55], [0.12,-0.55, 0.12,-0.82, 0.3,-0.82, 0.3,-0.55], [-0.21,-0.8, -0.21,-0.98], [0.21,-0.82, 0.21,-1.0], [0.68,-0.16, 0.98,-0.1], [-0.42,0.45, -0.5,0.7, -0.22,0.7, -0.2,0.45], [0.2,0.45, 0.22,0.7, 0.5,0.7, 0.42,0.45]], e: [[1.0,-0.1],[0,-0.15]] },
     },
+    // Void Shard — a defensive crystalline entity. It raises a ward every turn
+    // and never strikes, but after 6 turns it permanently CORRUPTS one of your
+    // cards (+1 cost forever). Break its guard and kill it before the timer.
+    void_shard: {
+      name: 'Void Shard', faction: 'voidspawn', hp: 30, size: 0.95, ai: 'cycle',
+      corrupt: { turns: 6, block: 8 },
+      moves: [{ t: 'block', b: 8 }],   // unused (corrupt state machine drives it), kept for validation
+      // crystalline core (crowned, single eye) ringed by four orbiting shards
+      art: { p: [[0,-0.4, 0.3,-0.12, 0.3,0.2, 0,0.42, -0.3,0.2, -0.3,-0.12, 0,-0.4], [-0.12,-0.4, 0,-0.56, 0.12,-0.4], [-0.18,-0.04, 0,0.09, 0.18,-0.04], [0,-0.6, 0.16,-0.85, 0,-1.15, -0.16,-0.85, 0,-0.6], [0,0.55, 0.16,0.8, 0,1.1, -0.16,0.8, 0,0.55], [-0.5,0, -0.78,-0.16, -1.1,0, -0.78,0.16, -0.5,0], [0.5,0, 0.78,-0.16, 1.1,0, 0.78,0.16, 0.5,0]], e: [[0,-0.12]] },
+    },
     husk_stalker: { grounded: true,
       name: 'Husk Stalker', faction: 'voidspawn', hp: 18, size: 0.8, ai: 'random',
       moves: [
@@ -519,6 +529,7 @@
       ['psy_wraith', 'void_larva'],
       ['husk_stalker', 'voidling', 'voidling'],
       ['void_drone', 'void_larva'],
+      ['void_shard', 'void_larva'],
       ['brood_maw', 'void_larva'],
       ['revenant', 'husk_stalker'],
       ['psy_wraith', 'revenant', 'void_larva'],

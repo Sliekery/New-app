@@ -1428,6 +1428,7 @@
         (info.vtouch ? ' vtouched' : '') +
         (info.cost > c.energy && !info.unplayable ? ' unaffordable' : '') +
         (info.unplayable ? ' unplayable-curse' : '') +
+        (info.corrupt ? ' corrupted' : '') +
         (!info.unplayable && E.swarmDisabled(i) ? ' swarm-disabled' : '') +
         (deal ? ' deal' : '') +
         (i === selected ? ' selected' : ''));
@@ -2011,7 +2012,7 @@
         case 'dmg': return 90;            // staggers enemy multi-hits on the player
         case 'die': return 140;
         case 'block': case 'heal': case 'status': return 60;
-        case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120; case 'charge': return 100; case 'jam': return 120;
+        case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120; case 'charge': return 100; case 'jam': return 120; case 'corrupt': return 160;
         case 'revive': return 260; case 'salvage': return 80; case 'win': return 250;
         default: return 0;
       }
@@ -2183,6 +2184,17 @@
             }, d);
           })(e, delay);
           delay += 120;
+          break;
+        case 'corrupt':
+          (function (e, d) {
+            setTimeout(function () {
+              floater(pp.x + 30, pp.y - 44, '⟳ CORRUPTED', 'status');
+              if (e.card) toast('VOID-CORRUPTED — ' + ns.CARDS[e.card].name.toUpperCase() + ' now costs 1 more, permanently', 2600);
+              SFX.curse && SFX.curse();
+              renderHand();
+            }, d);
+          })(e, delay);
+          delay += 160;
           break;
         case 'cardPlayed':
           if (e.roll !== null && e.roll !== undefined) {

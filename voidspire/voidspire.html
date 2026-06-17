@@ -326,6 +326,13 @@ html, body {
   border-color: var(--green);
 }
 .card.unplayable-curse { filter: saturate(0.5) brightness(0.8); }
+/* a Void-Corrupted card: a permanent void-purple taint */
+.card.corrupted { box-shadow: inset 0 0 18px rgba(200,107,255,0.35), 0 0 8px rgba(200,107,255,0.3); }
+.card.corrupted::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(circle at 50% 40%, rgba(200,107,255,0.18), transparent 70%);
+  border: 1px solid rgba(200,107,255,0.4);
+}
 /* a card pinned by a neighbouring Void Swarm curse */
 .card.swarm-disabled { opacity: 0.4; filter: grayscale(0.7) brightness(0.7); }
 .card.swarm-disabled::after {
@@ -3228,6 +3235,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // void hover-drone: funnel hull, twin antenna pods, stalked eye, landing struts
       art: { p: [[-0.68,-0.55, 0.68,-0.55, 0.42,0.45, -0.42,0.45, -0.68,-0.55], [-0.5,-0.28, 0.5,-0.28], [-0.44,-0.02, 0.44,-0.02], [-0.3,-0.55, -0.3,-0.8, -0.12,-0.8, -0.12,-0.55], [0.12,-0.55, 0.12,-0.82, 0.3,-0.82, 0.3,-0.55], [-0.21,-0.8, -0.21,-0.98], [0.21,-0.82, 0.21,-1.0], [0.68,-0.16, 0.98,-0.1], [-0.42,0.45, -0.5,0.7, -0.22,0.7, -0.2,0.45], [0.2,0.45, 0.22,0.7, 0.5,0.7, 0.42,0.45]], e: [[1.0,-0.1],[0,-0.15]] },
     },
+    // Void Shard — a defensive crystalline entity. It raises a ward every turn
+    // and never strikes, but after 6 turns it permanently CORRUPTS one of your
+    // cards (+1 cost forever). Break its guard and kill it before the timer.
+    void_shard: {
+      name: 'Void Shard', faction: 'voidspawn', hp: 30, size: 0.95, ai: 'cycle',
+      corrupt: { turns: 6, block: 8 },
+      moves: [{ t: 'block', b: 8 }],   // unused (corrupt state machine drives it), kept for validation
+      // crystalline core (crowned, single eye) ringed by four orbiting shards
+      art: { p: [[0,-0.4, 0.3,-0.12, 0.3,0.2, 0,0.42, -0.3,0.2, -0.3,-0.12, 0,-0.4], [-0.12,-0.4, 0,-0.56, 0.12,-0.4], [-0.18,-0.04, 0,0.09, 0.18,-0.04], [0,-0.6, 0.16,-0.85, 0,-1.15, -0.16,-0.85, 0,-0.6], [0,0.55, 0.16,0.8, 0,1.1, -0.16,0.8, 0,0.55], [-0.5,0, -0.78,-0.16, -1.1,0, -0.78,0.16, -0.5,0], [0.5,0, 0.78,-0.16, 1.1,0, 0.78,0.16, 0.5,0]], e: [[0,-0.12]] },
+    },
     husk_stalker: { grounded: true,
       name: 'Husk Stalker', faction: 'voidspawn', hp: 18, size: 0.8, ai: 'random',
       moves: [
@@ -3511,6 +3528,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       ['psy_wraith', 'void_larva'],
       ['husk_stalker', 'voidling', 'voidling'],
       ['void_drone', 'void_larva'],
+      ['void_shard', 'void_larva'],
       ['brood_maw', 'void_larva'],
       ['revenant', 'husk_stalker'],
       ['psy_wraith', 'revenant', 'void_larva'],
@@ -4795,6 +4813,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       en.intent = en.charging ? { t: 'attack', walkerFire: true } : { t: 'wk_charge' };
       return;
     }
+    if (def.corrupt) {
+      // Void Shard: a defensive wall counting down to a permanent card corruption.
+      en.intent = { t: 'shard', left: Math.max(0, def.corrupt.turns - (en.shardCount || 0)) };
+      return;
+    }
     if (def.dropship) {
       // Drop Ship telegraph: shielded strafing while escorts live, then an armed
       // self-destruct countdown once the pod activates.
@@ -4833,6 +4856,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       return { icon: 'atk', label: (nh ? d + '×' + nh : '' + d) + (m.pierce ? '⊘' : '') + (m.jam ? '⊗' : '') };
     }
     if (m.t === 'wk_charge') return { icon: 'charge', label: 'WIND-UP' };
+    if (m.t === 'shard') return { icon: 'corrupt', label: (m.left > 0 ? '⟳' + m.left : 'CORRUPT') };
     if (m.t === 'disrupt') return { icon: 'debuff', label: '✕' };
     if (m.t === 'drain') {
       var dd = scaledDmg(m.d, s) + statN(en, 'str');
@@ -4858,22 +4882,24 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return {
       def: def,
       name: def.name + (card.up ? '+' : ''),
-      cost: effCost(def, card.up),
+      cost: effCost(def, card.up, card),
       xcost: !!def.xcost,
-      desc: ns.cardDesc(def, card.up, liveCtx(), card.vtouch),
+      desc: ns.cardDesc(def, card.up, liveCtx(), card.vtouch) + (card.corrupt ? ' Void-Corrupted: costs 1 more.' : ''),
       type: def.type,
       needsTarget: ns.cardNeedsTarget(def, card.up),
       unplayable: !!def.unplayable,
       rarity: def.rarity,
       vtouch: !!card.vtouch,
+      corrupt: !!card.corrupt,
     };
   };
 
   // Effective energy cost: X-cost cards read as 0; under Corruption, Skills cost
   // 0; Overclock makes the first card each turn cost less.
-  function effCost(def, up) {
+  function effCost(def, up, card) {
     if (def.xcost) return 0;
     var c = ns.cardCost(def, up);
+    if (card && card.corrupt) c += 1;   // Void Shard: a permanent corruption tax
     if (E.combat && def.type === 'skill' && statN(E.combat.player, 'corruption') > 0) return 0;
     if (E.combat && def.type === 'power' && !E.combat.firstPowerUsed && art('firstPowerFree') > 0) return 0;   // Void Conduit
     if (E.combat && E.combat.cardsThisTurn === 0) {
@@ -4909,6 +4935,19 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (sc === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * mul + statN(p, 'psiPow');
     if (sc === 'bond') v += attr('bond') * B.attrs.bondPetPerPoint * mul;
     return Math.round(v);   // damage is always a whole number (no decimals)
+  }
+
+  // Void Shard: permanently corrupt a random eligible card in the run deck.
+  function shardCorrupt(idx) {
+    var r = E.run, cand = [];
+    r.deck.forEach(function (card) {
+      var def = ns.CARDS[card.id];
+      if (def.type !== 'curse' && !def.unplayable && !card.corrupt) cand.push(card);
+    });
+    if (!cand.length) { emit('corrupt', { idx: idx, card: null }); return; }
+    var card = cand[Math.floor(rnd() * cand.length)];
+    card.corrupt = true;
+    emit('corrupt', { idx: idx, card: card.id });
   }
 
   function dealToEnemy(en, idx, amount, opts) {
@@ -5493,7 +5532,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var card = c.hand[handIdx];
     var def = ns.CARDS[card.id];
     var fx = ns.cardFx(def, card.up, card.vtouch);
-    var cost = effCost(def, card.up);
+    var cost = effCost(def, card.up, card);
 
     // resolve target (default: first living enemy)
     var tgt = c.enemies[targetIdx];
@@ -5695,6 +5734,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             if (en.alive) { en.hp = 0; en.alive = false; r.kills++; emit('die', { idx: idx }); echoKill(idx); }
           }
         }
+        if (statN(en, 'vuln')) addStatus(en, 'vuln', -1);
+        if (statN(en, 'weak')) addStatus(en, 'weak', -1);
+        return;
+      }
+      // Void Shard: raise a ward each turn; on the Nth turn, permanently corrupt a card.
+      if (en.def.corrupt) {
+        emit('enemyMove', { idx: idx, move: en.intent });
+        var swb = scaledDmg(en.def.corrupt.block || 8, s);
+        en.block += swb; emit('block', { who: 'enemy', idx: idx, amount: swb, blockAfter: en.block });
+        en.shardCount = (en.shardCount || 0) + 1;
+        if (en.shardCount >= en.def.corrupt.turns) { en.shardCount = 0; shardCorrupt(idx); }
         if (statN(en, 'vuln')) addStatus(en, 'vuln', -1);
         if (statN(en, 'weak')) addStatus(en, 'weak', -1);
         return;
@@ -7744,6 +7794,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       ctx.beginPath(); ctx.arc(x - 4, y + 1, 2, 0, 7); ctx.stroke();
       ctx.beginPath(); ctx.arc(x - 9, y + 4, 1.6, 0, 7); ctx.stroke();
       label = '+';
+    } else if (info.icon === 'corrupt') {
+      col = '#c86bff';
+      ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8;
+      ctx.beginPath();                                   // spiral = building corruption
+      for (var ci = 0; ci < 22; ci++) {
+        var ang = ci * 0.6, rad = ci * 0.28;
+        var px = x - 6 + Math.cos(ang) * rad, py = y + Math.sin(ang) * rad;
+        if (ci === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
     } else if (info.icon === 'charge') {
       col = '#ff4a5e';
       ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 9;
@@ -9845,6 +9905,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         (info.vtouch ? ' vtouched' : '') +
         (info.cost > c.energy && !info.unplayable ? ' unaffordable' : '') +
         (info.unplayable ? ' unplayable-curse' : '') +
+        (info.corrupt ? ' corrupted' : '') +
         (!info.unplayable && E.swarmDisabled(i) ? ' swarm-disabled' : '') +
         (deal ? ' deal' : '') +
         (i === selected ? ' selected' : ''));
@@ -10428,7 +10489,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         case 'dmg': return 90;            // staggers enemy multi-hits on the player
         case 'die': return 140;
         case 'block': case 'heal': case 'status': return 60;
-        case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120; case 'charge': return 100; case 'jam': return 120;
+        case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120; case 'charge': return 100; case 'jam': return 120; case 'corrupt': return 160;
         case 'revive': return 260; case 'salvage': return 80; case 'win': return 250;
         default: return 0;
       }
@@ -10600,6 +10661,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             }, d);
           })(e, delay);
           delay += 120;
+          break;
+        case 'corrupt':
+          (function (e, d) {
+            setTimeout(function () {
+              floater(pp.x + 30, pp.y - 44, '⟳ CORRUPTED', 'status');
+              if (e.card) toast('VOID-CORRUPTED — ' + ns.CARDS[e.card].name.toUpperCase() + ' now costs 1 more, permanently', 2600);
+              SFX.curse && SFX.curse();
+              renderHand();
+            }, d);
+          })(e, delay);
+          delay += 160;
           break;
         case 'cardPlayed':
           if (e.roll !== null && e.roll !== undefined) {

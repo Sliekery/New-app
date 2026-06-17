@@ -875,6 +875,11 @@
       en.intent = en.charging ? { t: 'attack', walkerFire: true } : { t: 'wk_charge' };
       return;
     }
+    if (def.corrupt) {
+      // Void Shard: a defensive wall counting down to a permanent card corruption.
+      en.intent = { t: 'shard', left: Math.max(0, def.corrupt.turns - (en.shardCount || 0)) };
+      return;
+    }
     if (def.dropship) {
       // Drop Ship telegraph: shielded strafing while escorts live, then an armed
       // self-destruct countdown once the pod activates.
@@ -913,6 +918,7 @@
       return { icon: 'atk', label: (nh ? d + '×' + nh : '' + d) + (m.pierce ? '⊘' : '') + (m.jam ? '⊗' : '') };
     }
     if (m.t === 'wk_charge') return { icon: 'charge', label: 'WIND-UP' };
+    if (m.t === 'shard') return { icon: 'corrupt', label: (m.left > 0 ? '⟳' + m.left : 'CORRUPT') };
     if (m.t === 'disrupt') return { icon: 'debuff', label: '✕' };
     if (m.t === 'drain') {
       var dd = scaledDmg(m.d, s) + statN(en, 'str');
@@ -938,22 +944,24 @@
     return {
       def: def,
       name: def.name + (card.up ? '+' : ''),
-      cost: effCost(def, card.up),
+      cost: effCost(def, card.up, card),
       xcost: !!def.xcost,
-      desc: ns.cardDesc(def, card.up, liveCtx(), card.vtouch),
+      desc: ns.cardDesc(def, card.up, liveCtx(), card.vtouch) + (card.corrupt ? ' Void-Corrupted: costs 1 more.' : ''),
       type: def.type,
       needsTarget: ns.cardNeedsTarget(def, card.up),
       unplayable: !!def.unplayable,
       rarity: def.rarity,
       vtouch: !!card.vtouch,
+      corrupt: !!card.corrupt,
     };
   };
 
   // Effective energy cost: X-cost cards read as 0; under Corruption, Skills cost
   // 0; Overclock makes the first card each turn cost less.
-  function effCost(def, up) {
+  function effCost(def, up, card) {
     if (def.xcost) return 0;
     var c = ns.cardCost(def, up);
+    if (card && card.corrupt) c += 1;   // Void Shard: a permanent corruption tax
     if (E.combat && def.type === 'skill' && statN(E.combat.player, 'corruption') > 0) return 0;
     if (E.combat && def.type === 'power' && !E.combat.firstPowerUsed && art('firstPowerFree') > 0) return 0;   // Void Conduit
     if (E.combat && E.combat.cardsThisTurn === 0) {
@@ -989,6 +997,19 @@
     if (sc === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * mul + statN(p, 'psiPow');
     if (sc === 'bond') v += attr('bond') * B.attrs.bondPetPerPoint * mul;
     return Math.round(v);   // damage is always a whole number (no decimals)
+  }
+
+  // Void Shard: permanently corrupt a random eligible card in the run deck.
+  function shardCorrupt(idx) {
+    var r = E.run, cand = [];
+    r.deck.forEach(function (card) {
+      var def = ns.CARDS[card.id];
+      if (def.type !== 'curse' && !def.unplayable && !card.corrupt) cand.push(card);
+    });
+    if (!cand.length) { emit('corrupt', { idx: idx, card: null }); return; }
+    var card = cand[Math.floor(rnd() * cand.length)];
+    card.corrupt = true;
+    emit('corrupt', { idx: idx, card: card.id });
   }
 
   function dealToEnemy(en, idx, amount, opts) {
@@ -1573,7 +1594,7 @@
     var card = c.hand[handIdx];
     var def = ns.CARDS[card.id];
     var fx = ns.cardFx(def, card.up, card.vtouch);
-    var cost = effCost(def, card.up);
+    var cost = effCost(def, card.up, card);
 
     // resolve target (default: first living enemy)
     var tgt = c.enemies[targetIdx];
@@ -1775,6 +1796,17 @@
             if (en.alive) { en.hp = 0; en.alive = false; r.kills++; emit('die', { idx: idx }); echoKill(idx); }
           }
         }
+        if (statN(en, 'vuln')) addStatus(en, 'vuln', -1);
+        if (statN(en, 'weak')) addStatus(en, 'weak', -1);
+        return;
+      }
+      // Void Shard: raise a ward each turn; on the Nth turn, permanently corrupt a card.
+      if (en.def.corrupt) {
+        emit('enemyMove', { idx: idx, move: en.intent });
+        var swb = scaledDmg(en.def.corrupt.block || 8, s);
+        en.block += swb; emit('block', { who: 'enemy', idx: idx, amount: swb, blockAfter: en.block });
+        en.shardCount = (en.shardCount || 0) + 1;
+        if (en.shardCount >= en.def.corrupt.turns) { en.shardCount = 0; shardCorrupt(idx); }
         if (statN(en, 'vuln')) addStatus(en, 'vuln', -1);
         if (statN(en, 'weak')) addStatus(en, 'weak', -1);
         return;
