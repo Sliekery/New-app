@@ -3245,6 +3245,26 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // crystalline core (crowned, single eye) ringed by four orbiting shards
       art: { p: [[0,-0.4, 0.3,-0.12, 0.3,0.2, 0,0.42, -0.3,0.2, -0.3,-0.12, 0,-0.4], [-0.12,-0.4, 0,-0.56, 0.12,-0.4], [-0.18,-0.04, 0,0.09, 0.18,-0.04], [0,-0.6, 0.16,-0.85, 0,-1.15, -0.16,-0.85, 0,-0.6], [0,0.55, 0.16,0.8, 0,1.1, -0.16,0.8, 0,0.55], [-0.5,0, -0.78,-0.16, -1.1,0, -0.78,0.16, -0.5,0], [0.5,0, 0.78,-0.16, 1.1,0, 0.78,0.16, 0.5,0]], e: [[0,-0.12]] },
     },
+    // Void Gaze — a central eye-core ringed by floating eyes. The eyes debuff you
+    // and shield the core (impervious until they all die). Once exposed, the core's
+    // gaze hits for base + extra per debuff on you AND per Void-Touched card.
+    void_gaze: {
+      name: 'Void Gaze', faction: 'voidspawn', hp: 38, size: 1.2, ai: 'cycle',
+      wardedBy: 'gaze_eye', gaze: { eye: 'gaze_eye', base: 8, perDebuff: 2, perVtouch: 3 },
+      moves: [{ t: 'attack', d: 8 }],   // unused (gaze state machine drives it), kept for validation
+      // great central eye with two crossing orbital rings of its lesser eyes
+      art: { p: [[0,-0.42, 0.3,-0.3, 0.42,0, 0.3,0.3, 0,0.42, -0.3,0.3, -0.42,0, -0.3,-0.3, 0,-0.42], [0,-0.2, 0.2,0, 0,0.2, -0.2,0, 0,-0.2], [0.98,-0.28, 0.6,-0.72, -0.18,-0.9, -0.98,-0.36, -0.98,0.32, -0.55,0.74, 0.22,0.9, 0.98,0.34, 0.98,-0.28], [-0.3,-0.98, -0.74,-0.58, -0.9,0.2, -0.36,0.98, 0.32,0.96, 0.72,0.55, 0.88,-0.22, 0.34,-0.96, -0.3,-0.98]], e: [[0,0]] },
+    },
+    gaze_eye: {
+      name: 'Gaze Eye', faction: 'voidspawn', hp: 5, size: 0.45, ai: 'random',
+      moves: [
+        { t: 'debuff', s: 'weak', v: 1, w: 2 },
+        { t: 'debuff', s: 'vuln', v: 1, w: 2 },
+        { t: 'attack', d: 3, w: 1 },
+      ],
+      // a single floating eye: lidded almond with a pupil and short lashes
+      art: { p: [[0,-0.45, 0.32,-0.32, 0.45,0, 0.32,0.32, 0,0.45, -0.32,0.32, -0.45,0, -0.32,-0.32, 0,-0.45], [0,-0.18, 0.18,0, 0,0.18, -0.18,0, 0,-0.18], [0,-0.45, 0,-0.62], [0.45,0, 0.62,0], [0,0.45, 0,0.62], [-0.45,0, -0.62,0]], e: [[0,0]] },
+    },
     husk_stalker: { grounded: true,
       name: 'Husk Stalker', faction: 'voidspawn', hp: 18, size: 0.8, ai: 'random',
       moves: [
@@ -3532,6 +3552,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       ['brood_maw', 'void_larva'],
       ['revenant', 'husk_stalker'],
       ['psy_wraith', 'revenant', 'void_larva'],
+      ['void_gaze', 'gaze_eye', 'gaze_eye', 'gaze_eye'],
     ],
   };
 
@@ -4818,6 +4839,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       en.intent = { t: 'shard', left: Math.max(0, def.corrupt.turns - (en.shardCount || 0)) };
       return;
     }
+    if (def.gaze) {
+      // Void Gaze core: dormant behind its eyes, then a scaling gaze once exposed.
+      en.intent = aliveEnemies().some(function (e) { return e.id === def.gaze.eye; }) ? { t: 'gaze_dormant' } : { t: 'attack', gaze: true };
+      return;
+    }
     if (def.dropship) {
       // Drop Ship telegraph: shielded strafing while escorts live, then an armed
       // self-destruct countdown once the pod activates.
@@ -4848,13 +4874,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var m = en.intent, s = E.run.sector;
     if (!m) return { icon: '?', label: '' };
     if (m.t === 'attack') {
-      var d = (m.walkerFire ? Math.max(0, en.pendingHit || 0) : scaledDmg(m.d, s)) + statN(en, 'str');
+      var d = (m.walkerFire ? Math.max(0, en.pendingHit || 0) : m.gaze ? gazeDamage(en, s) : scaledDmg(m.d, s)) + statN(en, 'str');
       if (statN(en, 'weak')) d = Math.floor(d * B.status.weakMult);
       if (m.walkerFire) return { icon: 'charge', label: '⚡' + d };
+      if (m.gaze) return { icon: 'eye', label: '◉' + d };
       var nh = m.hits || 0;
       if (m.hitsPer) nh = Math.max(1, aliveEnemies().filter(function (e) { return e.id === m.hitsPer; }).length);
       return { icon: 'atk', label: (nh ? d + '×' + nh : '' + d) + (m.pierce ? '⊘' : '') + (m.jam ? '⊗' : '') };
     }
+    if (m.t === 'gaze_dormant') return { icon: 'eye', label: '' };
     if (m.t === 'wk_charge') return { icon: 'charge', label: 'WIND-UP' };
     if (m.t === 'shard') return { icon: 'corrupt', label: (m.left > 0 ? '⟳' + m.left : 'CORRUPT') };
     if (m.t === 'disrupt') return { icon: 'debuff', label: '✕' };
@@ -4937,6 +4965,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return Math.round(v);   // damage is always a whole number (no decimals)
   }
 
+  // Void Gaze: base damage + extra per player debuff stack and per Void-Touched card.
+  function gazeDamage(en, s) {
+    var g = en.def.gaze, p = E.combat ? E.combat.player : null;
+    var debuffs = p ? (statN(p, 'weak') + statN(p, 'vuln') + statN(p, 'burn')) : 0;
+    var vt = E.run.deck.filter(function (c) { return c.vtouch; }).length;
+    return scaledDmg(g.base, s) + g.perDebuff * debuffs + g.perVtouch * vt;
+  }
+
   // Void Shard: permanently corrupt a random eligible card in the run deck.
   function shardCorrupt(idx) {
     var r = E.run, cand = [];
@@ -4955,6 +4991,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var c = E.combat;
     // Drop Ship hull-ward: impervious until its escort bots are cleared.
     if (en.def.dropship && !en.armed && aliveEnemies().some(function (e) { return e.id === en.def.dropship.bot; })) {
+      emit('dmg', { who: 'enemy', idx: idx, amount: amount, hpDmg: 0, warded: true, hpAfter: en.hp, blockAfter: en.block });
+      return 0;
+    }
+    // Generic minion-ward (Void Gaze core): impervious while its eyes still live.
+    if (en.def.wardedBy && aliveEnemies().some(function (e) { return e.id === en.def.wardedBy; })) {
       emit('dmg', { who: 'enemy', idx: idx, amount: amount, hpDmg: 0, warded: true, hpAfter: en.hp, blockAfter: en.block });
       return 0;
     }
@@ -5752,7 +5793,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var m = en.intent;
       emit('enemyMove', { idx: idx, move: m });
       if (m.t === 'attack' || m.t === 'drain') {
-        var dmg = (m.walkerFire ? Math.max(0, en.pendingHit) : scaledDmg(m.d, s)) + statN(en, 'str');
+        var dmg = (m.walkerFire ? Math.max(0, en.pendingHit) : m.gaze ? gazeDamage(en, s) : scaledDmg(m.d, s)) + statN(en, 'str');
         if (statN(en, 'weak')) dmg = Math.floor(dmg * B.status.weakMult);
         var hits = m.hits || 1;
         if (m.hitsPer) hits = Math.max(1, aliveEnemies().filter(function (e) { return e.id === m.hitsPer; }).length); // one volley per living minion
@@ -7794,6 +7835,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       ctx.beginPath(); ctx.arc(x - 4, y + 1, 2, 0, 7); ctx.stroke();
       ctx.beginPath(); ctx.arc(x - 9, y + 4, 1.6, 0, 7); ctx.stroke();
       label = '+';
+    } else if (info.icon === 'eye') {
+      col = '#c86bff';
+      ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8;
+      ctx.beginPath();                                   // eye almond
+      ctx.moveTo(x - 13, y); ctx.quadraticCurveTo(x - 6, y - 6, x + 1, y); ctx.quadraticCurveTo(x - 6, y + 6, x - 13, y); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x - 6, y, 2.4, 0, 7); ctx.stroke();   // pupil
     } else if (info.icon === 'corrupt') {
       col = '#c86bff';
       ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8;

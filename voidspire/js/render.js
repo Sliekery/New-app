@@ -897,6 +897,12 @@
       ctx.beginPath(); ctx.arc(x - 4, y + 1, 2, 0, 7); ctx.stroke();
       ctx.beginPath(); ctx.arc(x - 9, y + 4, 1.6, 0, 7); ctx.stroke();
       label = '+';
+    } else if (info.icon === 'eye') {
+      col = '#c86bff';
+      ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8;
+      ctx.beginPath();                                   // eye almond
+      ctx.moveTo(x - 13, y); ctx.quadraticCurveTo(x - 6, y - 6, x + 1, y); ctx.quadraticCurveTo(x - 6, y + 6, x - 13, y); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x - 6, y, 2.4, 0, 7); ctx.stroke();   // pupil
     } else if (info.icon === 'corrupt') {
       col = '#c86bff';
       ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8;

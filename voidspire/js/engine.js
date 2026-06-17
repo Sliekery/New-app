@@ -880,6 +880,11 @@
       en.intent = { t: 'shard', left: Math.max(0, def.corrupt.turns - (en.shardCount || 0)) };
       return;
     }
+    if (def.gaze) {
+      // Void Gaze core: dormant behind its eyes, then a scaling gaze once exposed.
+      en.intent = aliveEnemies().some(function (e) { return e.id === def.gaze.eye; }) ? { t: 'gaze_dormant' } : { t: 'attack', gaze: true };
+      return;
+    }
     if (def.dropship) {
       // Drop Ship telegraph: shielded strafing while escorts live, then an armed
       // self-destruct countdown once the pod activates.
@@ -910,13 +915,15 @@
     var m = en.intent, s = E.run.sector;
     if (!m) return { icon: '?', label: '' };
     if (m.t === 'attack') {
-      var d = (m.walkerFire ? Math.max(0, en.pendingHit || 0) : scaledDmg(m.d, s)) + statN(en, 'str');
+      var d = (m.walkerFire ? Math.max(0, en.pendingHit || 0) : m.gaze ? gazeDamage(en, s) : scaledDmg(m.d, s)) + statN(en, 'str');
       if (statN(en, 'weak')) d = Math.floor(d * B.status.weakMult);
       if (m.walkerFire) return { icon: 'charge', label: '⚡' + d };
+      if (m.gaze) return { icon: 'eye', label: '◉' + d };
       var nh = m.hits || 0;
       if (m.hitsPer) nh = Math.max(1, aliveEnemies().filter(function (e) { return e.id === m.hitsPer; }).length);
       return { icon: 'atk', label: (nh ? d + '×' + nh : '' + d) + (m.pierce ? '⊘' : '') + (m.jam ? '⊗' : '') };
     }
+    if (m.t === 'gaze_dormant') return { icon: 'eye', label: '' };
     if (m.t === 'wk_charge') return { icon: 'charge', label: 'WIND-UP' };
     if (m.t === 'shard') return { icon: 'corrupt', label: (m.left > 0 ? '⟳' + m.left : 'CORRUPT') };
     if (m.t === 'disrupt') return { icon: 'debuff', label: '✕' };
@@ -999,6 +1006,14 @@
     return Math.round(v);   // damage is always a whole number (no decimals)
   }
 
+  // Void Gaze: base damage + extra per player debuff stack and per Void-Touched card.
+  function gazeDamage(en, s) {
+    var g = en.def.gaze, p = E.combat ? E.combat.player : null;
+    var debuffs = p ? (statN(p, 'weak') + statN(p, 'vuln') + statN(p, 'burn')) : 0;
+    var vt = E.run.deck.filter(function (c) { return c.vtouch; }).length;
+    return scaledDmg(g.base, s) + g.perDebuff * debuffs + g.perVtouch * vt;
+  }
+
   // Void Shard: permanently corrupt a random eligible card in the run deck.
   function shardCorrupt(idx) {
     var r = E.run, cand = [];
@@ -1017,6 +1032,11 @@
     var c = E.combat;
     // Drop Ship hull-ward: impervious until its escort bots are cleared.
     if (en.def.dropship && !en.armed && aliveEnemies().some(function (e) { return e.id === en.def.dropship.bot; })) {
+      emit('dmg', { who: 'enemy', idx: idx, amount: amount, hpDmg: 0, warded: true, hpAfter: en.hp, blockAfter: en.block });
+      return 0;
+    }
+    // Generic minion-ward (Void Gaze core): impervious while its eyes still live.
+    if (en.def.wardedBy && aliveEnemies().some(function (e) { return e.id === en.def.wardedBy; })) {
       emit('dmg', { who: 'enemy', idx: idx, amount: amount, hpDmg: 0, warded: true, hpAfter: en.hp, blockAfter: en.block });
       return 0;
     }
@@ -1814,7 +1834,7 @@
       var m = en.intent;
       emit('enemyMove', { idx: idx, move: m });
       if (m.t === 'attack' || m.t === 'drain') {
-        var dmg = (m.walkerFire ? Math.max(0, en.pendingHit) : scaledDmg(m.d, s)) + statN(en, 'str');
+        var dmg = (m.walkerFire ? Math.max(0, en.pendingHit) : m.gaze ? gazeDamage(en, s) : scaledDmg(m.d, s)) + statN(en, 'str');
         if (statN(en, 'weak')) dmg = Math.floor(dmg * B.status.weakMult);
         var hits = m.hits || 1;
         if (m.hitsPer) hits = Math.max(1, aliveEnemies().filter(function (e) { return e.id === m.hitsPer; }).length); // one volley per living minion

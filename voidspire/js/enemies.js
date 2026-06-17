@@ -246,6 +246,26 @@
       // crystalline core (crowned, single eye) ringed by four orbiting shards
       art: { p: [[0,-0.4, 0.3,-0.12, 0.3,0.2, 0,0.42, -0.3,0.2, -0.3,-0.12, 0,-0.4], [-0.12,-0.4, 0,-0.56, 0.12,-0.4], [-0.18,-0.04, 0,0.09, 0.18,-0.04], [0,-0.6, 0.16,-0.85, 0,-1.15, -0.16,-0.85, 0,-0.6], [0,0.55, 0.16,0.8, 0,1.1, -0.16,0.8, 0,0.55], [-0.5,0, -0.78,-0.16, -1.1,0, -0.78,0.16, -0.5,0], [0.5,0, 0.78,-0.16, 1.1,0, 0.78,0.16, 0.5,0]], e: [[0,-0.12]] },
     },
+    // Void Gaze — a central eye-core ringed by floating eyes. The eyes debuff you
+    // and shield the core (impervious until they all die). Once exposed, the core's
+    // gaze hits for base + extra per debuff on you AND per Void-Touched card.
+    void_gaze: {
+      name: 'Void Gaze', faction: 'voidspawn', hp: 38, size: 1.2, ai: 'cycle',
+      wardedBy: 'gaze_eye', gaze: { eye: 'gaze_eye', base: 8, perDebuff: 2, perVtouch: 3 },
+      moves: [{ t: 'attack', d: 8 }],   // unused (gaze state machine drives it), kept for validation
+      // great central eye with two crossing orbital rings of its lesser eyes
+      art: { p: [[0,-0.42, 0.3,-0.3, 0.42,0, 0.3,0.3, 0,0.42, -0.3,0.3, -0.42,0, -0.3,-0.3, 0,-0.42], [0,-0.2, 0.2,0, 0,0.2, -0.2,0, 0,-0.2], [0.98,-0.28, 0.6,-0.72, -0.18,-0.9, -0.98,-0.36, -0.98,0.32, -0.55,0.74, 0.22,0.9, 0.98,0.34, 0.98,-0.28], [-0.3,-0.98, -0.74,-0.58, -0.9,0.2, -0.36,0.98, 0.32,0.96, 0.72,0.55, 0.88,-0.22, 0.34,-0.96, -0.3,-0.98]], e: [[0,0]] },
+    },
+    gaze_eye: {
+      name: 'Gaze Eye', faction: 'voidspawn', hp: 5, size: 0.45, ai: 'random',
+      moves: [
+        { t: 'debuff', s: 'weak', v: 1, w: 2 },
+        { t: 'debuff', s: 'vuln', v: 1, w: 2 },
+        { t: 'attack', d: 3, w: 1 },
+      ],
+      // a single floating eye: lidded almond with a pupil and short lashes
+      art: { p: [[0,-0.45, 0.32,-0.32, 0.45,0, 0.32,0.32, 0,0.45, -0.32,0.32, -0.45,0, -0.32,-0.32, 0,-0.45], [0,-0.18, 0.18,0, 0,0.18, -0.18,0, 0,-0.18], [0,-0.45, 0,-0.62], [0.45,0, 0.62,0], [0,0.45, 0,0.62], [-0.45,0, -0.62,0]], e: [[0,0]] },
+    },
     husk_stalker: { grounded: true,
       name: 'Husk Stalker', faction: 'voidspawn', hp: 18, size: 0.8, ai: 'random',
       moves: [
@@ -533,6 +553,7 @@
       ['brood_maw', 'void_larva'],
       ['revenant', 'husk_stalker'],
       ['psy_wraith', 'revenant', 'void_larva'],
+      ['void_gaze', 'gaze_eye', 'gaze_eye', 'gaze_eye'],
     ],
   };
 

@@ -679,5 +679,26 @@ ok('Void Shard corrupts a card after 6 turns', E.run.deck.filter(function (c) { 
 var baseCost = E.effCost(VS.CARDS['pulse_rifle'], false);
 ok('a Void-Corrupted card costs 1 more', E.effCost(VS.CARDS['pulse_rifle'], false, { corrupt: true }) === baseCost + 1);
 
+/* Void Gaze: core warded while eyes live; gaze scales with debuffs + vtouch */
+var oldGaze = VS.PACKS.voidspawn;
+VS.PACKS.voidspawn = [['void_gaze', 'gaze_eye', 'gaze_eye', 'gaze_eye']];
+E.seed(3); E.newRun('vanguard'); E.run.faction = 'voidspawn'; E.run.sector = 1; E.run.nodeIdx = 0;
+E.startNode('fight');
+VS.PACKS.voidspawn = oldGaze;
+var gcore = E.combat.enemies[0];
+E.combat.energy = 9; setHand(['pulse_rifle']);
+var ghp0 = gcore.hp;
+playId('pulse_rifle', 0);
+ok('Void Gaze core is impervious while its eyes live', gcore.hp === ghp0);
+E.combat.enemies.forEach(function (e) { if (e.id === 'gaze_eye') { e.hp = 0; e.alive = false; } });
+E.combat.energy = 9; setHand(['pulse_rifle']);
+playId('pulse_rifle', 0);
+ok('killing the eyes exposes the core to damage', gcore.hp < ghp0);
+gcore.intent = { t: 'attack', gaze: true };
+var cleanGaze = E.intentInfo(gcore).label;
+E.combat.player.statuses.weak = 4;
+gcore.intent = { t: 'attack', gaze: true };
+ok('the gaze hits harder per debuff on you', E.intentInfo(gcore).label !== cleanGaze);
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);
