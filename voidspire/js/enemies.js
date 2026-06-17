@@ -188,6 +188,18 @@
       // infection form: lumpy sac, tendril legs, feelers, eye cluster
       art: { p: [[-0.6,0.1, -0.45,-0.35, -0.15,-0.55, 0.2,-0.5, 0.55,-0.25, 0.65,0.15, 0.45,0.45, 0,0.55, -0.4,0.45, -0.6,0.1], [-0.2,-0.55, -0.08,-0.75, 0.07,-0.58], [-0.4,0.45, -0.55,0.8], [-0.15,0.55, -0.2,0.9], [0.1,0.55, 0.05,0.85], [0.35,0.5, 0.5,0.8], [0.2,-0.5, 0.3,-0.85, 0.42,-0.9], [-0.32,-0.45, -0.47,-0.75]], e: [[-0.15,-0.1],[0.05,-0.18],[0.18,-0.02]] },
     },
+    // Voidling — small, weak null-minion. Unblocked damage can burrow a
+    // permanent curse into your deck, so let one through at your peril.
+    voidling: {
+      name: 'Voidling', faction: 'voidspawn', hp: 6, size: 0.46, ai: 'random',
+      infect: { chance: 0.4, card: 'void_taint' },
+      moves: [
+        { t: 'attack', d: 3, w: 4 },
+        { t: 'attack', d: 4, w: 2 },
+      ],
+      // void-shard: faceted body, single eye, jagged spikes and trailing tendrils
+      art: { p: [[0,-0.58, 0.46,-0.12, 0.26,0.5, -0.26,0.5, -0.46,-0.12, 0,-0.58], [-0.46,-0.12, -0.72,-0.34], [0.46,-0.12, 0.72,-0.34], [-0.26,0.5, -0.36,0.82], [0.26,0.5, 0.36,0.82], [0,0.5, 0,0.84], [0,-0.58, 0.1,-0.84]], e: [[0,-0.02]] },
+    },
     husk_stalker: { grounded: true,
       name: 'Husk Stalker', faction: 'voidspawn', hp: 18, size: 0.8, ai: 'random',
       moves: [
@@ -467,6 +479,7 @@
       ['husk_stalker'],
       ['husk_stalker', 'void_larva'],
       ['psy_wraith', 'void_larva'],
+      ['husk_stalker', 'voidling', 'voidling'],
       ['brood_maw', 'void_larva'],
       ['revenant', 'husk_stalker'],
       ['psy_wraith', 'revenant', 'void_larva'],

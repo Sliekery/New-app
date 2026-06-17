@@ -1802,6 +1802,12 @@
           en.hp = Math.min(en.maxHp, en.hp + dmg);
           emit('heal', { who: 'enemy', idx: idx, amount: dmg, hpAfter: en.hp });
         }
+        // Voidling: unblocked damage can infect the run deck with a permanent curse.
+        if (en.def.infect && totalToPlayer > 0 && r.phase !== 'dead' && rnd() < (en.def.infect.chance || 0.33)) {
+          var icard = en.def.infect.card || 'void_taint';
+          r.deck.push(mkCard(icard, false));
+          emit('infect', { idx: idx, card: icard });
+        }
       } else if (m.t === 'block') {
         var bb = scaledDmg(m.b, s);
         if (m.all) c.enemies.forEach(function (e, i) { if (e.alive) { e.block += bb; emit('block', { who: 'enemy', idx: i, amount: e.block, blockAfter: e.block }); } });

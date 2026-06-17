@@ -2009,7 +2009,7 @@
         case 'dmg': return 90;            // staggers enemy multi-hits on the player
         case 'die': return 140;
         case 'block': case 'heal': case 'status': return 60;
-        case 'curse': return 100; case 'summon': return 160;
+        case 'curse': return 100; case 'summon': return 160; case 'infect': return 120;
         case 'revive': return 260; case 'salvage': return 80; case 'win': return 250;
         default: return 0;
       }
@@ -2141,6 +2141,16 @@
             }, d);
           })(e, delay);
           delay += 160;
+          break;
+        case 'infect':
+          (function (e, d) {
+            setTimeout(function () {
+              toast('INFECTED — ' + ns.CARDS[e.card].name.toUpperCase() + ' burrows into your deck', 2200);
+              floater(pp.x + 30, pp.y - 44, '☣ INFECTED', 'status');
+              SFX.curse && SFX.curse();
+            }, d);
+          })(e, delay);
+          delay += 120;
           break;
         case 'cardPlayed':
           if (e.roll !== null && e.roll !== undefined) {

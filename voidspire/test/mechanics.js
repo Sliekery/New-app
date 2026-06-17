@@ -588,5 +588,27 @@ var hpBeforeBoom = E.run.hp, guard = 0;
 while (E.run.phase === 'combat' && dShip.alive && guard++ < 8) E.endTurn();
 ok('Drop Ship detonates for damage when the fuse runs out', E.run.hp < hpBeforeBoom && !dShip.alive);
 
+/* Voidling: unblocked damage infects the run deck; blocking prevents it */
+var oldVPacks = VS.PACKS.voidspawn, oldInfect = VS.ENEMIES.voidling.infect.chance;
+VS.PACKS.voidspawn = [['voidling']];
+VS.ENEMIES.voidling.infect.chance = 1;        // force the proc for a deterministic check
+E.seed(2); E.newRun('vanguard'); E.run.faction = 'voidspawn'; E.run.sector = 2; E.run.nodeIdx = 0;
+E.startNode('fight');
+VS.PACKS.voidspawn = oldVPacks;
+E.combat.player.block = 0;
+E.combat.enemies[0].intent = { t: 'attack', d: 3 };
+var deckBefore = E.run.deck.length;
+E.endTurn();
+var added = E.run.deck[E.run.deck.length - 1];
+ok('Voidling infects the deck on unblocked damage', E.run.deck.length === deckBefore + 1 && VS.CARDS[added.id].type === 'curse');
+if (E.combat && E.combat.enemies[0].alive) {
+  E.combat.player.block = 30;                 // fully blocked this time
+  E.combat.enemies[0].intent = { t: 'attack', d: 3 };
+  var deckBefore2 = E.run.deck.length;
+  E.endTurn();
+  ok('Blocking a Voidling prevents infection', E.run.deck.length === deckBefore2);
+}
+VS.ENEMIES.voidling.infect.chance = oldInfect;
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);
