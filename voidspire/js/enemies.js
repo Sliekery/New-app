@@ -109,6 +109,29 @@
       // bipedal mech: visor slit, plate seams, smokestacks, claw arms, piston legs
       art: { p: [[-0.55,-0.7, 0.55,-0.7, 0.62,0.05, -0.62,0.05, -0.55,-0.7], [-0.3,-0.52, 0.3,-0.52], [-0.3,-0.4, 0.3,-0.4], [-0.62,-0.18, 0.62,-0.18], [-0.45,-0.18, -0.45,-0.08], [0,-0.18, 0,-0.08], [0.45,-0.18, 0.45,-0.08], [-0.35,-0.7, -0.35,-1.05, -0.22,-1.05, -0.22,-0.7], [0.22,-0.7, 0.22,-0.95, 0.35,-0.95, 0.35,-0.7], [-0.62,-0.5, -0.9,-0.4, -0.85,0.1], [-0.85,0.1, -0.95,0.3], [-0.85,0.1, -0.74,0.3], [0.62,-0.5, 0.9,-0.4, 0.85,0.05], [0.85,0.05, 0.95,0.25], [0.85,0.05, 0.74,0.25], [-0.4,0.05, -0.48,0.5, -0.38,0.55, -0.42,0.92, -0.2,0.92, -0.25,0.55], [0.4,0.05, 0.48,0.5, 0.38,0.55, 0.42,0.92, 0.2,0.92, 0.25,0.55]], e: [[-0.15,-0.46],[0.15,-0.46]] },
     },
+    // Drone Swarm — a hub that spawns and buffs small drones, then fires a
+    // barrage that lands ONCE PER LIVING DRONE. Thin the swarm or the volley grows.
+    swarm_core: {
+      name: 'Swarm Core', faction: 'rust', hp: 30, size: 1.0, ai: 'cycle',
+      moves: [
+        { t: 'summon', id: 'swarm_drone', n: 2 },
+        { t: 'buff', s: 'str', v: 1, all: true },
+        { t: 'attack', d: 3, hitsPer: 'swarm_drone' },
+        { t: 'block', b: 7 },
+      ],
+      // carrier hub: central emitter eye, antenna mast, twin dish-arms, drone docking clamps
+      art: { p: [[-0.55,-0.4, 0.55,-0.4, 0.72,0.12, 0.5,0.55, -0.5,0.55, -0.72,0.12, -0.55,-0.4], [-0.28,-0.22, 0.28,-0.22, 0.28,0.0, -0.28,0.0, -0.28,-0.22], [0,-0.05, 0.24,0.16, 0,0.4, -0.24,0.16, 0,-0.05], [0,-0.4, 0,-0.92], [-0.14,-0.92, 0.14,-0.92], [0,-0.92, 0,-1.02], [-0.72,0.12, -1.02,-0.08, -1.0,-0.3], [-1.0,-0.3, -0.82,-0.34], [0.72,0.12, 1.02,-0.08, 1.0,-0.3], [1.0,-0.3, 0.82,-0.34], [-0.32,0.55, -0.4,0.82], [0,0.55, 0,0.88], [0.32,0.55, 0.4,0.82]], e: [[0,0.16]] },
+    },
+    swarm_drone: {
+      name: 'Swarm Drone', faction: 'rust', hp: 6, size: 0.42, ai: 'random',
+      moves: [
+        { t: 'attack', d: 3, w: 4 },
+        { t: 'attack', d: 2, hits: 2, w: 2 },
+        { t: 'block', b: 3, w: 1 },
+      ],
+      // little box drone: one sensor eye, stub antenna, stabiliser fins
+      art: { p: [[-0.42,-0.28, 0.42,-0.28, 0.5,0.0, 0.42,0.32, -0.42,0.32, -0.5,0.0, -0.42,-0.28], [-0.22,0.05, 0.22,0.05, 0.22,0.22, -0.22,0.22, -0.22,0.05], [0,-0.28, 0,-0.62], [-0.1,-0.62, 0.1,-0.62], [-0.5,0.0, -0.72,-0.12], [0.5,0.0, 0.72,-0.12], [-0.5,0.0, -0.72,0.12], [0.5,0.0, 0.72,0.12]], e: [[0,-0.08]] },
+    },
     iron_butcher: { grounded: true,
       name: 'Iron Butcher', faction: 'rust', hp: 52, size: 1.05, elite: true, ai: 'cycle',
       moves: [
@@ -413,6 +436,7 @@
       ['scrap_hound', 'scrap_hound'],
       ['rust_cultist', 'scrap_hound'],
       ['forge_walker'],
+      ['swarm_core', 'swarm_drone'],
       ['forge_walker', 'scrap_hound'],
       ['rust_sentinel', 'scrap_hound'],
       ['forge_acolyte', 'forge_walker'],

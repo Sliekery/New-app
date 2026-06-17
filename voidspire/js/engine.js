@@ -885,7 +885,9 @@
     if (m.t === 'attack') {
       var d = scaledDmg(m.d, s) + statN(en, 'str');
       if (statN(en, 'weak')) d = Math.floor(d * B.status.weakMult);
-      return { icon: 'atk', label: (m.hits ? d + '×' + m.hits : '' + d) + (m.pierce ? '⊘' : '') };
+      var nh = m.hits || 0;
+      if (m.hitsPer) nh = Math.max(1, aliveEnemies().filter(function (e) { return e.id === m.hitsPer; }).length);
+      return { icon: 'atk', label: (nh ? d + '×' + nh : '' + d) + (m.pierce ? '⊘' : '') };
     }
     if (m.t === 'disrupt') return { icon: 'debuff', label: '✕' };
     if (m.t === 'drain') {
@@ -1703,6 +1705,7 @@
         var dmg = scaledDmg(m.d, s) + statN(en, 'str');
         if (statN(en, 'weak')) dmg = Math.floor(dmg * B.status.weakMult);
         var hits = m.hits || 1;
+        if (m.hitsPer) hits = Math.max(1, aliveEnemies().filter(function (e) { return e.id === m.hitsPer; }).length); // one volley per living minion
         var totalToPlayer = 0;
         for (var h = 0; h < hits; h++) {
           if (r.phase === 'dead') break;

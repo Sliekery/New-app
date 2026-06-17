@@ -560,5 +560,17 @@ ok('pressLuckPush returns a roll vs threshold', !!push && typeof push.roll === '
 E.pressLuckBank();
 ok('pressLuckBank clears state and produces a result', !E.run.pressLuck && E.run.phase === 'event-result' && !!E.run.eventResult);
 
+/* Drone Swarm: the core's barrage fires once per living drone (hitsPer) */
+startFight();
+E.combat.enemies = [];
+function fakeDrone() { return { id: 'swarm_drone', def: VS.ENEMIES.swarm_drone, alive: true, statuses: {}, block: 0, hp: 6, maxHp: 6 }; }
+E.combat.enemies.push(fakeDrone(), fakeDrone(), fakeDrone());
+var swarmCore = { id: 'swarm_core', def: VS.ENEMIES.swarm_core, alive: true, statuses: {}, intent: { t: 'attack', d: 3, hitsPer: 'swarm_drone' } };
+ok('barrage hits once per drone (3 alive -> ×3)', /×3$/.test(E.intentInfo(swarmCore).label));
+E.combat.enemies[1].alive = false; E.combat.enemies[2].alive = false;
+ok('barrage scales down as drones die (1 alive -> ×1)', /×1$/.test(E.intentInfo(swarmCore).label));
+E.combat.enemies[0].alive = false;
+ok('barrage never drops below a single hit (0 drones -> ×1)', /×1$/.test(E.intentInfo(swarmCore).label));
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);
