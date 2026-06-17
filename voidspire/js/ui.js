@@ -1626,8 +1626,8 @@
   //  Void Adept   — drift (sinks off, fading rune)    / unmake (cracks, implodes)
   var CARD_FX = {
     vanguard:     { color: '#ffb02e', disc: 'cf-van-disc',  exh: 'cf-van-exh',  dLife: 300, eLife: 440 },
-    technomancer: { color: '#41d8ff', disc: 'cf-tech-disc', exh: 'cf-tech-exh', dLife: 340, eLife: 300 },
-    voidadept:    { color: '#c86bff', disc: 'cf-void-disc', exh: 'cf-void-exh', dLife: 420, eLife: 340 },
+    technomancer: { color: '#41d8ff', disc: 'cf-tech-disc', exh: 'cf-tech-exh', dLife: 430, eLife: 420 },
+    voidadept:    { color: '#c86bff', disc: 'cf-void-disc', exh: 'cf-void-exh', dLife: 540, eLife: 480 },
   };
   function cardPlayFx(rect, clone, card, def) {
     if (!rect) return;
