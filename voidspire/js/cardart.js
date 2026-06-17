@@ -78,6 +78,20 @@
     return ns.CARD_GLYPHS[g] || ns.CARD_GLYPHS.core;
   };
 
+  // Big faint per-class motif sat behind the card art for instant faction read.
+  ns.CLASS_MOTIF = {
+    vanguard: { p: [[-0.62,0.45, 0,-0.05, 0.62,0.45], [-0.62,0.05, 0,-0.45, 0.62,0.05], [-0.62,-0.35, 0,-0.85, 0.62,-0.35]] },
+    technomancer: { p: [[0,-0.82, 0.71,-0.41, 0.71,0.41, 0,0.82, -0.71,0.41, -0.71,-0.41, 0,-0.82], [0,-0.4, 0.35,-0.2, 0.35,0.2, 0,0.4, -0.35,0.2, -0.35,-0.2, 0,-0.4], [0,-0.4, 0,0.4], [-0.35,-0.2, 0.35,0.2]], e: [[0,0]] },
+    voidadept: { p: [[0,-0.88, 0.72,0, 0,0.88, -0.72,0, 0,-0.88], [-0.5,0, -0.25,-0.32, 0.25,-0.32, 0.5,0, 0.25,0.32, -0.25,0.32, -0.5,0]], e: [[0,0]] },
+    warpcaller: { p: [[-0.5,-0.72, -0.28,-0.2, -0.52,0.62], [0.04,-0.8, 0.12,-0.2, -0.08,0.7], [0.58,-0.72, 0.32,-0.2, 0.56,0.62]] },
+    shared: { p: [[0,-0.85, 0.22,-0.62, 0.55,-0.6, 0.6,-0.28, 0.85,0, 0.6,0.28, 0.55,0.6, 0.22,0.62, 0,0.85, -0.22,0.62, -0.55,0.6, -0.6,0.28, -0.85,0, -0.6,-0.28, -0.55,-0.6, -0.22,-0.62, 0,-0.85], [0,-0.32, 0.32,0, 0,0.32, -0.32,0, 0,-0.32]] },
+  };
+  ns.cardClass = function (id) {
+    var c = ns.CARDS && ns.CARDS[id], x = c && c.cls;
+    return (x === 'vanguard' || x === 'technomancer' || x === 'voidadept' || x === 'warpcaller') ? x : 'shared';
+  };
+  ns.cardMotif = function (cls) { return ns.CLASS_MOTIF[cls] || ns.CLASS_MOTIF.shared; };
+
   // Per-class draw/discard pile icons (a "full" charge vs a "spent" one).
   ns.PILE_ICONS = {
     vanguard: {

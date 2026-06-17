@@ -1355,6 +1355,15 @@
   function cardGlyphSVG(cid) {
     return artSVG(ns.cardGlyph(cid, ns.CARDS[cid]), 'cart-svg');
   }
+  function cardMotifSVG(cid) {
+    return artSVG(ns.cardMotif(ns.cardClass(cid)), 'cmotif-svg');
+  }
+  var TYPE_BADGE = {
+    attack: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13 13 3M8 3h5v5"/></svg>',
+    skill: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M8 2.5 13 5v4.5L8 13.5 3 9.5V5Z"/></svg>',
+    power: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5.6" cy="8" r="3"/><circle cx="10.4" cy="8" r="3"/></svg>',
+    curse: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5"/></svg>',
+  };
   // Colour combat keywords in card text to match the on-field status pills.
   var KW_MAP = [
     ['Plated Armor', 'pa'], ['Vulnerable', 'vu'], ['Shield', 'sh'], ['Weak', 'wk'],
@@ -1374,8 +1383,9 @@
     var tag = rarity === 4 ? 'LEGENDARY' : rarity === 3 ? 'RARE' : rarity === 2 ? 'UNC' : '';
     return '<div class="cost"><svg viewBox="0 0 24 24"><polygon points="12,0.8 21.7,6.4 21.7,17.6 12,23.2 2.3,17.6 2.3,6.4"/></svg>' +
       '<span class="cost-n">' + (unplayable ? '✕' : cost) + '</span></div>' +
+      '<div class="ctype t-' + type + '">' + (TYPE_BADGE[type] || '') + '</div>' +
       '<div class="cname">' + esc(name) + '</div>' +
-      '<div class="cart">' + cardGlyphSVG(cid) + '</div>' +
+      '<div class="cart"><span class="cmotif">' + cardMotifSVG(cid) + '</span>' + cardGlyphSVG(cid) + '</div>' +
       '<div class="rline ' + r + '">' + (tag ? '<span class="rtag">' + tag + '</span>' : '') + '</div>' +
       '<div class="cdesc">' + descHTML(desc) + '</div>';
   }
@@ -1388,7 +1398,7 @@
     var spread = n > 1 ? Math.min(4.2, 26 / n) : 0; // degrees between cards
     c.hand.forEach(function (card, i) {
       var info = E.cardInfo(card);
-      var d = el('div', 'card type-' + info.type + rareClassOf(info.rarity) +
+      var d = el('div', 'card type-' + info.type + ' cls-' + ns.cardClass(card.id) + rareClassOf(info.rarity) +
         (info.vtouch ? ' vtouched' : '') +
         (info.cost > c.energy && !info.unplayable ? ' unaffordable' : '') +
         (info.unplayable ? ' unplayable-curse' : '') +
@@ -2216,7 +2226,7 @@
   function cardEl(cid, up, vtouch) {
     var def = ns.CARDS[cid];
     var ctx = E.run ? { attrs: { might: E.attr('might'), tech: E.attr('tech'), psi: E.attr('psi') }, statuses: null } : null;
-    var d = el('div', 'card type-' + def.type + rareClassOf(def.rarity) + (vtouch ? ' vtouched' : ''));
+    var d = el('div', 'card type-' + def.type + ' cls-' + ns.cardClass(cid) + rareClassOf(def.rarity) + (vtouch ? ' vtouched' : ''));
     d.innerHTML = cardInner(def.name + (up ? '+' : ''), def.xcost ? 'X' : ns.cardCost(def, up), def.type, def.rarity,
       ns.cardDesc(def, up, ctx, vtouch), def.unplayable, cid);
     return d;

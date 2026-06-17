@@ -199,10 +199,7 @@ html, body {
     box-shadow: 0 0 16px rgba(93,255,136,0.3), 0 10px 26px rgba(0,0,0,0.8);
   }
 }
-.card.type-attack { border-color: #9a5a20; }
-.card.type-skill { border-color: #1f7a96; }
-.card.type-power { border-color: #7a3f9a; }
-.card.type-curse { border-color: #7a2030; }
+/* type no longer colours the frame — class does (see V1 block); type = badge */
 /* energy cost — a clean vector hexagon (line-art, matches the CRT look) */
 .card .cost { position: absolute; top: 0; left: 0; width: 24px; height: 24px; z-index: 3; }
 .card .cost svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
@@ -226,10 +223,6 @@ html, body {
 /* central vector glyph */
 .card .cart { height: 38px; display: flex; align-items: center; justify-content: center; margin: 1px 0 0; }
 .card .cart svg { width: 33px; height: 33px; filter: drop-shadow(0 0 3px currentColor); }
-.card.type-attack .cart { color: var(--amber); }
-.card.type-skill .cart { color: var(--cyan); }
-.card.type-power .cart { color: var(--magenta); }
-.card.type-curse .cart { color: var(--red); }
 .card .rline { position: relative; height: 2px; margin: 1px 5px 3px; background: rgba(94, 138, 108, 0.35); }
 .card .rline.r2 { background: linear-gradient(90deg, rgba(65, 216, 255, 0.7), transparent); box-shadow: 0 0 4px rgba(65, 216, 255, 0.4); }
 .card .rline.r3 { background: linear-gradient(90deg, rgba(255, 176, 46, 0.9), transparent); box-shadow: 0 0 5px rgba(255, 176, 46, 0.6); }
@@ -239,10 +232,6 @@ html, body {
   margin: 4px 6px 1px 25px; font-size: 8.5px; line-height: 1.12; letter-spacing: 0.5px;
   color: var(--text); text-transform: uppercase; min-height: 19px;
 }
-.card.type-attack .cname { color: var(--amber); }
-.card.type-skill .cname { color: var(--cyan); }
-.card.type-power .cname { color: var(--magenta); }
-.card.type-curse .cname { color: var(--red); }
 .card .cdesc { flex: 1; font-size: 8.5px; line-height: 1.3; color: var(--text); padding: 0 5px 3px; overflow: hidden; }
 /* keyword colouring — matches the on-field status pills */
 .card .cdesc .kw { font-weight: bold; }
@@ -283,6 +272,42 @@ html, body {
 }
 @keyframes vtouchGlow { 0%, 100% { box-shadow: inset 0 0 8px rgba(200,107,255,0.3); } 50% { box-shadow: inset 0 0 18px rgba(200,107,255,0.6); } }
 .card.unaffordable { opacity: 0.45; }
+
+/* ===== V1 "Forge Plate" card identity — keyed by CLASS ===== */
+.card.cls-vanguard    { --cc: #ffb02e; --ccd: #6e4a16; }
+.card.cls-technomancer{ --cc: #41d8ff; --ccd: #1c5366; }
+.card.cls-voidadept   { --cc: #c86bff; --ccd: #53306e; }
+.card.cls-warpcaller  { --cc: #8f7bff; --ccd: #37346a; }
+.card.cls-shared      { --cc: #9fb6c0; --ccd: #445158; }
+.card {
+  border: 1.5px solid var(--cc);
+  background:
+    linear-gradient(160deg, rgba(255,255,255,0.035), transparent 36%),
+    linear-gradient(160deg, var(--panel2), var(--panel));
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.45), inset 0 0 11px rgba(0,0,0,0.5), 0 0 7px -2px var(--cc);
+}
+/* name band, in the class colour */
+.card .cname {
+  margin: 5px 6px 2px 25px; color: var(--cc); text-shadow: 0 0 4px var(--cc), 0 1px 1px #000;
+  background: linear-gradient(90deg, var(--ccd), transparent 88%); padding: 2px 5px;
+}
+/* class glyph (over a recessed well) + faint class motif watermark */
+.card .cart { color: var(--cc); position: relative; height: 42px; }
+.card .cart::before {
+  content: ''; position: absolute; left: 12px; right: 12px; top: -1px; bottom: -1px; z-index: 0;
+  border: 1px solid var(--ccd); background: radial-gradient(circle at 50% 42%, rgba(0,0,0,0), rgba(2,7,11,0.72));
+  clip-path: polygon(0 4px, 4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%);
+}
+.card .cmotif { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 0; opacity: 0.13; }
+.card .cmotif svg.cmotif-svg { width: 48px; height: 48px; color: var(--cc); }
+.card .cart svg.cart-svg { position: relative; z-index: 1; width: 32px; height: 32px; filter: drop-shadow(0 0 3px var(--cc)); }
+/* type badge (consistent across classes so type stays readable) */
+.card .ctype { position: absolute; top: 4px; right: 4px; width: 13px; height: 13px; z-index: 3; }
+.card .ctype svg { width: 100%; height: 100%; filter: drop-shadow(0 0 2px currentColor); }
+.card .ctype.t-attack { color: #ffb02e; } .card .ctype.t-skill { color: #41d8ff; }
+.card .ctype.t-power { color: #c86bff; } .card .ctype.t-curse { color: #ff4a5e; }
+/* rarity keeps the class frame (its glow/line still marks rarity) */
+.card.rare, .card.unc, .card.legendary { border-color: var(--cc); }
 .card.selected {
   transform: translateY(-72px) scale(1.62);
   z-index: 50;
