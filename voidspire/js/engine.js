@@ -661,6 +661,7 @@
     };
     var bonusStr = Math.floor((s - 1) / B.scaling.strEverySectors);
     if (bonusStr > 0) en.statuses.str = bonusStr;
+    if (def.artAlt) en.art = (rnd() < 0.5) ? def.artAlt : def.art;   // pick one of two art models
     return en;
   }
 

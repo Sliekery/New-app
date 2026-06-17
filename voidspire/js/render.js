@@ -751,8 +751,9 @@
     var color = factionColor(v.def);
     var flash = (t - v.flashT < 0.13);
     var x = v.x + sx, y = v.y + bob;
+    var art = (v.en && v.en.art) || v.def.art;   // per-spawn art model (artAlt)
 
-    strokePaths(v.def.art.p, x, y, scale, flash ? '#ffffff' : color, flash ? 16 : 9, alpha);
+    strokePaths(art.p, x, y, scale, flash ? '#ffffff' : color, flash ? 16 : 9, alpha);
 
     // eyes
     if (!dying || alpha > 0.4) {
@@ -761,7 +762,7 @@
       ctx.fillStyle = flash ? '#ffffff' : '#ffe9f0';
       ctx.shadowColor = color;
       ctx.shadowBlur = 7;
-      (v.def.art.e || []).forEach(function (e) {
+      (art.e || []).forEach(function (e) {
         var px = x + e[0] * scale, py = y + e[1] * scale;
         var es = Math.max(1.5, scale * 0.05);
         ctx.fillRect(px - es / 2, py - es / 2, es, es);
