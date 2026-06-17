@@ -1694,7 +1694,7 @@
       else { R.shards(cx, cy, cf.color, 13, dir, 0.85); R.burst(cx, cy, '#fff3d6', 7); }
     } else if (E.run.cls === 'technomancer') {
       if (consumed) { R.glitch(cx, cy, cf.color); R.glitch(cx, cy, '#ff3b6b'); R.glitch(cx, cy, '#3bd9ff'); R.burst(cx, cy, cf.color, 7); }
-      else { R.beamBolt(cx, cy, dpx, dpy, cf.color, 3); R.implode(cx, cy, cf.color, w * 0.7, h * 0.8, 16); }
+      else { var bx = cx + (dpx - cx) * 0.4, by = cy + (dpy - cy) * 0.4; R.beamBolt(cx, cy, bx, by, cf.color, 1.3); R.implode(cx, cy, cf.color, w * 0.66, h * 0.76, 11); }
     } else {                                       // voidadept
       if (consumed) { R.implode(cx, cy, cf.color, w * 0.86, h * 0.96, 22); R.ring(cx, cy, '#f0d6ff', 30, 0.32); R.burst(cx, cy, '#f0d6ff', 8); }
       else { R.sigil(cx, cy, cf.color, 20); R.ring(cx, cy, cf.color, 24, 0.5); }
