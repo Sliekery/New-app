@@ -870,8 +870,13 @@
       var sw = bw * Math.max(0.05, Math.min(1, shield / Math.max(1, shMax)));
       ctx.fillStyle = '#41d8ff'; ctx.shadowColor = '#41d8ff'; ctx.shadowBlur = 5;
       ctx.fillRect(bx, by - 4, sw, 2.5); ctx.shadowBlur = 0;
+      // small cyan hexagon + value to the right (drawn, not a font glyph)
+      var hxr = fp * 0.52, hxc = bx + bw + 7 + hxr, hyc = by + h / 2;
+      ctx.beginPath();
+      for (var z = 0; z < 6; z++) { var az = Math.PI / 6 + z * Math.PI / 3, hx = hxc + hxr * Math.cos(az), hy = hyc + hxr * Math.sin(az); z ? ctx.lineTo(hx, hy) : ctx.moveTo(hx, hy); }
+      ctx.closePath(); ctx.strokeStyle = '#41d8ff'; ctx.lineWidth = 1.2; ctx.shadowColor = '#41d8ff'; ctx.shadowBlur = 4; ctx.stroke(); ctx.shadowBlur = 0;
       ctx.fillStyle = '#9fe9ff'; ctx.font = 'bold ' + fp + 'px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-      ctx.fillText('⬢' + shield, bx + bw + 6, by + h / 2);
+      ctx.fillText('' + shield, hxc + hxr + 3, hyc + 0.5);
     }
     ctx.font = 'bold ' + fp + 'px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillStyle = '#f2fff6'; ctx.shadowColor = '#04140c'; ctx.shadowBlur = 3;
@@ -937,13 +942,30 @@
 
     if (dying) return;
 
-    // hp bar — Fire-Control: bracketed bar, cyan shield line, status chips
+    // hp bar
     v.dispHp += (v.hp - v.dispHp) * 0.18;
     if (Math.abs(v.dispHp - v.hp) < 0.4) v.dispHp = v.hp;
-    var bw = Math.max(54, Math.min(104, v.r * 2.1));
-    var midY = v.y + v.r + 19;
-    drawHpBarFC(v.x, midY, bw, 7, Math.max(0, v.dispHp / v.maxHp), color,
-      Math.max(0, Math.round(v.dispHp)) + '/' + v.maxHp, v.block, v.maxHp, v.en.statuses, { font: 8.5, chipFont: 8 });
+    var bw = Math.max(46, Math.min(96, v.r * 2.1));
+    var bx = v.x - bw / 2, by = v.y + v.r + 14;
+    ctx.fillStyle = 'rgba(6, 14, 10, 0.85)';
+    ctx.fillRect(bx, by, bw, 6);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.9;
+    ctx.fillRect(bx + 1, by + 1, (bw - 2) * Math.max(0, v.dispHp / v.maxHp), 4);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = 'rgba(184, 230, 196, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, 5);
+    ctx.fillStyle = 'rgba(184, 230, 196, 0.9)';
+    ctx.font = '9px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(Math.max(0, Math.round(v.dispHp)) + '/' + v.maxHp, v.x, by + 16);
+
+    // block (shield) — clear cyan badge at the HP bar's left edge
+    if (v.block > 0) drawBlockBadge(bx - 13, by + 2, v.block);
+
+    // statuses — colour-coded pills under the HP bar
+    drawEnemyStatuses(v, by);
 
     // intent
     drawIntent(v);
@@ -1421,58 +1443,21 @@
   // A sci-fi vector readout under the character: a slanted ENERGY cap on the
   // front, then the HP bar (with number), and a hatched SHIELD overlay that
   // grows over the bar but never past its end.
+  // Player HP readout — Fire-Control: bracketed bar, cyan shield line, status chips.
   function drawPlayerGauge(px, py, scale) {
     var c = ns.engine.combat; if (!c) return;
     var hp = Math.max(0, Math.round(R.player.hp)), maxHp = R.player.maxHp || 1;
     var block = Math.round(R.player.block || 0);
     var frac = Math.max(0, Math.min(1, hp / maxHp));
-    var h = Math.max(10, scale * 0.30);             // slimmer console line
-    var GREEN = '#5dff88', GDIM = '#2c6047', CY = '#41d8ff', DIM = '#46585f';
-    var hpCol = frac > 0.5 ? GREEN : frac > 0.25 ? '#ffb02e' : '#ff4a5e';
-    var fs = Math.round(h * 0.72);                 // readout font
-    var cy = py + scale * 1.74;                     // vertical center of the console line
-    ctx.save();
-    ctx.lineJoin = 'miter'; ctx.lineCap = 'butt'; ctx.textBaseline = 'middle';
-    ctx.font = 'bold ' + fs + 'px monospace';
-
-    // slim terminal line: ▮▮▮ hp/max │ ⬡shield — centered on the HP core under
-    // the character (energy now lives in the bottom dock, beside the cards).
-    var cells = 12, cw = h * 0.62, chh = h * 0.96, gap = h * 0.46, divH = h * 1.05;
-    var hpTxt = hp + '/' + maxHp;
-    var coreW = cells * cw + gap * 0.7 + ctx.measureText(hpTxt).width;
-    var cx = px - coreW / 2;
-
-    // HP — segmented LED cells, lit up to the HP fraction
-    var lit = Math.round(frac * cells);
-    for (var i = 0; i < cells; i++) {
-      var rx = cx + i * cw;
-      if (i < lit) {
-        ctx.fillStyle = hpCol; ctx.shadowColor = hpCol; ctx.shadowBlur = 3;
-        ctx.fillRect(rx, cy - chh / 2, cw - 2.4, chh); ctx.shadowBlur = 0;
-      } else {
-        ctx.strokeStyle = GDIM; ctx.lineWidth = 1; ctx.strokeRect(rx + 0.5, cy - chh / 2 + 0.5, cw - 3, chh - 1);
-      }
-    }
-    cx += cells * cw + gap * 0.7;
-
-    // HP number
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#eaffef'; ctx.shadowColor = '#000'; ctx.shadowBlur = 3;
-    ctx.fillText(hpTxt, cx, cy + 0.5); ctx.shadowBlur = 0;
-    cx += ctx.measureText(hpTxt).width + gap;
-
-    // divider + shield hexagon (only when shielded)
-    if (block > 0) {
-      L(cx, cy - divH / 2, cx, cy + divH / 2, DIM, 1); cx += gap;
-      var r = h * 0.62, hxc = cx + r;
-      ctx.beginPath();
-      for (var k = 0; k < 6; k++) { var a = Math.PI / 6 + k * Math.PI / 3, hx = hxc + r * Math.cos(a), hy = cy + r * Math.sin(a); k ? ctx.lineTo(hx, hy) : ctx.moveTo(hx, hy); }
-      ctx.closePath();
-      ctx.strokeStyle = CY; ctx.lineWidth = 1.5; ctx.shadowColor = CY; ctx.shadowBlur = 5; ctx.stroke(); ctx.shadowBlur = 0;
-      ctx.fillStyle = '#dff6ff'; ctx.textAlign = 'center'; ctx.font = 'bold ' + Math.round(h * 0.5) + 'px monospace';
-      ctx.fillText('' + block, hxc, cy + 0.5);
-    }
-    ctx.restore();
+    var hpCol = frac > 0.5 ? '#5dff88' : frac > 0.25 ? '#ffb02e' : '#ff4a5e';
+    var cy = py + scale * 1.74;
+    var bw = Math.max(104, scale * 2.4), h = Math.max(9, scale * 0.22);
+    var fs = Math.max(9, Math.round(scale * 0.24));
+    // the player figure sits at the far left — shift the bar's centre right so
+    // the bracketed bar and chip row never clip off the left edge.
+    var cx = Math.max(bw / 2 + 8, px);
+    drawHpBarFC(cx, cy, bw, h, frac, hpCol, hp + '/' + maxHp, block, maxHp,
+      c.player.statuses, { font: fs, chipFont: Math.max(8, fs - 1) });
   }
   function L(x1, y1, x2, y2, col, w) { ctx.strokeStyle = col; ctx.lineWidth = w || 1; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
 
