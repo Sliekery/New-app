@@ -697,13 +697,51 @@ h2.screen-title {
 .fx-chip.check { color: var(--cyan); }
 .event-result-text { color: var(--cyan); }
 
-.dice-box {
-  font-size: 40px; color: var(--amber); text-shadow: 0 0 14px rgba(255,176,46,0.7);
-  margin: 14px 0; letter-spacing: 2px; min-height: 52px; text-align: center;
+.dice-box { margin: 12px 0 10px; min-height: 124px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
+/* vector d20 skill-check die */
+.d20-wrap { width: 104px; height: 104px; display: grid; place-items: center; }
+.d20 { width: 104px; height: 104px; display: block; transform-origin: 50% 50%; }
+.d20 .d20-hex { fill: rgba(255,176,46,0.06); stroke: var(--amber); stroke-width: 2.4; stroke-linejoin: round;
+  filter: drop-shadow(0 0 8px rgba(255,176,46,0.45)); transition: stroke 0.2s, fill 0.2s; }
+.d20 .d20-facet path { fill: rgba(255,176,46,0.05); }
+.d20 .d20-facet path, .d20 .d20-facet line { stroke: rgba(255,176,46,0.45); stroke-width: 1.2; }
+.d20 .d20-num { fill: #ffe6ad; font: 700 30px/1 monospace; letter-spacing: 1px; }
+.d20.rolling { animation: d20Tumble 0.16s linear infinite; }
+.d20.rolling .d20-hex { fill: rgba(127,224,255,0.05); stroke: #7fe0ff; filter: drop-shadow(0 0 8px rgba(127,224,255,0.5)); }
+.d20.rolling .d20-num { fill: #cdeeff; }
+.d20.pass .d20-hex { stroke: var(--green); fill: rgba(93,255,136,0.10); filter: drop-shadow(0 0 12px rgba(93,255,136,0.75)); }
+.d20.pass .d20-num { fill: #d8ffe6; }
+.d20.fail .d20-hex { stroke: var(--red); fill: rgba(255,74,94,0.10); filter: drop-shadow(0 0 12px rgba(255,74,94,0.75)); }
+.d20.fail .d20-num { fill: #ffd8de; }
+@keyframes d20Tumble {
+  0% { transform: rotate(-7deg) scale(1); } 25% { transform: rotate(5deg) scale(1.05); }
+  50% { transform: rotate(-4deg) scale(0.97); } 75% { transform: rotate(8deg) scale(1.04); }
+  100% { transform: rotate(-7deg) scale(1); }
 }
-.dice-box .dc { font-size: 12px; color: var(--text-dim); display: block; letter-spacing: 2px; }
-.dice-box.pass { color: var(--green); text-shadow: 0 0 14px rgba(93,255,136,0.7); }
-.dice-box.fail { color: var(--red); text-shadow: 0 0 14px rgba(255,74,94,0.7); }
+.d20-readout { text-align: center; font: 12px monospace; letter-spacing: 1px; line-height: 1.6; }
+.d20-readout .d20-dc { color: var(--text-dim); display: block; }
+.d20-readout .d20-eq { color: var(--amber); display: block; font-size: 14px; }
+.d20-readout .d20-res { display: inline-block; margin-top: 2px; font-weight: 700; letter-spacing: 3px; }
+.d20-readout .d20-res.ok { color: var(--green); text-shadow: 0 0 12px rgba(93,255,136,0.7); }
+.d20-readout .d20-res.no { color: var(--red); text-shadow: 0 0 12px rgba(255,74,94,0.7); }
+
+/* press-your-luck */
+.pl-pot { margin: 10px 0; text-align: center; }
+.pl-pot-lbl { font: 10px monospace; letter-spacing: 3px; color: var(--text-dim); margin-bottom: 6px; }
+.pl-pot-chips { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; min-height: 22px; }
+.pl-pot-chips .pl-empty { font: 11px monospace; color: var(--text-dim); opacity: 0.6; }
+.pl-stage { min-height: 0; height: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 8px; transition: height 0.2s; }
+.pl-stage.show { min-height: 124px; height: auto; margin: 6px 0; }
+.pl-meter { text-align: center; margin: 8px 0; }
+.pl-meter .pl-next { font: 11px monospace; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 4px; display: flex; gap: 5px; justify-content: center; align-items: center; flex-wrap: wrap; }
+.pl-meter .pl-risk { font: 13px monospace; letter-spacing: 2px; color: var(--amber); }
+.pl-meter .pl-risk b { font-size: 18px; }
+.pl-meter .pl-risk.hot { color: var(--red); text-shadow: 0 0 10px rgba(255,74,94,0.5); }
+.pl-meter .pl-risk.max { color: var(--green); }
+.pl-actions { display: flex; gap: 12px; justify-content: center; margin-top: 6px; }
+.pl-actions .pl-push { background: rgba(255,176,46,0.12); border-color: var(--amber); color: var(--amber); }
+.pl-actions .disabled { opacity: 0.4; pointer-events: none; }
 
 .gain-list { margin: 10px 0 18px; text-align: center; }
 .gain-list div { font-size: 12px; color: var(--amber); margin: 4px 0; letter-spacing: 1px; }

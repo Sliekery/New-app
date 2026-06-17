@@ -2284,6 +2284,11 @@
     if (ch.cost && r.credits < ch.cost) return null;
     if (ch.cost) r.credits = Math.max(0, r.credits - ch.cost); // pay the price up front
 
+    // Press-your-luck: hand off to the dedicated loop instead of resolving now.
+    if (ch.pressLuck) { startPressLuck(ci); E.save(); return { pressLuck: true }; }
+    // Sell: pick one of your own cards/relics to liquidate for credits.
+    if (ch.sell) { r.pendingSell = { kind: ch.sell.kind || 'card' }; r.eventResult = { text: ch.sell.text || 'What will you part with?', gained: [], roll: null }; r.phase = 'event-result'; E.save(); return { sell: true }; }
+
     var res = { roll: null, pass: null, dc: null, bonus: 0 };
     var out;
     if (ch.check) {
@@ -2400,7 +2405,7 @@
 
   E.finishEvent = function () {
     var r = E.run;
-    if (r.pendingPick || r.pendingAddCard || r.pendingRelic || r.pendingTrade) return; // resolve pending choices first
+    if (r.pendingPick || r.pendingAddCard || r.pendingRelic || r.pendingTrade || r.pendingSell) return; // resolve pending choices first
     r.eventResult = null;
     r.currentEvent = null;
     nodeComplete();
@@ -2538,6 +2543,110 @@
     return aid;
   };
   E.skipTrade = function () { E.run.pendingTrade = null; E.save(); };
+
+  /* ---------------- Sell (liquidate a card/relic for credits) -------------- */
+  function cardSellValue(card) {
+    var base = { 1: 18, 2: 32, 3: 55, 4: 80 }[ns.CARDS[card.id].rarity || 1] || 18;
+    return base + (card.up ? 12 : 0);
+  }
+  function relicSellValue(aid) {
+    return (ns.ARTIFACTS[aid].tier === 2) ? 90 : 55;
+  }
+  E.sellOptions = function () {
+    var r = E.run, k = r.pendingSell && r.pendingSell.kind;
+    if (k === 'relic') {
+      return E.tradeableRelics().map(function (aid) { return { id: aid, value: relicSellValue(aid) }; });
+    }
+    var out = [];
+    r.deck.forEach(function (card, i) {
+      if (ns.CARDS[card.id].type === 'curse') return;
+      out.push({ idx: i, id: card.id, up: card.up, vtouch: card.vtouch, value: cardSellValue(card) });
+    });
+    return out;
+  };
+  E.sellPick = function (ref) {
+    var r = E.run, p = r.pendingSell; if (!p) return null;
+    var got = 0;
+    if (p.kind === 'relic') {
+      if (E.tradeableRelics().indexOf(ref) < 0) return null;
+      got = relicSellValue(ref); removeArtifact(ref);
+    } else {
+      var card = r.deck[ref]; if (!card || ns.CARDS[card.id].type === 'curse') return null;
+      got = cardSellValue(card); r.deck.splice(ref, 1);
+    }
+    r.credits += got;
+    r.pendingSell = null;
+    E.save();
+    return got;
+  };
+  E.skipSell = function () { E.run.pendingSell = null; E.save(); };
+
+  /* ---------------- Press-your-luck (escalating risk loops) ---------------- */
+  // Config lives on the chosen event choice: ch.pressLuck = {
+  //   steps:[fx,...], bust:{base,step}, bustFx:{...}, attr:'might', bankText, bustText, pushVerb }
+  function pressLuckCfg() {
+    var r = E.run, ev = E.getEvent();
+    if (!ev || !r.pressLuck) return null;
+    return ev.choices[r.pressLuck.ci].pressLuck;
+  }
+  function startPressLuck(ci) {
+    E.run.pressLuck = { ci: ci, level: 0, accrued: [], busted: false };
+    E.run.phase = 'press-luck';
+  }
+  E.pressLuckInfo = function () {
+    var r = E.run, p = r.pressLuck, cfg = pressLuckCfg();
+    if (!p || !cfg) return null;
+    var lvl = p.level, last = lvl >= cfg.steps.length;
+    var bustChance = last ? 1 : clampPL(cfg.bust.base + cfg.bust.step * lvl - attrPLBonus(cfg));
+    return {
+      level: lvl, maxLevel: cfg.steps.length,
+      accrued: p.accrued.slice(),
+      nextReward: last ? null : cfg.steps[lvl],
+      bustChance: bustChance, busted: p.busted, done: last,
+      pushVerb: cfg.pushVerb || 'PUSH', attr: cfg.attr || null,
+    };
+  };
+  function clampPL(p) { return Math.max(0, Math.min(0.92, p)); }
+  function attrPLBonus(cfg) { return cfg.attr ? attr(cfg.attr) * 0.015 : 0; }
+  E.pressLuckPush = function () {
+    var r = E.run, p = r.pressLuck, cfg = pressLuckCfg();
+    if (!p || !cfg || p.busted) return null;
+    if (p.level >= cfg.steps.length) return null; // nothing left to win — must bank
+    var bustChance = clampPL(cfg.bust.base + cfg.bust.step * p.level - attrPLBonus(cfg));
+    var threshold = Math.round(bustChance * 20); // bust if d20 <= threshold
+    var roll = d20();
+    var busted = roll <= threshold;
+    var ret = { roll: roll, threshold: threshold, busted: busted, bustChance: bustChance };
+    if (busted) {
+      p.busted = true;
+      ret.reward = null;
+    } else {
+      var step = cfg.steps[p.level];
+      p.accrued.push(step);
+      p.level += 1;
+      ret.reward = step;
+      ret.done = p.level >= cfg.steps.length;
+    }
+    E.save();
+    return ret;
+  };
+  // Walk away with the pot (or finish a bust): roll resolves into the event result.
+  E.pressLuckBank = function () {
+    var r = E.run, p = r.pressLuck, cfg = pressLuckCfg();
+    if (!p || !cfg) return null;
+    var gained = [], text;
+    if (p.busted) {
+      gained = applyOutcome(cfg.bustFx || {});
+      text = cfg.bustText || 'It all goes wrong. You lose what you had gathered.';
+    } else {
+      p.accrued.forEach(function (fx) { gained = gained.concat(applyOutcome(fx)); });
+      text = cfg.bankText || (p.accrued.length ? 'You pocket your haul and pull out.' : 'You leave with nothing but your skin.');
+    }
+    r.pressLuck = null;
+    if (r.phase !== 'dead') { r.eventResult = { text: text, gained: gained, roll: null }; r.phase = 'event-result'; }
+    E.save();
+    return { gained: gained, text: text };
+  };
 
   /* ---------------- Shop --------------------------------------------------- */
   // market=true -> Black Market: salvage-tech heavy + cheap card removal.

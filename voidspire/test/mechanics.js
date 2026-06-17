@@ -267,15 +267,15 @@ var curseAfter = E.run.deck.filter(function (c) { return VS.CARDS[c.id].type ===
 ok('removeCurse cleared all curses (' + curseBefore + ' -> ' + curseAfter + ')', curseBefore >= 2 && curseAfter === 0);
 
 /* 25. gamble resolves to one of its outcomes */
-openEvent('quantum_slots');
+openEvent('cryopod');
 E.run.credits = 100;
-var res = E.eventChoose(0); // feed 25, gamble
+var res = E.eventChoose(0); // force the seal -> commit-blind gamble
 ok('gamble produced a result', !!res && typeof res.text === 'string');
 
 /* 26. addCardChoice queues a card chooser */
 openEvent('arms_fabricator');
 E.run.credits = 100;
-E.eventChoose(0); // commission a weapon -> addCardChoice
+E.eventChoose(1); // commission a weapon -> addCardChoice
 ok('addCardChoice offers cards to add', Array.isArray(E.run.pendingAddCard) && E.run.pendingAddCard.length > 0);
 ok('finishEvent blocks until a card is chosen', (E.finishEvent(), E.run.phase === 'event-result'));
 var deckN = E.run.deck.length;
@@ -513,6 +513,52 @@ var leak = false;
 for (var lt = 0; lt < 400; lt++) { var rc = E.rollRewardCard(0.5); if (VS.CARDS[rc].pool || VS.CARDS[rc].rarity === 4) leak = true; }
 ok('no pooled/legendary cards in normal rewards', !leak);
 ok('rollLegendary returns a boss-pool legendary', !!E.rollLegendary() && VS.CARDS[E.rollLegendary()].pool === 'boss');
+
+/* ---- event-rework primitives ---- */
+function firstChoiceIdx(id, key) {
+  var ev = evt(id);
+  for (var i = 0; i < ev.choices.length; i++) if (ev.choices[i][key]) return i;
+  return -1;
+}
+
+/* tradeCard: scrap a card, forge one a rarity tier higher */
+function fxChoiceIdx(id, fxKey) {
+  var ev = evt(id);
+  for (var i = 0; i < ev.choices.length; i++) { var o = ev.choices[i].outcome; if (o && o.fx && o.fx[fxKey]) return i; }
+  return -1;
+}
+openEvent('asteroid_exchange');
+E.run.deck = [{ uid: 1, id: 'pulse_rifle', up: false }, { uid: 2, id: 'combat_shield', up: false }];
+E.eventChoose(fxChoiceIdx('asteroid_exchange', 'tradeCard'));
+ok('tradeCard sets pendingTrade(card)', !!E.run.pendingTrade && E.run.pendingTrade.kind === 'card');
+var giveRar = VS.CARDS['pulse_rifle'].rarity || 1, beforeN = E.run.deck.length;
+var tr = E.tradeCardPick(0);
+ok('tradeCard removed one and added a higher-tier card', !!tr && E.run.deck.length === beforeN && !E.run.pendingTrade);
+ok('tradeCard forged a card a tier up', (VS.CARDS[E.run.deck[E.run.deck.length - 1].id].rarity || 1) >= Math.min(3, giveRar + 1));
+
+/* sell: liquidate a card for credits */
+E.newRun('vanguard'); E.run.credits = 0;
+E.run.deck = [{ uid: 1, id: 'pulse_rifle', up: false }, { uid: 2, id: 'combat_shield', up: false }];
+E.run.pendingSell = { kind: 'card' };
+var opts = E.sellOptions();
+ok('sellOptions lists non-curse cards with values', opts.length === 2 && opts[0].value > 0);
+var sold = E.sellPick(0);
+ok('sellPick grants credits and removes the card', E.run.credits === sold && E.run.deck.length === 1 && !E.run.pendingSell);
+
+/* pressLuck: push accrues, bank applies the pot */
+openEvent('asteroid_mine');
+var plIdx = firstChoiceIdx('asteroid_mine', 'pressLuck');
+ok('asteroid_mine has a pressLuck choice', plIdx >= 0);
+E.eventChoose(plIdx);
+ok('pressLuck enters its own phase', E.run.phase === 'press-luck' && !!E.run.pressLuck);
+var info0 = E.pressLuckInfo();
+ok('pressLuckInfo reports level 0 and a next reward', info0.level === 0 && !!info0.nextReward);
+// force a guaranteed-safe push by zeroing the bust chance is awkward; just push and accept either result
+var beforeCr = E.run.credits;
+var push = E.pressLuckPush();
+ok('pressLuckPush returns a roll vs threshold', !!push && typeof push.roll === 'number' && typeof push.busted === 'boolean');
+E.pressLuckBank();
+ok('pressLuckBank clears state and produces a result', !E.run.pressLuck && E.run.phase === 'event-result' && !!E.run.eventResult);
 
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

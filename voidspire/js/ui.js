@@ -439,6 +439,7 @@
       case 'reward': return showReward();
       case 'event': return showEvent();
       case 'event-result': return showEventResult(false);
+      case 'press-luck': return showPressLuck();
       case 'shop': return showShop();
       case 'rest': return showRest();
       case 'forge': return showForge();
@@ -2368,6 +2369,52 @@
     for (var i = 0; i < 9; i++) h += '<span class="pip' + (on.indexOf(i) >= 0 ? ' on' : '') + '"></span>';
     return h;
   }
+  /* ---- d20 skill-check die: a vector icosahedron that tumbles to its roll ---- */
+  function d20SVG(n, cls) {
+    var R = 46, pts = [];
+    for (var i = 0; i < 6; i++) { var a = (-90 + 60 * i) * Math.PI / 180; pts.push([R * Math.cos(a), R * Math.sin(a)]); }
+    var hex = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ') + ' Z';
+    var tR = 23, tri = [];
+    for (var j = 0; j < 3; j++) { var b = (-90 + 120 * j) * Math.PI / 180; tri.push([tR * Math.cos(b), tR * Math.sin(b)]); }
+    var triPath = tri.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ') + ' Z';
+    var spokes = '';
+    for (var k = 0; k < 3; k++) { var hp = pts[k * 2]; spokes += '<line x1="' + tri[k][0].toFixed(1) + '" y1="' + tri[k][1].toFixed(1) + '" x2="' + hp[0].toFixed(1) + '" y2="' + hp[1].toFixed(1) + '"/>'; }
+    return '<svg class="d20 ' + (cls || '') + '" viewBox="-52 -52 104 104">' +
+      '<path class="d20-hex" d="' + hex + '"/>' +
+      '<g class="d20-facet"><path d="' + triPath + '"/>' + spokes + '</g>' +
+      '<text class="d20-num" x="0" y="2" text-anchor="middle" dominant-baseline="central">' + n + '</text></svg>';
+  }
+  // Animate a die in `box` decelerating to res.roll, then reveal pass/fail. Returns a skip fn.
+  function rollDie(box, res, onSettle) {
+    box.innerHTML = '<div class="d20-wrap">' + d20SVG('?', 'rolling') + '</div><div class="d20-readout"></div>';
+    var svg = box.querySelector('.d20'), numEl = svg.querySelector('.d20-num'), read = box.querySelector('.d20-readout');
+    var pre = (res.attr ? res.attr.toUpperCase() + ' · ' : '') + 'DC ' + res.dc + (res.bonus ? ' · you +' + res.bonus : '');
+    read.innerHTML = '<span class="d20-dc">' + pre + '</span>';
+    var ticks = 0, max = 18, timer = null, settled = false;
+    function settle() {
+      if (settled) return; settled = true;
+      if (timer) clearTimeout(timer);
+      numEl.textContent = res.roll;
+      svg.classList.remove('rolling');
+      svg.classList.add(res.pass ? 'pass' : 'fail');
+      var total = res.roll + (res.bonus || 0);
+      read.innerHTML = '<span class="d20-eq">' + res.roll + (res.bonus ? ' +' + res.bonus + ' = ' + total : '') + ' vs ' + res.dc + '</span>' +
+        '<span class="d20-res ' + (res.pass ? 'ok' : 'no') + '">' + (res.pass ? 'SUCCESS' : 'FAILURE') + '</span>';
+      if (SFX) { if (res.pass) SFX.win(); else SFX.lose(); }
+      if (onSettle) onSettle();
+    }
+    function tick() {
+      ticks++;
+      if (SFX && SFX.dice) SFX.dice();
+      if (ticks >= max) { settle(); return; }
+      numEl.textContent = 1 + Math.floor(Math.random() * 20);
+      var delay = 32 + Math.pow(ticks / max, 2.4) * 210; // decelerate toward the landing
+      timer = setTimeout(tick, delay);
+    }
+    tick();
+    return settle; // call to skip straight to the result
+  }
+
   function wheelHTML(N, winSegs, rot) {
     var R = 46, segs = '';
     for (var i = 0; i < N; i++) {
@@ -2583,6 +2630,18 @@
   function choicePreviewHTML(ch) {
     var pre = '';
     if (ch.cost) pre += '<span class="fx-chip bad">−' + ch.cost + '¢</span>';
+    if (ch.pressLuck) {
+      pre += '<span class="fx-chip check">⚠ PRESS YOUR LUCK</span>';
+      var seen = {}, pc = '';
+      (ch.pressLuck.steps || []).forEach(function (st) { var c = fxChips(st); if (c && !seen[c]) { seen[c] = 1; pc += c; } });
+      if (pc) pre += '<span class="pv-row">↑ ' + pc + '</span>';
+      var bf = fxChips(ch.pressLuck.bustFx); if (bf) pre += '<span class="pv-row">✗ ' + bf + '</span>';
+      return pre ? '<div class="pv">' + pre + '</div>' : '';
+    }
+    if (ch.sell) {
+      pre += '<span class="fx-chip good">Sell ' + (ch.sell.kind === 'relic' ? 'a relic' : 'a card') + ' → ¢</span>';
+      return '<div class="pv">' + pre + '</div>';
+    }
     if (ch.check) {
       var od = E.checkOdds(ch.check);
       pre += '<span class="fx-chip check">' + ch.check.attr.toUpperCase() + ' DC ' + ch.check.dc +
@@ -2623,13 +2682,12 @@
     var diceBox = null;
     if (res.roll !== null) {
       diceBox = el('div', 'dice-box', '');
-      diceBox.innerHTML = '<span class="dc">' + (res.attr || '').toUpperCase() + ' CHECK · DC ' + res.dc + ' (+' + res.bonus + ')</span><span class="roll">—</span>';
       s.appendChild(diceBox);
     }
 
     var body = el('div', '', '');
     body.style.opacity = animate && diceBox ? '0' : '1';
-    body.style.transition = 'opacity 0.3s';
+    body.style.transition = 'opacity 0.35s';
     body.appendChild(el('div', 'event-text event-result-text', esc(res.text)));
     if (res.gained && res.gained.length) {
       var gl = el('div', 'gain-list');
@@ -2647,6 +2705,8 @@
         showPickModal(r.pendingPick, function () { E.finishEvent(); U.refresh(); });
       } else if (r.pendingTrade) {
         showTrade(function () { E.finishEvent(); U.refresh(); });
+      } else if (r.pendingSell) {
+        showSell(function () { E.finishEvent(); U.refresh(); });
       } else {
         E.finishEvent();
         U.refresh();
@@ -2656,25 +2716,13 @@
     s.appendChild(body);
 
     if (diceBox && animate) {
-      var rollSpan = diceBox.querySelector('.roll');
-      var ticks = 0, max = 13;
-      var iv = setInterval(function () {
-        ticks++;
-        SFX.dice();
-        rollSpan.textContent = '' + (1 + Math.floor(Math.random() * 20));
-        if (ticks >= max) {
-          clearInterval(iv);
-          rollSpan.textContent = res.roll + (res.bonus ? ' +' + res.bonus : '');
-          diceBox.classList.add(res.pass ? 'pass' : 'fail');
-          rollSpan.textContent += res.pass ? '  ✓' : '  ✗';
-          if (res.pass) SFX.win(); else SFX.lose();
-          body.style.opacity = '1';
-        }
-      }, 55);
+      var skip = rollDie(diceBox, res, function () { body.style.opacity = '1'; });
+      // first tap settles the die instantly instead of acting
+      s.addEventListener('pointerdown', function once(e2) {
+        if (body.style.opacity === '0') { skip(); e2.stopPropagation(); s.removeEventListener('pointerdown', once, true); }
+      }, true);
     } else if (diceBox) {
-      var rs = diceBox.querySelector('.roll');
-      rs.textContent = res.roll + (res.bonus ? ' +' + res.bonus : '') + (res.pass ? '  ✓' : '  ✗');
-      diceBox.classList.add(res.pass ? 'pass' : 'fail');
+      rollDie(diceBox, res, null)();  // render the landed die immediately (no animation)
     }
   }
 
@@ -3079,6 +3127,121 @@
     var btn = el('button', 'btn', 'CONTINUE');
     btn.addEventListener('pointerdown', function () { SFX.tap(); done(); });
     s.appendChild(btn);
+  }
+
+  /* ---- Sell screen: liquidate one of your cards/relics for credits ---- */
+  function showSell(done) {
+    var r = E.run, p = r.pendingSell;
+    if (!p) { done(); return; }
+    var s = overlayScreen();
+    s.appendChild(el('h2', 'screen-title', p.kind === 'relic' ? 'Liquidate a Relic' : 'Liquidate a Card'));
+    s.appendChild(el('div', 'screen-sub', 'TAP TO PREVIEW · SELL ONE FOR CREDITS'));
+    var cbar = makeConfirmBar();
+    var opts = E.sellOptions();
+    if (!opts.length) { E.skipSell(); s.appendChild(el('div', 'screen-sub', 'NOTHING TO SELL')); var b0 = el('button', 'btn dim', 'BACK'); b0.addEventListener('pointerdown', function () { done(); }); s.appendChild(b0); return; }
+    if (p.kind === 'relic') {
+      opts.forEach(function (o) {
+        var a = ns.ARTIFACTS[o.id];
+        var btn = el('div', 'panel-btn amber',
+          '<div class="pb-title"><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + ' <span class="aug-tag">¢' + o.value + '</span></div>' +
+          '<div class="pb-desc">' + esc(a.desc) + '</div>');
+        s.appendChild(btn);
+        selectConfirm(s, btn, cbar, 'Sell <b>' + esc(a.name) + '</b> for ¢' + o.value + '?',
+          function () { SFX.coin(); E.sellPick(o.id); done(); }, 'amber');
+      });
+      s.appendChild(cbar.el);
+    } else {
+      var grid = el('div', 'card-grid');
+      opts.forEach(function (o) {
+        var d = cardEl(o.id, o.up, o.vtouch);
+        d.appendChild(el('div', 'price', '¢' + o.value));
+        grid.appendChild(d);
+        selectConfirm(grid, d, cbar, 'Sell <b>' + esc(ns.CARDS[o.id].name) + '</b> for ¢' + o.value + '?',
+          function () { SFX.coin(); E.sellPick(o.idx); done(); }, 'amber');
+      });
+      s.appendChild(grid);
+      s.appendChild(cbar.el);
+    }
+    var skip = el('button', 'btn dim small', 'KEEP EVERYTHING');
+    skip.addEventListener('pointerdown', function () { SFX.tap(); E.skipSell(); done(); });
+    s.appendChild(skip);
+  }
+
+  /* ---- Press-your-luck screen: PUSH for more (rising bust risk) or BANK ---- */
+  function showPressLuck(rollRes) {
+    updateHUD();
+    var info = E.pressLuckInfo();
+    if (!info) { U.refresh(); return; }
+    var ev = E.getEvent();
+    var s = overlayScreen();
+    if (ev && ev.art) {
+      var mini = el('div', 'comm-frame mini');
+      mini.innerHTML = artSVG(ev.art, 'portrait', ev.art.c) + '<div class="comm-scan"></div>';
+      s.appendChild(mini);
+    }
+    s.appendChild(el('h2', 'screen-title', esc(ev ? ev.title : 'PRESS YOUR LUCK')));
+    s.appendChild(resourceLine());
+
+    // accrued pot
+    var pot = el('div', 'pl-pot');
+    var potChips = '';
+    info.accrued.forEach(function (fx) { potChips += fxChips(fx); });
+    pot.innerHTML = '<div class="pl-pot-lbl">SECURED IF YOU BANK</div><div class="pl-pot-chips">' + (potChips || '<span class="pl-empty">— nothing yet —</span>') + '</div>';
+    s.appendChild(pot);
+
+    // the die stage (animates on a push)
+    var stage = el('div', 'pl-stage');
+    s.appendChild(stage);
+
+    var meter = el('div', 'pl-meter');
+    s.appendChild(meter);
+
+    var actions = el('div', 'pl-actions');
+    s.appendChild(actions);
+
+    function paintMeter() {
+      var nfo = E.pressLuckInfo();
+      if (nfo.done) { meter.innerHTML = '<div class="pl-risk max">VEIN EXHAUSTED · BANK YOUR HAUL</div>'; return; }
+      var pct = Math.round(nfo.bustChance * 100);
+      var nx = fxChips(nfo.nextReward) || '';
+      meter.innerHTML = '<div class="pl-next">NEXT ' + esc(info.pushVerb) + ': ' + nx + '</div>' +
+        '<div class="pl-risk' + (pct >= 50 ? ' hot' : '') + '">BUST RISK <b>' + pct + '%</b></div>';
+    }
+    function paintActions(locked) {
+      var nfo = E.pressLuckInfo();
+      actions.innerHTML = '';
+      if (!nfo.done) {
+        var push = el('button', 'btn pl-push' + (locked ? ' disabled' : ''), info.pushVerb);
+        push.addEventListener('pointerdown', function () { if (!locked) doPush(); });
+        actions.appendChild(push);
+      }
+      var bank = el('button', 'btn dim pl-bank' + (locked ? ' disabled' : ''), 'BANK' + (nfo.accrued.length ? ' & LEAVE' : ' (LEAVE)'));
+      bank.addEventListener('pointerdown', function () { if (!locked) doBank(); });
+      actions.appendChild(bank);
+    }
+    function doPush() {
+      paintActions(true);
+      var res = E.pressLuckPush();
+      if (!res) { showPressLuck(); return; }
+      // animate the d20 against the bust threshold
+      var dres = { roll: res.roll, bonus: 0, dc: res.threshold + 1, attr: info.attr, pass: !res.busted };
+      stage.classList.add('show');
+      var skip = rollDie(stage, dres, function () {
+        SFX[res.busted ? 'lose' : 'win'] && SFX[res.busted ? 'lose' : 'win']();
+        setTimeout(function () {
+          if (res.busted) { doBank(); return; }       // bust auto-resolves to the bad outcome
+          showPressLuck();                              // success: re-render with the new pot
+        }, 620);
+      });
+      s.addEventListener('pointerdown', function once(e2) { skip(); e2.stopPropagation(); s.removeEventListener('pointerdown', once, true); }, true);
+    }
+    function doBank() {
+      paintActions(true);
+      E.pressLuckBank();
+      showEventResult(false);
+    }
+    paintMeter();
+    paintActions(false);
   }
 
   function showClassRelic() {

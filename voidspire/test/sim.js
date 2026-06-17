@@ -361,6 +361,18 @@ function eventChoiceIdx(ev) {
       if (s > bestS) { bestS = s; bestI = i; }
       return;
     }
+    if (ch.pressLuck) {
+      // value ~ the safe-ish steps minus the bust downside; the bot is cautious
+      var psum = 0; (ch.pressLuck.steps || []).slice(0, 2).forEach(function (st) { psum += scoreFx(st, low); });
+      s = psum * 0.6 + scoreFx(ch.pressLuck.bustFx, low) * 0.4;
+      if (s > bestS) { bestS = s; bestI = i; }
+      return;
+    }
+    if (ch.sell) {
+      s = r.credits < 40 ? 3 : -1;   // only sell when genuinely broke
+      if (s > bestS) { bestS = s; bestI = i; }
+      return;
+    }
     var out = ch.outcome || ch.success;
     var fx = (out && out.fx) || {};
     s = scoreFx(fx, low);
@@ -430,11 +442,30 @@ function step() {
       if (!res) throw new Error('eventChoose returned null');
       break;
     }
+    case 'press-luck': {
+      var info = E.pressLuckInfo();
+      // cautious bot: push only while the bust risk is low and the pot is modest
+      if (!info.done && info.bustChance <= 0.28 && info.accrued.length < 3) {
+        var pr = E.pressLuckPush();
+        if (pr && pr.busted) E.pressLuckBank();   // bust -> resolve the bad outcome
+      } else {
+        E.pressLuckBank();
+      }
+      break;
+    }
     case 'event-result':
       if (r.pendingRelic) E.takeEventRelic();   // a competent player takes the free relic
       if (r.pendingAddCard) E.eventAddCard(r.pendingAddCard[0]);
       if (r.pendingPick) {
         E.applyPick(r.pendingPick === 'remove' ? pickRemoveIdx() : r.pendingPick === 'upgrade' ? pickUpgradeIdx() : 0);
+      }
+      if (r.pendingSell) {
+        var so = E.sellOptions();
+        // sell the cheapest non-essential card when broke, else keep everything
+        if (r.credits < 40 && so.length) {
+          so.sort(function (a, b) { return a.value - b.value; });
+          E.sellPick(r.pendingSell.kind === 'relic' ? so[0].id : so[0].idx);
+        } else E.skipSell();
       }
       if (r.pendingTrade) {
         if (r.pendingTrade.kind === 'card') {
@@ -583,6 +614,7 @@ VS.EVENTS.forEach(function (ev) {
   if (!ev.art) throw new Error('event ' + ev.id + ' has no portrait art');
   if (ev.gambleDen) return;   // custom gamble screen, no text choices
   ev.choices.forEach(function (ch) {
+    if (ch.pressLuck || ch.sell) return; // interactive loops resolve their own outcomes
     var outs = [ch.outcome, ch.success, ch.fail].filter(Boolean).concat(ch.gamble || []);
     if (outs.length === 0) throw new Error('event ' + ev.id + ' choice with no outcome');
     outs.forEach(function (o) {
