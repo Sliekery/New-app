@@ -537,6 +537,73 @@ html, body {
   100% { opacity: 0; filter: brightness(2.4); transform: scale(0.02, 0.04); }  /* sliver collapses to nothing */
 }
 
+/* ===== Reworked card-leave animations — distinct discard vs exhaust per class ===== */
+/* Vanguard discard — kinetic frag (shatters apart) */
+.card-ghost.cf-van-disc {
+  box-shadow: 0 0 16px 2px var(--beam, #fa3);
+  -webkit-mask-image: repeating-linear-gradient(108deg, #000 0 5px, rgba(0,0,0,0.05) 5px 9px);
+          mask-image: repeating-linear-gradient(108deg, #000 0 5px, rgba(0,0,0,0.05) 5px 9px);
+  animation: cfVanDisc 0.3s cubic-bezier(0.2,0.7,0.3,1) forwards;
+}
+@keyframes cfVanDisc {
+  0%   { opacity: 1; transform: scale(1); }
+  20%  { opacity: 1; filter: brightness(2.4) saturate(1.5); transform: scale(1.04); }
+  100% { opacity: 0; filter: brightness(2); transform: translate(var(--tx,6px), var(--ty,14px)) scale(1.16) skewX(-9deg); }
+}
+/* Vanguard exhaust — incinerate from the bottom up */
+.card-ghost.cf-van-exh {
+  box-shadow: 0 0 14px 1px var(--beam, #fa3);
+  animation: cfVanExh 0.44s ease-in forwards;
+}
+@keyframes cfVanExh {
+  0%   { opacity: 1; filter: brightness(1) sepia(0); clip-path: inset(0 0 0 0); }
+  30%  { filter: brightness(1.8) sepia(0.4) saturate(2); }
+  100% { opacity: 0.05; filter: brightness(2.7) sepia(0.7) saturate(2.4); clip-path: inset(0 0 100% 0); transform: translateY(-8px); }
+}
+/* Technomancer discard — cache: pixel-fade, shrinks toward the pile */
+.card-ghost.cf-tech-disc {
+  box-shadow: 0 0 14px 1px var(--beam, #9fe);
+  -webkit-mask-image: repeating-conic-gradient(#000 0% 25%, rgba(0,0,0,0.12) 0% 50%); -webkit-mask-size: 5px 5px;
+          mask-image: repeating-conic-gradient(#000 0% 25%, rgba(0,0,0,0.12) 0% 50%);          mask-size: 5px 5px;
+  animation: cfTechDisc 0.34s ease-out forwards;
+}
+@keyframes cfTechDisc {
+  0%   { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; filter: brightness(2); transform: translate(var(--tx,0), var(--ty,18px)) scale(0.7); }
+}
+/* Technomancer exhaust — glitch delete (RGB-split, jitter, collapse) */
+.card-ghost.cf-tech-exh { animation: cfTechExh 0.3s steps(7, end) forwards; }
+@keyframes cfTechExh {
+  0%   { opacity: 1; transform: translateX(0); box-shadow: 0 0 10px var(--beam, #9fe); }
+  20%  { transform: translateX(-5px); box-shadow: 4px 0 0 #ff3b6b, -4px 0 0 #3bd9ff, 0 0 14px var(--beam, #9fe); filter: brightness(2.2); }
+  40%  { transform: translateX(6px); box-shadow: -5px 0 0 #ff3b6b, 5px 0 0 #3bd9ff; }
+  60%  { transform: translateX(-3px) scaleX(1.12); opacity: 0.7; }
+  80%  { transform: translateX(4px); opacity: 0.35; box-shadow: 3px 0 0 #ff3b6b, -3px 0 0 #3bd9ff; }
+  100% { opacity: 0; transform: scaleY(0.03); filter: brightness(3); }
+}
+/* Voidadept discard — drift down with a fading rune */
+.card-ghost.cf-void-disc {
+  box-shadow: 0 0 16px 1px var(--beam, #c6f);
+  animation: cfVoidDisc 0.42s ease-in forwards;
+}
+@keyframes cfVoidDisc {
+  0%   { opacity: 1; filter: brightness(1); transform: translate(0,0) rotate(0); }
+  30%  { opacity: 0.85; filter: brightness(1.4) saturate(1.7); }
+  100% { opacity: 0; filter: brightness(0.7) saturate(1.3); transform: translate(var(--tx,0), var(--ty,30px)) rotate(-7deg) scale(0.9); }
+}
+/* Voidadept exhaust — unmake: cracks like black glass, shards wink out */
+.card-ghost.cf-void-exh {
+  box-shadow: 0 0 18px 2px var(--beam, #c6f);
+  -webkit-mask-image: conic-gradient(from 20deg at 48% 44%, #000 0 18%, rgba(0,0,0,0.12) 18% 22%, #000 22% 46%, rgba(0,0,0,0.12) 46% 50%, #000 50% 74%, rgba(0,0,0,0.12) 74% 78%, #000 78% 100%);
+          mask-image: conic-gradient(from 20deg at 48% 44%, #000 0 18%, rgba(0,0,0,0.12) 18% 22%, #000 22% 46%, rgba(0,0,0,0.12) 46% 50%, #000 50% 74%, rgba(0,0,0,0.12) 74% 78%, #000 78% 100%);
+  animation: cfVoidExh 0.34s ease-out forwards;
+}
+@keyframes cfVoidExh {
+  0%   { opacity: 1; filter: brightness(1); transform: scale(1); }
+  22%  { opacity: 1; filter: brightness(2.6) saturate(2); transform: scale(1.03); }
+  100% { opacity: 0; filter: brightness(1.4); transform: scale(1.08); }
+}
+
 .btn {
   font-family: inherit;
   font-size: 13px; letter-spacing: 2px; text-transform: uppercase;

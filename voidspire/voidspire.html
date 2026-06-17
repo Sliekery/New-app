@@ -548,6 +548,73 @@ html, body {
   100% { opacity: 0; filter: brightness(2.4); transform: scale(0.02, 0.04); }  /* sliver collapses to nothing */
 }
 
+/* ===== Reworked card-leave animations — distinct discard vs exhaust per class ===== */
+/* Vanguard discard — kinetic frag (shatters apart) */
+.card-ghost.cf-van-disc {
+  box-shadow: 0 0 16px 2px var(--beam, #fa3);
+  -webkit-mask-image: repeating-linear-gradient(108deg, #000 0 5px, rgba(0,0,0,0.05) 5px 9px);
+          mask-image: repeating-linear-gradient(108deg, #000 0 5px, rgba(0,0,0,0.05) 5px 9px);
+  animation: cfVanDisc 0.3s cubic-bezier(0.2,0.7,0.3,1) forwards;
+}
+@keyframes cfVanDisc {
+  0%   { opacity: 1; transform: scale(1); }
+  20%  { opacity: 1; filter: brightness(2.4) saturate(1.5); transform: scale(1.04); }
+  100% { opacity: 0; filter: brightness(2); transform: translate(var(--tx,6px), var(--ty,14px)) scale(1.16) skewX(-9deg); }
+}
+/* Vanguard exhaust — incinerate from the bottom up */
+.card-ghost.cf-van-exh {
+  box-shadow: 0 0 14px 1px var(--beam, #fa3);
+  animation: cfVanExh 0.44s ease-in forwards;
+}
+@keyframes cfVanExh {
+  0%   { opacity: 1; filter: brightness(1) sepia(0); clip-path: inset(0 0 0 0); }
+  30%  { filter: brightness(1.8) sepia(0.4) saturate(2); }
+  100% { opacity: 0.05; filter: brightness(2.7) sepia(0.7) saturate(2.4); clip-path: inset(0 0 100% 0); transform: translateY(-8px); }
+}
+/* Technomancer discard — cache: pixel-fade, shrinks toward the pile */
+.card-ghost.cf-tech-disc {
+  box-shadow: 0 0 14px 1px var(--beam, #9fe);
+  -webkit-mask-image: repeating-conic-gradient(#000 0% 25%, rgba(0,0,0,0.12) 0% 50%); -webkit-mask-size: 5px 5px;
+          mask-image: repeating-conic-gradient(#000 0% 25%, rgba(0,0,0,0.12) 0% 50%);          mask-size: 5px 5px;
+  animation: cfTechDisc 0.34s ease-out forwards;
+}
+@keyframes cfTechDisc {
+  0%   { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; filter: brightness(2); transform: translate(var(--tx,0), var(--ty,18px)) scale(0.7); }
+}
+/* Technomancer exhaust — glitch delete (RGB-split, jitter, collapse) */
+.card-ghost.cf-tech-exh { animation: cfTechExh 0.3s steps(7, end) forwards; }
+@keyframes cfTechExh {
+  0%   { opacity: 1; transform: translateX(0); box-shadow: 0 0 10px var(--beam, #9fe); }
+  20%  { transform: translateX(-5px); box-shadow: 4px 0 0 #ff3b6b, -4px 0 0 #3bd9ff, 0 0 14px var(--beam, #9fe); filter: brightness(2.2); }
+  40%  { transform: translateX(6px); box-shadow: -5px 0 0 #ff3b6b, 5px 0 0 #3bd9ff; }
+  60%  { transform: translateX(-3px) scaleX(1.12); opacity: 0.7; }
+  80%  { transform: translateX(4px); opacity: 0.35; box-shadow: 3px 0 0 #ff3b6b, -3px 0 0 #3bd9ff; }
+  100% { opacity: 0; transform: scaleY(0.03); filter: brightness(3); }
+}
+/* Voidadept discard — drift down with a fading rune */
+.card-ghost.cf-void-disc {
+  box-shadow: 0 0 16px 1px var(--beam, #c6f);
+  animation: cfVoidDisc 0.42s ease-in forwards;
+}
+@keyframes cfVoidDisc {
+  0%   { opacity: 1; filter: brightness(1); transform: translate(0,0) rotate(0); }
+  30%  { opacity: 0.85; filter: brightness(1.4) saturate(1.7); }
+  100% { opacity: 0; filter: brightness(0.7) saturate(1.3); transform: translate(var(--tx,0), var(--ty,30px)) rotate(-7deg) scale(0.9); }
+}
+/* Voidadept exhaust — unmake: cracks like black glass, shards wink out */
+.card-ghost.cf-void-exh {
+  box-shadow: 0 0 18px 2px var(--beam, #c6f);
+  -webkit-mask-image: conic-gradient(from 20deg at 48% 44%, #000 0 18%, rgba(0,0,0,0.12) 18% 22%, #000 22% 46%, rgba(0,0,0,0.12) 46% 50%, #000 50% 74%, rgba(0,0,0,0.12) 74% 78%, #000 78% 100%);
+          mask-image: conic-gradient(from 20deg at 48% 44%, #000 0 18%, rgba(0,0,0,0.12) 18% 22%, #000 22% 46%, rgba(0,0,0,0.12) 46% 50%, #000 50% 74%, rgba(0,0,0,0.12) 74% 78%, #000 78% 100%);
+  animation: cfVoidExh 0.34s ease-out forwards;
+}
+@keyframes cfVoidExh {
+  0%   { opacity: 1; filter: brightness(1); transform: scale(1); }
+  22%  { opacity: 1; filter: brightness(2.6) saturate(2); transform: scale(1.03); }
+  100% { opacity: 0; filter: brightness(1.4); transform: scale(1.08); }
+}
+
 .btn {
   font-family: inherit;
   font-size: 13px; letter-spacing: 2px; text-transform: uppercase;
@@ -10203,33 +10270,87 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     technomancer: { color: '#41d8ff', cls: 'beam-tech', mode: 'beam',    life: 380 },
     voidadept:    { color: '#c86bff', cls: 'beam-void', mode: 'implode', life: 300 },
   };
+  // Discard and exhaust LOOK DIFFERENT, each in its class's own idiom. A card
+  // that lands in the discard pile gets a "disc" style (and a small nudge
+  // toward the pile); a card that is exhausted/consumed gets an "exh" style
+  // that destroys it in place. Warpcaller has no entry here and falls back to
+  // the legacy CLASS_FX dematerialise below.
+  //  Vanguard     — frag (shatters toward the pile)  / incinerate (burns bottom-up)
+  //  Technomancer — cache (pixel-fades, files away)   / delete (RGB-split glitch)
+  //  Void Adept   — drift (sinks off, fading rune)    / unmake (cracks, implodes)
+  var CARD_FX = {
+    vanguard:     { color: '#ffb02e', disc: 'cf-van-disc',  exh: 'cf-van-exh',  dLife: 300, eLife: 440 },
+    technomancer: { color: '#41d8ff', disc: 'cf-tech-disc', exh: 'cf-tech-exh', dLife: 340, eLife: 300 },
+    voidadept:    { color: '#c86bff', disc: 'cf-void-disc', exh: 'cf-void-exh', dLife: 420, eLife: 340 },
+  };
   function cardPlayFx(rect, clone, card, def) {
     if (!rect) return;
-    var fx = CLASS_FX[E.run.cls] || CLASS_FX.vanguard;
     var w = rect.width, h = rect.height;
     var bf = document.getElementById('battlefield').getBoundingClientRect();
     var cx = rect.left + w / 2 - bf.left, cy = rect.top + h / 2 - bf.top;
+    var c = E.combat;
+    var consumed = !!c && (c.exhaust.some(function (x) { return x.uid === card.uid; }) ||
+                           c.consumed.some(function (x) { return x.uid === card.uid; }));
+
+    var cf = CARD_FX[E.run.cls];
+    if (!cf) {                                    // warpcaller / unstyled: legacy dematerialise
+      var fx = CLASS_FX[E.run.cls] || CLASS_FX.vanguard;
+      if (clone) {
+        clone.classList.add('card-ghost', fx.cls);
+        clone.classList.remove('selected', 'dragging', 'deal', 'unaffordable');
+        clone.style.position = 'fixed'; clone.style.margin = '0'; clone.style.transition = 'none'; clone.style.transform = 'none';
+        clone.style.left = rect.left + 'px'; clone.style.top = rect.top + 'px';
+        clone.style.width = w + 'px'; clone.style.height = h + 'px';
+        clone.style.setProperty('--beam', fx.color);
+        $game.appendChild(clone);
+        setTimeout(function () { clone.remove(); }, fx.life + 80);
+      }
+      if (fx.mode === 'shatter') { R.burst(cx, cy, fx.color, 22); R.burst(cx, cy, '#fff3d6', 9); }
+      else if (fx.mode === 'implode') { R.implode(cx, cy, fx.color, w * 0.82, h * 0.92, 24); R.implode(cx, cy, '#f0d6ff', w * 0.55, h * 0.65, 9); }
+      else { R.beam(cx, cy, fx.color, w * 0.74, h * 0.82, 24); R.beam(cx, cy, '#e6fbff', w * 0.6, h * 0.7, 12); }
+      blinkPile(consumed ? null : $discardPile, fx.color);
+      return;
+    }
+
+    // Where the discard pile sits, so discards can lean toward it.
+    var dpx = cx, dpy = cy + h;
+    if ($discardPile) {
+      var dpr = $discardPile.getBoundingClientRect();
+      dpx = dpr.left + dpr.width / 2 - bf.left; dpy = dpr.top + dpr.height / 2 - bf.top;
+    }
+    var dir = Math.atan2(dpy - cy, dpx - cx);
+
     if (clone) {
-      clone.classList.add('card-ghost', fx.cls);
+      clone.classList.add('card-ghost', consumed ? cf.exh : cf.disc);
       clone.classList.remove('selected', 'dragging', 'deal', 'unaffordable');
       clone.style.position = 'fixed'; clone.style.margin = '0'; clone.style.transition = 'none'; clone.style.transform = 'none';
       clone.style.left = rect.left + 'px'; clone.style.top = rect.top + 'px';
       clone.style.width = w + 'px'; clone.style.height = h + 'px';
-      clone.style.setProperty('--beam', fx.color);
+      clone.style.setProperty('--beam', cf.color);
+      if (!consumed) {                            // discards drift a touch toward the pile
+        var k = 0.26;
+        var tx = Math.max(-90, Math.min(90, (dpx - cx) * k));
+        var ty = Math.max(-70, Math.min(120, (dpy - cy) * k));
+        clone.style.setProperty('--tx', tx.toFixed(1) + 'px');
+        clone.style.setProperty('--ty', ty.toFixed(1) + 'px');
+      }
       $game.appendChild(clone);
-      setTimeout(function () { clone.remove(); }, fx.life + 80);
+      setTimeout(function () { clone.remove(); }, (consumed ? cf.eLife : cf.dLife) + 90);
     }
-    if (fx.mode === 'shatter') {
-      R.burst(cx, cy, fx.color, 22); R.burst(cx, cy, '#fff3d6', 9);
-    } else if (fx.mode === 'implode') {
-      R.implode(cx, cy, fx.color, w * 0.82, h * 0.92, 24); R.implode(cx, cy, '#f0d6ff', w * 0.55, h * 0.65, 9);
-    } else {
-      R.beam(cx, cy, fx.color, w * 0.74, h * 0.82, 24); R.beam(cx, cy, '#e6fbff', w * 0.6, h * 0.7, 12);
+
+    // Canvas particles matched to each CSS leave style.
+    if (E.run.cls === 'vanguard') {
+      if (consumed) { R.embers(cx, cy + h * 0.22, '#ff7a1e', 16); R.embers(cx, cy, '#ffd23d', 8); R.ring(cx, cy + h * 0.34, '#ff7a1e', 26, 0.4); }
+      else { R.shards(cx, cy, cf.color, 13, dir, 0.85); R.burst(cx, cy, '#fff3d6', 7); }
+    } else if (E.run.cls === 'technomancer') {
+      if (consumed) { R.glitch(cx, cy, cf.color); R.glitch(cx, cy, '#ff3b6b'); R.glitch(cx, cy, '#3bd9ff'); R.burst(cx, cy, cf.color, 7); }
+      else { R.beamBolt(cx, cy, dpx, dpy, cf.color, 3); R.implode(cx, cy, cf.color, w * 0.7, h * 0.8, 16); }
+    } else {                                       // voidadept
+      if (consumed) { R.implode(cx, cy, cf.color, w * 0.86, h * 0.96, 22); R.ring(cx, cy, '#f0d6ff', 30, 0.32); R.burst(cx, cy, '#f0d6ff', 8); }
+      else { R.sigil(cx, cy, cf.color, 20); R.ring(cx, cy, cf.color, 24, 0.5); }
     }
-    var c = E.combat;
-    var consumed = !!c && (c.exhaust.some(function (x) { return x.uid === card.uid; }) ||
-                           c.consumed.some(function (x) { return x.uid === card.uid; }));
-    blinkPile(consumed ? null : $discardPile, fx.color);
+
+    blinkPile(consumed ? null : $discardPile, cf.color);
   }
 
   // Classify a card by what it actually does, so every card gets a fitting

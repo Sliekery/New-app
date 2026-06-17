@@ -1616,33 +1616,87 @@
     technomancer: { color: '#41d8ff', cls: 'beam-tech', mode: 'beam',    life: 380 },
     voidadept:    { color: '#c86bff', cls: 'beam-void', mode: 'implode', life: 300 },
   };
+  // Discard and exhaust LOOK DIFFERENT, each in its class's own idiom. A card
+  // that lands in the discard pile gets a "disc" style (and a small nudge
+  // toward the pile); a card that is exhausted/consumed gets an "exh" style
+  // that destroys it in place. Warpcaller has no entry here and falls back to
+  // the legacy CLASS_FX dematerialise below.
+  //  Vanguard     — frag (shatters toward the pile)  / incinerate (burns bottom-up)
+  //  Technomancer — cache (pixel-fades, files away)   / delete (RGB-split glitch)
+  //  Void Adept   — drift (sinks off, fading rune)    / unmake (cracks, implodes)
+  var CARD_FX = {
+    vanguard:     { color: '#ffb02e', disc: 'cf-van-disc',  exh: 'cf-van-exh',  dLife: 300, eLife: 440 },
+    technomancer: { color: '#41d8ff', disc: 'cf-tech-disc', exh: 'cf-tech-exh', dLife: 340, eLife: 300 },
+    voidadept:    { color: '#c86bff', disc: 'cf-void-disc', exh: 'cf-void-exh', dLife: 420, eLife: 340 },
+  };
   function cardPlayFx(rect, clone, card, def) {
     if (!rect) return;
-    var fx = CLASS_FX[E.run.cls] || CLASS_FX.vanguard;
     var w = rect.width, h = rect.height;
     var bf = document.getElementById('battlefield').getBoundingClientRect();
     var cx = rect.left + w / 2 - bf.left, cy = rect.top + h / 2 - bf.top;
+    var c = E.combat;
+    var consumed = !!c && (c.exhaust.some(function (x) { return x.uid === card.uid; }) ||
+                           c.consumed.some(function (x) { return x.uid === card.uid; }));
+
+    var cf = CARD_FX[E.run.cls];
+    if (!cf) {                                    // warpcaller / unstyled: legacy dematerialise
+      var fx = CLASS_FX[E.run.cls] || CLASS_FX.vanguard;
+      if (clone) {
+        clone.classList.add('card-ghost', fx.cls);
+        clone.classList.remove('selected', 'dragging', 'deal', 'unaffordable');
+        clone.style.position = 'fixed'; clone.style.margin = '0'; clone.style.transition = 'none'; clone.style.transform = 'none';
+        clone.style.left = rect.left + 'px'; clone.style.top = rect.top + 'px';
+        clone.style.width = w + 'px'; clone.style.height = h + 'px';
+        clone.style.setProperty('--beam', fx.color);
+        $game.appendChild(clone);
+        setTimeout(function () { clone.remove(); }, fx.life + 80);
+      }
+      if (fx.mode === 'shatter') { R.burst(cx, cy, fx.color, 22); R.burst(cx, cy, '#fff3d6', 9); }
+      else if (fx.mode === 'implode') { R.implode(cx, cy, fx.color, w * 0.82, h * 0.92, 24); R.implode(cx, cy, '#f0d6ff', w * 0.55, h * 0.65, 9); }
+      else { R.beam(cx, cy, fx.color, w * 0.74, h * 0.82, 24); R.beam(cx, cy, '#e6fbff', w * 0.6, h * 0.7, 12); }
+      blinkPile(consumed ? null : $discardPile, fx.color);
+      return;
+    }
+
+    // Where the discard pile sits, so discards can lean toward it.
+    var dpx = cx, dpy = cy + h;
+    if ($discardPile) {
+      var dpr = $discardPile.getBoundingClientRect();
+      dpx = dpr.left + dpr.width / 2 - bf.left; dpy = dpr.top + dpr.height / 2 - bf.top;
+    }
+    var dir = Math.atan2(dpy - cy, dpx - cx);
+
     if (clone) {
-      clone.classList.add('card-ghost', fx.cls);
+      clone.classList.add('card-ghost', consumed ? cf.exh : cf.disc);
       clone.classList.remove('selected', 'dragging', 'deal', 'unaffordable');
       clone.style.position = 'fixed'; clone.style.margin = '0'; clone.style.transition = 'none'; clone.style.transform = 'none';
       clone.style.left = rect.left + 'px'; clone.style.top = rect.top + 'px';
       clone.style.width = w + 'px'; clone.style.height = h + 'px';
-      clone.style.setProperty('--beam', fx.color);
+      clone.style.setProperty('--beam', cf.color);
+      if (!consumed) {                            // discards drift a touch toward the pile
+        var k = 0.26;
+        var tx = Math.max(-90, Math.min(90, (dpx - cx) * k));
+        var ty = Math.max(-70, Math.min(120, (dpy - cy) * k));
+        clone.style.setProperty('--tx', tx.toFixed(1) + 'px');
+        clone.style.setProperty('--ty', ty.toFixed(1) + 'px');
+      }
       $game.appendChild(clone);
-      setTimeout(function () { clone.remove(); }, fx.life + 80);
+      setTimeout(function () { clone.remove(); }, (consumed ? cf.eLife : cf.dLife) + 90);
     }
-    if (fx.mode === 'shatter') {
-      R.burst(cx, cy, fx.color, 22); R.burst(cx, cy, '#fff3d6', 9);
-    } else if (fx.mode === 'implode') {
-      R.implode(cx, cy, fx.color, w * 0.82, h * 0.92, 24); R.implode(cx, cy, '#f0d6ff', w * 0.55, h * 0.65, 9);
-    } else {
-      R.beam(cx, cy, fx.color, w * 0.74, h * 0.82, 24); R.beam(cx, cy, '#e6fbff', w * 0.6, h * 0.7, 12);
+
+    // Canvas particles matched to each CSS leave style.
+    if (E.run.cls === 'vanguard') {
+      if (consumed) { R.embers(cx, cy + h * 0.22, '#ff7a1e', 16); R.embers(cx, cy, '#ffd23d', 8); R.ring(cx, cy + h * 0.34, '#ff7a1e', 26, 0.4); }
+      else { R.shards(cx, cy, cf.color, 13, dir, 0.85); R.burst(cx, cy, '#fff3d6', 7); }
+    } else if (E.run.cls === 'technomancer') {
+      if (consumed) { R.glitch(cx, cy, cf.color); R.glitch(cx, cy, '#ff3b6b'); R.glitch(cx, cy, '#3bd9ff'); R.burst(cx, cy, cf.color, 7); }
+      else { R.beamBolt(cx, cy, dpx, dpy, cf.color, 3); R.implode(cx, cy, cf.color, w * 0.7, h * 0.8, 16); }
+    } else {                                       // voidadept
+      if (consumed) { R.implode(cx, cy, cf.color, w * 0.86, h * 0.96, 22); R.ring(cx, cy, '#f0d6ff', 30, 0.32); R.burst(cx, cy, '#f0d6ff', 8); }
+      else { R.sigil(cx, cy, cf.color, 20); R.ring(cx, cy, cf.color, 24, 0.5); }
     }
-    var c = E.combat;
-    var consumed = !!c && (c.exhaust.some(function (x) { return x.uid === card.uid; }) ||
-                           c.consumed.some(function (x) { return x.uid === card.uid; }));
-    blinkPile(consumed ? null : $discardPile, fx.color);
+
+    blinkPile(consumed ? null : $discardPile, cf.color);
   }
 
   // Classify a card by what it actually does, so every card gets a fitting
