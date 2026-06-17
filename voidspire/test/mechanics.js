@@ -572,5 +572,21 @@ ok('barrage scales down as drones die (1 alive -> ×1)', /×1$/.test(E.intentInf
 E.combat.enemies[0].alive = false;
 ok('barrage never drops below a single hit (0 drones -> ×1)', /×1$/.test(E.intentInfo(swarmCore).label));
 
+/* Drop Ship: deploys a random escort, arms once cleared, then detonates */
+var oldPacks = VS.PACKS.rust;
+VS.PACKS.rust = [['drop_ship']];
+E.seed(5); E.newRun('vanguard'); E.run.faction = 'rust'; E.run.sector = 2; E.run.nodeIdx = 0;
+E.startNode('fight');
+VS.PACKS.rust = oldPacks;
+var dShip = E.combat.enemies[0];
+var dBots = E.combat.enemies.filter(function (e) { return e.id === 'drop_bot'; });
+ok('Drop Ship deploys a random escort (2-3 bots)', dShip.id === 'drop_ship' && dBots.length >= 2 && dBots.length <= 3);
+dBots.forEach(function (e) { e.hp = 0; e.alive = false; });   // clear the escort
+E.endTurn();                                                  // enemy phase: pod activates
+ok('Drop Ship arms its pod once the escort is cleared', dShip.armed === true && dShip.fuse > 0);
+var hpBeforeBoom = E.run.hp, guard = 0;
+while (E.run.phase === 'combat' && dShip.alive && guard++ < 8) E.endTurn();
+ok('Drop Ship detonates for damage when the fuse runs out', E.run.hp < hpBeforeBoom && !dShip.alive);
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

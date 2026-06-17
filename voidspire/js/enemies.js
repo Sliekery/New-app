@@ -132,6 +132,25 @@
       // little box drone: one sensor eye, stub antenna, stabiliser fins
       art: { p: [[-0.42,-0.28, 0.42,-0.28, 0.5,0.0, 0.42,0.32, -0.42,0.32, -0.5,0.0, -0.42,-0.28], [-0.22,0.05, 0.22,0.05, 0.22,0.22, -0.22,0.22, -0.22,0.05], [0,-0.28, 0,-0.62], [-0.1,-0.62, 0.1,-0.62], [-0.5,0.0, -0.72,-0.12], [0.5,0.0, 0.72,-0.12], [-0.5,0.0, -0.72,0.12], [0.5,0.0, 0.72,0.12]], e: [[0,-0.08]] },
     },
+    // Drop Ship — deploys a random escort of bots and rides an impervious hull
+    // until they are cleared; then its drop pod ARMS a self-destruct. Burst the
+    // ship down before the fuse runs out, or eat the blast.
+    drop_ship: {
+      name: 'Drop Ship', faction: 'rust', hp: 34, size: 1.3, ai: 'cycle',
+      dropship: { bot: 'drop_bot', min: 2, max: 3, turns: 3, dmg: 22, strafe: 5 },
+      moves: [{ t: 'attack', d: 5 }],   // unused (handled by the dropship state machine), kept for validation
+      // boxy dropship: swept hull, dorsal tower, nose cockpit, rear engine block, open drop-bay
+      art: { p: [[-0.95,-0.12, -0.55,-0.45, 0.6,-0.45, 0.95,-0.08, 0.95,0.15, 0.62,0.4, -0.7,0.4, -0.95,0.12, -0.95,-0.12], [-0.5,-0.45, -0.45,-0.7, 0.25,-0.7, 0.42,-0.45], [0.5,-0.22, 0.88,-0.18, 0.88,0.04, 0.52,0.06], [-0.95,-0.04, -1.22,-0.16, -1.22,0.22, -0.95,0.12], [-1.22,0.03, -1.38,0.03], [-0.45,0.4, -0.45,0.64, 0.4,0.64, 0.4,0.4], [-0.22,0.64, -0.22,0.8], [0.18,0.64, 0.18,0.8], [-0.1,-0.45, -0.1,-0.7]], e: [[0.69,-0.08]] },
+    },
+    drop_bot: { grounded: true,
+      name: 'Drop Bot', faction: 'rust', hp: 7, size: 0.5, ai: 'random',
+      moves: [
+        { t: 'attack', d: 4, w: 4 },
+        { t: 'block', b: 3, w: 1 },
+      ],
+      // little walker: box chassis, visor, stub antenna, two stub legs, side arms
+      art: { p: [[-0.45,-0.28, 0.45,-0.28, 0.45,0.22, -0.45,0.22, -0.45,-0.28], [-0.27,-0.06, 0.27,-0.06], [0,-0.28, 0,-0.58], [-0.1,-0.58, 0.1,-0.58], [-0.28,0.22, -0.28,0.52, -0.44,0.52], [0.28,0.22, 0.28,0.52, 0.44,0.52], [-0.45,-0.02, -0.66,-0.06], [0.45,-0.02, 0.66,-0.06]], e: [[0,-0.17]] },
+    },
     iron_butcher: { grounded: true,
       name: 'Iron Butcher', faction: 'rust', hp: 52, size: 1.05, elite: true, ai: 'cycle',
       moves: [
@@ -438,6 +457,7 @@
       ['forge_walker'],
       ['swarm_core', 'swarm_drone'],
       ['forge_walker', 'scrap_hound'],
+      ['drop_ship'],
       ['rust_sentinel', 'scrap_hound'],
       ['forge_acolyte', 'forge_walker'],
       ['rust_sentinel', 'forge_acolyte', 'scrap_hound'],

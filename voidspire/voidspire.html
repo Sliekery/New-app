@@ -3113,6 +3113,25 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // little box drone: one sensor eye, stub antenna, stabiliser fins
       art: { p: [[-0.42,-0.28, 0.42,-0.28, 0.5,0.0, 0.42,0.32, -0.42,0.32, -0.5,0.0, -0.42,-0.28], [-0.22,0.05, 0.22,0.05, 0.22,0.22, -0.22,0.22, -0.22,0.05], [0,-0.28, 0,-0.62], [-0.1,-0.62, 0.1,-0.62], [-0.5,0.0, -0.72,-0.12], [0.5,0.0, 0.72,-0.12], [-0.5,0.0, -0.72,0.12], [0.5,0.0, 0.72,0.12]], e: [[0,-0.08]] },
     },
+    // Drop Ship — deploys a random escort of bots and rides an impervious hull
+    // until they are cleared; then its drop pod ARMS a self-destruct. Burst the
+    // ship down before the fuse runs out, or eat the blast.
+    drop_ship: {
+      name: 'Drop Ship', faction: 'rust', hp: 34, size: 1.3, ai: 'cycle',
+      dropship: { bot: 'drop_bot', min: 2, max: 3, turns: 3, dmg: 22, strafe: 5 },
+      moves: [{ t: 'attack', d: 5 }],   // unused (handled by the dropship state machine), kept for validation
+      // boxy dropship: swept hull, dorsal tower, nose cockpit, rear engine block, open drop-bay
+      art: { p: [[-0.95,-0.12, -0.55,-0.45, 0.6,-0.45, 0.95,-0.08, 0.95,0.15, 0.62,0.4, -0.7,0.4, -0.95,0.12, -0.95,-0.12], [-0.5,-0.45, -0.45,-0.7, 0.25,-0.7, 0.42,-0.45], [0.5,-0.22, 0.88,-0.18, 0.88,0.04, 0.52,0.06], [-0.95,-0.04, -1.22,-0.16, -1.22,0.22, -0.95,0.12], [-1.22,0.03, -1.38,0.03], [-0.45,0.4, -0.45,0.64, 0.4,0.64, 0.4,0.4], [-0.22,0.64, -0.22,0.8], [0.18,0.64, 0.18,0.8], [-0.1,-0.45, -0.1,-0.7]], e: [[0.69,-0.08]] },
+    },
+    drop_bot: { grounded: true,
+      name: 'Drop Bot', faction: 'rust', hp: 7, size: 0.5, ai: 'random',
+      moves: [
+        { t: 'attack', d: 4, w: 4 },
+        { t: 'block', b: 3, w: 1 },
+      ],
+      // little walker: box chassis, visor, stub antenna, two stub legs, side arms
+      art: { p: [[-0.45,-0.28, 0.45,-0.28, 0.45,0.22, -0.45,0.22, -0.45,-0.28], [-0.27,-0.06, 0.27,-0.06], [0,-0.28, 0,-0.58], [-0.1,-0.58, 0.1,-0.58], [-0.28,0.22, -0.28,0.52, -0.44,0.52], [0.28,0.22, 0.28,0.52, 0.44,0.52], [-0.45,-0.02, -0.66,-0.06], [0.45,-0.02, 0.66,-0.06]], e: [[0,-0.17]] },
+    },
     iron_butcher: { grounded: true,
       name: 'Iron Butcher', faction: 'rust', hp: 52, size: 1.05, elite: true, ai: 'cycle',
       moves: [
@@ -3419,6 +3438,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       ['forge_walker'],
       ['swarm_core', 'swarm_drone'],
       ['forge_walker', 'scrap_hound'],
+      ['drop_ship'],
       ['rust_sentinel', 'scrap_hound'],
       ['forge_acolyte', 'forge_walker'],
       ['rust_sentinel', 'forge_acolyte', 'scrap_hound'],
@@ -4548,6 +4568,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       over: false,
       isFinal: isFinal,
     };
+    // Drop Ship: deploys a random escort of bots the moment it arrives.
+    c.enemies.slice().forEach(function (en) {
+      if (en.def.dropship) {
+        var b = en.def.dropship;
+        var n = b.min + Math.floor(rnd() * (b.max - b.min + 1));
+        for (var i = 0; i < n && c.enemies.length < 5; i++) c.enemies.push(mkEnemy(b.bot));
+      }
+    });
     var ps = art('strStart');
     if (ps > 0) c.player.statuses.str = ps;
     var es = art('echoStart');
@@ -4699,6 +4727,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   function chooseIntent(en) {
     var def = en.def, mv;
+    if (def.dropship) {
+      // Drop Ship telegraph: shielded strafing while escorts live, then an armed
+      // self-destruct countdown once the pod activates.
+      var botsAlive = aliveEnemies().some(function (e) { return e.id === def.dropship.bot; });
+      if (en.armed) en.intent = { t: 'ds_fuse', fuse: en.fuse, d: def.dropship.dmg };
+      else if (botsAlive) en.intent = { t: 'ds_strafe', d: def.dropship.strafe || 4 };
+      else en.intent = { t: 'ds_arm' };
+      return;
+    }
     if (def.ai === 'cycle') {
       mv = def.moves[en.moveIdx % def.moves.length];
       en.moveIdx++;
@@ -4736,6 +4773,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (m.t === 'buff') return { icon: 'buff', label: '' };
     if (m.t === 'heal') return { icon: 'heal', label: '' + scaledDmg(m.v, s) };
     if (m.t === 'summon') return { icon: 'summon', label: m.n ? '×' + m.n : '' };
+    if (m.t === 'ds_strafe') { var sds = scaledDmg(m.d, s) + statN(en, 'str'); if (statN(en, 'weak')) sds = Math.floor(sds * B.status.weakMult); return { icon: 'atk', label: '' + sds }; }
+    if (m.t === 'ds_arm') return { icon: 'fuse', label: 'ARM' };
+    if (m.t === 'ds_fuse') return { icon: 'fuse', label: scaledDmg(m.d, s) + ' in ' + m.fuse };
     if (m.t === 'debuff') return { icon: 'debuff', label: '' };
     if (m.t === 'curse') return { icon: 'curse', label: '' };
     if (m.t === 'unmake') return { icon: 'unmake', label: '' };
@@ -4804,6 +4844,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function dealToEnemy(en, idx, amount, opts) {
     opts = opts || {};
     var c = E.combat;
+    // Drop Ship hull-ward: impervious until its escort bots are cleared.
+    if (en.def.dropship && !en.armed && aliveEnemies().some(function (e) { return e.id === en.def.dropship.bot; })) {
+      emit('dmg', { who: 'enemy', idx: idx, amount: amount, hpDmg: 0, warded: true, hpAfter: en.hp, blockAfter: en.block });
+      return 0;
+    }
     var dm = art('dmgMult');
     if (dm > 0) amount = Math.round(amount * (1 + dm));
     if (E.hasEcho('cursed_inheritance') && handHasCurse()) amount = Math.round(amount * 1.25); // Cursed Inheritance
@@ -5536,6 +5581,34 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         ['burn', 'vuln', 'weak'].forEach(function (st) { if (statN(en, st) > 0) { en.statuses[st] = 0; emit('status', { who: 'enemy', idx: idx, s: st, v: 0 }); } });
       }
       en.block = 0;
+      // Drop Ship: shielded strafing -> arm the pod -> count down -> detonate.
+      if (en.def.dropship) {
+        var dbot = en.def.dropship.bot;
+        var dBotsAlive = aliveEnemies().some(function (e) { return e.id === dbot; });
+        emit('enemyMove', { idx: idx, move: en.intent });
+        if (!en.armed) {
+          if (dBotsAlive) {
+            var sd2 = scaledDmg(en.def.dropship.strafe || 4, s) + statN(en, 'str');
+            if (statN(en, 'weak')) sd2 = Math.floor(sd2 * B.status.weakMult);
+            hurtPlayer(sd2);
+          } else {
+            en.armed = true; en.fuse = en.def.dropship.turns;
+            emit('dropArm', { idx: idx, fuse: en.fuse });
+          }
+        } else {
+          en.fuse -= 1;
+          emit('dropTick', { idx: idx, fuse: en.fuse });
+          if (en.fuse <= 0) {
+            var ed = scaledDmg(en.def.dropship.dmg, s);
+            emit('dropBoom', { idx: idx, amount: ed });
+            hurtPlayer(ed);
+            if (en.alive) { en.hp = 0; en.alive = false; r.kills++; emit('die', { idx: idx }); echoKill(idx); }
+          }
+        }
+        if (statN(en, 'vuln')) addStatus(en, 'vuln', -1);
+        if (statN(en, 'weak')) addStatus(en, 'weak', -1);
+        return;
+      }
       var m = en.intent;
       emit('enemyMove', { idx: idx, move: m });
       if (m.t === 'attack' || m.t === 'drain') {
@@ -7556,6 +7629,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       ctx.beginPath(); ctx.arc(x - 4, y + 1, 2, 0, 7); ctx.stroke();
       ctx.beginPath(); ctx.arc(x - 9, y + 4, 1.6, 0, 7); ctx.stroke();
       label = '+';
+    } else if (info.icon === 'fuse') {
+      col = '#ff8a2e';
+      ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(x - 7, y + 2, 5, 0, 7); ctx.stroke();          // bomb body
+      ctx.beginPath();
+      ctx.moveTo(x - 4, y - 2); ctx.lineTo(x - 1, y - 6);                      // fuse
+      ctx.moveTo(x - 1, y - 6); ctx.lineTo(x + 2, y - 8);
+      ctx.moveTo(x - 1, y - 6); ctx.lineTo(x + 1, y - 9);                      // spark
+      ctx.stroke();
     } else if (info.icon === 'unmake') {
       col = '#b8ecff';
       ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8;
@@ -10263,6 +10345,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
                 R.setEnemyView(e.idx, e.hpAfter, e.blockAfter);
                 var pos = R.enemyPos(e.idx);
                 var txt = e.hpDmg > 0 ? '-' + e.hpDmg : 'BLOCKED';
+                if (e.warded) txt = 'SHIELDED';
                 if (e.burn) txt = '-' + e.hpDmg + ' BURN';
                 floater(pos.x, pos.y - 20, txt, e.crit ? 'crit' : '');
                 if (e.crit) SFX.crit(); else SFX.hit();

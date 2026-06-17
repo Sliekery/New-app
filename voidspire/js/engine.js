@@ -711,6 +711,14 @@
       over: false,
       isFinal: isFinal,
     };
+    // Drop Ship: deploys a random escort of bots the moment it arrives.
+    c.enemies.slice().forEach(function (en) {
+      if (en.def.dropship) {
+        var b = en.def.dropship;
+        var n = b.min + Math.floor(rnd() * (b.max - b.min + 1));
+        for (var i = 0; i < n && c.enemies.length < 5; i++) c.enemies.push(mkEnemy(b.bot));
+      }
+    });
     var ps = art('strStart');
     if (ps > 0) c.player.statuses.str = ps;
     var es = art('echoStart');
@@ -862,6 +870,15 @@
 
   function chooseIntent(en) {
     var def = en.def, mv;
+    if (def.dropship) {
+      // Drop Ship telegraph: shielded strafing while escorts live, then an armed
+      // self-destruct countdown once the pod activates.
+      var botsAlive = aliveEnemies().some(function (e) { return e.id === def.dropship.bot; });
+      if (en.armed) en.intent = { t: 'ds_fuse', fuse: en.fuse, d: def.dropship.dmg };
+      else if (botsAlive) en.intent = { t: 'ds_strafe', d: def.dropship.strafe || 4 };
+      else en.intent = { t: 'ds_arm' };
+      return;
+    }
     if (def.ai === 'cycle') {
       mv = def.moves[en.moveIdx % def.moves.length];
       en.moveIdx++;
@@ -899,6 +916,9 @@
     if (m.t === 'buff') return { icon: 'buff', label: '' };
     if (m.t === 'heal') return { icon: 'heal', label: '' + scaledDmg(m.v, s) };
     if (m.t === 'summon') return { icon: 'summon', label: m.n ? '×' + m.n : '' };
+    if (m.t === 'ds_strafe') { var sds = scaledDmg(m.d, s) + statN(en, 'str'); if (statN(en, 'weak')) sds = Math.floor(sds * B.status.weakMult); return { icon: 'atk', label: '' + sds }; }
+    if (m.t === 'ds_arm') return { icon: 'fuse', label: 'ARM' };
+    if (m.t === 'ds_fuse') return { icon: 'fuse', label: scaledDmg(m.d, s) + ' in ' + m.fuse };
     if (m.t === 'debuff') return { icon: 'debuff', label: '' };
     if (m.t === 'curse') return { icon: 'curse', label: '' };
     if (m.t === 'unmake') return { icon: 'unmake', label: '' };
@@ -967,6 +987,11 @@
   function dealToEnemy(en, idx, amount, opts) {
     opts = opts || {};
     var c = E.combat;
+    // Drop Ship hull-ward: impervious until its escort bots are cleared.
+    if (en.def.dropship && !en.armed && aliveEnemies().some(function (e) { return e.id === en.def.dropship.bot; })) {
+      emit('dmg', { who: 'enemy', idx: idx, amount: amount, hpDmg: 0, warded: true, hpAfter: en.hp, blockAfter: en.block });
+      return 0;
+    }
     var dm = art('dmgMult');
     if (dm > 0) amount = Math.round(amount * (1 + dm));
     if (E.hasEcho('cursed_inheritance') && handHasCurse()) amount = Math.round(amount * 1.25); // Cursed Inheritance
@@ -1699,6 +1724,34 @@
         ['burn', 'vuln', 'weak'].forEach(function (st) { if (statN(en, st) > 0) { en.statuses[st] = 0; emit('status', { who: 'enemy', idx: idx, s: st, v: 0 }); } });
       }
       en.block = 0;
+      // Drop Ship: shielded strafing -> arm the pod -> count down -> detonate.
+      if (en.def.dropship) {
+        var dbot = en.def.dropship.bot;
+        var dBotsAlive = aliveEnemies().some(function (e) { return e.id === dbot; });
+        emit('enemyMove', { idx: idx, move: en.intent });
+        if (!en.armed) {
+          if (dBotsAlive) {
+            var sd2 = scaledDmg(en.def.dropship.strafe || 4, s) + statN(en, 'str');
+            if (statN(en, 'weak')) sd2 = Math.floor(sd2 * B.status.weakMult);
+            hurtPlayer(sd2);
+          } else {
+            en.armed = true; en.fuse = en.def.dropship.turns;
+            emit('dropArm', { idx: idx, fuse: en.fuse });
+          }
+        } else {
+          en.fuse -= 1;
+          emit('dropTick', { idx: idx, fuse: en.fuse });
+          if (en.fuse <= 0) {
+            var ed = scaledDmg(en.def.dropship.dmg, s);
+            emit('dropBoom', { idx: idx, amount: ed });
+            hurtPlayer(ed);
+            if (en.alive) { en.hp = 0; en.alive = false; r.kills++; emit('die', { idx: idx }); echoKill(idx); }
+          }
+        }
+        if (statN(en, 'vuln')) addStatus(en, 'vuln', -1);
+        if (statN(en, 'weak')) addStatus(en, 'weak', -1);
+        return;
+      }
       var m = en.intent;
       emit('enemyMove', { idx: idx, move: m });
       if (m.t === 'attack' || m.t === 'drain') {

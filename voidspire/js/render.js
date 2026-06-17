@@ -897,6 +897,15 @@
       ctx.beginPath(); ctx.arc(x - 4, y + 1, 2, 0, 7); ctx.stroke();
       ctx.beginPath(); ctx.arc(x - 9, y + 4, 1.6, 0, 7); ctx.stroke();
       label = '+';
+    } else if (info.icon === 'fuse') {
+      col = '#ff8a2e';
+      ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8;
+      ctx.beginPath(); ctx.arc(x - 7, y + 2, 5, 0, 7); ctx.stroke();          // bomb body
+      ctx.beginPath();
+      ctx.moveTo(x - 4, y - 2); ctx.lineTo(x - 1, y - 6);                      // fuse
+      ctx.moveTo(x - 1, y - 6); ctx.lineTo(x + 2, y - 8);
+      ctx.moveTo(x - 1, y - 6); ctx.lineTo(x + 1, y - 9);                      // spark
+      ctx.stroke();
     } else if (info.icon === 'unmake') {
       col = '#b8ecff';
       ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8;

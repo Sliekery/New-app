@@ -2050,6 +2050,7 @@
                 R.setEnemyView(e.idx, e.hpAfter, e.blockAfter);
                 var pos = R.enemyPos(e.idx);
                 var txt = e.hpDmg > 0 ? '-' + e.hpDmg : 'BLOCKED';
+                if (e.warded) txt = 'SHIELDED';
                 if (e.burn) txt = '-' + e.hpDmg + ' BURN';
                 floater(pos.x, pos.y - 20, txt, e.crit ? 'crit' : '');
                 if (e.crit) SFX.crit(); else SFX.hit();
