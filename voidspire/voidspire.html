@@ -1192,9 +1192,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       act1End: 3,          // rows 1..act1End  = Approach (fights/events only)
       act2End: 8,          // rows act1End+1..act2End = The Push (elites/shops/forges...)
       actWeights: {
-        approach: { fight: 54, event: 28, rift: 6, treasure: 6 },
-        push:     { fight: 24, event: 11, random: 6, elite: 15, beacon: 8, shop: 9, market: 5, rest: 8, forge: 7, rift: 4, treasure: 4 },
-        final:    { fight: 34, event: 13, random: 6, shop: 8, market: 4, rest: 11, elite: 6, forge: 7, rift: 3, treasure: 6 },
+        approach: { fight: 62, event: 16, rift: 8, treasure: 8 },
+        push:     { fight: 26, event: 9,  random: 6, elite: 15, beacon: 8, shop: 9, market: 5, rest: 8, forge: 7, rift: 4, treasure: 4 },
+        final:    { fight: 36, event: 11, random: 6, shop: 8, market: 4, rest: 11, elite: 6, forge: 7, rift: 3, treasure: 6 },
       },
       restBeforeBoss: true, // the top content row is always a rest (catch your breath)
     },
@@ -3512,7 +3512,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           success: { text: 'It teaches you a word that doesn’t fit in your mouth. You keep it anyway.', fx: { attr: 'psi' } },
           fail: { text: 'Its thoughts are a riptide. You surface, eventually.', fx: { hp: -8 } } },
         { label: 'Sell it', outcome: { text: 'The broker doesn’t ask questions. Neither do you. Mostly.', fx: { credits: 60 } } },
-        { label: 'Free it', outcome: { text: 'The field drops. It folds itself away — and leaves something glittering behind.', fx: { artifact: true } } },
+        { label: 'Free it', sub: 'It lashes your mind on the way out — lose 7 HP',
+          outcome: { text: 'The field drops. It folds itself away — searing your mind in gratitude — and leaves something glittering behind.', fx: { hp: -7, artifact: true } } },
       ],
     },
     {
@@ -3700,6 +3701,65 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         { label: 'Strip it for scrip', sub: 'TECH check, DC 12', check: { attr: 'tech', dc: 12 },
           success: { text: 'You disarm the lot and sell it down the line.', fx: { credits: 60 } },
           fail: { text: 'A tamper-charge cooks off in your face.', fx: { hp: -9 } } },
+      ],
+    },
+
+    /* ---------------- Rework: interaction-forward, less free stuff -------- */
+    {
+      id: 'asteroid_exchange', title: 'ASTEROID TRADE HUB',
+      art: { c: '#41d8ff', p: [[-0.8,0.15, -0.5,-0.45, 0.1,-0.62, 0.62,-0.32, 0.78,0.22, 0.45,0.62, -0.25,0.66, -0.8,0.15], [-0.45,-0.1, -0.15,-0.25, 0.0,0.0, -0.25,0.18, -0.45,-0.1], [0.2,0.15, 0.5,0.05], [0.55,-0.5, 0.8,-0.72], [-0.62,0.36, -0.85,0.55]], e: [[-0.3,0.02],[0.3,0.28]], m: [-0.18,0.42, 0.18,0.42] },
+      text: 'A hollowed-out asteroid hums with the chatter of a hundred traders. A weaponsmith waves you over. "Bring me a piece of kit. I will melt it down and forge you something keener. Fair trade, captain — metal for metal."',
+      choices: [
+        { label: 'Trade up a card', sub: 'Scrap one card → forge one a tier higher', cond: { minCards: 2 },
+          outcome: { text: 'The smith feeds your weapon into the crucible. What she hands back is heavier, meaner, and unmistakably better.', fx: { tradeCard: true } } },
+        { label: 'Buy off-the-rack', sub: '¢35', cost: 35,
+          outcome: { text: 'Nothing special, but it shoots straight.', fx: { card: 'random' } } },
+        { label: 'Just browse', outcome: { text: 'You pocket your credits and move along.', fx: {} } },
+      ],
+    },
+    {
+      id: 'salvage_exchange', title: 'THE RELIC BROKER',
+      art: { c: '#c86bff', p: [[-0.6,0.7, -0.5,-0.1, -0.25,-0.4, 0.25,-0.4, 0.5,-0.1, 0.6,0.7], [-0.25,-0.4, -0.3,-0.78, 0.3,-0.78, 0.25,-0.4], [-0.55,0.2, 0.55,0.2], [-0.78,0.4, -0.6,0.1], [0.78,0.4, 0.6,0.1]], e: [[-0.1,-0.58],[0.1,-0.58]], m: [-0.12,-0.2, 0,-0.12, 0.12,-0.2] },
+      text: 'A masked broker keeps a cabinet of humming oddities. "I do not sell, traveler. I exchange. Surrender one of your relics and I will lay two unknowns before you — keep whichever calls to you. The other returns to the dark."',
+      choices: [
+        { label: 'Exchange a relic', sub: 'Give 1 relic → choose 1 of 2 unknown relics', cond: { hasRelic: true },
+          outcome: { text: 'You set your relic on the velvet. The broker smiles behind the mask and unveils two more.', fx: { tradeRelic: true } } },
+        { label: 'Pay for a peek', sub: '¢50 for a relic, sight unseen', cost: 50,
+          outcome: { text: '"A gamble, but an honest one." The broker presses something cold into your palm.', fx: { artifact: true } } },
+        { label: 'Keep what you have', outcome: { text: '"Caution is its own relic," the broker allows.', fx: {} } },
+      ],
+    },
+    {
+      id: 'escape_pod', title: 'DISTRESS BEACON',
+      art: { c: '#5dff88', p: [[0,-0.85, 0.22,-0.55, 0.16,0.05, 0.34,0.78, -0.34,0.78, -0.16,0.05, -0.22,-0.55, 0,-0.85], [-0.2,-0.42, 0.2,-0.42], [0.2,-0.35, 0.5,-0.45, 0.55,-0.85], [0.55,-0.85, 0.46,-1.0, 0.66,-1.0, 0.55,-0.85], [-0.18,0.4, 0.18,0.4]], e: [[-0.07,-0.6],[0.07,-0.6]], m: [-0.09,-0.42, 0.09,-0.42] },
+      text: 'An escape pod tumbles out of the debris field, its beacon pulsing a ragged SOS. The hull is scorched — no telling if the soul inside is a castaway begging for rescue or a boarding party wearing a dead crew\'s transponder.',
+      choices: [
+        { label: 'Pull them aboard, blind', sub: 'Friend or foe — commit now',
+          gamble: [
+            { w: 3, text: 'A genuine survivor — a fleet engineer who repays the rescue with a piece of salvaged tech and an old debt of gratitude.', fx: { artifact: true } },
+            { w: 3, text: 'The hatch blows. Raiders pour out, and you fight them off through your own corridors before spacing the last of them.', fx: { hp: -15, curse: 'void_taint' } },
+          ] },
+        { label: 'Hail and verify first', sub: 'PSI check, DC 13 — read their intent', check: { attr: 'psi', dc: 13 },
+          success: { text: 'You feel the panic of a true castaway. You bring them in safely; they leave you their cargo manifest and a parting gift.', fx: { card: 'rare', credits: 20 } },
+          fail: { text: 'They feed you exactly what you want to hear. The ambush still costs you — but you saw it coming.', fx: { hp: -8 } } },
+        { label: 'Strip the pod, leave them', sub: 'Ruthless salvage',
+          outcome: { text: 'You vent the pod and pick the wreck clean. Whoever it was, they trouble no one now.', fx: { credits: 40, curse: 'void_taint' } } },
+        { label: 'Let it drift', outcome: { text: 'Not your war, not your dead. You hold your course.', fx: {} } },
+      ],
+    },
+    {
+      id: 'refuel_station', title: 'REFUELING STATION',
+      art: { c: '#ffb02e', p: [[-0.7,0.7, -0.7,-0.2, -0.45,-0.2, -0.45,-0.6, 0.45,-0.6, 0.45,-0.2, 0.7,-0.2, 0.7,0.7, -0.7,0.7], [-0.45,-0.6, -0.45,-0.85, 0.45,-0.85, 0.45,-0.6], [-0.3,0.05, 0.3,0.05], [-0.3,0.3, 0.3,0.3], [0.7,0.1, 1.0,0.1, 1.0,0.5]], e: [[-0.15,-0.4],[0.15,-0.4]] },
+      text: 'An automated waystation drifts at the edge of the system, running on fumes and old protocols. It can spare you exactly one service before its reserves run dry. "STATE YOUR PRIORITY," it intones.',
+      choices: [
+        { label: 'Patch the hull', sub: 'Heal 30% HP',
+          outcome: { text: 'Sealant foam and a long, blessed hum of repair drones.', fx: { healPct: 0.30 } } },
+        { label: 'Recalibrate a weapon', sub: 'Upgrade a card',
+          outcome: { text: 'The station\'s armory arm tunes one of your weapons to a finer edge.', fx: { pick: 'upgrade' } } },
+        { label: 'Run a system purge', sub: 'Cleanse a curse', cond: { hasCurse: true },
+          outcome: { text: 'Diagnostics chew through the corruption in your kit and spit it into the void.', fx: { removeCurse: 1 } } },
+        { label: 'Top off the tanks', sub: 'Trade fuel credits', cost: 0,
+          outcome: { text: 'You siphon the last of the reserve fuel and sell the surplus down the line.', fx: { credits: 25 } } },
       ],
     },
   ];
@@ -5545,6 +5605,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
   E.rollRewardCard = rollRewardCard;
 
+  // A reward card of a SPECIFIC rarity tier (1..3) — used by trade-up events.
+  function rollRewardCardTier(rar) {
+    var pool = Object.keys(ns.CARDS).filter(function (k) {
+      var c = ns.CARDS[k];
+      return c.rarity === rar && !c.pool && c.type !== 'curse' && (c.cls === E.run.cls || c.cls === 'any');
+    });
+    if (!pool.length) return rollRewardCard(rar >= 3 ? 0.5 : 0);
+    return pick(pool);
+  }
+
   // Legendary (rarity 4, boss pool) for boss/elite rewards.
   function rollLegendary() {
     var pool = Object.keys(ns.CARDS).filter(function (k) {
@@ -5612,6 +5682,28 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     emit('artifact', { id: id });
   }
   E.addArtifact = addArtifact;
+
+  // Reverse of addArtifact's run-state side effects (for relic-for-relic trades).
+  function removeArtifact(id) {
+    var r = E.run, idx = r.artifacts.indexOf(id);
+    if (idx < 0) return;
+    var a = ns.ARTIFACTS[id];
+    r.artifacts.splice(idx, 1);
+    if (a.k === 'maxHp') { r.maxHp -= a.v; r.hp = Math.min(r.hp, r.maxHp); }
+    if (r.relicUses) delete r.relicUses[id];
+    if (r.relicOff) delete r.relicOff[id];
+    emit('artifact', { id: id, removed: true });
+  }
+  E.removeArtifact = removeArtifact;
+
+  // Relics a player may trade away: plain, non-quest, non-class, side-effect-free.
+  function tradeableRelics() {
+    return E.run.artifacts.filter(function (k) {
+      var a = ns.ARTIFACTS[k];
+      return a && !a.questOnly && !a.cls && !a.special;
+    });
+  }
+  E.tradeableRelics = tradeableRelics;
 
   function winCombat() {
     var r = E.run, kind = E.combat.kind, cc = E.combat;
@@ -5935,6 +6027,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (c.credits && r.credits < c.credits) return false;
     if (c.attr) { for (var k in c.attr) if (attr(k) < c.attr[k]) return false; }
     if (c.hasArtifact && r.artifacts.indexOf(c.hasArtifact) < 0) return false;
+    if (c.hasRelic && E.tradeableRelics().length === 0) return false;
+    if (c.minCards && r.deck.filter(function (cd) { return ns.CARDS[cd.id].type !== 'curse'; }).length < c.minCards) return false;
     if (c.hasCurse && !r.deck.some(function (cd) { return ns.CARDS[cd.id].type === 'curse'; })) return false;
     return true;
   };
@@ -6049,6 +6143,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       r.pendingAddCard = E.augmentAddOptions();
       gained.push('Choose a card to add');
     }
+    if (fx.tradeCard) {
+      r.pendingTrade = { kind: 'card' };
+      gained.push('Scrap a card to forge a better one');
+    }
+    if (fx.tradeRelic) {
+      r.pendingTrade = { kind: 'relic', given: null, choices: null };
+      gained.push('Exchange a relic for two unknown ones');
+    }
     if (fx.pick) {
       r.pendingPick = fx.pick;
       gained.push(fx.pick === 'remove' ? 'Choose a card to remove' : fx.pick === 'upgrade' ? 'Choose a card to upgrade' :
@@ -6068,7 +6170,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   E.finishEvent = function () {
     var r = E.run;
-    if (r.pendingPick || r.pendingAddCard || r.pendingRelic) return; // resolve pending choices first
+    if (r.pendingPick || r.pendingAddCard || r.pendingRelic || r.pendingTrade) return; // resolve pending choices first
     r.eventResult = null;
     r.currentEvent = null;
     nodeComplete();
@@ -6168,6 +6270,44 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   };
 
   E.cancelPick = function () { E.run.pendingPick = null; };
+
+  /* ---------------- Trade-up (card-for-card / relic-for-relic) ------------- */
+  // Scrap a deck card -> receive a card ONE rarity tier higher. The "math":
+  // commons forge uncommons, uncommons forge rares, rares forge rares.
+  E.tradeCardPick = function (deckIdx) {
+    var r = E.run, t = r.pendingTrade;
+    if (!t || t.kind !== 'card') return null;
+    var card = r.deck[deckIdx]; if (!card) return null;
+    var def = ns.CARDS[card.id];
+    if (def.type === 'curse') return null;
+    var giveRar = def.rarity || 1;
+    r.deck.splice(deckIdx, 1);
+    var cid = rollRewardCardTier(Math.min(3, giveRar + 1));
+    r.deck.push(mkCard(cid, false));
+    r.pendingTrade = null;
+    E.save();
+    return { gave: def.name, got: cid };
+  };
+  // Relic-for-relic: surrender one owned relic, then choose one of two fresh ones.
+  E.tradeGiveRelic = function (aid) {
+    var r = E.run, t = r.pendingTrade;
+    if (!t || t.kind !== 'relic' || t.given) return null;
+    if (E.tradeableRelics().indexOf(aid) < 0) return null;
+    removeArtifact(aid);
+    t.given = aid;
+    t.choices = randomArtifactChoices(1, 2);
+    E.save();
+    return t.choices;
+  };
+  E.tradeTakeRelic = function (aid) {
+    var r = E.run, t = r.pendingTrade;
+    if (!t || t.kind !== 'relic') return null;
+    if (aid && t.choices && t.choices.indexOf(aid) >= 0) addArtifact(aid);
+    r.pendingTrade = null;
+    E.save();
+    return aid;
+  };
+  E.skipTrade = function () { E.run.pendingTrade = null; E.save(); };
 
   /* ---------------- Shop --------------------------------------------------- */
   // market=true -> Black Market: salvage-tech heavy + cheap card removal.
@@ -10468,6 +10608,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (fx.pick === 'upgrade') chip('Upgrade a card', true);
     if (fx.pick === 'dupe') chip('Duplicate a card', true);
     if (fx.pick === 'vtouch') chip('Void-Touch a card', true);
+    if (fx.tradeCard) chip('Trade up a card', true);
+    if (fx.tradeRelic) chip('Trade a relic', true);
     if (fx.curse) chip('Curse', false);
     return out.join('');
   }
@@ -10537,6 +10679,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         showEventAddCard(function () { E.finishEvent(); U.refresh(); });
       } else if (r.pendingPick) {
         showPickModal(r.pendingPick, function () { E.finishEvent(); U.refresh(); });
+      } else if (r.pendingTrade) {
+        showTrade(function () { E.finishEvent(); U.refresh(); });
       } else {
         E.finishEvent();
         U.refresh();
@@ -10875,6 +11019,100 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     });
     s.appendChild(grid);
     s.appendChild(cbar.el);
+  }
+
+  // Trade-up flow: card-for-card or relic-for-relic.
+  function showTrade(done) {
+    var t = E.run.pendingTrade;
+    if (!t) { done(); return; }
+    if (t.kind === 'card') return showTradeCard(done);
+    return showTradeRelic(done);
+  }
+
+  // Scrap one card -> forge a card a tier higher. Show the result before closing.
+  function showTradeCard(done) {
+    var r = E.run;
+    var s = overlayScreen();
+    s.appendChild(el('h2', 'screen-title', 'Trade Up'));
+    s.appendChild(el('div', 'screen-sub', 'SCRAP A CARD · FORGE ONE A TIER HIGHER'));
+    var grid = el('div', 'card-grid');
+    var cbar = makeConfirmBar();
+    var any = false;
+    r.deck.forEach(function (card, i) {
+      var def = ns.CARDS[card.id];
+      if (def.type === 'curse') return;
+      any = true;
+      var d = cardEl(card.id, card.up, card.vtouch);
+      grid.appendChild(d);
+      selectConfirm(grid, d, cbar, 'Scrap <b>' + esc(def.name) + '</b> to forge a stronger card?',
+        function () {
+          var got = E.tradeCardPick(i);
+          SFX.coin();
+          if (got) showTradeReveal(got.got, 'FORGED', done); else done();
+        }, 'amber');
+    });
+    s.appendChild(grid);
+    if (!any) { E.skipTrade(); s.appendChild(el('div', 'screen-sub', 'NO TRADEABLE CARDS')); }
+    else s.appendChild(cbar.el);
+    var skip = el('button', 'btn dim small', 'KEEP YOUR DECK');
+    skip.addEventListener('pointerdown', function () { SFX.tap(); E.skipTrade(); done(); });
+    s.appendChild(skip);
+  }
+
+  // Relic-for-relic: surrender one, then pick one of two unknowns.
+  function showTradeRelic(done) {
+    var r = E.run, t = r.pendingTrade;
+    if (t.given) return showTradeRelicTake(done);
+    var s = overlayScreen(true);
+    s.appendChild(el('h2', 'screen-title', 'Relic Exchange'));
+    s.appendChild(el('div', 'screen-sub', 'SURRENDER A RELIC FOR A CHANCE AT TWO MORE'));
+    var cbar = makeConfirmBar();
+    var owned = E.tradeableRelics();
+    owned.forEach(function (aid) {
+      var a = ns.ARTIFACTS[aid];
+      var btn = el('div', 'panel-btn',
+        '<div class="pb-title"><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + '</div>' +
+        '<div class="pb-desc">' + esc(a.desc) + '</div>');
+      s.appendChild(btn);
+      selectConfirm(s, btn, cbar, 'Surrender <b>' + esc(a.name) + '</b>? You will choose from two unknown relics.',
+        function () { SFX.tap(); E.tradeGiveRelic(aid); showTradeRelicTake(done); }, 'red');
+    });
+    s.appendChild(cbar.el);
+    var skip = el('button', 'btn dim small', 'WALK AWAY');
+    skip.addEventListener('pointerdown', function () { SFX.tap(); E.skipTrade(); done(); });
+    s.appendChild(skip);
+  }
+
+  function showTradeRelicTake(done) {
+    var t = E.run.pendingTrade;
+    var choices = (t && t.choices) || [];
+    if (!choices.length) { E.skipTrade(); done(); return; }
+    var s = overlayScreen(true);
+    s.appendChild(el('h2', 'screen-title', 'Choose Your Salvage'));
+    s.appendChild(el('div', 'screen-sub', 'TAP TO PREVIEW · TAKE ONE'));
+    var cbar = makeConfirmBar();
+    choices.forEach(function (aid) {
+      var a = ns.ARTIFACTS[aid];
+      var btn = el('div', 'panel-btn amber',
+        '<div class="pb-title"><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + '</div>' +
+        '<div class="pb-desc">' + esc(a.desc) + '</div>');
+      s.appendChild(btn);
+      selectConfirm(s, btn, cbar, 'Take <b>' + esc(a.name) + '</b>?<span class="cb-note">' + esc(a.desc) + '</span>',
+        function () { SFX.coin(); E.tradeTakeRelic(aid); done(); }, 'amber');
+    });
+    s.appendChild(cbar.el);
+  }
+
+  // Brief reveal of a forged/received card before continuing.
+  function showTradeReveal(cid, tag, done) {
+    var s = overlayScreen(true);
+    s.appendChild(el('h2', 'screen-title', tag || 'ACQUIRED'));
+    var grid = el('div', 'card-grid');
+    grid.appendChild(cardEl(cid, false));
+    s.appendChild(grid);
+    var btn = el('button', 'btn', 'CONTINUE');
+    btn.addEventListener('pointerdown', function () { SFX.tap(); done(); });
+    s.appendChild(btn);
   }
 
   function showClassRelic() {

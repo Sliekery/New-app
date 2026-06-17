@@ -74,9 +74,9 @@
       act1End: 3,          // rows 1..act1End  = Approach (fights/events only)
       act2End: 8,          // rows act1End+1..act2End = The Push (elites/shops/forges...)
       actWeights: {
-        approach: { fight: 54, event: 28, rift: 6, treasure: 6 },
-        push:     { fight: 24, event: 11, random: 6, elite: 15, beacon: 8, shop: 9, market: 5, rest: 8, forge: 7, rift: 4, treasure: 4 },
-        final:    { fight: 34, event: 13, random: 6, shop: 8, market: 4, rest: 11, elite: 6, forge: 7, rift: 3, treasure: 6 },
+        approach: { fight: 62, event: 16, rift: 8, treasure: 8 },
+        push:     { fight: 26, event: 9,  random: 6, elite: 15, beacon: 8, shop: 9, market: 5, rest: 8, forge: 7, rift: 4, treasure: 4 },
+        final:    { fight: 36, event: 11, random: 6, shop: 8, market: 4, rest: 11, elite: 6, forge: 7, rift: 3, treasure: 6 },
       },
       restBeforeBoss: true, // the top content row is always a rest (catch your breath)
     },

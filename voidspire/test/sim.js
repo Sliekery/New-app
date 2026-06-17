@@ -333,6 +333,8 @@ function scoreFx(fx, low) {
   if (fx.artifact) s += 8;
   if (fx.card) s += 5;
   if (fx.addCardChoice) s += 5;
+  if (fx.tradeCard) s += 5;
+  if (fx.tradeRelic) s += 2;
   if (fx.attr) s += 6;
   if (fx.maxhp) s += 5;
   if (fx.removeCurse) s += 4;
@@ -433,6 +435,13 @@ function step() {
       if (r.pendingAddCard) E.eventAddCard(r.pendingAddCard[0]);
       if (r.pendingPick) {
         E.applyPick(r.pendingPick === 'remove' ? pickRemoveIdx() : r.pendingPick === 'upgrade' ? pickUpgradeIdx() : 0);
+      }
+      if (r.pendingTrade) {
+        if (r.pendingTrade.kind === 'card') {
+          var ti = -1;  // scrap the cheapest non-curse card to forge up
+          r.deck.forEach(function (c, i) { if (VS.CARDS[c.id].type !== 'curse' && (ti < 0 || (VS.CARDS[c.id].rarity || 1) < (VS.CARDS[r.deck[ti].id].rarity || 1))) ti = i; });
+          if (ti >= 0) E.tradeCardPick(ti); else E.skipTrade();
+        } else E.skipTrade();   // relic-for-relic: play it safe
       }
       E.finishEvent();
       break;

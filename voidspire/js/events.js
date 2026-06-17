@@ -130,7 +130,8 @@
           success: { text: 'It teaches you a word that doesn’t fit in your mouth. You keep it anyway.', fx: { attr: 'psi' } },
           fail: { text: 'Its thoughts are a riptide. You surface, eventually.', fx: { hp: -8 } } },
         { label: 'Sell it', outcome: { text: 'The broker doesn’t ask questions. Neither do you. Mostly.', fx: { credits: 60 } } },
-        { label: 'Free it', outcome: { text: 'The field drops. It folds itself away — and leaves something glittering behind.', fx: { artifact: true } } },
+        { label: 'Free it', sub: 'It lashes your mind on the way out — lose 7 HP',
+          outcome: { text: 'The field drops. It folds itself away — searing your mind in gratitude — and leaves something glittering behind.', fx: { hp: -7, artifact: true } } },
       ],
     },
     {
@@ -318,6 +319,65 @@
         { label: 'Strip it for scrip', sub: 'TECH check, DC 12', check: { attr: 'tech', dc: 12 },
           success: { text: 'You disarm the lot and sell it down the line.', fx: { credits: 60 } },
           fail: { text: 'A tamper-charge cooks off in your face.', fx: { hp: -9 } } },
+      ],
+    },
+
+    /* ---------------- Rework: interaction-forward, less free stuff -------- */
+    {
+      id: 'asteroid_exchange', title: 'ASTEROID TRADE HUB',
+      art: { c: '#41d8ff', p: [[-0.8,0.15, -0.5,-0.45, 0.1,-0.62, 0.62,-0.32, 0.78,0.22, 0.45,0.62, -0.25,0.66, -0.8,0.15], [-0.45,-0.1, -0.15,-0.25, 0.0,0.0, -0.25,0.18, -0.45,-0.1], [0.2,0.15, 0.5,0.05], [0.55,-0.5, 0.8,-0.72], [-0.62,0.36, -0.85,0.55]], e: [[-0.3,0.02],[0.3,0.28]], m: [-0.18,0.42, 0.18,0.42] },
+      text: 'A hollowed-out asteroid hums with the chatter of a hundred traders. A weaponsmith waves you over. "Bring me a piece of kit. I will melt it down and forge you something keener. Fair trade, captain — metal for metal."',
+      choices: [
+        { label: 'Trade up a card', sub: 'Scrap one card → forge one a tier higher', cond: { minCards: 2 },
+          outcome: { text: 'The smith feeds your weapon into the crucible. What she hands back is heavier, meaner, and unmistakably better.', fx: { tradeCard: true } } },
+        { label: 'Buy off-the-rack', sub: '¢35', cost: 35,
+          outcome: { text: 'Nothing special, but it shoots straight.', fx: { card: 'random' } } },
+        { label: 'Just browse', outcome: { text: 'You pocket your credits and move along.', fx: {} } },
+      ],
+    },
+    {
+      id: 'salvage_exchange', title: 'THE RELIC BROKER',
+      art: { c: '#c86bff', p: [[-0.6,0.7, -0.5,-0.1, -0.25,-0.4, 0.25,-0.4, 0.5,-0.1, 0.6,0.7], [-0.25,-0.4, -0.3,-0.78, 0.3,-0.78, 0.25,-0.4], [-0.55,0.2, 0.55,0.2], [-0.78,0.4, -0.6,0.1], [0.78,0.4, 0.6,0.1]], e: [[-0.1,-0.58],[0.1,-0.58]], m: [-0.12,-0.2, 0,-0.12, 0.12,-0.2] },
+      text: 'A masked broker keeps a cabinet of humming oddities. "I do not sell, traveler. I exchange. Surrender one of your relics and I will lay two unknowns before you — keep whichever calls to you. The other returns to the dark."',
+      choices: [
+        { label: 'Exchange a relic', sub: 'Give 1 relic → choose 1 of 2 unknown relics', cond: { hasRelic: true },
+          outcome: { text: 'You set your relic on the velvet. The broker smiles behind the mask and unveils two more.', fx: { tradeRelic: true } } },
+        { label: 'Pay for a peek', sub: '¢50 for a relic, sight unseen', cost: 50,
+          outcome: { text: '"A gamble, but an honest one." The broker presses something cold into your palm.', fx: { artifact: true } } },
+        { label: 'Keep what you have', outcome: { text: '"Caution is its own relic," the broker allows.', fx: {} } },
+      ],
+    },
+    {
+      id: 'escape_pod', title: 'DISTRESS BEACON',
+      art: { c: '#5dff88', p: [[0,-0.85, 0.22,-0.55, 0.16,0.05, 0.34,0.78, -0.34,0.78, -0.16,0.05, -0.22,-0.55, 0,-0.85], [-0.2,-0.42, 0.2,-0.42], [0.2,-0.35, 0.5,-0.45, 0.55,-0.85], [0.55,-0.85, 0.46,-1.0, 0.66,-1.0, 0.55,-0.85], [-0.18,0.4, 0.18,0.4]], e: [[-0.07,-0.6],[0.07,-0.6]], m: [-0.09,-0.42, 0.09,-0.42] },
+      text: 'An escape pod tumbles out of the debris field, its beacon pulsing a ragged SOS. The hull is scorched — no telling if the soul inside is a castaway begging for rescue or a boarding party wearing a dead crew\'s transponder.',
+      choices: [
+        { label: 'Pull them aboard, blind', sub: 'Friend or foe — commit now',
+          gamble: [
+            { w: 3, text: 'A genuine survivor — a fleet engineer who repays the rescue with a piece of salvaged tech and an old debt of gratitude.', fx: { artifact: true } },
+            { w: 3, text: 'The hatch blows. Raiders pour out, and you fight them off through your own corridors before spacing the last of them.', fx: { hp: -15, curse: 'void_taint' } },
+          ] },
+        { label: 'Hail and verify first', sub: 'PSI check, DC 13 — read their intent', check: { attr: 'psi', dc: 13 },
+          success: { text: 'You feel the panic of a true castaway. You bring them in safely; they leave you their cargo manifest and a parting gift.', fx: { card: 'rare', credits: 20 } },
+          fail: { text: 'They feed you exactly what you want to hear. The ambush still costs you — but you saw it coming.', fx: { hp: -8 } } },
+        { label: 'Strip the pod, leave them', sub: 'Ruthless salvage',
+          outcome: { text: 'You vent the pod and pick the wreck clean. Whoever it was, they trouble no one now.', fx: { credits: 40, curse: 'void_taint' } } },
+        { label: 'Let it drift', outcome: { text: 'Not your war, not your dead. You hold your course.', fx: {} } },
+      ],
+    },
+    {
+      id: 'refuel_station', title: 'REFUELING STATION',
+      art: { c: '#ffb02e', p: [[-0.7,0.7, -0.7,-0.2, -0.45,-0.2, -0.45,-0.6, 0.45,-0.6, 0.45,-0.2, 0.7,-0.2, 0.7,0.7, -0.7,0.7], [-0.45,-0.6, -0.45,-0.85, 0.45,-0.85, 0.45,-0.6], [-0.3,0.05, 0.3,0.05], [-0.3,0.3, 0.3,0.3], [0.7,0.1, 1.0,0.1, 1.0,0.5]], e: [[-0.15,-0.4],[0.15,-0.4]] },
+      text: 'An automated waystation drifts at the edge of the system, running on fumes and old protocols. It can spare you exactly one service before its reserves run dry. "STATE YOUR PRIORITY," it intones.',
+      choices: [
+        { label: 'Patch the hull', sub: 'Heal 30% HP',
+          outcome: { text: 'Sealant foam and a long, blessed hum of repair drones.', fx: { healPct: 0.30 } } },
+        { label: 'Recalibrate a weapon', sub: 'Upgrade a card',
+          outcome: { text: 'The station\'s armory arm tunes one of your weapons to a finer edge.', fx: { pick: 'upgrade' } } },
+        { label: 'Run a system purge', sub: 'Cleanse a curse', cond: { hasCurse: true },
+          outcome: { text: 'Diagnostics chew through the corruption in your kit and spit it into the void.', fx: { removeCurse: 1 } } },
+        { label: 'Top off the tanks', sub: 'Trade fuel credits', cost: 0,
+          outcome: { text: 'You siphon the last of the reserve fuel and sell the surplus down the line.', fx: { credits: 25 } } },
       ],
     },
   ];

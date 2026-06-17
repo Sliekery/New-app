@@ -2574,6 +2574,8 @@
     if (fx.pick === 'upgrade') chip('Upgrade a card', true);
     if (fx.pick === 'dupe') chip('Duplicate a card', true);
     if (fx.pick === 'vtouch') chip('Void-Touch a card', true);
+    if (fx.tradeCard) chip('Trade up a card', true);
+    if (fx.tradeRelic) chip('Trade a relic', true);
     if (fx.curse) chip('Curse', false);
     return out.join('');
   }
@@ -2643,6 +2645,8 @@
         showEventAddCard(function () { E.finishEvent(); U.refresh(); });
       } else if (r.pendingPick) {
         showPickModal(r.pendingPick, function () { E.finishEvent(); U.refresh(); });
+      } else if (r.pendingTrade) {
+        showTrade(function () { E.finishEvent(); U.refresh(); });
       } else {
         E.finishEvent();
         U.refresh();
@@ -2981,6 +2985,100 @@
     });
     s.appendChild(grid);
     s.appendChild(cbar.el);
+  }
+
+  // Trade-up flow: card-for-card or relic-for-relic.
+  function showTrade(done) {
+    var t = E.run.pendingTrade;
+    if (!t) { done(); return; }
+    if (t.kind === 'card') return showTradeCard(done);
+    return showTradeRelic(done);
+  }
+
+  // Scrap one card -> forge a card a tier higher. Show the result before closing.
+  function showTradeCard(done) {
+    var r = E.run;
+    var s = overlayScreen();
+    s.appendChild(el('h2', 'screen-title', 'Trade Up'));
+    s.appendChild(el('div', 'screen-sub', 'SCRAP A CARD · FORGE ONE A TIER HIGHER'));
+    var grid = el('div', 'card-grid');
+    var cbar = makeConfirmBar();
+    var any = false;
+    r.deck.forEach(function (card, i) {
+      var def = ns.CARDS[card.id];
+      if (def.type === 'curse') return;
+      any = true;
+      var d = cardEl(card.id, card.up, card.vtouch);
+      grid.appendChild(d);
+      selectConfirm(grid, d, cbar, 'Scrap <b>' + esc(def.name) + '</b> to forge a stronger card?',
+        function () {
+          var got = E.tradeCardPick(i);
+          SFX.coin();
+          if (got) showTradeReveal(got.got, 'FORGED', done); else done();
+        }, 'amber');
+    });
+    s.appendChild(grid);
+    if (!any) { E.skipTrade(); s.appendChild(el('div', 'screen-sub', 'NO TRADEABLE CARDS')); }
+    else s.appendChild(cbar.el);
+    var skip = el('button', 'btn dim small', 'KEEP YOUR DECK');
+    skip.addEventListener('pointerdown', function () { SFX.tap(); E.skipTrade(); done(); });
+    s.appendChild(skip);
+  }
+
+  // Relic-for-relic: surrender one, then pick one of two unknowns.
+  function showTradeRelic(done) {
+    var r = E.run, t = r.pendingTrade;
+    if (t.given) return showTradeRelicTake(done);
+    var s = overlayScreen(true);
+    s.appendChild(el('h2', 'screen-title', 'Relic Exchange'));
+    s.appendChild(el('div', 'screen-sub', 'SURRENDER A RELIC FOR A CHANCE AT TWO MORE'));
+    var cbar = makeConfirmBar();
+    var owned = E.tradeableRelics();
+    owned.forEach(function (aid) {
+      var a = ns.ARTIFACTS[aid];
+      var btn = el('div', 'panel-btn',
+        '<div class="pb-title"><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + '</div>' +
+        '<div class="pb-desc">' + esc(a.desc) + '</div>');
+      s.appendChild(btn);
+      selectConfirm(s, btn, cbar, 'Surrender <b>' + esc(a.name) + '</b>? You will choose from two unknown relics.',
+        function () { SFX.tap(); E.tradeGiveRelic(aid); showTradeRelicTake(done); }, 'red');
+    });
+    s.appendChild(cbar.el);
+    var skip = el('button', 'btn dim small', 'WALK AWAY');
+    skip.addEventListener('pointerdown', function () { SFX.tap(); E.skipTrade(); done(); });
+    s.appendChild(skip);
+  }
+
+  function showTradeRelicTake(done) {
+    var t = E.run.pendingTrade;
+    var choices = (t && t.choices) || [];
+    if (!choices.length) { E.skipTrade(); done(); return; }
+    var s = overlayScreen(true);
+    s.appendChild(el('h2', 'screen-title', 'Choose Your Salvage'));
+    s.appendChild(el('div', 'screen-sub', 'TAP TO PREVIEW · TAKE ONE'));
+    var cbar = makeConfirmBar();
+    choices.forEach(function (aid) {
+      var a = ns.ARTIFACTS[aid];
+      var btn = el('div', 'panel-btn amber',
+        '<div class="pb-title"><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + '</div>' +
+        '<div class="pb-desc">' + esc(a.desc) + '</div>');
+      s.appendChild(btn);
+      selectConfirm(s, btn, cbar, 'Take <b>' + esc(a.name) + '</b>?<span class="cb-note">' + esc(a.desc) + '</span>',
+        function () { SFX.coin(); E.tradeTakeRelic(aid); done(); }, 'amber');
+    });
+    s.appendChild(cbar.el);
+  }
+
+  // Brief reveal of a forged/received card before continuing.
+  function showTradeReveal(cid, tag, done) {
+    var s = overlayScreen(true);
+    s.appendChild(el('h2', 'screen-title', tag || 'ACQUIRED'));
+    var grid = el('div', 'card-grid');
+    grid.appendChild(cardEl(cid, false));
+    s.appendChild(grid);
+    var btn = el('button', 'btn', 'CONTINUE');
+    btn.addEventListener('pointerdown', function () { SFX.tap(); done(); });
+    s.appendChild(btn);
   }
 
   function showClassRelic() {

@@ -1835,6 +1835,16 @@
   }
   E.rollRewardCard = rollRewardCard;
 
+  // A reward card of a SPECIFIC rarity tier (1..3) — used by trade-up events.
+  function rollRewardCardTier(rar) {
+    var pool = Object.keys(ns.CARDS).filter(function (k) {
+      var c = ns.CARDS[k];
+      return c.rarity === rar && !c.pool && c.type !== 'curse' && (c.cls === E.run.cls || c.cls === 'any');
+    });
+    if (!pool.length) return rollRewardCard(rar >= 3 ? 0.5 : 0);
+    return pick(pool);
+  }
+
   // Legendary (rarity 4, boss pool) for boss/elite rewards.
   function rollLegendary() {
     var pool = Object.keys(ns.CARDS).filter(function (k) {
@@ -1902,6 +1912,28 @@
     emit('artifact', { id: id });
   }
   E.addArtifact = addArtifact;
+
+  // Reverse of addArtifact's run-state side effects (for relic-for-relic trades).
+  function removeArtifact(id) {
+    var r = E.run, idx = r.artifacts.indexOf(id);
+    if (idx < 0) return;
+    var a = ns.ARTIFACTS[id];
+    r.artifacts.splice(idx, 1);
+    if (a.k === 'maxHp') { r.maxHp -= a.v; r.hp = Math.min(r.hp, r.maxHp); }
+    if (r.relicUses) delete r.relicUses[id];
+    if (r.relicOff) delete r.relicOff[id];
+    emit('artifact', { id: id, removed: true });
+  }
+  E.removeArtifact = removeArtifact;
+
+  // Relics a player may trade away: plain, non-quest, non-class, side-effect-free.
+  function tradeableRelics() {
+    return E.run.artifacts.filter(function (k) {
+      var a = ns.ARTIFACTS[k];
+      return a && !a.questOnly && !a.cls && !a.special;
+    });
+  }
+  E.tradeableRelics = tradeableRelics;
 
   function winCombat() {
     var r = E.run, kind = E.combat.kind, cc = E.combat;
@@ -2225,6 +2257,8 @@
     if (c.credits && r.credits < c.credits) return false;
     if (c.attr) { for (var k in c.attr) if (attr(k) < c.attr[k]) return false; }
     if (c.hasArtifact && r.artifacts.indexOf(c.hasArtifact) < 0) return false;
+    if (c.hasRelic && E.tradeableRelics().length === 0) return false;
+    if (c.minCards && r.deck.filter(function (cd) { return ns.CARDS[cd.id].type !== 'curse'; }).length < c.minCards) return false;
     if (c.hasCurse && !r.deck.some(function (cd) { return ns.CARDS[cd.id].type === 'curse'; })) return false;
     return true;
   };
@@ -2339,6 +2373,14 @@
       r.pendingAddCard = E.augmentAddOptions();
       gained.push('Choose a card to add');
     }
+    if (fx.tradeCard) {
+      r.pendingTrade = { kind: 'card' };
+      gained.push('Scrap a card to forge a better one');
+    }
+    if (fx.tradeRelic) {
+      r.pendingTrade = { kind: 'relic', given: null, choices: null };
+      gained.push('Exchange a relic for two unknown ones');
+    }
     if (fx.pick) {
       r.pendingPick = fx.pick;
       gained.push(fx.pick === 'remove' ? 'Choose a card to remove' : fx.pick === 'upgrade' ? 'Choose a card to upgrade' :
@@ -2358,7 +2400,7 @@
 
   E.finishEvent = function () {
     var r = E.run;
-    if (r.pendingPick || r.pendingAddCard || r.pendingRelic) return; // resolve pending choices first
+    if (r.pendingPick || r.pendingAddCard || r.pendingRelic || r.pendingTrade) return; // resolve pending choices first
     r.eventResult = null;
     r.currentEvent = null;
     nodeComplete();
@@ -2458,6 +2500,44 @@
   };
 
   E.cancelPick = function () { E.run.pendingPick = null; };
+
+  /* ---------------- Trade-up (card-for-card / relic-for-relic) ------------- */
+  // Scrap a deck card -> receive a card ONE rarity tier higher. The "math":
+  // commons forge uncommons, uncommons forge rares, rares forge rares.
+  E.tradeCardPick = function (deckIdx) {
+    var r = E.run, t = r.pendingTrade;
+    if (!t || t.kind !== 'card') return null;
+    var card = r.deck[deckIdx]; if (!card) return null;
+    var def = ns.CARDS[card.id];
+    if (def.type === 'curse') return null;
+    var giveRar = def.rarity || 1;
+    r.deck.splice(deckIdx, 1);
+    var cid = rollRewardCardTier(Math.min(3, giveRar + 1));
+    r.deck.push(mkCard(cid, false));
+    r.pendingTrade = null;
+    E.save();
+    return { gave: def.name, got: cid };
+  };
+  // Relic-for-relic: surrender one owned relic, then choose one of two fresh ones.
+  E.tradeGiveRelic = function (aid) {
+    var r = E.run, t = r.pendingTrade;
+    if (!t || t.kind !== 'relic' || t.given) return null;
+    if (E.tradeableRelics().indexOf(aid) < 0) return null;
+    removeArtifact(aid);
+    t.given = aid;
+    t.choices = randomArtifactChoices(1, 2);
+    E.save();
+    return t.choices;
+  };
+  E.tradeTakeRelic = function (aid) {
+    var r = E.run, t = r.pendingTrade;
+    if (!t || t.kind !== 'relic') return null;
+    if (aid && t.choices && t.choices.indexOf(aid) >= 0) addArtifact(aid);
+    r.pendingTrade = null;
+    E.save();
+    return aid;
+  };
+  E.skipTrade = function () { E.run.pendingTrade = null; E.save(); };
 
   /* ---------------- Shop --------------------------------------------------- */
   // market=true -> Black Market: salvage-tech heavy + cheap card removal.
