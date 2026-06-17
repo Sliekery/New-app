@@ -5973,6 +5973,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         var room = 5 - aliveEnemies().length, add = Math.min(m.n || 1, Math.max(0, room));
         for (var sm = 0; sm < add; sm++) {
           var ne = mkEnemy(m.id);
+          ne.summonedBy = idx;   // remember the spawner so the renderer can cluster it nearby
           chooseIntent(ne);
           c.enemies.push(ne);
           emit('summon', { idx: c.enemies.length - 1 });
@@ -7107,24 +7108,46 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function fieldBottom() { return H - 170; }
   function baseY() { return fieldTop() + (fieldBottom() - fieldTop()) * 0.52; }
 
+  // where summoned minions fan out relative to their spawner (mult of spawner
+  // radius): leads with straight up / straight down, then around — so adds feel
+  // like they boil up around the mob instead of trailing in a conga line.
+  var MINION_SLOTS = [[0.2, -1.55], [0.2, 1.55], [1.15, -1.05], [1.15, 1.05], [1.4, 0], [-0.7, -1.25], [-0.7, 1.25], [2.0, -0.6], [2.0, 0.6]];
   function layout() {
     var n = R.views.length;
     if (!n) return;
     var y = baseY() - 14;
-    // n<=3 keep their hand-tuned spots; 4-5 (summons, gaze packs) spread evenly
-    // across the field so no enemy lands off the right edge (was 0.38+i*0.235,
-    // which pushed the 4th/5th enemy past x=W and made them invisible).
-    var shrink = n >= 5 ? 0.64 : n === 4 ? 0.74 : n === 3 ? 0.82 : 1;
+    // split into base enemies (laid out on the line) and summoned minions
+    // (clustered around whoever spawned them)
+    var base = [], minions = [];
     for (var i = 0; i < n; i++) {
       var v = R.views[i];
-      var fx;
-      if (n === 1) fx = 0.64;
-      else if (n === 2) fx = 0.48 + i * 0.30;
-      else if (n === 3) fx = 0.38 + i * 0.235;
-      else fx = 0.34 + (0.93 - 0.34) * (i / (n - 1));
-      v.x = W * fx;
-      v.y = y;
-      v.r = Math.min(W, H) * 0.105 * (v.def.size || 1) * shrink;
+      if (v.anchorFrom != null && v.anchorFrom >= 0 && R.views[v.anchorFrom]) minions.push(v);
+      else base.push(v);
+    }
+    // base line: 1-3 keep their hand-tuned spots; 4-5 spread evenly so none
+    // lands off the right edge (the old 0.38+i*0.235 pushed them past x=W).
+    var bn = base.length;
+    var bshrink = bn >= 5 ? 0.64 : bn === 4 ? 0.74 : bn === 3 ? 0.82 : 1;
+    for (var b = 0; b < bn; b++) {
+      var bv = base[b], fx;
+      if (bn === 1) fx = 0.64;
+      else if (bn === 2) fx = 0.48 + b * 0.30;
+      else if (bn === 3) fx = 0.38 + b * 0.235;
+      else fx = 0.34 + (0.93 - 0.34) * (b / (bn - 1));
+      bv.x = W * fx;
+      bv.y = y;
+      bv.r = Math.min(W, H) * 0.105 * (bv.def.size || 1) * bshrink;
+    }
+    // minions: fan around their spawner with vertical offset, clamped on-field
+    var per = {};
+    for (var mi = 0; mi < minions.length; mi++) {
+      var mv = minions[mi], sp = R.views[mv.anchorFrom];
+      var k = per[mv.anchorFrom] || 0; per[mv.anchorFrom] = k + 1;
+      var slot = MINION_SLOTS[k % MINION_SLOTS.length];
+      var rr = Math.min(W, H) * 0.105 * (mv.def.size || 1) * 0.7;
+      mv.r = rr;
+      mv.x = Math.max(rr + 4, Math.min(W - rr - 4, sp.x + sp.r * slot[0] + rr * 0.3));
+      mv.y = Math.max(fieldTop() + rr, Math.min(fieldBottom() - rr, sp.y + sp.r * slot[1]));
     }
   }
 
@@ -7148,6 +7171,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         spawned: same ? old.spawned : false,
         flashT: -9, shakeT: -9, lungeT: -9,
         intent: en.intent,
+        anchorFrom: en.summonedBy != null ? en.summonedBy : -1,
         x: 0, y: 0, r: 10,
       };
     });
@@ -7163,7 +7187,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     R.views.push({
       def: en.def, en: en, hp: en.hp, maxHp: en.maxHp, dispHp: en.hp,
       block: en.block, alive: en.alive, deathT: -1, spawnT: t, spawned: false,
-      flashT: -9, shakeT: -9, lungeT: -9, intent: en.intent, x: 0, y: 0, r: 10,
+      flashT: -9, shakeT: -9, lungeT: -9, intent: en.intent,
+      anchorFrom: en.summonedBy != null ? en.summonedBy : -1,
+      x: 0, y: 0, r: 10,
     });
     layout();
   };

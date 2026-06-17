@@ -1942,6 +1942,7 @@
         var room = 5 - aliveEnemies().length, add = Math.min(m.n || 1, Math.max(0, room));
         for (var sm = 0; sm < add; sm++) {
           var ne = mkEnemy(m.id);
+          ne.summonedBy = idx;   // remember the spawner so the renderer can cluster it nearby
           chooseIntent(ne);
           c.enemies.push(ne);
           emit('summon', { idx: c.enemies.length - 1 });
