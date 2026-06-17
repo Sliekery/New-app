@@ -7889,7 +7889,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
   function fcChips(cx, y, chips, fp) {
     ctx.font = 'bold ' + fp + 'px ui-monospace, monospace'; ctx.textBaseline = 'middle';
-    var gap = 3, h = fp + 6, i;
+    var gap = 3, h = fp + 4, i;
     var ws = chips.map(function (c) { return Math.max(15, ctx.measureText(c.ab + c.val).width + 7); });
     var total = -gap; for (i = 0; i < ws.length; i++) total += ws[i] + gap;
     var x = cx - total / 2;
@@ -7910,11 +7910,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     ctx.fillStyle = 'rgba(255,255,255,0.09)'; ctx.fillRect(bx, by, bw, h);
     ctx.fillStyle = hpColr; ctx.shadowColor = hpColr; ctx.shadowBlur = 4;
     ctx.fillRect(bx, by, bw * Math.max(0, Math.min(1, frac)), h); ctx.shadowBlur = 0;
-    fcBrackets(bx - 3, by - 3, bw + 6, h + 6, '#6f8a98');
+    fcBrackets(bx - 2, by - 2, bw + 4, h + 4, '#6f8a98');
     if (shield > 0) {
       var sw = bw * Math.max(0.05, Math.min(1, shield / Math.max(1, shMax)));
       ctx.fillStyle = '#41d8ff'; ctx.shadowColor = '#41d8ff'; ctx.shadowBlur = 5;
-      ctx.fillRect(bx, by - 4, sw, 2.5); ctx.shadowBlur = 0;
+      ctx.fillRect(bx, by - 3.5, sw, 2.5); ctx.shadowBlur = 0;
       // small cyan hexagon + value to the right (drawn, not a font glyph)
       var hxr = fp * 0.52, hxc = bx + bw + 7 + hxr, hyc = by + h / 2;
       ctx.beginPath();
@@ -7927,7 +7927,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     ctx.fillStyle = '#f2fff6'; ctx.shadowColor = '#04140c'; ctx.shadowBlur = 3;
     ctx.fillText(hpTxt, cx, midY + 0.5); ctx.shadowBlur = 0;
     var chips = statusChipList(statuses);
-    if (chips.length) fcChips(cx, by + h + 5, chips, opt.chipFont || 8);
+    if (chips.length) fcChips(cx, by + h + 3, chips, opt.chipFont || 8);
     ctx.restore();
   }
 
@@ -8496,8 +8496,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var frac = Math.max(0, Math.min(1, hp / maxHp));
     var hpCol = frac > 0.5 ? '#5dff88' : frac > 0.25 ? '#ffb02e' : '#ff4a5e';
     var cy = py + scale * 1.74;
-    var bw = Math.max(104, scale * 2.4), h = Math.max(9, scale * 0.22);
-    var fs = Math.max(9, Math.round(scale * 0.24));
+    var bw = Math.max(104, scale * 2.4), h = Math.max(6, scale * 0.14);
+    var fs = Math.max(9, Math.round(scale * 0.22));
     // the player figure sits at the far left — shift the bar's centre right so
     // the bracketed bar and chip row never clip off the left edge.
     var cx = Math.max(bw / 2 + 8, px);
