@@ -263,6 +263,30 @@
       if (railOpen && !$rail.contains(ev.target) && !$railPanel.contains(ev.target)) closeRail();
     }, true);
 
+    // ---- card inspect: right-click (desktop) or long-press (touch) any card ----
+    document.addEventListener('contextmenu', function (ev) {
+      var c = ev.target.closest ? ev.target.closest('.card[data-cid]') : null;
+      if (c) { ev.preventDefault(); SFX.tap(); inspectCard(c.dataset.cid, c.dataset.up === '1', c.dataset.vt === '1'); }
+    });
+    var lpT = null, lpX = 0, lpY = 0;
+    function cancelLP() { if (lpT) { clearTimeout(lpT); lpT = null; } }
+    document.addEventListener('pointerdown', function (ev) {
+      if ($inspect) return;
+      var c = ev.target.closest ? ev.target.closest('.card[data-cid]') : null;
+      if (!c) return;
+      lpX = ev.clientX; lpY = ev.clientY;
+      lpT = setTimeout(function () {
+        lpT = null;
+        if (drag) { try { drag.el.style.transform = ''; drag.el.classList.remove('dragging'); } catch (e) {} drag = null; setTargeting(false); }
+        SFX.tap(); inspectCard(c.dataset.cid, c.dataset.up === '1', c.dataset.vt === '1');
+      }, 460);
+    }, true);
+    document.addEventListener('pointermove', function (ev) {
+      if (lpT && Math.abs(ev.clientX - lpX) + Math.abs(ev.clientY - lpY) > 8) cancelLP();
+    }, true);
+    document.addEventListener('pointerup', cancelLP, true);
+    document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') closeInspect(); });
+
     document.getElementById('battlefield').addEventListener('pointerdown', onFieldTap);
     document.addEventListener('pointermove', onDragMove);
     document.addEventListener('pointerup', onDragEnd);
@@ -1411,6 +1435,7 @@
       var rot = off * spread;
       var ty = Math.abs(off) * Math.abs(off) * 1.5;
       d.style.setProperty('--fan', 'rotate(' + rot.toFixed(2) + 'deg) translateY(' + ty.toFixed(1) + 'px)');
+      d.dataset.cid = card.id; if (card.up) d.dataset.up = '1'; if (info.vtouch) d.dataset.vt = '1';
       d.innerHTML = cardInner(info.name, info.xcost ? 'X' : info.cost, info.type, info.rarity, info.desc, info.unplayable, card.id);
       d.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
@@ -2245,10 +2270,48 @@
     var def = ns.CARDS[cid];
     var ctx = E.run ? { attrs: { might: E.attr('might'), tech: E.attr('tech'), psi: E.attr('psi') }, statuses: null } : null;
     var d = el('div', 'card type-' + def.type + ' cls-' + ns.cardClass(cid) + rareClassOf(def.rarity) + (vtouch ? ' vtouched' : ''));
+    d.dataset.cid = cid; if (up) d.dataset.up = '1'; if (vtouch) d.dataset.vt = '1';
     d.innerHTML = cardInner(def.name + (up ? '+' : ''), def.xcost ? 'X' : ns.cardCost(def, up), def.type, def.rarity,
       ns.cardDesc(def, up, ctx, vtouch), def.unplayable, cid);
     return d;
   }
+
+  /* ====================== card inspect (right-click / long-press) ====================== */
+  var $inspect = null;
+  function closeInspect() { if ($inspect) { $inspect.remove(); $inspect = null; } }
+  U.closeInspect = closeInspect;
+  function inspectCard(cid, up, vtouch) {
+    var def = ns.CARDS[cid]; if (!def) return;
+    closeInspect();
+    var ov = el('div', 'card-inspect');
+    var wrap = el('div', 'ci-wrap');
+    var box = el('div', 'ci-cardbox');
+    var card = cardEl(cid, up, vtouch);
+    card.classList.add('ci-card');
+    box.appendChild(card); wrap.appendChild(box);
+    // keyword glossary entries that appear in this card's (cleaned) text
+    var ctx = E.run ? { attrs: { might: E.attr('might'), tech: E.attr('tech'), psi: E.attr('psi') }, statuses: null } : null;
+    var desc = ns.cardDesc(def, up, ctx, vtouch) + (def.exhaust ? ' Exhaust.' : '') + (def.retain ? ' Retain.' : '') + (vtouch ? ' Void-Touched.' : '');
+    var found = [];
+    Object.keys(ns.KEYWORDS).forEach(function (kw) {
+      var re = new RegExp('\\b' + kw.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&') + '\\b');
+      if (found.indexOf(kw) < 0 && re.test(desc)) found.push(kw);
+    });
+    var kl = el('div', 'ci-keys');
+    kl.innerHTML = found.length
+      ? '<div class="ci-keys-h">KEYWORDS</div>' + found.map(function (kw) {
+          return '<div class="ci-key"><span class="ci-key-n">' + esc(kw) + '</span><span class="ci-key-d">' + esc(ns.KEYWORDS[kw]) + '</span></div>';
+        }).join('')
+      : '<div class="ci-none">No keywords to explain on this card.</div>';
+    wrap.appendChild(kl);
+    wrap.appendChild(el('div', 'ci-hint', 'tap anywhere to close'));
+    ov.appendChild(wrap);
+    ov.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); SFX.tap(); closeInspect(); });
+    ($game || document.body).appendChild(ov);
+    $inspect = ov;
+    var dd = card.querySelector('.cdesc'); if (dd) fitOne(dd);
+  }
+  U.inspectCard = inspectCard;
 
   /* ====================== tap → preview → confirm ====================== */
   // A sticky confirm bar so no irreversible action is ever a single misclick.

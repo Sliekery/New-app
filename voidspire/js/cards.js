@@ -119,6 +119,56 @@
   };
   ns.STATUS_NAMES = STATUS_NAMES;
 
+  // Keyword glossary — shown ONLY when a card is inspected, never on the card
+  // face. Keys match the keyword names that appear in card text.
+  ns.KEYWORDS = {
+    'Shield': 'Absorbs incoming damage. Expires at the start of your next turn unless stated otherwise.',
+    'Plated Armor': 'At the start of your turn, gain Shield equal to your Plated Armor, then lose 1 of it.',
+    'Plating': 'Gain Shield at the start of each turn.',
+    'Barricade': 'Your Shield no longer expires at the start of your turn.',
+    'Phase Lock': 'Your Shield no longer expires.',
+    'Vulnerable': 'The unit takes 50% more attack damage. Ticks down 1 each turn.',
+    'Weak': 'The unit deals 25% less attack damage. Ticks down 1 each turn.',
+    'Burn': 'At the end of the turn the burning unit takes damage equal to its Burn, then it halves.',
+    'Might': 'Increases the damage of your attacks by its value.',
+    'Psi Focus': 'Increases the damage of your Psi attacks.',
+    'Energy': 'Spent to play cards. Refills at the start of your turn.',
+    'Exhaust': 'When played, this card is removed for the rest of combat.',
+    'Retain': 'This card stays in your hand at the end of turn instead of being discarded.',
+    'Regen': 'Heal HP equal to its value at the start of your turn. Ticks down.',
+    'Thorns': 'When an enemy attacks you, it takes damage equal to your Thorns.',
+    'Echo': 'The first Attack you play each turn is played twice.',
+    'Momentum': 'Your attacks deal +1 damage for each Momentum. Resets each turn.',
+    'Parry': 'Absorbs damage like Shield; each blow you parry strikes the attacker back (scales with Might).',
+    'Riposte': 'Whenever you gain Shield, deal damage equal to your Riposte to a random enemy.',
+    'Salvo': 'Whenever you Exhaust a card, deal damage equal to your Salvo to a random enemy.',
+    'Quartermaster': 'At the start of each turn, return that many random exhausted Attacks to your hand.',
+    'Full Auto': 'Whenever you play an Attack, gain Momentum.',
+    'Blood Rage': 'Whenever you lose HP to your own cards, gain Might.',
+    'Blood Pact': 'Whenever you lose HP to your own cards, gain Psi Focus.',
+    'Vengeance': 'After you take a hit or parry a blow, your next Attack heals you.',
+    'Entropy': 'At the end of your turn, apply Burn to ALL enemies.',
+    'Reactor': 'Gain +1 Energy at the start of each turn per stack.',
+    'Warlord': 'Gain Might at the start of each turn.',
+    'Resolve': 'Whenever a card is Exhausted, gain Shield.',
+    'Salvage': 'Whenever a card is Exhausted, draw a card.',
+    'Blade Array': 'Whenever you play a card, deal damage to ALL enemies.',
+    'Mirror Field': 'Whenever you play a card, gain Shield.',
+    'Contagion': 'Whenever you apply Burn, also apply Burn to ALL enemies.',
+    'Corruption': 'Skills cost 0 this combat, but Exhaust when played.',
+    'Turret': 'A deployed unit that attacks an enemy for its damage each turn.',
+    'Drone Swarm': 'A deployed unit that hits ALL enemies for its damage each turn.',
+    'Pack Fury': 'Your pets deal extra damage with their actions.',
+    'Bloodscent': "Your pets deal extra damage, and +1 more for every pet that dies.",
+    'Bulwark': 'At the start of each turn, your front pet gains Block.',
+    'Savage Feast': 'Whenever one of your pets attacks, you heal.',
+    'Symbiosis': 'Whenever a pet dies, gain Shield and draw a card.',
+    'Brood': 'At the start of each turn, summon a Spawnling.',
+    'Kennel': 'Adds formation slots (room for more or bigger pets).',
+    'Spawnling': 'A fragile pet that bursts for damage when it dies.',
+    'Void-Touched': 'Lose ' + (ns.VTOUCH_HP || 3) + ' HP each time this card is played, but its effect is boosted.',
+  };
+
   // HP paid each time a Void-Touched card is played.
   ns.VTOUCH_HP = 3;
   // "Void-Touched": empower a card's numbers (it costs HP to play, see engine).
@@ -1003,38 +1053,12 @@
       if (f.k === 'energy') parts.push('Gain ' + f.v + ' Energy.');
       if (f.k === 'status') {
         var n = STATUS_NAMES[f.s] || f.s;
-        if (f.s === 'turret') parts.push('Turret: deal ' + (f.v + (ctx ? ctx.attrs.tech : 0)) + ' damage each turn.');
-        else if (f.s === 'drone') parts.push('Drone Swarm: deal ' + (f.v + (ctx ? ctx.attrs.tech : 0)) + ' damage to ALL enemies each turn.');
-        else if (f.s === 'retaliate') parts.push('Whenever you gain Shield, deal ' + f.v + ' damage to a random enemy (Riposte).');
-        else if (f.s === 'momentum') parts.push('Gain ' + f.v + ' Momentum (your attacks deal +1 each this turn).');
-        else if (f.s === 'fullauto') parts.push('Whenever you play an Attack, gain ' + f.v + ' Momentum (Full Auto).');
-        else if (f.s === 'parry') parts.push('Gain ' + f.v + ' Parry: it absorbs damage like Shield, and every blow you parry strikes the attacker back (scales with Might).');
-        else if (f.s === 'bloodrage') parts.push('Whenever you lose HP to your own cards, gain ' + f.v + ' Might (Blood Rage).');
-        else if (f.s === 'vengeance') parts.push('After you take a hit or parry a blow, your next Attack heals ' + f.v + ' HP (Vengeance).');
-        else if (f.s === 'salvo') parts.push('Whenever you Exhaust a card, deal ' + f.v + ' damage to a random enemy (Salvo).');
-        else if (f.s === 'restock') parts.push('At the start of each turn, return ' + (f.v > 1 ? f.v + ' random exhausted Attacks' : 'a random exhausted Attack') + ' to your hand (Quartermaster).');
-        else if (f.s === 'entropy') parts.push('At end of turn, apply ' + f.v + ' Burn to ALL enemies.');
-        else if (f.s === 'reactor') parts.push('Gain +' + f.v + ' Energy at the start of each turn.');
-        else if (f.s === 'retain') parts.push('Shield no longer expires.');
-        else if (f.s === 'strPerTurn') parts.push('Gain ' + f.v + ' Might at the start of each turn.');
-        else if (f.s === 'feelNoPain') parts.push('Whenever a card is Exhausted, gain ' + f.v + ' Shield.');
-        else if (f.s === 'darkEmbrace') parts.push('Whenever a card is Exhausted, draw ' + f.v + ' card' + (f.v > 1 ? 's' : '') + '.');
-        else if (f.s === 'thousandCuts') parts.push('Whenever you play a card, deal ' + f.v + ' damage to ALL enemies.');
-        else if (f.s === 'afterImage') parts.push('Whenever you play a card, gain ' + f.v + ' Shield.');
-        else if (f.s === 'plague') parts.push('Whenever you apply Burn, apply ' + f.v + ' Burn to ALL enemies.');
-        else if (f.s === 'echo') parts.push('The first Attack you play each turn is played twice.');
-        else if (f.s === 'plate') parts.push('Gain ' + f.v + ' Shield at the start of each turn.');
-        else if (f.s === 'platedArmor') parts.push('Plated Armor ' + f.v + ': each turn gain that much Shield, then it drops by 1.');
-        else if (f.s === 'corruption') parts.push('Skills cost 0 this combat, but Exhaust when played.');
-        else if (f.s === 'barricade') parts.push('Your Shield no longer expires at the start of your turn.');
-        else if (f.s === 'bloodPact') parts.push('Whenever you lose HP to your own cards, gain ' + f.v + ' Psi Focus.');
-        else if (f.s === 'pack') parts.push('Your pets deal +' + f.v + ' with their actions (Pack Fury).');
-        else if (f.s === 'symbiosis') parts.push('Whenever a pet dies, gain ' + f.v + ' Shield and draw a card.');
-        else if (f.s === 'bloodscent') parts.push('Your pets deal +' + f.v + ' with their actions, and +1 more for every pet that dies (Bloodscent).');
-        else if (f.s === 'bulwark') parts.push('At the start of each turn, your FRONT pet gains ' + f.v + ' Block (Bulwark).');
-        else if (f.s === 'feast') parts.push('Whenever one of your pets attacks, heal ' + f.v + ' HP (Savage Feast).');
-        else if (f.s === 'brood') parts.push('At the start of each turn, summon ' + (f.v > 1 ? f.v + ' Spawnlings' : 'a Spawnling') + '.');
-        else if (f.s === 'slots') parts.push('+' + f.v + ' formation slot' + (f.v > 1 ? 's' : '') + ' (room for more or bigger pets).');
+        // Concise keyword references only — the rules live in the inspect glossary.
+        if (f.s === 'turret') parts.push('Deploy a Turret (' + (f.v + (ctx ? ctx.attrs.tech : 0)) + ' dmg/turn).');
+        else if (f.s === 'drone') parts.push('Deploy a Drone Swarm (' + (f.v + (ctx ? ctx.attrs.tech : 0)) + ' to all/turn).');
+        else if (f.s === 'brood') parts.push('Each turn, summon ' + (f.v > 1 ? f.v + ' Spawnlings' : 'a Spawnling') + '.');
+        else if (f.s === 'slots') parts.push('+' + f.v + ' formation slot' + (f.v > 1 ? 's' : '') + ' (Kennel).');
+        else if (f.s === 'echo' || f.s === 'corruption' || f.s === 'barricade' || f.s === 'retain') parts.push('Gain ' + n + '.');
         else if (f.who === 'self') parts.push('Gain ' + f.v + ' ' + n + '.');
         else if (f.who === 'allEnemies') parts.push('Apply ' + f.v + ' ' + n + ' to ALL enemies.');
         else parts.push('Apply ' + f.v + ' ' + n + '.');
