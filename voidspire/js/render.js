@@ -1237,7 +1237,7 @@
     var c = ns.engine.combat; if (!c || !c.allies) return;
     var live = c.allies.filter(function (a) { return a.alive; });
     if (!live.length) return;
-    var p = R.playerXY(), scale = Math.min(W, H) * 0.09;
+    var p = R.playerXY(), scale = Math.min(W, H) * 0.1125;
     var n = live.length;
     var sz = scale * 0.4 * (n > 4 ? 4 / n : 1);     // shrink the pack if it gets large
     // lay the pack out left-to-right beside the master, fitting before the enemy line
@@ -1267,7 +1267,7 @@
     var r = ns.engine.run;
     if (!r) return;
     var p = R.playerXY();
-    var scale = Math.min(W, H) * 0.09;
+    var scale = Math.min(W, H) * 0.1125;
     var bob = Math.sin(t * 1.6) * 1.4;
     var flash = (t - R.player.flashT < 0.15);
     // lunge toward the enemy line when attacking
