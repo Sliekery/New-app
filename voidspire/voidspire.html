@@ -4739,8 +4739,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // sector 1 stays a gentle on-ramp.
       var prog = Math.min(1, r.mapRow / Math.max(1, B.map.rows - 1));
       var hi = (r.sector <= 1) ? 4 : packs.length;
-      var lo = Math.min(Math.floor(prog * (packs.length - 3)), hi - 1);
-      ids = pick(packs.slice(Math.max(0, lo), Math.min(hi, lo + 4))).slice();
+      // cap lo at hi-4 so the window stays 4 packs wide instead of collapsing to
+      // a single pack near the top of a sector (which flooded sector 1 with the
+      // swarm pack and made late-sector fights monotonous).
+      var lo = Math.max(0, Math.min(Math.floor(prog * (packs.length - 3)), hi - 4));
+      ids = pick(packs.slice(lo, Math.min(hi, lo + 4))).slice();
       // Sector 1 only: add a fodder minion so hallway fights bite even with
       // perfect blocking (more simultaneous telegraph than one block can cover).
       // The very first fight stays gentle as a tutorial; no bleed into sector 2+.
@@ -7108,15 +7111,20 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var n = R.views.length;
     if (!n) return;
     var y = baseY() - 14;
+    // n<=3 keep their hand-tuned spots; 4-5 (summons, gaze packs) spread evenly
+    // across the field so no enemy lands off the right edge (was 0.38+i*0.235,
+    // which pushed the 4th/5th enemy past x=W and made them invisible).
+    var shrink = n >= 5 ? 0.64 : n === 4 ? 0.74 : n === 3 ? 0.82 : 1;
     for (var i = 0; i < n; i++) {
       var v = R.views[i];
       var fx;
       if (n === 1) fx = 0.64;
       else if (n === 2) fx = 0.48 + i * 0.30;
-      else fx = 0.38 + i * 0.235;
+      else if (n === 3) fx = 0.38 + i * 0.235;
+      else fx = 0.34 + (0.93 - 0.34) * (i / (n - 1));
       v.x = W * fx;
       v.y = y;
-      v.r = Math.min(W, H) * 0.105 * (v.def.size || 1) * (n === 3 ? 0.82 : 1);
+      v.r = Math.min(W, H) * 0.105 * (v.def.size || 1) * shrink;
     }
   }
 

@@ -67,15 +67,20 @@
     var n = R.views.length;
     if (!n) return;
     var y = baseY() - 14;
+    // n<=3 keep their hand-tuned spots; 4-5 (summons, gaze packs) spread evenly
+    // across the field so no enemy lands off the right edge (was 0.38+i*0.235,
+    // which pushed the 4th/5th enemy past x=W and made them invisible).
+    var shrink = n >= 5 ? 0.64 : n === 4 ? 0.74 : n === 3 ? 0.82 : 1;
     for (var i = 0; i < n; i++) {
       var v = R.views[i];
       var fx;
       if (n === 1) fx = 0.64;
       else if (n === 2) fx = 0.48 + i * 0.30;
-      else fx = 0.38 + i * 0.235;
+      else if (n === 3) fx = 0.38 + i * 0.235;
+      else fx = 0.34 + (0.93 - 0.34) * (i / (n - 1));
       v.x = W * fx;
       v.y = y;
-      v.r = Math.min(W, H) * 0.105 * (v.def.size || 1) * (n === 3 ? 0.82 : 1);
+      v.r = Math.min(W, H) * 0.105 * (v.def.size || 1) * shrink;
     }
   }
 

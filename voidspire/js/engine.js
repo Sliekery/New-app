@@ -708,8 +708,11 @@
       // sector 1 stays a gentle on-ramp.
       var prog = Math.min(1, r.mapRow / Math.max(1, B.map.rows - 1));
       var hi = (r.sector <= 1) ? 4 : packs.length;
-      var lo = Math.min(Math.floor(prog * (packs.length - 3)), hi - 1);
-      ids = pick(packs.slice(Math.max(0, lo), Math.min(hi, lo + 4))).slice();
+      // cap lo at hi-4 so the window stays 4 packs wide instead of collapsing to
+      // a single pack near the top of a sector (which flooded sector 1 with the
+      // swarm pack and made late-sector fights monotonous).
+      var lo = Math.max(0, Math.min(Math.floor(prog * (packs.length - 3)), hi - 4));
+      ids = pick(packs.slice(lo, Math.min(hi, lo + 4))).slice();
       // Sector 1 only: add a fodder minion so hallway fights bite even with
       // perfect blocking (more simultaneous telegraph than one block can cover).
       // The very first fight stays gentle as a tutorial; no bleed into sector 2+.
