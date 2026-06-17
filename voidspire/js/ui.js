@@ -1947,7 +1947,7 @@
     var ok = E.playCard(i, targetIdx);
     if (!ok) { renderHand(); return; }
     playCardFX(card, def, targetIdx, flavor);
-    R.playerAnim(def.type === 'attack' ? 'attack' : def.type === 'power' ? 'utility' : 'defend');
+    R.playerAnim(def.type === 'attack' ? 'attack' : def.type === 'power' ? 'utility' : 'defend', targetIdx);
     var evts = E.events.slice();
     E.events.length = 0;
     lock(true);

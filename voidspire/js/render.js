@@ -149,12 +149,18 @@
   };
   R.playerLunge = function () { R.player.lungeT = t; };
   // Short card-play animation, keyed by card type: 'attack' | 'defend' | 'utility'.
-  R.playerAnim = function (type) {
+  R.playerAnim = function (type, targetIdx) {
     R.player.animT = t; R.player.animType = type;
     var p = R.playerXY(), sc = Math.min(W, H) * 0.1125;
     var run = ns.engine.run, cls = run && run.cls;
     var col = ((run && CLASS_ART[cls]) || CLASS_ART.vanguard).color;
-    if (type === 'attack' && cls === 'voidadept') { var a = CLASS_ART.voidadept.atk; R.player.shardPick = Math.floor(Math.random() * (a ? a.n : 8)); }
+    if (type === 'attack') {
+      var ti = (typeof targetIdx === 'number' && targetIdx >= 0 && R.views[targetIdx] && R.views[targetIdx].alive) ? targetIdx : null;
+      if (ti == null) for (var i = 0; i < R.views.length; i++) if (R.views[i] && R.views[i].alive) { ti = i; break; }
+      var ep = ti != null ? R.enemyPos(ti) : { x: p.x + sc * 4, y: p.y };
+      R.player.atkTX = ep.x; R.player.atkTY = ep.y;
+      if (cls === 'voidadept') { var a = CLASS_ART.voidadept.atk; R.player.shardPick = Math.floor(Math.random() * (a ? a.n : 8)); }
+    }
     if (type === 'defend') burst(p.x, p.y - sc * 0.35, col, 9);
     else if (type === 'utility') burst(p.x, p.y - sc * 0.5, col, 11);
   };
@@ -188,28 +194,33 @@
     });
     ctx.restore();
   }
-  // a quick muzzle flash + bolt streaking toward the enemy line (+x)
-  function muzzleFlash(mx, my, sc, ang, col) {
-    ctx.save(); ctx.fillStyle = '#fff7e0'; ctx.shadowColor = col; ctx.shadowBlur = 16; ctx.globalAlpha = 0.95;
+  // muzzle flash + bolt streaking from (mx,my) toward the card's target (tx,ty)
+  function muzzleFlash(mx, my, sc, col, tx, ty) {
+    var dx = (tx == null ? mx + sc : tx) - mx, dy = (ty == null ? my : ty) - my, len = Math.hypot(dx, dy) || 1, nx = dx / len, ny = dy / len, ox = -ny, oy = nx;
+    ctx.save();
+    ctx.fillStyle = '#fff7e0'; ctx.shadowColor = col; ctx.shadowBlur = 16; ctx.globalAlpha = 0.95;
     ctx.beginPath(); ctx.arc(mx, my, sc * 0.13, 0, 7); ctx.fill();
     ctx.strokeStyle = '#fff7e0'; ctx.lineWidth = 2.4; ctx.shadowBlur = 12;
-    ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(mx + sc * 0.4, my - sc * 0.05); ctx.moveTo(mx, my); ctx.lineTo(mx + sc * 0.38, my + sc * 0.07); ctx.stroke();
-    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.globalAlpha = 0.8;
-    ctx.beginPath(); ctx.moveTo(mx + sc * 0.2, my); ctx.lineTo(mx + sc * 1.4, my); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(mx, my); ctx.lineTo(mx + nx * sc * 0.4 + ox * sc * 0.07, my + ny * sc * 0.4 + oy * sc * 0.07);
+    ctx.moveTo(mx, my); ctx.lineTo(mx + nx * sc * 0.4 - ox * sc * 0.07, my + ny * sc * 0.4 - oy * sc * 0.07);
+    ctx.stroke();
+    ctx.strokeStyle = col; ctx.lineWidth = 2.6; ctx.globalAlpha = 0.85; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.moveTo(mx + nx * sc * 0.22, my + ny * sc * 0.22); ctx.lineTo(mx + nx * Math.min(len, sc * 2.4), my + ny * Math.min(len, sc * 2.4)); ctx.stroke();
     ctx.restore();
   }
-  // Voidadept halo of shards; on attack one grows and streaks off toward the enemy.
-  function drawShards(a, px, py, sc, col, glow, prog, pick) {
+  // Voidadept halo of shards; on attack one swells then streaks to the card target.
+  function drawShards(a, px, py, sc, col, glow, prog, pick, tx, ty) {
     ctx.save(); ctx.strokeStyle = col; ctx.lineJoin = 'round'; ctx.shadowColor = col; ctx.shadowBlur = glow; ctx.lineWidth = 1.6;
     for (var i = 0; i < a.n; i++) {
       var ang = t * 0.5 + i / a.n * Math.PI * 2;
-      var cx = a.cx + Math.cos(ang) * a.rad, cy = a.cy + Math.sin(ang) * a.rad, sz = a.size, alpha = 1;
+      var hx = px + (a.cx + Math.cos(ang) * a.rad) * sc, hy = py + (a.cy + Math.sin(ang) * a.rad) * sc;
+      var X = hx, Y = hy, S = a.size * sc, alpha = 1;
       if (prog >= 0 && i === pick) {
-        if (prog < 0.45) { sz = a.size * (1 + (prog / 0.45) * 2.4); }                 // swell in place
-        else { var f = (prog - 0.45) / 0.55; sz = a.size * 3.4 * (1 - f * 0.6); cx += f * 1.7; cy = cy * (1 - f) + 0.18 * f; alpha = 1 - f * 0.5; }  // streak off toward the enemy
+        if (prog < 0.42) { S = a.size * sc * (1 + (prog / 0.42) * 2.6); }              // swell in place
+        else { var f = (prog - 0.42) / 0.58; X = hx + ((tx == null ? hx + sc * 3 : tx) - hx) * f; Y = hy + ((ty == null ? hy : ty) - hy) * f; S = a.size * sc * 3.6 * (1 - f * 0.55); alpha = 1 - f * 0.45; }
       }
       ctx.globalAlpha = alpha;
-      var X = px + cx * sc, Y = py + cy * sc, S = sz * sc;
       ctx.beginPath(); ctx.moveTo(X, Y - S * 1.5); ctx.lineTo(X + S, Y); ctx.lineTo(X, Y + S * 1.5); ctx.lineTo(X - S, Y); ctx.closePath(); ctx.stroke();
     }
     ctx.restore();
@@ -1023,7 +1034,7 @@
       e: [[-0.03,-0.69], [0.05,-0.69]],
       muzzle: [0.51, -1.06],
       weapon: [[0.26,-0.5,0.3,-0.42,0.54,-0.5,0.5,-0.6,0.26,-0.5], [0.46,-0.56,0.56,-0.56,0.56,-0.74,0.46,-0.74,0.46,-0.56], [0.45,-0.74,0.58,-0.74,0.58,-0.66,0.46,-0.65,0.45,-0.74], [0.44,-0.76,0.58,-0.76,0.58,-0.92,0.44,-0.92,0.44,-0.76], [0.47,-0.92,0.47,-1.06,0.55,-1.06,0.55,-0.92,0.47,-0.92], [0.58,-0.8,0.67,-0.8,0.67,-0.88,0.58,-0.88,0.58,-0.8], [0.44,-0.79,0.39,-0.73,0.45,-0.7,0.46,-0.77], [0.49,-1.06,0.51,-1.12,0.53,-1.06]],
-      atk: { type: 'arm', muzzle: [1.07,-0.4], frames: [[[0.26,-0.5,0.31,-0.42,0.5,-0.44,0.46,-0.52], [0.46,-0.48,0.58,-0.46,0.68,-0.36,0.58,-0.32], [0.62,-0.4,0.8,-0.36,0.82,-0.26,0.62,-0.28,0.62,-0.4], [0.8,-0.34,0.92,-0.3,0.92,-0.26,0.8,-0.28], [0.6,-0.34,0.56,-0.26,0.64,-0.24,0.66,-0.32]], [[0.26,-0.5,0.31,-0.42,0.52,-0.42,0.5,-0.5], [0.5,-0.46,0.64,-0.46,0.74,-0.42,0.62,-0.38], [0.7,-0.45,0.92,-0.45,0.92,-0.35,0.7,-0.35,0.7,-0.45], [0.92,-0.43,1.07,-0.43,1.07,-0.37,0.92,-0.37], [0.72,-0.35,0.68,-0.27,0.78,-0.25,0.8,-0.33]], [[0.26,-0.5,0.31,-0.42,0.52,-0.46,0.5,-0.54], [0.5,-0.5,0.64,-0.52,0.74,-0.56,0.64,-0.46], [0.72,-0.54,0.92,-0.6,0.94,-0.5,0.72,-0.44,0.72,-0.54], [0.92,-0.56,1.07,-0.62,1.08,-0.55,0.93,-0.49], [0.74,-0.44,0.7,-0.36,0.8,-0.34,0.82,-0.42]], [[0.26,-0.5,0.31,-0.42,0.5,-0.44,0.46,-0.52], [0.46,-0.48,0.58,-0.46,0.68,-0.36,0.58,-0.32], [0.62,-0.4,0.8,-0.36,0.82,-0.26,0.62,-0.28,0.62,-0.4], [0.8,-0.34,0.92,-0.3,0.92,-0.26,0.8,-0.28], [0.6,-0.34,0.56,-0.26,0.64,-0.24,0.66,-0.32]]] },
+      atk: { type: 'aim', pivot: [0.26,-0.48], aim: 1.46, muzzle: [0.51,-1.06] },
     
     },
     technomancer: {
@@ -1278,30 +1289,37 @@
     var bob = Math.sin(t * 1.6) * 1.4;
     var flash = (t - R.player.flashT < 0.15);
     var px = p.x, py = p.y + bob, sc = scale, glow = flash ? 14 : 9;
-    // card-play animation: attack lunge / defend brace / utility surge
-    var adt = t - (R.player.animT || -9), atype = R.player.animType, aprog = -1;
-    var ATKDUR = 0.46;
-    if (adt >= 0 && adt < (atype === 'attack' ? ATKDUR : 0.42)) {
-      aprog = adt / (atype === 'attack' ? ATKDUR : 0.42);
-      var s = Math.sin(aprog * Math.PI);   // ease 0 -> 1 -> 0 (body), attack moves the weapon not the body
+    var art = CLASS_ART[r.cls] || CLASS_ART.vanguard, atk = art.atk;
+    // card-play animation: attack (weapon rig) / defend brace / utility surge
+    var atype = R.player.animType, adt = t - (R.player.animT || -9), aprog = -1;
+    var dur = atype === 'attack' ? (atk && atk.type === 'aim' ? 0.66 : 0.5) : 0.42;
+    if (adt >= 0 && adt < dur) {
+      aprog = adt / dur;
+      var s = Math.sin(aprog * Math.PI);   // attack moves the weapon, not the body
       if (atype === 'defend') { py += s * 10; sc *= 1 - s * 0.06; glow += s * 6; }
       else if (atype === 'utility') { py -= s * 12; sc *= 1 + s * 0.08; glow += s * 8; }
     }
-    var art = CLASS_ART[r.cls] || CLASS_ART.vanguard;
     var col = flash ? '#ff4a5e' : art.color;
     strokePaths(art.p, px, py, sc, col, glow, 1);
 
-    // weapon / attack animation (per-class keyframed rig)
-    var atking = atype === 'attack' && aprog >= 0, frame = atking ? Math.min(3, Math.floor(aprog * 4)) : -1, atk = art.atk;
-    if (atk && atk.type === 'arm') {
-      strokePaths(atking ? atk.frames[frame] : art.weapon, px, py, sc, col, glow, 1);
-      if (atking && frame === 1) muzzleFlash(px + atk.muzzle[0] * sc, py + atk.muzzle[1] * sc, sc, 0, art.color);
-    } else if (atk && atk.type === 'staff') {
-      var ang = atking ? atk.frames[frame] : 0;
+    // weapon / attack animation per class
+    var atking = atype === 'attack' && aprog >= 0, tx = R.player.atkTX, ty = R.player.atkTY;
+    function ease(x) { return x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x); }
+    if (atk && atk.type === 'aim') {                 // vanguard: smooth aim-down, fire, raise
+      var ang = 0, firing = false;
+      if (atking) {
+        if (aprog < 0.38) ang = ease(aprog / 0.38) * atk.aim;
+        else if (aprog < 0.56) { ang = atk.aim; firing = true; }
+        else ang = atk.aim * (1 - ease((aprog - 0.56) / 0.44));
+      }
       strokeRot(art.weapon, px, py, sc, atk.pivot, ang, col, glow);
-      if (atking && frame === 1) { var ob = rotPt(atk.orb, atk.pivot, ang); muzzleFlash(px + ob[0] * sc, py + ob[1] * sc, sc, 0, art.color); }
-    } else if (atk && atk.type === 'shard') {
-      drawShards(atk, px, py, sc, col, glow, atking ? aprog : -1, R.player.shardPick | 0);
+      if (firing) { var m = rotPt(atk.muzzle, atk.pivot, atk.aim); muzzleFlash(px + m[0] * sc, py + m[1] * sc, sc, art.color, tx, ty); }
+    } else if (atk && atk.type === 'staff') {        // technomancer: staff lower/level/fire/raise
+      var sf = atking ? Math.min(3, Math.floor(aprog * 4)) : -1, sang = atking ? atk.frames[sf] : 0;
+      strokeRot(art.weapon, px, py, sc, atk.pivot, sang, col, glow);
+      if (atking && sf === 1) { var ob = rotPt(atk.orb, atk.pivot, sang); muzzleFlash(px + ob[0] * sc, py + ob[1] * sc, sc, art.color, tx, ty); }
+    } else if (atk && atk.type === 'shard') {        // voidadept: shard swells + streaks to target
+      drawShards(atk, px, py, sc, col, glow, atking ? aprog : -1, R.player.shardPick | 0, tx, ty);
     }
 
     // glowing eye/visor points
