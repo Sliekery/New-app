@@ -273,9 +273,9 @@ var res = E.eventChoose(0); // force the seal -> commit-blind gamble
 ok('gamble produced a result', !!res && typeof res.text === 'string');
 
 /* 26. addCardChoice queues a card chooser */
-openEvent('arms_fabricator');
+openEvent('stranded_drifter');
 E.run.credits = 100;
-E.eventChoose(1); // commission a weapon -> addCardChoice
+E.eventChoose(0); // share supplies -> addCardChoice
 ok('addCardChoice offers cards to add', Array.isArray(E.run.pendingAddCard) && E.run.pendingAddCard.length > 0);
 ok('finishEvent blocks until a card is chosen', (E.finishEvent(), E.run.phase === 'event-result'));
 var deckN = E.run.deck.length;
