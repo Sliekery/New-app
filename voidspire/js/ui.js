@@ -2046,6 +2046,10 @@
       setTimeout(U.refresh, 650);
     } else if (r.phase === 'combat') {
       renderHand(deal);
+      // resync the on-figure Shield to the engine: the start-of-turn block wipe
+      // (startPlayerTurn) clears block silently with no event, so without this the
+      // canvas shield keeps showing last turn's leftover until the next block event.
+      if (E.combat) R.setPlayerView(null, E.combat.player.block);
       updateEnergy();
       updateCounts();
       updateHUD();
