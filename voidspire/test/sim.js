@@ -263,6 +263,9 @@ var ENGINES = {
                 flex: ['pulse_rifle', 'war_cry', 'rallying_shout', 'bayonet_charge', 'executioner', 'adrenal_surge'] },
   bandolier: { cls: 'vanguard', core: ['salvo', 'reload', 'quartermaster', 'breaching_charge', 'field_strip', 'cluster_charge', 'scorched_earth', 'iron_resolve', 'salvage_protocol', 'reckless_charge', 'limit_break', 'adrenal_surge'],
                flex: ['pulse_rifle', 'combat_shield', 'munitions_dump', 'bayonet_charge', 'brace', 'reload'] },
+  // Voidadept affliction/Burn engine
+  hex: { cls: 'voidadept', core: ['soul_burn', 'hex_weave', 'wither', 'catalyst', 'entropy_field', 'plague_engine', 'singularity_bloom', 'psionic_focus', 'mind_array', 'unravel', 'void_bolt', 'mind_fracture'],
+         flex: ['mind_spike', 'premonition', 'blood_sacrifice', 'exsanguinate', 'psy_lance', 'combat_shield'] },
 };
 var FLEX_OF = { warpcaller: ['claw_swipe', 'summon_maw', 'howl', 'kennel', 'summon_totem'] };  // per-class default flex
 var PILOT = null;   // an ENGINES key — null = default greedy draft

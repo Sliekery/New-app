@@ -74,6 +74,10 @@
       phylacteryUsed: false, salvageKills: 0,
     };
     E.combat = null;
+    if (E.CORNERSTONES !== false && CORNERSTONE_OF[clsId]) {   // grant the class Cornerstone
+      E.run.cornerstone = { id: CORNERSTONE_OF[clsId], tier: 1 };
+      E.run.artifacts.push(CORNERSTONE_OF[clsId]);
+    }
     E.run.map = generateMap(1);
     E.run.phase = 'map';
     E.save();
@@ -87,6 +91,24 @@
     return true;
   };
 
+  /* ---- Cornerstones: a class signature relic that survives the Recurrence and
+   * forges stronger each loop. Its effect scales with the stored forge tier, so
+   * it's injected into attr()/art() rather than carried as a static relic value. */
+  var CORNERSTONE_OF = { voidadept: 'hexheart' };
+  E.CORNERSTONES = true;   // sim can flip this off to measure the baseline
+  function cornerstoneHooks() {
+    var cs = E.run && E.run.cornerstone;
+    if (!cs) return null;
+    var t = cs.tier || 1;
+    if (cs.id === 'hexheart') {
+      // Hexheart (Voidadept / affliction): +PSI, amplifies Burn (hexweaver), and
+      // hardens you with starting Shield from tier 3 on.
+      return { psi: t, hexweaver: Math.max(0, t - 1), blockStart: t >= 3 ? (t - 2) * 5 : 0 };
+    }
+    return null;
+  }
+  E.cornerstoneTier = function () { return (E.run && E.run.cornerstone && E.run.cornerstone.tier) || 0; };
+
   /* Effective attribute incl. artifacts */
   function attr(name) {
     var v = E.run.attrs[name] || 0;
@@ -95,6 +117,8 @@
       var a = ns.ARTIFACTS[E.run.artifacts[i]];
       if (a.k === 'attr' && a.a === name) v += a.v;
     }
+    var ch = cornerstoneHooks();
+    if (ch && ch[name]) v += ch[name];
     return v;
   }
   E.attr = attr;
@@ -130,6 +154,8 @@
       if (ee.hook && ee.hook.k === k) t += ee.hook.v;
       if (ee.hooks) for (var hh = 0; hh < ee.hooks.length; hh++) if (ee.hooks[hh].k === k) t += ee.hooks[hh].v;
     }
+    var ch = cornerstoneHooks();
+    if (ch && k !== 'psi' && ch[k]) t += ch[k];   // psi is an attribute, handled in attr()
     return t;
   }
   E.art = art;
@@ -2021,7 +2047,7 @@
     if (!a || a.tier !== tier) return false;
     if (E.run.artifacts.indexOf(k) >= 0) return false;            // already owned
     if (a.cls && a.cls !== E.run.cls) return false;               // class-locked: only its class
-    if (a.questOnly) return false;                                // earned via quest chain, never dropped
+    if (a.questOnly || a.cornerstone) return false;               // quest/cornerstone relics never drop
     return true;
   }
   function randomArtifact(tier) {
@@ -2079,6 +2105,7 @@
     var r = E.run, idx = r.artifacts.indexOf(id);
     if (idx < 0) return;
     var a = ns.ARTIFACTS[id];
+    if (a && a.cornerstone) return;                 // the Cornerstone can't be removed/traded
     r.artifacts.splice(idx, 1);
     if (a.k === 'maxHp') { r.maxHp -= a.v; r.hp = Math.min(r.hp, r.maxHp); }
     if (r.relicUses) delete r.relicUses[id];
@@ -2106,6 +2133,7 @@
     // The finale: beating THE UNMAKER wins the run.
     if (cc.isFinal) {
       r.won = true;
+      if (r.cornerstone && (r.cornerstone.tier || 1) < 4) r.cornerstone.tier = (r.cornerstone.tier || 1) + 1;   // forge a tier per loop cleared
       E.recordBest();
       r.phase = 'victory';
       emit('win', { kind: 'final', credits: 0 });
@@ -2381,6 +2409,8 @@
     r.phylacteryUsed = false; r.salvageKills = 0;
     r.reward = null; r.shop = null; r.bossArtifacts = null; r.treasure = null;
     r.pendingPick = null; r.pendingAddCard = null; r.echoOffer = null;
+    // the Cornerstone survives the Recurrence even though the rest of the relics reset
+    if (r.cornerstone && r.artifacts.indexOf(r.cornerstone.id) < 0) r.artifacts.push(r.cornerstone.id);
     r.phase = 'sector-intro';
     E.combat = null;
   }

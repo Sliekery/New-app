@@ -400,6 +400,7 @@ ok('Phylactery is marked used', E.run.phylacteryUsed === true);
 
 /* 40. The Recurrence: full reset keeps Echoes; Ascendant Core persists */
 E.newRun('voidadept'); E.run.echoes = ['ascendant_core']; E.run.loadout = ['ascendant_core'];
+E.run.artifacts.push('void_lens');   // a normal relic that the Recurrence should wipe
 E.run.won = true; E.run.phase = 'victory';
 var lp = E.run.loop;
 E.enterRecurrence();
@@ -411,9 +412,10 @@ E.chooseEcho(E.echoOffer()[0]);
 ok('choosing an Echo -> loadout', E.run.phase === 'echo-loadout');
 E.beginLoop();
 ok('Recurrence resets the deck to starter', E.run.deck.length === 10);
-ok('Recurrence wipes relics', E.run.artifacts.length === 0);
+ok('Recurrence wipes normal relics but keeps the Cornerstone',
+   E.run.artifacts.indexOf('void_lens') < 0 && E.run.artifacts.indexOf('hexheart') >= 0);
 ok('Recurrence keeps Echoes', E.run.echoes.indexOf('ascendant_core') >= 0);
-ok('Ascendant Core grants +2 core attribute', E.attr('psi') === 4);
+ok('Ascendant Core grants +2 core attribute (+1 from Hexheart tier 1)', E.attr('psi') === 5);
 ok('new loop begins at sector 1', E.run.sector === 1 && E.run.phase === 'sector-intro');
 
 /* 41. Loadout respects the slot cap */
