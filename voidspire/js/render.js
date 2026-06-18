@@ -886,6 +886,62 @@
     ctx.restore();
   }
 
+  // ---- persistent trait badges (passive enemy mechanics shown at a glance) ----
+  var TRAIT_DEFS = [
+    { key: 'rampStr',    glyph: 'enrage',     col: '#ff6a4a', val: function (d) { return d.rampStr; } },
+    { key: 'thorns',     glyph: 'thorns',     col: '#9bb0a6', val: function (d) { return d.thorns; } },
+    { key: 'plated',     glyph: 'plate',      col: '#8fb6c8', val: function () { return null; } },
+    { key: 'overload',   glyph: 'overload',   col: '#ff7a1e', val: function (d) { return d.overload; } },
+    { key: 'discipline', glyph: 'discipline', col: '#ffd23d', val: function (d) { return d.discipline.dmg; } },
+    { key: 'wardedBy',   glyph: 'ward',       col: '#41d8ff', val: function () { return null; } },
+  ];
+  function enemyTraits(def) {
+    var out = [];
+    TRAIT_DEFS.forEach(function (t) { if (def[t.key]) out.push({ glyph: t.glyph, col: t.col, val: t.val(def) }); });
+    if (def.moves && def.moves.some(function (m) { return m.leech; })) out.push({ glyph: 'leech', col: '#ff4a5e', val: null });
+    return out;
+  }
+  function drawTraitGlyph(g, cx, cy, r, col) {
+    ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1.3; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.beginPath();
+    var i, a, px, py;
+    if (g === 'enrage') {
+      ctx.moveTo(cx - r, cy); ctx.lineTo(cx, cy - r * 0.7); ctx.lineTo(cx + r, cy);
+      ctx.moveTo(cx - r, cy + r * 0.8); ctx.lineTo(cx, cy + r * 0.1); ctx.lineTo(cx + r, cy + r * 0.8); ctx.stroke();
+    } else if (g === 'thorns') {
+      for (i = -1; i <= 1; i++) { ctx.moveTo(cx + i * r * 0.7, cy + r); ctx.lineTo(cx + i * r * 0.7, cy - r); } ctx.stroke();
+      ctx.beginPath(); for (i = -1; i <= 1; i++) { ctx.moveTo(cx + i * r * 0.7 - 2.4, cy - r * 0.35); ctx.lineTo(cx + i * r * 0.7, cy - r); ctx.lineTo(cx + i * r * 0.7 + 2.4, cy - r * 0.35); } ctx.stroke();
+    } else if (g === 'plate') {
+      for (i = 0; i < 6; i++) { a = Math.PI / 6 + i * Math.PI / 3; px = cx + r * Math.cos(a); py = cy + r * Math.sin(a); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.closePath(); ctx.stroke();
+    } else if (g === 'overload') {
+      for (i = 0; i < 4; i++) { a = i * Math.PI / 2; ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+      for (i = 0; i < 4; i++) { a = i * Math.PI / 2 + Math.PI / 4; ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * r * 0.55, cy + Math.sin(a) * r * 0.55); } ctx.stroke();
+    } else if (g === 'discipline') {
+      ctx.lineWidth = 1.7; ctx.moveTo(cx - r * 0.45, cy - r); ctx.lineTo(cx - r * 0.45, cy + r); ctx.moveTo(cx + r * 0.45, cy - r); ctx.lineTo(cx + r * 0.45, cy + r); ctx.stroke();
+    } else if (g === 'ward') {
+      ctx.arc(cx, cy, r, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, cy, 1.3, 0, 7); ctx.fill();
+    } else if (g === 'leech') {
+      ctx.moveTo(cx, cy - r); ctx.quadraticCurveTo(cx + r, cy, cx, cy + r); ctx.quadraticCurveTo(cx - r, cy, cx, cy - r); ctx.stroke();
+    }
+  }
+  function drawEnemyTraits(v, by, hasStatus) {
+    var traits = enemyTraits(v.def);
+    if (!traits.length) return;
+    var y = by + (hasStatus ? 40 : 23);
+    ctx.save();
+    ctx.font = 'bold 8px ui-monospace, monospace'; ctx.textBaseline = 'middle';
+    var items = traits.map(function (t) { return { t: t, w: 13 + (t.val != null ? ctx.measureText('' + t.val).width + 2 : 0) }; });
+    var total = items.reduce(function (a, it) { return a + it.w + 5; }, -5);
+    var x = v.x - total / 2;
+    items.forEach(function (it) {
+      ctx.globalAlpha = 0.92;
+      drawTraitGlyph(it.t.glyph, x + 6, y, 5, it.t.col);
+      if (it.t.val != null) { ctx.fillStyle = it.t.col; ctx.textAlign = 'left'; ctx.fillText('' + it.t.val, x + 13, y + 0.5); }
+      x += it.w + 5;
+    });
+    ctx.restore();
+  }
+
   function drawEnemy(v, idx) {
     var dying = !v.alive;
     var dieDur = 0.45;
@@ -966,6 +1022,11 @@
 
     // statuses — colour-coded pills under the HP bar
     drawEnemyStatuses(v, by);
+
+    // persistent passive-trait badges (Enrage / Thorns / Plated / Overload / etc.)
+    var hasStatus = false, stk = v.en.statuses;
+    for (var sk in stk) { if (stk[sk] > 0) { hasStatus = true; break; } }
+    drawEnemyTraits(v, by, hasStatus);
 
     // intent
     drawIntent(v);
