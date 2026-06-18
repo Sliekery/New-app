@@ -7143,6 +7143,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (lk !== R.aim.lock) { R.aim.lock = lk; if (lk >= 0) R.aim.lockT = t; }   // new target -> start the lock-on anim
   };
   R.clearAim = function () { R.aim.on = false; R.aim.lock = -1; };
+  // combat d20: tumbles then settles on the rolled value when an attack is played
+  R.die = { shown: false, t0: -9, value: 0, crit: false };
+  R.rollDie = function (value, crit) { R.die.shown = true; R.die.t0 = t; R.die.value = value; R.die.crit = !!crit; };
 
   R.init = function (cv) {
     canvas = cv;
@@ -7217,6 +7220,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var c = ns.engine.combat;
     if (!c) { R.views = []; R.combatVisible = false; return; }
     R.combatVisible = true;
+    if (!c.turn || c.turn <= 1) R.die.shown = false;   // fresh fight: hide the d20 until the first attack
     R.views = c.enemies.map(function (en, i) {
       var old = R.views[i];
       var same = old && old.en === en;
@@ -7574,6 +7578,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       drawPlayer();
       drawAllies();
       for (var i = 0; i < R.views.length; i++) drawEnemy(R.views[i], i);
+      drawDie();
     }
 
     drawParticles(dt);
@@ -8266,6 +8271,31 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
     }
     ctx.closePath();
+  }
+
+  // combat d20 on the left: tumbles on an attack, then settles on the roll.
+  function drawDie() {
+    var d = R.die; if (!d.shown) return;
+    var age = t - d.t0, tumble = 0.42, rolling = age < tumble;
+    var x = W * 0.08, y = (fieldTop() + fieldBottom()) * 0.42, r = Math.min(W, H) * 0.05;
+    var col = (d.crit && !rolling) ? '#5dff88' : '#41d8ff';
+    var num = rolling ? (1 + Math.floor((age * 42) % 20)) : d.value;
+    ctx.save();
+    ctx.translate(x, y);
+    if (rolling) { ctx.rotate(Math.sin(age * 34) * 0.28); var s = 1 + Math.sin(age * 26) * 0.07; ctx.scale(s, s); }
+    else if (age < tumble + 0.16) { var p = (age - tumble) / 0.16, k = 1 + (1 - p) * 0.18; ctx.scale(k, k); }   // settle pop
+    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.shadowColor = col; ctx.shadowBlur = (d.crit && !rolling) ? 12 : 6;
+    drawHex(0, 0, r); ctx.stroke();
+    ctx.lineWidth = 1; ctx.globalAlpha = 0.55; ctx.beginPath();
+    for (var i = 0; i < 3; i++) { var a = -Math.PI / 2 + i * 2 * Math.PI / 3, px = Math.cos(a) * r * 0.72, py = Math.sin(a) * r * 0.72; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+    ctx.closePath(); ctx.stroke(); ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    ctx.fillStyle = col; ctx.font = 'bold ' + Math.round(r * 0.92) + 'px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = col; ctx.shadowBlur = (d.crit && !rolling) ? 8 : 0;
+    ctx.fillText('' + num, 0, r * 0.06); ctx.shadowBlur = 0;
+    ctx.restore();
+    ctx.save(); ctx.fillStyle = 'rgba(150,170,182,0.55)'; ctx.font = '8px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText('d20', x, y - r - 7);
+    if (d.crit && !rolling) { ctx.fillStyle = '#5dff88'; ctx.font = 'bold 10px ui-monospace, monospace'; ctx.shadowColor = '#5dff88'; ctx.shadowBlur = 6; ctx.fillText('CRIT!', x, y + r + 12); }
+    ctx.restore();
   }
 
   function drawIntent(v) {
@@ -9504,9 +9534,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       '<button class="icon-btn" data-act="menu">≡</button>' +
       '</div>';
 
-    // relics show here ONLY on the star chart (where you toggle them on/off);
-    // in combat they live on the cockpit rail instead.
-    if (onMap && r.artifacts.length) {
+    // relics ride the top HUD (in combat and on the map). On the star chart you
+    // can tap to toggle them on/off; in combat a tap reads its tooltip. Relics
+    // with limited uses show a remaining-count badge.
+    if (r.artifacts.length) {
       html += '<div class="artifact-row">';
       r.artifacts.forEach(function (id, i) {
         var a = ns.ARTIFACTS[id], cls = 'artifact-chip';
@@ -9668,25 +9699,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     discard: svgIc('<rect x="4.4" y="3.6" width="7" height="9" rx="0.6"/><path d="M6.2 6.1 9.7 9.6M9.7 6.1 6.2 9.6"/>'),
   };
   function renderRail() {
-    if (!$rail) return;
-    var c = E.combat;
-    var show = !!c && E.run && E.run.phase === 'combat' && R.combatVisible;
-    $rail.style.display = show ? 'flex' : 'none';
-    if (!show) { closeRail(); return; }
-    var items = [
-      { k: 'buffs', ic: RAIL_ICON.buffs, col: '#5dff88', n: railBuffs().length + railPowers().length },
-      { k: 'debuffs', ic: RAIL_ICON.debuffs, col: '#ff4a5e', n: railDebuffs().length },
-      { k: 'relics', ic: RAIL_ICON.relics, col: '#ffb02e', n: E.run.artifacts.length },
-    ];
-    $rail.innerHTML = items.map(function (it) {
-      return '<div class="rail-row" style="--rc:' + it.col + '"><span class="rk-sw"></span>' +
-        '<button class="rail-btn' + (railOpen === it.k ? ' active' : '') + '" data-rk="' + it.k + '">' +
-        '<span class="rk-ic">' + it.ic + '</span><span class="rk-n">' + it.n + '</span></button></div>';
-    }).join('');
-    $rail.querySelectorAll('[data-rk]').forEach(function (btn) {
-      btn.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); onRailTap(btn.dataset.rk); });
-    });
-    if (railOpen === 'buffs' || railOpen === 'debuffs' || railOpen === 'relics') renderRailPanel(railOpen);
+    // The left cockpit rail is retired: buffs/debuffs/powers live on the
+    // Dual-Rail HP bars and relics ride the top HUD again.
+    if ($rail) $rail.style.display = 'none';
+    closeRail();
   }
   U.renderRail = renderRail;
 
@@ -11308,13 +11324,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           delay += 90;
           break;
         case 'cardPlayed':
-          if (e.roll !== null && e.roll !== undefined) {
-            (function (e, d) {
-              setTimeout(function () {
-                if (e.crit) floater(pp.x + 60, pp.y - 56, 'd20: ' + e.roll + ' CRIT!', 'crit');
-                else floater(pp.x + 54, pp.y - 50, 'd20: ' + e.roll, 'roll');
-              }, d);
-            })(e, 0);
+          // roll the on-screen d20 when an attack is played (only attacks can crit)
+          if (e.roll != null && ns.CARDS[e.id] && ns.CARDS[e.id].type === 'attack') {
+            R.rollDie(e.roll, e.crit);
+            if (e.crit) floater(pp.x + 60, pp.y - 56, 'CRIT!', 'crit');
           }
           break;
         case 'revive':

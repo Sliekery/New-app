@@ -536,9 +536,10 @@
       '<button class="icon-btn" data-act="menu">≡</button>' +
       '</div>';
 
-    // relics show here ONLY on the star chart (where you toggle them on/off);
-    // in combat they live on the cockpit rail instead.
-    if (onMap && r.artifacts.length) {
+    // relics ride the top HUD (in combat and on the map). On the star chart you
+    // can tap to toggle them on/off; in combat a tap reads its tooltip. Relics
+    // with limited uses show a remaining-count badge.
+    if (r.artifacts.length) {
       html += '<div class="artifact-row">';
       r.artifacts.forEach(function (id, i) {
         var a = ns.ARTIFACTS[id], cls = 'artifact-chip';
@@ -700,25 +701,10 @@
     discard: svgIc('<rect x="4.4" y="3.6" width="7" height="9" rx="0.6"/><path d="M6.2 6.1 9.7 9.6M9.7 6.1 6.2 9.6"/>'),
   };
   function renderRail() {
-    if (!$rail) return;
-    var c = E.combat;
-    var show = !!c && E.run && E.run.phase === 'combat' && R.combatVisible;
-    $rail.style.display = show ? 'flex' : 'none';
-    if (!show) { closeRail(); return; }
-    var items = [
-      { k: 'buffs', ic: RAIL_ICON.buffs, col: '#5dff88', n: railBuffs().length + railPowers().length },
-      { k: 'debuffs', ic: RAIL_ICON.debuffs, col: '#ff4a5e', n: railDebuffs().length },
-      { k: 'relics', ic: RAIL_ICON.relics, col: '#ffb02e', n: E.run.artifacts.length },
-    ];
-    $rail.innerHTML = items.map(function (it) {
-      return '<div class="rail-row" style="--rc:' + it.col + '"><span class="rk-sw"></span>' +
-        '<button class="rail-btn' + (railOpen === it.k ? ' active' : '') + '" data-rk="' + it.k + '">' +
-        '<span class="rk-ic">' + it.ic + '</span><span class="rk-n">' + it.n + '</span></button></div>';
-    }).join('');
-    $rail.querySelectorAll('[data-rk]').forEach(function (btn) {
-      btn.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); onRailTap(btn.dataset.rk); });
-    });
-    if (railOpen === 'buffs' || railOpen === 'debuffs' || railOpen === 'relics') renderRailPanel(railOpen);
+    // The left cockpit rail is retired: buffs/debuffs/powers live on the
+    // Dual-Rail HP bars and relics ride the top HUD again.
+    if ($rail) $rail.style.display = 'none';
+    closeRail();
   }
   U.renderRail = renderRail;
 
@@ -2340,13 +2326,10 @@
           delay += 90;
           break;
         case 'cardPlayed':
-          if (e.roll !== null && e.roll !== undefined) {
-            (function (e, d) {
-              setTimeout(function () {
-                if (e.crit) floater(pp.x + 60, pp.y - 56, 'd20: ' + e.roll + ' CRIT!', 'crit');
-                else floater(pp.x + 54, pp.y - 50, 'd20: ' + e.roll, 'roll');
-              }, d);
-            })(e, 0);
+          // roll the on-screen d20 when an attack is played (only attacks can crit)
+          if (e.roll != null && ns.CARDS[e.id] && ns.CARDS[e.id].type === 'attack') {
+            R.rollDie(e.roll, e.crit);
+            if (e.crit) floater(pp.x + 60, pp.y - 56, 'CRIT!', 'crit');
           }
           break;
         case 'revive':
