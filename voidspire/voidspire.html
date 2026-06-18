@@ -6526,6 +6526,41 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return v;
   }
 
+  // A card's dominant "theme" — used to keep a single reward from offering
+  // three cards that all funnel into the same effect/archetype.
+  var THEME_STATUS = {
+    burn: 'burn', emberward: 'burn', wildfire: 'burn', entropy: 'burn', plague: 'burn',
+    psiPow: 'psi', psiRamp: 'psi',
+    turret: 'construct', drone: 'construct', hive: 'construct', aegisLink: 'construct',
+    weak: 'control', vuln: 'control', conduit: 'control', staticward: 'control',
+    plate: 'block', platedArmor: 'block', barricade: 'block', retain: 'block', spikeward: 'block', thorns: 'block',
+    reactor: 'power', echo: 'power', afterImage: 'power', subroutine: 'power',
+    str: 'might', strPerTurn: 'might', bloodrage: 'might', momentum: 'might', fullauto: 'might',
+    salvo: 'exhaust', restock: 'exhaust', feelNoPain: 'exhaust', darkEmbrace: 'exhaust', demoCharge: 'exhaust',
+    bloodPact: 'blood', parry: 'might', vengeance: 'might', retaliate: 'block',
+  };
+  function rewardTheme(id) {
+    var c = ns.CARDS[id]; if (!c) return 'misc';
+    var fx = c.fx || [], i, f;
+    for (i = 0; i < fx.length; i++) {
+      f = fx[i];
+      if (f.k === 'special') {
+        if (/detonate|catalyst/.test(f.id)) return 'burn';
+        if (/drain|bloodbath|backdraft/.test(f.id)) return 'blood';
+        if (/shieldSlam|doubleBlock|powerSurge|psiBarrier/.test(f.id)) return 'block';
+        if (/reap|overdrive|unload|fiendFire|execute|limitBreak/.test(f.id)) return 'finisher';
+      }
+    }
+    for (i = 0; i < fx.length; i++) { f = fx[i]; if (f.k === 'status' && THEME_STATUS[f.s]) return THEME_STATUS[f.s]; }
+    if (fx.some(function (g) { return g.k === 'hploss'; })) return 'blood';
+    if (c.type === 'skill' && fx.some(function (g) { return g.k === 'block'; })) return 'block';
+    if (fx.some(function (g) { return g.k === 'draw' || g.k === 'energy'; })) return 'tempo';
+    if (fx.some(function (g) { return g.k === 'dmg' && g.all; })) return 'aoe';
+    if (fx.some(function (g) { return g.k === 'dmg'; })) return 'attack';
+    return 'misc';
+  }
+  E.rewardTheme = rewardTheme;
+
   // Normal reward/shop pool: rarity 1-3, class-legal, and NOT a special pool
   // (event-only / boss-only cards never roll here).
   function rollRewardCard(rareBoost) {
@@ -6672,13 +6707,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (hb > 0) heal(hb);
     var eliteTier = (kind === 'elite' || kind === 'boss' || kind === 'beacon');
     var rareBoost = eliteTier ? B.rewards.eliteRareChance : 0;
-    var cards = [], seen = {};
+    var cards = [], seen = {}, themeCount = {};
     // Salvage Doctrine forgoes card rewards (the deck grows from kills instead)
     if (!E.hasEcho('salvage_doctrine')) {
       for (var i = 0; i < B.rewards.cardChoices; i++) {
+        // reject exact dupes, and never let one theme fill more than 2 of the slots
         var cid = rollRewardCard(rareBoost), guard = 0;
-        while (seen[cid] && guard++ < 20) cid = rollRewardCard(rareBoost);
+        while ((seen[cid] || (themeCount[rewardTheme(cid)] || 0) >= 2) && guard++ < 25) cid = rollRewardCard(rareBoost);
         seen[cid] = true;
+        var th = rewardTheme(cid); themeCount[th] = (themeCount[th] || 0) + 1;
         cards.push(cid);
       }
       // bosses always offer a legendary; elites sometimes do
