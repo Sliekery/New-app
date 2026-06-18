@@ -36,6 +36,14 @@
   var flashAlpha = 0;
 
   R.views = [];           // enemy display states
+  R.hotIcons = [];        // per-frame hover hit-boxes: { x0,y0,x1,y1, kind, key }
+  R.iconAt = function (px, py) {
+    for (var i = R.hotIcons.length - 1; i >= 0; i--) {
+      var h = R.hotIcons[i];
+      if (px >= h.x0 && px <= h.x1 && py >= h.y0 && py <= h.y1) return h;
+    }
+    return null;
+  };
   R.player = { hp: 1, maxHp: 1, block: 0, flashT: -9 };
   R.combatVisible = false;
   R.targeting = false;
@@ -466,6 +474,7 @@
     drawBackground(dt);
 
     if (R.combatVisible) {
+      R.hotIcons.length = 0;   // rebuilt each frame: hover hit-boxes for status/trait icons
       drawPlayer();
       drawAllies();
       for (var i = 0; i < R.views.length; i++) drawEnemy(R.views[i], i);
@@ -849,7 +858,7 @@
       var power = !deb && !SIMPLE_BUFF[k];
       var col = STATUS_COLORS[k] || (deb ? '#ff6a8a' : power ? '#41d8ff' : '#7fd6ff');
       var ab = power ? ((ns.STATUS_NAMES && ns.STATUS_NAMES[k] || k).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()) : null;
-      (deb ? debuffs : buffs).push({ v: val, col: col, glyph: deb ? (SGLYPH[k] || null) : (power ? 'power' : (SGLYPH[k] || null)), power: power, ab: ab });
+      (deb ? debuffs : buffs).push({ key: k, v: val, col: col, glyph: deb ? (SGLYPH[k] || null) : (power ? 'power' : (SGLYPH[k] || null)), power: power, ab: ab });
     }
     return { buffs: buffs, debuffs: debuffs };
   }
@@ -866,6 +875,7 @@
       if (it.glyph) statGlyph(it.glyph, ix, y, 5, it.col);
       else { ctx.fillStyle = it.col; ctx.beginPath(); ctx.arc(ix, y, 3.5, 0, 7); ctx.fill(); }
       ctx.fillStyle = it.col; ctx.fillText(labels[i], ix + 7, y + 0.5);
+      R.hotIcons.push({ x0: x, y0: y - 8, x1: x + step[i], y1: y + 8, kind: it.power ? 'power' : 'status', key: it.key });
       x += step[i] + 4;
     }
     ctx.restore();
@@ -991,6 +1001,7 @@
       ctx.globalAlpha = 0.92;
       drawTraitGlyph(it.t.glyph, x + 6, y, 5, it.t.col);
       if (it.t.val != null) { ctx.fillStyle = it.t.col; ctx.textAlign = 'left'; ctx.fillText('' + it.t.val, x + 13, y + 0.5); }
+      R.hotIcons.push({ x0: x, y0: y - 8, x1: x + it.w, y1: y + 8, kind: 'trait', key: it.t.glyph });
       x += it.w + 5;
     });
     ctx.restore();

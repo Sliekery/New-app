@@ -263,6 +263,10 @@
       if (railOpen && !$rail.contains(ev.target) && !$railPanel.contains(ev.target)) closeRail();
     }, true);
 
+    // hover tooltips over the canvas status/trait icons (desktop)
+    $game.addEventListener('pointermove', onIconHover);
+    $game.addEventListener('pointerleave', hideIconTip);
+
     // ---- card inspect: right-click (desktop) or long-press (touch) any card ----
     document.addEventListener('contextmenu', function (ev) {
       var c = ev.target.closest ? ev.target.closest('.card[data-cid]') : null;
@@ -1508,6 +1512,44 @@
   function enemyAtClient(ev) {
     var rect = document.getElementById('battlefield').getBoundingClientRect();
     return R.enemyAt(ev.clientX - rect.left, ev.clientY - rect.top);
+  }
+
+  /* ---- hover tooltips for the canvas status/trait icons ---- */
+  var TRAIT_TIP = {
+    enrage: { title: 'Enrage', desc: 'Gains Strength every turn it stays alive — kill it fast or focus it down.' },
+    thorns: { title: 'Thorns', desc: 'Reflects damage back at you each time you strike it.' },
+    plate: { title: 'Reactive Plating', desc: 'Fully absorbs the first attack it takes each turn — a cheap jab pops it.' },
+    overload: { title: 'Overload', desc: 'Detonates when it dies. Keep Block up on the turn you finish it.' },
+    discipline: { title: 'Discipline', desc: 'Backlashes for damage if you play too many cards in a turn — pace your hand.' },
+    ward: { title: 'Warded', desc: 'Immune to damage while its escort lives. Clear the escort first.' },
+    leech: { title: 'Leech', desc: "Heals itself from the damage you don't block — block its hits to deny it." },
+  };
+  function iconTip(hit) {
+    if (hit.kind === 'trait') return TRAIT_TIP[hit.key] || { title: hit.key, desc: '' };
+    var title = ns.STATUS_NAMES[hit.key] || hit.key;
+    return { title: title, desc: ns.KEYWORDS[title] || '' };
+  }
+  var $iconTip = null;
+  function hideIconTip() { if ($iconTip) $iconTip.style.display = 'none'; }
+  function showIconTip(hit, cx, cy) {
+    if (!$iconTip) {
+      $iconTip = document.createElement('div'); $iconTip.id = 'icon-tip';
+      $iconTip.style.cssText = 'position:fixed;z-index:300;pointer-events:none;max-width:210px;padding:6px 9px;background:rgba(8,12,18,0.96);border:1px solid #2c3a44;border-radius:5px;font:11px ui-monospace,monospace;color:#cfe0ea;box-shadow:0 4px 14px rgba(0,0,0,0.5);display:none;';
+      document.body.appendChild($iconTip);
+    }
+    var info = iconTip(hit);
+    $iconTip.innerHTML = '<div style="font-weight:bold;color:#fff' + (info.desc ? ';margin-bottom:3px' : '') + '">' + esc(info.title) + '</div>' +
+      (info.desc ? '<div style="color:#9fb4c0;line-height:1.35">' + esc(info.desc) + '</div>' : '');
+    $iconTip.style.display = 'block';
+    var tw = $iconTip.offsetWidth, th = $iconTip.offsetHeight;
+    $iconTip.style.left = Math.max(8, Math.min(window.innerWidth - tw - 8, cx + 14)) + 'px';
+    $iconTip.style.top = Math.max(8, cy - th - 10) + 'px';
+  }
+  function onIconHover(ev) {
+    if (drag || potionDrag || locked || !E.combat || ev.pointerType === 'touch') { hideIconTip(); return; }
+    var bf = document.getElementById('battlefield').getBoundingClientRect();
+    var hit = R.iconAt && R.iconAt(ev.clientX - bf.left, ev.clientY - bf.top);
+    if (hit) showIconTip(hit, ev.clientX, ev.clientY); else hideIconTip();
   }
 
   function onDragEnd(ev) {
