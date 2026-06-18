@@ -1388,6 +1388,8 @@
     if (de > 0) drawCards(de);
     var sv = statN(p, 'salvo');   // BANDOLIER: every spent shell detonates on a random enemy
     if (sv > 0 && !c.over) { var spool = aliveEnemies(); if (spool.length) { var sen = pick(spool); dealToEnemy(sen, c.enemies.indexOf(sen), sv, { noCrit: true, noWeak: true }); } }
+    var dm = statN(p, 'demoCharge');   // DEMOLITION TRAIN: every spent shell shrapnels the whole pack
+    if (dm > 0 && !c.over) { c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, dm, { noCrit: true, noWeak: true }); }); }
   }
 
   // BANDOLIER: rack a spent shell (a random exhausted Attack) back into the chamber.
@@ -1582,6 +1584,18 @@
                 if (others.length && bn >= 2) { var oe = pick(others); var sp = Math.floor(bn / 2); addStatus(oe, 'burn', sp); emit('status', { who: 'enemy', idx: c.enemies.indexOf(oe), s: 'burn', v: statN(oe, 'burn') }); trackBurn(sp); }
               }
             }
+          } else if (f.id === 'backdraft') {
+            // BACKDRAFT: vent your Shield as a wall of fire onto one target (then Detonate it).
+            var bdBlk = p.block;
+            if (bdBlk > 0) {
+              p.block = 0; emit('block', { who: 'player', amount: 0, blockAfter: 0 });
+              var bdT = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+              if (bdT) { var bdV = Math.round(bdBlk * (f.v || 1)); addStatus(bdT, 'burn', bdV); emit('status', { who: 'enemy', idx: c.enemies.indexOf(bdT), s: 'burn', v: statN(bdT, 'burn') }); trackBurn(bdV); }
+            }
+          } else if (f.id === 'psiBarrier') {
+            // MIND BULWARK: weave your Focus into a shield (psi as defence).
+            var pbV = Math.round(statN(p, 'psiPow') * (f.v || 2));
+            if (pbV > 0) gainBlock(pbV);
           } else if (f.id === 'fiendFire') {
             // ORDNANCE capstone: exhaust the rest of your hand, deal f.v per card.
             var fEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
@@ -1760,7 +1774,11 @@
     }
     // route the played card: powers are consumed, exhaust cards (and skills
     // under Corruption) exhaust, everything else discards
-    if (def.type === 'power') c.consumed.push(card);
+    if (def.type === 'power') {
+      var sbr = statN(p, 'subroutine');   // SUBROUTINE: every Power you play cycles a card
+      if (sbr > 0) drawCards(sbr);
+      c.consumed.push(card);
+    }
     else if (def.exhaust || (def.type === 'skill' && statN(p, 'corruption') > 0)) exhaustCard(card);
     else c.discard.push(card);
 
@@ -1801,6 +1819,7 @@
         if (pool.length) {
           var en = pick(pool);
           dealToEnemy(en, c.enemies.indexOf(en), tv + attr('tech'), { noCrit: true, noWeak: true });
+          if (statN(p, 'aegisLink') > 0) gainBlock(statN(p, 'aegisLink'));   // SWARM UPLINK: constructs shield you as they fire
         }
       }
     }
@@ -1808,6 +1827,7 @@
     if (drv > 0 && !c.over) {
       for (var hvd = 0; hvd <= hive && !c.over; hvd++) {
         c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, drv + attr('tech'), { noCrit: true, noWeak: true }); });
+        if (statN(p, 'aegisLink') > 0) gainBlock(statN(p, 'aegisLink'));   // SWARM UPLINK
       }
     }
     var ev = statN(p, 'entropy');
@@ -1961,6 +1981,16 @@
               if (!en.alive) break;
             }
           }
+        }
+        // Reactive WARDS: an enemy that swings at you suffers for the privilege.
+        // Triggers on the attack itself (through your Shield), once per attacker per turn.
+        if (en.alive && r.phase !== 'dead') {
+          var ebw = statN(p, 'emberward');   // EMBER WARD: attackers catch fire
+          if (ebw > 0) { addStatus(en, 'burn', ebw); emit('status', { who: 'enemy', idx: idx, s: 'burn', v: statN(en, 'burn') }); trackBurn(ebw); }
+          var stw = statN(p, 'staticward');   // STATIC WARD: attackers are Weakened (feeds Conduit)
+          if (stw > 0) { addStatus(en, 'weak', stw); emit('status', { who: 'enemy', idx: idx, s: 'weak', v: statN(en, 'weak') }); }
+          var spw = statN(p, 'spikeward');   // SPIKED BULWARK: attackers gore themselves on your Might
+          if (spw > 0 && en.alive) { dealToEnemy(en, idx, spw + statN(p, 'str') + attr('might'), { noCrit: true, noWeak: true }); }
         }
         if (m.t === 'drain' && en.alive) {
           en.hp = Math.min(en.maxHp, en.hp + dmg);

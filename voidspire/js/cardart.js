@@ -83,6 +83,10 @@
     void_rupture: 'vortex', null_field: 'hex', dread_whisper: 'eye',
     vital_lance: 'drain', sanguine_ward: 'shield', martyrs_gift: 'drain', mind_burn: 'flame',
     entropic_lash: 'flame', dimensional_rift: 'vortex', psionic_scream: 'psiBolt', spectral_grasp: 'grasp',
+    // mechanically-distinct: wards / conversions / triggers
+    ember_ward: 'flame', backdraft: 'flame', mind_bulwark: 'shield',
+    static_ward: 'shield', swarm_uplink: 'turret', subroutine: 'core',
+    spiked_bulwark: 'shieldStrike', demolition_train: 'shell',
   };
   var TYPE_DEFAULT = { attack: 'rifle', skill: 'shield', power: 'core', curse: 'skull' };
 

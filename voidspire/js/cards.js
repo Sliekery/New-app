@@ -24,6 +24,8 @@
     feelNoPain: 'Resolve', darkEmbrace: 'Salvage', thousandCuts: 'Blade Array',
     afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
     wildfire: 'Wildfire', psiRamp: 'Ascendant', hive: 'Hive', conduit: 'Conduit', plating: 'Plating',
+    emberward: 'Ember Ward', staticward: 'Static Ward', spikeward: 'Spiked Bulwark',
+    demoCharge: 'Demolition', subroutine: 'Subroutine', aegisLink: 'Swarm Uplink',
     platedArmor: 'Plated Armor', barricade: 'Barricade', bloodPact: 'Blood Pact',
     pack: 'Pack Fury', symbiosis: 'Symbiosis', brood: 'Brood', slots: 'Kennel',
     bulwark: 'Bulwark', bloodscent: 'Bloodscent', feast: 'Savage Feast',
@@ -154,6 +156,12 @@
     'Detonate': "Consume all of the target's Burn to deal a burst of damage, splashing fresh Burn to another enemy.",
     'Hive': 'Every Turret and Drone Swarm you control fires one extra time each turn per stack.',
     'Conduit': 'Whenever you apply Weak or Vulnerable to an enemy, it also takes that much damage.',
+    'Ember Ward': 'Whenever an enemy attacks you, it gains that much Burn (even through your Shield).',
+    'Static Ward': 'Whenever an enemy attacks you, it gains that much Weak (even through your Shield).',
+    'Spiked Bulwark': 'Whenever an enemy attacks you, it takes damage equal to your Might plus this value.',
+    'Demolition': 'Whenever you Exhaust a card, deal that much damage to ALL enemies.',
+    'Subroutine': 'Whenever you play a Power, draw a card.',
+    'Swarm Uplink': 'Whenever one of your constructs fires, gain that much Shield.',
     'Reactor': 'Gain +1 Energy at the start of each turn per stack.',
     'Warlord': 'Gain Might at the start of each turn.',
     'Resolve': 'Whenever a card is Exhausted, gain Shield.',
@@ -1226,6 +1234,66 @@
       up: { fx: [{ k: 'status', s: 'weak', v: 2, who: 'target' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }] },
     },
 
+    /* ============ MECHANICALLY-DISTINCT cards — new verbs, not new numbers ============
+     * Reactive WARDS (punish attackers), CONVERSIONS (turn one resource into another),
+     * and TRIGGERS (whenever you do X, also Y). These make an archetype PLAY differently
+     * instead of restating "apply Burn / deal damage" with new numbers.
+     * --------------------------------------------------------------------------------- */
+
+    /* -- Voidadept -- */
+    ember_ward: {   // tanky Burn — let them break on you and catch fire doing it
+      name: 'Ember Ward', cls: 'voidadept', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'block', v: 8 }, { k: 'status', s: 'emberward', v: 2, who: 'self' }],
+      text: 'This combat, enemies that attack you gain 2 Burn.',
+      up: { fx: [{ k: 'block', v: 11 }, { k: 'status', s: 'emberward', v: 3, who: 'self' }], text: 'This combat, enemies that attack you gain 3 Burn.' },
+    },
+    backdraft: {   // vent the wall — turn your Shield into a fire on one foe (then Detonate it)
+      name: 'Backdraft', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'special', id: 'backdraft', v: 1 }],
+      text: 'Lose all your Shield. Apply that much Burn to the target.',
+      up: { fx: [{ k: 'special', id: 'backdraft', v: 1.5 }], text: 'Lose all your Shield. Apply 150% of it as Burn to the target.' },
+    },
+    mind_bulwark: {   // psi as defence — your Focus becomes a wall
+      name: 'Mind Bulwark', cls: 'voidadept', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'special', id: 'psiBarrier', v: 2 }],
+      text: 'Gain Shield equal to twice your Psi Focus.',
+      up: { fx: [{ k: 'special', id: 'psiBarrier', v: 3 }], text: 'Gain Shield equal to three times your Psi Focus.' },
+    },
+
+    /* -- Technomancer -- */
+    static_ward: {   // defensive Disruption — attackers Weaken themselves (and trip the Conduit)
+      name: 'Static Ward', cls: 'technomancer', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'block', v: 6, scale: 'tech' }, { k: 'status', s: 'staticward', v: 2, who: 'self' }],
+      text: 'This combat, enemies that attack you gain 2 Weak.',
+      up: { fx: [{ k: 'block', v: 9, scale: 'tech' }, { k: 'status', s: 'staticward', v: 2, who: 'self' }] },
+    },
+    swarm_uplink: {   // BUILD-AROUND — your constructs shield you every time they fire
+      name: 'Swarm Uplink', cls: 'technomancer', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'aegisLink', v: 2, who: 'self' }],
+      text: 'Whenever one of your constructs fires, gain 2 Shield.',
+      up: { fx: [{ k: 'status', s: 'aegisLink', v: 3, who: 'self' }], text: 'Whenever one of your constructs fires, gain 3 Shield.' },
+    },
+    subroutine: {   // BUILD-AROUND — a power-heavy deck becomes a draw engine
+      name: 'Subroutine', cls: 'technomancer', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'subroutine', v: 1, who: 'self' }],
+      text: 'Whenever you play a Power, draw a card.',
+      up: { cost: 1, fx: [{ k: 'status', s: 'subroutine', v: 1, who: 'self' }], text: 'Whenever you play a Power, draw a card.' },
+    },
+
+    /* -- Vanguard -- */
+    spiked_bulwark: {   // a turtle that bites — attackers gore themselves on your Might
+      name: 'Spiked Bulwark', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'block', v: 8, scale: 'pri' }, { k: 'status', s: 'spikeward', v: 3, who: 'self' }],
+      text: 'This combat, enemies that attack you take damage equal to your Might + 3.',
+      up: { fx: [{ k: 'block', v: 11, scale: 'pri' }, { k: 'status', s: 'spikeward', v: 5, who: 'self' }], text: 'This combat, enemies that attack you take damage equal to your Might + 5.' },
+    },
+    demolition_train: {   // BUILD-AROUND — every spent shell shrapnels the whole pack
+      name: 'Demolition Train', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'demoCharge', v: 4, who: 'self' }],
+      text: 'Whenever you Exhaust a card, deal 4 damage to ALL enemies.',
+      up: { fx: [{ k: 'status', s: 'demoCharge', v: 6, who: 'self' }], text: 'Whenever you Exhaust a card, deal 6 damage to ALL enemies.' },
+    },
+
     /* ====== Colorless salvage-tech (shop & event only — never in fight rewards) ====== */
     recon: {   // Scry — sculpt your next draws
       name: 'Recon', cls: 'any', type: 'skill', rarity: 1, pool: 'colorless', cost: 0,
@@ -1338,6 +1406,7 @@
         else if (f.s === 'brood') parts.push('Each turn, summon ' + (f.v > 1 ? f.v + ' Spawnlings' : 'a Spawnling') + '.');
         else if (f.s === 'slots') parts.push('+' + f.v + ' formation slot' + (f.v > 1 ? 's' : '') + ' (Kennel).');
         else if (f.s === 'echo' || f.s === 'corruption' || f.s === 'barricade' || f.s === 'retain') parts.push('Gain ' + n + '.');
+        else if (f.s === 'emberward' || f.s === 'staticward' || f.s === 'spikeward' || f.s === 'demoCharge' || f.s === 'subroutine' || f.s === 'aegisLink') { /* the card's own text describes these reactive/trigger effects */ }
         else if (f.who === 'self') parts.push('Gain ' + f.v + ' ' + n + '.');
         else if (f.who === 'allEnemies') parts.push('Apply ' + f.v + ' ' + n + ' to ALL enemies.');
         else parts.push('Apply ' + f.v + ' ' + n + '.');
@@ -1358,7 +1427,7 @@
       var f = fx[i];
       if (f.k === 'dmg' && !f.all && !f.random) return true;
       if (f.k === 'status' && f.who === 'target') return true;
-      if (f.k === 'special' && (f.id === 'shieldSlam' || f.id === 'shieldSlam15' || f.id === 'catalyst' || f.id === 'catalyst3' || f.id === 'reap' || f.id === 'overdrive' || f.id === 'fiendFire' || f.id === 'cull')) return true;
+      if (f.k === 'special' && (f.id === 'shieldSlam' || f.id === 'shieldSlam15' || f.id === 'catalyst' || f.id === 'catalyst3' || f.id === 'reap' || f.id === 'overdrive' || f.id === 'fiendFire' || f.id === 'cull' || f.id === 'detonate' || f.id === 'backdraft')) return true;
     }
     return false;
   };
