@@ -1525,7 +1525,12 @@
         var bf = document.getElementById('battlefield').getBoundingClientRect();
         var ax = ev.clientX - bf.left, ay = ev.clientY - bf.top;
         var lk = R.enemyAt(ax, ay);
-        if (lk < 0 && E.aliveEnemies().length === 1) lk = soleEnemyIdx();
+        if (lk < 0 && E.aliveEnemies().length === 1) {
+          // single enemy: a forgiving lock zone around it (no pixel-perfect hover),
+          // but drag the cursor away from it and it un-targets so you can cancel.
+          var sole = soleEnemyIdx(), sp = R.enemyPos(sole), sr = (R.views[sole] && R.views[sole].r) || 50;
+          if (Math.hypot(ax - sp.x, ay - sp.y) < Math.max(120, sr * 2.4)) lk = sole;
+        }
         R.setAim(ax, ay, lk);
         drag.aimed = true; drag.lock = lk;
         if (lk >= 0 && lk !== drag.lastLock) { SFX.lock(); drag.lastLock = lk; }   // ping on acquire
