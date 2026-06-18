@@ -349,6 +349,17 @@ html, body {
   border-color: var(--green);
   box-shadow: 0 0 18px rgba(93, 255, 136, 0.55), 0 12px 30px rgba(0, 0, 0, 0.8);
 }
+/* lock-on: the card lifts and glows amber while you aim the reticle */
+.card.card-aiming {
+  transition: none;
+  z-index: 62;
+  border-color: var(--amber, #ffb02e);
+  box-shadow: 0 0 20px rgba(255, 176, 46, 0.6), 0 14px 32px rgba(0, 0, 0, 0.85);
+}
+.card.card-aiming.will-play {
+  border-color: var(--green);
+  box-shadow: 0 0 22px rgba(93, 255, 136, 0.7), 0 14px 32px rgba(0, 0, 0, 0.85);
+}
 
 /* ========================= COMBAT CONTROLS ========================= */
 /* ===== unified bottom dock: energy │ stims │ cards │ END all ride on it ===== */
@@ -7123,6 +7134,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   R.player = { hp: 1, maxHp: 1, block: 0, flashT: -9 };
   R.combatVisible = false;
   R.targeting = false;
+  // lock-on aiming reticle (drag a targeted card out of hand -> reticle follows
+  // the cursor and locks the enemy under it; release fires the card)
+  R.aim = { on: false, x: 0, y: 0, lock: -1 };
+  R.setAim = function (x, y, lock) { R.aim.on = true; R.aim.x = x; R.aim.y = y; R.aim.lock = (lock == null ? -1 : lock); };
+  R.clearAim = function () { R.aim.on = false; R.aim.lock = -1; };
 
   R.init = function (cv) {
     canvas = cv;
@@ -7557,6 +7573,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
 
     drawParticles(dt);
+
+    if (R.combatVisible && R.aim.on) drawAimReticle();
 
     if (flashAlpha > 0.01) {
       ctx.fillStyle = 'rgba(255,255,255,' + flashAlpha.toFixed(3) + ')';
@@ -8192,6 +8210,42 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     ctx.moveTo(x + r, y + r - c); ctx.lineTo(x + r, y + r); ctx.lineTo(x + r - c, y + r);
     ctx.moveTo(x - r + c, y + r); ctx.lineTo(x - r, y + r); ctx.lineTo(x - r, y + r - c);
     ctx.stroke();
+  }
+
+  // lock-on targeting computer: a scanning reticle follows the cursor, snaps to
+  // a hard LOCK with a tether line + crosshair when over a valid target.
+  function drawAimReticle() {
+    var aim = R.aim;
+    var lockV = (aim.lock >= 0 && R.views[aim.lock] && R.views[aim.lock].alive) ? R.views[aim.lock] : null;
+    ctx.save();
+    if (lockV) {
+      var pp = R.playerXY();
+      var pulse = 0.6 + 0.4 * Math.sin(t * 8);
+      var rr = lockV.r + 9 + Math.sin(t * 8) * 2;
+      // tether from the player to the locked target
+      ctx.strokeStyle = '#5dff88'; ctx.globalAlpha = 0.45; ctx.lineWidth = 1.5; ctx.setLineDash([5, 5]); ctx.lineDashOffset = -t * 30;
+      ctx.beginPath(); ctx.moveTo(pp.x, pp.y); ctx.lineTo(lockV.x, lockV.y); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+      // hard-lock brackets + crosshair
+      ctx.strokeStyle = '#5dff88'; ctx.shadowColor = '#5dff88'; ctx.shadowBlur = 9 * pulse; ctx.lineWidth = 2;
+      cornerBox(lockV.x, lockV.y, rr); ctx.shadowBlur = 0;
+      ctx.globalAlpha = 0.7; ctx.lineWidth = 1; ctx.beginPath();
+      ctx.moveTo(lockV.x - rr - 7, lockV.y); ctx.lineTo(lockV.x - rr, lockV.y);
+      ctx.moveTo(lockV.x + rr, lockV.y); ctx.lineTo(lockV.x + rr + 7, lockV.y);
+      ctx.moveTo(lockV.x, lockV.y - rr - 7); ctx.lineTo(lockV.x, lockV.y - rr);
+      ctx.moveTo(lockV.x, lockV.y + rr); ctx.lineTo(lockV.x, lockV.y + rr + 7); ctx.stroke();
+      ctx.globalAlpha = 1; ctx.fillStyle = '#5dff88'; ctx.font = 'bold 10px ui-monospace, monospace'; ctx.textAlign = 'center';
+      ctx.shadowColor = '#5dff88'; ctx.shadowBlur = 6; ctx.fillText('◉ LOCK', lockV.x, lockV.y - rr - 11); ctx.shadowBlur = 0;
+    } else {
+      // scanning reticle riding the cursor: two counter-rotating bracket rings
+      var x = aim.x, y = aim.y;
+      ctx.strokeStyle = '#ffb02e'; ctx.shadowColor = '#ffb02e'; ctx.shadowBlur = 6; ctx.lineWidth = 1.5;
+      ctx.translate(x, y); ctx.rotate(t * 1.6); cornerBox(0, 0, 15); ctx.rotate(-t * 3.2); cornerBox(0, 0, 9); ctx.rotate(t * 1.6);
+      ctx.shadowBlur = 0; ctx.globalAlpha = 0.75; ctx.lineWidth = 1; ctx.beginPath();
+      ctx.moveTo(-23, 0); ctx.lineTo(-8, 0); ctx.moveTo(8, 0); ctx.lineTo(23, 0);
+      ctx.moveTo(0, -23); ctx.lineTo(0, -8); ctx.moveTo(0, 8); ctx.lineTo(0, 23); ctx.stroke();
+      ctx.fillStyle = '#ffb02e'; ctx.beginPath(); ctx.arc(0, 0, 2, 0, 7); ctx.fill();
+    }
+    ctx.restore();
   }
 
   function drawHex(x, y, r) {
@@ -9127,7 +9181,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $drawPile.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); if (E.combat && !locked) { SFX.tap(); showPileModal('draw'); } });
     $discardPile.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); if (E.combat && !locked) { SFX.tap(); showPileModal('discard'); } });
 
-    $hint = el('div', '', 'DROP ON A TARGET');
+    $hint = el('div', '', 'AIM · RELEASE TO FIRE');
     $hint.id = 'target-hint';
     $hint.style.display = 'none';
     $game.appendChild($hint);
@@ -10397,12 +10451,23 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       if (drag.info.needsTarget && multi && !drag.info.unplayable) setTargeting(true);
     }
     if (drag.moved) {
-      var lift = Math.min(0, drag.dy);
-      // the card lives inside the scaled #game frame, so divide the screen-space
-      // drag offset by the scale to keep the card pinned under the finger
-      drag.el.style.transform = 'translate(' + (drag.dx / uiScale) + 'px,' + (drag.dy / uiScale) + 'px) scale(' + (1 + Math.min(0.25, -lift / 400)) + ')';
-      var armed = canDropPlay(ev);
-      drag.el.classList.toggle('will-play', armed);
+      var aimMode = drag.info.needsTarget && !drag.info.unplayable && E.canPlay(drag.idx) && E.aliveEnemies().length > 1;
+      if (aimMode) {
+        // lock-on: the card lifts to a ready pose and stays put while a reticle
+        // follows the cursor and locks the enemy under it.
+        drag.el.classList.add('card-aiming');
+        drag.el.style.transform = 'translateY(-44px) scale(1.12)';
+        var bf = document.getElementById('battlefield').getBoundingClientRect();
+        var ax = ev.clientX - bf.left, ay = ev.clientY - bf.top;
+        var lk = R.enemyAt(ax, ay);
+        R.setAim(ax, ay, lk);
+        drag.el.classList.toggle('will-play', lk >= 0);
+      } else {
+        // single-target / non-target cards keep the drag-to-play gesture
+        var lift = Math.min(0, drag.dy);
+        drag.el.style.transform = 'translate(' + (drag.dx / uiScale) + 'px,' + (drag.dy / uiScale) + 'px) scale(' + (1 + Math.min(0.25, -lift / 400)) + ')';
+        drag.el.classList.toggle('will-play', canDropPlay(ev));
+      }
     }
   }
 
@@ -10463,6 +10528,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     drag = null;
     d.el.classList.remove('dragging');
     d.el.classList.remove('will-play');
+    d.el.classList.remove('card-aiming');
     d.el.style.transform = '';
 
     if (!d.moved) { cardTapped(d.idx); return; }
@@ -10493,6 +10559,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (!drag) return;
     drag.el.classList.remove('dragging');
     drag.el.classList.remove('will-play');
+    drag.el.classList.remove('card-aiming');
     drag.el.style.transform = '';
     drag = null;
     setTargeting(false);
@@ -10516,6 +10583,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function setTargeting(on) {
     targeting = on;
     R.targeting = on;
+    if (!on && R.clearAim) R.clearAim();
     $hint.style.display = on ? 'block' : 'none';
   }
 

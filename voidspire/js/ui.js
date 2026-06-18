@@ -223,7 +223,7 @@
     $drawPile.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); if (E.combat && !locked) { SFX.tap(); showPileModal('draw'); } });
     $discardPile.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); if (E.combat && !locked) { SFX.tap(); showPileModal('discard'); } });
 
-    $hint = el('div', '', 'DROP ON A TARGET');
+    $hint = el('div', '', 'AIM · RELEASE TO FIRE');
     $hint.id = 'target-hint';
     $hint.style.display = 'none';
     $game.appendChild($hint);
@@ -1493,12 +1493,23 @@
       if (drag.info.needsTarget && multi && !drag.info.unplayable) setTargeting(true);
     }
     if (drag.moved) {
-      var lift = Math.min(0, drag.dy);
-      // the card lives inside the scaled #game frame, so divide the screen-space
-      // drag offset by the scale to keep the card pinned under the finger
-      drag.el.style.transform = 'translate(' + (drag.dx / uiScale) + 'px,' + (drag.dy / uiScale) + 'px) scale(' + (1 + Math.min(0.25, -lift / 400)) + ')';
-      var armed = canDropPlay(ev);
-      drag.el.classList.toggle('will-play', armed);
+      var aimMode = drag.info.needsTarget && !drag.info.unplayable && E.canPlay(drag.idx) && E.aliveEnemies().length > 1;
+      if (aimMode) {
+        // lock-on: the card lifts to a ready pose and stays put while a reticle
+        // follows the cursor and locks the enemy under it.
+        drag.el.classList.add('card-aiming');
+        drag.el.style.transform = 'translateY(-44px) scale(1.12)';
+        var bf = document.getElementById('battlefield').getBoundingClientRect();
+        var ax = ev.clientX - bf.left, ay = ev.clientY - bf.top;
+        var lk = R.enemyAt(ax, ay);
+        R.setAim(ax, ay, lk);
+        drag.el.classList.toggle('will-play', lk >= 0);
+      } else {
+        // single-target / non-target cards keep the drag-to-play gesture
+        var lift = Math.min(0, drag.dy);
+        drag.el.style.transform = 'translate(' + (drag.dx / uiScale) + 'px,' + (drag.dy / uiScale) + 'px) scale(' + (1 + Math.min(0.25, -lift / 400)) + ')';
+        drag.el.classList.toggle('will-play', canDropPlay(ev));
+      }
     }
   }
 
@@ -1559,6 +1570,7 @@
     drag = null;
     d.el.classList.remove('dragging');
     d.el.classList.remove('will-play');
+    d.el.classList.remove('card-aiming');
     d.el.style.transform = '';
 
     if (!d.moved) { cardTapped(d.idx); return; }
@@ -1589,6 +1601,7 @@
     if (!drag) return;
     drag.el.classList.remove('dragging');
     drag.el.classList.remove('will-play');
+    drag.el.classList.remove('card-aiming');
     drag.el.style.transform = '';
     drag = null;
     setTargeting(false);
@@ -1612,6 +1625,7 @@
   function setTargeting(on) {
     targeting = on;
     R.targeting = on;
+    if (!on && R.clearAim) R.clearAim();
     $hint.style.display = on ? 'block' : 'none';
   }
 

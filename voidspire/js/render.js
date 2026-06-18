@@ -47,6 +47,11 @@
   R.player = { hp: 1, maxHp: 1, block: 0, flashT: -9 };
   R.combatVisible = false;
   R.targeting = false;
+  // lock-on aiming reticle (drag a targeted card out of hand -> reticle follows
+  // the cursor and locks the enemy under it; release fires the card)
+  R.aim = { on: false, x: 0, y: 0, lock: -1 };
+  R.setAim = function (x, y, lock) { R.aim.on = true; R.aim.x = x; R.aim.y = y; R.aim.lock = (lock == null ? -1 : lock); };
+  R.clearAim = function () { R.aim.on = false; R.aim.lock = -1; };
 
   R.init = function (cv) {
     canvas = cv;
@@ -481,6 +486,8 @@
     }
 
     drawParticles(dt);
+
+    if (R.combatVisible && R.aim.on) drawAimReticle();
 
     if (flashAlpha > 0.01) {
       ctx.fillStyle = 'rgba(255,255,255,' + flashAlpha.toFixed(3) + ')';
@@ -1116,6 +1123,42 @@
     ctx.moveTo(x + r, y + r - c); ctx.lineTo(x + r, y + r); ctx.lineTo(x + r - c, y + r);
     ctx.moveTo(x - r + c, y + r); ctx.lineTo(x - r, y + r); ctx.lineTo(x - r, y + r - c);
     ctx.stroke();
+  }
+
+  // lock-on targeting computer: a scanning reticle follows the cursor, snaps to
+  // a hard LOCK with a tether line + crosshair when over a valid target.
+  function drawAimReticle() {
+    var aim = R.aim;
+    var lockV = (aim.lock >= 0 && R.views[aim.lock] && R.views[aim.lock].alive) ? R.views[aim.lock] : null;
+    ctx.save();
+    if (lockV) {
+      var pp = R.playerXY();
+      var pulse = 0.6 + 0.4 * Math.sin(t * 8);
+      var rr = lockV.r + 9 + Math.sin(t * 8) * 2;
+      // tether from the player to the locked target
+      ctx.strokeStyle = '#5dff88'; ctx.globalAlpha = 0.45; ctx.lineWidth = 1.5; ctx.setLineDash([5, 5]); ctx.lineDashOffset = -t * 30;
+      ctx.beginPath(); ctx.moveTo(pp.x, pp.y); ctx.lineTo(lockV.x, lockV.y); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+      // hard-lock brackets + crosshair
+      ctx.strokeStyle = '#5dff88'; ctx.shadowColor = '#5dff88'; ctx.shadowBlur = 9 * pulse; ctx.lineWidth = 2;
+      cornerBox(lockV.x, lockV.y, rr); ctx.shadowBlur = 0;
+      ctx.globalAlpha = 0.7; ctx.lineWidth = 1; ctx.beginPath();
+      ctx.moveTo(lockV.x - rr - 7, lockV.y); ctx.lineTo(lockV.x - rr, lockV.y);
+      ctx.moveTo(lockV.x + rr, lockV.y); ctx.lineTo(lockV.x + rr + 7, lockV.y);
+      ctx.moveTo(lockV.x, lockV.y - rr - 7); ctx.lineTo(lockV.x, lockV.y - rr);
+      ctx.moveTo(lockV.x, lockV.y + rr); ctx.lineTo(lockV.x, lockV.y + rr + 7); ctx.stroke();
+      ctx.globalAlpha = 1; ctx.fillStyle = '#5dff88'; ctx.font = 'bold 10px ui-monospace, monospace'; ctx.textAlign = 'center';
+      ctx.shadowColor = '#5dff88'; ctx.shadowBlur = 6; ctx.fillText('◉ LOCK', lockV.x, lockV.y - rr - 11); ctx.shadowBlur = 0;
+    } else {
+      // scanning reticle riding the cursor: two counter-rotating bracket rings
+      var x = aim.x, y = aim.y;
+      ctx.strokeStyle = '#ffb02e'; ctx.shadowColor = '#ffb02e'; ctx.shadowBlur = 6; ctx.lineWidth = 1.5;
+      ctx.translate(x, y); ctx.rotate(t * 1.6); cornerBox(0, 0, 15); ctx.rotate(-t * 3.2); cornerBox(0, 0, 9); ctx.rotate(t * 1.6);
+      ctx.shadowBlur = 0; ctx.globalAlpha = 0.75; ctx.lineWidth = 1; ctx.beginPath();
+      ctx.moveTo(-23, 0); ctx.lineTo(-8, 0); ctx.moveTo(8, 0); ctx.lineTo(23, 0);
+      ctx.moveTo(0, -23); ctx.lineTo(0, -8); ctx.moveTo(0, 8); ctx.lineTo(0, 23); ctx.stroke();
+      ctx.fillStyle = '#ffb02e'; ctx.beginPath(); ctx.arc(0, 0, 2, 0, 7); ctx.fill();
+    }
+    ctx.restore();
   }
 
   function drawHex(x, y, r) {

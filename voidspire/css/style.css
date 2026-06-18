@@ -338,6 +338,17 @@ html, body {
   border-color: var(--green);
   box-shadow: 0 0 18px rgba(93, 255, 136, 0.55), 0 12px 30px rgba(0, 0, 0, 0.8);
 }
+/* lock-on: the card lifts and glows amber while you aim the reticle */
+.card.card-aiming {
+  transition: none;
+  z-index: 62;
+  border-color: var(--amber, #ffb02e);
+  box-shadow: 0 0 20px rgba(255, 176, 46, 0.6), 0 14px 32px rgba(0, 0, 0, 0.85);
+}
+.card.card-aiming.will-play {
+  border-color: var(--green);
+  box-shadow: 0 0 22px rgba(93, 255, 136, 0.7), 0 14px 32px rgba(0, 0, 0, 0.85);
+}
 
 /* ========================= COMBAT CONTROLS ========================= */
 /* ===== unified bottom dock: energy │ stims │ cards │ END all ride on it ===== */
