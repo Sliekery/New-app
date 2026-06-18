@@ -1475,7 +1475,7 @@
     if (locked || drag || !E.combat || E.combat.over) return;
     var card = E.combat.hand[i];
     if (!card) return;
-    drag = { el: el, idx: i, info: E.cardInfo(card), x0: ev.clientX, y0: ev.clientY, dx: 0, dy: 0, moved: false };
+    drag = { el: el, idx: i, info: E.cardInfo(card), x0: ev.clientX, y0: ev.clientY, dx: 0, dy: 0, moved: false, aimed: false, lock: -1, lastLock: -1 };
     // how far to slide this card to the hand's horizontal centre when it lifts to aim (StS-style)
     var hr = $hand.getBoundingClientRect(), cr = el.getBoundingClientRect();
     drag.aimOffX = ((hr.left + hr.width / 2) - (cr.left + cr.width / 2)) / uiScale;
@@ -1493,20 +1493,21 @@
       drag.moved = true;
       drag.el.classList.add('dragging');
       if (selected >= 0) { selected = -1; var s = $hand.querySelector('.card.selected'); if (s) s.classList.remove('selected'); }
-      var multi = E.aliveEnemies().length > 1;
-      if (drag.info.needsTarget && multi && !drag.info.unplayable) setTargeting(true);
+      if (drag.info.needsTarget && !drag.info.unplayable) setTargeting(true);
     }
     if (drag.moved) {
-      var aimMode = drag.info.needsTarget && !drag.info.unplayable && E.canPlay(drag.idx) && E.aliveEnemies().length > 1;
+      var aimMode = drag.info.needsTarget && !drag.info.unplayable && E.canPlay(drag.idx) && E.aliveEnemies().length >= 1;
       if (aimMode) {
-        // lock-on: the card lifts to a ready pose and stays put while a reticle
-        // follows the cursor and locks the enemy under it.
+        // lock-on: card lifts to the hand centre; the reticle locks the enemy under
+        // the cursor (with a single enemy it auto-locks the sole target).
         drag.el.classList.add('card-aiming');
         drag.el.style.transform = 'translate(' + drag.aimOffX.toFixed(1) + 'px, -72px) scale(1.2)';
         var bf = document.getElementById('battlefield').getBoundingClientRect();
         var ax = ev.clientX - bf.left, ay = ev.clientY - bf.top;
         var lk = R.enemyAt(ax, ay);
+        if (lk < 0 && E.aliveEnemies().length === 1) lk = soleEnemyIdx();
         R.setAim(ax, ay, lk);
+        drag.aimed = true; drag.lock = lk;
         if (lk >= 0 && lk !== drag.lastLock) { SFX.lock(); drag.lastLock = lk; }   // ping on acquire
         else if (lk < 0) drag.lastLock = -1;
         drag.el.classList.toggle('will-play', lk >= 0);
@@ -1529,6 +1530,12 @@
   function enemyAtClient(ev) {
     var rect = document.getElementById('battlefield').getBoundingClientRect();
     return R.enemyAt(ev.clientX - rect.left, ev.clientY - rect.top);
+  }
+  function soleEnemyIdx() {
+    if (!E.combat) return -1;
+    var es = E.combat.enemies, idx = -1, n = 0;
+    for (var i = 0; i < es.length; i++) if (es[i].alive) { idx = i; n++; }
+    return n === 1 ? idx : -1;
   }
 
   /* ---- hover tooltips for the canvas status/trait icons ---- */
@@ -1588,18 +1595,16 @@
     if (E.swarmDisabled(d.idx)) { setTargeting(false); toast('DISABLED — a Void Swarm grips this card'); return; }
     if (!E.canPlay(d.idx)) { setTargeting(false); toast('NOT ENOUGH ENERGY'); return; }
 
-    var multi = E.aliveEnemies().length > 1;
-    var tgt = enemyAtClient(ev);
-    if (info.needsTarget && multi) {
-      if (tgt >= 0) playCardAt(d.idx, tgt);
-      else {
-        setTargeting(false);
-        if (-d.dy > B.feel.swipeThreshold) toast('DROP THE CARD ON A TARGET');
-      }
-    } else {
-      if (tgt >= 0 || -d.dy > B.feel.swipeThreshold) playCardAt(d.idx, tgt);
-      else setTargeting(false);
+    // lock-on aim: fire at the locked target (released over empty space cancels)
+    if (d.aimed) {
+      if (d.lock >= 0) playCardAt(d.idx, d.lock);
+      else { setTargeting(false); if (-d.dy > B.feel.swipeThreshold) toast('AIM AT A TARGET'); }
+      return;
     }
+    // non-target / fallback: swipe up or drop on an enemy to play
+    var tgt = enemyAtClient(ev);
+    if (tgt >= 0 || -d.dy > B.feel.swipeThreshold) playCardAt(d.idx, tgt);
+    else setTargeting(false);
   }
 
   function onDragCancel() {
