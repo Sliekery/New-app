@@ -1596,6 +1596,28 @@
             // MIND BULWARK: weave your Focus into a shield (psi as defence).
             var pbV = Math.round(statN(p, 'psiPow') * (f.v || 2));
             if (pbV > 0) gainBlock(pbV);
+          } else if (f.id === 'parch') {
+            // PARCH: cash a Burn stack as raw damage WITHOUT consuming it (rewards stacking, unlike Detonate).
+            var paT = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            if (paT) { var paV = statN(paT, 'burn') + statN(p, 'str') + statN(p, 'psiPow') + art('flatDmg'); if (paV > 0) totalDealt += dealToEnemy(paT, c.enemies.indexOf(paT), paV, { crit: crit, roll: roll }); }
+          } else if (f.id === 'soulflare') {
+            // SOULFLARE: a blast that scales with how WIDE your fire has spread (every burning foe).
+            var sfTargets = aliveEnemies().filter(function (e) { return statN(e, 'burn') > 0; });
+            var sfDmg = (f.v || 3) + statN(p, 'psiPow');
+            sfTargets.forEach(function (e) { totalDealt += dealToEnemy(e, c.enemies.indexOf(e), sfDmg, { crit: crit, roll: roll }); });
+          } else if (f.id === 'forgeBarrier') {
+            // BULWARK STANCE: forge your stacked Might into a wall (Might as defence).
+            var fbV = Math.round((statN(p, 'str') + attr('might')) * (f.v || 2));
+            if (fbV > 0) gainBlock(fbV);
+          } else if (f.id === 'cleave') {
+            // CLEAVE: a heavy blow to one foe that carries through to the rest of the pack.
+            var clT = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            if (clT) totalDealt += dealToEnemy(clT, c.enemies.indexOf(clT), (f.v || 5) + statN(p, 'str') + attr('might'), { crit: crit, roll: roll });
+            aliveEnemies().forEach(function (e) { if (e !== clT) totalDealt += dealToEnemy(e, c.enemies.indexOf(e), (f.splash || 3) + statN(p, 'str') + attr('might'), { noCrit: true }); });
+          } else if (f.id === 'repairBay') {
+            // REPAIR BAY: patch yourself, and harden if you have a construct deployed.
+            heal(f.v || 4);
+            if (statN(p, 'turret') > 0 || statN(p, 'drone') > 0) gainBlock(f.block || 6);
           } else if (f.id === 'fiendFire') {
             // ORDNANCE capstone: exhaust the rest of your hand, deal f.v per card.
             var fEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];

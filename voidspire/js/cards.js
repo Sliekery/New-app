@@ -231,10 +231,11 @@
       fx: [{ k: 'dmg', v: 3, hits: 2, scale: 'might' }],
       up: { fx: [{ k: 'dmg', v: 3, hits: 3, scale: 'might' }] },
     },
-    suppressing_fire: {
-      name: 'Suppressing Fire', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
-      fx: [{ k: 'dmg', v: 5, scale: 'might' }, { k: 'status', s: 'weak', v: 2, who: 'target' }],
-      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'status', s: 'weak', v: 2, who: 'target' }] },
+    suppressing_fire: {   // a raking burst — hammers one target and carries through to the rest
+      name: 'Raking Fire', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'special', id: 'cleave', v: 6, splash: 3 }],
+      text: 'Deal 6 damage to the target and 3 to every other enemy.',
+      up: { fx: [{ k: 'special', id: 'cleave', v: 8, splash: 5 }], text: 'Deal 8 damage to the target and 5 to every other enemy.' },
     },
     frag_grenade: {   // AoE setup — chips the pack and cracks their armour for the follow-up
       name: 'Frag Grenade', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
@@ -290,10 +291,11 @@
       fx: [{ k: 'block', v: 8, scale: 'tech' }],
       up: { fx: [{ k: 'block', v: 11, scale: 'tech' }] },
     },
-    nano_repair: {
-      name: 'Nano Repair', cls: 'technomancer', type: 'skill', rarity: 1, cost: 1, exhaust: true,
-      fx: [{ k: 'heal', v: 4 }],
-      up: { fx: [{ k: 'heal', v: 7 }] },
+    nano_repair: {   // patch up — and if a construct is covering you, bolt on some armour too
+      name: 'Repair Bay', cls: 'technomancer', type: 'skill', rarity: 1, cost: 1, exhaust: true,
+      fx: [{ k: 'special', id: 'repairBay', v: 4, block: 6 }],
+      text: 'Heal 4 HP. If you have a Turret or Drone deployed, also gain 6 Shield.',
+      up: { fx: [{ k: 'special', id: 'repairBay', v: 7, block: 9 }], text: 'Heal 7 HP. If you have a Turret or Drone deployed, also gain 9 Shield.' },
     },
     overclock: {
       name: 'Overclock', cls: 'technomancer', type: 'skill', rarity: 1, cost: 0,
@@ -526,10 +528,11 @@
       fx: [{ k: 'block', v: 6, scale: 'pri' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }],
       up: { fx: [{ k: 'block', v: 9, scale: 'pri' }, { k: 'status', s: 'weak', v: 2, who: 'allEnemies' }] },
     },
-    rallying_shout: {   // Strength + defense (War Cry = Strength + draw)
-      name: 'Rallying Shout', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
-      fx: [{ k: 'status', s: 'str', v: 1, who: 'self' }, { k: 'block', v: 5, scale: 'pri' }],
-      up: { fx: [{ k: 'status', s: 'str', v: 2, who: 'self' }, { k: 'block', v: 6, scale: 'pri' }] },
+    rallying_shout: {   // Might as defence — forge your stacked Strength into a wall
+      name: 'Bulwark Stance', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'status', s: 'str', v: 1, who: 'self' }, { k: 'special', id: 'forgeBarrier', v: 2 }],
+      text: 'Then gain Shield equal to twice your Might.',
+      up: { fx: [{ k: 'status', s: 'str', v: 2, who: 'self' }, { k: 'special', id: 'forgeBarrier', v: 2 }], text: 'Then gain Shield equal to twice your Might.' },
     },
     // --- new rares: each anchors a different Vanguard build ---
     frenzy: {   // the Strength payoff — multi-hit, every hit rides your MIGHT
@@ -672,10 +675,11 @@
       fx: [{ k: 'dmg', v: 5, scale: 'psi' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }],
       up: { fx: [{ k: 'dmg', v: 7, scale: 'psi' }, { k: 'status', s: 'vuln', v: 3, who: 'target' }] },
     },
-    wither: {
-      name: 'Wither', cls: 'voidadept', type: 'skill', rarity: 2, cost: 1,
-      fx: [{ k: 'status', s: 'burn', v: 3, who: 'target' }, { k: 'status', s: 'weak', v: 2, who: 'target' }],
-      up: { fx: [{ k: 'status', s: 'burn', v: 5, who: 'target' }, { k: 'status', s: 'weak', v: 2, who: 'target' }] },
+    wither: {   // a burn PAYOFF that doesn't consume — cash the stack while the fire keeps burning
+      name: 'Parch', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'special', id: 'parch' }],
+      text: "Deal damage equal to the target's Burn. The Burn is NOT consumed.",
+      up: { fx: [{ k: 'status', s: 'burn', v: 2, who: 'target' }, { k: 'special', id: 'parch' }], text: "Apply 2 Burn, then deal damage equal to the target's Burn. The Burn is NOT consumed." },
     },
     blood_sacrifice: {
       name: 'Blood Sacrifice', cls: 'voidadept', type: 'skill', rarity: 2, cost: 0, exhaust: true,
@@ -1208,10 +1212,11 @@
       fx: [{ k: 'status', s: 'bloodPact', v: 1, who: 'self' }, { k: 'status', s: 'psiRamp', v: 1, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'bloodPact', v: 1, who: 'self' }, { k: 'status', s: 'psiRamp', v: 2, who: 'self' }] },
     },
-    mind_burn: {   // Psi <-> Affliction bridge — a strike that leaves a fire
-      name: 'Mind Burn', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
-      fx: [{ k: 'dmg', v: 5, scale: 'psi' }, { k: 'status', s: 'burn', v: 3, who: 'target' }],
-      up: { fx: [{ k: 'dmg', v: 7, scale: 'psi' }, { k: 'status', s: 'burn', v: 4, who: 'target' }] },
+    mind_burn: {   // a blast that scales with how WIDE your fire has spread (every Burning foe)
+      name: 'Soulflare', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'special', id: 'soulflare', v: 4 }],
+      text: 'Deal 4 damage to every Burning enemy (scales with your Psi Focus).',
+      up: { fx: [{ k: 'special', id: 'soulflare', v: 6 }], text: 'Deal 6 damage to every Burning enemy (scales with your Psi Focus).' },
     },
     entropic_lash: {   // a strike that seeds the whole field with fire (Affliction enabler)
       name: 'Entropic Lash', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
@@ -1427,7 +1432,7 @@
       var f = fx[i];
       if (f.k === 'dmg' && !f.all && !f.random) return true;
       if (f.k === 'status' && f.who === 'target') return true;
-      if (f.k === 'special' && (f.id === 'shieldSlam' || f.id === 'shieldSlam15' || f.id === 'catalyst' || f.id === 'catalyst3' || f.id === 'reap' || f.id === 'overdrive' || f.id === 'fiendFire' || f.id === 'cull' || f.id === 'detonate' || f.id === 'backdraft')) return true;
+      if (f.k === 'special' && (f.id === 'shieldSlam' || f.id === 'shieldSlam15' || f.id === 'catalyst' || f.id === 'catalyst3' || f.id === 'reap' || f.id === 'overdrive' || f.id === 'fiendFire' || f.id === 'cull' || f.id === 'detonate' || f.id === 'backdraft' || f.id === 'parch' || f.id === 'cleave')) return true;
     }
     return false;
   };

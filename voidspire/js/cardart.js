@@ -62,10 +62,10 @@
     // expansion
     war_cry: 'might', cluster_munitions: 'drain', bunker_down: 'shield', suppressing_barrage: 'shield',
     arc_welder: 'bolt', static_lance: 'bolt', shield_battery: 'core',
-    void_bolt: 'psiBolt', wither: 'hex', blood_sacrifice: 'drain',
+    void_bolt: 'psiBolt', wither: 'flame', blood_sacrifice: 'drain',
     orbital_bombardment: 'cannon', omega_protocol: 'core', singularity_bloom: 'vortex', juggernaut_core: 'core',
     salvaged_ordnance: 'cannon', stim_overdose: 'bolt', forbidden_lore: 'eye',
-    shield_bash: 'shieldStrike', reckless_charge: 'blade', suppressing_barrage: 'shell', rallying_shout: 'might',
+    shield_bash: 'shieldStrike', reckless_charge: 'blade', suppressing_barrage: 'shell', rallying_shout: 'shield',
     frenzy: 'burst', bloodlust: 'drain', riposte_protocol: 'shieldStrike',
     rapid_fire: 'rifle', trigger_discipline: 'reload', hail_of_lead: 'burst', full_auto: 'might', unload: 'cannon',
     blood_rage: 'might', deflect: 'shieldStrike', counterstrike: 'blade', crimson_pact: 'drain', whet_the_blade: 'blade', bloodbath: 'skull', vengeance: 'drain',
