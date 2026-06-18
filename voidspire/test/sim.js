@@ -266,6 +266,13 @@ var ENGINES = {
   // Voidadept affliction/Burn engine
   hex: { cls: 'voidadept', core: ['soul_burn', 'hex_weave', 'wither', 'catalyst', 'entropy_field', 'plague_engine', 'singularity_bloom', 'psionic_focus', 'mind_array', 'unravel', 'void_bolt', 'mind_fracture'],
          flex: ['mind_spike', 'premonition', 'blood_sacrifice', 'exsanguinate', 'psy_lance', 'combat_shield'] },
+  psi: { cls: 'voidadept', core: ['psy_lance', 'void_bolt', 'tk_crush', 'eldritch_storm', 'psionic_focus', 'mind_array', 'mind_storm', 'exsanguinate', 'unravel', 'forbidden_lore'],
+         flex: ['mind_spike', 'premonition', 'blood_sacrifice', 'combat_shield', 'mind_fracture'] },
+  // Technomancer engines
+  fortress: { cls: 'technomancer', core: ['fortify_matrix', 'arc_welder', 'shield_battery', 'entrench_field', 'kinetic_discharge', 'static_field', 'phase_bulwark', 'static_lance', 'railgun', 'sentry_protocol'],
+              flex: ['overshield', 'shock_coil', 'combat_shield', 'guard_protocol'] },
+  turret: { cls: 'technomancer', core: ['deploy_turret', 'sentry_protocol', 'drone_swarm', 'aux_reactor', 'echo_core', 'overload_capacitor', 'omega_protocol', 'chain_lightning', 'railgun'],
+            flex: ['overshield', 'shock_coil', 'fortify_matrix', 'arc_welder'] },
 };
 var FLEX_OF = { warpcaller: ['claw_swipe', 'summon_maw', 'howl', 'kennel', 'summon_totem'] };  // per-class default flex
 var PILOT = null;   // an ENGINES key — null = default greedy draft
