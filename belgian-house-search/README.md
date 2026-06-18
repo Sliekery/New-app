@@ -15,37 +15,42 @@ It's pre-configured for the search you described:
 - **Garden:** required, **very big** (≥ 1,500 m² plot/garden by default)
 - **Condition:** move-in ready only (renovation projects filtered out)
 
-All of these are easy to change — see [Configuration](#configuration).
+All of these are easy to change — right in the app, no editing files needed.
 
 ---
 
-## Quick start
+## 🚀 Easiest way: just open the app (no command line)
+
+**Windows** — double-click **`Start Belgian House Search.bat`**
+**Mac / Linux** — double-click **`Start (Mac or Linux).command`**
+
+That's it. The launcher checks Python is installed (and helps you install it the
+first time if not), then opens a search page in your web browser. Fill in your
+filters, click **Search houses**, and browse the matches — each with a photo,
+price, garden size, and a link to the real listing.
+
+See **`START HERE.txt`** for step-by-step pictures-in-words for Windows.
+
+> **Good to know:** the app searches real portals (**Immoweb, Zimmo, Immovlan,
+> Realo**) live. These sites have bot protection, so from time to time one may
+> refuse a request — the app just shows the results from the sites that worked
+> and tells you which one had trouble. It works best from your normal home
+> internet (not a work network or VPN).
+
+---
+
+## Advanced: command line
+
+If you prefer a terminal, the same engine is available as a script:
 
 ```bash
 cd belgian-house-search
 python3 -m pip install -r requirements.txt
 
-# 1) Try it offline with built-in sample data:
-python3 search.py --demo --open
-
-# 2) Run a real search across ALL sources and open the report:
-python3 search.py --sources all --open --csv results.csv
-
-# 3) Or pick specific sources:
-python3 search.py --sources immoweb,zimmo --open
+python3 search.py --demo --open                       # offline sample data
+python3 search.py --sources all --open --csv out.csv  # real search, all sites
+python3 search.py --sources immoweb,zimmo --open      # specific sites
 ```
-
-`--open` opens the generated `report.html` in your browser. Without it, just
-open `report.html` manually. Each result card shows a badge per portal it was
-found on (e.g. the same house listed on both Immoweb and Zimmo).
-
-> **Heads-up about running it:** the live search pulls from real portals
-> (**Immoweb, Zimmo, Immovlan, Realo**), which sit behind bot protection
-> (Cloudflare etc.). From a normal home internet connection they generally
-> work; from a server / datacenter IP you may get **403**. Each source runs
-> independently, so if one is blocked the others still return results, and the
-> error is reported at the end. See [Troubleshooting](#troubleshooting). The
-> `--demo` mode always works with no network at all.
 
 ---
 
@@ -130,7 +135,9 @@ with the SMTP_* values stored as repository secrets.)
 ## How it works
 
 ```
-search.py            ← command-line entry point
+app.py               ← the web app (what the Start launchers run)
+Start ….bat / .command ← double-click launchers (Windows / Mac-Linux)
+search.py            ← command-line entry point (same engine, for terminals)
 house_search/
   criteria.py        ← your requirements (loaded from config.json)
   models.py          ← Listing: one normalized house, regardless of source

@@ -77,48 +77,57 @@ def _card(l: Listing) -> str:
     </article>"""
 
 
+# Shared CSS used by both the saved HTML report and the web app.
+CARD_STYLE = """
+  :root { --bg:#f5f6f8; --card:#fff; --ink:#1c2530; --muted:#6b7785; --accent:#1f7a5a; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+         background:var(--bg); color:var(--ink); }
+  header { padding:24px 20px; background:var(--accent); color:#fff; }
+  header h1 { margin:0 0 6px; font-size:20px; }
+  header .meta { font-size:13px; opacity:.9; }
+  .wrap { max-width:1100px; margin:0 auto; padding:20px; }
+  .grid { display:grid; gap:16px; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); }
+  .card { background:var(--card); border-radius:12px; overflow:hidden;
+          box-shadow:0 1px 3px rgba(0,0,0,.08); display:flex; flex-direction:column; }
+  .thumb { display:block; aspect-ratio:16/10; background:#e9edf1; }
+  .thumb img { width:100%; height:100%; object-fit:cover; }
+  .noimg { display:flex; align-items:center; justify-content:center; height:100%;
+            color:var(--muted); font-size:13px; }
+  .body { padding:14px; display:flex; flex-direction:column; gap:10px; }
+  h2 { font-size:16px; margin:0; }
+  h2 a { color:var(--ink); text-decoration:none; }
+  .price { font-size:18px; font-weight:700; color:var(--accent); }
+  .badges { display:flex; gap:6px; flex-wrap:wrap; }
+  .badge { font-size:11px; background:#e7f1ec; color:var(--accent); border-radius:999px;
+            padding:2px 8px; text-transform:capitalize; }
+  .facts { display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; }
+  .fact { display:flex; flex-direction:column; }
+  .fact .k { font-size:11px; text-transform:uppercase; color:var(--muted); letter-spacing:.03em; }
+  .fact .v { font-size:14px; }
+  .btn { margin-top:auto; align-self:flex-start; background:var(--accent); color:#fff;
+          text-decoration:none; padding:8px 12px; border-radius:8px; font-size:13px; }
+  .empty { color:var(--muted); text-align:center; padding:40px; }
+"""
+
+
+def render_cards(listings: List[Listing]) -> str:
+    """Return the results grid HTML (or an empty-state message)."""
+    if not listings:
+        return '<p class="empty">No listings matched your criteria.</p>'
+    cards = "\n".join(_card(l) for l in listings)
+    return f'<div class="grid">\n{cards}\n</div>'
+
+
 def write_html(listings: List[Listing], path: str, criteria: Criteria) -> None:
     now = _dt.datetime.now().strftime("%Y-%m-%d %H:%M")
-    cards = "\n".join(_card(l) for l in listings) or (
-        '<p class="empty">No listings matched your criteria.</p>'
-    )
     doc = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>House search — {len(listings)} matches</title>
-<style>
-  :root {{ --bg:#f5f6f8; --card:#fff; --ink:#1c2530; --muted:#6b7785; --accent:#1f7a5a; }}
-  * {{ box-sizing:border-box; }}
-  body {{ margin:0; font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-         background:var(--bg); color:var(--ink); }}
-  header {{ padding:24px 20px; background:var(--accent); color:#fff; }}
-  header h1 {{ margin:0 0 6px; font-size:20px; }}
-  header .meta {{ font-size:13px; opacity:.9; }}
-  .wrap {{ max-width:1100px; margin:0 auto; padding:20px; }}
-  .grid {{ display:grid; gap:16px; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); }}
-  .card {{ background:var(--card); border-radius:12px; overflow:hidden;
-          box-shadow:0 1px 3px rgba(0,0,0,.08); display:flex; flex-direction:column; }}
-  .thumb {{ display:block; aspect-ratio:16/10; background:#e9edf1; }}
-  .thumb img {{ width:100%; height:100%; object-fit:cover; }}
-  .noimg {{ display:flex; align-items:center; justify-content:center; height:100%;
-            color:var(--muted); font-size:13px; }}
-  .body {{ padding:14px; display:flex; flex-direction:column; gap:10px; }}
-  h2 {{ font-size:16px; margin:0; }}
-  h2 a {{ color:var(--ink); text-decoration:none; }}
-  .price {{ font-size:18px; font-weight:700; color:var(--accent); }}
-  .badges {{ display:flex; gap:6px; flex-wrap:wrap; }}
-  .badge {{ font-size:11px; background:#e7f1ec; color:var(--accent); border-radius:999px;
-            padding:2px 8px; text-transform:capitalize; }}
-  .facts {{ display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; }}
-  .fact {{ display:flex; flex-direction:column; }}
-  .fact .k {{ font-size:11px; text-transform:uppercase; color:var(--muted); letter-spacing:.03em; }}
-  .fact .v {{ font-size:14px; }}
-  .btn {{ margin-top:auto; align-self:flex-start; background:var(--accent); color:#fff;
-          text-decoration:none; padding:8px 12px; border-radius:8px; font-size:13px; }}
-  .empty {{ color:var(--muted); text-align:center; padding:40px; }}
-</style>
+<style>{CARD_STYLE}</style>
 </head>
 <body>
   <header>
@@ -126,9 +135,7 @@ def write_html(listings: List[Listing], path: str, criteria: Criteria) -> None:
     <div class="meta">{html.escape(criteria.describe())}<br>Generated {now}</div>
   </header>
   <div class="wrap">
-    <div class="grid">
-      {cards}
-    </div>
+    {render_cards(listings)}
   </div>
 </body>
 </html>"""

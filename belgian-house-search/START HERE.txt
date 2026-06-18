@@ -1,0 +1,54 @@
+============================================================
+  BELGIAN HOUSE SEARCH  -  how to start (Windows)
+============================================================
+
+STEP 1
+  Double-click the file:
+
+      Start Belgian House Search.bat
+
+  (A black window will open. That's normal - leave it open.)
+
+
+STEP 2
+  Your web browser opens automatically with the search page.
+
+  If a blue "Windows protected your PC" box appears the first time,
+  click "More info" then "Run anyway". (It's safe - it's just a
+  small script on your own computer.)
+
+
+STEP 3
+  Fill in what you're looking for (it's already pre-filled for the
+  Borgloon area, 300k-500k, 3+ bedrooms, big garden, move-in ready).
+  Then click the green "Search houses" button.
+
+  Searching can take up to a minute - it checks four websites at once
+  (Immoweb, Zimmo, Immovlan, Realo) and removes duplicates.
+
+
+STEP 4
+  Browse the houses. Click any card to open the real listing on the
+  website. Change the filters and search again any time.
+
+
+TO STOP
+  Close the black window (or click it and press Ctrl + C).
+
+
+------------------------------------------------------------
+FIRST TIME ONLY: if it says Python is not installed
+------------------------------------------------------------
+  The window will open the Python download page for you.
+  Install Python, and on the FIRST screen of the installer
+  TICK the box "Add Python to PATH" before clicking Install.
+  Then double-click "Start Belgian House Search.bat" again.
+
+------------------------------------------------------------
+If some websites show an error
+------------------------------------------------------------
+  That just means one site temporarily blocked the request.
+  The results from the sites that worked are still shown.
+  Try again, or untick that site in "Where to search".
+  Running from your home internet (not work/VPN) works best.
+============================================================
