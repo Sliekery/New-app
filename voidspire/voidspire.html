@@ -1763,10 +1763,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       fx: [{ k: 'status', s: 'burn', v: 4, who: 'target' }],
       up: { fx: [{ k: 'status', s: 'burn', v: 7, who: 'target' }] },
     },
-    hex_weave: {   // seed Burn across the whole field (Soul Burn = one big stack)
+    hex_weave: {   // a concentrated hex on one foe that leaks fire into the whole pack (Ember Storm = flat field-seed + draw)
       name: 'Hex Weave', cls: 'voidadept', type: 'skill', rarity: 1, cost: 1,
-      fx: [{ k: 'status', s: 'burn', v: 2, who: 'allEnemies' }],
-      up: { fx: [{ k: 'status', s: 'burn', v: 3, who: 'allEnemies' }] },
+      fx: [{ k: 'status', s: 'burn', v: 4, who: 'target' }, { k: 'status', s: 'burn', v: 1, who: 'allEnemies' }],
+      up: { fx: [{ k: 'status', s: 'burn', v: 6, who: 'target' }, { k: 'status', s: 'burn', v: 2, who: 'allEnemies' }] },
     },
     premonition: {
       name: 'Premonition', cls: 'voidadept', type: 'skill', rarity: 1, cost: 1,
@@ -2403,10 +2403,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       fx: [{ k: 'block', v: 7, scale: 'tech' }],
       up: { fx: [{ k: 'block', v: 10, scale: 'tech' }] },
     },
-    fortified_strike: {   // the Fortress hybrid — punch and brace in one
+    fortified_strike: {   // the defensive hybrid — mostly brace, a little punch (Arc Welder leans the other way)
       name: 'Fortified Strike', cls: 'technomancer', type: 'attack', rarity: 2, cost: 1,
-      fx: [{ k: 'dmg', v: 7, scale: 'tech' }, { k: 'block', v: 5, scale: 'tech' }],
-      up: { fx: [{ k: 'dmg', v: 10, scale: 'tech' }, { k: 'block', v: 7, scale: 'tech' }] },
+      fx: [{ k: 'dmg', v: 5, scale: 'tech' }, { k: 'block', v: 9, scale: 'tech' }],
+      up: { fx: [{ k: 'dmg', v: 7, scale: 'tech' }, { k: 'block', v: 12, scale: 'tech' }] },
     },
     aegis_matrix: {   // BUILD-AROUND — your Shield stops expiring; stack it forever
       name: 'Aegis Matrix', cls: 'technomancer', type: 'power', rarity: 3, cost: 2,
@@ -2420,10 +2420,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       fx: [{ k: 'status', s: 'hive', v: 1, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'hive', v: 2, who: 'self' }] },
     },
-    assault_drone: {   // an AoE construct on a budget
+    assault_drone: {   // a cheap starter construct — small swarm to get the board rolling (Drone Swarm = the heavy one)
       name: 'Assault Drone', cls: 'technomancer', type: 'power', rarity: 2, cost: 1,
-      fx: [{ k: 'status', s: 'drone', v: 3, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'drone', v: 4, who: 'self' }] },
+      fx: [{ k: 'status', s: 'drone', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'drone', v: 3, who: 'self' }] },
     },
     mortar_array: {   // one heavy single-target turret
       name: 'Mortar Array', cls: 'technomancer', type: 'power', rarity: 3, cost: 2,
@@ -2447,10 +2447,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
 
     /* -- OVERCHARGE -- */
-    flux_capacitor: {   // BUILD-AROUND tempo — a big permanent Energy boost
+    flux_capacitor: {   // overclocked core — double the Energy of Aux Reactor, paid for in integrity
       name: 'Flux Capacitor', cls: 'technomancer', type: 'power', rarity: 3, cost: 2,
-      fx: [{ k: 'status', s: 'reactor', v: 2, who: 'self' }],
-      up: { cost: 1, fx: [{ k: 'status', s: 'reactor', v: 2, who: 'self' }] },
+      fx: [{ k: 'status', s: 'reactor', v: 2, who: 'self' }, { k: 'hploss', v: 5 }],
+      up: { fx: [{ k: 'status', s: 'reactor', v: 2, who: 'self' }, { k: 'hploss', v: 3 }] },
     },
     surge_protocol: {   // dig deep into a power-turn
       name: 'Surge Protocol', cls: 'technomancer', type: 'skill', rarity: 2, cost: 1,
@@ -2505,10 +2505,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       fx: [{ k: 'status', s: 'vuln', v: 2, who: 'target' }, { k: 'draw', v: 1 }],
       up: { fx: [{ k: 'status', s: 'vuln', v: 3, who: 'target' }, { k: 'draw', v: 1 }] },
     },
-    ion_storm: {   // the Disruption payoff — AoE damage AND a field of Weak to arc on
+    ion_storm: {   // the Disruption payoff — paints the whole field with BOTH debuffs (double Conduit arc)
       name: 'Ion Storm', cls: 'technomancer', type: 'attack', rarity: 3, cost: 2,
-      fx: [{ k: 'dmg', v: 4, all: true, scale: 'tech' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }],
-      up: { fx: [{ k: 'dmg', v: 6, all: true, scale: 'tech' }, { k: 'status', s: 'weak', v: 2, who: 'allEnemies' }] },
+      fx: [{ k: 'dmg', v: 5, all: true, scale: 'tech' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }, { k: 'status', s: 'vuln', v: 1, who: 'allEnemies' }],
+      up: { fx: [{ k: 'dmg', v: 7, all: true, scale: 'tech' }, { k: 'status', s: 'weak', v: 2, who: 'allEnemies' }, { k: 'status', s: 'vuln', v: 1, who: 'allEnemies' }] },
     },
     emp_mine: {   // ⚡0 exhaust enabler — a cheap field-wide jolt
       name: 'EMP Mine', cls: 'technomancer', type: 'attack', rarity: 1, cost: 0, exhaust: true,
@@ -2569,11 +2569,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       text: 'Both hits are boosted by your Psi Focus.',
       up: { fx: [{ k: 'dmg', v: 5, hits: 2, scale: 'psi' }] },
     },
-    cerebral_spike: {   // a single big psi scaler (Focus counts double)
-      name: 'Cerebral Spike', cls: 'voidadept', type: 'attack', rarity: 2, cost: 2,
-      fx: [{ k: 'dmg', v: 6, scale: 'psi', scaleMul: 2 }],
+    cerebral_spike: {   // the budget psi-scaler — cheap, and your Focus still counts twice (Tk Crush = the heavy version)
+      name: 'Cerebral Spike', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'dmg', v: 4, scale: 'psi', scaleMul: 2 }],
       text: 'Your Psi Focus counts twice.',
-      up: { fx: [{ k: 'dmg', v: 9, scale: 'psi', scaleMul: 2 }] },
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'psi', scaleMul: 2 }] },
     },
     psionic_nova: {   // the psi AoE — scales with Focus across the whole field
       name: 'Psionic Nova', cls: 'voidadept', type: 'attack', rarity: 3, cost: 2,
@@ -2587,11 +2587,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       fx: [{ k: 'hploss', v: 2 }, { k: 'draw', v: 1 }, { k: 'block', v: 3 }],
       up: { fx: [{ k: 'hploss', v: 1 }, { k: 'draw', v: 1 }, { k: 'block', v: 5 }] },
     },
-    crimson_rite: {   // a sacrifice strike that pays you back in life
+    crimson_rite: {   // a bleeding strike that marks the prey — smaller than Exsanguinate, but it sets up the kill
       name: 'Crimson Rite', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
-      fx: [{ k: 'hploss', v: 3 }, { k: 'dmg', v: 6, scale: 'psi' }, { k: 'special', id: 'drain' }],
+      fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 5, scale: 'psi' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }, { k: 'special', id: 'drain' }],
       text: 'Heal for half the damage dealt.',
-      up: { fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 9, scale: 'psi' }, { k: 'special', id: 'drain' }] },
+      up: { fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 7, scale: 'psi' }, { k: 'status', s: 'vuln', v: 3, who: 'target' }, { k: 'special', id: 'drain' }] },
     },
 
     /* -- VOID / ENTROPY -- */
