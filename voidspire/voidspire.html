@@ -1848,8 +1848,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
     iron_resolve: {
       name: 'Iron Resolve', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
-      fx: [{ k: 'status', s: 'feelNoPain', v: 3, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'feelNoPain', v: 4, who: 'self' }] },
+      fx: [{ k: 'status', s: 'feelNoPain', v: 4, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'feelNoPain', v: 5, who: 'self' }] },
     },
     reckless_protocol: {
       name: 'Reckless Protocol', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
@@ -2004,8 +2004,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
     deflect: {   // the parry stance — Bloodforge's defence, and it bites back
       name: 'Deflect', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
-      fx: [{ k: 'status', s: 'parry', v: 6, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'parry', v: 9, who: 'self' }] },
+      fx: [{ k: 'status', s: 'parry', v: 8, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'parry', v: 11, who: 'self' }] },
     },
     vengeance: {   // the sustain anchor — trade blows and feed on the exchange
       name: 'Vengeance', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
@@ -2029,16 +2029,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
     bloodbath: {   // the cashout — pour all your stacked Might into one brutal blow, and drink deep
       name: 'Bloodbath', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
-      fx: [{ k: 'special', id: 'bloodbath', v: 4 }, { k: 'special', id: 'drain' }],
-      text: 'Deal damage equal to 4× your Strength. Heal for half the damage dealt.',
-      up: { fx: [{ k: 'special', id: 'bloodbath', v: 5 }, { k: 'special', id: 'drain' }], text: 'Deal damage equal to 5× your Strength. Heal for half the damage dealt.' },
+      fx: [{ k: 'special', id: 'bloodbath', v: 5 }, { k: 'special', id: 'drain' }],
+      text: 'Deal damage equal to 5× your Strength. Heal for half the damage dealt.',
+      up: { fx: [{ k: 'special', id: 'bloodbath', v: 6 }, { k: 'special', id: 'drain' }], text: 'Deal damage equal to 6× your Strength. Heal for half the damage dealt.' },
     },
     // --- BANDOLIER: heavy ordnance, spent & reloaded. Big shots Exhaust (spent
     //     shells); payoffs reward spending them; Reload racks them back. ---
     salvo: {   // the anchor — every spent shell detonates
       name: 'Salvo', cls: 'vanguard', type: 'power', rarity: 3, cost: 1,
-      fx: [{ k: 'status', s: 'salvo', v: 3, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'salvo', v: 5, who: 'self' }] },
+      fx: [{ k: 'status', s: 'salvo', v: 4, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'salvo', v: 6, who: 'self' }] },
     },
     reload: {   // the reuse engine — rack a spent shell back into the chamber
       name: 'Reload', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
@@ -2053,8 +2053,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
     breaching_charge: {   // a heavy shell — big single shot, spent on firing
       name: 'Breaching Charge', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1, exhaust: true,
-      fx: [{ k: 'dmg', v: 9, scale: 'might' }],
-      up: { fx: [{ k: 'dmg', v: 13, scale: 'might' }] },
+      fx: [{ k: 'dmg', v: 11, scale: 'might' }],
+      up: { fx: [{ k: 'dmg', v: 15, scale: 'might' }] },
     },
     field_strip: {   // cheap exhaust-fuel — cycles and feeds the spent-shell payoffs
       name: 'Field Strip', cls: 'vanguard', type: 'skill', rarity: 1, cost: 0, exhaust: true,
