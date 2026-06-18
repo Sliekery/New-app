@@ -548,13 +548,9 @@
     }
 
     if (c) {
-      // Only debuffs live in the HUD now — Powers show on the field as the
-      // "battle augmentation" gauge (tap it to read names/values).
-      var st = c.player.statuses, chips = '';
-      Object.keys(st).forEach(function (k) {
-        if (st[k] <= 0 || (k !== 'vuln' && k !== 'weak' && k !== 'burn')) return;
-        chips += '<span class="status-chip debuff">' + esc(ns.STATUS_NAMES[k] || k) + ' ' + st[k] + '</span>';
-      });
+      // Statuses (buffs/powers/debuffs) now live on the on-figure Dual-Rail bar.
+      // The HUD only keeps Fusion-Charge timers, which aren't stack statuses.
+      var chips = '';
       (c.primed || []).forEach(function (pr) {   // armed delayed detonations (Fusion Charge)
         chips += '<span class="status-chip primed">⏱ ' + pr.dmg + ' in ' + pr.turns + '</span>';
       });

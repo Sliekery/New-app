@@ -7899,6 +7899,60 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     ctx.restore();
   }
 
+  // ---- unified Dual-Rail status display: buffs (+ powers) ABOVE the bar,
+  // debuffs BELOW it, so good/bad reads by position. Powers = bright hexagon. ----
+  var DEBUFF_SET = { vuln: 1, weak: 1, burn: 1, plague: 1, entropy: 1, corruption: 1, poison: 1, frail: 1 };
+  var SIMPLE_BUFF = { str: 1, regen: 1, plate: 1, platedArmor: 1, thorns: 1, barricade: 1, parry: 1, strPerTurn: 1, momentum: 1 };
+  var SGLYPH = { str: 'str', regen: 'regen', vuln: 'vuln', weak: 'weak', burn: 'burn', thorns: 'thorns', plate: 'plate', platedArmor: 'plate', barricade: 'plate' };
+  function statGlyph(g, cx, cy, r, col) {
+    ctx.save(); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1.3; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.beginPath();
+    var i, a, px, py;
+    if (g === 'str') { ctx.moveTo(cx, cy + r); ctx.lineTo(cx, cy - r); ctx.moveTo(cx - r * 0.7, cy - r * 0.3); ctx.lineTo(cx, cy - r); ctx.lineTo(cx + r * 0.7, cy - r * 0.3); ctx.stroke(); }
+    else if (g === 'regen') { ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r); ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy); ctx.stroke(); }
+    else if (g === 'vuln') { ctx.moveTo(cx - r * 0.7, cy - r); ctx.lineTo(cx + r * 0.7, cy - r); ctx.lineTo(cx + r * 0.7, cy + r * 0.1); ctx.quadraticCurveTo(cx, cy + r * 1.1, cx - r * 0.7, cy + r * 0.1); ctx.closePath(); ctx.stroke(); }
+    else if (g === 'weak') { ctx.moveTo(cx - r, cy - r * 0.5); ctx.lineTo(cx, cy + r * 0.5); ctx.lineTo(cx + r, cy - r * 0.5); ctx.moveTo(cx - r, cy + r * 0.1); ctx.lineTo(cx, cy + r); ctx.lineTo(cx + r, cy + r * 0.1); ctx.stroke(); }
+    else if (g === 'burn') { ctx.moveTo(cx, cy + r); ctx.quadraticCurveTo(cx - r, cy + r * 0.2, cx - r * 0.3, cy - r * 0.4); ctx.quadraticCurveTo(cx, cy - r * 1.1, cx + r * 0.2, cy - r * 0.2); ctx.quadraticCurveTo(cx + r * 0.6, cy - r * 0.7, cx + r * 0.5, cy + r * 0.1); ctx.quadraticCurveTo(cx + r, cy + r * 0.4, cx, cy + r); ctx.fill(); }
+    else if (g === 'thorns') { for (i = -1; i <= 1; i++) { ctx.moveTo(cx + i * r * 0.7, cy + r); ctx.lineTo(cx + i * r * 0.7, cy - r); } ctx.stroke(); }
+    else if (g === 'plate') { for (i = 0; i < 6; i++) { a = Math.PI / 6 + i * Math.PI / 3; px = cx + r * Math.cos(a); py = cy + r * Math.sin(a); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.closePath(); ctx.stroke(); }
+    else if (g === 'power') { for (i = 0; i < 6; i++) { a = Math.PI / 6 + i * Math.PI / 3; px = cx + r * Math.cos(a); py = cy + r * Math.sin(a); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.closePath(); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, cy, r * 0.4, 0, 7); ctx.stroke(); }
+    ctx.restore();
+  }
+  function classifyStatuses(statuses) {
+    var buffs = [], debuffs = [];
+    for (var k in statuses) {
+      var val = statuses[k]; if (!val || val <= 0) continue;
+      var deb = !!DEBUFF_SET[k];
+      var power = !deb && !SIMPLE_BUFF[k];
+      var col = STATUS_COLORS[k] || (deb ? '#ff6a8a' : power ? '#41d8ff' : '#7fd6ff');
+      var ab = power ? ((ns.STATUS_NAMES && ns.STATUS_NAMES[k] || k).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase()) : null;
+      (deb ? debuffs : buffs).push({ v: val, col: col, glyph: deb ? (SGLYPH[k] || null) : (power ? 'power' : (SGLYPH[k] || null)), power: power, ab: ab });
+    }
+    return { buffs: buffs, debuffs: debuffs };
+  }
+  function drawStatusRow(cx, y, items, fp) {
+    if (!items.length) return;
+    ctx.save();
+    ctx.font = 'bold ' + fp + 'px ui-monospace, monospace'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    var labels = items.map(function (it) { return it.power && it.ab ? (it.ab + (it.v > 1 ? it.v : '')) : ('' + it.v); });
+    var step = items.map(function (it, i) { return 12 + ctx.measureText(labels[i]).width; });
+    var total = step.reduce(function (a, w) { return a + w + 4; }, -4);
+    var x = cx - total / 2;
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i], ix = x + 6;
+      if (it.glyph) statGlyph(it.glyph, ix, y, 5, it.col);
+      else { ctx.fillStyle = it.col; ctx.beginPath(); ctx.arc(ix, y, 3.5, 0, 7); ctx.fill(); }
+      ctx.fillStyle = it.col; ctx.fillText(labels[i], ix + 7, y + 0.5);
+      x += step[i] + 4;
+    }
+    ctx.restore();
+  }
+  // topY = buff row (above bar), botY = debuff row (below bar)
+  function drawStatusRails(cx, topY, botY, statuses, fp) {
+    var L = classifyStatuses(statuses);
+    drawStatusRow(cx, topY, L.buffs, fp);
+    drawStatusRow(cx, botY, L.debuffs, fp);
+  }
+
   // ---- Fire-Control HP bar: targeting brackets + cyan shield line + status chips ----
   var ST_AB = { vuln: 'V', weak: 'W', burn: 'B', str: 'S', regen: 'R', plate: 'P', platedArmor: 'P', barricade: 'BR', thorns: 'T', parry: 'PY', momentum: 'M', poison: 'PO', plague: 'PL', entropy: 'EN', psiPow: 'Ψ', strPerTurn: 'S', feelNoPain: 'FN', afterImage: 'AI', retain: 'RT' };
   function statusChipList(st) {
@@ -7957,8 +8011,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     ctx.font = 'bold ' + fp + 'px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillStyle = '#f2fff6'; ctx.shadowColor = '#04140c'; ctx.shadowBlur = 3;
     ctx.fillText(hpTxt, cx, midY + 0.5); ctx.shadowBlur = 0;
-    var chips = statusChipList(statuses);
-    if (chips.length) fcChips(cx, by + h + 3, chips, opt.chipFont || 8);
+    // Dual Rail: buffs (+powers) above the bar, debuffs below
+    drawStatusRails(cx, by - 15, by + h + 12, statuses, opt.chipFont || 8.5);
     ctx.restore();
   }
 
@@ -8074,35 +8128,35 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     if (dying) return;
 
-    // hp bar
+    // hp bar — Dual Rail: buffs above, shield on the bar, debuffs below, traits beneath
     v.dispHp += (v.hp - v.dispHp) * 0.18;
     if (Math.abs(v.dispHp - v.hp) < 0.4) v.dispHp = v.hp;
     var bw = Math.max(46, Math.min(96, v.r * 2.1));
-    var bx = v.x - bw / 2, by = v.y + v.r + 14;
+    var bx = v.x - bw / 2, by = v.y + v.r + 20, bh = 6;
     ctx.fillStyle = 'rgba(6, 14, 10, 0.85)';
-    ctx.fillRect(bx, by, bw, 6);
-    ctx.fillStyle = color;
-    ctx.globalAlpha = 0.9;
-    ctx.fillRect(bx + 1, by + 1, (bw - 2) * Math.max(0, v.dispHp / v.maxHp), 4);
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = color; ctx.globalAlpha = 0.9;
+    ctx.fillRect(bx + 1, by + 1, (bw - 2) * Math.max(0, v.dispHp / v.maxHp), bh - 2);
     ctx.globalAlpha = 1;
-    ctx.strokeStyle = 'rgba(184, 230, 196, 0.35)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, 5);
-    ctx.fillStyle = 'rgba(184, 230, 196, 0.9)';
-    ctx.font = '9px ui-monospace, monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(Math.max(0, Math.round(v.dispHp)) + '/' + v.maxHp, v.x, by + 16);
+    ctx.strokeStyle = 'rgba(184, 230, 196, 0.35)'; ctx.lineWidth = 1;
+    ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+    // shield: cyan line riding the bar's top edge + hexagon value
+    if (v.block > 0) {
+      var sbw = bw * Math.max(0.06, Math.min(1, v.block / Math.max(1, v.maxHp)));
+      ctx.fillStyle = '#41d8ff'; ctx.shadowColor = '#41d8ff'; ctx.shadowBlur = 4; ctx.fillRect(bx, by - 3, sbw, 2); ctx.shadowBlur = 0;
+      statGlyph('plate', bx + bw + 7, by + bh / 2, 4, '#41d8ff');
+      ctx.fillStyle = '#9fe9ff'; ctx.font = 'bold 8px ui-monospace, monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText('' + v.block, bx + bw + 12, by + bh / 2);
+    }
+    ctx.fillStyle = 'rgba(184, 230, 196, 0.9)'; ctx.font = '9px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(Math.max(0, Math.round(v.dispHp)) + '/' + v.maxHp, v.x, by + 15);
 
-    // block (shield) — clear cyan badge at the HP bar's left edge
-    if (v.block > 0) drawBlockBadge(bx - 13, by + 2, v.block);
-
-    // statuses — colour-coded pills under the HP bar
-    drawEnemyStatuses(v, by);
+    // Dual Rail: buffs above the bar, debuffs below the HP number
+    drawStatusRails(v.x, by - 12, by + 24, v.en.statuses, 8);
 
     // persistent passive-trait badges (Enrage / Thorns / Plated / Overload / etc.)
     var hasStatus = false, stk = v.en.statuses;
     for (var sk in stk) { if (stk[sk] > 0) { hasStatus = true; break; } }
-    drawEnemyTraits(v, by, hasStatus);
+    drawEnemyTraits(v, by + 2, hasStatus);
 
     // intent
     drawIntent(v);
@@ -9387,13 +9441,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
 
     if (c) {
-      // Only debuffs live in the HUD now — Powers show on the field as the
-      // "battle augmentation" gauge (tap it to read names/values).
-      var st = c.player.statuses, chips = '';
-      Object.keys(st).forEach(function (k) {
-        if (st[k] <= 0 || (k !== 'vuln' && k !== 'weak' && k !== 'burn')) return;
-        chips += '<span class="status-chip debuff">' + esc(ns.STATUS_NAMES[k] || k) + ' ' + st[k] + '</span>';
-      });
+      // Statuses (buffs/powers/debuffs) now live on the on-figure Dual-Rail bar.
+      // The HUD only keeps Fusion-Charge timers, which aren't stack statuses.
+      var chips = '';
       (c.primed || []).forEach(function (pr) {   // armed delayed detonations (Fusion Charge)
         chips += '<span class="status-chip primed">⏱ ' + pr.dmg + ' in ' + pr.turns + '</span>';
       });
