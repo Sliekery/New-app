@@ -1103,8 +1103,8 @@
     // intent
     drawIntent(v);
 
-    // target reticle
-    if (R.targeting) {
+    // target reticle (tap-to-select mode only; lock-on drag draws its own)
+    if (R.targeting && !R.aim.on) {
       var rr = v.r + 12 + Math.sin(t * 6) * 3;
       ctx.strokeStyle = '#ffb02e';
       ctx.lineWidth = 1.5;
@@ -1132,31 +1132,27 @@
     var lockV = (aim.lock >= 0 && R.views[aim.lock] && R.views[aim.lock].alive) ? R.views[aim.lock] : null;
     ctx.save();
     if (lockV) {
-      var pp = R.playerXY();
+      // hard LOCK — tight brackets hugging the enemy model
       var pulse = 0.6 + 0.4 * Math.sin(t * 8);
-      var rr = lockV.r + 9 + Math.sin(t * 8) * 2;
-      // tether from the player to the locked target
-      ctx.strokeStyle = '#5dff88'; ctx.globalAlpha = 0.45; ctx.lineWidth = 1.5; ctx.setLineDash([5, 5]); ctx.lineDashOffset = -t * 30;
-      ctx.beginPath(); ctx.moveTo(pp.x, pp.y); ctx.lineTo(lockV.x, lockV.y); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
-      // hard-lock brackets + crosshair
+      var rr = lockV.r + 4 + Math.sin(t * 8) * 1.2;
       ctx.strokeStyle = '#5dff88'; ctx.shadowColor = '#5dff88'; ctx.shadowBlur = 9 * pulse; ctx.lineWidth = 2;
       cornerBox(lockV.x, lockV.y, rr); ctx.shadowBlur = 0;
       ctx.globalAlpha = 0.7; ctx.lineWidth = 1; ctx.beginPath();
-      ctx.moveTo(lockV.x - rr - 7, lockV.y); ctx.lineTo(lockV.x - rr, lockV.y);
-      ctx.moveTo(lockV.x + rr, lockV.y); ctx.lineTo(lockV.x + rr + 7, lockV.y);
-      ctx.moveTo(lockV.x, lockV.y - rr - 7); ctx.lineTo(lockV.x, lockV.y - rr);
-      ctx.moveTo(lockV.x, lockV.y + rr); ctx.lineTo(lockV.x, lockV.y + rr + 7); ctx.stroke();
+      ctx.moveTo(lockV.x - rr - 5, lockV.y); ctx.lineTo(lockV.x - rr, lockV.y);
+      ctx.moveTo(lockV.x + rr, lockV.y); ctx.lineTo(lockV.x + rr + 5, lockV.y);
+      ctx.moveTo(lockV.x, lockV.y - rr - 5); ctx.lineTo(lockV.x, lockV.y - rr);
+      ctx.moveTo(lockV.x, lockV.y + rr); ctx.lineTo(lockV.x, lockV.y + rr + 5); ctx.stroke();
       ctx.globalAlpha = 1; ctx.fillStyle = '#5dff88'; ctx.font = 'bold 10px ui-monospace, monospace'; ctx.textAlign = 'center';
-      ctx.shadowColor = '#5dff88'; ctx.shadowBlur = 6; ctx.fillText('◉ LOCK', lockV.x, lockV.y - rr - 11); ctx.shadowBlur = 0;
+      ctx.shadowColor = '#5dff88'; ctx.shadowBlur = 6; ctx.fillText('◉ LOCK', lockV.x, lockV.y - rr - 10); ctx.shadowBlur = 0;
     } else {
       // scanning reticle riding the cursor: two counter-rotating bracket rings
       var x = aim.x, y = aim.y;
-      ctx.strokeStyle = '#ffb02e'; ctx.shadowColor = '#ffb02e'; ctx.shadowBlur = 6; ctx.lineWidth = 1.5;
-      ctx.translate(x, y); ctx.rotate(t * 1.6); cornerBox(0, 0, 15); ctx.rotate(-t * 3.2); cornerBox(0, 0, 9); ctx.rotate(t * 1.6);
-      ctx.shadowBlur = 0; ctx.globalAlpha = 0.75; ctx.lineWidth = 1; ctx.beginPath();
-      ctx.moveTo(-23, 0); ctx.lineTo(-8, 0); ctx.moveTo(8, 0); ctx.lineTo(23, 0);
-      ctx.moveTo(0, -23); ctx.lineTo(0, -8); ctx.moveTo(0, 8); ctx.lineTo(0, 23); ctx.stroke();
-      ctx.fillStyle = '#ffb02e'; ctx.beginPath(); ctx.arc(0, 0, 2, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#ffb02e'; ctx.shadowColor = '#ffb02e'; ctx.shadowBlur = 7; ctx.lineWidth = 1.7;
+      ctx.translate(x, y); ctx.rotate(t * 1.4); cornerBox(0, 0, 22); ctx.rotate(-t * 2.8); cornerBox(0, 0, 13); ctx.rotate(t * 1.4);
+      ctx.shadowBlur = 0; ctx.globalAlpha = 0.75; ctx.lineWidth = 1.2; ctx.beginPath();
+      ctx.moveTo(-31, 0); ctx.lineTo(-10, 0); ctx.moveTo(10, 0); ctx.lineTo(31, 0);
+      ctx.moveTo(0, -31); ctx.lineTo(0, -10); ctx.moveTo(0, 10); ctx.lineTo(0, 31); ctx.stroke();
+      ctx.fillStyle = '#ffb02e'; ctx.beginPath(); ctx.arc(0, 0, 2.4, 0, 7); ctx.fill();
     }
     ctx.restore();
   }

@@ -1475,6 +1475,9 @@
     var card = E.combat.hand[i];
     if (!card) return;
     drag = { el: el, idx: i, info: E.cardInfo(card), x0: ev.clientX, y0: ev.clientY, dx: 0, dy: 0, moved: false };
+    // how far to slide this card to the hand's horizontal centre when it lifts to aim (StS-style)
+    var hr = $hand.getBoundingClientRect(), cr = el.getBoundingClientRect();
+    drag.aimOffX = ((hr.left + hr.width / 2) - (cr.left + cr.width / 2)) / uiScale;
     if (el.setPointerCapture && ev.pointerId !== undefined) {
       try { el.setPointerCapture(ev.pointerId); } catch (e) { /* not supported */ }
     }
@@ -1498,7 +1501,7 @@
         // lock-on: the card lifts to a ready pose and stays put while a reticle
         // follows the cursor and locks the enemy under it.
         drag.el.classList.add('card-aiming');
-        drag.el.style.transform = 'translateY(-44px) scale(1.12)';
+        drag.el.style.transform = 'translate(' + drag.aimOffX.toFixed(1) + 'px, -72px) scale(1.2)';
         var bf = document.getElementById('battlefield').getBoundingClientRect();
         var ax = ev.clientX - bf.left, ay = ev.clientY - bf.top;
         var lk = R.enemyAt(ax, ay);
