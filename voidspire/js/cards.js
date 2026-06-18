@@ -228,10 +228,10 @@
       fx: [{ k: 'dmg', v: 5, scale: 'might' }, { k: 'status', s: 'weak', v: 2, who: 'target' }],
       up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'status', s: 'weak', v: 2, who: 'target' }] },
     },
-    frag_grenade: {
+    frag_grenade: {   // AoE setup — chips the pack and cracks their armour for the follow-up
       name: 'Frag Grenade', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
-      fx: [{ k: 'dmg', v: 5, all: true }],
-      up: { fx: [{ k: 'dmg', v: 8, all: true }] },
+      fx: [{ k: 'dmg', v: 4, all: true, scale: 'might' }, { k: 'status', s: 'vuln', v: 1, who: 'allEnemies' }],
+      up: { fx: [{ k: 'dmg', v: 6, all: true, scale: 'might' }, { k: 'status', s: 'vuln', v: 2, who: 'allEnemies' }] },
     },
     shield_slam: {
       name: 'Shield Slam', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
@@ -260,10 +260,10 @@
       text: 'Double damage if the target is below 30% HP.',
       up: { fx: [{ k: 'dmg', v: 14, scale: 'might' }, { k: 'special', id: 'execute' }] },
     },
-    orbital_strike: {
+    orbital_strike: {   // the finisher — flattens the field and leaves the survivors cracked open
       name: 'Orbital Strike', cls: 'vanguard', type: 'attack', rarity: 3, cost: 3,
-      fx: [{ k: 'dmg', v: 22, all: true, scale: 'might' }],
-      up: { fx: [{ k: 'dmg', v: 30, all: true, scale: 'might' }] },
+      fx: [{ k: 'dmg', v: 16, all: true, scale: 'might' }, { k: 'status', s: 'vuln', v: 2, who: 'allEnemies' }],
+      up: { fx: [{ k: 'dmg', v: 22, all: true, scale: 'might' }, { k: 'status', s: 'vuln', v: 3, who: 'allEnemies' }] },
     },
     warlord_protocol: {
       name: 'Warlord Protocol', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
@@ -424,10 +424,10 @@
       fx: [{ k: 'status', s: 'feelNoPain', v: 4, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'feelNoPain', v: 5, who: 'self' }] },
     },
-    reckless_protocol: {
-      name: 'Reckless Protocol', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
-      fx: [{ k: 'status', s: 'corruption', v: 1, who: 'self' }],
-      up: { cost: 1, fx: [{ k: 'status', s: 'corruption', v: 1, who: 'self' }] },
+    reckless_protocol: {   // BUILD-AROUND — bleed for Might (Blood Rage) AND armour up off your Exhausts (Resolve)
+      name: 'Berserker Engine', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'bloodrage', v: 1, who: 'self' }, { k: 'status', s: 'feelNoPain', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'bloodrage', v: 2, who: 'self' }, { k: 'status', s: 'feelNoPain', v: 2, who: 'self' }] },
     },
 
     /* -- Technomancer: SHIELD + ORB/TURRET + POWER stacking -- */
@@ -491,10 +491,11 @@
       fx: [{ k: 'status', s: 'str', v: 2, who: 'self' }, { k: 'draw', v: 1 }],
       up: { fx: [{ k: 'status', s: 'str', v: 3, who: 'self' }, { k: 'draw', v: 1 }] },
     },
-    cluster_munitions: {
-      name: 'Cluster Munitions', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
-      fx: [{ k: 'dmg', v: 4, all: true, hits: 2, scale: 'might' }],
-      up: { fx: [{ k: 'dmg', v: 6, all: true, hits: 2, scale: 'might' }] },
+    cluster_munitions: {   // AoE with bite — strafe the pack and drink back the spillage (Bloodforge sustain)
+      name: 'Reaping Volley', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'dmg', v: 5, all: true, scale: 'might' }, { k: 'special', id: 'drain' }],
+      text: 'Heal for half the total damage dealt.',
+      up: { fx: [{ k: 'dmg', v: 7, all: true, scale: 'might' }, { k: 'special', id: 'drain' }], text: 'Heal for half the total damage dealt.' },
     },
     bunker_down: {
       name: 'Bunker Down', cls: 'vanguard', type: 'skill', rarity: 2, cost: 2,
@@ -512,10 +513,10 @@
       fx: [{ k: 'dmg', v: 7, scale: 'might' }],
       up: { fx: [{ k: 'dmg', v: 10, scale: 'might' }] },
     },
-    suppressing_barrage: {   // AoE control — softens a whole pack (Frag = AoE damage)
-      name: 'Suppressing Barrage', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
-      fx: [{ k: 'dmg', v: 3, all: true, scale: 'might' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }],
-      up: { fx: [{ k: 'dmg', v: 5, all: true, scale: 'might' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }] },
+    suppressing_barrage: {   // defensive suppression — hunker down while you pin the whole pack
+      name: 'Covering Fire', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'block', v: 6, scale: 'pri' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }],
+      up: { fx: [{ k: 'block', v: 9, scale: 'pri' }, { k: 'status', s: 'weak', v: 2, who: 'allEnemies' }] },
     },
     rallying_shout: {   // Strength + defense (War Cry = Strength + draw)
       name: 'Rallying Shout', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
