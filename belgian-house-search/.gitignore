@@ -3,5 +3,7 @@ __pycache__/
 report.html
 results.csv
 *.csv
+seen.json
+alerts.log
 .venv/
 venv/

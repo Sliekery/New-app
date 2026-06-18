@@ -35,6 +35,16 @@ def _m2(value: Optional[int]) -> str:
     return f"{value:,} m²".replace(",", ".") if value else "—"
 
 
+def _source_badges(l: Listing) -> str:
+    sources = [l.source] + [a.get("source") for a in l.extra.get("also_on", [])]
+    seen, ordered = set(), []
+    for s in sources:
+        if s and s not in seen:
+            seen.add(s)
+            ordered.append(s)
+    return "".join(f'<span class="badge">{html.escape(s)}</span>' for s in ordered)
+
+
 def _card(l: Listing) -> str:
     img = (
         f'<img src="{html.escape(l.image_url)}" alt="" loading="lazy">'
@@ -60,6 +70,7 @@ def _card(l: Listing) -> str:
       <div class="body">
         <h2><a href="{html.escape(l.url)}" target="_blank" rel="noopener">{title}</a></h2>
         <div class="price">{_eur(l.price)}</div>
+        <div class="badges">{_source_badges(l)}</div>
         <div class="facts">{fact_html}</div>
         <a class="btn" href="{html.escape(l.url)}" target="_blank" rel="noopener">View listing →</a>
       </div>
@@ -97,6 +108,9 @@ def write_html(listings: List[Listing], path: str, criteria: Criteria) -> None:
   h2 {{ font-size:16px; margin:0; }}
   h2 a {{ color:var(--ink); text-decoration:none; }}
   .price {{ font-size:18px; font-weight:700; color:var(--accent); }}
+  .badges {{ display:flex; gap:6px; flex-wrap:wrap; }}
+  .badge {{ font-size:11px; background:#e7f1ec; color:var(--accent); border-radius:999px;
+            padding:2px 8px; text-transform:capitalize; }}
   .facts {{ display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; }}
   .fact {{ display:flex; flex-direction:column; }}
   .fact .k {{ font-size:11px; text-transform:uppercase; color:var(--muted); letter-spacing:.03em; }}

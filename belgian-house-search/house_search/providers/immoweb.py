@@ -20,27 +20,17 @@ Notes / caveats
 
 from __future__ import annotations
 
-import os
 import time
-from typing import Any, List, Optional
+from typing import List, Optional
 
 import requests
 
 from ..criteria import Criteria
 from ..models import Listing
 from .base import Provider
+from .common import dig as _dig, make_session, to_int as _to_int
 
 SEARCH_URL = "https://www.immoweb.be/en/search-results/house/for-sale"
-
-DEFAULT_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-    ),
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "en-US,en;q=0.9,nl;q=0.8",
-    "Referer": "https://www.immoweb.be/en/search/house/for-sale",
-}
 
 
 class ImmowebProvider(Provider):
@@ -50,11 +40,10 @@ class ImmowebProvider(Provider):
         self.max_pages = max_pages
         self.delay = delay
         self.timeout = timeout
-        self.session = requests.Session()
-        self.session.headers.update(DEFAULT_HEADERS)
-        cookie = os.environ.get("IMMOWEB_COOKIE")
-        if cookie:
-            self.session.headers["Cookie"] = cookie
+        self.session = make_session(
+            cookie_env="IMMOWEB_COOKIE",
+            referer="https://www.immoweb.be/en/search/house/for-sale",
+        )
 
     def search(self, criteria: Criteria) -> List[Listing]:
         listings: List[Listing] = []
@@ -116,16 +105,6 @@ class ImmowebProvider(Provider):
 # Mapping helpers
 # --------------------------------------------------------------------------
 
-def _dig(obj: Any, *path) -> Any:
-    """Safely walk nested dicts; return None if any step is missing."""
-    cur = obj
-    for key in path:
-        if not isinstance(cur, dict):
-            return None
-        cur = cur.get(key)
-    return cur
-
-
 def _parse(raw: dict) -> Optional[Listing]:
     listing_id = raw.get("id")
     if listing_id is None:
@@ -166,12 +145,3 @@ def _parse(raw: dict) -> Optional[Listing]:
         ).strip() or None,
         extra={},
     )
-
-
-def _to_int(value: Any) -> Optional[int]:
-    try:
-        if value is None or value == "":
-            return None
-        return int(round(float(value)))
-    except (TypeError, ValueError):
-        return None
