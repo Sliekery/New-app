@@ -12,7 +12,7 @@
   var B = ns.BALANCE;
 
   var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $manifest, $rail, $railPanel, $railLine, $dock, $die;
-  var dieTimer = null;
+  var dieTimer = null, dieRolling = false;
   var railOpen = null;      // which rail panel is open ('buffs'|'debuffs'|'relics'|'draw'|'discard') or null
   var selected = -1;        // selected hand index
   var manifestSel = -1;     // selected pet in the Manifest (tap-to-swap reorder)
@@ -511,22 +511,29 @@
     if (!on && $manifest) { $manifest.style.display = 'none'; manifestSel = -1; }
   }
 
-  // tumble the dock d20, then settle on the rolled value (green glow on a crit)
-  function rollCombatDie(value, crit) {
-    if (!$die) return;
+  // dock d20: tumble while you drag an attack, settle on the roll when you fire.
+  function startDieRoll() {
+    if (!$die || dieRolling) return;
+    dieRolling = true;
     var n = $die.querySelector('.die-n');
-    $die.classList.remove('crit'); $die.classList.add('rolling');
+    $die.classList.remove('crit', 'settle'); $die.classList.add('rolling');
     if (dieTimer) clearInterval(dieTimer);
-    var ticks = 0;
-    dieTimer = setInterval(function () {
-      n.textContent = 1 + Math.floor(Math.random() * 20);
-      if (++ticks >= 9) {                       // ~0.4s of tumbling
-        clearInterval(dieTimer); dieTimer = null;
-        n.textContent = value;
-        $die.classList.remove('rolling');
-        if (crit) $die.classList.add('crit');
-      }
-    }, 45);
+    dieTimer = setInterval(function () { n.textContent = 1 + Math.floor(Math.random() * 20); }, 60);
+  }
+  function settleDie(value, crit) {
+    if (!$die) return;
+    dieRolling = false;
+    if (dieTimer) { clearInterval(dieTimer); dieTimer = null; }
+    $die.classList.remove('rolling');
+    $die.querySelector('.die-n').textContent = value;
+    if (crit) $die.classList.add('crit'); else $die.classList.remove('crit');
+    $die.classList.remove('settle'); void $die.offsetWidth; $die.classList.add('settle');   // settle pop
+  }
+  function cancelDieRoll() {
+    if (!dieRolling && !dieTimer) return;
+    dieRolling = false;
+    if (dieTimer) { clearInterval(dieTimer); dieTimer = null; }
+    if ($die) $die.classList.remove('rolling');
   }
 
   /* ====================== HUD ====================== */
@@ -1506,6 +1513,7 @@
       drag.el.classList.add('dragging');
       if (selected >= 0) { selected = -1; var s = $hand.querySelector('.card.selected'); if (s) s.classList.remove('selected'); }
       if (drag.info.needsTarget && !drag.info.unplayable) setTargeting(true);
+      if (drag.info.type === 'attack' && E.canPlay(drag.idx)) startDieRoll();   // roll while you aim
     }
     if (drag.moved) {
       var aimMode = drag.info.needsTarget && !drag.info.unplayable && E.canPlay(drag.idx) && E.aliveEnemies().length >= 1;
@@ -1600,23 +1608,23 @@
 
     if (!d.moved) { cardTapped(d.idx); return; }
 
-    if (locked || !E.combat || E.combat.over) { setTargeting(false); return; }
+    if (locked || !E.combat || E.combat.over) { setTargeting(false); cancelDieRoll(); return; }
 
     var info = d.info;
-    if (info.unplayable) { setTargeting(false); toast('UNPLAYABLE — a curse weighs down your deck'); return; }
-    if (E.swarmDisabled(d.idx)) { setTargeting(false); toast('DISABLED — a Void Swarm grips this card'); return; }
-    if (!E.canPlay(d.idx)) { setTargeting(false); toast('NOT ENOUGH ENERGY'); return; }
+    if (info.unplayable) { setTargeting(false); cancelDieRoll(); toast('UNPLAYABLE — a curse weighs down your deck'); return; }
+    if (E.swarmDisabled(d.idx)) { setTargeting(false); cancelDieRoll(); toast('DISABLED — a Void Swarm grips this card'); return; }
+    if (!E.canPlay(d.idx)) { setTargeting(false); cancelDieRoll(); toast('NOT ENOUGH ENERGY'); return; }
 
     // lock-on aim: fire at the locked target (released over empty space cancels)
     if (d.aimed) {
-      if (d.lock >= 0) playCardAt(d.idx, d.lock);
-      else { setTargeting(false); if (-d.dy > B.feel.swipeThreshold) toast('AIM AT A TARGET'); }
+      if (d.lock >= 0) playCardAt(d.idx, d.lock);   // cardPlayed will settle the die
+      else { setTargeting(false); cancelDieRoll(); if (-d.dy > B.feel.swipeThreshold) toast('AIM AT A TARGET'); }
       return;
     }
     // non-target / fallback: swipe up or drop on an enemy to play
     var tgt = enemyAtClient(ev);
     if (tgt >= 0 || -d.dy > B.feel.swipeThreshold) playCardAt(d.idx, tgt);
-    else setTargeting(false);
+    else { setTargeting(false); cancelDieRoll(); }
   }
 
   function onDragCancel() {
@@ -1628,6 +1636,7 @@
     drag.el.style.transform = '';
     drag = null;
     setTargeting(false);
+    cancelDieRoll();
   }
 
   // tap = read the card (and arm it for tap-an-enemy targeting)
@@ -2352,9 +2361,9 @@
           delay += 90;
           break;
         case 'cardPlayed':
-          // roll the dock d20 when an attack is played (only attacks can crit)
+          // settle the dock d20 on the roll when an attack lands (only attacks can crit)
           if (e.roll != null && ns.CARDS[e.id] && ns.CARDS[e.id].type === 'attack') {
-            rollCombatDie(e.roll, e.crit);
+            settleDie(e.roll, e.crit);
             if (e.crit) floater(pp.x + 60, pp.y - 56, 'CRIT!', 'crit');
           }
           break;
