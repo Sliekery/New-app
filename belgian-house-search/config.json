@@ -1,0 +1,12 @@
+{
+  "postal_codes": ["3840", "3870", "3720", "3730", "3700", "3800"],
+  "price_min": 300000,
+  "price_max": 500000,
+  "min_bedrooms": 3,
+  "property_types": ["HOUSE", "VILLA"],
+  "require_garden": true,
+  "min_garden_area": 1500,
+  "require_finished": true,
+  "min_living_area": null,
+  "sort_by": "garden"
+}
