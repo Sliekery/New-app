@@ -1658,11 +1658,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       fx: [{ k: 'dmg', v: 3, hits: 2, scale: 'might' }],
       up: { fx: [{ k: 'dmg', v: 3, hits: 3, scale: 'might' }] },
     },
-    suppressing_fire: {   // a raking burst — hammers one target and carries through to the rest
+    suppressing_fire: {   // a raking burst — hammers one target, pins it, and carries through the pack
       name: 'Raking Fire', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
-      fx: [{ k: 'special', id: 'cleave', v: 6, splash: 3 }],
-      text: 'Deal 6 damage to the target and 3 to every other enemy.',
-      up: { fx: [{ k: 'special', id: 'cleave', v: 8, splash: 5 }], text: 'Deal 8 damage to the target and 5 to every other enemy.' },
+      fx: [{ k: 'special', id: 'cleave', v: 6, splash: 3 }, { k: 'status', s: 'weak', v: 1, who: 'target' }],
+      text: 'Deal 6 damage to the target and 3 to every other enemy. Apply 1 Weak to the target.',
+      up: { fx: [{ k: 'special', id: 'cleave', v: 8, splash: 5 }, { k: 'status', s: 'weak', v: 2, who: 'target' }], text: 'Deal 8 damage to the target and 5 to every other enemy. Apply 2 Weak to the target.' },
     },
     frag_grenade: {   // AoE setup — chips the pack and cracks their armour for the follow-up
       name: 'Frag Grenade', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
@@ -1957,9 +1957,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
     rallying_shout: {   // Might as defence — forge your stacked Strength into a wall
       name: 'Bulwark Stance', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
-      fx: [{ k: 'status', s: 'str', v: 1, who: 'self' }, { k: 'special', id: 'forgeBarrier', v: 2 }],
-      text: 'Then gain Shield equal to twice your Might.',
-      up: { fx: [{ k: 'status', s: 'str', v: 2, who: 'self' }, { k: 'special', id: 'forgeBarrier', v: 2 }], text: 'Then gain Shield equal to twice your Might.' },
+      fx: [{ k: 'status', s: 'str', v: 1, who: 'self' }, { k: 'block', v: 3, scale: 'pri' }, { k: 'special', id: 'forgeBarrier', v: 2 }],
+      text: 'Then gain extra Shield equal to twice your Might.',
+      up: { fx: [{ k: 'status', s: 'str', v: 2, who: 'self' }, { k: 'block', v: 4, scale: 'pri' }, { k: 'special', id: 'forgeBarrier', v: 2 }], text: 'Then gain extra Shield equal to twice your Might.' },
     },
     // --- new rares: each anchors a different Vanguard build ---
     frenzy: {   // the Strength payoff — multi-hit, every hit rides your MIGHT
