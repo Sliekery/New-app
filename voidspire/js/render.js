@@ -56,9 +56,6 @@
     if (lk !== R.aim.lock) { R.aim.lock = lk; if (lk >= 0) R.aim.lockT = t; }   // new target -> start the lock-on anim
   };
   R.clearAim = function () { R.aim.on = false; R.aim.lock = -1; };
-  // combat d20: tumbles then settles on the rolled value when an attack is played
-  R.die = { shown: false, t0: -9, value: 0, crit: false };
-  R.rollDie = function (value, crit) { R.die.shown = true; R.die.t0 = t; R.die.value = value; R.die.crit = !!crit; };
 
   R.init = function (cv) {
     canvas = cv;
@@ -133,7 +130,6 @@
     var c = ns.engine.combat;
     if (!c) { R.views = []; R.combatVisible = false; return; }
     R.combatVisible = true;
-    if (!c.turn || c.turn <= 1) R.die.shown = false;   // fresh fight: hide the d20 until the first attack
     R.views = c.enemies.map(function (en, i) {
       var old = R.views[i];
       var same = old && old.en === en;
@@ -491,7 +487,6 @@
       drawPlayer();
       drawAllies();
       for (var i = 0; i < R.views.length; i++) drawEnemy(R.views[i], i);
-      drawDie();
     }
 
     drawParticles(dt);
@@ -1184,31 +1179,6 @@
       if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
     }
     ctx.closePath();
-  }
-
-  // combat d20 on the left: tumbles on an attack, then settles on the roll.
-  function drawDie() {
-    var d = R.die; if (!d.shown) return;
-    var age = t - d.t0, tumble = 0.42, rolling = age < tumble;
-    var x = W * 0.08, y = (fieldTop() + fieldBottom()) * 0.42, r = Math.min(W, H) * 0.05;
-    var col = (d.crit && !rolling) ? '#5dff88' : '#41d8ff';
-    var num = rolling ? (1 + Math.floor((age * 42) % 20)) : d.value;
-    ctx.save();
-    ctx.translate(x, y);
-    if (rolling) { ctx.rotate(Math.sin(age * 34) * 0.28); var s = 1 + Math.sin(age * 26) * 0.07; ctx.scale(s, s); }
-    else if (age < tumble + 0.16) { var p = (age - tumble) / 0.16, k = 1 + (1 - p) * 0.18; ctx.scale(k, k); }   // settle pop
-    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.shadowColor = col; ctx.shadowBlur = (d.crit && !rolling) ? 12 : 6;
-    drawHex(0, 0, r); ctx.stroke();
-    ctx.lineWidth = 1; ctx.globalAlpha = 0.55; ctx.beginPath();
-    for (var i = 0; i < 3; i++) { var a = -Math.PI / 2 + i * 2 * Math.PI / 3, px = Math.cos(a) * r * 0.72, py = Math.sin(a) * r * 0.72; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
-    ctx.closePath(); ctx.stroke(); ctx.globalAlpha = 1; ctx.shadowBlur = 0;
-    ctx.fillStyle = col; ctx.font = 'bold ' + Math.round(r * 0.92) + 'px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.shadowColor = col; ctx.shadowBlur = (d.crit && !rolling) ? 8 : 0;
-    ctx.fillText('' + num, 0, r * 0.06); ctx.shadowBlur = 0;
-    ctx.restore();
-    ctx.save(); ctx.fillStyle = 'rgba(150,170,182,0.55)'; ctx.font = '8px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText('d20', x, y - r - 7);
-    if (d.crit && !rolling) { ctx.fillStyle = '#5dff88'; ctx.font = 'bold 10px ui-monospace, monospace'; ctx.shadowColor = '#5dff88'; ctx.shadowBlur = 6; ctx.fillText('CRIT!', x, y + r + 12); }
-    ctx.restore();
   }
 
   function drawIntent(v) {

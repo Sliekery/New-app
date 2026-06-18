@@ -393,6 +393,27 @@ html, body {
 #energy-pip .en-n { font: bold 22px monospace; color: #eafcff; text-shadow: 0 0 7px rgba(65,216,255,0.7); }
 #energy-pip .en-mx { font-size: 12px; color: var(--text-dim); text-shadow: none; }
 
+/* combat d20 — rides the bottom dock (left, under the energy pip), tumbles on attack */
+#combat-die {
+  position: absolute; left: 16px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 100px);
+  z-index: 27; width: 42px; height: 42px; display: none; color: #41d8ff; pointer-events: none;
+}
+#combat-die .die-svg { width: 42px; height: 42px; display: block; filter: drop-shadow(0 0 5px rgba(65,216,255,0.5)); }
+#combat-die .die-n {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font: bold 17px ui-monospace, monospace; color: #eafcff; text-shadow: 0 0 6px rgba(65,216,255,0.7);
+}
+#combat-die.rolling .die-svg { animation: dieSpin 0.42s ease-out; }
+@keyframes dieSpin {
+  0%   { transform: rotate(0) scale(0.85); }
+  55%  { transform: rotate(200deg) scale(1.14); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+#combat-die.crit { color: #5dff88; }
+#combat-die.crit .die-svg { filter: drop-shadow(0 0 9px rgba(93,255,136,0.85)); }
+#combat-die.crit .die-n { color: #d6ffe4; text-shadow: 0 0 9px rgba(93,255,136,0.9); }
+
 /* ===== Cockpit rail — left-edge buttons (beside the pilot) + tactical panels ===== */
 #rail {
   position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
@@ -7143,9 +7164,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (lk !== R.aim.lock) { R.aim.lock = lk; if (lk >= 0) R.aim.lockT = t; }   // new target -> start the lock-on anim
   };
   R.clearAim = function () { R.aim.on = false; R.aim.lock = -1; };
-  // combat d20: tumbles then settles on the rolled value when an attack is played
-  R.die = { shown: false, t0: -9, value: 0, crit: false };
-  R.rollDie = function (value, crit) { R.die.shown = true; R.die.t0 = t; R.die.value = value; R.die.crit = !!crit; };
 
   R.init = function (cv) {
     canvas = cv;
@@ -7220,7 +7238,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var c = ns.engine.combat;
     if (!c) { R.views = []; R.combatVisible = false; return; }
     R.combatVisible = true;
-    if (!c.turn || c.turn <= 1) R.die.shown = false;   // fresh fight: hide the d20 until the first attack
     R.views = c.enemies.map(function (en, i) {
       var old = R.views[i];
       var same = old && old.en === en;
@@ -7578,7 +7595,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       drawPlayer();
       drawAllies();
       for (var i = 0; i < R.views.length; i++) drawEnemy(R.views[i], i);
-      drawDie();
     }
 
     drawParticles(dt);
@@ -8271,31 +8287,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
     }
     ctx.closePath();
-  }
-
-  // combat d20 on the left: tumbles on an attack, then settles on the roll.
-  function drawDie() {
-    var d = R.die; if (!d.shown) return;
-    var age = t - d.t0, tumble = 0.42, rolling = age < tumble;
-    var x = W * 0.08, y = (fieldTop() + fieldBottom()) * 0.42, r = Math.min(W, H) * 0.05;
-    var col = (d.crit && !rolling) ? '#5dff88' : '#41d8ff';
-    var num = rolling ? (1 + Math.floor((age * 42) % 20)) : d.value;
-    ctx.save();
-    ctx.translate(x, y);
-    if (rolling) { ctx.rotate(Math.sin(age * 34) * 0.28); var s = 1 + Math.sin(age * 26) * 0.07; ctx.scale(s, s); }
-    else if (age < tumble + 0.16) { var p = (age - tumble) / 0.16, k = 1 + (1 - p) * 0.18; ctx.scale(k, k); }   // settle pop
-    ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.shadowColor = col; ctx.shadowBlur = (d.crit && !rolling) ? 12 : 6;
-    drawHex(0, 0, r); ctx.stroke();
-    ctx.lineWidth = 1; ctx.globalAlpha = 0.55; ctx.beginPath();
-    for (var i = 0; i < 3; i++) { var a = -Math.PI / 2 + i * 2 * Math.PI / 3, px = Math.cos(a) * r * 0.72, py = Math.sin(a) * r * 0.72; i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
-    ctx.closePath(); ctx.stroke(); ctx.globalAlpha = 1; ctx.shadowBlur = 0;
-    ctx.fillStyle = col; ctx.font = 'bold ' + Math.round(r * 0.92) + 'px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.shadowColor = col; ctx.shadowBlur = (d.crit && !rolling) ? 8 : 0;
-    ctx.fillText('' + num, 0, r * 0.06); ctx.shadowBlur = 0;
-    ctx.restore();
-    ctx.save(); ctx.fillStyle = 'rgba(150,170,182,0.55)'; ctx.font = '8px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText('d20', x, y - r - 7);
-    if (d.crit && !rolling) { ctx.fillStyle = '#5dff88'; ctx.font = 'bold 10px ui-monospace, monospace'; ctx.shadowColor = '#5dff88'; ctx.shadowBlur = 6; ctx.fillText('CRIT!', x, y + r + 12); }
-    ctx.restore();
   }
 
   function drawIntent(v) {
@@ -9009,7 +9000,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   var R = ns.render;
   var B = ns.BALANCE;
 
-  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $manifest, $rail, $railPanel, $railLine, $dock;
+  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $manifest, $rail, $railPanel, $railLine, $dock, $die;
+  var dieTimer = null;
   var railOpen = null;      // which rail panel is open ('buffs'|'debuffs'|'relics'|'draw'|'discard') or null
   var selected = -1;        // selected hand index
   var manifestSel = -1;     // selected pet in the Manifest (tap-to-swap reorder)
@@ -9208,6 +9200,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $energy = el('div', '', '');
     $energy.id = 'energy-pip';
     $game.appendChild($energy);
+
+    // combat d20 — rides the bottom dock, tumbles when an attack is played
+    $die = el('div', '', '<svg viewBox="0 0 40 40" class="die-svg"><polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="none" stroke="currentColor" stroke-width="2"/><polygon points="20,8 31,26 9,26" fill="none" stroke="currentColor" stroke-width="1" opacity="0.5"/></svg><span class="die-n">—</span>');
+    $die.id = 'combat-die';
+    $die.style.display = 'none';
+    $game.appendChild($die);
 
     $counts = el('div', '', '');
     $counts.id = 'deck-counts';
@@ -9491,6 +9489,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $controls.style.display = on ? 'flex' : 'none';
     $dock.style.display = on ? 'block' : 'none';
     $energy.style.display = on ? 'flex' : 'none';   // energy lives in the bottom dock now
+    if ($die) $die.style.display = on ? 'block' : 'none';
     $counts.style.display = 'none';
     $drawPile.style.display = on ? 'block' : 'none';   // piles ride the dock corners (per-class art)
     $discardPile.style.display = on ? 'block' : 'none';
@@ -9499,6 +9498,24 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (!on) { $hint.style.display = 'none'; onPotionCancel(); hidePotionTip(); }
     R.combatVisible = on;
     if (!on && $manifest) { $manifest.style.display = 'none'; manifestSel = -1; }
+  }
+
+  // tumble the dock d20, then settle on the rolled value (green glow on a crit)
+  function rollCombatDie(value, crit) {
+    if (!$die) return;
+    var n = $die.querySelector('.die-n');
+    $die.classList.remove('crit'); $die.classList.add('rolling');
+    if (dieTimer) clearInterval(dieTimer);
+    var ticks = 0;
+    dieTimer = setInterval(function () {
+      n.textContent = 1 + Math.floor(Math.random() * 20);
+      if (++ticks >= 9) {                       // ~0.4s of tumbling
+        clearInterval(dieTimer); dieTimer = null;
+        n.textContent = value;
+        $die.classList.remove('rolling');
+        if (crit) $die.classList.add('crit');
+      }
+    }, 45);
   }
 
   /* ====================== HUD ====================== */
@@ -11324,9 +11341,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           delay += 90;
           break;
         case 'cardPlayed':
-          // roll the on-screen d20 when an attack is played (only attacks can crit)
+          // roll the dock d20 when an attack is played (only attacks can crit)
           if (e.roll != null && ns.CARDS[e.id] && ns.CARDS[e.id].type === 'attack') {
-            R.rollDie(e.roll, e.crit);
+            rollCombatDie(e.roll, e.crit);
             if (e.crit) floater(pp.x + 60, pp.y - 56, 'CRIT!', 'crit');
           }
           break;

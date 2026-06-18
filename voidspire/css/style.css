@@ -382,6 +382,27 @@ html, body {
 #energy-pip .en-n { font: bold 22px monospace; color: #eafcff; text-shadow: 0 0 7px rgba(65,216,255,0.7); }
 #energy-pip .en-mx { font-size: 12px; color: var(--text-dim); text-shadow: none; }
 
+/* combat d20 — rides the bottom dock (left, under the energy pip), tumbles on attack */
+#combat-die {
+  position: absolute; left: 16px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 100px);
+  z-index: 27; width: 42px; height: 42px; display: none; color: #41d8ff; pointer-events: none;
+}
+#combat-die .die-svg { width: 42px; height: 42px; display: block; filter: drop-shadow(0 0 5px rgba(65,216,255,0.5)); }
+#combat-die .die-n {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font: bold 17px ui-monospace, monospace; color: #eafcff; text-shadow: 0 0 6px rgba(65,216,255,0.7);
+}
+#combat-die.rolling .die-svg { animation: dieSpin 0.42s ease-out; }
+@keyframes dieSpin {
+  0%   { transform: rotate(0) scale(0.85); }
+  55%  { transform: rotate(200deg) scale(1.14); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+#combat-die.crit { color: #5dff88; }
+#combat-die.crit .die-svg { filter: drop-shadow(0 0 9px rgba(93,255,136,0.85)); }
+#combat-die.crit .die-n { color: #d6ffe4; text-shadow: 0 0 9px rgba(93,255,136,0.9); }
+
 /* ===== Cockpit rail — left-edge buttons (beside the pilot) + tactical panels ===== */
 #rail {
   position: absolute; left: 12px; top: 50%; transform: translateY(-50%);

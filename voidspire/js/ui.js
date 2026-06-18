@@ -11,7 +11,8 @@
   var R = ns.render;
   var B = ns.BALANCE;
 
-  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $manifest, $rail, $railPanel, $railLine, $dock;
+  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $manifest, $rail, $railPanel, $railLine, $dock, $die;
+  var dieTimer = null;
   var railOpen = null;      // which rail panel is open ('buffs'|'debuffs'|'relics'|'draw'|'discard') or null
   var selected = -1;        // selected hand index
   var manifestSel = -1;     // selected pet in the Manifest (tap-to-swap reorder)
@@ -210,6 +211,12 @@
     $energy = el('div', '', '');
     $energy.id = 'energy-pip';
     $game.appendChild($energy);
+
+    // combat d20 — rides the bottom dock, tumbles when an attack is played
+    $die = el('div', '', '<svg viewBox="0 0 40 40" class="die-svg"><polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="none" stroke="currentColor" stroke-width="2"/><polygon points="20,8 31,26 9,26" fill="none" stroke="currentColor" stroke-width="1" opacity="0.5"/></svg><span class="die-n">—</span>');
+    $die.id = 'combat-die';
+    $die.style.display = 'none';
+    $game.appendChild($die);
 
     $counts = el('div', '', '');
     $counts.id = 'deck-counts';
@@ -493,6 +500,7 @@
     $controls.style.display = on ? 'flex' : 'none';
     $dock.style.display = on ? 'block' : 'none';
     $energy.style.display = on ? 'flex' : 'none';   // energy lives in the bottom dock now
+    if ($die) $die.style.display = on ? 'block' : 'none';
     $counts.style.display = 'none';
     $drawPile.style.display = on ? 'block' : 'none';   // piles ride the dock corners (per-class art)
     $discardPile.style.display = on ? 'block' : 'none';
@@ -501,6 +509,24 @@
     if (!on) { $hint.style.display = 'none'; onPotionCancel(); hidePotionTip(); }
     R.combatVisible = on;
     if (!on && $manifest) { $manifest.style.display = 'none'; manifestSel = -1; }
+  }
+
+  // tumble the dock d20, then settle on the rolled value (green glow on a crit)
+  function rollCombatDie(value, crit) {
+    if (!$die) return;
+    var n = $die.querySelector('.die-n');
+    $die.classList.remove('crit'); $die.classList.add('rolling');
+    if (dieTimer) clearInterval(dieTimer);
+    var ticks = 0;
+    dieTimer = setInterval(function () {
+      n.textContent = 1 + Math.floor(Math.random() * 20);
+      if (++ticks >= 9) {                       // ~0.4s of tumbling
+        clearInterval(dieTimer); dieTimer = null;
+        n.textContent = value;
+        $die.classList.remove('rolling');
+        if (crit) $die.classList.add('crit');
+      }
+    }, 45);
   }
 
   /* ====================== HUD ====================== */
@@ -2326,9 +2352,9 @@
           delay += 90;
           break;
         case 'cardPlayed':
-          // roll the on-screen d20 when an attack is played (only attacks can crit)
+          // roll the dock d20 when an attack is played (only attacks can crit)
           if (e.roll != null && ns.CARDS[e.id] && ns.CARDS[e.id].type === 'attack') {
-            R.rollDie(e.roll, e.crit);
+            rollCombatDie(e.roll, e.crit);
             if (e.crit) floater(pp.x + 60, pp.y - 56, 'CRIT!', 'crit');
           }
           break;
