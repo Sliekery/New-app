@@ -272,10 +272,10 @@
     },
 
     /* ---------------- Technomancer ---------------- */
-    shock_coil: {
-      name: 'Shock Coil', cls: 'technomancer', type: 'attack', rarity: 1, cost: 1,
-      fx: [{ k: 'dmg', v: 6, scale: 'tech' }],
-      up: { fx: [{ k: 'dmg', v: 9, scale: 'tech' }] },
+    shock_coil: {   // the tech enabler — a chip that pays for itself in cards (fuels combo turns)
+      name: 'Live Wire', cls: 'technomancer', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 6, scale: 'tech' }, { k: 'draw', v: 1 }],
+      up: { fx: [{ k: 'dmg', v: 8, scale: 'tech' }, { k: 'draw', v: 1 }] },
     },
     fortify_matrix: {
       name: 'Fortify Matrix', cls: 'technomancer', type: 'skill', rarity: 1, cost: 1,
@@ -326,10 +326,10 @@
     },
 
     /* ---------------- Void Adept ---------------- */
-    psy_lance: {
-      name: 'Psy Lance', cls: 'voidadept', type: 'attack', rarity: 1, cost: 1,
-      fx: [{ k: 'dmg', v: 7, scale: 'psi' }],
-      up: { fx: [{ k: 'dmg', v: 10, scale: 'psi' }] },
+    psy_lance: {   // the Psi enabler — every strike sharpens the next (builds Focus)
+      name: 'Psi Lance', cls: 'voidadept', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 5, scale: 'psi' }, { k: 'status', s: 'psiPow', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'dmg', v: 7, scale: 'psi' }, { k: 'status', s: 'psiPow', v: 1, who: 'self' }] },
     },
     soul_burn: {
       name: 'Soul Burn', cls: 'voidadept', type: 'skill', rarity: 1, cost: 1,
@@ -1088,6 +1088,11 @@
       fx: [{ k: 'dmg', v: 3, all: true, scale: 'tech' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }],
       up: { fx: [{ k: 'dmg', v: 4, all: true, scale: 'tech' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }] },
     },
+    overload_surge: {   // Disruption payoff — hit one target with BOTH debuffs (double Conduit arc)
+      name: 'Overload Surge', cls: 'technomancer', type: 'attack', rarity: 2, cost: 2,
+      fx: [{ k: 'dmg', v: 6, scale: 'tech' }, { k: 'status', s: 'weak', v: 2, who: 'target' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }],
+      up: { fx: [{ k: 'dmg', v: 9, scale: 'tech' }, { k: 'status', s: 'weak', v: 3, who: 'target' }, { k: 'status', s: 'vuln', v: 3, who: 'target' }] },
+    },
 
     /* ============ VOID ADEPT — archetype overhaul (4 cross-feeding lines) ============
      * AFFLICTION  — seed Burn, then DETONATE it for burst; Wildfire makes Burn snowball.
@@ -1177,6 +1182,48 @@
       name: 'Dread Whisper', cls: 'voidadept', type: 'skill', rarity: 2, cost: 1,
       fx: [{ k: 'status', s: 'vuln', v: 2, who: 'target' }, { k: 'status', s: 'psiPow', v: 1, who: 'self' }, { k: 'draw', v: 1 }],
       up: { fx: [{ k: 'status', s: 'vuln', v: 3, who: 'target' }, { k: 'status', s: 'psiPow', v: 2, who: 'self' }, { k: 'draw', v: 1 }] },
+    },
+
+    /* ---- Void Adept depth: cross-feeders & a fuller Hemorrhage line ---- */
+    vital_lance: {   // pay a little life for a big psychic strike (Hemorrhage)
+      name: 'Vital Lance', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 8, scale: 'psi' }],
+      up: { fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 11, scale: 'psi' }] },
+    },
+    sanguine_ward: {   // bleed for a heavy ward — Hemorrhage's defence, feeds Blood Pact
+      name: 'Sanguine Ward', cls: 'voidadept', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'hploss', v: 2 }, { k: 'block', v: 8 }],
+      up: { fx: [{ k: 'hploss', v: 1 }, { k: 'block', v: 11 }] },
+    },
+    martyrs_gift: {   // BUILD-AROUND — bleed becomes Psi Focus AND that Focus climbs each turn
+      name: "Martyr's Gift", cls: 'voidadept', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'bloodPact', v: 1, who: 'self' }, { k: 'status', s: 'psiRamp', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'bloodPact', v: 1, who: 'self' }, { k: 'status', s: 'psiRamp', v: 2, who: 'self' }] },
+    },
+    mind_burn: {   // Psi <-> Affliction bridge — a strike that leaves a fire
+      name: 'Mind Burn', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'dmg', v: 5, scale: 'psi' }, { k: 'status', s: 'burn', v: 3, who: 'target' }],
+      up: { fx: [{ k: 'dmg', v: 7, scale: 'psi' }, { k: 'status', s: 'burn', v: 4, who: 'target' }] },
+    },
+    entropic_lash: {   // a strike that seeds the whole field with fire (Affliction enabler)
+      name: 'Entropic Lash', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'dmg', v: 5, scale: 'psi' }, { k: 'status', s: 'burn', v: 2, who: 'allEnemies' }],
+      up: { fx: [{ k: 'dmg', v: 7, scale: 'psi' }, { k: 'status', s: 'burn', v: 3, who: 'allEnemies' }] },
+    },
+    dimensional_rift: {   // single-target control payoff — crack one open and dig for more
+      name: 'Dimensional Rift', cls: 'voidadept', type: 'attack', rarity: 3, cost: 2,
+      fx: [{ k: 'dmg', v: 6, scale: 'psi' }, { k: 'status', s: 'vuln', v: 3, who: 'target' }, { k: 'draw', v: 1 }],
+      up: { fx: [{ k: 'dmg', v: 9, scale: 'psi' }, { k: 'status', s: 'vuln', v: 4, who: 'target' }, { k: 'draw', v: 1 }] },
+    },
+    psionic_scream: {   // Psi AoE control — soften the whole pack with the mind
+      name: 'Psionic Scream', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'dmg', v: 4, all: true, scale: 'psi' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }],
+      up: { fx: [{ k: 'dmg', v: 6, all: true, scale: 'psi' }, { k: 'status', s: 'weak', v: 2, who: 'allEnemies' }] },
+    },
+    spectral_grasp: {   // tempo control — lock a target down and keep the chain alive
+      name: 'Spectral Grasp', cls: 'voidadept', type: 'skill', rarity: 1, cost: 0,
+      fx: [{ k: 'status', s: 'weak', v: 1, who: 'target' }, { k: 'status', s: 'vuln', v: 1, who: 'target' }],
+      up: { fx: [{ k: 'status', s: 'weak', v: 2, who: 'target' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }] },
     },
 
     /* ====== Colorless salvage-tech (shop & event only — never in fight rewards) ====== */

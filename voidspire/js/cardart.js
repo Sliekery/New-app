@@ -74,12 +74,15 @@
     reinforced_hull: 'core', hold_the_line: 'shield', fortified_strike: 'shieldStrike', aegis_matrix: 'shield',
     hive_protocol: 'turret', assault_drone: 'turret', mortar_array: 'turret', targeting_uplink: 'turret', salvage_servitor: 'bolt', munitions_factory: 'turret',
     flux_capacitor: 'core', surge_protocol: 'reload', capacitor_discharge: 'bolt', recompile: 'reload', singularity_drive: 'core',
-    tesla_conduit: 'bolt', disruptor_pulse: 'bolt', short_circuit: 'bolt', system_shock: 'scan', feedback_loop: 'scan', ion_storm: 'bolt', emp_mine: 'bolt', overcharged_capacitor: 'bolt',
+    tesla_conduit: 'bolt', disruptor_pulse: 'bolt', short_circuit: 'bolt', system_shock: 'scan', feedback_loop: 'scan', ion_storm: 'bolt', emp_mine: 'bolt', overcharged_capacitor: 'bolt', overload_surge: 'bolt',
+    shock_coil: 'reload',
     // voidadept overhaul
     immolate: 'flame', cinder_burst: 'flame', ember_storm: 'hex', wildfire_engine: 'flame', conflagration: 'flame',
     ascendant_mind: 'eye', mind_lance: 'psiBolt', cerebral_spike: 'psiBolt', psionic_nova: 'vortex',
     bloodletting: 'drain', crimson_rite: 'drain',
     void_rupture: 'vortex', null_field: 'hex', dread_whisper: 'eye',
+    vital_lance: 'drain', sanguine_ward: 'shield', martyrs_gift: 'drain', mind_burn: 'flame',
+    entropic_lash: 'flame', dimensional_rift: 'vortex', psionic_scream: 'psiBolt', spectral_grasp: 'grasp',
   };
   var TYPE_DEFAULT = { attack: 'rifle', skill: 'shield', power: 'core', curse: 'skull' };
 

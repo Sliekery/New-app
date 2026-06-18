@@ -275,8 +275,8 @@ var ENGINES = {
   psiramp: { cls: 'voidadept', core: ['ascendant_mind', 'mind_lance', 'cerebral_spike', 'psionic_nova', 'psionic_focus', 'mind_array', 'dread_whisper', 'tk_crush', 'void_rupture', 'null_field'],
              flex: ['mind_spike', 'psy_lance', 'premonition', 'combat_shield', 'bloodletting'] },
   // Voidadept HEMORRHAGE engine — pay HP for power & sustain
-  bloodadept: { cls: 'voidadept', core: ['bloodletting', 'crimson_rite', 'blood_pact', 'exsanguinate', 'void_siphon', 'blood_sacrifice', 'hemorrhage', 'psionic_focus', 'mind_array', 'unravel'],
-                flex: ['mind_spike', 'psy_lance', 'premonition', 'combat_shield', 'dread_whisper'] },
+  bloodadept: { cls: 'voidadept', core: ['bloodletting', 'crimson_rite', 'vital_lance', 'sanguine_ward', 'blood_pact', 'exsanguinate', 'void_siphon', 'blood_sacrifice', 'hemorrhage', 'martyrs_gift'],
+                flex: ['mind_spike', 'psy_lance', 'premonition', 'combat_shield', 'psionic_focus'] },
   // Technomancer engines
   fortress: { cls: 'technomancer', core: ['fortify_matrix', 'arc_welder', 'shield_battery', 'reinforced_hull', 'fortified_strike', 'aegis_matrix', 'kinetic_discharge', 'entrench_field', 'hold_the_line', 'railgun'],
               flex: ['overshield', 'shock_coil', 'combat_shield', 'guard_protocol', 'static_field'] },
