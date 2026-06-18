@@ -3089,7 +3089,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   ns.ENEMIES = {
 
     /* ============ THE HIERARCHY ============ */
-    drone_skirmisher: {
+    drone_skirmisher: { plated: true,
       name: 'Drone Skirmisher', faction: 'hierarchy', hp: 12, size: 0.6, ai: 'random',
       moves: [
         { t: 'attack', d: 6, w: 4 },
@@ -3099,7 +3099,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // hover drone: winged pod, central eye, underslung cannon, grav fins
       art: { p: [[-0.28,0.3,0.28,0.3,0.42,-0.05,0.28,-0.32,-0.28,-0.32,-0.42,-0.05,-0.28,0.3], [-0.13,0.05,0.13,0.05,0.13,-0.14,-0.13,-0.14,-0.13,0.05], [0.06,-0.05,0.042,-0.092,0,-0.11,-0.042,-0.092,-0.06,-0.05,-0.042,-0.008,0,0.01,0.042,-0.008,0.06,-0.05], [-0.42,-0.05,-0.95,0.4,-1,0.12,-0.55,-0.22,-0.42,-0.12], [0.42,-0.05,0.95,0.4,1,0.12,0.55,-0.22,0.42,-0.12], [-0.55,0.13,-0.85,0.34], [0.55,0.13,0.85,0.34], [0,0.3,-0.1,0.62,0.1,0.62,0,0.3], [-0.05,-0.32,-0.05,-0.58,0.05,-0.58,0.05,-0.32], [0,-0.58,0,-0.74], [-0.28,-0.32,-0.4,-0.55], [0.28,-0.32,0.4,-0.55]], e: [[0,-0.05]] },
     },
-    zealot_warrior: { grounded: true,
+    zealot_warrior: { grounded: true, discipline: { cards: 4, dmg: 3 },
       name: 'Zealot Warrior', faction: 'hierarchy', hp: 22, size: 0.85, ai: 'random',
       moves: [
         { t: 'attack', d: 9, w: 4 },
@@ -3160,7 +3160,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
 
     /* ============ THE RUST LEGION ============ */
-    scrap_hound: { grounded: true,
+    scrap_hound: { grounded: true, rampStr: 1,
       name: 'Scrap Hound', faction: 'rust', hp: 13, size: 0.65, ai: 'random',
       moves: [
         { t: 'attack', d: 7, w: 4 },
@@ -3174,19 +3174,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       name: 'Rust Cultist', faction: 'rust', hp: 15, size: 0.75, ai: 'random',
       moves: [
         { t: 'attack', d: 6, w: 4 },
-        { t: 'buff', s: 'str', v: 2, w: 2 },
+        { t: 'guard', v: 6, w: 3 },
         { t: 'curse', card: 'shrapnel', w: 2 },
       ],
       // hooded cyborg: cog amulet, mechadendrite over shoulder, cog-staff, cabling
       art: { p: [[0,-0.85,0.22,-0.6,0.18,-0.35,-0.18,-0.35,-0.22,-0.6,0,-0.85], [-0.14,-0.5,0.14,-0.5,0.12,-0.32,-0.12,-0.32,-0.14,-0.5], [-0.3,-0.32,0.3,-0.32,0.42,0.5,0.3,0.85,-0.3,0.85,-0.42,0.5,-0.3,-0.32], [-0.18,-0.1,0.18,-0.1], [-0.16,0.1,0.16,0.1], [0,-0.3,0,0.7], [0.3,-0.2,0.62,-0.05,0.78,0.15,0.7,0.25,0.55,0.1], [0.84,0.18,0.822,0.138,0.78,0.12,0.738,0.138,0.72,0.18,0.738,0.222,0.78,0.24,0.822,0.222,0.84,0.18], [0.7,0.25,0.86,0.32], [0.7,0.25,0.84,0.22], [-0.3,-0.2,-0.5,0,-0.46,0.25], [-0.5,0,-0.6,0.08], [-0.05,-0.85,0.05,-0.95]], e: [[-0.05,-0.55],[0.12,-0.55]] },
       artAlt: { p: [[0,-0.88,0.24,-0.62,0.2,-0.34,-0.2,-0.34,-0.24,-0.62,0,-0.88], [-0.16,-0.66,0.16,-0.66,0.14,-0.4,0,-0.3,-0.14,-0.4,-0.16,-0.66], [-0.08,-0.5,-0.08,-0.42], [0.08,-0.5,0.08,-0.42], [-0.05,-0.38,0.05,-0.38], [-0.32,-0.3,0.32,-0.3,0.4,0.5,0.28,0.85,-0.28,0.85,-0.4,0.5,-0.32,-0.3], [NaN,0.4,NaN,0.4,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,0.16,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,0,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,-0.16,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,0.4], [0.08,0.2,0.065,0.153,0.025,0.124,-0.025,0.124,-0.065,0.153,-0.08,0.2,-0.065,0.247,-0.025,0.276,0.025,0.276,0.065,0.247,0.08,0.2], [0.32,-0.18,0.58,-0.1,0.7,0.1,0.62,0.22], [0.7,0.1,0.86,0.14], [-0.32,-0.18,-0.54,-0.06,-0.5,0.2], [0.2,-0.5,0.4,-0.62], [-0.2,-0.5,-0.4,-0.62]], e: [[0,-0.55]] },
     },
-    forge_walker: { grounded: true,
+    forge_walker: { grounded: true, charge: { dmg: 11, cap: 8 },
       name: 'Forge Walker', faction: 'rust', hp: 28, size: 0.95, ai: 'random',
       moves: [
-        { t: 'attack', d: 10, w: 4 },
-        { t: 'block', b: 8, w: 3 },
-        { t: 'attack', d: 5, w: 2 },
+        { t: 'attack', d: 6 },
       ],
       // bipedal mech: visor slit, plate seams, smokestacks, claw arms, piston legs
       art: { p: [[-0.55,-0.45,0.55,-0.45,0.62,0,0.45,0.22,-0.45,0.22,-0.62,0,-0.55,-0.45], [NaN,-0.05,NaN,-0.05,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,0.4,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,-0.37,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,-0.4,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,-0.05], [-0.2,-0.18,0.2,-0.18,0.16,-0.02,-0.16,-0.02,-0.2,-0.18], [-0.4,-0.45,-0.4,-0.72], [-0.28,-0.45,-0.28,-0.68], [0.4,-0.45,0.4,-0.72], [0.28,-0.45,0.28,-0.68], [-0.29,-0.72,-0.305,-0.755,-0.34,-0.77,-0.375,-0.755,-0.39,-0.72,-0.375,-0.685,-0.34,-0.67,-0.305,-0.685,-0.29,-0.72], [0.39,-0.72,0.375,-0.755,0.34,-0.77,0.305,-0.755,0.29,-0.72,0.305,-0.685,0.34,-0.67,0.375,-0.685,0.39,-0.72], [-0.62,-0.3,-0.95,-0.34,-0.98,0.1,-0.62,0.1], [0.62,-0.3,0.95,-0.34,0.98,0.1,0.62,0.1], [-0.8,-0.34,-0.78,0.5], [-0.78,0.5,-0.6,0.6], [0.8,-0.34,0.78,0.5], [0.78,0.5,0.6,0.6], [-0.78,0.5,-0.92,0.5], [0.78,0.5,0.92,0.5], [-0.4,0.22,0.4,0.22,0.34,0.45,-0.34,0.45,-0.4,0.22], [-0.3,0.45,-0.42,0.95,-0.18,0.95,-0.12,0.45], [0.3,0.45,0.42,0.95,0.18,0.95,0.12,0.45], [-0.32,-0.1,-0.329,-0.121,-0.35,-0.13,-0.371,-0.121,-0.38,-0.1,-0.371,-0.079,-0.35,-0.07,-0.329,-0.079,-0.32,-0.1], [-0.145,-0.1,-0.154,-0.121,-0.175,-0.13,-0.196,-0.121,-0.205,-0.1,-0.196,-0.079,-0.175,-0.07,-0.154,-0.079,-0.145,-0.1], [0.03,-0.1,0.021,-0.121,0,-0.13,-0.021,-0.121,-0.03,-0.1,-0.021,-0.079,0,-0.07,0.021,-0.079,0.03,-0.1], [0.205,-0.1,0.196,-0.121,0.175,-0.13,0.154,-0.121,0.145,-0.1,0.154,-0.079,0.175,-0.07,0.196,-0.079,0.205,-0.1], [0.38,-0.1,0.371,-0.121,0.35,-0.13,0.329,-0.121,0.32,-0.1,0.329,-0.079,0.35,-0.07,0.371,-0.079,0.38,-0.1]], e: [[0,-0.18]] },
@@ -3204,7 +3202,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // carrier hub: central emitter eye, antenna mast, twin dish-arms, drone docking clamps
       art: { p: [[0.4,0,0.37,-0.153,0.283,-0.283,0.153,-0.37,0,-0.4,-0.153,-0.37,-0.283,-0.283,-0.37,-0.153,-0.4,0,-0.37,0.153,-0.283,0.283,-0.153,0.37,0,0.4,0.153,0.37,0.283,0.283,0.37,0.153,0.4,0], [0.55,0,0.517,-0.188,0.421,-0.354,0.275,-0.476,0.096,-0.542,-0.096,-0.542,-0.275,-0.476,-0.421,-0.354,-0.517,-0.188,-0.55,0,-0.517,0.188,-0.421,0.354,-0.275,0.476,-0.096,0.542,0.096,0.542,0.275,0.476,0.421,0.354,0.517,0.188,0.55,0], [0.4,0,0.55,0], [0.2,-0.346,0.275,-0.476], [-0.2,-0.346,-0.275,-0.476], [-0.4,0,-0.55,0], [-0.2,0.346,-0.275,0.476], [0.2,0.346,0.275,0.476], [0.16,0,0.129,-0.094,0.049,-0.152,-0.049,-0.152,-0.129,-0.094,-0.16,0,-0.129,0.094,-0.049,0.152,0.049,0.152,0.129,0.094,0.16,0], [-0.08,-0.08,0.08,-0.08,0.08,0.08,-0.08,0.08,-0.08,-0.08], [0.866,-0.366,0.829,-0.399,0.762,-0.407,0.683,-0.387,0.614,-0.344,0.573,-0.291,0.571,-0.241,0.608,-0.208,0.675,-0.201,0.753,-0.221,0.822,-0.263,0.864,-0.316,0.866,-0.366], [-0.366,-0.866,-0.399,-0.829,-0.407,-0.762,-0.387,-0.683,-0.344,-0.614,-0.291,-0.573,-0.241,-0.571,-0.208,-0.608,-0.201,-0.675,-0.221,-0.753,-0.263,-0.822,-0.316,-0.864,-0.366,-0.866], [-0.866,0.366,-0.829,0.399,-0.762,0.407,-0.683,0.387,-0.614,0.344,-0.573,0.291,-0.571,0.241,-0.608,0.208,-0.675,0.201,-0.753,0.221,-0.822,0.263,-0.864,0.316,-0.866,0.366], [0.366,0.866,0.399,0.829,0.407,0.762,0.387,0.683,0.344,0.614,0.291,0.573,0.241,0.571,0.208,0.608,0.201,0.675,0.221,0.753,0.263,0.822,0.316,0.864,0.366,0.866], [0.507,-0.214,0.608,-0.257], [-0.214,-0.507,-0.257,-0.608], [-0.507,0.214,-0.608,0.257], [0.214,0.507,0.257,0.608]], e: [[0,0]] },
     },
-    swarm_drone: {
+    swarm_drone: { overload: 3,
       name: 'Swarm Drone', faction: 'rust', hp: 6, size: 0.42, ai: 'random',
       moves: [
         { t: 'attack', d: 3, w: 4 },
@@ -3271,7 +3269,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
 
     /* ============ THE VOIDSPAWN ============ */
-    void_larva: {
+    void_larva: { thorns: 1,
       name: 'Void Larva', faction: 'voidspawn', hp: 8, size: 0.5, ai: 'random',
       moves: [
         { t: 'attack', d: 5, w: 5 },
@@ -3339,14 +3337,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     husk_stalker: { grounded: true,
       name: 'Husk Stalker', faction: 'voidspawn', hp: 18, size: 0.8, ai: 'random',
       moves: [
-        { t: 'attack', d: 8, w: 4 },
+        { t: 'attack', d: 8, leech: true, w: 4 },
         { t: 'attack', d: 5, w: 2 },
         { t: 'debuff', s: 'weak', v: 1, w: 2 },
       ],
       // combat form: lolling head, exposed ribs, whip arm, shoulder growth
       art: { p: [[0,-0.78,0.2,-0.55,0.12,-0.4,-0.12,-0.4,-0.2,-0.55,0,-0.78], [-0.35,-0.45,0.35,-0.45,0.3,0.1,0.15,0.35,-0.15,0.35,-0.3,0.1,-0.35,-0.45], [-0.4,-0.45,-0.5,-0.65], [0.4,-0.45,0.5,-0.65], [-0.3,-0.2,-0.29,-0.167,-0.287,-0.138,-0.294,-0.114,-0.312,-0.095,-0.338,-0.08,-0.367,-0.067,-0.394,-0.053,-0.416,-0.036,-0.429,-0.015,-0.435,0.01,-0.435,0.038,-0.433,0.067,-0.433,0.094,-0.438,0.12,-0.448,0.143,-0.463,0.163,-0.481,0.182,-0.5,0.2], [0.3,-0.2,0.333,-0.189,0.358,-0.173,0.373,-0.153,0.377,-0.127,0.374,-0.098,0.367,-0.067,0.362,-0.036,0.362,-0.009,0.371,0.015,0.387,0.034,0.409,0.051,0.433,0.067,0.456,0.083,0.473,0.102,0.485,0.124,0.492,0.148,0.496,0.174,0.5,0.2], [-0.15,0.35,-0.25,0.75,-0.15,0.95], [0.15,0.35,0.25,0.75,0.15,0.95], [-0.12,-0.4,-0.12,-0.4,-0.08,-0.34,-0.04,-0.4,0,-0.34,0.04,-0.4,0.08,-0.34,0.12,-0.4]], e: [[0,-0.55]] },
     },
-    psy_wraith: {
+    psy_wraith: { wardedBy: 'void_larva',
       name: 'Psy-Wraith', faction: 'voidspawn', hp: 16, size: 0.8, ai: 'random',
       moves: [
         { t: 'debuff', s: 'vuln', v: 2, w: 3 },
@@ -4858,6 +4856,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var leftover = c.energy;
     c.turn++;
     c.cardsThisTurn = 0;
+    c.enemies.forEach(function (e) { if (e.def.plated) e.platedReady = true; });   // Reactive Plating re-arms each turn
     c.nonAttacksThisTurn = 0;   // Recoilless Frame: per-turn non-attack limit
     c.turnDamage = 0;           // class quest: damage dealt this turn
     c.momentum = 0;   // Momentum Engine resets each turn
@@ -4980,6 +4979,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       if (statN(en, 'weak')) d = Math.floor(d * B.status.weakMult);
       if (m.walkerFire) return { icon: 'charge', label: '⚡' + d };
       if (m.gaze) return { icon: 'eye', label: '◉' + d };
+      if (m.leech) return { icon: 'drain', label: '' + d };
       var nh = m.hits || 0;
       if (m.hitsPer) nh = Math.max(1, aliveEnemies().filter(function (e) { return e.id === m.hitsPer; }).length);
       return { icon: 'atk', label: (nh ? d + '×' + nh : '' + d) + (m.pierce ? '⊘' : '') + (m.jam ? '⊗' : '') };
@@ -4994,6 +4994,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       return { icon: 'drain', label: '' + dd };
     }
     if (m.t === 'block') return { icon: 'block', label: '' + scaledDmg(m.b, s) };
+    if (m.t === 'guard') return { icon: 'block', label: '↗' + scaledDmg(m.v, s) };
     if (m.t === 'buff') return { icon: 'buff', label: '' };
     if (m.t === 'heal') return { icon: 'heal', label: '' + scaledDmg(m.v, s) };
     if (m.t === 'summon') return { icon: 'summon', label: m.n ? '×' + m.n : '' };
@@ -5101,6 +5102,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       emit('dmg', { who: 'enemy', idx: idx, amount: amount, hpDmg: 0, warded: true, hpAfter: en.hp, blockAfter: en.block });
       return 0;
     }
+    // Reactive Plating: fully absorbs the FIRST attack it takes each turn (a cheap
+    // jab pops the plate; a single big nuke is wasted on it).
+    if (en.def.plated && en.platedReady && !opts.noCrit) {
+      en.platedReady = false;
+      emit('dmg', { who: 'enemy', idx: idx, amount: amount, hpDmg: 0, warded: true, hpAfter: en.hp, blockAfter: en.block });
+      return 0;
+    }
     var dm = art('dmgMult');
     if (dm > 0) amount = Math.round(amount * (1 + dm));
     if (E.hasEcho('cursed_inheritance') && handHasCurse()) amount = Math.round(amount * 1.25); // Cursed Inheritance
@@ -5140,6 +5148,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var hk = art('healOnKill'); if (hk > 0) heal(hk);
       var sk = art('strOnKill'); if (sk > 0) { addStatus(c.player, 'str', sk); emit('status', { who: 'player', s: 'str', v: sk }); }
       var kd = art('killDraw'); if (kd > 0) drawCards(kd);
+      // Overload Core: detonates on death — hurts you unless you kept Block up
+      if (en.def.overload) { var ov = scaledDmg(en.def.overload, E.run.sector); emit('overload', { idx: idx, amount: ov }); hurtPlayer(ov); }
       emit('die', { idx: idx });
       echoKill(idx);
     }
@@ -5835,6 +5845,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         addStatus(en, 'burn', -B.status.burnTick);
         if (en.hp <= 0) {
           en.alive = false; r.kills++;
+          if (en.def.overload) { var ovb = scaledDmg(en.def.overload, s); emit('overload', { idx: idx, amount: ovb }); hurtPlayer(ovb); }
           emit('die', { idx: idx });
           echoKill(idx);
           return;
@@ -5851,6 +5862,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // passive: cleanse its own afflictions (the Ascendant — counters Burn/DoT)
       if (en.def.cleanse) {
         ['burn', 'vuln', 'weak'].forEach(function (st) { if (statN(en, st) > 0) { en.statuses[st] = 0; emit('status', { who: 'enemy', idx: idx, s: st, v: 0 }); } });
+      }
+      // passive: Discipline — backlash if you dumped your hand (3+ cards) last turn
+      if (en.def.discipline && en.alive && (c.cardsThisTurn || 0) >= en.def.discipline.cards) {
+        var disc = scaledDmg(en.def.discipline.dmg, s) + statN(en, 'str');
+        emit('discipline', { idx: idx, amount: disc });
+        hurtPlayer(disc);
       }
       en.block = 0;
       // Drop Ship: shielded strafing -> arm the pod -> count down -> detonate.
@@ -5942,6 +5959,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           en.hp = Math.min(en.maxHp, en.hp + dmg);
           emit('heal', { who: 'enemy', idx: idx, amount: dmg, hpAfter: en.hp });
         }
+        // Leech: heals only for the damage that got THROUGH your block — so blocking denies its sustain
+        if (m.leech && en.alive && totalToPlayer > 0) {
+          en.hp = Math.min(en.maxHp, en.hp + totalToPlayer);
+          emit('heal', { who: 'enemy', idx: idx, amount: totalToPlayer, hpAfter: en.hp });
+        }
         // Voidling: unblocked damage can infect the run deck with a permanent curse.
         if (en.def.infect && totalToPlayer > 0 && r.phase !== 'dead' && rnd() < (en.def.infect.chance || 0.33)) {
           var icard = en.def.infect.card || 'void_taint';
@@ -5962,6 +5984,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         var bb = scaledDmg(m.b, s);
         if (m.all) c.enemies.forEach(function (e, i) { if (e.alive) { e.block += bb; emit('block', { who: 'enemy', idx: i, amount: e.block, blockAfter: e.block }); } });
         else { en.block += bb; emit('block', { who: 'enemy', idx: idx, amount: en.block, blockAfter: en.block }); }
+      } else if (m.t === 'guard') {
+        // Pack Tactics: shield a random OTHER living ally (kill the supporter first)
+        var allies = aliveEnemies().filter(function (e) { return e !== en; });
+        var gv = scaledDmg(m.v, s);
+        if (allies.length) {
+          var ally = allies[Math.floor(rnd() * allies.length)];
+          var ai = c.enemies.indexOf(ally);
+          ally.block += gv; emit('block', { who: 'enemy', idx: ai, amount: ally.block, blockAfter: ally.block });
+        } else { en.block += gv; emit('block', { who: 'enemy', idx: idx, amount: en.block, blockAfter: en.block }); }
       } else if (m.t === 'buff') {
         if (m.all) c.enemies.forEach(function (e, i) { if (e.alive) { addStatus(e, m.s, m.v); emit('status', { who: 'enemy', idx: i, s: m.s, v: m.v }); } });
         else { addStatus(en, m.s, m.v); emit('status', { who: 'enemy', idx: idx, s: m.s, v: m.v }); }
@@ -10820,7 +10851,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         case 'dmg': return 90;            // staggers enemy multi-hits on the player
         case 'die': return 140;
         case 'block': case 'heal': case 'status': return 60;
-        case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120; case 'charge': return 100; case 'jam': return 120; case 'corrupt': return 160;
+        case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120; case 'charge': return 100; case 'jam': return 120; case 'corrupt': return 160; case 'overload': return 120; case 'discipline': return 90;
         case 'revive': return 260; case 'salvage': return 80; case 'win': return 250;
         default: return 0;
       }
@@ -11003,6 +11034,25 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             }, d);
           })(e, delay);
           delay += 160;
+          break;
+        case 'overload':
+          (function (e, d) {
+            setTimeout(function () {
+              var pos = R.enemyPos(e.idx); R.burst(pos.x, pos.y, '#ff7a1e', 18); R.ring(pos.x, pos.y, '#ff7a1e', 34, 0.4);
+              floater(pos.x, pos.y - 18, '⚠ OVERLOAD', 'status');
+              if (SFX.hit) SFX.hit();
+            }, d);
+          })(e, delay);
+          delay += 120;
+          break;
+        case 'discipline':
+          (function (e, d) {
+            setTimeout(function () {
+              floater(pp.x + 30, pp.y - 50, 'DISCIPLINE!', 'status');
+              if (SFX.hit) SFX.hit();
+            }, d);
+          })(e, delay);
+          delay += 90;
           break;
         case 'cardPlayed':
           if (e.roll !== null && e.roll !== undefined) {

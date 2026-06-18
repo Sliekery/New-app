@@ -827,6 +827,7 @@
     var leftover = c.energy;
     c.turn++;
     c.cardsThisTurn = 0;
+    c.enemies.forEach(function (e) { if (e.def.plated) e.platedReady = true; });   // Reactive Plating re-arms each turn
     c.nonAttacksThisTurn = 0;   // Recoilless Frame: per-turn non-attack limit
     c.turnDamage = 0;           // class quest: damage dealt this turn
     c.momentum = 0;   // Momentum Engine resets each turn
@@ -949,6 +950,7 @@
       if (statN(en, 'weak')) d = Math.floor(d * B.status.weakMult);
       if (m.walkerFire) return { icon: 'charge', label: '⚡' + d };
       if (m.gaze) return { icon: 'eye', label: '◉' + d };
+      if (m.leech) return { icon: 'drain', label: '' + d };
       var nh = m.hits || 0;
       if (m.hitsPer) nh = Math.max(1, aliveEnemies().filter(function (e) { return e.id === m.hitsPer; }).length);
       return { icon: 'atk', label: (nh ? d + '×' + nh : '' + d) + (m.pierce ? '⊘' : '') + (m.jam ? '⊗' : '') };
@@ -963,6 +965,7 @@
       return { icon: 'drain', label: '' + dd };
     }
     if (m.t === 'block') return { icon: 'block', label: '' + scaledDmg(m.b, s) };
+    if (m.t === 'guard') return { icon: 'block', label: '↗' + scaledDmg(m.v, s) };
     if (m.t === 'buff') return { icon: 'buff', label: '' };
     if (m.t === 'heal') return { icon: 'heal', label: '' + scaledDmg(m.v, s) };
     if (m.t === 'summon') return { icon: 'summon', label: m.n ? '×' + m.n : '' };
@@ -1070,6 +1073,13 @@
       emit('dmg', { who: 'enemy', idx: idx, amount: amount, hpDmg: 0, warded: true, hpAfter: en.hp, blockAfter: en.block });
       return 0;
     }
+    // Reactive Plating: fully absorbs the FIRST attack it takes each turn (a cheap
+    // jab pops the plate; a single big nuke is wasted on it).
+    if (en.def.plated && en.platedReady && !opts.noCrit) {
+      en.platedReady = false;
+      emit('dmg', { who: 'enemy', idx: idx, amount: amount, hpDmg: 0, warded: true, hpAfter: en.hp, blockAfter: en.block });
+      return 0;
+    }
     var dm = art('dmgMult');
     if (dm > 0) amount = Math.round(amount * (1 + dm));
     if (E.hasEcho('cursed_inheritance') && handHasCurse()) amount = Math.round(amount * 1.25); // Cursed Inheritance
@@ -1109,6 +1119,8 @@
       var hk = art('healOnKill'); if (hk > 0) heal(hk);
       var sk = art('strOnKill'); if (sk > 0) { addStatus(c.player, 'str', sk); emit('status', { who: 'player', s: 'str', v: sk }); }
       var kd = art('killDraw'); if (kd > 0) drawCards(kd);
+      // Overload Core: detonates on death — hurts you unless you kept Block up
+      if (en.def.overload) { var ov = scaledDmg(en.def.overload, E.run.sector); emit('overload', { idx: idx, amount: ov }); hurtPlayer(ov); }
       emit('die', { idx: idx });
       echoKill(idx);
     }
@@ -1804,6 +1816,7 @@
         addStatus(en, 'burn', -B.status.burnTick);
         if (en.hp <= 0) {
           en.alive = false; r.kills++;
+          if (en.def.overload) { var ovb = scaledDmg(en.def.overload, s); emit('overload', { idx: idx, amount: ovb }); hurtPlayer(ovb); }
           emit('die', { idx: idx });
           echoKill(idx);
           return;
@@ -1820,6 +1833,12 @@
       // passive: cleanse its own afflictions (the Ascendant — counters Burn/DoT)
       if (en.def.cleanse) {
         ['burn', 'vuln', 'weak'].forEach(function (st) { if (statN(en, st) > 0) { en.statuses[st] = 0; emit('status', { who: 'enemy', idx: idx, s: st, v: 0 }); } });
+      }
+      // passive: Discipline — backlash if you dumped your hand (3+ cards) last turn
+      if (en.def.discipline && en.alive && (c.cardsThisTurn || 0) >= en.def.discipline.cards) {
+        var disc = scaledDmg(en.def.discipline.dmg, s) + statN(en, 'str');
+        emit('discipline', { idx: idx, amount: disc });
+        hurtPlayer(disc);
       }
       en.block = 0;
       // Drop Ship: shielded strafing -> arm the pod -> count down -> detonate.
@@ -1911,6 +1930,11 @@
           en.hp = Math.min(en.maxHp, en.hp + dmg);
           emit('heal', { who: 'enemy', idx: idx, amount: dmg, hpAfter: en.hp });
         }
+        // Leech: heals only for the damage that got THROUGH your block — so blocking denies its sustain
+        if (m.leech && en.alive && totalToPlayer > 0) {
+          en.hp = Math.min(en.maxHp, en.hp + totalToPlayer);
+          emit('heal', { who: 'enemy', idx: idx, amount: totalToPlayer, hpAfter: en.hp });
+        }
         // Voidling: unblocked damage can infect the run deck with a permanent curse.
         if (en.def.infect && totalToPlayer > 0 && r.phase !== 'dead' && rnd() < (en.def.infect.chance || 0.33)) {
           var icard = en.def.infect.card || 'void_taint';
@@ -1931,6 +1955,15 @@
         var bb = scaledDmg(m.b, s);
         if (m.all) c.enemies.forEach(function (e, i) { if (e.alive) { e.block += bb; emit('block', { who: 'enemy', idx: i, amount: e.block, blockAfter: e.block }); } });
         else { en.block += bb; emit('block', { who: 'enemy', idx: idx, amount: en.block, blockAfter: en.block }); }
+      } else if (m.t === 'guard') {
+        // Pack Tactics: shield a random OTHER living ally (kill the supporter first)
+        var allies = aliveEnemies().filter(function (e) { return e !== en; });
+        var gv = scaledDmg(m.v, s);
+        if (allies.length) {
+          var ally = allies[Math.floor(rnd() * allies.length)];
+          var ai = c.enemies.indexOf(ally);
+          ally.block += gv; emit('block', { who: 'enemy', idx: ai, amount: ally.block, blockAfter: ally.block });
+        } else { en.block += gv; emit('block', { who: 'enemy', idx: idx, amount: en.block, blockAfter: en.block }); }
       } else if (m.t === 'buff') {
         if (m.all) c.enemies.forEach(function (e, i) { if (e.alive) { addStatus(e, m.s, m.v); emit('status', { who: 'enemy', idx: i, s: m.s, v: m.v }); } });
         else { addStatus(en, m.s, m.v); emit('status', { who: 'enemy', idx: idx, s: m.s, v: m.v }); }
