@@ -70,6 +70,16 @@
     rapid_fire: 'rifle', trigger_discipline: 'reload', hail_of_lead: 'burst', full_auto: 'might', unload: 'cannon',
     blood_rage: 'might', deflect: 'shieldStrike', counterstrike: 'blade', crimson_pact: 'drain', whet_the_blade: 'blade', bloodbath: 'skull', vengeance: 'drain',
     salvo: 'shell', reload: 'reload', breaching_charge: 'cannon', field_strip: 'reload', cluster_charge: 'shell', quartermaster: 'core',
+    // technomancer overhaul
+    reinforced_hull: 'core', hold_the_line: 'shield', fortified_strike: 'shieldStrike', aegis_matrix: 'shield',
+    hive_protocol: 'turret', assault_drone: 'turret', mortar_array: 'turret', targeting_uplink: 'turret', salvage_servitor: 'bolt', munitions_factory: 'turret',
+    flux_capacitor: 'core', surge_protocol: 'reload', capacitor_discharge: 'bolt', recompile: 'reload', singularity_drive: 'core',
+    tesla_conduit: 'bolt', disruptor_pulse: 'bolt', short_circuit: 'bolt', system_shock: 'scan', feedback_loop: 'scan', ion_storm: 'bolt', emp_mine: 'bolt', overcharged_capacitor: 'bolt',
+    // voidadept overhaul
+    immolate: 'flame', cinder_burst: 'flame', ember_storm: 'hex', wildfire_engine: 'flame', conflagration: 'flame',
+    ascendant_mind: 'eye', mind_lance: 'psiBolt', cerebral_spike: 'psiBolt', psionic_nova: 'vortex',
+    bloodletting: 'drain', crimson_rite: 'drain',
+    void_rupture: 'vortex', null_field: 'hex', dread_whisper: 'eye',
   };
   var TYPE_DEFAULT = { attack: 'rifle', skill: 'shield', power: 'core', curse: 'skull' };
 

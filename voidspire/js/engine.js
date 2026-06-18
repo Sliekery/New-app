@@ -807,6 +807,7 @@
   function maxEnergy() { return B.player.baseEnergy + art('energyEveryTurn') + (statN(E.combat.player, 'reactor')); }
   E.maxEnergy = function () { return E.combat ? maxEnergy() : (B.player.baseEnergy || 0); };
 
+  var _inConduit = false;   // re-entrancy guard for the Disruption conduit hook
   function statN(ent, s) { return ent.statuses[s] || 0; }
   function addStatus(ent, s, v) {
     ent.statuses[s] = (ent.statuses[s] || 0) + v;
@@ -815,6 +816,12 @@
     if (v > 0 && isEnemy && (s === 'weak' || s === 'vuln')) {
       var hx = art('hexweaver');                       // Hexweaver: Weak/Vuln also Burns
       if (hx > 0) addStatus(ent, 'burn', hx);
+      var cdt = E.combat && statN(E.combat.player, 'conduit');   // DISRUPTION: debuffs arc for damage
+      if (cdt > 0 && !E.combat.over && !_inConduit) {
+        _inConduit = true;
+        dealToEnemy(ent, E.combat.enemies.indexOf(ent), cdt, { noCrit: true, noWeak: true });
+        _inConduit = false;
+      }
     }
     if (v > 0 && isEnemy && s === 'burn') {
       classQuestTick('burnApplied', v);
@@ -848,6 +855,8 @@
     if (padv > 0) { gainBlock(padv); addStatus(p, 'platedArmor', -1); } // Plated Armor: shield = stacks, then decays
     var spt = statN(p, 'strPerTurn');
     if (spt > 0) addStatus(p, 'str', spt);
+    var psr = statN(p, 'psiRamp');     // ASCENDANT MIND: Psi Focus grows each turn
+    if (psr > 0) { addStatus(p, 'psiPow', psr); emit('status', { who: 'player', s: 'psiPow', v: statN(p, 'psiPow') }); }
     var rstk = statN(p, 'restock');    // Quartermaster: rack spent shells back each turn (Bandolier reload loop)
     if (rstk > 0) for (var rk = 0; rk < rstk; rk++) reloadShell();
     if (c.primed.length) {             // Primed: tick down armed detonations; fire at zero
@@ -1560,6 +1569,19 @@
               var mul = (f.id === 'catalyst3') ? 2 : 1; // extra stacks added
               if (cur > 0) { addStatus(ce, 'burn', cur * mul); emit('status', { who: 'enemy', idx: c.enemies.indexOf(ce), s: 'burn', v: cur * mul }); trackBurn(cur * mul); }
             }
+          } else if (f.id === 'detonate') {
+            // AFFLICTION payoff: blow up the target's Burn for burst, splashing half to another enemy.
+            var de = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            if (de) {
+              var bn = statN(de, 'burn');
+              if (bn > 0) {
+                addStatus(de, 'burn', -bn); emit('status', { who: 'enemy', idx: c.enemies.indexOf(de), s: 'burn', v: 0 });
+                var dd = Math.round(bn * (f.v || 1)) + statN(p, 'str') + statN(p, 'psiPow') + art('flatDmg');
+                totalDealt += dealToEnemy(de, c.enemies.indexOf(de), dd, { crit: crit, roll: roll });
+                var others = aliveEnemies().filter(function (e) { return e !== de; });
+                if (others.length && bn >= 2) { var oe = pick(others); var sp = Math.floor(bn / 2); addStatus(oe, 'burn', sp); emit('status', { who: 'enemy', idx: c.enemies.indexOf(oe), s: 'burn', v: statN(oe, 'burn') }); trackBurn(sp); }
+              }
+            }
           } else if (f.id === 'fiendFire') {
             // ORDNANCE capstone: exhaust the rest of your hand, deal f.v per card.
             var fEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
@@ -1770,18 +1792,23 @@
     });
     c.hand = kept;
 
-    // turret + entropy
+    // turret + entropy  (HIVE PROTOCOL: every construct fires one extra time per Hive)
+    var hive = statN(p, 'hive');
     var tv = statN(p, 'turret');
     if (tv > 0 && !c.over) {
-      var pool = aliveEnemies();
-      if (pool.length) {
-        var en = pick(pool);
-        dealToEnemy(en, c.enemies.indexOf(en), tv + attr('tech'), { noCrit: true, noWeak: true });
+      for (var hvt = 0; hvt <= hive && !c.over; hvt++) {
+        var pool = aliveEnemies();
+        if (pool.length) {
+          var en = pick(pool);
+          dealToEnemy(en, c.enemies.indexOf(en), tv + attr('tech'), { noCrit: true, noWeak: true });
+        }
       }
     }
     var drv = statN(p, 'drone');     // Drone Swarm: an AoE turret — strafes ALL enemies
     if (drv > 0 && !c.over) {
-      c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, drv + attr('tech'), { noCrit: true, noWeak: true }); });
+      for (var hvd = 0; hvd <= hive && !c.over; hvd++) {
+        c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, drv + attr('tech'), { noCrit: true, noWeak: true }); });
+      }
     }
     var ev = statN(p, 'entropy');
     if (ev > 0) {
@@ -1813,7 +1840,16 @@
         var bd = statN(en, 'burn');
         en.hp -= bd;
         emit('dmg', { who: 'enemy', idx: idx, amount: bd, hpDmg: bd, burn: true, hpAfter: Math.max(0, en.hp), blockAfter: en.block });
-        addStatus(en, 'burn', -B.status.burnTick);
+        var wf = statN(c.player, 'wildfire');
+        if (wf > 0 && en.hp > 0) {
+          // WILDFIRE: Burn grows instead of decaying, and spreads to another enemy.
+          addStatus(en, 'burn', wf);
+          emit('status', { who: 'enemy', idx: idx, s: 'burn', v: statN(en, 'burn') });
+          var wfsp = aliveEnemies().filter(function (e) { return e !== en; });
+          if (wfsp.length) { var wse = pick(wfsp); addStatus(wse, 'burn', wf); emit('status', { who: 'enemy', idx: c.enemies.indexOf(wse), s: 'burn', v: statN(wse, 'burn') }); trackBurn(wf); }
+        } else {
+          addStatus(en, 'burn', -B.status.burnTick);
+        }
         if (en.hp <= 0) {
           en.alive = false; r.kills++;
           if (en.def.overload) { var ovb = scaledDmg(en.def.overload, s); emit('overload', { idx: idx, amount: ovb }); hurtPlayer(ovb); }

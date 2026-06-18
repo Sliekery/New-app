@@ -266,13 +266,31 @@ var ENGINES = {
   // Voidadept affliction/Burn engine
   hex: { cls: 'voidadept', core: ['soul_burn', 'hex_weave', 'wither', 'catalyst', 'entropy_field', 'plague_engine', 'singularity_bloom', 'psionic_focus', 'mind_array', 'unravel', 'void_bolt', 'mind_fracture'],
          flex: ['mind_spike', 'premonition', 'blood_sacrifice', 'exsanguinate', 'psy_lance', 'combat_shield'] },
+  // Voidadept DETONATE engine — seed Burn, grow it, blow it up
+  affliction: { cls: 'voidadept', core: ['immolate', 'ember_storm', 'cinder_burst', 'conflagration', 'wildfire_engine', 'soul_burn', 'hex_weave', 'catalyst', 'plague_engine', 'unravel'],
+                flex: ['mind_spike', 'premonition', 'mind_fracture', 'combat_shield', 'void_bolt'] },
   psi: { cls: 'voidadept', core: ['psy_lance', 'void_bolt', 'tk_crush', 'eldritch_storm', 'psionic_focus', 'mind_array', 'mind_storm', 'exsanguinate', 'unravel', 'forbidden_lore'],
          flex: ['mind_spike', 'premonition', 'blood_sacrifice', 'combat_shield', 'mind_fracture'] },
+  // Voidadept PSI-FOCUS scaling engine — ramp Focus, cash it in
+  psiramp: { cls: 'voidadept', core: ['ascendant_mind', 'mind_lance', 'cerebral_spike', 'psionic_nova', 'psionic_focus', 'mind_array', 'dread_whisper', 'tk_crush', 'void_rupture', 'null_field'],
+             flex: ['mind_spike', 'psy_lance', 'premonition', 'combat_shield', 'bloodletting'] },
+  // Voidadept HEMORRHAGE engine — pay HP for power & sustain
+  bloodadept: { cls: 'voidadept', core: ['bloodletting', 'crimson_rite', 'blood_pact', 'exsanguinate', 'void_siphon', 'blood_sacrifice', 'hemorrhage', 'psionic_focus', 'mind_array', 'unravel'],
+                flex: ['mind_spike', 'psy_lance', 'premonition', 'combat_shield', 'dread_whisper'] },
   // Technomancer engines
-  fortress: { cls: 'technomancer', core: ['fortify_matrix', 'arc_welder', 'shield_battery', 'entrench_field', 'kinetic_discharge', 'static_field', 'phase_bulwark', 'static_lance', 'railgun', 'sentry_protocol'],
-              flex: ['overshield', 'shock_coil', 'combat_shield', 'guard_protocol'] },
+  fortress: { cls: 'technomancer', core: ['fortify_matrix', 'arc_welder', 'shield_battery', 'reinforced_hull', 'fortified_strike', 'aegis_matrix', 'kinetic_discharge', 'entrench_field', 'hold_the_line', 'railgun'],
+              flex: ['overshield', 'shock_coil', 'combat_shield', 'guard_protocol', 'static_field'] },
   turret: { cls: 'technomancer', core: ['deploy_turret', 'sentry_protocol', 'drone_swarm', 'aux_reactor', 'echo_core', 'overload_capacitor', 'omega_protocol', 'chain_lightning', 'railgun'],
             flex: ['overshield', 'shock_coil', 'fortify_matrix', 'arc_welder'] },
+  // Technomancer CONSTRUCTS — deploy a board and amplify it with Hive
+  constructs: { cls: 'technomancer', core: ['hive_protocol', 'mortar_array', 'assault_drone', 'munitions_factory', 'sentry_protocol', 'deploy_turret', 'drone_swarm', 'targeting_uplink', 'salvage_servitor', 'aux_reactor'],
+                flex: ['overshield', 'fortify_matrix', 'shock_coil', 'combat_shield', 'arc_welder'] },
+  // Technomancer OVERCHARGE — Energy/Echo chain engine
+  overcharge: { cls: 'technomancer', core: ['singularity_drive', 'flux_capacitor', 'aux_reactor', 'echo_core', 'surge_protocol', 'capacitor_discharge', 'recompile', 'overclock', 'railgun', 'arc_welder'],
+                flex: ['overshield', 'shock_coil', 'fortify_matrix', 'combat_shield', 'leech_coil'] },
+  // Technomancer DISRUPTION — Conduit turns debuffs into damage
+  disruption: { cls: 'technomancer', core: ['tesla_conduit', 'short_circuit', 'system_shock', 'disruptor_pulse', 'feedback_loop', 'ion_storm', 'emp_mine', 'static_field', 'static_lance', 'emp_blast'],
+                flex: ['overshield', 'shock_coil', 'fortify_matrix', 'combat_shield', 'arc_welder'] },
 };
 var FLEX_OF = { warpcaller: ['claw_swipe', 'summon_maw', 'howl', 'kennel', 'summon_totem'] };  // per-class default flex
 var PILOT = null;   // an ENGINES key — null = default greedy draft

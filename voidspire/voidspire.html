@@ -1450,6 +1450,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     reactor: 'Reactor', retain: 'Phase Lock',
     feelNoPain: 'Resolve', darkEmbrace: 'Salvage', thousandCuts: 'Blade Array',
     afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
+    wildfire: 'Wildfire', psiRamp: 'Ascendant', hive: 'Hive', conduit: 'Conduit', plating: 'Plating',
     platedArmor: 'Plated Armor', barricade: 'Barricade', bloodPact: 'Blood Pact',
     pack: 'Pack Fury', symbiosis: 'Symbiosis', brood: 'Brood', slots: 'Kennel',
     bulwark: 'Bulwark', bloodscent: 'Bloodscent', feast: 'Savage Feast',
@@ -1575,6 +1576,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     'Blood Pact': 'Whenever you lose HP to your own cards, gain Psi Focus.',
     'Vengeance': 'After you take a hit or parry a blow, your next Attack heals you.',
     'Entropy': 'At the end of your turn, apply Burn to ALL enemies.',
+    'Wildfire': "Burn no longer fades — at the end of the turn it GROWS by your Wildfire and spreads to another enemy.",
+    'Ascendant': 'Gain that much Psi Focus at the start of each turn.',
+    'Detonate': "Consume all of the target's Burn to deal a burst of damage, splashing fresh Burn to another enemy.",
+    'Hive': 'Every Turret and Drone Swarm you control fires one extra time each turn per stack.',
+    'Conduit': 'Whenever you apply Weak or Vulnerable to an enemy, it also takes that much damage.',
     'Reactor': 'Gain +1 Energy at the start of each turn per stack.',
     'Warlord': 'Gain Might at the start of each turn.',
     'Resolve': 'Whenever a card is Exhausted, gain Shield.',
@@ -2378,6 +2384,227 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       up: { fx: [{ k: 'draw', v: 4 }, { k: 'status', s: 'psiPow', v: 1, who: 'self' }] },
     },
 
+    /* ============ TECHNOMANCER — archetype overhaul (4 cross-feeding lines) ============
+     * FORTRESS   — stack Shield/Plating and cash it into damage (Slam payoffs).
+     * CONSTRUCTS — deploy Turrets & Drones; Hive Protocol makes the whole board fire twice.
+     * OVERCHARGE — Energy & Echo engines that let you chain a huge turn.
+     * DISRUPTION — field-wide Weak/Vulnerable; Conduit turns every debuff into a jolt of damage.
+     * ------------------------------------------------------------------------------------ */
+
+    /* -- FORTRESS -- */
+    reinforced_hull: {   // Plated Armor engine — Shield that regenerates each turn
+      name: 'Reinforced Hull', cls: 'technomancer', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'platedArmor', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'platedArmor', v: 4, who: 'self' }] },
+    },
+    hold_the_line: {   // a kept guard — bank Shield for a Slam next turn
+      name: 'Hold the Line', cls: 'technomancer', type: 'skill', rarity: 1, cost: 1, retain: true,
+      fx: [{ k: 'block', v: 7, scale: 'tech' }],
+      up: { fx: [{ k: 'block', v: 10, scale: 'tech' }] },
+    },
+    fortified_strike: {   // the Fortress hybrid — punch and brace in one
+      name: 'Fortified Strike', cls: 'technomancer', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'dmg', v: 7, scale: 'tech' }, { k: 'block', v: 5, scale: 'tech' }],
+      up: { fx: [{ k: 'dmg', v: 10, scale: 'tech' }, { k: 'block', v: 7, scale: 'tech' }] },
+    },
+    aegis_matrix: {   // BUILD-AROUND — your Shield stops expiring; stack it forever
+      name: 'Aegis Matrix', cls: 'technomancer', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'barricade', v: 1, who: 'self' }],
+      up: { cost: 1, fx: [{ k: 'status', s: 'barricade', v: 1, who: 'self' }] },
+    },
+
+    /* -- CONSTRUCTS -- */
+    hive_protocol: {   // BUILD-AROUND — every construct fires an extra time each turn
+      name: 'Hive Protocol', cls: 'technomancer', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'hive', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'hive', v: 2, who: 'self' }] },
+    },
+    assault_drone: {   // an AoE construct on a budget
+      name: 'Assault Drone', cls: 'technomancer', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'drone', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'drone', v: 4, who: 'self' }] },
+    },
+    mortar_array: {   // one heavy single-target turret
+      name: 'Mortar Array', cls: 'technomancer', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'turret', v: 8, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'turret', v: 11, who: 'self' }] },
+    },
+    targeting_uplink: {   // construct enabler — deploy a small turret and keep drawing
+      name: 'Targeting Uplink', cls: 'technomancer', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'status', s: 'turret', v: 2, who: 'self' }, { k: 'draw', v: 1 }],
+      up: { fx: [{ k: 'status', s: 'turret', v: 3, who: 'self' }, { k: 'draw', v: 1 }] },
+    },
+    salvage_servitor: {   // chip now, board later
+      name: 'Salvage Servitor', cls: 'technomancer', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 5, scale: 'tech' }, { k: 'status', s: 'turret', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'dmg', v: 7, scale: 'tech' }, { k: 'status', s: 'turret', v: 2, who: 'self' }] },
+    },
+    munitions_factory: {   // a balanced board — one turret, one drone
+      name: 'Munitions Factory', cls: 'technomancer', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'turret', v: 2, who: 'self' }, { k: 'status', s: 'drone', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'turret', v: 3, who: 'self' }, { k: 'status', s: 'drone', v: 3, who: 'self' }] },
+    },
+
+    /* -- OVERCHARGE -- */
+    flux_capacitor: {   // BUILD-AROUND tempo — a big permanent Energy boost
+      name: 'Flux Capacitor', cls: 'technomancer', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'reactor', v: 2, who: 'self' }],
+      up: { cost: 1, fx: [{ k: 'status', s: 'reactor', v: 2, who: 'self' }] },
+    },
+    surge_protocol: {   // dig deep into a power-turn
+      name: 'Surge Protocol', cls: 'technomancer', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'energy', v: 1 }, { k: 'draw', v: 2 }],
+      up: { fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }] },
+    },
+    capacitor_discharge: {   // cheap tempo attack that refunds itself
+      name: 'Capacitor Discharge', cls: 'technomancer', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'dmg', v: 6, scale: 'tech' }, { k: 'energy', v: 1 }],
+      up: { fx: [{ k: 'dmg', v: 9, scale: 'tech' }, { k: 'energy', v: 1 }] },
+    },
+    recompile: {   // ⚡0 cantrip — keeps the chain alive
+      name: 'Recompile', cls: 'technomancer', type: 'skill', rarity: 1, cost: 0,
+      fx: [{ k: 'energy', v: 1 }, { k: 'draw', v: 1 }],
+      up: { fx: [{ k: 'energy', v: 1 }, { k: 'draw', v: 2 }] },
+    },
+    singularity_drive: {   // BUILD-AROUND — repeat your first Attack and bank Energy
+      name: 'Singularity Drive', cls: 'technomancer', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'echo', v: 1, who: 'self' }, { k: 'status', s: 'reactor', v: 1, who: 'self' }],
+      up: { cost: 1, fx: [{ k: 'status', s: 'echo', v: 1, who: 'self' }, { k: 'status', s: 'reactor', v: 1, who: 'self' }] },
+    },
+
+    /* -- DISRUPTION -- */
+    tesla_conduit: {   // BUILD-AROUND — every debuff you apply arcs for damage
+      name: 'Tesla Conduit', cls: 'technomancer', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'conduit', v: 5, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'conduit', v: 7, who: 'self' }] },
+    },
+    overcharged_capacitor: {   // OVERCHARGE filler payoff — a cheap repeatable jolt that loves Echo
+      name: 'Overcharged Capacitor', cls: 'technomancer', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'dmg', v: 4, hits: 2, scale: 'tech' }],
+      text: 'Both hits scale with your Tech. Doubles under Echo.',
+      up: { fx: [{ k: 'dmg', v: 6, hits: 2, scale: 'tech' }] },
+    },
+    disruptor_pulse: {   // cheap enabler — chip + a Weak to trip the Conduit
+      name: 'Disruptor Pulse', cls: 'technomancer', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 4, scale: 'tech' }, { k: 'status', s: 'weak', v: 1, who: 'target' }],
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'tech' }, { k: 'status', s: 'weak', v: 2, who: 'target' }] },
+    },
+    short_circuit: {   // strike + a heavy Vulnerable (double-dips with Conduit)
+      name: 'Short Circuit', cls: 'technomancer', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'dmg', v: 5, scale: 'tech' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }],
+      up: { fx: [{ k: 'dmg', v: 7, scale: 'tech' }, { k: 'status', s: 'vuln', v: 3, who: 'target' }] },
+    },
+    system_shock: {   // mass debuff — lights up the whole field for the Conduit
+      name: 'System Shock', cls: 'technomancer', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'weak', v: 1, who: 'allEnemies' }, { k: 'status', s: 'vuln', v: 1, who: 'allEnemies' }],
+      up: { fx: [{ k: 'status', s: 'weak', v: 2, who: 'allEnemies' }, { k: 'status', s: 'vuln', v: 1, who: 'allEnemies' }] },
+    },
+    feedback_loop: {   // control cantrip — soften and cycle
+      name: 'Feedback Loop', cls: 'technomancer', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'status', s: 'vuln', v: 2, who: 'target' }, { k: 'draw', v: 1 }],
+      up: { fx: [{ k: 'status', s: 'vuln', v: 3, who: 'target' }, { k: 'draw', v: 1 }] },
+    },
+    ion_storm: {   // the Disruption payoff — AoE damage AND a field of Weak to arc on
+      name: 'Ion Storm', cls: 'technomancer', type: 'attack', rarity: 3, cost: 2,
+      fx: [{ k: 'dmg', v: 4, all: true, scale: 'tech' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }],
+      up: { fx: [{ k: 'dmg', v: 6, all: true, scale: 'tech' }, { k: 'status', s: 'weak', v: 2, who: 'allEnemies' }] },
+    },
+    emp_mine: {   // ⚡0 exhaust enabler — a cheap field-wide jolt
+      name: 'EMP Mine', cls: 'technomancer', type: 'attack', rarity: 1, cost: 0, exhaust: true,
+      fx: [{ k: 'dmg', v: 3, all: true, scale: 'tech' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }],
+      up: { fx: [{ k: 'dmg', v: 4, all: true, scale: 'tech' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }] },
+    },
+
+    /* ============ VOID ADEPT — archetype overhaul (4 cross-feeding lines) ============
+     * AFFLICTION  — seed Burn, then DETONATE it for burst; Wildfire makes Burn snowball.
+     * PSI FOCUS   — stack Psi Focus and scale every psychic strike; Ascendant Mind ramps it.
+     * HEMORRHAGE  — pay HP for tempo & power (feeds Blood Pact / drain sustain).
+     * VOID/ENTROPY— field-wide debuffs + spam payoffs (Vulnerable/Weak feed reap & detonate).
+     * ------------------------------------------------------------------------------------ */
+
+    /* -- AFFLICTION -- */
+    immolate: {   // cheap enabler — chip + a Burn stack to build on
+      name: 'Immolate', cls: 'voidadept', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 3, scale: 'psi' }, { k: 'status', s: 'burn', v: 3, who: 'target' }],
+      up: { fx: [{ k: 'dmg', v: 4, scale: 'psi' }, { k: 'status', s: 'burn', v: 5, who: 'target' }] },
+    },
+    cinder_burst: {   // the Detonate payoff — cash a Burn stack in for a burst
+      name: 'Cinder Burst', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'special', id: 'detonate', v: 2 }],
+      text: "Detonate: consume the target's Burn to deal 200% of it (plus your Psi Focus) as damage, splashing half as fresh Burn to another enemy.",
+      up: { fx: [{ k: 'special', id: 'detonate', v: 2.5 }], text: "Detonate: consume the target's Burn to deal 250% of it (plus your Psi Focus) as damage, splashing half as fresh Burn to another enemy." },
+    },
+    ember_storm: {   // field seed — Burn everything and keep the hand flowing
+      name: 'Ember Storm', cls: 'voidadept', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'burn', v: 2, who: 'allEnemies' }, { k: 'draw', v: 1 }],
+      up: { fx: [{ k: 'status', s: 'burn', v: 3, who: 'allEnemies' }, { k: 'draw', v: 1 }] },
+    },
+    wildfire_engine: {   // BUILD-AROUND — Burn stops decaying and starts spreading
+      name: 'Wildfire Engine', cls: 'voidadept', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'wildfire', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'wildfire', v: 2, who: 'self' }] },
+    },
+    conflagration: {   // the heavy Detonate — pay big, blow the whole stack
+      name: 'Conflagration', cls: 'voidadept', type: 'attack', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'burn', v: 5, who: 'target' }, { k: 'special', id: 'detonate', v: 2 }],
+      text: "Then Detonate all of it for 200% damage (plus your Psi Focus), splashing fresh Burn to another enemy.",
+      up: { fx: [{ k: 'status', s: 'burn', v: 8, who: 'target' }, { k: 'special', id: 'detonate', v: 2.5 }], text: "Then Detonate all of it for 250% damage (plus your Psi Focus), splashing fresh Burn to another enemy." },
+    },
+
+    /* -- PSI FOCUS -- */
+    ascendant_mind: {   // BUILD-AROUND — Psi Focus that climbs on its own every turn
+      name: 'Ascendant Mind', cls: 'voidadept', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'psiRamp', v: 2, who: 'self' }, { k: 'status', s: 'psiPow', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'psiRamp', v: 3, who: 'self' }, { k: 'status', s: 'psiPow', v: 2, who: 'self' }] },
+    },
+    mind_lance: {   // multi-hit psi payoff — every shard rides your Focus
+      name: 'Mind Lance', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'dmg', v: 4, hits: 2, scale: 'psi' }],
+      text: 'Both hits are boosted by your Psi Focus.',
+      up: { fx: [{ k: 'dmg', v: 5, hits: 2, scale: 'psi' }] },
+    },
+    cerebral_spike: {   // a single big psi scaler (Focus counts double)
+      name: 'Cerebral Spike', cls: 'voidadept', type: 'attack', rarity: 2, cost: 2,
+      fx: [{ k: 'dmg', v: 6, scale: 'psi', scaleMul: 2 }],
+      text: 'Your Psi Focus counts twice.',
+      up: { fx: [{ k: 'dmg', v: 9, scale: 'psi', scaleMul: 2 }] },
+    },
+    psionic_nova: {   // the psi AoE — scales with Focus across the whole field
+      name: 'Psionic Nova', cls: 'voidadept', type: 'attack', rarity: 3, cost: 2,
+      fx: [{ k: 'dmg', v: 5, all: true, scale: 'psi' }],
+      up: { fx: [{ k: 'dmg', v: 8, all: true, scale: 'psi' }] },
+    },
+
+    /* -- HEMORRHAGE -- */
+    bloodletting: {   // cheap blood-cantrip — bleed for a card and a little Shield
+      name: 'Bloodletting', cls: 'voidadept', type: 'skill', rarity: 1, cost: 0,
+      fx: [{ k: 'hploss', v: 2 }, { k: 'draw', v: 1 }, { k: 'block', v: 3 }],
+      up: { fx: [{ k: 'hploss', v: 1 }, { k: 'draw', v: 1 }, { k: 'block', v: 5 }] },
+    },
+    crimson_rite: {   // a sacrifice strike that pays you back in life
+      name: 'Crimson Rite', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'hploss', v: 3 }, { k: 'dmg', v: 6, scale: 'psi' }, { k: 'special', id: 'drain' }],
+      text: 'Heal for half the damage dealt.',
+      up: { fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 9, scale: 'psi' }, { k: 'special', id: 'drain' }] },
+    },
+
+    /* -- VOID / ENTROPY -- */
+    void_rupture: {   // AoE control — soften the whole pack for reap & detonate
+      name: 'Void Rupture', cls: 'voidadept', type: 'attack', rarity: 3, cost: 2,
+      fx: [{ k: 'dmg', v: 4, all: true, scale: 'psi' }, { k: 'status', s: 'vuln', v: 2, who: 'allEnemies' }],
+      up: { fx: [{ k: 'dmg', v: 6, all: true, scale: 'psi' }, { k: 'status', s: 'vuln', v: 2, who: 'allEnemies' }] },
+    },
+    null_field: {   // pure field control — stacks the debuffs reap/breach feed on
+      name: 'Null Field', cls: 'voidadept', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'weak', v: 2, who: 'allEnemies' }, { k: 'status', s: 'vuln', v: 1, who: 'allEnemies' }],
+      up: { fx: [{ k: 'status', s: 'weak', v: 2, who: 'allEnemies' }, { k: 'status', s: 'vuln', v: 2, who: 'allEnemies' }] },
+    },
+    dread_whisper: {   // cross-feeder — control + Focus + a card (Psi <-> Void glue)
+      name: 'Dread Whisper', cls: 'voidadept', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'vuln', v: 2, who: 'target' }, { k: 'status', s: 'psiPow', v: 1, who: 'self' }, { k: 'draw', v: 1 }],
+      up: { fx: [{ k: 'status', s: 'vuln', v: 3, who: 'target' }, { k: 'status', s: 'psiPow', v: 2, who: 'self' }, { k: 'draw', v: 1 }] },
+    },
+
     /* ====== Colorless salvage-tech (shop & event only — never in fight rewards) ====== */
     recon: {   // Scry — sculpt your next draws
       name: 'Recon', cls: 'any', type: 'skill', rarity: 1, pool: 'colorless', cost: 0,
@@ -2600,6 +2827,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     rapid_fire: 'rifle', trigger_discipline: 'reload', hail_of_lead: 'burst', full_auto: 'might', unload: 'cannon',
     blood_rage: 'might', deflect: 'shieldStrike', counterstrike: 'blade', crimson_pact: 'drain', whet_the_blade: 'blade', bloodbath: 'skull', vengeance: 'drain',
     salvo: 'shell', reload: 'reload', breaching_charge: 'cannon', field_strip: 'reload', cluster_charge: 'shell', quartermaster: 'core',
+    // technomancer overhaul
+    reinforced_hull: 'core', hold_the_line: 'shield', fortified_strike: 'shieldStrike', aegis_matrix: 'shield',
+    hive_protocol: 'turret', assault_drone: 'turret', mortar_array: 'turret', targeting_uplink: 'turret', salvage_servitor: 'bolt', munitions_factory: 'turret',
+    flux_capacitor: 'core', surge_protocol: 'reload', capacitor_discharge: 'bolt', recompile: 'reload', singularity_drive: 'core',
+    tesla_conduit: 'bolt', disruptor_pulse: 'bolt', short_circuit: 'bolt', system_shock: 'scan', feedback_loop: 'scan', ion_storm: 'bolt', emp_mine: 'bolt', overcharged_capacitor: 'bolt',
+    // voidadept overhaul
+    immolate: 'flame', cinder_burst: 'flame', ember_storm: 'hex', wildfire_engine: 'flame', conflagration: 'flame',
+    ascendant_mind: 'eye', mind_lance: 'psiBolt', cerebral_spike: 'psiBolt', psionic_nova: 'vortex',
+    bloodletting: 'drain', crimson_rite: 'drain',
+    void_rupture: 'vortex', null_field: 'hex', dread_whisper: 'eye',
   };
   var TYPE_DEFAULT = { attack: 'rifle', skill: 'shield', power: 'core', curse: 'skull' };
 
@@ -4866,6 +5103,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function maxEnergy() { return B.player.baseEnergy + art('energyEveryTurn') + (statN(E.combat.player, 'reactor')); }
   E.maxEnergy = function () { return E.combat ? maxEnergy() : (B.player.baseEnergy || 0); };
 
+  var _inConduit = false;   // re-entrancy guard for the Disruption conduit hook
   function statN(ent, s) { return ent.statuses[s] || 0; }
   function addStatus(ent, s, v) {
     ent.statuses[s] = (ent.statuses[s] || 0) + v;
@@ -4874,6 +5112,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (v > 0 && isEnemy && (s === 'weak' || s === 'vuln')) {
       var hx = art('hexweaver');                       // Hexweaver: Weak/Vuln also Burns
       if (hx > 0) addStatus(ent, 'burn', hx);
+      var cdt = E.combat && statN(E.combat.player, 'conduit');   // DISRUPTION: debuffs arc for damage
+      if (cdt > 0 && !E.combat.over && !_inConduit) {
+        _inConduit = true;
+        dealToEnemy(ent, E.combat.enemies.indexOf(ent), cdt, { noCrit: true, noWeak: true });
+        _inConduit = false;
+      }
     }
     if (v > 0 && isEnemy && s === 'burn') {
       classQuestTick('burnApplied', v);
@@ -4907,6 +5151,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (padv > 0) { gainBlock(padv); addStatus(p, 'platedArmor', -1); } // Plated Armor: shield = stacks, then decays
     var spt = statN(p, 'strPerTurn');
     if (spt > 0) addStatus(p, 'str', spt);
+    var psr = statN(p, 'psiRamp');     // ASCENDANT MIND: Psi Focus grows each turn
+    if (psr > 0) { addStatus(p, 'psiPow', psr); emit('status', { who: 'player', s: 'psiPow', v: statN(p, 'psiPow') }); }
     var rstk = statN(p, 'restock');    // Quartermaster: rack spent shells back each turn (Bandolier reload loop)
     if (rstk > 0) for (var rk = 0; rk < rstk; rk++) reloadShell();
     if (c.primed.length) {             // Primed: tick down armed detonations; fire at zero
@@ -5619,6 +5865,19 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
               var mul = (f.id === 'catalyst3') ? 2 : 1; // extra stacks added
               if (cur > 0) { addStatus(ce, 'burn', cur * mul); emit('status', { who: 'enemy', idx: c.enemies.indexOf(ce), s: 'burn', v: cur * mul }); trackBurn(cur * mul); }
             }
+          } else if (f.id === 'detonate') {
+            // AFFLICTION payoff: blow up the target's Burn for burst, splashing half to another enemy.
+            var de = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            if (de) {
+              var bn = statN(de, 'burn');
+              if (bn > 0) {
+                addStatus(de, 'burn', -bn); emit('status', { who: 'enemy', idx: c.enemies.indexOf(de), s: 'burn', v: 0 });
+                var dd = Math.round(bn * (f.v || 1)) + statN(p, 'str') + statN(p, 'psiPow') + art('flatDmg');
+                totalDealt += dealToEnemy(de, c.enemies.indexOf(de), dd, { crit: crit, roll: roll });
+                var others = aliveEnemies().filter(function (e) { return e !== de; });
+                if (others.length && bn >= 2) { var oe = pick(others); var sp = Math.floor(bn / 2); addStatus(oe, 'burn', sp); emit('status', { who: 'enemy', idx: c.enemies.indexOf(oe), s: 'burn', v: statN(oe, 'burn') }); trackBurn(sp); }
+              }
+            }
           } else if (f.id === 'fiendFire') {
             // ORDNANCE capstone: exhaust the rest of your hand, deal f.v per card.
             var fEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
@@ -5829,18 +6088,23 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     });
     c.hand = kept;
 
-    // turret + entropy
+    // turret + entropy  (HIVE PROTOCOL: every construct fires one extra time per Hive)
+    var hive = statN(p, 'hive');
     var tv = statN(p, 'turret');
     if (tv > 0 && !c.over) {
-      var pool = aliveEnemies();
-      if (pool.length) {
-        var en = pick(pool);
-        dealToEnemy(en, c.enemies.indexOf(en), tv + attr('tech'), { noCrit: true, noWeak: true });
+      for (var hvt = 0; hvt <= hive && !c.over; hvt++) {
+        var pool = aliveEnemies();
+        if (pool.length) {
+          var en = pick(pool);
+          dealToEnemy(en, c.enemies.indexOf(en), tv + attr('tech'), { noCrit: true, noWeak: true });
+        }
       }
     }
     var drv = statN(p, 'drone');     // Drone Swarm: an AoE turret — strafes ALL enemies
     if (drv > 0 && !c.over) {
-      c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, drv + attr('tech'), { noCrit: true, noWeak: true }); });
+      for (var hvd = 0; hvd <= hive && !c.over; hvd++) {
+        c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, drv + attr('tech'), { noCrit: true, noWeak: true }); });
+      }
     }
     var ev = statN(p, 'entropy');
     if (ev > 0) {
@@ -5872,7 +6136,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         var bd = statN(en, 'burn');
         en.hp -= bd;
         emit('dmg', { who: 'enemy', idx: idx, amount: bd, hpDmg: bd, burn: true, hpAfter: Math.max(0, en.hp), blockAfter: en.block });
-        addStatus(en, 'burn', -B.status.burnTick);
+        var wf = statN(c.player, 'wildfire');
+        if (wf > 0 && en.hp > 0) {
+          // WILDFIRE: Burn grows instead of decaying, and spreads to another enemy.
+          addStatus(en, 'burn', wf);
+          emit('status', { who: 'enemy', idx: idx, s: 'burn', v: statN(en, 'burn') });
+          var wfsp = aliveEnemies().filter(function (e) { return e !== en; });
+          if (wfsp.length) { var wse = pick(wfsp); addStatus(wse, 'burn', wf); emit('status', { who: 'enemy', idx: c.enemies.indexOf(wse), s: 'burn', v: statN(wse, 'burn') }); trackBurn(wf); }
+        } else {
+          addStatus(en, 'burn', -B.status.burnTick);
+        }
         if (en.hp <= 0) {
           en.alive = false; r.kills++;
           if (en.def.overload) { var ovb = scaledDmg(en.def.overload, s); emit('overload', { idx: idx, amount: ovb }); hurtPlayer(ovb); }
