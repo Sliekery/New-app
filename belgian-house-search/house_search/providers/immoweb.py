@@ -143,5 +143,6 @@ def _parse(raw: dict) -> Optional[Listing]:
         title=" ".join(
             x for x in [prop.get("type"), locality, postal] if x
         ).strip() or None,
+        description=_dig(raw, "title") or _dig(prop, "description") or prop.get("subtype"),
         extra={},
     )

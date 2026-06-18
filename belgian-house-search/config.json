@@ -3,10 +3,14 @@
   "price_min": 300000,
   "price_max": 500000,
   "min_bedrooms": 3,
+  "min_bathrooms": 0,
   "property_types": ["HOUSE", "VILLA"],
   "require_garden": true,
   "min_garden_area": 1500,
   "require_finished": true,
   "min_living_area": null,
+  "min_land_area": null,
+  "include_keywords": [],
+  "exclude_keywords": [],
   "sort_by": "garden"
 }

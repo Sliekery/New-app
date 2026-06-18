@@ -47,6 +47,7 @@ class Criteria:
     price_max: Optional[int] = 500_000
 
     min_bedrooms: int = 3
+    min_bathrooms: int = 0
 
     # House only (no apartments / flats).
     property_types: List[str] = field(default_factory=lambda: ["HOUSE", "VILLA"])
@@ -58,7 +59,14 @@ class Criteria:
     # Only finished / move-in-ready houses.
     require_finished: bool = True
 
-    min_living_area: Optional[int] = None  # optional m² floor
+    min_living_area: Optional[int] = None  # optional m² floor (habitable surface)
+    min_land_area: Optional[int] = None    # optional m² floor (total plot)
+
+    # Keyword filters, matched against the listing's text (title/description/…).
+    # include: keep only listings containing AT LEAST ONE of these words.
+    # exclude: drop listings containing ANY of these words.
+    include_keywords: List[str] = field(default_factory=list)
+    exclude_keywords: List[str] = field(default_factory=list)
 
     # How to sort results in the report: "price", "garden", "living_area".
     sort_by: str = "garden"
@@ -78,12 +86,20 @@ class Criteria:
             f"Min bedrooms: {self.min_bedrooms}",
             f"Type: {', '.join(self.property_types)}",
         ]
+        if self.min_bathrooms:
+            parts.append(f"Min bathrooms: {self.min_bathrooms}")
         if self.require_garden:
             parts.append(f"Garden required (min {self.min_garden_area} m²)")
         if self.require_finished:
             parts.append("Move-in ready only")
         if self.min_living_area:
             parts.append(f"Min living area: {self.min_living_area} m²")
+        if self.min_land_area:
+            parts.append(f"Min plot: {self.min_land_area} m²")
+        if self.include_keywords:
+            parts.append(f"Must mention: {', '.join(self.include_keywords)}")
+        if self.exclude_keywords:
+            parts.append(f"Exclude: {', '.join(self.exclude_keywords)}")
         return " | ".join(parts)
 
 

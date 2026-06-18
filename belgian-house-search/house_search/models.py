@@ -38,6 +38,7 @@ class Listing:
 
     image_url: Optional[str] = None
     title: Optional[str] = None
+    description: Optional[str] = None    # free text, used for keyword filtering
 
     # Anything provider-specific we want to keep around for debugging.
     extra: dict = field(default_factory=dict)
@@ -47,6 +48,15 @@ class Listing:
         if self.price and self.living_area:
             return round(self.price / self.living_area)
         return None
+
+    @property
+    def search_text(self) -> str:
+        """All the human-readable text we can match keywords against."""
+        parts = [
+            self.title, self.description, self.condition,
+            self.property_type, self.locality, self.postal_code,
+        ]
+        return " ".join(str(p) for p in parts if p).lower()
 
     def to_dict(self) -> dict:
         d = asdict(self)

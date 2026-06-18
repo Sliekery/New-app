@@ -70,13 +70,22 @@ def criteria_from_form(params) -> Criteria:
     c.price_min = _get_int(params, "price_min", c.price_min)
     c.price_max = _get_int(params, "price_max", c.price_max)
     c.min_bedrooms = _get_int(params, "min_bedrooms", c.min_bedrooms) or 0
+    c.min_bathrooms = _get_int(params, "min_bathrooms", c.min_bathrooms) or 0
     c.min_garden_area = _get_int(params, "min_garden", c.min_garden_area) or 0
+    c.min_living_area = _get_int(params, "min_living", c.min_living_area)
+    c.min_land_area = _get_int(params, "min_land", c.min_land_area)
     c.require_garden = "require_garden" in params
     c.require_finished = "require_finished" in params
+    c.include_keywords = _split_keywords(_get(params, "include_keywords"))
+    c.exclude_keywords = _split_keywords(_get(params, "exclude_keywords"))
     sort_by = _get(params, "sort_by")
     if sort_by in {"garden", "price", "living_area"}:
         c.sort_by = sort_by
     return c
+
+
+def _split_keywords(raw: str):
+    return [k.strip() for k in raw.replace(";", ",").split(",") if k.strip()]
 
 
 # --------------------------------------------------------------------------
@@ -127,6 +136,8 @@ def _source_checks(selected) -> str:
 
 def render_form(c: Criteria, selected_sources) -> str:
     pc = html.escape(", ".join(c.postal_codes))
+    incl = html.escape(", ".join(c.include_keywords))
+    excl = html.escape(", ".join(c.exclude_keywords))
     return f"""
   <form class="search" method="get" action="/search">
     <div class="row">
@@ -149,8 +160,8 @@ def render_form(c: Criteria, selected_sources) -> str:
         <input type="number" name="min_bedrooms" value="{c.min_bedrooms}" min="0">
       </div>
       <div>
-        <label>Minimum garden / plot (m²)</label>
-        <input type="number" name="min_garden" value="{c.min_garden_area}" step="100">
+        <label>Minimum bathrooms</label>
+        <input type="number" name="min_bathrooms" value="{c.min_bathrooms}" min="0">
       </div>
       <div>
         <label>Sort results by</label>
@@ -159,6 +170,32 @@ def render_form(c: Criteria, selected_sources) -> str:
           <option value="price" {_sel(c.sort_by,'price')}>Lowest price first</option>
           <option value="living_area" {_sel(c.sort_by,'living_area')}>Most living space first</option>
         </select>
+      </div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <div>
+        <label>Minimum garden / plot (m²)</label>
+        <input type="number" name="min_garden" value="{c.min_garden_area}" step="100">
+      </div>
+      <div>
+        <label>Minimum living space (m²)</label>
+        <input type="number" name="min_living" value="{c.min_living_area or ''}" step="10">
+      </div>
+      <div>
+        <label>Minimum total plot (m²)</label>
+        <input type="number" name="min_land" value="{c.min_land_area or ''}" step="100">
+      </div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <div>
+        <label>Must mention any of these words (comma-separated)</label>
+        <input type="text" name="include_keywords" value="{incl}"
+               placeholder="nieuwbouw, instapklaar, zwembad">
+      </div>
+      <div>
+        <label>Hide listings mentioning any of these words</label>
+        <input type="text" name="exclude_keywords" value="{excl}"
+               placeholder="te renoveren, opfrissen">
       </div>
     </div>
     <fieldset>
@@ -235,10 +272,21 @@ def run_search_page(params) -> bytes:
         f'<p class="summary">Found <b>{len(matched)}</b> matching houses · '
         f'searched: {", ".join(SOURCE_LABELS.get(s, s) for s in sources)}</p>'
     )
+    tip = ""
+    if not matched and not outcome.errors and outcome.listings:
+        # We got listings but the filters removed them all — guide the user.
+        tip = (
+            '<div class="notice">No houses matched all your filters. '
+            "If you expected some, note that a website doesn't always publish a "
+            "garden size — with <b>Must have a garden</b> ticked and a minimum set, "
+            "those get excluded. Try lowering <b>Minimum garden / plot</b>, clearing "
+            "it, or unticking <b>Must have a garden</b>.</div>"
+        )
     body = (
         render_form(criteria, selected)
         + notice
         + summary
+        + tip
         + render_cards(matched)
     )
     return page(body, f"{len(matched)} houses found")

@@ -67,8 +67,23 @@ Edit `config.json`:
 | `require_garden` | Only houses with a garden |
 | `min_garden_area` | Minimum garden / plot size in m² ("very big" = 1500) |
 | `require_finished` | Exclude houses that need renovation |
+| `min_bathrooms` | Minimum number of bathrooms (0 = no limit) |
 | `min_living_area` | Optional minimum living area in m² (`null` = no limit) |
+| `min_land_area` | Optional minimum total plot in m² (`null` = no limit) |
+| `include_keywords` | Keep only listings whose text mentions **any** of these words (e.g. `["nieuwbouw", "instapklaar"]`) |
+| `exclude_keywords` | Drop listings whose text mentions **any** of these words (e.g. `["te renoveren"]`) |
 | `sort_by` | `"garden"`, `"price"`, or `"living_area"` |
+
+> **About "Must have a garden":** when this is on and a minimum garden size is
+> set, a house is only kept if the site actually reports a garden/plot of at
+> least that size. Listings that don't publish a garden size are excluded
+> (rather than slipping through). If a search comes back empty, lower or clear
+> the minimum garden size, or untick the requirement.
+
+> **About keywords:** matching is case-insensitive and runs against each
+> listing's available text (title, description, condition, type, place).
+> "Must mention any of" keeps a house if **at least one** word appears;
+> "Hide listings mentioning" removes it if **any** word appears.
 
 You can also override settings on the command line without editing the file:
 

@@ -22,6 +22,7 @@ _SAMPLE: List[Listing] = [
         condition="GOOD", postal_code="3840", locality="Borgloon",
         province="Limburg", image_url=None,
         title="Detached house with large garden, Borgloon",
+        description="Instapklare gezinswoning met grote tuin en zuidterras.",
     ),
     Listing(
         source="sample", listing_id="demo-2",
@@ -31,6 +32,7 @@ _SAMPLE: List[Listing] = [
         condition="AS_NEW", postal_code="3870", locality="Heers",
         province="Limburg", image_url=None,
         title="Modern villa, very big plot, Heers",
+        description="Nieuwbouw villa, energiezuinig, met zwembad en grote tuin.",
     ),
     Listing(  # rejected: needs renovation
         source="sample", listing_id="demo-3",
@@ -76,6 +78,16 @@ _SAMPLE: List[Listing] = [
         condition="JUST_RENOVATED", postal_code="3730", locality="Hoeselt",
         province="Limburg",
         title="Renovated house with garden, Hoeselt",
+        description="Volledig gerenoveerd, instapklaar, met tuin.",
+    ),
+    Listing(  # rejected when a garden is required: garden info unknown
+        source="sample", listing_id="demo-8",
+        url="https://example.com/demo-8",
+        price=399_000, property_type="HOUSE", bedrooms=4, bathrooms=2,
+        living_area=200, land_area=None, garden_area=None, has_garden=None,
+        condition="GOOD", postal_code="3840", locality="Borgloon",
+        province="Limburg",
+        title="House in Borgloon (no garden info)",
     ),
 ]
 

@@ -35,25 +35,53 @@ def matches(listing: Listing, c: Criteria) -> Tuple[bool, str]:
     if c.price_max is not None and listing.price is not None and listing.price > c.price_max:
         return False, f"price {listing.price} above max"
 
-    if listing.bedrooms is not None and listing.bedrooms < c.min_bedrooms:
+    if c.min_bedrooms and listing.bedrooms is not None and listing.bedrooms < c.min_bedrooms:
         return False, f"{listing.bedrooms} bedrooms < {c.min_bedrooms}"
+
+    if c.min_bathrooms and listing.bathrooms is not None and listing.bathrooms < c.min_bathrooms:
+        return False, f"{listing.bathrooms} bathrooms < {c.min_bathrooms}"
 
     if c.min_living_area and listing.living_area is not None:
         if listing.living_area < c.min_living_area:
             return False, f"living area {listing.living_area} < {c.min_living_area}"
 
+    if c.min_land_area:
+        plot = listing.land_area or listing.garden_area
+        if not plot or plot < c.min_land_area:
+            return False, f"plot {plot or 'unknown'} m² < {c.min_land_area}"
+
     if c.require_garden:
         garden = _effective_garden(listing)
-        # Treat an explicit has_garden=False as disqualifying.
-        if listing.has_garden is False and not garden:
+        has = listing.has_garden
+        # Explicitly no garden -> always out.
+        if has is False:
             return False, "no garden"
-        if c.min_garden_area and garden and garden < c.min_garden_area:
-            return False, f"garden {garden} m² < {c.min_garden_area}"
+        if c.min_garden_area:
+            # We require a known garden/plot of at least the minimum. A listing
+            # whose garden size is unknown can't be confirmed to meet it, so
+            # it's excluded (this is the fix for "houses with no garden showing").
+            if not garden or garden < c.min_garden_area:
+                return False, f"garden {garden or 'unknown'} m² < {c.min_garden_area}"
+        else:
+            # No size requirement: need some evidence of a garden.
+            if not garden and has is not True:
+                return False, "garden not confirmed"
 
     if c.require_finished and listing.condition:
         cond = listing.condition.upper()
         if cond in UNFINISHED_CONDITIONS:
             return False, f"condition {listing.condition} not move-in ready"
+
+    text = listing.search_text
+    if c.include_keywords:
+        wanted = [k.strip().lower() for k in c.include_keywords if k.strip()]
+        if wanted and not any(k in text for k in wanted):
+            return False, f"none of keywords {wanted} found"
+    if c.exclude_keywords:
+        for k in c.exclude_keywords:
+            kk = k.strip().lower()
+            if kk and kk in text:
+                return False, f"excluded keyword '{kk}' found"
 
     return True, ""
 

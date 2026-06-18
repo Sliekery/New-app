@@ -49,8 +49,18 @@ def build_criteria(args) -> Criteria:
         c.price_max = args.max_price
     if args.min_bedrooms is not None:
         c.min_bedrooms = args.min_bedrooms
+    if args.min_bathrooms is not None:
+        c.min_bathrooms = args.min_bathrooms
     if args.min_garden is not None:
         c.min_garden_area = args.min_garden
+    if args.min_living is not None:
+        c.min_living_area = args.min_living
+    if args.min_land is not None:
+        c.min_land_area = args.min_land
+    if args.include_keywords:
+        c.include_keywords = [k.strip() for k in args.include_keywords.split(",") if k.strip()]
+    if args.exclude_keywords:
+        c.exclude_keywords = [k.strip() for k in args.exclude_keywords.split(",") if k.strip()]
     if args.sort_by:
         c.sort_by = args.sort_by
     return c
@@ -74,7 +84,12 @@ def main(argv=None) -> int:
     p.add_argument("--min-price", type=int)
     p.add_argument("--max-price", type=int)
     p.add_argument("--min-bedrooms", type=int)
+    p.add_argument("--min-bathrooms", type=int)
     p.add_argument("--min-garden", type=int, help="Minimum garden/plot size in m²")
+    p.add_argument("--min-living", type=int, help="Minimum living area in m²")
+    p.add_argument("--min-land", type=int, help="Minimum total plot in m²")
+    p.add_argument("--include-keywords", help="Comma-separated: keep only if any word appears")
+    p.add_argument("--exclude-keywords", help="Comma-separated: drop if any word appears")
     p.add_argument("--sort-by", choices=["price", "garden", "living_area"])
 
     p.add_argument("--max-pages", type=int, default=10, help="Max result pages to fetch per source")

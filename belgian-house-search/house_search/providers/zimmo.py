@@ -164,5 +164,6 @@ def _parse(raw: dict) -> Optional[Listing]:
         province=first(dig(prop, "province"), raw.get("province")),
         image_url=image,
         title=" ".join(str(x) for x in ["House", locality, postal] if x).strip() or None,
+        description=first(prop.get("description"), raw.get("description"), prop.get("title")),
         extra={},
     )
