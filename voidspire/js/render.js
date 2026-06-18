@@ -49,8 +49,12 @@
   R.targeting = false;
   // lock-on aiming reticle (drag a targeted card out of hand -> reticle follows
   // the cursor and locks the enemy under it; release fires the card)
-  R.aim = { on: false, x: 0, y: 0, lock: -1 };
-  R.setAim = function (x, y, lock) { R.aim.on = true; R.aim.x = x; R.aim.y = y; R.aim.lock = (lock == null ? -1 : lock); };
+  R.aim = { on: false, x: 0, y: 0, lock: -1, lockT: -9 };
+  R.setAim = function (x, y, lock) {
+    R.aim.on = true; R.aim.x = x; R.aim.y = y;
+    var lk = (lock == null ? -1 : lock);
+    if (lk !== R.aim.lock) { R.aim.lock = lk; if (lk >= 0) R.aim.lockT = t; }   // new target -> start the lock-on anim
+  };
   R.clearAim = function () { R.aim.on = false; R.aim.lock = -1; };
 
   R.init = function (cv) {
@@ -1132,18 +1136,28 @@
     var lockV = (aim.lock >= 0 && R.views[aim.lock] && R.views[aim.lock].alive) ? R.views[aim.lock] : null;
     ctx.save();
     if (lockV) {
-      // hard LOCK — tight brackets hugging the enemy model
+      // hard LOCK — brackets snap in from large to a tight hug (easeOutBack)
+      var since = t - (aim.lockT || -9), dur = 0.24, p = Math.min(1, since / dur);
+      var c1 = 2.0, eb = 1 + (c1 + 1) * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2);
       var pulse = 0.6 + 0.4 * Math.sin(t * 8);
-      var rr = lockV.r + 4 + Math.sin(t * 8) * 1.2;
-      ctx.strokeStyle = '#5dff88'; ctx.shadowColor = '#5dff88'; ctx.shadowBlur = 9 * pulse; ctx.lineWidth = 2;
+      var finalR = lockV.r + 4 + Math.sin(t * 8) * 1.2;
+      var rr = finalR + (1 - eb) * 30;               // starts ~+30px, snaps inward
+      var appear = Math.min(1, p * 1.5);             // crosshair + label fade in
+      // converging flash ring during the acquire
+      if (p < 1) {
+        ctx.globalAlpha = (1 - p) * 0.85; ctx.strokeStyle = '#b6ffd2'; ctx.lineWidth = 2; ctx.shadowColor = '#5dff88'; ctx.shadowBlur = 10;
+        ctx.beginPath(); ctx.arc(lockV.x, lockV.y, rr + 6, 0, 7); ctx.stroke(); ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+      }
+      ctx.strokeStyle = '#5dff88'; ctx.shadowColor = '#5dff88'; ctx.shadowBlur = 9 * pulse + (1 - p) * 14; ctx.lineWidth = 2;
       cornerBox(lockV.x, lockV.y, rr); ctx.shadowBlur = 0;
-      ctx.globalAlpha = 0.7; ctx.lineWidth = 1; ctx.beginPath();
+      ctx.globalAlpha = appear * 0.85; ctx.lineWidth = 1; ctx.beginPath();
       ctx.moveTo(lockV.x - rr - 5, lockV.y); ctx.lineTo(lockV.x - rr, lockV.y);
       ctx.moveTo(lockV.x + rr, lockV.y); ctx.lineTo(lockV.x + rr + 5, lockV.y);
       ctx.moveTo(lockV.x, lockV.y - rr - 5); ctx.lineTo(lockV.x, lockV.y - rr);
       ctx.moveTo(lockV.x, lockV.y + rr); ctx.lineTo(lockV.x, lockV.y + rr + 5); ctx.stroke();
-      ctx.globalAlpha = 1; ctx.fillStyle = '#5dff88'; ctx.font = 'bold 10px ui-monospace, monospace'; ctx.textAlign = 'center';
+      ctx.globalAlpha = appear; ctx.fillStyle = '#5dff88'; ctx.font = 'bold 10px ui-monospace, monospace'; ctx.textAlign = 'center';
       ctx.shadowColor = '#5dff88'; ctx.shadowBlur = 6; ctx.fillText('◉ LOCK', lockV.x, lockV.y - rr - 10); ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
     } else {
       // scanning reticle riding the cursor: two counter-rotating bracket rings
       var x = aim.x, y = aim.y;

@@ -109,6 +109,7 @@
     hit: function () { beep(140, 0.12, 'sawtooth', 0.05, -60); },
     crit: function () { beep(880, 0.18, 'square', 0.05, -440); },
     block: function () { beep(520, 0.08, 'triangle', 0.045); },
+    lock: function () { beep(720, 0.04, 'square', 0.028, 200); setTimeout(function () { beep(1080, 0.05, 'square', 0.03); }, 42); },
     hurt: function () { beep(90, 0.2, 'sawtooth', 0.06, -40); },
     heal: function () { beep(520, 0.12, 'sine', 0.05, 260); },
     win: function () { beep(523, 0.1, 'square', 0.04); setTimeout(function () { beep(659, 0.1, 'square', 0.04); }, 110); setTimeout(function () { beep(784, 0.22, 'square', 0.05); }, 220); },
@@ -1506,6 +1507,8 @@
         var ax = ev.clientX - bf.left, ay = ev.clientY - bf.top;
         var lk = R.enemyAt(ax, ay);
         R.setAim(ax, ay, lk);
+        if (lk >= 0 && lk !== drag.lastLock) { SFX.lock(); drag.lastLock = lk; }   // ping on acquire
+        else if (lk < 0) drag.lastLock = -1;
         drag.el.classList.toggle('will-play', lk >= 0);
       } else {
         // single-target / non-target cards keep the drag-to-play gesture
