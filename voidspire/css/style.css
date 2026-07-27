@@ -1311,3 +1311,33 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .df { cursor: pointer; }
 .df.sel { border-color: #ffffff; box-shadow: 0 0 10px rgba(255,255,255,0.28); }
 .df.sel .df-n { color: #ffffff; }
+
+/* ---- The Die: workshop (sandbox editor) -------------------------------- */
+.die-shop { width: 100%; max-width: 620px; margin: 4px auto 6px; }
+.ws-title { font: 700 9px/1.4 ui-monospace, monospace; letter-spacing: 0.12em; color: #9bb0a6; margin-bottom: 5px; }
+.ws-note { color: #6a7f73; letter-spacing: 0.04em; font-weight: 600; text-transform: none; }
+.ws-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ws-lab { font: 700 9px/1 ui-monospace, monospace; letter-spacing: 0.1em; color: #9bb0a6; }
+.ws-val { font: 700 12px/1 ui-monospace, monospace; color: #ffb02e; min-width: 26px; text-align: center; }
+.ws-gap { flex: 1 1 auto; }
+.ws-btn {
+  font: 700 9px/1 ui-monospace, monospace; letter-spacing: 0.08em; color: #d6ffe4;
+  background: rgba(12,24,17,0.9); border: 1px solid rgba(93,255,136,0.45); border-radius: 3px;
+  padding: 6px 9px; cursor: pointer;
+}
+.ws-btn.wide { padding: 6px 12px; }
+.ws-btn.danger { border-color: rgba(255,74,94,0.55); color: #ffc4cc; }
+.ws-pick { margin-top: 7px; border-top: 1px solid rgba(94,138,108,0.25); padding-top: 6px; }
+.ws-grp { font: 700 8px/1.4 ui-monospace, monospace; letter-spacing: 0.12em; color: #6f8579; margin: 4px 0 3px; }
+.ws-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(122px, 1fr)); gap: 4px; }
+.ws-aug {
+  display: flex; align-items: center; justify-content: space-between; gap: 4px;
+  font: 700 8.5px/1.15 ui-monospace, monospace; text-align: left; color: #d6ffe4;
+  background: rgba(10,20,14,0.85); border: 1px solid rgba(93,255,136,0.35); border-radius: 3px;
+  padding: 5px 6px; cursor: pointer;
+}
+.ws-aug.flaw { border-color: rgba(255,74,94,0.45); color: #ffc4cc; }
+.ws-aug.bad { opacity: 0.35; }
+.ws-t { color: #7f9a8b; font-size: 7.5px; flex: 0 0 auto; }
+.dm-chip.vault { opacity: 0.55; border-style: dashed; }
+.dm-chip { cursor: pointer; }
