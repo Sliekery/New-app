@@ -37,8 +37,10 @@
 
     /* ---- d20 / crits ------------------------------------------------ */
     dice: {
-      critThreshold: 20,        // natural roll >= (threshold - critBonus) crits
+      critThreshold: 20,        // roll + Aim >= (threshold - critBonus) crits
       critMult: 2.0,            // crit damage multiplier
+      misfireMult: 0.5,         // natural 1: the shot goes wide
+      vanguardAim: 1,           // the marksman class sights in: starting Aim each combat
     },
 
     /* ---- Status effects ---------------------------------------------- */

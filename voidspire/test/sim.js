@@ -261,6 +261,8 @@ var ENGINES = {
                flex: ['pulse_rifle', 'combat_shield', 'war_cry', 'suppressing_fire', 'bayonet_charge', 'brace', 'reload', 'rallying_shout', 'munitions_dump'] },
   bloodforge: { cls: 'vanguard', core: ['blood_rage', 'deflect', 'vengeance', 'counterstrike', 'crimson_pact', 'whet_the_blade', 'bloodbath', 'frenzy', 'limit_break', 'heavy_ordnance', 'combat_stims', 'bloodlust'],
                 flex: ['pulse_rifle', 'war_cry', 'rallying_shout', 'bayonet_charge', 'executioner', 'adrenal_surge'] },
+  marksman: { cls: 'vanguard', core: ['take_aim', 'steady_aim', 'marksman_round', 'hair_trigger', 'deadeye_protocol', 'killshot', 'misfire_protocol', 'executioner', 'burst_fire', 'shield_bash'],
+              flex: ['pulse_rifle', 'combat_shield', 'war_cry', 'brace', 'reload', 'bayonet_charge'] },
   bandolier: { cls: 'vanguard', core: ['salvo', 'reload', 'quartermaster', 'breaching_charge', 'field_strip', 'cluster_charge', 'scorched_earth', 'iron_resolve', 'salvage_protocol', 'reckless_charge', 'limit_break', 'adrenal_surge'],
                flex: ['pulse_rifle', 'combat_shield', 'munitions_dump', 'bayonet_charge', 'brace', 'reload'] },
   // Voidadept affliction/Burn engine

@@ -408,6 +408,13 @@ html, body {
 #combat-die.settle .die-svg { animation: dieSettle 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.5); }
 @keyframes dieSpinLoop { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 @keyframes dieSettle { 0% { transform: scale(1.3); } 100% { transform: scale(1); } }
+#combat-die .die-aim {
+  position: absolute; top: -4px; right: -6px; font: 700 10px/1 ui-monospace, monospace;
+  color: var(--amber); text-shadow: 0 0 6px rgba(255,176,46,0.9); pointer-events: none;
+}
+#combat-die.misfire { color: #ff4a5e; }
+#combat-die.misfire .die-svg { filter: drop-shadow(0 0 9px rgba(255,74,94,0.85)); }
+#combat-die.misfire .die-n { color: #ffd6da; text-shadow: 0 0 9px rgba(255,74,94,0.9); }
 #combat-die.crit { color: #5dff88; }
 #combat-die.crit .die-svg { filter: drop-shadow(0 0 9px rgba(93,255,136,0.85)); }
 #combat-die.crit .die-n { color: #d6ffe4; text-shadow: 0 0 9px rgba(93,255,136,0.9); }
@@ -684,6 +691,7 @@ html, body {
 .floater.heal { color: var(--green); text-shadow: 0 0 8px rgba(93,255,136,0.7); }
 .floater.block { color: var(--cyan); text-shadow: 0 0 8px rgba(65,216,255,0.7); }
 .floater.crit { font-size: 28px; color: var(--amber); text-shadow: 0 0 12px rgba(255,176,46,0.9); }
+.floater.misfire { font-size: 20px; color: #ff4a5e; text-shadow: 0 0 12px rgba(255,74,94,0.9); }
 .floater.status { font-size: 13px; color: var(--magenta); }
 .floater.roll { font-size: 12px; color: var(--text-dim); }
 @keyframes floatUp {
@@ -1304,8 +1312,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     /* ---- d20 / crits ------------------------------------------------ */
     dice: {
-      critThreshold: 20,        // natural roll >= (threshold - critBonus) crits
+      critThreshold: 20,        // roll + Aim >= (threshold - critBonus) crits
       critMult: 2.0,            // crit damage multiplier
+      misfireMult: 0.5,         // natural 1: the shot goes wide
+      vanguardAim: 1,           // the marksman class sights in: starting Aim each combat
     },
 
     /* ---- Status effects ---------------------------------------------- */
@@ -1452,6 +1462,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
     wildfire: 'Wildfire', psiRamp: 'Ascendant', hive: 'Hive', conduit: 'Conduit', plating: 'Plating',
     emberward: 'Ember Ward', staticward: 'Static Ward', spikeward: 'Spiked Bulwark',
+    aim: 'Aim', aimPerTurn: 'Steady Aim', critFury: 'Killing Rage', deadeyeDraw: 'Deadeye', misfireGuard: 'Misfire Protocol',
     demoCharge: 'Demolition', subroutine: 'Subroutine', aegisLink: 'Swarm Uplink',
     platedArmor: 'Plated Armor', barricade: 'Barricade', bloodPact: 'Blood Pact',
     pack: 'Pack Fury', symbiosis: 'Symbiosis', brood: 'Brood', slots: 'Kennel',
@@ -1589,6 +1600,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     'Demolition': 'Whenever you Exhaust a card, deal that much damage to ALL enemies.',
     'Subroutine': 'Whenever you play a Power, draw a card.',
     'Swarm Uplink': 'Whenever one of your constructs fires, gain that much Shield.',
+    'Aim': 'Added to the d20 you roll for every attack — it makes crits and roll thresholds far more likely.',
+    'Steady Aim': 'Gain that much Aim at the start of each turn.',
+    'Killing Rage': 'Whenever an attack crits, gain that much Might.',
+    'Deadeye': 'Whenever an attack crits, draw that many cards.',
+    'Misfire Protocol': 'When an attack misfires (a natural 1), gain that much Momentum and 1 Energy.',
+    'Misfire': 'A natural 1 on the die — the shot goes wide and deals half damage.',
+    'Crit': 'Roll + Aim meeting the crit mark (a natural 20 always crits) doubles the damage.',
     'Reactor': 'Gain +1 Energy at the start of each turn per stack.',
     'Warlord': 'Gain Might at the start of each turn.',
     'Resolve': 'Whenever a card is Exhausted, gain Shield.',
@@ -1655,8 +1673,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     /* ---------------- Vanguard ---------------- */
     burst_fire: {
       name: 'Burst Fire', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
-      fx: [{ k: 'dmg', v: 3, hits: 2, scale: 'might' }],
-      up: { fx: [{ k: 'dmg', v: 3, hits: 3, scale: 'might' }] },
+      fx: [{ k: 'dmg', v: 3, hits: 2, scale: 'might' }, { k: 'onRoll', min: 15, fx: [{ k: 'dmg', v: 3, scale: 'might' }] }],
+      up: { fx: [{ k: 'dmg', v: 3, hits: 3, scale: 'might' }, { k: 'onRoll', min: 13, fx: [{ k: 'dmg', v: 3, scale: 'might' }] }] },
     },
     suppressing_fire: {   // a raking burst — hammers one target, pins it, and carries through the pack
       name: 'Raking Fire', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
@@ -1942,8 +1960,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // --- new commons: deepen the layer you draft most (each a distinct niche) ---
     shield_bash: {   // the hybrid: only common that hits AND blocks (tempo + survivability)
       name: 'Shield Bash', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
-      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'block', v: 4, scale: 'pri' }],
-      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'block', v: 6, scale: 'pri' }] },
+      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'block', v: 4, scale: 'pri' }, { k: 'onRoll', min: 13, fx: [{ k: 'block', v: 4, scale: 'pri' }] }],
+      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'block', v: 6, scale: 'pri' }, { k: 'onRoll', min: 11, fx: [{ k: 'block', v: 5, scale: 'pri' }] }] },
     },
     reckless_charge: {   // 0-cost burst & Exhaust-fuel (feeds Resolve/Salvage/combos)
       name: 'Reckless Charge', cls: 'vanguard', type: 'attack', rarity: 1, cost: 0, exhaust: true,
@@ -2065,8 +2083,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
     breaching_charge: {   // a heavy shell — big single shot, spent on firing
       name: 'Breaching Charge', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1, exhaust: true,
-      fx: [{ k: 'dmg', v: 11, scale: 'might' }],
-      up: { fx: [{ k: 'dmg', v: 15, scale: 'might' }] },
+      fx: [{ k: 'dmg', v: 11, scale: 'might' }, { k: 'onRoll', min: 16, fx: [{ k: 'draw', v: 1 }] }],
+      up: { fx: [{ k: 'dmg', v: 15, scale: 'might' }, { k: 'onRoll', min: 14, fx: [{ k: 'draw', v: 1 }] }] },
     },
     field_strip: {   // cheap exhaust-fuel — cycles and feeds the spent-shell payoffs
       name: 'Field Strip', cls: 'vanguard', type: 'skill', rarity: 1, cost: 0, exhaust: true,
@@ -2666,6 +2684,51 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       up: { fx: [{ k: 'status', s: 'weak', v: 2, who: 'target' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }] },
     },
 
+    /* ============ VANGUARD — MARKSMAN: the d20 as a resource ============
+     * Aim is added to every attack roll, so the die stops being a 5% lottery and
+     * becomes something you build. Cards read the roll at thresholds, crits pay
+     * out, and even a misfire can be turned into fuel.
+     * ------------------------------------------------------------------------ */
+    take_aim: {   // the cheap enabler — bank Aim for the shots that follow
+      name: 'Take Aim', cls: 'vanguard', type: 'skill', rarity: 1, cost: 0,
+      fx: [{ k: 'status', s: 'aim', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'aim', v: 3, who: 'self' }] },
+    },
+    steady_aim: {   // the engine — marksmanship sharpens on its own every turn
+      name: 'Steady Aim', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'aimPerTurn', v: 1, who: 'self' }, { k: 'status', s: 'aim', v: 1, who: 'self' }],
+      text: 'Gain 1 more Aim at the start of each turn.',
+      up: { fx: [{ k: 'status', s: 'aimPerTurn', v: 2, who: 'self' }, { k: 'status', s: 'aim', v: 1, who: 'self' }], text: 'Gain 2 more Aim at the start of each turn.' },
+    },
+    marksman_round: {   // a shot that rewards a good roll with a cracked-open target
+      name: 'Marksman Round', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'dmg', v: 6, scale: 'might' },
+           { k: 'onRoll', min: 14, fx: [{ k: 'status', s: 'vuln', v: 2, who: 'target' }, { k: 'draw', v: 1 }] }],
+      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'onRoll', min: 12, fx: [{ k: 'status', s: 'vuln', v: 2, who: 'target' }, { k: 'draw', v: 1 }] }] },
+    },
+    hair_trigger: {   // ⚡0 chip that pays for itself when the die runs hot
+      name: 'Hair Trigger', cls: 'vanguard', type: 'attack', rarity: 1, cost: 0,
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'onRoll', min: 13, fx: [{ k: 'energy', v: 1 }] }],
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'onRoll', min: 11, fx: [{ k: 'energy', v: 1 }] }] },
+    },
+    deadeye_protocol: {   // BUILD-AROUND — every crit feeds the next one
+      name: 'Deadeye Protocol', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'critFury', v: 2, who: 'self' }, { k: 'status', s: 'deadeyeDraw', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'critFury', v: 3, who: 'self' }, { k: 'status', s: 'deadeyeDraw', v: 1, who: 'self' }] },
+    },
+    misfire_protocol: {   // BUILD-AROUND — a jammed round becomes momentum
+      name: 'Misfire Protocol', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'misfireGuard', v: 3, who: 'self' }],
+      text: 'When an attack misfires, gain 3 Momentum and 1 Energy.',
+      up: { fx: [{ k: 'status', s: 'misfireGuard', v: 5, who: 'self' }], text: 'When an attack misfires, gain 5 Momentum and 1 Energy.' },
+    },
+    killshot: {   // the cashout — dump every point of banked Aim into one round
+      name: 'Killshot', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
+      fx: [{ k: 'special', id: 'spendAim', base: 6, v: 4 }],
+      text: 'Consume all your Aim. Deal 6 damage plus 4 for each Aim consumed.',
+      up: { fx: [{ k: 'special', id: 'spendAim', base: 8, v: 5 }], text: 'Consume all your Aim. Deal 8 damage plus 5 for each Aim consumed.' },
+    },
+
     /* ============ MECHANICALLY-DISTINCT cards — new verbs, not new numbers ============
      * Reactive WARDS (punish attackers), CONVERSIONS (turn one resource into another),
      * and TRIGGERS (whenever you do X, also Y). These make an archetype PLAY differently
@@ -2825,6 +2888,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         }
         parts.push('Gain ' + Math.round(b) + ' Shield.');
       }
+      if (f.k === 'onRoll') {
+        var inner = ns.cardDesc({ fx: f.fx || [] }, false, ctx, false);
+        parts.push('Roll ' + f.min + '+: ' + inner);
+      }
       if (f.k === 'heal') parts.push('Heal ' + f.v + ' HP.');
       if (f.k === 'pet') { var pd = ns.PETS[f.id] || {}, pn = pd.name || f.id, szt = (pd.size || 1) > 1 ? ' [' + pd.size + ' slots]' : ''; parts.push('Summon ' + (f.n > 1 ? f.n + ' ' + pn + 's' : 'a ' + pn) + szt + '.'); }
       if (f.k === 'hploss') parts.push('Lose ' + f.v + ' HP.');
@@ -2838,7 +2905,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         else if (f.s === 'brood') parts.push('Each turn, summon ' + (f.v > 1 ? f.v + ' Spawnlings' : 'a Spawnling') + '.');
         else if (f.s === 'slots') parts.push('+' + f.v + ' formation slot' + (f.v > 1 ? 's' : '') + ' (Kennel).');
         else if (f.s === 'echo' || f.s === 'corruption' || f.s === 'barricade' || f.s === 'retain') parts.push('Gain ' + n + '.');
-        else if (f.s === 'emberward' || f.s === 'staticward' || f.s === 'spikeward' || f.s === 'demoCharge' || f.s === 'subroutine' || f.s === 'aegisLink') { /* the card's own text describes these reactive/trigger effects */ }
+        else if (f.s === 'emberward' || f.s === 'staticward' || f.s === 'spikeward' || f.s === 'demoCharge' || f.s === 'subroutine' || f.s === 'aegisLink' || f.s === 'aimPerTurn' || f.s === 'misfireGuard') { /* the card's own text describes these reactive/trigger effects */ }
         else if (f.who === 'self') parts.push('Gain ' + f.v + ' ' + n + '.');
         else if (f.who === 'allEnemies') parts.push('Apply ' + f.v + ' ' + n + ' to ALL enemies.');
         else parts.push('Apply ' + f.v + ' ' + n + '.');
@@ -2859,7 +2926,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var f = fx[i];
       if (f.k === 'dmg' && !f.all && !f.random) return true;
       if (f.k === 'status' && f.who === 'target') return true;
-      if (f.k === 'special' && (f.id === 'shieldSlam' || f.id === 'shieldSlam15' || f.id === 'catalyst' || f.id === 'catalyst3' || f.id === 'reap' || f.id === 'overdrive' || f.id === 'fiendFire' || f.id === 'cull' || f.id === 'detonate' || f.id === 'backdraft' || f.id === 'parch' || f.id === 'cleave')) return true;
+      if (f.k === 'special' && (f.id === 'shieldSlam' || f.id === 'shieldSlam15' || f.id === 'catalyst' || f.id === 'catalyst3' || f.id === 'reap' || f.id === 'overdrive' || f.id === 'fiendFire' || f.id === 'cull' || f.id === 'detonate' || f.id === 'backdraft' || f.id === 'parch' || f.id === 'cleave' || f.id === 'spendAim')) return true;
     }
     return false;
   };
@@ -2955,6 +3022,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     flux_capacitor: 'core', surge_protocol: 'reload', capacitor_discharge: 'bolt', recompile: 'reload', singularity_drive: 'core',
     tesla_conduit: 'bolt', disruptor_pulse: 'bolt', short_circuit: 'bolt', system_shock: 'scan', feedback_loop: 'scan', ion_storm: 'bolt', emp_mine: 'bolt', overcharged_capacitor: 'bolt', overload_surge: 'bolt',
     shock_coil: 'reload',
+    // vanguard marksman (dice)
+    take_aim: 'scan', steady_aim: 'scan', marksman_round: 'rifle', hair_trigger: 'rifle',
+    deadeye_protocol: 'eye', misfire_protocol: 'reload', killshot: 'cannon',
     // voidadept overhaul
     immolate: 'flame', cinder_burst: 'flame', ember_storm: 'hex', wildfire_engine: 'flame', conflagration: 'flame',
     ascendant_mind: 'eye', mind_lance: 'psiBolt', cerebral_spike: 'psiBolt', psionic_nova: 'vortex',
@@ -5154,7 +5224,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       turn: 0,
       energy: 0,
       hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
-      player: { block: 0, statuses: {} },
+      // The Vanguard is the marksman class: he sights in every fight, so he starts
+      // with Aim on the die. It offsets the misfire risk every attacker carries and
+      // makes the d20 matter from turn one, not just for a dedicated dice build.
+      player: { block: 0, statuses: (r.cls === 'vanguard' ? { aim: B.dice.vanguardAim } : {}) },
       pending: null,       // an in-combat choice awaiting a pick (Scry/Tutor/Discover)
       primed: [],          // armed delayed detonations (Primed)
       echoReady: false,
@@ -5280,6 +5353,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (padv > 0) { gainBlock(padv); addStatus(p, 'platedArmor', -1); } // Plated Armor: shield = stacks, then decays
     var spt = statN(p, 'strPerTurn');
     if (spt > 0) addStatus(p, 'str', spt);
+    var apt = statN(p, 'aimPerTurn');   // STEADY AIM: marksmanship sharpens every turn
+    if (apt > 0) { addStatus(p, 'aim', apt); emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') }); }
     var psr = statN(p, 'psiRamp');     // ASCENDANT MIND: Psi Focus grows each turn
     if (psr > 0) { addStatus(p, 'psiPow', psr); emit('status', { who: 'player', s: 'psiPow', v: statN(p, 'psiPow') }); }
     var rstk = statN(p, 'restock');    // Quartermaster: rack spent shells back each turn (Bandolier reload loop)
@@ -5525,6 +5600,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       amount = Math.floor(amount * B.dice.critMult);
       var cv = art('critVuln');
       if (cv > 0 && en.alive) { addStatus(en, 'vuln', cv); emit('status', { who: 'enemy', idx: idx, s: 'vuln', v: cv }); }
+    } else if (opts.misfire) {
+      amount = Math.max(1, Math.floor(amount * B.dice.misfireMult));   // natural 1: the shot goes wide
     }
     // Void Drone: each hit is capped at its absorb threshold; a hit that would
     // exceed it spits a Void Swarm curse into your deck (unless the blow lands the kill).
@@ -5912,10 +5989,18 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function applyCardFx(fx, ctx) {
     var c = E.combat, p = c.player;
     var tgt = ctx.tgt, crit = ctx.crit, roll = ctx.roll, flags = ctx.flags;
+    var misfire = ctx.misfire, eff = ctx.eff;
     var totalDealt = 0;
     fx.forEach(function (f) {
       if (c.over && f.k === 'dmg') return;
       switch (f.k) {
+        case 'onRoll': {
+          // Roll-threshold rider: resolves only if the d20 (plus Aim) met the mark.
+          // A natural 20 always qualifies; a natural 1 never does.
+          var ok = (roll === 20) || (roll != null && roll > 1 && (eff != null ? eff : roll) >= (f.min || 0));
+          if (ok) totalDealt += applyCardFx(f.fx || [], ctx);
+          break;
+        }
         case 'dmg': {
           var base = f.v + attackBonus(f);
           var hits = f.xcost ? ctx.xval : (f.hits || 1);
@@ -5925,7 +6010,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             var en, idx;
             if (f.all) {
               c.enemies.forEach(function (e, i) {
-                if (e.alive) totalDealt += dealToEnemy(e, i, base, { crit: crit, roll: roll, execute: flags.execute });
+                if (e.alive) totalDealt += dealToEnemy(e, i, base, { crit: crit, roll: roll, misfire: misfire, execute: flags.execute });
               });
               continue;
             } else if (f.random) {
@@ -5934,7 +6019,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
               en = (tgt && tgt.alive) ? tgt : pool[0];
               idx = c.enemies.indexOf(en);
             }
-            totalDealt += dealToEnemy(en, idx, base, { crit: crit, roll: roll, execute: flags.execute });
+            totalDealt += dealToEnemy(en, idx, base, { crit: crit, roll: roll, misfire: misfire, execute: flags.execute });
           }
           break;
         }
@@ -5983,7 +6068,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           if (f.id === 'shieldSlam' || f.id === 'shieldSlam15') {
             var dmg = Math.floor(p.block * (f.id === 'shieldSlam15' ? 1.5 : 1)) + statN(p, 'str') + art('flatDmg');
             var sEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
-            if (sEn && dmg > 0) totalDealt += dealToEnemy(sEn, c.enemies.indexOf(sEn), dmg, { crit: crit, roll: roll });
+            if (sEn && dmg > 0) totalDealt += dealToEnemy(sEn, c.enemies.indexOf(sEn), dmg, { crit: crit, roll: roll, misfire: misfire });
           } else if (f.id === 'limitBreak') {
             var s = statN(p, 'str');
             if (s > 0) { addStatus(p, 'str', s); emit('status', { who: 'player', s: 'str', v: s }); }
@@ -6004,10 +6089,19 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
               if (bn > 0) {
                 addStatus(de, 'burn', -bn); emit('status', { who: 'enemy', idx: c.enemies.indexOf(de), s: 'burn', v: 0 });
                 var dd = Math.round(bn * (f.v || 1)) + statN(p, 'str') + statN(p, 'psiPow') + art('flatDmg');
-                totalDealt += dealToEnemy(de, c.enemies.indexOf(de), dd, { crit: crit, roll: roll });
+                totalDealt += dealToEnemy(de, c.enemies.indexOf(de), dd, { crit: crit, roll: roll, misfire: misfire });
                 var others = aliveEnemies().filter(function (e) { return e !== de; });
                 if (others.length && bn >= 2) { var oe = pick(others); var sp = Math.floor(bn / 2); addStatus(oe, 'burn', sp); emit('status', { who: 'enemy', idx: c.enemies.indexOf(oe), s: 'burn', v: statN(oe, 'burn') }); trackBurn(sp); }
               }
+            }
+          } else if (f.id === 'spendAim') {
+            // KILLSHOT: burn every point of banked Aim into one aimed round.
+            var saT = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            var saN = statN(p, 'aim');
+            if (saT) {
+              if (saN > 0) { addStatus(p, 'aim', -saN); emit('status', { who: 'player', s: 'aim', v: 0 }); }
+              var saD = (f.base || 6) + saN * (f.v || 4) + statN(p, 'str') + attr('might') + art('flatDmg');
+              totalDealt += dealToEnemy(saT, c.enemies.indexOf(saT), saD, { crit: crit, roll: roll, misfire: misfire });
             }
           } else if (f.id === 'backdraft') {
             // BACKDRAFT: vent your Shield as a wall of fire onto one target (then Detonate it).
@@ -6024,12 +6118,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           } else if (f.id === 'parch') {
             // PARCH: cash a Burn stack as raw damage WITHOUT consuming it (rewards stacking, unlike Detonate).
             var paT = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
-            if (paT) { var paV = statN(paT, 'burn') + statN(p, 'str') + statN(p, 'psiPow') + art('flatDmg'); if (paV > 0) totalDealt += dealToEnemy(paT, c.enemies.indexOf(paT), paV, { crit: crit, roll: roll }); }
+            if (paT) { var paV = statN(paT, 'burn') + statN(p, 'str') + statN(p, 'psiPow') + art('flatDmg'); if (paV > 0) totalDealt += dealToEnemy(paT, c.enemies.indexOf(paT), paV, { crit: crit, roll: roll, misfire: misfire }); }
           } else if (f.id === 'soulflare') {
             // SOULFLARE: a blast that scales with how WIDE your fire has spread (every burning foe).
             var sfTargets = aliveEnemies().filter(function (e) { return statN(e, 'burn') > 0; });
             var sfDmg = (f.v || 3) + statN(p, 'psiPow');
-            sfTargets.forEach(function (e) { totalDealt += dealToEnemy(e, c.enemies.indexOf(e), sfDmg, { crit: crit, roll: roll }); });
+            sfTargets.forEach(function (e) { totalDealt += dealToEnemy(e, c.enemies.indexOf(e), sfDmg, { crit: crit, roll: roll, misfire: misfire }); });
           } else if (f.id === 'forgeBarrier') {
             // BULWARK STANCE: forge your stacked Might into a wall (Might as defence).
             var fbV = Math.round((statN(p, 'str') + attr('might')) * (f.v || 2));
@@ -6037,7 +6131,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           } else if (f.id === 'cleave') {
             // CLEAVE: a heavy blow to one foe that carries through to the rest of the pack.
             var clT = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
-            if (clT) totalDealt += dealToEnemy(clT, c.enemies.indexOf(clT), (f.v || 5) + statN(p, 'str') + attr('might'), { crit: crit, roll: roll });
+            if (clT) totalDealt += dealToEnemy(clT, c.enemies.indexOf(clT), (f.v || 5) + statN(p, 'str') + attr('might'), { crit: crit, roll: roll, misfire: misfire });
             aliveEnemies().forEach(function (e) { if (e !== clT) totalDealt += dealToEnemy(e, c.enemies.indexOf(e), (f.splash || 3) + statN(p, 'str') + attr('might'), { noCrit: true }); });
           } else if (f.id === 'repairBay') {
             // REPAIR BAY: patch yourself, and harden if you have a construct deployed.
@@ -6049,20 +6143,20 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             var burnt = c.hand.splice(0, c.hand.length);
             burnt.forEach(function (hc) { exhaustCard(hc); });
             var per = f.v + statN(p, 'str') + art('flatDmg');
-            if (fEn) for (var q = 0; q < burnt.length; q++) totalDealt += dealToEnemy(fEn, c.enemies.indexOf(fEn), per, { crit: crit, roll: roll });
+            if (fEn) for (var q = 0; q < burnt.length; q++) totalDealt += dealToEnemy(fEn, c.enemies.indexOf(fEn), per, { crit: crit, roll: roll, misfire: misfire });
           } else if (f.id === 'reap') {
             // HEXWEAVER / SUPPRESSION capstone: damage scales with debuffs on target.
             var rEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             if (rEn) {
               var stacks = statN(rEn, 'vuln') + statN(rEn, 'weak') + statN(rEn, 'burn');
               var rd = stacks * f.v + statN(p, 'str') + art('flatDmg');
-              if (rd > 0) totalDealt += dealToEnemy(rEn, c.enemies.indexOf(rEn), rd, { crit: crit, roll: roll });
+              if (rd > 0) totalDealt += dealToEnemy(rEn, c.enemies.indexOf(rEn), rd, { crit: crit, roll: roll, misfire: misfire });
             }
           } else if (f.id === 'overdrive') {
             // MAELSTROM capstone: damage scales with cards already played this turn.
             var oEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             var od = f.v * (c.cardsThisTurn || 0) + statN(p, 'str') + art('flatDmg');
-            if (oEn && od > 0) totalDealt += dealToEnemy(oEn, c.enemies.indexOf(oEn), od, { crit: crit, roll: roll });
+            if (oEn && od > 0) totalDealt += dealToEnemy(oEn, c.enemies.indexOf(oEn), od, { crit: crit, roll: roll, misfire: misfire });
           } else if (f.id === 'reload') {
             reloadShell();   // on-demand restock (a random exhausted Attack)
           } else if (f.id === 'scry') {
@@ -6079,12 +6173,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             // BLOODFORGE cashout: convert your stacked Might into one brutal blow.
             var bEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             var bd = f.v * statN(p, 'str') + art('flatDmg');
-            if (bEn && bd > 0) totalDealt += dealToEnemy(bEn, c.enemies.indexOf(bEn), bd, { crit: crit, roll: roll });
+            if (bEn && bd > 0) totalDealt += dealToEnemy(bEn, c.enemies.indexOf(bEn), bd, { crit: crit, roll: roll, misfire: misfire });
           } else if (f.id === 'unload') {
             // FUSILLADE cashout: dump every point of built-up Momentum into one hit.
             var uEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             var ud = f.v * statN(p, 'momentum') + statN(p, 'str') + art('flatDmg');
-            if (uEn && ud > 0) totalDealt += dealToEnemy(uEn, c.enemies.indexOf(uEn), ud, { crit: crit, roll: roll });
+            if (uEn && ud > 0) totalDealt += dealToEnemy(uEn, c.enemies.indexOf(uEn), ud, { crit: crit, roll: roll, misfire: misfire });
           } else if (f.id === 'powerSurge') {
             // OVERCLOCK payoff: gain Shield for every Power you've played this combat.
             var pw = 0;
@@ -6099,7 +6193,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             pets.forEach(function (a) { killAlly(a, true); if (sytot > 0) { gainBlock(sytot); drawCards(1); } });
             if (nc > 0) {
               var cEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
-              if (cEn) totalDealt += dealToEnemy(cEn, c.enemies.indexOf(cEn), f.v * nc + Math.round(attr('bond') * B.attrs.bondPetPerPoint), { crit: crit, roll: roll });
+              if (cEn) totalDealt += dealToEnemy(cEn, c.enemies.indexOf(cEn), f.v * nc + Math.round(attr('bond') * B.attrs.bondPetPerPoint), { crit: crit, roll: roll, misfire: misfire });
             }
           } else if (f.id === 'feed') {
             // FEED THE ALPHA: sacrifice the weakest pet to permanently empower the strongest.
@@ -6157,15 +6251,24 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var flags = {};
     fx.forEach(function (f) { if (f.k === 'special') flags[f.id] = true; });
 
-    // one d20 per card play; only attacks can crit
-    var roll = null, crit = false;
+    // One d20 per attack. AIM (Marksmanship) is added to the roll, so stacking it
+    // shifts the whole distribution: a natural 20 always crits, a natural 1 always
+    // misfires, and everything between is read against the card's roll thresholds.
+    var roll = null, crit = false, misfire = false, eff = null;
     if (def.type === 'attack') {
       roll = d20();
-      crit = roll >= B.dice.critThreshold - art('critBonus');
+      eff = roll + statN(p, 'aim');
+      crit = (roll === 20) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus'));
+      misfire = (roll === 1);
       if (roll === 1 && art('critDie1Energy') > 0) c.energy += art('critDie1Energy');   // Misfire Capacitor
+      if (misfire) {   // MISFIRE PROTOCOL turns a jam into fuel
+        var mg = statN(p, 'misfireGuard');
+        if (mg > 0) { addStatus(p, 'momentum', mg); emit('status', { who: 'player', s: 'momentum', v: statN(p, 'momentum') }); c.energy += 1; }
+      }
+      emit('roll', { roll: roll, eff: eff, crit: crit, misfire: misfire });
     }
 
-    var ctx = { tgt: tgt, crit: crit, roll: roll, flags: flags, xval: xval, appliedBurn: false };
+    var ctx = { tgt: tgt, crit: crit, roll: roll, eff: eff, misfire: misfire, flags: flags, xval: xval, appliedBurn: false };
     var times = 1;
     if (def.type === 'attack' && c.echoReady) { c.echoReady = false; times = 2; }
     // Doubled Self: on turn 1, every card you play resolves twice
@@ -6189,10 +6292,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       if (tc > 0) c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, tc, { noCrit: true, noWeak: true }); });
       var ai = statN(p, 'afterImage');
       if (ai > 0) gainBlock(ai);
-      // crit payoffs (Omega Visor / Targeting Matrix), once per critting card
+      // crit payoffs (Omega Visor / Targeting Matrix + DEADEYE), once per critting card
       if (crit) {
-        var cdr = art('critDraw'); if (cdr > 0) drawCards(cdr);
-        var cst = art('critStr'); if (cst > 0) { addStatus(p, 'str', cst); emit('status', { who: 'player', s: 'str', v: cst }); }
+        var cdr = art('critDraw') + statN(p, 'deadeyeDraw'); if (cdr > 0) drawCards(cdr);
+        var cst = art('critStr') + statN(p, 'critFury'); if (cst > 0) { addStatus(p, 'str', cst); emit('status', { who: 'player', s: 'str', v: statN(p, 'str') }); }
       }
       // Soul Pyre: attacks also apply Burn
       var ab = art('attackBurn');
@@ -6233,7 +6336,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (def.type !== 'attack') c.nonAttacksThisTurn = (c.nonAttacksThisTurn || 0) + 1;   // Recoilless Frame
     if (E.hasEcho('momentum_engine')) c.momentum = (c.momentum || 0) + 1; // each card buffs the next
     if (def.type === 'attack') { var fauto = statN(p, 'fullauto'); if (fauto > 0) addStatus(p, 'momentum', fauto); } // Full Auto: each shot builds Momentum
-    emit('cardPlayed', { id: card.id, crit: crit, roll: roll });
+    emit('cardPlayed', { id: card.id, crit: crit, roll: roll, eff: eff, misfire: misfire, aim: statN(p, 'aim') });
     checkWin();
     return true;
   };
@@ -8414,8 +8517,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   var STATUS_COLORS = {
     vuln: '#ff8a3a', weak: '#c86bff', burn: '#ff5a2a', str: '#5dff88',
     regen: '#56ff9c', plate: '#41d8ff', platedArmor: '#41d8ff', thorns: '#9bb0a6',
+    aim: '#ffb02e',
   };
-  var STATUS_ABBR = { vuln: 'VULN', weak: 'WEAK', burn: 'BURN', str: 'STR' };
+  var STATUS_ABBR = { vuln: 'VULN', weak: 'WEAK', burn: 'BURN', str: 'STR', aim: 'AIM' };
 
   function roundRect(x, y, w, h, r) {
     ctx.beginPath();
@@ -8476,8 +8580,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // ---- unified Dual-Rail status display: buffs (+ powers) ABOVE the bar,
   // debuffs BELOW it, so good/bad reads by position. Powers = bright hexagon. ----
   var DEBUFF_SET = { vuln: 1, weak: 1, burn: 1, plague: 1, entropy: 1, corruption: 1, poison: 1, frail: 1 };
-  var SIMPLE_BUFF = { str: 1, regen: 1, plate: 1, platedArmor: 1, thorns: 1, barricade: 1, parry: 1, strPerTurn: 1, momentum: 1 };
-  var SGLYPH = { str: 'str', regen: 'regen', vuln: 'vuln', weak: 'weak', burn: 'burn', thorns: 'thorns', plate: 'plate', platedArmor: 'plate', barricade: 'plate' };
+  var SIMPLE_BUFF = { str: 1, regen: 1, plate: 1, platedArmor: 1, thorns: 1, barricade: 1, parry: 1, strPerTurn: 1, momentum: 1, aim: 1 };
+  var SGLYPH = { str: 'str', regen: 'regen', vuln: 'vuln', weak: 'weak', burn: 'burn', thorns: 'thorns', plate: 'plate', platedArmor: 'plate', barricade: 'plate', aim: 'aim' };
   function statGlyph(g, cx, cy, r, col) {
     ctx.save(); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1.3; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.beginPath();
     var i, a, px, py;
@@ -8487,6 +8591,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     else if (g === 'weak') { ctx.moveTo(cx - r, cy - r * 0.5); ctx.lineTo(cx, cy + r * 0.5); ctx.lineTo(cx + r, cy - r * 0.5); ctx.moveTo(cx - r, cy + r * 0.1); ctx.lineTo(cx, cy + r); ctx.lineTo(cx + r, cy + r * 0.1); ctx.stroke(); }
     else if (g === 'burn') { ctx.moveTo(cx, cy + r); ctx.quadraticCurveTo(cx - r, cy + r * 0.2, cx - r * 0.3, cy - r * 0.4); ctx.quadraticCurveTo(cx, cy - r * 1.1, cx + r * 0.2, cy - r * 0.2); ctx.quadraticCurveTo(cx + r * 0.6, cy - r * 0.7, cx + r * 0.5, cy + r * 0.1); ctx.quadraticCurveTo(cx + r, cy + r * 0.4, cx, cy + r); ctx.fill(); }
     else if (g === 'thorns') { for (i = -1; i <= 1; i++) { ctx.moveTo(cx + i * r * 0.7, cy + r); ctx.lineTo(cx + i * r * 0.7, cy - r); } ctx.stroke(); }
+    else if (g === 'aim') { ctx.arc(cx, cy, r * 0.72, 0, 7); ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy); ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r); ctx.stroke(); }
     else if (g === 'plate') { for (i = 0; i < 6; i++) { a = Math.PI / 6 + i * Math.PI / 3; px = cx + r * Math.cos(a); py = cy + r * Math.sin(a); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.closePath(); ctx.stroke(); }
     else if (g === 'power') { for (i = 0; i < 6; i++) { a = Math.PI / 6 + i * Math.PI / 3; px = cx + r * Math.cos(a); py = cy + r * Math.sin(a); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.closePath(); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, cy, r * 0.4, 0, 7); ctx.stroke(); }
     ctx.restore();
@@ -8529,7 +8634,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
 
   // ---- Fire-Control HP bar: targeting brackets + cyan shield line + status chips ----
-  var ST_AB = { vuln: 'V', weak: 'W', burn: 'B', str: 'S', regen: 'R', plate: 'P', platedArmor: 'P', barricade: 'BR', thorns: 'T', parry: 'PY', momentum: 'M', poison: 'PO', plague: 'PL', entropy: 'EN', psiPow: 'Ψ', strPerTurn: 'S', feelNoPain: 'FN', afterImage: 'AI', retain: 'RT' };
+  var ST_AB = { vuln: 'V', weak: 'W', burn: 'B', str: 'S', aim: 'A', regen: 'R', plate: 'P', platedArmor: 'P', barricade: 'BR', thorns: 'T', parry: 'PY', momentum: 'M', poison: 'PO', plague: 'PL', entropy: 'EN', psiPow: 'Ψ', strPerTurn: 'S', feelNoPain: 'FN', afterImage: 'AI', retain: 'RT' };
   function statusChipList(st) {
     if (!st) return [];
     var out = [];
@@ -10103,12 +10208,18 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (dieTimer) clearInterval(dieTimer);
     dieTimer = setInterval(function () { n.textContent = 1 + Math.floor(Math.random() * 20); }, 60);
   }
-  function settleDie(value, crit) {
+  function settleDie(value, crit, misfire, aim) {
     if (!$die) return;
     dieRolling = false;
     if (dieTimer) { clearInterval(dieTimer); dieTimer = null; }
     $die.classList.remove('rolling');
     $die.querySelector('.die-n').textContent = value;
+    // show the Aim the roll was made with, so a crit off a middling face reads
+    var $b = $die.querySelector('.die-aim');
+    if (!$b) { $b = document.createElement('span'); $b.className = 'die-aim'; $die.appendChild($b); }
+    $b.textContent = (aim > 0) ? ('+' + aim) : '';
+    $b.style.display = (aim > 0) ? '' : 'none';
+    if (misfire) $die.classList.add('misfire'); else $die.classList.remove('misfire');
     if (crit) $die.classList.add('crit'); else $die.classList.remove('crit');
     $die.classList.remove('settle'); void $die.offsetWidth; $die.classList.add('settle');   // settle pop
   }
@@ -11439,6 +11550,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // logistics
     munitions_dump: 'energize', adrenal_surge: 'energize',
     quartermaster: 'reload', field_strip: 'reload', trigger_discipline: 'reload',
+    // marksman / dice
+    take_aim: 'scan', steady_aim: 'scan', deadeye_protocol: 'warhorn', misfire_protocol: 'reload',
+    marksman_round: 'boltRound', hair_trigger: 'boltRound', killshot: 'execRound',
     // -- Technomancer --
     shock_coil: 'zap', static_lance: 'rail', railgun: 'rail', leech_coil: 'rail',
     chain_lightning: 'arc', arc_welder: 'arc', emp_blast: 'pulse', static_field: 'pulse',
@@ -12046,8 +12160,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         case 'cardPlayed':
           // settle the dock d20 on the roll when an attack lands (only attacks can crit)
           if (e.roll != null && ns.CARDS[e.id] && ns.CARDS[e.id].type === 'attack') {
-            settleDie(e.roll, e.crit);
+            settleDie(e.roll, e.crit, e.misfire, e.aim || 0);
             if (e.crit) floater(pp.x + 60, pp.y - 56, 'CRIT!', 'crit');
+            else if (e.misfire) floater(pp.x + 60, pp.y - 56, 'MISFIRE', 'misfire');
           }
           break;
         case 'revive':

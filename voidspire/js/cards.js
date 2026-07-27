@@ -25,6 +25,7 @@
     afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
     wildfire: 'Wildfire', psiRamp: 'Ascendant', hive: 'Hive', conduit: 'Conduit', plating: 'Plating',
     emberward: 'Ember Ward', staticward: 'Static Ward', spikeward: 'Spiked Bulwark',
+    aim: 'Aim', aimPerTurn: 'Steady Aim', critFury: 'Killing Rage', deadeyeDraw: 'Deadeye', misfireGuard: 'Misfire Protocol',
     demoCharge: 'Demolition', subroutine: 'Subroutine', aegisLink: 'Swarm Uplink',
     platedArmor: 'Plated Armor', barricade: 'Barricade', bloodPact: 'Blood Pact',
     pack: 'Pack Fury', symbiosis: 'Symbiosis', brood: 'Brood', slots: 'Kennel',
@@ -162,6 +163,13 @@
     'Demolition': 'Whenever you Exhaust a card, deal that much damage to ALL enemies.',
     'Subroutine': 'Whenever you play a Power, draw a card.',
     'Swarm Uplink': 'Whenever one of your constructs fires, gain that much Shield.',
+    'Aim': 'Added to the d20 you roll for every attack — it makes crits and roll thresholds far more likely.',
+    'Steady Aim': 'Gain that much Aim at the start of each turn.',
+    'Killing Rage': 'Whenever an attack crits, gain that much Might.',
+    'Deadeye': 'Whenever an attack crits, draw that many cards.',
+    'Misfire Protocol': 'When an attack misfires (a natural 1), gain that much Momentum and 1 Energy.',
+    'Misfire': 'A natural 1 on the die — the shot goes wide and deals half damage.',
+    'Crit': 'Roll + Aim meeting the crit mark (a natural 20 always crits) doubles the damage.',
     'Reactor': 'Gain +1 Energy at the start of each turn per stack.',
     'Warlord': 'Gain Might at the start of each turn.',
     'Resolve': 'Whenever a card is Exhausted, gain Shield.',
@@ -228,8 +236,8 @@
     /* ---------------- Vanguard ---------------- */
     burst_fire: {
       name: 'Burst Fire', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
-      fx: [{ k: 'dmg', v: 3, hits: 2, scale: 'might' }],
-      up: { fx: [{ k: 'dmg', v: 3, hits: 3, scale: 'might' }] },
+      fx: [{ k: 'dmg', v: 3, hits: 2, scale: 'might' }, { k: 'onRoll', min: 15, fx: [{ k: 'dmg', v: 3, scale: 'might' }] }],
+      up: { fx: [{ k: 'dmg', v: 3, hits: 3, scale: 'might' }, { k: 'onRoll', min: 13, fx: [{ k: 'dmg', v: 3, scale: 'might' }] }] },
     },
     suppressing_fire: {   // a raking burst — hammers one target, pins it, and carries through the pack
       name: 'Raking Fire', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
@@ -515,8 +523,8 @@
     // --- new commons: deepen the layer you draft most (each a distinct niche) ---
     shield_bash: {   // the hybrid: only common that hits AND blocks (tempo + survivability)
       name: 'Shield Bash', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
-      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'block', v: 4, scale: 'pri' }],
-      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'block', v: 6, scale: 'pri' }] },
+      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'block', v: 4, scale: 'pri' }, { k: 'onRoll', min: 13, fx: [{ k: 'block', v: 4, scale: 'pri' }] }],
+      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'block', v: 6, scale: 'pri' }, { k: 'onRoll', min: 11, fx: [{ k: 'block', v: 5, scale: 'pri' }] }] },
     },
     reckless_charge: {   // 0-cost burst & Exhaust-fuel (feeds Resolve/Salvage/combos)
       name: 'Reckless Charge', cls: 'vanguard', type: 'attack', rarity: 1, cost: 0, exhaust: true,
@@ -638,8 +646,8 @@
     },
     breaching_charge: {   // a heavy shell — big single shot, spent on firing
       name: 'Breaching Charge', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1, exhaust: true,
-      fx: [{ k: 'dmg', v: 11, scale: 'might' }],
-      up: { fx: [{ k: 'dmg', v: 15, scale: 'might' }] },
+      fx: [{ k: 'dmg', v: 11, scale: 'might' }, { k: 'onRoll', min: 16, fx: [{ k: 'draw', v: 1 }] }],
+      up: { fx: [{ k: 'dmg', v: 15, scale: 'might' }, { k: 'onRoll', min: 14, fx: [{ k: 'draw', v: 1 }] }] },
     },
     field_strip: {   // cheap exhaust-fuel — cycles and feeds the spent-shell payoffs
       name: 'Field Strip', cls: 'vanguard', type: 'skill', rarity: 1, cost: 0, exhaust: true,
@@ -1239,6 +1247,51 @@
       up: { fx: [{ k: 'status', s: 'weak', v: 2, who: 'target' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }] },
     },
 
+    /* ============ VANGUARD — MARKSMAN: the d20 as a resource ============
+     * Aim is added to every attack roll, so the die stops being a 5% lottery and
+     * becomes something you build. Cards read the roll at thresholds, crits pay
+     * out, and even a misfire can be turned into fuel.
+     * ------------------------------------------------------------------------ */
+    take_aim: {   // the cheap enabler — bank Aim for the shots that follow
+      name: 'Take Aim', cls: 'vanguard', type: 'skill', rarity: 1, cost: 0,
+      fx: [{ k: 'status', s: 'aim', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'aim', v: 3, who: 'self' }] },
+    },
+    steady_aim: {   // the engine — marksmanship sharpens on its own every turn
+      name: 'Steady Aim', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'aimPerTurn', v: 1, who: 'self' }, { k: 'status', s: 'aim', v: 1, who: 'self' }],
+      text: 'Gain 1 more Aim at the start of each turn.',
+      up: { fx: [{ k: 'status', s: 'aimPerTurn', v: 2, who: 'self' }, { k: 'status', s: 'aim', v: 1, who: 'self' }], text: 'Gain 2 more Aim at the start of each turn.' },
+    },
+    marksman_round: {   // a shot that rewards a good roll with a cracked-open target
+      name: 'Marksman Round', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'dmg', v: 6, scale: 'might' },
+           { k: 'onRoll', min: 14, fx: [{ k: 'status', s: 'vuln', v: 2, who: 'target' }, { k: 'draw', v: 1 }] }],
+      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'onRoll', min: 12, fx: [{ k: 'status', s: 'vuln', v: 2, who: 'target' }, { k: 'draw', v: 1 }] }] },
+    },
+    hair_trigger: {   // ⚡0 chip that pays for itself when the die runs hot
+      name: 'Hair Trigger', cls: 'vanguard', type: 'attack', rarity: 1, cost: 0,
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'onRoll', min: 13, fx: [{ k: 'energy', v: 1 }] }],
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'onRoll', min: 11, fx: [{ k: 'energy', v: 1 }] }] },
+    },
+    deadeye_protocol: {   // BUILD-AROUND — every crit feeds the next one
+      name: 'Deadeye Protocol', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'critFury', v: 2, who: 'self' }, { k: 'status', s: 'deadeyeDraw', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'critFury', v: 3, who: 'self' }, { k: 'status', s: 'deadeyeDraw', v: 1, who: 'self' }] },
+    },
+    misfire_protocol: {   // BUILD-AROUND — a jammed round becomes momentum
+      name: 'Misfire Protocol', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'misfireGuard', v: 3, who: 'self' }],
+      text: 'When an attack misfires, gain 3 Momentum and 1 Energy.',
+      up: { fx: [{ k: 'status', s: 'misfireGuard', v: 5, who: 'self' }], text: 'When an attack misfires, gain 5 Momentum and 1 Energy.' },
+    },
+    killshot: {   // the cashout — dump every point of banked Aim into one round
+      name: 'Killshot', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
+      fx: [{ k: 'special', id: 'spendAim', base: 6, v: 4 }],
+      text: 'Consume all your Aim. Deal 6 damage plus 4 for each Aim consumed.',
+      up: { fx: [{ k: 'special', id: 'spendAim', base: 8, v: 5 }], text: 'Consume all your Aim. Deal 8 damage plus 5 for each Aim consumed.' },
+    },
+
     /* ============ MECHANICALLY-DISTINCT cards — new verbs, not new numbers ============
      * Reactive WARDS (punish attackers), CONVERSIONS (turn one resource into another),
      * and TRIGGERS (whenever you do X, also Y). These make an archetype PLAY differently
@@ -1398,6 +1451,10 @@
         }
         parts.push('Gain ' + Math.round(b) + ' Shield.');
       }
+      if (f.k === 'onRoll') {
+        var inner = ns.cardDesc({ fx: f.fx || [] }, false, ctx, false);
+        parts.push('Roll ' + f.min + '+: ' + inner);
+      }
       if (f.k === 'heal') parts.push('Heal ' + f.v + ' HP.');
       if (f.k === 'pet') { var pd = ns.PETS[f.id] || {}, pn = pd.name || f.id, szt = (pd.size || 1) > 1 ? ' [' + pd.size + ' slots]' : ''; parts.push('Summon ' + (f.n > 1 ? f.n + ' ' + pn + 's' : 'a ' + pn) + szt + '.'); }
       if (f.k === 'hploss') parts.push('Lose ' + f.v + ' HP.');
@@ -1411,7 +1468,7 @@
         else if (f.s === 'brood') parts.push('Each turn, summon ' + (f.v > 1 ? f.v + ' Spawnlings' : 'a Spawnling') + '.');
         else if (f.s === 'slots') parts.push('+' + f.v + ' formation slot' + (f.v > 1 ? 's' : '') + ' (Kennel).');
         else if (f.s === 'echo' || f.s === 'corruption' || f.s === 'barricade' || f.s === 'retain') parts.push('Gain ' + n + '.');
-        else if (f.s === 'emberward' || f.s === 'staticward' || f.s === 'spikeward' || f.s === 'demoCharge' || f.s === 'subroutine' || f.s === 'aegisLink') { /* the card's own text describes these reactive/trigger effects */ }
+        else if (f.s === 'emberward' || f.s === 'staticward' || f.s === 'spikeward' || f.s === 'demoCharge' || f.s === 'subroutine' || f.s === 'aegisLink' || f.s === 'aimPerTurn' || f.s === 'misfireGuard') { /* the card's own text describes these reactive/trigger effects */ }
         else if (f.who === 'self') parts.push('Gain ' + f.v + ' ' + n + '.');
         else if (f.who === 'allEnemies') parts.push('Apply ' + f.v + ' ' + n + ' to ALL enemies.');
         else parts.push('Apply ' + f.v + ' ' + n + '.');
@@ -1432,7 +1489,7 @@
       var f = fx[i];
       if (f.k === 'dmg' && !f.all && !f.random) return true;
       if (f.k === 'status' && f.who === 'target') return true;
-      if (f.k === 'special' && (f.id === 'shieldSlam' || f.id === 'shieldSlam15' || f.id === 'catalyst' || f.id === 'catalyst3' || f.id === 'reap' || f.id === 'overdrive' || f.id === 'fiendFire' || f.id === 'cull' || f.id === 'detonate' || f.id === 'backdraft' || f.id === 'parch' || f.id === 'cleave')) return true;
+      if (f.k === 'special' && (f.id === 'shieldSlam' || f.id === 'shieldSlam15' || f.id === 'catalyst' || f.id === 'catalyst3' || f.id === 'reap' || f.id === 'overdrive' || f.id === 'fiendFire' || f.id === 'cull' || f.id === 'detonate' || f.id === 'backdraft' || f.id === 'parch' || f.id === 'cleave' || f.id === 'spendAim')) return true;
     }
     return false;
   };

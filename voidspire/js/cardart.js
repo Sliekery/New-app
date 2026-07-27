@@ -76,6 +76,9 @@
     flux_capacitor: 'core', surge_protocol: 'reload', capacitor_discharge: 'bolt', recompile: 'reload', singularity_drive: 'core',
     tesla_conduit: 'bolt', disruptor_pulse: 'bolt', short_circuit: 'bolt', system_shock: 'scan', feedback_loop: 'scan', ion_storm: 'bolt', emp_mine: 'bolt', overcharged_capacitor: 'bolt', overload_surge: 'bolt',
     shock_coil: 'reload',
+    // vanguard marksman (dice)
+    take_aim: 'scan', steady_aim: 'scan', marksman_round: 'rifle', hair_trigger: 'rifle',
+    deadeye_protocol: 'eye', misfire_protocol: 'reload', killshot: 'cannon',
     // voidadept overhaul
     immolate: 'flame', cinder_burst: 'flame', ember_storm: 'hex', wildfire_engine: 'flame', conflagration: 'flame',
     ascendant_mind: 'eye', mind_lance: 'psiBolt', cerebral_spike: 'psiBolt', psionic_nova: 'vortex',

@@ -817,8 +817,9 @@
   var STATUS_COLORS = {
     vuln: '#ff8a3a', weak: '#c86bff', burn: '#ff5a2a', str: '#5dff88',
     regen: '#56ff9c', plate: '#41d8ff', platedArmor: '#41d8ff', thorns: '#9bb0a6',
+    aim: '#ffb02e',
   };
-  var STATUS_ABBR = { vuln: 'VULN', weak: 'WEAK', burn: 'BURN', str: 'STR' };
+  var STATUS_ABBR = { vuln: 'VULN', weak: 'WEAK', burn: 'BURN', str: 'STR', aim: 'AIM' };
 
   function roundRect(x, y, w, h, r) {
     ctx.beginPath();
@@ -879,8 +880,8 @@
   // ---- unified Dual-Rail status display: buffs (+ powers) ABOVE the bar,
   // debuffs BELOW it, so good/bad reads by position. Powers = bright hexagon. ----
   var DEBUFF_SET = { vuln: 1, weak: 1, burn: 1, plague: 1, entropy: 1, corruption: 1, poison: 1, frail: 1 };
-  var SIMPLE_BUFF = { str: 1, regen: 1, plate: 1, platedArmor: 1, thorns: 1, barricade: 1, parry: 1, strPerTurn: 1, momentum: 1 };
-  var SGLYPH = { str: 'str', regen: 'regen', vuln: 'vuln', weak: 'weak', burn: 'burn', thorns: 'thorns', plate: 'plate', platedArmor: 'plate', barricade: 'plate' };
+  var SIMPLE_BUFF = { str: 1, regen: 1, plate: 1, platedArmor: 1, thorns: 1, barricade: 1, parry: 1, strPerTurn: 1, momentum: 1, aim: 1 };
+  var SGLYPH = { str: 'str', regen: 'regen', vuln: 'vuln', weak: 'weak', burn: 'burn', thorns: 'thorns', plate: 'plate', platedArmor: 'plate', barricade: 'plate', aim: 'aim' };
   function statGlyph(g, cx, cy, r, col) {
     ctx.save(); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1.3; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.beginPath();
     var i, a, px, py;
@@ -890,6 +891,7 @@
     else if (g === 'weak') { ctx.moveTo(cx - r, cy - r * 0.5); ctx.lineTo(cx, cy + r * 0.5); ctx.lineTo(cx + r, cy - r * 0.5); ctx.moveTo(cx - r, cy + r * 0.1); ctx.lineTo(cx, cy + r); ctx.lineTo(cx + r, cy + r * 0.1); ctx.stroke(); }
     else if (g === 'burn') { ctx.moveTo(cx, cy + r); ctx.quadraticCurveTo(cx - r, cy + r * 0.2, cx - r * 0.3, cy - r * 0.4); ctx.quadraticCurveTo(cx, cy - r * 1.1, cx + r * 0.2, cy - r * 0.2); ctx.quadraticCurveTo(cx + r * 0.6, cy - r * 0.7, cx + r * 0.5, cy + r * 0.1); ctx.quadraticCurveTo(cx + r, cy + r * 0.4, cx, cy + r); ctx.fill(); }
     else if (g === 'thorns') { for (i = -1; i <= 1; i++) { ctx.moveTo(cx + i * r * 0.7, cy + r); ctx.lineTo(cx + i * r * 0.7, cy - r); } ctx.stroke(); }
+    else if (g === 'aim') { ctx.arc(cx, cy, r * 0.72, 0, 7); ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy); ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r); ctx.stroke(); }
     else if (g === 'plate') { for (i = 0; i < 6; i++) { a = Math.PI / 6 + i * Math.PI / 3; px = cx + r * Math.cos(a); py = cy + r * Math.sin(a); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.closePath(); ctx.stroke(); }
     else if (g === 'power') { for (i = 0; i < 6; i++) { a = Math.PI / 6 + i * Math.PI / 3; px = cx + r * Math.cos(a); py = cy + r * Math.sin(a); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); } ctx.closePath(); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, cy, r * 0.4, 0, 7); ctx.stroke(); }
     ctx.restore();
@@ -932,7 +934,7 @@
   }
 
   // ---- Fire-Control HP bar: targeting brackets + cyan shield line + status chips ----
-  var ST_AB = { vuln: 'V', weak: 'W', burn: 'B', str: 'S', regen: 'R', plate: 'P', platedArmor: 'P', barricade: 'BR', thorns: 'T', parry: 'PY', momentum: 'M', poison: 'PO', plague: 'PL', entropy: 'EN', psiPow: 'Ψ', strPerTurn: 'S', feelNoPain: 'FN', afterImage: 'AI', retain: 'RT' };
+  var ST_AB = { vuln: 'V', weak: 'W', burn: 'B', str: 'S', aim: 'A', regen: 'R', plate: 'P', platedArmor: 'P', barricade: 'BR', thorns: 'T', parry: 'PY', momentum: 'M', poison: 'PO', plague: 'PL', entropy: 'EN', psiPow: 'Ψ', strPerTurn: 'S', feelNoPain: 'FN', afterImage: 'AI', retain: 'RT' };
   function statusChipList(st) {
     if (!st) return [];
     var out = [];
