@@ -7803,6 +7803,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       if (ti == null) for (var i = 0; i < R.views.length; i++) if (R.views[i] && R.views[i].alive) { ti = i; break; }
       var ep = ti != null ? R.enemyPos(ti) : { x: p.x + sc * 4, y: p.y };
       R.player.atkTX = ep.x; R.player.atkTY = ep.y;
+      R.player.aimFired = false;   // one-shot latch for muzzle-flash / tracer / recoil spawn
       if (cls === 'voidadept') { var a = CLASS_ART.voidadept.atk; R.player.shardPick = Math.floor(Math.random() * (a ? a.n : 8)); }
     }
     if (type === 'defend') burst(p.x, p.y - sc * 0.35, col, 9);
@@ -7842,15 +7843,23 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function muzzleFlash(mx, my, sc, col, tx, ty) {
     var dx = (tx == null ? mx + sc : tx) - mx, dy = (ty == null ? my : ty) - my, len = Math.hypot(dx, dy) || 1, nx = dx / len, ny = dy / len, ox = -ny, oy = nx;
     ctx.save();
-    ctx.fillStyle = '#fff7e0'; ctx.shadowColor = col; ctx.shadowBlur = 16; ctx.globalAlpha = 0.95;
-    ctx.beginPath(); ctx.arc(mx, my, sc * 0.13, 0, 7); ctx.fill();
-    ctx.strokeStyle = '#fff7e0'; ctx.lineWidth = 2.4; ctx.shadowBlur = 12;
+    ctx.lineCap = 'round';
+    // hot white core with a warmer halo
+    ctx.shadowColor = col; ctx.shadowBlur = 20; ctx.globalAlpha = 0.9;
+    ctx.fillStyle = '#fff2c8'; ctx.beginPath(); ctx.arc(mx, my, sc * 0.2, 0, 7); ctx.fill();
+    ctx.globalAlpha = 1; ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(mx, my, sc * 0.1, 0, 7); ctx.fill();
+    // 4-ray star flare — long down the barrel, short across
+    ctx.strokeStyle = '#fff7e0'; ctx.lineWidth = 2.6; ctx.shadowBlur = 12;
+    function ray(ax, ay, l) { ctx.beginPath(); ctx.moveTo(mx, my); ctx.lineTo(mx + ax * sc * l, my + ay * sc * l); ctx.stroke(); }
+    ray(nx, ny, 0.6); ray(-nx, -ny, 0.22); ray(ox, oy, 0.32); ray(-ox, -oy, 0.32);
+    // forked muzzle petals along the barrel
+    ctx.lineWidth = 2; ctx.globalAlpha = 0.85;
     ctx.beginPath();
-    ctx.moveTo(mx, my); ctx.lineTo(mx + nx * sc * 0.4 + ox * sc * 0.07, my + ny * sc * 0.4 + oy * sc * 0.07);
-    ctx.moveTo(mx, my); ctx.lineTo(mx + nx * sc * 0.4 - ox * sc * 0.07, my + ny * sc * 0.4 - oy * sc * 0.07);
+    ctx.moveTo(mx, my); ctx.lineTo(mx + nx * sc * 0.44 + ox * sc * 0.12, my + ny * sc * 0.44 + oy * sc * 0.12);
+    ctx.moveTo(mx, my); ctx.lineTo(mx + nx * sc * 0.44 - ox * sc * 0.12, my + ny * sc * 0.44 - oy * sc * 0.12);
     ctx.stroke();
-    ctx.strokeStyle = col; ctx.lineWidth = 2.6; ctx.globalAlpha = 0.85; ctx.shadowBlur = 10;
-    ctx.beginPath(); ctx.moveTo(mx + nx * sc * 0.22, my + ny * sc * 0.22); ctx.lineTo(mx + nx * Math.min(len, sc * 2.4), my + ny * Math.min(len, sc * 2.4)); ctx.stroke();
+    ctx.lineCap = 'butt';
     ctx.restore();
   }
   // Voidadept halo of shards; on attack one swells then streaks to the card target.
@@ -9162,27 +9171,45 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // card-play animation: attack (weapon rig) / defend brace / utility surge
     var atype = R.player.animType, adt = t - (R.player.animT || -9), aprog = -1;
     var dur = atype === 'attack' ? (atk && atk.type === 'aim' ? 0.66 : 0.5) : 0.42;
+    var aimKick = 0;   // vanguard recoil envelope: 0 before the shot, spikes on fire, decays
     if (adt >= 0 && adt < dur) {
       aprog = adt / dur;
       var s = Math.sin(aprog * Math.PI);   // attack moves the weapon, not the body
       if (atype === 'defend') { py += s * 10; sc *= 1 - s * 0.06; glow += s * 6; }
       else if (atype === 'utility') { py -= s * 12; sc *= 1 + s * 0.08; glow += s * 8; }
+      else if (atype === 'attack' && atk && atk.type === 'aim' && aprog >= 0.4) {
+        aimKick = Math.max(0, 1 - (aprog - 0.4) / 0.42); aimKick *= aimKick;   // sharp kick, quick recover
+      }
     }
+    // the whole soldier is shoved back off the shot (recoil), then settles
+    px -= aimKick * sc * 0.13; py -= aimKick * sc * 0.02; glow += aimKick * 6;
     var col = flash ? '#ff4a5e' : art.color;
     strokePaths(art.p, px, py, sc, col, glow, 1);
 
     // weapon / attack animation per class
     var atking = atype === 'attack' && aprog >= 0, tx = R.player.atkTX, ty = R.player.atkTY;
     function ease(x) { return x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x); }
-    if (atk && atk.type === 'aim') {                 // vanguard: smooth aim-down, fire, raise
+    if (atk && atk.type === 'aim') {                 // vanguard: snap to aim, FIRE with recoil, recover
       var ang = 0, firing = false;
       if (atking) {
-        if (aprog < 0.38) ang = ease(aprog / 0.38) * atk.aim;
-        else if (aprog < 0.56) { ang = atk.aim; firing = true; }
-        else ang = atk.aim * (1 - ease((aprog - 0.56) / 0.44));
+        if (aprog < 0.34) ang = ease(aprog / 0.34) * atk.aim;                     // snap the muzzle down onto target
+        else if (aprog < 0.4) ang = atk.aim;                                      // brief settle on target
+        else if (aprog < 0.58) { ang = atk.aim - aimKick * 0.55; firing = true; } // FIRE — muzzle climbs with the kick
+        else ang = atk.aim * (1 - ease((aprog - 0.58) / 0.42));                    // lower the weapon back to rest
       }
       strokeRot(art.weapon, px, py, sc, atk.pivot, ang, col, glow);
-      if (firing) { var m = rotPt(atk.muzzle, atk.pivot, atk.aim); muzzleFlash(px + m[0] * sc, py + m[1] * sc, sc, art.color, tx, ty); }
+      if (firing) {
+        var m = rotPt(atk.muzzle, atk.pivot, ang);
+        var mx = px + m[0] * sc, my = py + m[1] * sc;
+        muzzleFlash(mx, my, sc, art.color, tx, ty);
+        if (!R.player.aimFired) {           // fire the shot ONCE: tracer bolt, sparks, brass, muzzle pop
+          R.player.aimFired = true;
+          if (tx != null) { R.beamBolt(mx, my, tx, ty, '#ffe9c0', 5); R.shot(mx, my, tx, ty, '#fff2c8'); }
+          burst(mx, my, '#ffe9c0', 8);
+          R.ring(mx, my, '#fff2c8', sc * 0.24, 0.14);   // tight muzzle pop, not a big bubble
+          for (var ce = 0; ce < 3; ce++) particles.push({ x: mx - sc * 0.12, y: my, vx: -55 - Math.random() * 70, vy: -130 - Math.random() * 80, life: 0.45 + Math.random() * 0.2, age: 0, color: '#ffcf6b', size: 1.5 + Math.random(), grav: 560 });
+        }
+      }
     } else if (atk && atk.type === 'staff') {        // technomancer: staff lower/level/fire/raise
       var sf = atking ? Math.min(3, Math.floor(aprog * 4)) : -1, sang = atking ? atk.frames[sf] : 0;
       strokeRot(art.weapon, px, py, sc, atk.pivot, sang, col, glow);
