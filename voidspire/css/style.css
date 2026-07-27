@@ -401,6 +401,13 @@ html, body {
   position: absolute; top: -4px; right: -6px; font: 700 10px/1 ui-monospace, monospace;
   color: var(--amber); text-shadow: 0 0 6px rgba(255,176,46,0.9); pointer-events: none;
 }
+#combat-die .die-band {
+  position: absolute; left: 50%; transform: translateX(-50%); top: 41px;
+  font: 700 8px/1 ui-monospace, monospace; letter-spacing: 0.08em;
+  color: currentColor; opacity: 0.95; white-space: nowrap; pointer-events: none;
+}
+#combat-die.graze { color: #9bb0a6; }
+#combat-die.solid { color: #5dff88; }
 #combat-die.misfire { color: #ff4a5e; }
 #combat-die.misfire .die-svg { filter: drop-shadow(0 0 9px rgba(255,74,94,0.85)); }
 #combat-die.misfire .die-n { color: #ffd6da; text-shadow: 0 0 9px rgba(255,74,94,0.9); }
@@ -681,6 +688,8 @@ html, body {
 .floater.block { color: var(--cyan); text-shadow: 0 0 8px rgba(65,216,255,0.7); }
 .floater.crit { font-size: 28px; color: var(--amber); text-shadow: 0 0 12px rgba(255,176,46,0.9); }
 .floater.misfire { font-size: 20px; color: #ff4a5e; text-shadow: 0 0 12px rgba(255,74,94,0.9); }
+.floater.solid { font-size: 17px; color: #5dff88; text-shadow: 0 0 10px rgba(93,255,136,0.85); }
+.floater.graze { font-size: 15px; color: #9bb0a6; text-shadow: 0 0 8px rgba(155,176,166,0.7); }
 .floater.status { font-size: 13px; color: var(--magenta); }
 .floater.roll { font-size: 12px; color: var(--text-dim); }
 @keyframes floatUp {

@@ -1107,6 +1107,8 @@
       if (cv > 0 && en.alive) { addStatus(en, 'vuln', cv); emit('status', { who: 'enemy', idx: idx, s: 'vuln', v: cv }); }
     } else if (opts.misfire) {
       amount = Math.max(1, Math.floor(amount * B.dice.misfireMult));   // natural 1: the shot goes wide
+    } else if (opts.bandMult && opts.bandMult !== 1) {
+      amount = Math.max(1, Math.round(amount * opts.bandMult));        // graze / solid hit
     }
     // Void Drone: each hit is capped at its absorb threshold; a hit that would
     // exceed it spits a Void Swarm curse into your deck (unless the blow lands the kill).
@@ -1494,7 +1496,7 @@
   function applyCardFx(fx, ctx) {
     var c = E.combat, p = c.player;
     var tgt = ctx.tgt, crit = ctx.crit, roll = ctx.roll, flags = ctx.flags;
-    var misfire = ctx.misfire, eff = ctx.eff;
+    var misfire = ctx.misfire, eff = ctx.eff, bandMult = ctx.bandMult;
     var totalDealt = 0;
     fx.forEach(function (f) {
       if (c.over && f.k === 'dmg') return;
@@ -1515,7 +1517,7 @@
             var en, idx;
             if (f.all) {
               c.enemies.forEach(function (e, i) {
-                if (e.alive) totalDealt += dealToEnemy(e, i, base, { crit: crit, roll: roll, misfire: misfire, execute: flags.execute });
+                if (e.alive) totalDealt += dealToEnemy(e, i, base, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult, execute: flags.execute });
               });
               continue;
             } else if (f.random) {
@@ -1524,7 +1526,7 @@
               en = (tgt && tgt.alive) ? tgt : pool[0];
               idx = c.enemies.indexOf(en);
             }
-            totalDealt += dealToEnemy(en, idx, base, { crit: crit, roll: roll, misfire: misfire, execute: flags.execute });
+            totalDealt += dealToEnemy(en, idx, base, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult, execute: flags.execute });
           }
           break;
         }
@@ -1573,7 +1575,7 @@
           if (f.id === 'shieldSlam' || f.id === 'shieldSlam15') {
             var dmg = Math.floor(p.block * (f.id === 'shieldSlam15' ? 1.5 : 1)) + statN(p, 'str') + art('flatDmg');
             var sEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
-            if (sEn && dmg > 0) totalDealt += dealToEnemy(sEn, c.enemies.indexOf(sEn), dmg, { crit: crit, roll: roll, misfire: misfire });
+            if (sEn && dmg > 0) totalDealt += dealToEnemy(sEn, c.enemies.indexOf(sEn), dmg, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
           } else if (f.id === 'limitBreak') {
             var s = statN(p, 'str');
             if (s > 0) { addStatus(p, 'str', s); emit('status', { who: 'player', s: 'str', v: s }); }
@@ -1594,7 +1596,7 @@
               if (bn > 0) {
                 addStatus(de, 'burn', -bn); emit('status', { who: 'enemy', idx: c.enemies.indexOf(de), s: 'burn', v: 0 });
                 var dd = Math.round(bn * (f.v || 1)) + statN(p, 'str') + statN(p, 'psiPow') + art('flatDmg');
-                totalDealt += dealToEnemy(de, c.enemies.indexOf(de), dd, { crit: crit, roll: roll, misfire: misfire });
+                totalDealt += dealToEnemy(de, c.enemies.indexOf(de), dd, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
                 var others = aliveEnemies().filter(function (e) { return e !== de; });
                 if (others.length && bn >= 2) { var oe = pick(others); var sp = Math.floor(bn / 2); addStatus(oe, 'burn', sp); emit('status', { who: 'enemy', idx: c.enemies.indexOf(oe), s: 'burn', v: statN(oe, 'burn') }); trackBurn(sp); }
               }
@@ -1606,7 +1608,7 @@
             if (saT) {
               if (saN > 0) { addStatus(p, 'aim', -saN); emit('status', { who: 'player', s: 'aim', v: 0 }); }
               var saD = (f.base || 6) + saN * (f.v || 4) + statN(p, 'str') + attr('might') + art('flatDmg');
-              totalDealt += dealToEnemy(saT, c.enemies.indexOf(saT), saD, { crit: crit, roll: roll, misfire: misfire });
+              totalDealt += dealToEnemy(saT, c.enemies.indexOf(saT), saD, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
             }
           } else if (f.id === 'backdraft') {
             // BACKDRAFT: vent your Shield as a wall of fire onto one target (then Detonate it).
@@ -1623,12 +1625,12 @@
           } else if (f.id === 'parch') {
             // PARCH: cash a Burn stack as raw damage WITHOUT consuming it (rewards stacking, unlike Detonate).
             var paT = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
-            if (paT) { var paV = statN(paT, 'burn') + statN(p, 'str') + statN(p, 'psiPow') + art('flatDmg'); if (paV > 0) totalDealt += dealToEnemy(paT, c.enemies.indexOf(paT), paV, { crit: crit, roll: roll, misfire: misfire }); }
+            if (paT) { var paV = statN(paT, 'burn') + statN(p, 'str') + statN(p, 'psiPow') + art('flatDmg'); if (paV > 0) totalDealt += dealToEnemy(paT, c.enemies.indexOf(paT), paV, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult }); }
           } else if (f.id === 'soulflare') {
             // SOULFLARE: a blast that scales with how WIDE your fire has spread (every burning foe).
             var sfTargets = aliveEnemies().filter(function (e) { return statN(e, 'burn') > 0; });
             var sfDmg = (f.v || 3) + statN(p, 'psiPow');
-            sfTargets.forEach(function (e) { totalDealt += dealToEnemy(e, c.enemies.indexOf(e), sfDmg, { crit: crit, roll: roll, misfire: misfire }); });
+            sfTargets.forEach(function (e) { totalDealt += dealToEnemy(e, c.enemies.indexOf(e), sfDmg, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult }); });
           } else if (f.id === 'forgeBarrier') {
             // BULWARK STANCE: forge your stacked Might into a wall (Might as defence).
             var fbV = Math.round((statN(p, 'str') + attr('might')) * (f.v || 2));
@@ -1636,7 +1638,7 @@
           } else if (f.id === 'cleave') {
             // CLEAVE: a heavy blow to one foe that carries through to the rest of the pack.
             var clT = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
-            if (clT) totalDealt += dealToEnemy(clT, c.enemies.indexOf(clT), (f.v || 5) + statN(p, 'str') + attr('might'), { crit: crit, roll: roll, misfire: misfire });
+            if (clT) totalDealt += dealToEnemy(clT, c.enemies.indexOf(clT), (f.v || 5) + statN(p, 'str') + attr('might'), { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
             aliveEnemies().forEach(function (e) { if (e !== clT) totalDealt += dealToEnemy(e, c.enemies.indexOf(e), (f.splash || 3) + statN(p, 'str') + attr('might'), { noCrit: true }); });
           } else if (f.id === 'repairBay') {
             // REPAIR BAY: patch yourself, and harden if you have a construct deployed.
@@ -1648,20 +1650,20 @@
             var burnt = c.hand.splice(0, c.hand.length);
             burnt.forEach(function (hc) { exhaustCard(hc); });
             var per = f.v + statN(p, 'str') + art('flatDmg');
-            if (fEn) for (var q = 0; q < burnt.length; q++) totalDealt += dealToEnemy(fEn, c.enemies.indexOf(fEn), per, { crit: crit, roll: roll, misfire: misfire });
+            if (fEn) for (var q = 0; q < burnt.length; q++) totalDealt += dealToEnemy(fEn, c.enemies.indexOf(fEn), per, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
           } else if (f.id === 'reap') {
             // HEXWEAVER / SUPPRESSION capstone: damage scales with debuffs on target.
             var rEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             if (rEn) {
               var stacks = statN(rEn, 'vuln') + statN(rEn, 'weak') + statN(rEn, 'burn');
               var rd = stacks * f.v + statN(p, 'str') + art('flatDmg');
-              if (rd > 0) totalDealt += dealToEnemy(rEn, c.enemies.indexOf(rEn), rd, { crit: crit, roll: roll, misfire: misfire });
+              if (rd > 0) totalDealt += dealToEnemy(rEn, c.enemies.indexOf(rEn), rd, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
             }
           } else if (f.id === 'overdrive') {
             // MAELSTROM capstone: damage scales with cards already played this turn.
             var oEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             var od = f.v * (c.cardsThisTurn || 0) + statN(p, 'str') + art('flatDmg');
-            if (oEn && od > 0) totalDealt += dealToEnemy(oEn, c.enemies.indexOf(oEn), od, { crit: crit, roll: roll, misfire: misfire });
+            if (oEn && od > 0) totalDealt += dealToEnemy(oEn, c.enemies.indexOf(oEn), od, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
           } else if (f.id === 'reload') {
             reloadShell();   // on-demand restock (a random exhausted Attack)
           } else if (f.id === 'scry') {
@@ -1678,12 +1680,12 @@
             // BLOODFORGE cashout: convert your stacked Might into one brutal blow.
             var bEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             var bd = f.v * statN(p, 'str') + art('flatDmg');
-            if (bEn && bd > 0) totalDealt += dealToEnemy(bEn, c.enemies.indexOf(bEn), bd, { crit: crit, roll: roll, misfire: misfire });
+            if (bEn && bd > 0) totalDealt += dealToEnemy(bEn, c.enemies.indexOf(bEn), bd, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
           } else if (f.id === 'unload') {
             // FUSILLADE cashout: dump every point of built-up Momentum into one hit.
             var uEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             var ud = f.v * statN(p, 'momentum') + statN(p, 'str') + art('flatDmg');
-            if (uEn && ud > 0) totalDealt += dealToEnemy(uEn, c.enemies.indexOf(uEn), ud, { crit: crit, roll: roll, misfire: misfire });
+            if (uEn && ud > 0) totalDealt += dealToEnemy(uEn, c.enemies.indexOf(uEn), ud, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
           } else if (f.id === 'powerSurge') {
             // OVERCLOCK payoff: gain Shield for every Power you've played this combat.
             var pw = 0;
@@ -1698,7 +1700,7 @@
             pets.forEach(function (a) { killAlly(a, true); if (sytot > 0) { gainBlock(sytot); drawCards(1); } });
             if (nc > 0) {
               var cEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
-              if (cEn) totalDealt += dealToEnemy(cEn, c.enemies.indexOf(cEn), f.v * nc + Math.round(attr('bond') * B.attrs.bondPetPerPoint), { crit: crit, roll: roll, misfire: misfire });
+              if (cEn) totalDealt += dealToEnemy(cEn, c.enemies.indexOf(cEn), f.v * nc + Math.round(attr('bond') * B.attrs.bondPetPerPoint), { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
             }
           } else if (f.id === 'feed') {
             // FEED THE ALPHA: sacrifice the weakest pet to permanently empower the strongest.
@@ -1759,21 +1761,28 @@
     // One d20 per attack. AIM (Marksmanship) is added to the roll, so stacking it
     // shifts the whole distribution: a natural 20 always crits, a natural 1 always
     // misfires, and everything between is read against the card's roll thresholds.
-    var roll = null, crit = false, misfire = false, eff = null;
+    var roll = null, crit = false, misfire = false, eff = null, bandMult = 1, bandLabel = null;
+    var marksman = (r.cls === 'vanguard');   // the Vanguard reads the whole die face
     if (def.type === 'attack') {
       roll = d20();
       eff = roll + statN(p, 'aim');
       crit = (roll === 20) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus'));
-      misfire = (roll === 1);
+      misfire = (roll === 1) && marksman;
       if (roll === 1 && art('critDie1Energy') > 0) c.energy += art('critDie1Energy');   // Misfire Capacitor
       if (misfire) {   // MISFIRE PROTOCOL turns a jam into fuel
         var mg = statN(p, 'misfireGuard');
         if (mg > 0) { addStatus(p, 'momentum', mg); emit('status', { who: 'player', s: 'momentum', v: statN(p, 'momentum') }); c.energy += 1; }
       }
-      emit('roll', { roll: roll, eff: eff, crit: crit, misfire: misfire });
+      bandLabel = crit ? 'CRIT' : misfire ? 'MISFIRE' : null;
+      if (marksman && !crit && !misfire) {
+        for (var bi = 0; bi < B.dice.bands.length; bi++) {
+          if (eff >= B.dice.bands[bi].min) { bandMult = B.dice.bands[bi].mult; bandLabel = B.dice.bands[bi].label; break; }
+        }
+      }
+      emit('roll', { roll: roll, eff: eff, crit: crit, misfire: misfire, band: bandLabel });
     }
 
-    var ctx = { tgt: tgt, crit: crit, roll: roll, eff: eff, misfire: misfire, flags: flags, xval: xval, appliedBurn: false };
+    var ctx = { tgt: tgt, crit: crit, roll: roll, eff: eff, misfire: misfire, bandMult: bandMult, bandLabel: bandLabel, flags: flags, xval: xval, appliedBurn: false };
     var times = 1;
     if (def.type === 'attack' && c.echoReady) { c.echoReady = false; times = 2; }
     // Doubled Self: on turn 1, every card you play resolves twice
@@ -1841,7 +1850,7 @@
     if (def.type !== 'attack') c.nonAttacksThisTurn = (c.nonAttacksThisTurn || 0) + 1;   // Recoilless Frame
     if (E.hasEcho('momentum_engine')) c.momentum = (c.momentum || 0) + 1; // each card buffs the next
     if (def.type === 'attack') { var fauto = statN(p, 'fullauto'); if (fauto > 0) addStatus(p, 'momentum', fauto); } // Full Auto: each shot builds Momentum
-    emit('cardPlayed', { id: card.id, crit: crit, roll: roll, eff: eff, misfire: misfire, aim: statN(p, 'aim') });
+    emit('cardPlayed', { id: card.id, crit: crit, roll: roll, eff: eff, misfire: misfire, band: bandLabel, aim: statN(p, 'aim') });
     checkWin();
     return true;
   };

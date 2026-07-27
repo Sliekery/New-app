@@ -520,7 +520,7 @@
     if (dieTimer) clearInterval(dieTimer);
     dieTimer = setInterval(function () { n.textContent = 1 + Math.floor(Math.random() * 20); }, 60);
   }
-  function settleDie(value, crit, misfire, aim) {
+  function settleDie(value, crit, misfire, aim, band) {
     if (!$die) return;
     dieRolling = false;
     if (dieTimer) { clearInterval(dieTimer); dieTimer = null; }
@@ -531,6 +531,13 @@
     if (!$b) { $b = document.createElement('span'); $b.className = 'die-aim'; $die.appendChild($b); }
     $b.textContent = (aim > 0) ? ('+' + aim) : '';
     $b.style.display = (aim > 0) ? '' : 'none';
+    // name the band under the die so every roll says something
+    var $l = $die.querySelector('.die-band');
+    if (!$l) { $l = document.createElement('span'); $l.className = 'die-band'; $die.appendChild($l); }
+    $l.textContent = band || '';
+    $die.classList.remove('graze', 'solid');
+    if (band === 'GRAZE') $die.classList.add('graze');
+    else if (band === 'SOLID') $die.classList.add('solid');
     if (misfire) $die.classList.add('misfire'); else $die.classList.remove('misfire');
     if (crit) $die.classList.add('crit'); else $die.classList.remove('crit');
     $die.classList.remove('settle'); void $die.offsetWidth; $die.classList.add('settle');   // settle pop
@@ -2472,9 +2479,11 @@
         case 'cardPlayed':
           // settle the dock d20 on the roll when an attack lands (only attacks can crit)
           if (e.roll != null && ns.CARDS[e.id] && ns.CARDS[e.id].type === 'attack') {
-            settleDie(e.roll, e.crit, e.misfire, e.aim || 0);
+            settleDie(e.roll, e.crit, e.misfire, e.aim || 0, e.band);
             if (e.crit) floater(pp.x + 60, pp.y - 56, 'CRIT!', 'crit');
             else if (e.misfire) floater(pp.x + 60, pp.y - 56, 'MISFIRE', 'misfire');
+            else if (e.band === 'SOLID') floater(pp.x + 60, pp.y - 52, 'SOLID', 'solid');
+            else if (e.band === 'GRAZE') floater(pp.x + 60, pp.y - 52, 'GRAZE', 'graze');
           }
           break;
         case 'revive':

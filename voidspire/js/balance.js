@@ -41,6 +41,14 @@
       critMult: 2.0,            // crit damage multiplier
       misfireMult: 0.5,         // natural 1: the shot goes wide
       vanguardAim: 1,           // the marksman class sights in: starting Aim each combat
+      // MARKSMANSHIP BANDS (Vanguard only): the whole d20 face matters, not just
+      // its ends. Effective roll = d20 + Aim. Averages ~1.03x at Aim 0, so this
+      // is a feel change rather than a power change; Aim pushes you up the table.
+      bands: [
+        { min: 15, mult: 1.25, label: 'SOLID' },
+        { min: 8,  mult: 1.0,  label: 'HIT' },
+        { min: 2,  mult: 0.8,  label: 'GRAZE' },
+      ],
     },
 
     /* ---- Status effects ---------------------------------------------- */
