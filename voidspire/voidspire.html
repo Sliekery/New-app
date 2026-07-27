@@ -8908,12 +8908,25 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   var CLASS_ART = {
     vanguard: {
       color: '#5dff88',
-      p: [[-0.15,-0.58,-0.17,-0.74,-0.12,-0.9,0,-0.99,0.13,-0.95,0.18,-0.82,0.17,-0.66,0.1,-0.58,-0.15,-0.58], [-0.1,-0.76,0.12,-0.74,0.14,-0.63,-0.07,-0.62,-0.1,-0.76], [-0.15,-0.78,-0.02,-0.85,0.13,-0.82,0.17,-0.74], [0.17,-0.82,0.24,-0.83,0.23,-0.76,0.16,-0.77], [-0.1,-0.58,0.1,-0.58,0.12,-0.52,-0.12,-0.52,-0.1,-0.58], [-0.24,-0.54,-0.44,-0.5,-0.46,-0.32,-0.3,-0.28,-0.24,-0.4,-0.24,-0.54], [-0.3,-0.5,-0.42,-0.47,-0.42,-0.37,-0.3,-0.39,-0.3,-0.5], [0.24,-0.54,0.44,-0.5,0.46,-0.32,0.3,-0.28,0.24,-0.4,0.24,-0.54], [0.3,-0.5,0.42,-0.47,0.42,-0.37,0.3,-0.39,0.3,-0.5], [-0.24,-0.5,0.24,-0.5,0.28,-0.2,0.18,0,-0.18,0,-0.28,-0.2,-0.24,-0.5], [0,-0.46,0.08,-0.3,0,-0.12,-0.08,-0.3,0,-0.46], [-0.18,0,0.18,0,0.2,0.12,-0.2,0.12,-0.18,0], [-0.16,0.06,0.16,0.06], [-0.13,0.12,0.13,0.12,0.11,0.22,-0.11,0.22,-0.13,0.12], [-0.2,0.12,-0.28,0.3,-0.26,0.48,-0.1,0.5,-0.06,0.3,-0.06,0.14,-0.2,0.12], [NaN,0.42,NaN,0.42,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,-0.15,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,0.3,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,-0.25,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,0.42], [0.2,0.12,0.28,0.3,0.26,0.48,0.1,0.5,0.06,0.3,0.06,0.14,0.2,0.12], [-0.2,0.48,-0.07,0.5,-0.07,0.58,-0.2,0.56,-0.2,0.48], [0.2,0.48,0.07,0.5,0.07,0.58,0.2,0.56,0.2,0.48], [-0.18,0.56,-0.2,0.78,-0.13,0.86,-0.06,0.84,-0.06,0.58,-0.18,0.56], [0.18,0.56,0.2,0.78,0.13,0.86,0.06,0.84,0.06,0.58,0.18,0.56], [-0.16,0.84,-0.22,0.95,-0.04,0.96,-0.05,0.84,-0.16,0.84], [0.16,0.84,0.22,0.95,0.04,0.96,0.05,0.84,0.16,0.84], [-0.24,-0.46,-0.4,-0.44,-0.5,-0.3,-0.52,-0.18,-0.43,-0.14,-0.4,-0.28,-0.28,-0.36,-0.24,-0.46], [-0.5,-0.3,-0.58,-0.32,-0.6,-0.2,-0.52,-0.16,-0.5,-0.3], [-0.45,-0.36,-0.62,-0.42,-0.64,-0.34,-0.47,-0.28,-0.45,-0.36], [-0.52,-0.36,-0.86,-0.86,-0.93,-0.81,-0.58,-0.31,-0.52,-0.36], [-0.55,-0.36,-0.88,-0.83]],
+      // combat-braced trooper: head low behind the visor, wide bent-knee stance,
+      // weapon carried at the ready (see atk.ready) instead of pointing skyward.
+      p: [[-0.15,-0.58,-0.17,-0.74,-0.12,-0.9,0,-0.99,0.13,-0.95,0.18,-0.82,0.17,-0.66,0.1,-0.58,-0.15,-0.58], [-0.1,-0.76,0.12,-0.74,0.14,-0.63,-0.07,-0.62,-0.1,-0.76], [-0.15,-0.78,-0.02,-0.85,0.13,-0.82,0.17,-0.74], [0.17,-0.82,0.24,-0.83,0.23,-0.76,0.16,-0.77], [-0.1,-0.58,0.1,-0.58,0.12,-0.52,-0.12,-0.52,-0.1,-0.58], [-0.24,-0.54,-0.44,-0.5,-0.46,-0.32,-0.3,-0.28,-0.24,-0.4,-0.24,-0.54], [-0.3,-0.5,-0.42,-0.47,-0.42,-0.37,-0.3,-0.39,-0.3,-0.5], [0.24,-0.54,0.44,-0.5,0.46,-0.32,0.3,-0.28,0.24,-0.4,0.24,-0.54], [0.3,-0.5,0.42,-0.47,0.42,-0.37,0.3,-0.39,0.3,-0.5], [-0.24,-0.5,0.24,-0.5,0.28,-0.2,0.18,0,-0.18,0,-0.28,-0.2,-0.24,-0.5], [0,-0.46,0.08,-0.3,0,-0.12,-0.08,-0.3,0,-0.46], [-0.18,0,0.18,0,0.2,0.12,-0.2,0.12,-0.18,0], [-0.16,0.06,0.16,0.06], [-0.13,0.12,0.13,0.12,0.11,0.22,-0.11,0.22,-0.13,0.12],
+          // braced legs: wide base, knees driven out and bent, boots planted
+          [-0.2,0.12,-0.33,0.32,-0.31,0.5,-0.13,0.52,-0.07,0.32,-0.06,0.14,-0.2,0.12], [0.2,0.12,0.33,0.32,0.31,0.5,0.13,0.52,0.07,0.32,0.06,0.14,0.2,0.12],
+          [-0.31,0.5,-0.13,0.52,-0.14,0.6,-0.31,0.58,-0.31,0.5], [0.31,0.5,0.13,0.52,0.14,0.6,0.31,0.58,0.31,0.5],
+          [-0.3,0.58,-0.35,0.78,-0.29,0.86,-0.2,0.84,-0.15,0.6,-0.3,0.58], [0.3,0.58,0.35,0.78,0.29,0.86,0.2,0.84,0.15,0.6,0.3,0.58],
+          [-0.29,0.84,-0.38,0.95,-0.17,0.96,-0.18,0.84,-0.29,0.84], [0.29,0.84,0.38,0.95,0.17,0.96,0.18,0.84,0.29,0.84],
+          // off hand at low ready: elbow tucked in, gauntlet held at the waist
+          [-0.25,-0.48,-0.38,-0.31,-0.37,-0.2,-0.12,-0.04,-0.06,-0.13,-0.28,-0.25,-0.18,-0.44,-0.25,-0.48],
+          [-0.14,-0.16,-0.04,-0.14,-0.05,-0.02,-0.15,-0.04,-0.14,-0.16],
+          // rifle stowed tight over the back shoulder, not jutting out like a second arm
+          [-0.28,-0.38,-0.5,-0.84,-0.58,-0.8,-0.36,-0.34,-0.28,-0.38], [-0.32,-0.36,-0.54,-0.82]],
       e: [[-0.03,-0.69], [0.05,-0.69]],
       muzzle: [0.51, -1.06],
       weapon: [[0.26,-0.5,0.3,-0.42,0.54,-0.5,0.5,-0.6,0.26,-0.5], [0.46,-0.56,0.56,-0.56,0.56,-0.74,0.46,-0.74,0.46,-0.56], [0.45,-0.74,0.58,-0.74,0.58,-0.66,0.46,-0.65,0.45,-0.74], [0.44,-0.76,0.58,-0.76,0.58,-0.92,0.44,-0.92,0.44,-0.76], [0.47,-0.92,0.47,-1.06,0.55,-1.06,0.55,-0.92,0.47,-0.92], [0.58,-0.8,0.67,-0.8,0.67,-0.88,0.58,-0.88,0.58,-0.8], [0.44,-0.79,0.39,-0.73,0.45,-0.7,0.46,-0.77], [0.49,-1.06,0.51,-1.12,0.53,-1.06]],
-      atk: { type: 'aim', pivot: [0.26,-0.48], aim: 1.46, muzzle: [0.51,-1.06] },
-    
+      // ready = the idle carry angle (weapon held forward, not skyward); aim = on target
+      atk: { type: 'aim', pivot: [0.26,-0.48], aim: 1.46, ready: 0.82, muzzle: [0.51,-1.06] },
+
     },
     technomancer: {
       color: '#41d8ff',
@@ -8980,9 +8993,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var st = c ? c.player.statuses : {};
 
     if (r.cls === 'vanguard') {
-      // muzzle glow at the blaster, brief flash when firing
+      // muzzle glow at the blaster, brief flash when firing (tracks the live weapon angle)
       var mz = (CLASS_ART.vanguard.muzzle) || [0.84, 0.12];
-      var mx = px + mz[0] * scale, my = py + mz[1] * scale;
+      var mx = R.player.muzzleX != null ? R.player.muzzleX : px + mz[0] * scale;
+      var my = R.player.muzzleY != null ? R.player.muzzleY : py + mz[1] * scale;
       var fl = (t - (R.player.lungeT || -9)) / 0.28;
       var firing = fl >= 0 && fl < 0.5;
       ctx.save();
@@ -9164,9 +9178,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (!r) return;
     var p = R.playerXY();
     var scale = Math.min(W, H) * 0.1125;
-    var bob = Math.sin(t * 1.6) * 1.4;
+    // breathing at two rates so the idle never ticks like a metronome, plus a slow
+    // weight shift boot-to-boot — the trooper is holding a stance, not standing still.
+    var bob = Math.sin(t * 1.6) * 1.4 + Math.sin(t * 0.83) * 0.7;
+    var swayX = (r.cls === 'vanguard') ? Math.sin(t * 0.62) * 1.7 : 0;
     var flash = (t - R.player.flashT < 0.15);
-    var px = p.x, py = p.y + bob, sc = scale, glow = flash ? 14 : 9;
+    var px = p.x + swayX, py = p.y + bob, sc = scale, glow = flash ? 14 : 9;
     var art = CLASS_ART[r.cls] || CLASS_ART.vanguard, atk = art.atk;
     // card-play animation: attack (weapon rig) / defend brace / utility surge
     var atype = R.player.animType, adt = t - (R.player.animT || -9), aprog = -1;
@@ -9189,15 +9206,19 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // weapon / attack animation per class
     var atking = atype === 'attack' && aprog >= 0, tx = R.player.atkTX, ty = R.player.atkTY;
     function ease(x) { return x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x); }
-    if (atk && atk.type === 'aim') {                 // vanguard: snap to aim, FIRE with recoil, recover
-      var ang = 0, firing = false;
+    if (atk && atk.type === 'aim') {                 // vanguard: ready carry -> snap on target, FIRE, return to ready
+      // he never holds perfectly still: slow drift plus a faster tremor keeps the muzzle alive
+      var rest = (atk.ready || 0) + Math.sin(t * 0.9) * 0.045 + Math.sin(t * 2.7) * 0.016;
+      var ang = rest, firing = false;
       if (atking) {
-        if (aprog < 0.34) ang = ease(aprog / 0.34) * atk.aim;                     // snap the muzzle down onto target
+        if (aprog < 0.34) ang = rest + (atk.aim - rest) * ease(aprog / 0.34);      // bring the muzzle onto target
         else if (aprog < 0.4) ang = atk.aim;                                      // brief settle on target
         else if (aprog < 0.58) { ang = atk.aim - aimKick * 0.55; firing = true; } // FIRE — muzzle climbs with the kick
-        else ang = atk.aim * (1 - ease((aprog - 0.58) / 0.42));                    // lower the weapon back to rest
+        else ang = atk.aim + (rest - atk.aim) * ease((aprog - 0.58) / 0.42);       // back down to the ready carry
       }
       strokeRot(art.weapon, px, py, sc, atk.pivot, ang, col, glow);
+      var mz = rotPt(atk.muzzle, atk.pivot, ang);   // live muzzle position for the idle glow
+      R.player.muzzleX = px + mz[0] * sc; R.player.muzzleY = py + mz[1] * sc;
       if (firing) {
         var m = rotPt(atk.muzzle, atk.pivot, ang);
         var mx = px + m[0] * sc, my = py + m[1] * sc;
@@ -9237,7 +9258,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     drawPlayerFx(r, px, py, sc, art.color);
 
     // archetype shield: a persistent ward around you while you hold Shield
-    if (R.player.block > 0) drawPlayerShield(r, p.x, p.y + bob, scale, R.player.block);
+    if (R.player.block > 0) drawPlayerShield(r, p.x + swayX, p.y + bob, scale, R.player.block);
 
     // the cockpit gauge — energy cap + HP bar + shield overlay, below the figure
     if (R.combatVisible) drawPlayerGauge(p.x, p.y, scale);
