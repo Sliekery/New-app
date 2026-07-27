@@ -9,6 +9,7 @@ global.VS = global.VS || {};
 require('../js/balance.js');
 require('../js/cards.js');
 require('../js/artifacts.js');
+require('../js/dice.js');
  require('../js/augments.js');
 require('../js/potions.js');
 require('../js/echoes.js');

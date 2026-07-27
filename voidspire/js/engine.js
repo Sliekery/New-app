@@ -55,6 +55,7 @@
       credits: B.player.startCredits,
       deck: deck,
       artifacts: [],
+      die: ns.newDie(),    // THE AUGMENTED DIE: faces / core / frame
       relicOff: {},        // relics switched off (toggled on the star chart)
       relicUses: {},       // remaining durability for relics that have it
       sector: 1,
@@ -1491,6 +1492,20 @@
   }
   E.rollColorlessCard = rollColorlessCard;
 
+  // Fire the engraving on `face` (if any). Augment fx reuse the card effect
+  // vocabulary, so applyCardFx resolves them — no second effect engine.
+  function fireDieFace(face, tgt) {
+    var r = E.run, c = E.combat;
+    if (!r || !r.die || !c || c.over) return;
+    var id = ns.dieFaceId(r.die, face);
+    if (!id) return;
+    var aug = ns.dieEngraving(id);
+    if (!aug || !aug.fx || !aug.fx.length) return;
+    emit('dieFace', { face: face, id: id, name: aug.name, flaw: !!aug.flaw });
+    applyCardFx(aug.fx, { tgt: tgt, crit: false, roll: null, eff: face, misfire: false, bandMult: 1, flags: {}, xval: 0, appliedBurn: false });
+  }
+  E.fireDieFace = fireDieFace;
+
   // Resolve a card's effects once. Echo can call this twice. ctx carries the
   // shared roll/crit/target and an appliedBurn flag for Contagion.
   function applyCardFx(fx, ctx) {
@@ -1601,6 +1616,16 @@
                 if (others.length && bn >= 2) { var oe = pick(others); var sp = Math.floor(bn / 2); addStatus(oe, 'burn', sp); emit('status', { who: 'enemy', idx: c.enemies.indexOf(oe), s: 'burn', v: statN(oe, 'burn') }); trackBurn(sp); }
               }
             }
+          } else if (f.id === 'dieCredits') {
+            E.run.credits += (f.v || 5); emit('credits', { amount: f.v || 5 });
+          } else if (f.id === 'dieLoseBlock') {
+            p.block = Math.max(0, p.block - (f.v || 3)); emit('block', { who: 'player', amount: 0, blockAfter: p.block });
+          } else if (f.id === 'dieEnemyStr') {
+            var esPool = aliveEnemies();
+            if (esPool.length) { var esE = pick(esPool); addStatus(esE, 'str', f.v || 1); emit('status', { who: 'enemy', idx: c.enemies.indexOf(esE), s: 'str', v: statN(esE, 'str') }); }
+          } else if (f.id === 'dieExecute') {
+            var xeT = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            if (xeT) totalDealt += dealToEnemy(xeT, c.enemies.indexOf(xeT), f.v || 8, { execute: true, noCrit: true });
           } else if (f.id === 'spendAim') {
             // KILLSHOT: burn every point of banked Aim into one aimed round.
             var saT = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
@@ -1763,9 +1788,16 @@
     // misfires, and everything between is read against the card's roll thresholds.
     var roll = null, crit = false, misfire = false, eff = null, bandMult = 1, bandLabel = null;
     var marksman = (r.cls === 'vanguard');   // the Vanguard reads the whole die face
+    // THE AUGMENTED DIE: every card play rolls, so a skill/power deck still
+    // engages the die. Only attacks read the damage bands.
+    if (def.type !== 'attack') {
+      roll = d20();
+      eff = Math.min(20, roll + statN(p, 'aim'));
+      emit('roll', { roll: roll, eff: eff, crit: false, misfire: false, band: null });
+    }
     if (def.type === 'attack') {
       roll = d20();
-      eff = roll + statN(p, 'aim');
+      eff = Math.min(20, roll + statN(p, 'aim'));
       crit = (roll === 20) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus'));
       misfire = (roll === 1) && marksman;
       if (roll === 1 && art('critDie1Energy') > 0) c.energy += art('critDie1Energy');   // Misfire Capacitor
@@ -1806,6 +1838,8 @@
       if (tc > 0) c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, tc, { noCrit: true, noWeak: true }); });
       var ai = statN(p, 'afterImage');
       if (ai > 0) gainBlock(ai);
+      // THE AUGMENTED DIE: whatever is engraved on the face you landed on fires.
+      if (eff != null) fireDieFace(eff, tgt);
       // crit payoffs (Omega Visor / Targeting Matrix + DEADEYE), once per critting card
       if (crit) {
         var cdr = art('critDraw') + statN(p, 'deadeyeDraw'); if (cdr > 0) drawCards(cdr);
