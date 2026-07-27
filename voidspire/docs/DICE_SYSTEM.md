@@ -1,6 +1,6 @@
 # VOIDSPIRE — The Augmented Die
 
-**Status:** design proposal, awaiting approval. No implementation yet.
+**Status:** approved — core slots limited, faces 1/20 engravable, Flaws in. Building.
 **Scope:** core system for the whole game. Vanguard is the testing ground.
 
 ---
@@ -64,11 +64,23 @@ system. Proposal:
 
 At ~4 cards a turn this means ~4 rolls a turn — the die is constantly alive.
 
-### 3.4 One face, one augment (initially)
+### 3.4 Faces 1 and 20 are engravable — DECIDED
+Both keep their built-in behaviour (1 misfires, 20 crits) and an augment fires **in
+addition**. This creates two distinct design spaces, and they interact with Aim in
+opposite directions:
+
+- **Face 1 is Aim-proof.** A natural 1 always misfires and can never be aimed away, so a
+  face-1 augment is a rock-steady 5% trigger no matter how you build. Ideal home for
+  redemption effects (Jam Clearance) — the consolation you can always count on.
+- **Face 20 is Aim-magnified.** Because the effective roll clamps at 20, every point of
+  Aim pushes more rolls onto face 20. A face-20 augment is the natural payoff for an
+  Aim-stacking build.
+
+### 3.5 One face, one augment (initially)
 Each face holds **1** augment. A Frame Upgrade can later allow a second on a face.
 20 faces is deliberately more room than a run can fill; expect 5–8 engraved by the end.
 
-### 3.5 Ranges vs points
+### 3.6 Ranges vs points
 Augments declare which faces they occupy:
 
 - **Point augment** — a single face. Fires 5% of rolls, so effects are *chunky*.
@@ -191,17 +203,17 @@ Pacifist Doctrine, War Chest, Flawless Protocol, Offline Shield, Soul Ledger.
 socket that survives the Recurrence and forges each loop. Thematically the best fit in
 the whole list.
 
-### 6.4 Open decision — core slots
-Relics today are **unlimited and all stack**. Two options:
+### 6.4 Core slots — DECIDED: limited
+Relics today are unlimited and all stack. The die core is **limited**, which turns every
+pickup into a decision instead of an accumulation.
 
-- **(a) Unlimited core** — pure relocation. Zero balance risk, but the core screen is
-  just a list and there is no decision.
-- **(b) Limited core slots (~4–6)** — creates a real "which do I mount?" choice and
-  makes each pickup interesting, but it is a significant nerf to accumulation and needs
-  a full balance pass.
-
-I lean **(a) for the slice, revisit (b) later** — get the faces feeling good before
-touching relic accumulation.
+- **Slots start at 3, +1 after each sector boss, hard cap 6.**
+- Unmounted modules go to the **vault** — kept, not lost.
+- **Swap freely at rest nodes and on the star chart.** The star chart already has
+  enable/disable for tradeoff relics (Berserker's Yoke, Recoilless Frame, Singularity
+  Core), so the interaction pattern exists; this generalises it.
+- Consequence to watch: this is a real nerf to late-run power. Expect to hand some of it
+  back — likely via slightly stronger modules and the face layer — and re-check parity.
 
 ---
 
@@ -242,6 +254,36 @@ Requirements:
 **In-combat readability:** the die already names its band. When an augment fires, it
 announces itself — augment name floater + a pulse on the die. Without this the system
 is invisible mid-fight, which was exactly the failure of the last pass.
+
+---
+
+## 7a. Flaws — the downside axis (DECIDED: yes)
+
+Enemies and events can **engrave a Flaw** onto a face: a negative augment you did not
+choose. This gives the die a downside axis and a reason to fear certain enemies.
+
+- A Flaw **occupies its face**, so it also denies you that engraving slot.
+- Effects use the same `fx` vocabulary: `hploss`, losing Shield, an enemy gaining Might,
+  a card costing more next turn.
+- **Removal** is a service: shops and forge nodes grind a Flaw out for credits; some
+  events offer it as a reward.
+- Sources fit what already exists — the Void Shard corrupts cards and the Voidling
+  infects the deck today, so a warp-etcher enemy engraving the die is in keeping.
+
+**The reason this decision is strong:** Flaws interact with Aim in a way relics never
+could. A Flaw on face 6 can be *steered around* by raising Aim until you rarely roll
+there. So a curse does not simply tax you — it **pressures your build**, and digging
+yourself out by re-aiming is a genuine, legible decision. A Flaw parked on face 20 is
+the nastiest of all, because the very Aim you have invested in is what keeps feeding it.
+
+Starter Flaws:
+
+| Flaw | Effect |
+|---|---|
+| Hairline Fracture | Lose 2 HP |
+| Cold Solder | Lose 3 Shield |
+| Fouled Primer | The next card you play this turn costs 1 more |
+| Warp Etching | A random enemy gains 1 Might |
 
 ---
 
@@ -286,11 +328,16 @@ Stages 1–3 are the playable slice.
 
 ## 11. Open questions
 
-1. **Core slots** — unlimited (a) or limited (b)? See §6.4. *(Recommend a for now.)*
-2. **Removing augments** — free, paid at shops, or permanent once engraved?
-3. **Face 1 and 20** — reserved for misfire/crit, or fully engravable?
-   *(Recommend engravable, with the misfire/crit behaviour kept on top.)*
-4. **All classes at once, or Vanguard-gated first?** The system is class-agnostic; only
+**Resolved:**
+1. ~~Core slots~~ → **limited**: 3 slots, +1 per sector boss, cap 6, vault + free swap
+   at rest/star chart. See §6.4.
+2. ~~Faces 1 and 20~~ → **engravable**, keeping misfire/crit on top. See §3.4.
+3. ~~Curses~~ → **yes**, Flaws are in. See §7a.
+
+**Still open:**
+4. **Removing augments** — free, paid at shops, or permanent once engraved? (Flaw
+   removal is priced; this is about your *own* engravings.)
+5. **All classes at once, or Vanguard-gated first?** The system is class-agnostic; only
    the *content* need be Vanguard-flavoured initially.
-5. **Curses** — should enemies or events be able to engrave a *bad* face on you? Strong
-   flavour, and it gives the die a downside axis.
+6. **Slot growth pacing** — is +1 per boss the right curve, or should the cap be reached
+   sooner so the mid-run has more room?
