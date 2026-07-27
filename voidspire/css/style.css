@@ -1255,3 +1255,38 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   #energy-pip { bottom: calc(env(safe-area-inset-bottom, 0px) + 140px); }
   #potion-belt { bottom: calc(env(safe-area-inset-bottom, 0px) + 196px); }
 }
+
+/* ---- The Die: inspection screen ---------------------------------------- */
+.die-chip { color: #9fe9ff; }
+.die-cols { display: flex; gap: 10px; justify-content: center; width: 100%; max-width: 620px; margin: 4px auto 0; }
+.die-col { flex: 1 1 0; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.df {
+  display: flex; align-items: center; gap: 6px; padding: 3px 7px; min-height: 26px;
+  border: 1px solid rgba(94,138,108,0.30); border-radius: 3px;
+  background: rgba(10,18,14,0.55); font: 600 10px/1.2 ui-monospace, monospace;
+}
+.df-n { flex: 0 0 20px; text-align: right; color: #9bb0a6; font-weight: 700; }
+.df-icon { width: 15px; height: 15px; flex: 0 0 15px; }
+.df-name { flex: 1 1 auto; color: #d6ffe4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.df-cont { flex: 1 1 auto; color: #7f9a8b; font-style: italic; }
+.df-empty { flex: 1 1 auto; color: #46584e; }
+.df-tag { font-size: 7.5px; letter-spacing: 0.08em; color: #ff4a5e; opacity: 0.85; }
+.df-tag.crit { color: #5dff88; }
+.df.aug { border-color: rgba(93,255,136,0.45); box-shadow: inset 0 0 8px rgba(93,255,136,0.10); }
+.df.aug .df-icon { color: #5dff88; }
+.df.flaw { border-color: rgba(255,74,94,0.5); background: rgba(28,10,14,0.6); }
+.df.flaw .df-icon { color: #ff4a5e; }
+.df.flaw .df-name { color: #ffc4cc; }
+.df.unreach { opacity: 0.34; }
+.die-legend { margin-top: 8px; font: 600 8.5px/1.3 ui-monospace, monospace; letter-spacing: 0.09em; color: #6f8579; text-align: center; }
+.die-mods { width: 100%; max-width: 620px; margin: 10px auto 0; }
+.dm-title { font: 700 9px/1.4 ui-monospace, monospace; letter-spacing: 0.12em; color: #9bb0a6; margin: 8px 0 4px; }
+.dm-slots { color: #ffb02e; margin-left: 6px; }
+.dm-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 26px; }
+.dm-chip {
+  width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(255,176,46,0.45); border-radius: 3px; color: #ffb02e; background: rgba(20,14,6,0.5);
+}
+.dm-empty { font: 600 9px/1 ui-monospace, monospace; color: #55675c; }
+.floater.dieaug { font-size: 14px; color: #5dff88; text-shadow: 0 0 10px rgba(93,255,136,0.85); }
+.floater.dieflaw { font-size: 14px; color: #ff4a5e; text-shadow: 0 0 10px rgba(255,74,94,0.85); }

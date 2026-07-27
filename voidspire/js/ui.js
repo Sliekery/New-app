@@ -585,6 +585,11 @@
     // relics ride the top HUD (in combat and on the map). On the star chart you
     // can tap to toggle them on/off; in combat a tap reads its tooltip. Relics
     // with limited uses show a remaining-count badge.
+    html += '<div class="artifact-row">';
+    html += '<div class="artifact-chip die-chip" data-die="1" title="Inspect the die">'
+         +  '<svg viewBox="0 0 40 40" class="art-icon"><polygon points="20,3 35,12 35,28 20,37 5,28 5,12" fill="none" stroke="currentColor" stroke-width="2.4"/>'
+         +  '<polygon points="20,10 29,25 11,25" fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.6"/></svg></div>';
+    html += '</div>';
     if (r.artifacts.length) {
       html += '<div class="artifact-row">';
       r.artifacts.forEach(function (id, i) {
@@ -611,6 +616,10 @@
 
     $hud.innerHTML = html;
 
+    var dieChip = $hud.querySelector('[data-die]');
+    if (dieChip) dieChip.addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation(); if (locked) return; SFX.tap(); showDieScreen();
+    });
     $hud.querySelectorAll('[data-art]').forEach(function (chip) {
       chip.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
@@ -875,6 +884,89 @@
       });
     });
   }
+
+
+  /* ====================== THE DIE ====================== */
+  // Which faces you can actually land on, given Aim. eff = min(20, natural+Aim),
+  // and a natural 1 always lands on face 1 — so raising Aim strands the low faces.
+  function dieReach(aim) {
+    var lo = Math.min(20, 2 + (aim || 0));
+    return function (face) { return face === 1 || face >= lo; };
+  }
+  function dieAimNow() {
+    var c = E.combat;
+    if (c) return (c.player.statuses.aim || 0);
+    return (E.run && E.run.cls === 'vanguard') ? (ns.BALANCE.dice.vanguardAim || 0) : 0;
+  }
+  function dieFaceRowHTML(die, face, reach) {
+    var id = ns.dieFaceId(die, face), d = id ? ns.dieEngraving(id) : null;
+    var slot = die.faces[face];
+    var cont = slot && slot.root !== face;                 // continuation of a band
+    var cls = 'df' + (d ? (d.flaw ? ' flaw' : ' aug') : ' bare') + (reach(face) ? '' : ' unreach');
+    var tag = face === 1 ? '<span class="df-tag">MISFIRE</span>' : face === 20 ? '<span class="df-tag crit">CRIT</span>' : '';
+    var body = d
+      ? (cont ? '<span class="df-cont">— ' + esc(d.name) + '</span>'
+              : artSVG(d.art, 'df-icon') + '<span class="df-name">' + esc(d.name) + '</span>')
+      : '<span class="df-empty">bare</span>';
+    return '<div class="' + cls + '" data-face="' + face + '"><span class="df-n">' + face + '</span>' + body + tag + '</div>';
+  }
+  function showDieScreen() {
+    var r = E.run; if (!r) return;
+    if (!r.die) r.die = ns.newDie();
+    var die = r.die, aim = dieAimNow(), reach = dieReach(aim);
+    var wasCombat = r.phase === 'combat';
+    var s = overlayScreen();
+    s.appendChild(el('h2', 'screen-title', 'The Die'));
+    s.appendChild(el('div', 'screen-sub', aim > 0
+      ? ('AIM +' + aim + ' — YOU LAND ON ' + Math.min(20, 2 + aim) + '\u201320, PLUS FACE 1 ON A NATURAL 1')
+      : 'NO AIM — EVERY FACE IS IN REACH'));
+
+    var wrap = el('div', 'die-cols');
+    [[1, 10], [11, 20]] .forEach(function (rng) {
+      var col = el('div', 'die-col'), h = '';
+      for (var f = rng[0]; f <= rng[1]; f++) h += dieFaceRowHTML(die, f, reach);
+      col.innerHTML = h;
+      wrap.appendChild(col);
+    });
+    s.appendChild(wrap);
+    s.appendChild(el('div', 'die-legend', 'DIMMED FACES ARE OUT OF REACH AT YOUR CURRENT AIM'));
+
+    // core + frame
+    var coreN = die.core.length, slots = die.coreSlots || ns.DIE.coreSlotsStart;
+    var mods = el('div', 'die-mods');
+    var coreHtml = '<div class="dm-title">CORE <span class="dm-slots">' + coreN + '/' + slots + '</span></div><div class="dm-row">';
+    if (!coreN) coreHtml += '<span class="dm-empty">no modules mounted</span>';
+    die.core.forEach(function (id) {
+      var a = ns.ARTIFACTS[id]; if (!a) return;
+      coreHtml += '<div class="dm-chip" title="' + esc(a.desc) + '">' + artSVG(a.art, 'art-icon') + '</div>';
+    });
+    coreHtml += '</div>';
+    var frHtml = '<div class="dm-title">FRAME</div><div class="dm-row">';
+    if (!die.frame.length) frHtml += '<span class="dm-empty">stock frame</span>';
+    die.frame.forEach(function (id) {
+      var a = ns.ARTIFACTS[id]; if (!a) return;
+      frHtml += '<div class="dm-chip" title="' + esc(a.desc) + '">' + artSVG(a.art, 'art-icon') + '</div>';
+    });
+    frHtml += '</div>';
+    mods.innerHTML = coreHtml + frHtml;
+    s.appendChild(mods);
+
+    // tap a face for its full text
+    s.querySelectorAll('.df').forEach(function (row) {
+      row.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation();
+        var f = +row.dataset.face, id = ns.dieFaceId(die, f), d = id ? ns.dieEngraving(id) : null;
+        SFX.tap();
+        if (!d) { toast('Face ' + f + ' is bare — nothing engraved.', 1800); return; }
+        toast(d.name + ' — ' + d.desc + (reach(f) ? '' : '  (out of reach at Aim +' + aim + ')'), 3200);
+      });
+    });
+
+    var btn = el('button', 'btn', 'CLOSE');
+    btn.addEventListener('pointerdown', function () { SFX.tap(); if (wasCombat) showCombat(); else U.refresh(); });
+    s.appendChild(btn);
+  }
+  U.showDie = showDieScreen;
 
   /* ====================== TITLE ====================== */
   var CLASS_INFO = {
@@ -2475,6 +2567,10 @@
             }, d);
           })(e, delay);
           delay += 90;
+          break;
+        case 'dieFace':
+          // the whole point of the die is that you SEE it fire
+          floater(pp.x + 62, pp.y - 84, (e.flaw ? '\u2716 ' : '\u25c6 ') + e.name, e.flaw ? 'dieflaw' : 'dieaug');
           break;
         case 'cardPlayed':
           // settle the dock d20 on the roll when an attack lands (only attacks can crit)

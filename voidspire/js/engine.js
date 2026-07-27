@@ -1839,7 +1839,9 @@
       var ai = statN(p, 'afterImage');
       if (ai > 0) gainBlock(ai);
       // THE AUGMENTED DIE: whatever is engraved on the face you landed on fires.
-      if (eff != null) fireDieFace(eff, tgt);
+      // A natural 1 always lands on face 1 — Aim can never carry you off it, which
+      // is what makes face 1 the one anchor an Aim build cannot lose.
+      if (roll != null) fireDieFace(roll === 1 ? 1 : eff, tgt);
       // crit payoffs (Omega Visor / Targeting Matrix + DEADEYE), once per critting card
       if (crit) {
         var cdr = art('critDraw') + statN(p, 'deadeyeDraw'); if (cdr > 0) drawCards(cdr);

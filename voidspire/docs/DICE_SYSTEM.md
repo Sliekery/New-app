@@ -334,10 +334,25 @@ Stages 1–3 are the playable slice.
 2. ~~Faces 1 and 20~~ → **engravable**, keeping misfire/crit on top. See §3.4.
 3. ~~Curses~~ → **yes**, Flaws are in. See §7a.
 
+**Deferred — revisit later, not being built now:**
+4. ~~Removing augments~~ — deferred. Engravings are permanent for now.
+5. ~~Slot growth pacing~~ — deferred. +1 per boss stands until play says otherwise.
+
 **Still open:**
-4. **Removing augments** — free, paid at shops, or permanent once engraved? (Flaw
-   removal is priced; this is about your *own* engravings.)
-5. **All classes at once, or Vanguard-gated first?** The system is class-agnostic; only
+6. **All classes at once, or Vanguard-gated first?** The system is class-agnostic; only
    the *content* need be Vanguard-flavoured initially.
-6. **Slot growth pacing** — is +1 per boss the right curve, or should the cap be reached
-   sooner so the mid-run has more room?
+
+---
+
+## 12. Implementation notes (things the build changed)
+
+**A natural 1 always lands on face 1.** §3.4 claims face 1 is the Aim-proof anchor, but
+the first implementation resolved the face from the effective roll — so with the
+Vanguard's baseline Aim of 1, `eff = min(20, 1+1) = 2` and **face 1 was unreachable**,
+making Jam Clearance dead content. The engine now pins a natural 1 to face 1 regardless
+of Aim, which is what the design intended.
+
+**Reach, precisely.** With Aim *A* you land on `{1}` (via a natural 1) plus
+`{min(20, 2+A) … 20}`. The inspection screen dims everything outside that set, which is
+what makes "raising Aim strands my low faces" legible at a glance rather than a hidden
+rule.
