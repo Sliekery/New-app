@@ -7956,6 +7956,30 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   R.ring = function (x, y, color, maxR, life) {
     particles.push({ kind: 'ring', x: x, y: y, r0: 5, r1: maxR || 60, life: life || 0.42, age: 0, color: color, lw: 2 });
   };
+  // Lobbed ordnance: a shell that arcs from (x0,y0) to (x1,y1) under gravity and
+  // lands after `time` seconds — solve the ballistic so it hits exactly on time.
+  R.lob = function (x0, y0, x1, y1, color, time) {
+    var T = time || 0.3, g = 1500;
+    particles.push({ kind: 'streak', x: x0, y: y0,
+      vx: (x1 - x0) / T, vy: (y1 - y0) / T - 0.5 * g * T, grav: g,
+      len: 9, life: T, age: 0, color: color, size: 2.4 });
+    for (var i = 0; i < 5; i++) particles.push({   // smoke puffs off the arc
+      x: x0, y: y0, vx: (x1 - x0) / T * (0.2 + Math.random() * 0.5), vy: -(30 + Math.random() * 50),
+      life: 0.2 + Math.random() * 0.3, age: 0, color: color, size: 1 + Math.random() });
+  };
+  // Heavy impact: a hard double shockwave, thrown debris and a kick of shake.
+  // `power` 0..4 scales how much the hit is felt.
+  R.quake = function (x, y, color, power) {
+    var p = Math.max(0, Math.min(4, power || 0));
+    R.ring(x, y, '#ffffff', 16 + p * 8, 0.16);
+    R.ring(x, y, color, 30 + p * 16, 0.34 + p * 0.05);
+    for (var i = 0; i < 4 + p * 3; i++) {
+      var a = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.5, sp = 90 + Math.random() * (120 + p * 60);
+      particles.push({ kind: 'streak', x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, grav: 620,
+        len: 5 + p, life: 0.28 + Math.random() * 0.3, age: 0, color: color, size: 1.4 + p * 0.3 });
+    }
+    if (p >= 1) R.shake(0.2 + p * 0.13);
+  };
   // Upward flickering embers (Burn / fire). Floats up and slows.
   R.embers = function (x, y, color, n) {
     for (var i = 0; i < (n || 12); i++) particles.push({
@@ -11386,15 +11410,35 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // Per-card motif: each card maps to its own distinct cast animation + sound.
   // Unlisted cards fall back to a class/flavor default (fallbackMotif).
   var CARD_MOTIF = {
-    // -- Vanguard --
-    pulse_rifle: 'bullet', scrap_shot: 'bullet', bayonet_charge: 'slash',
-    burst_fire: 'burst3', suppressing_fire: 'spray', frag_grenade: 'grenade', cluster_munitions: 'hail',
-    shield_slam: 'slam', kinetic_discharge: 'slam', executioner: 'execute',
-    heavy_ordnance: 'heavyShot', salvaged_ordnance: 'heavyShot', whirlwind: 'spiral',
-    orbital_strike: 'hail', orbital_bombardment: 'hail',
-    breach: 'reap', combat_stims: 'energize', war_cry: 'warcry', warlord_protocol: 'surge', limit_break: 'surge',
-    iron_resolve: 'fortify', reckless_protocol: 'fortify', barricade_protocol: 'fortify', bunker_down: 'fortify', juggernaut_core: 'fortify',
-    scorched_earth: 'scorch', munitions_dump: 'energize', adrenal_surge: 'energize',
+    // -- Vanguard (every card gets a space-marine cast: bolters, ordnance,
+    //    chainswords, ceramite plates and blood-price) --
+    // bolt weapons
+    pulse_rifle: 'boltRound', scrap_shot: 'boltRound', salvage_servitor: 'boltRound',
+    burst_fire: 'boltBurst', frenzy: 'boltBurst', hail_of_lead: 'boltBurst',
+    rapid_fire: 'boltStorm', full_auto: 'boltStorm',
+    unload: 'heavyBolter', heavy_ordnance: 'heavyBolter', salvaged_ordnance: 'heavyBolter',
+    executioner: 'execRound',
+    suppressing_fire: 'suppress', suppressing_barrage: 'suppress',
+    // ordnance
+    frag_grenade: 'fragLob', cluster_charge: 'clusterLob', cluster_munitions: 'clusterLob',
+    breaching_charge: 'meltaCharge', scorched_earth: 'flamer',
+    salvo: 'shrapnelBurst', demolition_train: 'shrapnelBurst',
+    orbital_strike: 'orbital', orbital_bombardment: 'orbital',
+    // melee / shield
+    shield_slam: 'powerFist', shield_bash: 'powerFist', kinetic_discharge: 'slam',
+    bayonet_charge: 'chainsword', reckless_charge: 'chainsword', counterstrike: 'chainsword', whirlwind: 'chainsword',
+    breach: 'reap',
+    // ceramite: guard stances and lock-downs
+    iron_resolve: 'plateLock', barricade_protocol: 'plateLock', bunker_down: 'plateLock',
+    bulwark: 'plateLock', riot_shield: 'plateLock', rallying_shout: 'plateLock', juggernaut_core: 'plateLock',
+    deflect: 'bracePlant', spiked_bulwark: 'bracePlant', riposte_protocol: 'bracePlant', vengeance: 'bracePlant',
+    // war-cries and rage
+    war_cry: 'warhorn', warlord_protocol: 'warhorn',
+    combat_stims: 'furor', limit_break: 'furor', bloodlust: 'furor', reckless_protocol: 'furor', blood_rage: 'furor',
+    crimson_pact: 'bloodToll', whet_the_blade: 'bloodToll', bloodbath: 'bloodToll',
+    // logistics
+    munitions_dump: 'energize', adrenal_surge: 'energize',
+    quartermaster: 'reload', field_strip: 'reload', trigger_discipline: 'reload',
     // -- Technomancer --
     shock_coil: 'zap', static_lance: 'rail', railgun: 'rail', leech_coil: 'rail',
     chain_lightning: 'arc', arc_welder: 'arc', emp_blast: 'pulse', static_field: 'pulse',
@@ -11433,6 +11477,81 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // (sx,sy), target pos (tp), all live targets, class colour, cost-as-power,
   // and a per-card pitch multiplier (pm) so same-motif cards still differ.
   var MOTIF = {
+    /* ---- Vanguard: Adeptus-pattern ordnance. Low, percussive, physical. Every
+       hit lands with a white flash, a shockwave and thrown debris (R.quake) so
+       the weight reads instantly even at a glance. ---- */
+    boltRound: {   // one mass-reactive round: sharp crack, meaty impact
+      s: function (e) { noise(0.05, 0.055, 5200, 700); synth(150 * e.pm, 0.2, 'square', 0.055, -95, { detune: 11, filter: [1800, 220] }); },
+      a: function (e) { if (e.tp) { R.beamBolt(e.sx, e.sy, e.tp.x, e.tp.y, '#ffe9c0', 4); R.burst(e.sx, e.sy, '#ffe9c0', 5); R.quake(e.tp.x, e.tp.y, e.col, 1); } },
+    },
+    boltBurst: {   // three-round burst, each shell landing on its own beat
+      s: function (e) { [0, 1, 2].forEach(function (i) { setTimeout(function () { noise(0.04, 0.045, 5000, 800); synth(162 * e.pm, 0.13, 'square', 0.048, -80, { detune: 10, filter: [1700, 240] }); }, i * 85); }); },
+      a: function (e) { if (e.tp) [0, 85, 170].forEach(function (d) { setTimeout(function () { R.beamBolt(e.sx, e.sy, e.tp.x, e.tp.y, '#ffe9c0', 3); R.quake(e.tp.x, e.tp.y, e.col, 0); }, d); }); },
+    },
+    boltStorm: {   // the trigger is held down — a hammering stream of rounds
+      s: function (e) { noise(0.34, 0.05, 3000, 500); [0, 1, 2, 3, 4].forEach(function (i) { setTimeout(function () { synth(175 * e.pm, 0.07, 'square', 0.032, -60, { filter: [1600, 300] }); }, i * 55); }); },
+      a: function (e) { if (e.tp) [0, 55, 110, 165, 220].forEach(function (d) { setTimeout(function () { R.shot(e.sx, e.sy, e.tp.x, e.tp.y, '#ffe9c0'); R.burst(e.tp.x, e.tp.y, e.col, 3); }, d); }); setTimeout(function () { if (e.tp) R.quake(e.tp.x, e.tp.y, e.col, 1); }, 230); },
+    },
+    heavyBolter: {   // siege-grade shell: deep boom and a wide shockwave
+      s: function (e) { noise(0.14, 0.07, 1200, 120); synth(80 * e.pm, 0.3, 'square', 0.07, -26, { detune: 14, filter: [1100, 120] }); },
+      a: function (e) { if (e.tp) { R.beamBolt(e.sx, e.sy, e.tp.x, e.tp.y, '#ffe9c0', 8); R.quake(e.tp.x, e.tp.y, e.col, 3); } },
+    },
+    execRound: {   // executioner shell: a spin-up whine, then one killing round
+      s: function (e) { synth(240 * e.pm, 0.16, 'sawtooth', 0.035, 380, { detune: 8 }); setTimeout(function () { noise(0.16, 0.08, 1400, 130); synth(70, 0.3, 'square', 0.075, -20, { detune: 16, filter: [1000, 110] }); }, 170); },
+      a: function (e) { if (e.tp) setTimeout(function () { R.beamBolt(e.sx, e.sy, e.tp.x, e.tp.y, '#ffffff', 9); R.nova(e.tp.x, e.tp.y, e.col, e.power); R.quake(e.tp.x, e.tp.y, e.col, 4); }, 170); },
+    },
+    suppress: {   // raking fire walked across the whole line
+      s: function (e) { noise(0.3, 0.05, 2400, 400); [0, 1, 2, 3].forEach(function (i) { setTimeout(function () { synth(170 * e.pm, 0.08, 'square', 0.034, -60, { filter: [1500, 300] }); }, i * 65); }); },
+      a: function (e) { var ts = (e.targets && e.targets.length) ? e.targets : (e.tp ? [e.tp] : []); ts.forEach(function (tt, i) { setTimeout(function () { R.beamBolt(e.sx, e.sy, tt.x, tt.y, '#ffe9c0', 3); R.quake(tt.x, tt.y, e.col, 0); }, i * 70); }); },
+    },
+    fragLob: {   // grenade arcs out, hangs, then detonates with debris
+      s: function (e) { synth(300, 0.15, 'sine', 0.022, -160); setTimeout(function () { noise(0.2, 0.075, 1500, 90); synth(70, 0.3, 'square', 0.068, -22, { detune: 16, filter: [900, 100] }); }, 300); },
+      a: function (e) { var ts = (e.targets && e.targets.length) ? e.targets : (e.tp ? [e.tp] : []); ts.forEach(function (tt) { R.lob(e.sx, e.sy, tt.x, tt.y, e.col, 0.3); setTimeout(function () { R.quake(tt.x, tt.y, e.col, 2); R.shards(tt.x, tt.y, e.col, 8, -Math.PI / 2, Math.PI * 1.4); }, 300); }); },
+    },
+    clusterLob: {   // a salvo of charges raining in one after another
+      s: function (e) { [0, 1, 2].forEach(function (i) { setTimeout(function () { noise(0.16, 0.06, 1400, 110); synth(84, 0.22, 'square', 0.055, -24, { detune: 14, filter: [950, 110] }); }, 260 + i * 110); }); },
+      a: function (e) { var ts = (e.targets && e.targets.length) ? e.targets : (e.tp ? [e.tp] : []); ts.forEach(function (tt, i) { R.lob(e.sx, e.sy, tt.x, tt.y, e.col, 0.26 + i * 0.11); setTimeout(function () { R.quake(tt.x, tt.y, e.col, 2); R.shards(tt.x, tt.y, e.col, 6, -Math.PI / 2, Math.PI * 1.5); }, 260 + i * 110); }); },
+    },
+    meltaCharge: {   // breaching charge: a searing burn-through, then the wall goes
+      s: function (e) { synth(260, 0.18, 'sine', 0.028, 300); setTimeout(function () { noise(0.26, 0.07, 2600, 200); synth(75, 0.3, 'square', 0.07, -20, { detune: 15, filter: [1000, 100] }); }, 200); },
+      a: function (e) { if (e.tp) setTimeout(function () { R.beamBolt(e.sx, e.sy, e.tp.x, e.tp.y, '#ffd27a', 10); R.quake(e.tp.x, e.tp.y, BURN_COL, 3); R.embers(e.tp.x, e.tp.y, BURN_COL, 14); }, 200); },
+    },
+    powerFist: {   // shield/fist slam — thunderclap and a ground quake
+      s: function (e) { noise(0.16, 0.08, 900, 110); synth(64 * e.pm, 0.34, 'square', 0.075, -18, { detune: 18, filter: [800, 90] }); },
+      a: function (e) { if (e.tp) { R.beamBolt(e.sx, e.sy, e.tp.x, e.tp.y, e.col, 9); R.quake(e.tp.x, e.tp.y, e.col, 4); R.shards(e.tp.x, e.tp.y, '#ffffff', 8, -Math.PI / 2, Math.PI * 1.5); } },
+    },
+    chainsword: {   // teeth rev, then a heavy cut that throws sparks
+      s: function (e) { synth(180 * e.pm, 0.2, 'sawtooth', 0.038, 40, { vib: 55, vibRate: 34, filter: [2200, 600] }); setTimeout(function () { noise(0.08, 0.06, 6000, 900); synth(220, 0.12, 'square', 0.05, -180); }, 190); },
+      a: function (e) { if (e.tp) setTimeout(function () { R.spiral(e.tp.x, e.tp.y, e.col, 4, 22); R.shards(e.tp.x, e.tp.y, '#ffffff', 9, 0, Math.PI * 2); R.quake(e.tp.x, e.tp.y, e.col, 1); }, 190); },
+    },
+    flamer: {   // promethium gout washing over the line
+      s: function (e) { noise(0.5, 0.055, 900, 2600); synth(120, 0.4, 'sawtooth', 0.028, 60, { vib: 20, vibRate: 18 }); },
+      a: function (e) { var ts = (e.targets && e.targets.length) ? e.targets : (e.tp ? [e.tp] : []); R.shards(e.sx, e.sy, BURN_COL, 10, 0, 0.7); ts.forEach(function (tt, i) { setTimeout(function () { R.embers(tt.x, tt.y, BURN_COL, 16 + e.power * 4); R.ring(tt.x, tt.y, BURN_COL, 34, 0.4); }, i * 60); }); },
+    },
+    shrapnelBurst: {   // spent casings detonate — fragments spray the whole line
+      s: function (e) { noise(0.18, 0.065, 3600, 300); synth(130 * e.pm, 0.16, 'square', 0.045, -70, { detune: 12 }); },
+      a: function (e) { var ts = (e.targets && e.targets.length) ? e.targets : (e.tp ? [e.tp] : []); R.shards(e.sx, e.sy, e.col, 14, 0, 1.1); ts.forEach(function (tt) { R.quake(tt.x, tt.y, e.col, 1); }); },
+    },
+    warhorn: {   // battle-cry: a deep horn and a shout that rolls outward
+      s: function (e) { synth(110 * e.pm, 0.4, 'sawtooth', 0.048, 40, { detune: 12, filter: [1400, 500] }); setTimeout(function () { synth(165 * e.pm, 0.3, 'square', 0.038, 20, { detune: 8 }); }, 120); },
+      a: function (e) { R.ring(e.pp.x, e.pp.y - 6, e.col, 70, 0.55); setTimeout(function () { R.ring(e.pp.x, e.pp.y - 6, e.col, 96, 0.6); }, 110); R.aura(e.pp.x, e.pp.y - 6, e.col); R.shake(0.35); },
+    },
+    plateLock: {   // ceramite plates slam home and lock
+      s: function (e) { synth(150 * e.pm, 0.1, 'square', 0.048, -40, { filter: [1600, 300] }); setTimeout(function () { noise(0.09, 0.06, 1100, 180); synth(95, 0.2, 'square', 0.055, -24, { detune: 12 }); }, 90); },
+      a: function (e) { R.polyRing(e.pp.x, e.pp.y - 6, e.col, 62, 26, 6, 0.42, -3, 3); setTimeout(function () { R.polyRing(e.pp.x, e.pp.y - 6, e.col, 30, 46, 6, 0.4, 2, 2.5); R.shake(0.28); }, 90); R.aura(e.pp.x, e.pp.y - 6, e.col); },
+    },
+    bracePlant: {   // set the feet and take the hit — a hard guard stance
+      s: function (e) { noise(0.08, 0.05, 1500, 220); synth(120 * e.pm, 0.24, 'square', 0.05, -34, { detune: 12, filter: [1300, 260] }); },
+      a: function (e) { R.polyRing(e.pp.x, e.pp.y - 6, e.col, 54, 30, 3, 0.45, 1.4, 3); R.shards(e.pp.x, e.pp.y + 16, e.col, 6, -Math.PI / 2, 1.2); R.shake(0.25); },
+    },
+    furor: {   // stims / rage — the armour floods red and he winds up
+      s: function (e) { synth(120 * e.pm, 0.3, 'sawtooth', 0.048, 200, { detune: 14, vib: 16, vibRate: 9 }); },
+      a: function (e) { R.aura(e.pp.x, e.pp.y - 6, '#ff4a5e'); R.ring(e.pp.x, e.pp.y - 6, '#ff4a5e', 58, 0.5); setTimeout(function () { R.ring(e.pp.x, e.pp.y - 6, e.col, 76, 0.5); }, 90); R.shake(0.3); },
+    },
+    bloodToll: {   // paid in his own blood — a hard, wet cost
+      s: function (e) { synth(190 * e.pm, 0.18, 'sawtooth', 0.045, -120, { detune: 10 }); setTimeout(function () { synth(90, 0.22, 'square', 0.05, -26, { detune: 14 }); }, 110); },
+      a: function (e) { R.implode(e.pp.x, e.pp.y - 6, '#ff4a5e', 34, 40, 14); R.ring(e.pp.x, e.pp.y - 6, '#ff4a5e', 44, 0.45); if (e.tp) setTimeout(function () { R.beamBolt(e.sx, e.sy, e.tp.x, e.tp.y, '#ff8a6e', 6); R.quake(e.tp.x, e.tp.y, '#ff4a5e', 2); }, 110); },
+    },
     bullet: {
       s: function (e) { synth(430 * e.pm, 0.09, 'square', 0.045, -150, { detune: 7 }); },
       a: function (e) { if (e.tp) { R.shot(e.sx, e.sy, e.tp.x, e.tp.y, e.col); R.burst(e.sx, e.sy, e.col, 4); } },

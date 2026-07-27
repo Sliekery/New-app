@@ -359,6 +359,30 @@
   R.ring = function (x, y, color, maxR, life) {
     particles.push({ kind: 'ring', x: x, y: y, r0: 5, r1: maxR || 60, life: life || 0.42, age: 0, color: color, lw: 2 });
   };
+  // Lobbed ordnance: a shell that arcs from (x0,y0) to (x1,y1) under gravity and
+  // lands after `time` seconds — solve the ballistic so it hits exactly on time.
+  R.lob = function (x0, y0, x1, y1, color, time) {
+    var T = time || 0.3, g = 1500;
+    particles.push({ kind: 'streak', x: x0, y: y0,
+      vx: (x1 - x0) / T, vy: (y1 - y0) / T - 0.5 * g * T, grav: g,
+      len: 9, life: T, age: 0, color: color, size: 2.4 });
+    for (var i = 0; i < 5; i++) particles.push({   // smoke puffs off the arc
+      x: x0, y: y0, vx: (x1 - x0) / T * (0.2 + Math.random() * 0.5), vy: -(30 + Math.random() * 50),
+      life: 0.2 + Math.random() * 0.3, age: 0, color: color, size: 1 + Math.random() });
+  };
+  // Heavy impact: a hard double shockwave, thrown debris and a kick of shake.
+  // `power` 0..4 scales how much the hit is felt.
+  R.quake = function (x, y, color, power) {
+    var p = Math.max(0, Math.min(4, power || 0));
+    R.ring(x, y, '#ffffff', 16 + p * 8, 0.16);
+    R.ring(x, y, color, 30 + p * 16, 0.34 + p * 0.05);
+    for (var i = 0; i < 4 + p * 3; i++) {
+      var a = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.5, sp = 90 + Math.random() * (120 + p * 60);
+      particles.push({ kind: 'streak', x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, grav: 620,
+        len: 5 + p, life: 0.28 + Math.random() * 0.3, age: 0, color: color, size: 1.4 + p * 0.3 });
+    }
+    if (p >= 1) R.shake(0.2 + p * 0.13);
+  };
   // Upward flickering embers (Burn / fire). Floats up and slows.
   R.embers = function (x, y, color, n) {
     for (var i = 0; i < (n || 12); i++) particles.push({
