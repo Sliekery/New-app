@@ -1290,3 +1290,24 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .dm-empty { font: 600 9px/1 ui-monospace, monospace; color: #55675c; }
 .floater.dieaug { font-size: 14px; color: #5dff88; text-shadow: 0 0 10px rgba(93,255,136,0.85); }
 .floater.dieflaw { font-size: 14px; color: #ff4a5e; text-shadow: 0 0 10px rgba(255,74,94,0.85); }
+
+/* ---- The Die: 3D stage -------------------------------------------------- */
+.die-stage { width: 100%; max-width: 620px; margin: 2px auto 0; display: flex; justify-content: center; }
+.die-canvas { width: 210px; height: 210px; display: block; touch-action: none; }
+.die-info {
+  width: 100%; max-width: 620px; margin: 0 auto 6px; min-height: 52px; text-align: center;
+  border-top: 1px solid rgba(94,138,108,0.25); border-bottom: 1px solid rgba(94,138,108,0.25);
+  padding: 6px 8px;
+}
+.di-head { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.di-face { font: 700 17px/1 ui-monospace, monospace; color: #ffffff; text-shadow: 0 0 10px rgba(93,255,136,0.6); }
+.di-tag { font: 700 7.5px/1 ui-monospace, monospace; letter-spacing: 0.1em; color: #ff4a5e; }
+.di-tag.crit { color: #5dff88; }
+.di-un { font: 600 7.5px/1 ui-monospace, monospace; letter-spacing: 0.08em; color: #7f6a4a; }
+.di-name { font: 700 11px/1.3 ui-monospace, monospace; color: #7dffa8; margin-top: 3px; }
+.di-name.flaw { color: #ff8a99; }
+.di-name.bare { color: #55675c; }
+.di-desc { font: 600 9px/1.35 ui-monospace, monospace; color: #9bb0a6; margin-top: 2px; }
+.df { cursor: pointer; }
+.df.sel { border-color: #ffffff; box-shadow: 0 0 10px rgba(255,255,255,0.28); }
+.df.sel .df-n { color: #ffffff; }

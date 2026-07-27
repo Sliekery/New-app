@@ -910,6 +910,7 @@
       : '<span class="df-empty">bare</span>';
     return '<div class="' + cls + '" data-face="' + face + '"><span class="df-n">' + face + '</span>' + body + tag + '</div>';
   }
+  var dieView = null;
   function showDieScreen() {
     var r = E.run; if (!r) return;
     if (!r.die) r.die = ns.newDie();
@@ -921,15 +922,42 @@
       ? ('AIM +' + aim + ' — YOU LAND ON ' + Math.min(20, 2 + aim) + '\u201320, PLUS FACE 1 ON A NATURAL 1')
       : 'NO AIM — EVERY FACE IS IN REACH'));
 
+    // ---- the die itself ----
+    var stage = el('div', 'die-stage');
+    var cv = document.createElement('canvas');
+    cv.className = 'die-canvas';
+    stage.appendChild(cv);
+    s.appendChild(stage);
+
+    // ---- the selected face readout ----
+    var info = el('div', 'die-info');
+    s.appendChild(info);
+
+    function selectFace(f, flair) {
+      if (dieView) dieView.setFace(f, flair);
+      var id = ns.dieFaceId(die, f), d = id ? ns.dieEngraving(id) : null;
+      var tag = f === 1 ? ' <span class="di-tag">MISFIRE</span>' : f === 20 ? ' <span class="di-tag crit">CRIT</span>' : '';
+      var out = '<div class="di-head"><span class="di-face">' + f + '</span>' + tag
+              + (reach(f) ? '' : '<span class="di-un">OUT OF REACH AT AIM +' + aim + '</span>') + '</div>';
+      out += d
+        ? '<div class="di-name' + (d.flaw ? ' flaw' : '') + '">' + (d.flaw ? '\u2716 ' : '\u25c6 ') + esc(d.name) + '</div><div class="di-desc">' + esc(d.desc) + '</div>'
+        : '<div class="di-name bare">bare</div><div class="di-desc">Nothing engraved on this face.</div>';
+      info.innerHTML = out;
+      s.querySelectorAll('.df').forEach(function (row) {
+        row.classList.toggle('sel', +row.dataset.face === f);
+      });
+    }
+
+    // ---- the face list (still the readable index) ----
     var wrap = el('div', 'die-cols');
-    [[1, 10], [11, 20]] .forEach(function (rng) {
+    [[1, 10], [11, 20]].forEach(function (rng) {
       var col = el('div', 'die-col'), h = '';
       for (var f = rng[0]; f <= rng[1]; f++) h += dieFaceRowHTML(die, f, reach);
       col.innerHTML = h;
       wrap.appendChild(col);
     });
     s.appendChild(wrap);
-    s.appendChild(el('div', 'die-legend', 'DIMMED FACES ARE OUT OF REACH AT YOUR CURRENT AIM'));
+    s.appendChild(el('div', 'die-legend', 'TAP A FACE TO SPIN THE DIE TO IT \u00b7 DIMMED = OUT OF REACH'));
 
     // core + frame
     var coreN = die.core.length, slots = die.coreSlots || ns.DIE.coreSlotsStart;
@@ -940,31 +968,45 @@
       var a = ns.ARTIFACTS[id]; if (!a) return;
       coreHtml += '<div class="dm-chip" title="' + esc(a.desc) + '">' + artSVG(a.art, 'art-icon') + '</div>';
     });
-    coreHtml += '</div>';
-    var frHtml = '<div class="dm-title">FRAME</div><div class="dm-row">';
-    if (!die.frame.length) frHtml += '<span class="dm-empty">stock frame</span>';
+    coreHtml += '</div><div class="dm-title">FRAME</div><div class="dm-row">';
+    if (!die.frame.length) coreHtml += '<span class="dm-empty">stock frame</span>';
     die.frame.forEach(function (id) {
       var a = ns.ARTIFACTS[id]; if (!a) return;
-      frHtml += '<div class="dm-chip" title="' + esc(a.desc) + '">' + artSVG(a.art, 'art-icon') + '</div>';
+      coreHtml += '<div class="dm-chip" title="' + esc(a.desc) + '">' + artSVG(a.art, 'art-icon') + '</div>';
     });
-    frHtml += '</div>';
-    mods.innerHTML = coreHtml + frHtml;
+    coreHtml += '</div>';
+    mods.innerHTML = coreHtml;
     s.appendChild(mods);
 
-    // tap a face for its full text
+    // spin the die when a face is tapped
     s.querySelectorAll('.df').forEach(function (row) {
       row.addEventListener('pointerdown', function (ev) {
-        ev.stopPropagation();
-        var f = +row.dataset.face, id = ns.dieFaceId(die, f), d = id ? ns.dieEngraving(id) : null;
-        SFX.tap();
-        if (!d) { toast('Face ' + f + ' is bare — nothing engraved.', 1800); return; }
-        toast(d.name + ' — ' + d.desc + (reach(f) ? '' : '  (out of reach at Aim +' + aim + ')'), 3200);
+        ev.stopPropagation(); SFX.tap();
+        selectFace(+row.dataset.face, false);
       });
     });
 
     var btn = el('button', 'btn', 'CLOSE');
-    btn.addEventListener('pointerdown', function () { SFX.tap(); if (wasCombat) showCombat(); else U.refresh(); });
+    btn.addEventListener('pointerdown', function () {
+      SFX.tap();
+      if (dieView) { dieView.destroy(); dieView = null; }
+      if (wasCombat) showCombat(); else U.refresh();
+    });
     s.appendChild(btn);
+
+    // boot the 3D die once the canvas has a size
+    setTimeout(function () {
+      if (dieView) { dieView.destroy(); dieView = null; }
+      dieView = ns.dieViewCreate(cv, {
+        face: 20,
+        tint: function (n) {
+          var id = ns.dieFaceId(die, n); if (!id) return null;
+          var d = ns.dieEngraving(id);
+          return d ? { flaw: !!d.flaw } : null;
+        },
+      });
+      selectFace(20, true);   // opening tumble
+    }, 0);
   }
   U.showDie = showDieScreen;
 
