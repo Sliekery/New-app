@@ -2,14 +2,14 @@
 
 _Auto-generated from the game data (`node test/cardsdoc.js`). Effect text is exactly what the game shows; numbers are the base values **before** any MIGHT/TECH/PSI scaling._
 
-**187 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
+**194 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
 
 
 ---
 
 ## Vanguard
 
-_Shock trooper — MIGHT weapons & raw aggression. (62 cards)_
+_Shock trooper — MIGHT weapons & raw aggression. (64 cards)_
 
 
 ### Starter
@@ -44,6 +44,9 @@ _Shock trooper — MIGHT weapons & raw aggression. (62 cards)_
 - **Field Strip**  — Skill · ⚡0  _(Exhaust)_
     - Base: Draw 2 cards. Exhaust.
     - Upgraded: Draw 3 cards. Exhaust.
+- **Follow Through**  — Attack · ⚡1
+    - Base: Deal 1 more damage per Momentum.
+    - Upgraded: Deal 2 more damage per Momentum.
 - **Frag Grenade**  — Attack · ⚡1
     - Base: ALL enemies: 4 damage, 1 Vulnerable.
     - Upgraded: ALL enemies: 6 damage, 2 Vulnerable.
@@ -191,6 +194,9 @@ _Shock trooper — MIGHT weapons & raw aggression. (62 cards)_
 - **Orbital Strike**  — Attack · ⚡3
     - Base: ALL enemies: 16 damage, 2 Vulnerable.
     - Upgraded: ALL enemies: 22 damage, 3 Vulnerable.
+- **Overrun**  — Attack · ⚡2
+    - Base: Deal 4 more damage per Momentum.
+    - Upgraded: Deal 5 more damage per Momentum.
 - **Quartermaster**  — Power · ⚡1
     - Base: Gain 1 Quartermaster.
     - Upgraded: Gain 2 Quartermaster.
@@ -217,7 +223,7 @@ _Shock trooper — MIGHT weapons & raw aggression. (62 cards)_
 
 ## Technomancer
 
-_Machine-priest — TECH shields, turrets & reactors. (54 cards)_
+_Machine-priest — TECH shields, turrets & reactors. (57 cards)_
 
 
 ### Starter
@@ -231,6 +237,12 @@ _Machine-priest — TECH shields, turrets & reactors. (54 cards)_
 - **Arc Welder**  — Attack · ⚡1
     - Base: Deal 7 damage. Gain 4 Shield.
     - Upgraded: Deal 10 damage. Gain 6 Shield.
+- **Bootstrap**  — Power · ⚡0
+    - Base: Draw 1 card.
+    - Upgraded: Draw 2 cards.
+- **Brace Plate**  — Skill · ⚡1
+    - Base: Gain 4 Shield, 2 Plating.
+    - Upgraded: Gain 6 Shield, 3 Plating.
 - **Disruptor Pulse**  — Attack · ⚡1
     - Base: Deal 4 damage. Apply 1 Weak.
     - Upgraded: Deal 6 damage. Apply 2 Weak.
@@ -303,6 +315,9 @@ _Machine-priest — TECH shields, turrets & reactors. (54 cards)_
 - **Munitions Factory**  — Power · ⚡1
     - Base: Deploy a Turret (2 dmg/turn). Deploy a Drone Swarm (2 to all/turn).
     - Upgraded: Deploy a Turret (3 dmg/turn). Deploy a Drone Swarm (3 to all/turn).
+- **Munitions Link**  — Power · ⚡1
+    - Base: Whenever one of your constructs fires, gain 1 Shield.
+    - Upgraded: Whenever one of your constructs fires, gain 2 Shield.
 - **Null Lattice**  — Power · ⚡1
     - Base: Gain 1 Conduit, 2 Plating.
     - Upgraded: Gain 2 Conduit, 2 Plating.
@@ -401,7 +416,7 @@ _Machine-priest — TECH shields, turrets & reactors. (54 cards)_
 
 ## Void Adept
 
-_Sanctioned psyker — PSI burns, hexes & blasts. (51 cards)_
+_Sanctioned psyker — PSI burns, hexes & blasts. (53 cards)_
 
 
 ### Starter
@@ -445,6 +460,9 @@ _Sanctioned psyker — PSI burns, hexes & blasts. (51 cards)_
 - **Void Siphon**  — Attack · ⚡1
     - Base: Deal 4 damage to ALL enemies. Siphon.
     - Upgraded: Deal 6 damage to ALL enemies. Siphon.
+- **Worry the Wound**  — Attack · ⚡1
+    - Base: Deal 2 damage for each Vulnerable, Weak, and Burn on the target.
+    - Upgraded: Deal 3 damage for each Vulnerable, Weak, and Burn on the target.
 
 ### Uncommon
 
@@ -517,6 +535,9 @@ _Sanctioned psyker — PSI burns, hexes & blasts. (51 cards)_
 - **Soulflare**  — Attack · ⚡1
     - Base: Deal 4 damage to every Burning enemy.
     - Upgraded: Deal 6 damage to every Burning enemy.
+- **Sympathetic Ache**  — Power · ⚡1
+    - Base: Gain 2 Conduit.
+    - Upgraded: Gain 3 Conduit.
 - **Telekinetic Crush**  — Attack · ⚡2
     - Base: Deal 5 damage.
     - Upgraded: Deal 9 damage.

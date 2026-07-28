@@ -221,6 +221,32 @@
       art: { p: [[-0.75,0, -0.4,-0.4, 0.1,-0.2, 0.5,-0.6, 0.78,-0.1], [-0.6,0.34, -0.2,0.1, 0.2,0.44, 0.62,0.16]], e: [[0,-0.06]] },
     },
 
+    /* -- archetypes that had no face at all ----------------------------
+     * The die is the second build, so an archetype with nothing engravable
+     * can only ever be half a plan. These three had no engraving of any kind:
+     * the Vanguard's Exhaust engine and blood engine, and the Technomancer's
+     * Shield stack. Ordinary drops — not startOnly — so they show up in the
+     * bench and in rewards like any other face.
+     * ---------------------------------------------------------------- */
+    salvage_burner: {
+      name: 'Salvage Burner', tier: 2, span: 1,
+      fx: [{ k: 'special', id: 'dieExhaustDraw', v: 2 }],
+      desc: 'Exhaust the top card of your draw pile. Draw 2 cards.',
+      art: { p: [[-0.5,-0.6, 0.5,-0.6, 0.5,0.6, -0.5,0.6, -0.5,-0.6], [-0.5,-0.6, 0.5,0.6], [-0.28,-0.86, 0.28,-0.86], [0.5,-0.2, 0.8,-0.2], [0.5,0.2, 0.8,0.2]] },
+    },
+    haemal_tap: {
+      name: 'Haemal Tap', tier: 2, span: 3,
+      fx: [{ k: 'hploss', v: 2 }, { k: 'draw', v: 1 }, { k: 'energy', v: 1 }],
+      desc: 'Lose 2 HP. Draw 1 card. Gain 1 Energy.',
+      art: { p: [[0,-0.8, 0.34,-0.2, 0.22,0.4, -0.22,0.4, -0.34,-0.2, 0,-0.8], [-0.22,0.4, -0.3,0.75], [0.22,0.4, 0.3,0.75], [0,0.4, 0,0.8]] },
+    },
+    plate_layer: {
+      name: 'Plate Layer', tier: 2, span: 3,
+      fx: [{ k: 'status', s: 'plate', v: 2, who: 'self' }],
+      desc: 'Gain 2 Plating.',
+      art: { p: [[-0.7,-0.4, 0.7,-0.4], [-0.7,-0.05, 0.7,-0.05], [-0.7,0.3, 0.7,0.3], [-0.4,-0.4, -0.4,0.3], [0,-0.4, 0,0.3], [0.4,-0.4, 0.4,0.3], [-0.7,0.3, -0.7,0.6, 0.7,0.6, 0.7,0.3]] },
+    },
+
     executioners_mark: {
       name: "Executioner's Mark", tier: 3, span: 1,
       fx: [{ k: 'special', id: 'dieExecute', v: 12 }],

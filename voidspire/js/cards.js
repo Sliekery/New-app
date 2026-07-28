@@ -733,6 +733,59 @@
       fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }, { k: 'hploss', v: 3 }],
       up: { fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }, { k: 'hploss', v: 1 }] },
     },
+    /* ---------------- ARCHETYPE PAYOFFS / ENTRIES ----------------
+     * Added after auditing every class against the genre. The gaps were not
+     * missing archetypes — the count is fine at 4-6 per class — but archetypes
+     * you could feed and never cash, and archetypes with no cheap way in:
+     *
+     *   Voidadept control  11 cards apply Weak/Vulnerable, ONE cashed them
+     *                      (Unravel, rare). Now a common and an engine.
+     *   Vanguard Momentum  3 ways to build it, Unload the only way to spend it.
+     *   Technomancer       both construct payoffs were rare; every single card
+     *                      in the Power archetype was rare, so there was no way
+     *                      to start one before a rare showed up.
+     * ------------------------------------------------------------ */
+    worry_wound: {   // the common cash-in the Voidadept's hex pile never had
+      name: 'Worry the Wound', cls: 'voidadept', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'special', id: 'reap', v: 2 }],
+      text: 'Deal 2 damage for each Vulnerable, Weak, and Burn on the target.',
+      up: { fx: [{ k: 'special', id: 'reap', v: 3 }], text: 'Deal 3 damage for each Vulnerable, Weak, and Burn on the target.' },
+    },
+    sympathetic_ache: {   // hexing becomes damage, so control stops being setup-only
+      name: 'Sympathetic Ache', cls: 'voidadept', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'conduit', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'conduit', v: 3, who: 'self' }] },
+    },
+    follow_through: {   // a common way to spend Momentum, not just build it
+      name: 'Follow Through', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'special', id: 'unload', v: 1 }],
+      text: 'Deal 1 more damage per Momentum.',
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'special', id: 'unload', v: 2 }], text: 'Deal 2 more damage per Momentum.' },
+    },
+    overrun: {   // the Momentum capstone
+      name: 'Overrun', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
+      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'special', id: 'unload', v: 4 }],
+      text: 'Deal 4 more damage per Momentum.',
+      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'special', id: 'unload', v: 5 }], text: 'Deal 5 more damage per Momentum.' },
+    },
+    brace_plate: {   // the common entry the Shield stack lacked — every other
+                     // plating card in the class is uncommon or rare
+      name: 'Brace Plate', cls: 'technomancer', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'block', v: 4, scale: 'tech' }, { k: 'status', s: 'plate', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'block', v: 6, scale: 'tech' }, { k: 'status', s: 'plate', v: 3, who: 'self' }] },
+    },
+    munitions_link: {   // an uncommon way into the construct payoff, which was rare-only
+      name: 'Munitions Link', cls: 'technomancer', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'aegisLink', v: 1, who: 'self' }],
+      text: 'Whenever one of your constructs fires, gain 1 Shield.',
+      up: { fx: [{ k: 'status', s: 'aegisLink', v: 2, who: 'self' }], text: 'Whenever one of your constructs fires, gain 2 Shield.' },
+    },
+    bootstrap: {   // a Power cheap enough to START a Power deck with
+      name: 'Bootstrap', cls: 'technomancer', type: 'power', rarity: 1, cost: 0,
+      fx: [{ k: 'draw', v: 1 }],
+      up: { fx: [{ k: 'draw', v: 2 }] },
+    },
+
     /* ---------------- THE FIRST MARK ----------------
      * One of these comes down with you, chosen at the mouth of the Spire
      * alongside the engraving it belongs to (see ns.FIRST_MARKS in dice.js).

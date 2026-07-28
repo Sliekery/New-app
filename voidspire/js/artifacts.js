@@ -34,6 +34,23 @@
       art: { p: [[-0.6,-0.1, 0.6,-0.1, 0.6,0.8, -0.6,0.8, -0.6,-0.1], [-0.6,0.35, 0.6,0.35], [0,-0.1, 0,-0.5, 0.3,-0.7, 0.15,-0.95]], e: [] } },
     adrenaline_pump: { name: 'Adrenaline Pump',   tier: 1, k: 'energyTurn1',     v: 1,    desc: '+1 Energy on your first turn.',
       art: { p: [[0,0.8, -0.8,-0.1, -0.45,-0.65, 0,-0.25, 0.45,-0.65, 0.8,-0.1, 0,0.8], [-0.3,-0.05, 0,0.3, 0.3,-0.05]], e: [] } },
+    /* ---- archetype anchors ------------------------------------------
+     * 30 of the 34 relic hooks in this file are used by exactly one relic, and
+     * almost all of them are flat numbers (+1 damage, +22 max HP). That makes a
+     * relic pool of small bonuses rather than one that points at builds — and
+     * constructs, the Exhaust engine, Momentum and the blood engine had nothing
+     * pointing at them at all. These four do, one per orphaned archetype.
+     * -------------------------------------------------------------- */
+    resonance_node: { name: 'Resonance Node',   tier: 1, cls: 'voidadept', k: 'psiPowStart', v: 2, desc: 'Start each combat with 2 Psi Focus.',
+      art: { p: [[0,-0.8, 0.3,-0.26, 0.8,-0.14, 0.42,0.24, 0.48,0.74, 0,0.48, -0.48,0.74, -0.42,0.24, -0.8,-0.14, -0.3,-0.26, 0,-0.8], [-0.2,-0.05, 0.2,-0.05]], e: [[0,0.06]] } },
+    foundry_spine:   { name: 'Foundry Spine',     tier: 1, cls: 'technomancer', k: 'turretStart', v: 3, desc: 'Start each combat with a Turret (3 dmg/turn).',
+      art: { p: [[-0.6,0.7, -0.3,0.1, 0.3,0.1, 0.6,0.7], [-0.3,0.1, 0.3,0.1, 0.24,-0.35, -0.24,-0.35, -0.3,0.1], [0.24,-0.22, 0.8,-0.22], [-0.5,0.7, 0.5,0.7]], e: [[0,-0.14]] } },
+    ash_reliquary:   { name: 'Ash Reliquary',     tier: 1, cls: 'vanguard', k: 'salvoStart', v: 2, desc: 'Start each combat with 2 Salvo — burning a card spits shrapnel at a random enemy.',
+      art: { p: [[-0.45,0.7, -0.3,-0.3, 0.3,-0.3, 0.45,0.7, -0.45,0.7], [-0.35,-0.3, -0.5,-0.55, 0.5,-0.55, 0.35,-0.3], [-0.15,-0.75, 0,-0.95, 0.15,-0.75], [-0.2,0.1, 0.2,0.35], [0.2,0.1, -0.2,0.35]] } },
+    iron_leech:      { name: 'Iron Leech',        tier: 1, cls: 'vanguard', k: 'bloodrageStart', v: 2, desc: 'Start each combat with 2 Blood Rage — your own wounds feed your Might.',
+      art: { p: [[0,-0.85, 0.4,-0.2, 0.26,0.5, -0.26,0.5, -0.4,-0.2, 0,-0.85], [-0.26,0.5, -0.16,0.82], [0.26,0.5, 0.16,0.82], [-0.24,-0.1, 0.24,-0.1], [-0.14,0.16, 0.14,0.16]] } },
+    cycling_breech:  { name: 'Cycling Breech',    tier: 2, cls: 'vanguard', k: 'momentumKeep', v: 1, desc: 'Your Momentum no longer resets at the start of your turn.',
+      art: { p: [[-0.7,-0.25, 0.7,-0.25], [-0.7,0.25, 0.7,0.25], [-0.7,-0.25, -0.7,0.25], [0.7,-0.25, 0.7,0.25], [-0.35,-0.25, -0.35,0.25], [0,-0.25, 0,0.25], [0.35,-0.25, 0.35,0.25], [0.5,-0.55, 0.8,-0.55, 0.8,-0.25], [-0.5,0.55, -0.8,0.55, -0.8,0.25]] } },
     nano_mesh:       { name: 'Nano Mesh',         tier: 1, k: 'plate',           v: 2,    desc: 'Gain 2 Shield at the start of each turn.',
       art: { p: [[0,-0.9, 0.9,0, 0,0.9, -0.9,0, 0,-0.9], [-0.45,-0.45, 0.45,0.45], [0.45,-0.45, -0.45,0.45]], e: [] } },
     void_lens:       { name: 'Void Lens',         tier: 1, k: 'flatDmg',         v: 1,    desc: 'Your attacks deal +1 damage.',

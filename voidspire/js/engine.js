@@ -902,6 +902,17 @@
     if (vstart > 0) c.player.statuses.vuln = vstart;
     var pa = art('platedArmorStart');
     if (pa > 0) c.player.statuses.platedArmor = pa;
+    // ARCHETYPE ANCHORS: constructs, the Exhaust engine and the blood engine
+    // had no relic pointing at them at all, so those builds were assembled
+    // entirely out of the card pool. These start the engine already running.
+    var pp = art('psiPowStart');
+    if (pp > 0) c.player.statuses.psiPow = pp;
+    var ts = art('turretStart');
+    if (ts > 0) c.player.statuses.turret = ts;
+    var sv = art('salvoStart');
+    if (sv > 0) c.player.statuses.salvo = sv;
+    var br = art('bloodrageStart');
+    if (br > 0) c.player.statuses.bloodrage = br;
     var bs = art('blockStart') + art('blockStartTechMul') * attr('tech');   // Forge Reserve scales with TECH
     if (bs > 0) { c.player.block = bs; } // relic Shield is passive, not "played"
     var ws = art('weakStart');
@@ -1012,7 +1023,9 @@
     c.nonAttacksThisTurn = 0;   // Recoilless Frame: per-turn non-attack limit
     c.turnDamage = 0;           // class quest: damage dealt this turn
     c.momentum = 0;   // Momentum Engine resets each turn
-    if (p.statuses.momentum) p.statuses.momentum = 0;   // Fusillade: Momentum is a per-turn combo
+    // Fusillade: Momentum is a per-turn combo — unless a Cycling Breech says
+    // otherwise, which is the whole point of that relic.
+    if (p.statuses.momentum && !art('momentumKeep')) p.statuses.momentum = 0;
     // Cursed Inheritance: a curse is lodged in hand at the start of combat
     if (c.turn === 1 && E.hasEcho('cursed_inheritance')) c.hand.push(mkCard('recurring_curse', false));
     // block expiry (Retain / Barricade keep your Shield). Turn 1 has no prior
@@ -1674,6 +1687,12 @@
             E.run.credits += (f.v || 5); emit('credits', { amount: f.v || 5 });
           } else if (f.id === 'dieLoseBlock') {
             p.block = Math.max(0, p.block - (f.v || 3)); emit('block', { who: 'player', amount: 0, blockAfter: p.block });
+          } else if (f.id === 'dieExhaustDraw') {
+            // SALVAGE BURNER: the Vanguard's Exhaust engine had no engravable
+            // face at all. This feeds it — Resolve, Salvo and Quartermaster all
+            // read a card leaving the deck, and you get the draw regardless.
+            if (c.drawPile.length) exhaustCard(c.drawPile.pop());
+            drawCards(f.v || 2);
           } else if (f.id === 'dieEnemyStr') {
             var esPool = aliveEnemies();
             if (esPool.length) { var esE = pick(esPool); addStatus(esE, 'str', f.v || 1); emit('status', { who: 'enemy', idx: c.enemies.indexOf(esE), s: 'str', v: statN(esE, 'str') }); }

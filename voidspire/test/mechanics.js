@@ -1297,5 +1297,78 @@ ok('every remaining class has a starter deck whose cards all exist',
   ok('an ordinary fight never reaches the clock (' + reached + '/' + fights + ')', reached === 0);
 })();
 
+/* ============ ARCHETYPE ANCHORS ========================================
+ * An audit against the genre found the gap was not missing archetypes — 4-6
+ * per class is normal — but archetypes you could feed and never cash, and
+ * archetypes with nothing outside the card pool pointing at them. The relics
+ * and engravings added for those are declarative, so the thing that can break
+ * is the wiring: a hook nobody reads does nothing, silently, forever.
+ * ==================================================================== */
+(function () {
+  function atCombatStart(relic, cls, stat) {
+    E.seed(4); E.newRun(cls); E.takeFirstMark(0);
+    E.run.artifacts.push(relic); E.run.die.core.push(relic);
+    E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
+    E.startNode('fight');
+    var v = (E.combat.player.statuses || {})[stat] || 0;
+    E.run.phase = 'map';
+    return v;
+  }
+  ok('Foundry Spine deploys a turret before turn 1', atCombatStart('foundry_spine', 'technomancer', 'turret') === 3);
+  ok('Ash Reliquary arms Salvo before turn 1', atCombatStart('ash_reliquary', 'vanguard', 'salvo') === 2);
+  ok('Iron Leech arms Blood Rage before turn 1', atCombatStart('iron_leech', 'vanguard', 'bloodrage') === 2);
+  ok('Resonance Node banks Psi Focus before turn 1', atCombatStart('resonance_node', 'voidadept', 'psiPow') === 2);
+
+  // Cycling Breech is a rule-bender, not a number — it has to survive a turn.
+  function momentumAfterTurn(withRelic) {
+    E.seed(4); E.newRun('vanguard'); E.takeFirstMark(0);
+    if (withRelic) { E.run.artifacts.push('cycling_breech'); E.run.die.core.push('cycling_breech'); }
+    E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
+    E.startNode('fight');
+    E.combat.player.statuses.momentum = 5;
+    E.endTurn();
+    var v = (E.combat.player.statuses || {}).momentum || 0;
+    E.run.phase = 'map';
+    return v;
+  }
+  ok('Momentum still resets without a Cycling Breech', momentumAfterTurn(false) === 0);
+  ok('and survives the turn with one', momentumAfterTurn(true) === 5);
+
+  // Salvage Burner is the Exhaust engine's only engravable face — it has to
+  // actually move a card into exhaust, or it feeds nothing.
+  E.seed(6); E.newRun('vanguard'); E.takeFirstMark(0);
+  E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
+  E.startNode('fight');
+  VS.dieEngrave(E.run.die, 'salvage_burner', 12);
+  var exh0 = E.combat.exhaust.length, hand0 = E.combat.hand.length;
+  E.fireDieFace(12, 0);
+  ok('Salvage Burner burns a card and pays for it (' + exh0 + '->' + E.combat.exhaust.length +
+     ' exhaust, hand ' + hand0 + '->' + E.combat.hand.length + ')',
+     E.combat.exhaust.length === exh0 + 1 && E.combat.hand.length > hand0);
+  E.run.phase = 'map';
+
+  // The new payoff cards reuse existing specials — check they scale off the
+  // thing they claim to, rather than dealing a flat number.
+  E.seed(8); E.newRun('vanguard'); E.takeFirstMark(0);
+  E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
+  E.startNode('fight');
+  var c = E.combat, en = c.enemies[0];
+  en.hp = 9999; en.maxHp = 9999; c.energy = 30;
+  c.player.statuses.momentum = 0;
+  c.hand = [{ uid: 5001, id: 'follow_through', up: false }];
+  var hp1 = en.hp; E.playCard(0, 0); var dmgNoMo = hp1 - en.hp;
+  c.player.statuses.momentum = 6;
+  c.hand = [{ uid: 5002, id: 'follow_through', up: false }];
+  var hp2 = en.hp; E.playCard(0, 0); var dmgMo = hp2 - en.hp;
+  ok('Follow Through actually spends Momentum (' + dmgNoMo + ' -> ' + dmgMo + ')', dmgMo > dmgNoMo);
+  E.run.phase = 'map';
+
+  // Every new card must be reachable as a reward, or it is content nobody sees.
+  var NEW = ['worry_wound','sympathetic_ache','follow_through','overrun','munitions_link','bootstrap','brace_plate'];
+  var unreachable = NEW.filter(function (id) { return !!VS.CARDS[id].pool; });
+  ok('the new archetype cards are all draftable' + (unreachable.length ? ' — ' + unreachable.join(', ') : ''),
+     unreachable.length === 0);
+})();
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

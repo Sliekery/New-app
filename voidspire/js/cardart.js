@@ -96,6 +96,9 @@
     ember_ward: 'flame', backdraft: 'flame', mind_bulwark: 'shield',
     static_ward: 'shield', swarm_uplink: 'turret', subroutine: 'core',
     spiked_bulwark: 'shieldStrike', demolition_train: 'shell',
+    // archetype payoffs / entries
+    brace_plate: 'shield', worry_wound: 'hex', sympathetic_ache: 'vortex', follow_through: 'burst',
+    overrun: 'cannon', munitions_link: 'turret', bootstrap: 'circuit',
     // the First Mark cards
     sighting_round: 'scan', red_ledger: 'ledger', set_against_it: 'spiked',
     assembly_line: 'turret', surge_routing: 'circuit', null_lattice: 'lattice',

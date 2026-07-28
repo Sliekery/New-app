@@ -2617,6 +2617,59 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }, { k: 'hploss', v: 3 }],
       up: { fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }, { k: 'hploss', v: 1 }] },
     },
+    /* ---------------- ARCHETYPE PAYOFFS / ENTRIES ----------------
+     * Added after auditing every class against the genre. The gaps were not
+     * missing archetypes — the count is fine at 4-6 per class — but archetypes
+     * you could feed and never cash, and archetypes with no cheap way in:
+     *
+     *   Voidadept control  11 cards apply Weak/Vulnerable, ONE cashed them
+     *                      (Unravel, rare). Now a common and an engine.
+     *   Vanguard Momentum  3 ways to build it, Unload the only way to spend it.
+     *   Technomancer       both construct payoffs were rare; every single card
+     *                      in the Power archetype was rare, so there was no way
+     *                      to start one before a rare showed up.
+     * ------------------------------------------------------------ */
+    worry_wound: {   // the common cash-in the Voidadept's hex pile never had
+      name: 'Worry the Wound', cls: 'voidadept', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'special', id: 'reap', v: 2 }],
+      text: 'Deal 2 damage for each Vulnerable, Weak, and Burn on the target.',
+      up: { fx: [{ k: 'special', id: 'reap', v: 3 }], text: 'Deal 3 damage for each Vulnerable, Weak, and Burn on the target.' },
+    },
+    sympathetic_ache: {   // hexing becomes damage, so control stops being setup-only
+      name: 'Sympathetic Ache', cls: 'voidadept', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'conduit', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'conduit', v: 3, who: 'self' }] },
+    },
+    follow_through: {   // a common way to spend Momentum, not just build it
+      name: 'Follow Through', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'special', id: 'unload', v: 1 }],
+      text: 'Deal 1 more damage per Momentum.',
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'special', id: 'unload', v: 2 }], text: 'Deal 2 more damage per Momentum.' },
+    },
+    overrun: {   // the Momentum capstone
+      name: 'Overrun', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
+      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'special', id: 'unload', v: 4 }],
+      text: 'Deal 4 more damage per Momentum.',
+      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'special', id: 'unload', v: 5 }], text: 'Deal 5 more damage per Momentum.' },
+    },
+    brace_plate: {   // the common entry the Shield stack lacked — every other
+                     // plating card in the class is uncommon or rare
+      name: 'Brace Plate', cls: 'technomancer', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'block', v: 4, scale: 'tech' }, { k: 'status', s: 'plate', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'block', v: 6, scale: 'tech' }, { k: 'status', s: 'plate', v: 3, who: 'self' }] },
+    },
+    munitions_link: {   // an uncommon way into the construct payoff, which was rare-only
+      name: 'Munitions Link', cls: 'technomancer', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'aegisLink', v: 1, who: 'self' }],
+      text: 'Whenever one of your constructs fires, gain 1 Shield.',
+      up: { fx: [{ k: 'status', s: 'aegisLink', v: 2, who: 'self' }], text: 'Whenever one of your constructs fires, gain 2 Shield.' },
+    },
+    bootstrap: {   // a Power cheap enough to START a Power deck with
+      name: 'Bootstrap', cls: 'technomancer', type: 'power', rarity: 1, cost: 0,
+      fx: [{ k: 'draw', v: 1 }],
+      up: { fx: [{ k: 'draw', v: 2 }] },
+    },
+
     /* ---------------- THE FIRST MARK ----------------
      * One of these comes down with you, chosen at the mouth of the Spire
      * alongside the engraving it belongs to (see ns.FIRST_MARKS in dice.js).
@@ -3361,6 +3414,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     ember_ward: 'flame', backdraft: 'flame', mind_bulwark: 'shield',
     static_ward: 'shield', swarm_uplink: 'turret', subroutine: 'core',
     spiked_bulwark: 'shieldStrike', demolition_train: 'shell',
+    // archetype payoffs / entries
+    brace_plate: 'shield', worry_wound: 'hex', sympathetic_ache: 'vortex', follow_through: 'burst',
+    overrun: 'cannon', munitions_link: 'turret', bootstrap: 'circuit',
     // the First Mark cards
     sighting_round: 'scan', red_ledger: 'ledger', set_against_it: 'spiked',
     assembly_line: 'turret', surge_routing: 'circuit', null_lattice: 'lattice',
@@ -3445,6 +3501,23 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       art: { p: [[-0.6,-0.1, 0.6,-0.1, 0.6,0.8, -0.6,0.8, -0.6,-0.1], [-0.6,0.35, 0.6,0.35], [0,-0.1, 0,-0.5, 0.3,-0.7, 0.15,-0.95]], e: [] } },
     adrenaline_pump: { name: 'Adrenaline Pump',   tier: 1, k: 'energyTurn1',     v: 1,    desc: '+1 Energy on your first turn.',
       art: { p: [[0,0.8, -0.8,-0.1, -0.45,-0.65, 0,-0.25, 0.45,-0.65, 0.8,-0.1, 0,0.8], [-0.3,-0.05, 0,0.3, 0.3,-0.05]], e: [] } },
+    /* ---- archetype anchors ------------------------------------------
+     * 30 of the 34 relic hooks in this file are used by exactly one relic, and
+     * almost all of them are flat numbers (+1 damage, +22 max HP). That makes a
+     * relic pool of small bonuses rather than one that points at builds — and
+     * constructs, the Exhaust engine, Momentum and the blood engine had nothing
+     * pointing at them at all. These four do, one per orphaned archetype.
+     * -------------------------------------------------------------- */
+    resonance_node: { name: 'Resonance Node',   tier: 1, cls: 'voidadept', k: 'psiPowStart', v: 2, desc: 'Start each combat with 2 Psi Focus.',
+      art: { p: [[0,-0.8, 0.3,-0.26, 0.8,-0.14, 0.42,0.24, 0.48,0.74, 0,0.48, -0.48,0.74, -0.42,0.24, -0.8,-0.14, -0.3,-0.26, 0,-0.8], [-0.2,-0.05, 0.2,-0.05]], e: [[0,0.06]] } },
+    foundry_spine:   { name: 'Foundry Spine',     tier: 1, cls: 'technomancer', k: 'turretStart', v: 3, desc: 'Start each combat with a Turret (3 dmg/turn).',
+      art: { p: [[-0.6,0.7, -0.3,0.1, 0.3,0.1, 0.6,0.7], [-0.3,0.1, 0.3,0.1, 0.24,-0.35, -0.24,-0.35, -0.3,0.1], [0.24,-0.22, 0.8,-0.22], [-0.5,0.7, 0.5,0.7]], e: [[0,-0.14]] } },
+    ash_reliquary:   { name: 'Ash Reliquary',     tier: 1, cls: 'vanguard', k: 'salvoStart', v: 2, desc: 'Start each combat with 2 Salvo — burning a card spits shrapnel at a random enemy.',
+      art: { p: [[-0.45,0.7, -0.3,-0.3, 0.3,-0.3, 0.45,0.7, -0.45,0.7], [-0.35,-0.3, -0.5,-0.55, 0.5,-0.55, 0.35,-0.3], [-0.15,-0.75, 0,-0.95, 0.15,-0.75], [-0.2,0.1, 0.2,0.35], [0.2,0.1, -0.2,0.35]] } },
+    iron_leech:      { name: 'Iron Leech',        tier: 1, cls: 'vanguard', k: 'bloodrageStart', v: 2, desc: 'Start each combat with 2 Blood Rage — your own wounds feed your Might.',
+      art: { p: [[0,-0.85, 0.4,-0.2, 0.26,0.5, -0.26,0.5, -0.4,-0.2, 0,-0.85], [-0.26,0.5, -0.16,0.82], [0.26,0.5, 0.16,0.82], [-0.24,-0.1, 0.24,-0.1], [-0.14,0.16, 0.14,0.16]] } },
+    cycling_breech:  { name: 'Cycling Breech',    tier: 2, cls: 'vanguard', k: 'momentumKeep', v: 1, desc: 'Your Momentum no longer resets at the start of your turn.',
+      art: { p: [[-0.7,-0.25, 0.7,-0.25], [-0.7,0.25, 0.7,0.25], [-0.7,-0.25, -0.7,0.25], [0.7,-0.25, 0.7,0.25], [-0.35,-0.25, -0.35,0.25], [0,-0.25, 0,0.25], [0.35,-0.25, 0.35,0.25], [0.5,-0.55, 0.8,-0.55, 0.8,-0.25], [-0.5,0.55, -0.8,0.55, -0.8,0.25]] } },
     nano_mesh:       { name: 'Nano Mesh',         tier: 1, k: 'plate',           v: 2,    desc: 'Gain 2 Shield at the start of each turn.',
       art: { p: [[0,-0.9, 0.9,0, 0,0.9, -0.9,0, 0,-0.9], [-0.45,-0.45, 0.45,0.45], [0.45,-0.45, -0.45,0.45]], e: [] } },
     void_lens:       { name: 'Void Lens',         tier: 1, k: 'flatDmg',         v: 1,    desc: 'Your attacks deal +1 damage.',
@@ -3804,6 +3877,32 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       fx: [{ k: 'status', s: 'psiPow', v: 2, who: 'self' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }],
       desc: 'Gain 2 Psi Focus. Apply 2 Vulnerable.',
       art: { p: [[-0.75,0, -0.4,-0.4, 0.1,-0.2, 0.5,-0.6, 0.78,-0.1], [-0.6,0.34, -0.2,0.1, 0.2,0.44, 0.62,0.16]], e: [[0,-0.06]] },
+    },
+
+    /* -- archetypes that had no face at all ----------------------------
+     * The die is the second build, so an archetype with nothing engravable
+     * can only ever be half a plan. These three had no engraving of any kind:
+     * the Vanguard's Exhaust engine and blood engine, and the Technomancer's
+     * Shield stack. Ordinary drops — not startOnly — so they show up in the
+     * bench and in rewards like any other face.
+     * ---------------------------------------------------------------- */
+    salvage_burner: {
+      name: 'Salvage Burner', tier: 2, span: 1,
+      fx: [{ k: 'special', id: 'dieExhaustDraw', v: 2 }],
+      desc: 'Exhaust the top card of your draw pile. Draw 2 cards.',
+      art: { p: [[-0.5,-0.6, 0.5,-0.6, 0.5,0.6, -0.5,0.6, -0.5,-0.6], [-0.5,-0.6, 0.5,0.6], [-0.28,-0.86, 0.28,-0.86], [0.5,-0.2, 0.8,-0.2], [0.5,0.2, 0.8,0.2]] },
+    },
+    haemal_tap: {
+      name: 'Haemal Tap', tier: 2, span: 3,
+      fx: [{ k: 'hploss', v: 2 }, { k: 'draw', v: 1 }, { k: 'energy', v: 1 }],
+      desc: 'Lose 2 HP. Draw 1 card. Gain 1 Energy.',
+      art: { p: [[0,-0.8, 0.34,-0.2, 0.22,0.4, -0.22,0.4, -0.34,-0.2, 0,-0.8], [-0.22,0.4, -0.3,0.75], [0.22,0.4, 0.3,0.75], [0,0.4, 0,0.8]] },
+    },
+    plate_layer: {
+      name: 'Plate Layer', tier: 2, span: 3,
+      fx: [{ k: 'status', s: 'plate', v: 2, who: 'self' }],
+      desc: 'Gain 2 Plating.',
+      art: { p: [[-0.7,-0.4, 0.7,-0.4], [-0.7,-0.05, 0.7,-0.05], [-0.7,0.3, 0.7,0.3], [-0.4,-0.4, -0.4,0.3], [0,-0.4, 0,0.3], [0.4,-0.4, 0.4,0.3], [-0.7,0.3, -0.7,0.6, 0.7,0.6, 0.7,0.3]] },
     },
 
     executioners_mark: {
@@ -6840,6 +6939,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (vstart > 0) c.player.statuses.vuln = vstart;
     var pa = art('platedArmorStart');
     if (pa > 0) c.player.statuses.platedArmor = pa;
+    // ARCHETYPE ANCHORS: constructs, the Exhaust engine and the blood engine
+    // had no relic pointing at them at all, so those builds were assembled
+    // entirely out of the card pool. These start the engine already running.
+    var pp = art('psiPowStart');
+    if (pp > 0) c.player.statuses.psiPow = pp;
+    var ts = art('turretStart');
+    if (ts > 0) c.player.statuses.turret = ts;
+    var sv = art('salvoStart');
+    if (sv > 0) c.player.statuses.salvo = sv;
+    var br = art('bloodrageStart');
+    if (br > 0) c.player.statuses.bloodrage = br;
     var bs = art('blockStart') + art('blockStartTechMul') * attr('tech');   // Forge Reserve scales with TECH
     if (bs > 0) { c.player.block = bs; } // relic Shield is passive, not "played"
     var ws = art('weakStart');
@@ -6950,7 +7060,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     c.nonAttacksThisTurn = 0;   // Recoilless Frame: per-turn non-attack limit
     c.turnDamage = 0;           // class quest: damage dealt this turn
     c.momentum = 0;   // Momentum Engine resets each turn
-    if (p.statuses.momentum) p.statuses.momentum = 0;   // Fusillade: Momentum is a per-turn combo
+    // Fusillade: Momentum is a per-turn combo — unless a Cycling Breech says
+    // otherwise, which is the whole point of that relic.
+    if (p.statuses.momentum && !art('momentumKeep')) p.statuses.momentum = 0;
     // Cursed Inheritance: a curse is lodged in hand at the start of combat
     if (c.turn === 1 && E.hasEcho('cursed_inheritance')) c.hand.push(mkCard('recurring_curse', false));
     // block expiry (Retain / Barricade keep your Shield). Turn 1 has no prior
@@ -7612,6 +7724,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             E.run.credits += (f.v || 5); emit('credits', { amount: f.v || 5 });
           } else if (f.id === 'dieLoseBlock') {
             p.block = Math.max(0, p.block - (f.v || 3)); emit('block', { who: 'player', amount: 0, blockAfter: p.block });
+          } else if (f.id === 'dieExhaustDraw') {
+            // SALVAGE BURNER: the Vanguard's Exhaust engine had no engravable
+            // face at all. This feeds it — Resolve, Salvo and Quartermaster all
+            // read a card leaving the deck, and you get the draw regardless.
+            if (c.drawPile.length) exhaustCard(c.drawPile.pop());
+            drawCards(f.v || 2);
           } else if (f.id === 'dieEnemyStr') {
             var esPool = aliveEnemies();
             if (esPool.length) { var esE = pick(esPool); addStatus(esE, 'str', f.v || 1); emit('status', { who: 'enemy', idx: c.enemies.indexOf(esE), s: 'str', v: statN(esE, 'str') }); }
