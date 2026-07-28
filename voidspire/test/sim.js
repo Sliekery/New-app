@@ -82,11 +82,6 @@ function estCardDamage(card, target, includeDot) {
     if (f.k === 'special' && f.id === 'bloodbath') {
       total += f.v * (c.player.statuses.str || 0);        // Bloodforge cashout scales with stacked Strength
     }
-    if (f.k === 'special' && f.id === 'cull') {
-      // CULL: sacrifice the whole pack, f.v damage per pet (Butcher finisher).
-      var pets = (c.allies || []).filter(function (a) { return a.alive; }).length;
-      total += f.v * pets;
-    }
   });
   if ((c.player.statuses.weak || 0) > 0) total = Math.floor(total * VS.BALANCE.status.weakMult);
   return total + dot;
@@ -223,19 +218,6 @@ function botCombat() {
   while (E.run.phase === 'combat' && guard++ < 400) {
     var c = E.combat;
     if (c.over || aliveIdx().length === 0) break;
-    // Warpcaller: keep a sensible formation — tank front, healer behind it,
-    // support mid, attackers in the back (a competent player would position).
-    if (E.run.cls === 'warpcaller' && c.allies.length > 1) {
-      if (PILOT === 'butcher') {
-        // feed the grinder: the most expendable (fragile) bodies go up front to
-        // die — that's where Symbiosis / Bloodscent / Spawnling bursts come from.
-        c.allies.sort(function (a, b) { return a.maxHp - b.maxHp; });
-      } else {
-        // tank front, healer behind it, support mid, attackers (and the apex) safe in back.
-        var PRI = { block: 0, heal: 1, support: 2, burn: 3, attack: 4 };
-        c.allies.sort(function (a, b) { return (PRI[a.def.act.t] == null ? 9 : PRI[a.def.act.t]) - (PRI[b.def.act.t] == null ? 9 : PRI[b.def.act.t]); });
-      }
-    }
     var playable = [];
     for (var i = 0; i < c.hand.length; i++) if (E.canPlay(i)) playable.push(i);
     if (playable.length === 0) { E.endTurn(); continue; }
@@ -267,34 +249,16 @@ function botCombat() {
       if (bb >= 0) choice = bb;
     }
 
-    // 3. powers + pet-summons early (a Warpcaller lives or dies by its pack),
-    //    then best attack, then anything
+    // 3. powers early, then best attack, then anything
     if (choice < 0) {
-      var nPets = c.allies.filter(function (a) { return a.alive; }).length;
-      var pw = playable.filter(function (idx) {
-        var def = VS.CARDS[c.hand[idx].id];
-        if (def.type === 'power') return true;
-        var fx = VS.cardFx(def, c.hand[idx].up);
-        return fx.some(function (f) {
-          if (f.k === 'pet') return true;
-          if (f.k === 'status' && (f.s === 'pack' || f.s === 'symbiosis' || f.s === 'brood' || f.s === 'bloodscent' || f.s === 'bulwark')) return true;
-          // funnel/utility specials are only worth it once you have a pack to act on
-          if (f.k === 'special' && (f.id === 'feed' || f.id === 'empower' || f.id === 'packshield') && nPets >= 1) return true;
-          if (f.k === 'special' && f.id === 'frenzy' && nPets >= 2) return true;  // pack acts again — needs a board
-          return false;
-        });
-      });
-      if (pw.length && (c.turn <= 3 || E.run.cls === 'warpcaller')) choice = pw[0];
+      var pw = playable.filter(function (idx) { return VS.CARDS[c.hand[idx].id].type === 'power'; });
+      if (pw.length && c.turn <= 3) choice = pw[0];
     }
     if (choice < 0) {
-      var ba = -1, bd = -1, nLive = c.allies ? c.allies.filter(function (a) { return a.alive; }).length : 0;
+      var ba = -1, bd = -1;
       playable.forEach(function (idx) {
         var cdef = VS.CARDS[c.hand[idx].id];
         if (cdef.type !== 'attack') return;
-        // Cull discipline: don't blow the whole pack as a chip attack — hold it
-        // until the pack is big enough to make the sacrifice pay (or it's lethal,
-        // which the kill tier above already handles).
-        if (cdef.fx.some(function (f) { return f.k === 'special' && f.id === 'cull'; }) && nLive < 4) return;
         // DoT-aware: lay/stack Burn proactively instead of treating it as 0 dmg
         var dmg = estCardDamage(card0(c, idx), c.enemies[target], true);
         if (dmg > bd) { bd = dmg; ba = idx; }
@@ -320,18 +284,11 @@ function card0(c, idx) { return c.hand[idx]; }
 
 var CLASS_ATTR = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
 
-// ---- Warpcaller archetype piloting (for measuring per-build ceilings) -------
-// The Warpcaller's three builds. When PILOT is set, the bot drafts that build's
-// cards (and shuns the others) so we can see how each archetype performs when a
-// player actually commits to it, rather than the greedy grab-bag of the parity run.
+// ---- Archetype piloting (for measuring per-build ceilings) -----------------
 // Class build engines: { cls, core (draft toward), flex (welcome) }. When PILOT
 // names one, the bot commits to it so we can measure the build's ceiling instead
 // of the greedy grab-bag. Reusable across classes.
 var ENGINES = {
-  // Warpcaller archetypes
-  wall:    { cls: 'warpcaller', core: ['summon_warden', 'summon_leech', 'entrench', 'aegis', 'summon_behemoth'] },
-  alpha:   { cls: 'warpcaller', core: ['summon_dire', 'savage_feast', 'feed_the_alpha', 'pack_frenzy', 'apex_predator'] },
-  butcher: { cls: 'warpcaller', core: ['summon_stinger', 'bloodbond', 'spawn_brood', 'symbiotic_bond', 'feeding_frenzy', 'overgrowth', 'cull_the_weak', 'the_swarmlord'] },
   // Vanguard engines
   fusillade: { cls: 'vanguard', core: ['rapid_fire', 'trigger_discipline', 'hail_of_lead', 'full_auto', 'unload', 'burst_fire', 'frenzy', 'reckless_charge'],
                flex: ['pulse_rifle', 'combat_shield', 'war_cry', 'suppressing_fire', 'bayonet_charge', 'brace', 'reload', 'rallying_shout', 'munitions_dump'] },
@@ -370,7 +327,7 @@ var ENGINES = {
   disruption: { cls: 'technomancer', core: ['tesla_conduit', 'short_circuit', 'system_shock', 'disruptor_pulse', 'feedback_loop', 'ion_storm', 'emp_mine', 'static_field', 'static_lance', 'emp_blast'],
                 flex: ['overshield', 'shock_coil', 'fortify_matrix', 'combat_shield', 'arc_welder'] },
 };
-var FLEX_OF = { warpcaller: ['claw_swipe', 'summon_maw', 'howl', 'kennel', 'summon_totem'] };  // per-class default flex
+var FLEX_OF = {};  // per-class default flex
 var PILOT = null;   // an ENGINES key — null = default greedy draft
 function setPilot(a) { PILOT = a; }
 function pilotSpec() {

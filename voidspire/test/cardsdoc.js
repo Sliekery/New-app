@@ -16,16 +16,15 @@ var VS = global.VS, ns = VS, B = VS.BALANCE;
 var CARDS = ns.CARDS;
 
 var RARITY = { '-1': 'Curse', 0: 'Starter', 1: 'Common', 2: 'Uncommon', 3: 'Rare', 4: 'Legendary' };
-var CLASS_ORDER = ['vanguard', 'technomancer', 'voidadept', 'warpcaller', 'any', 'curse'];
+var CLASS_ORDER = ['vanguard', 'technomancer', 'voidadept', 'any', 'curse'];
 var CLASS_NAME = {
   vanguard: 'Vanguard', technomancer: 'Technomancer', voidadept: 'Void Adept',
-  warpcaller: 'Warpcaller', any: 'Neutral (any class)', curse: 'Curses',
+  any: 'Neutral (any class)', curse: 'Curses',
 };
 var CLASS_TAG = {
   vanguard: 'Shock trooper — MIGHT weapons & raw aggression.',
   technomancer: 'Machine-priest — TECH shields, turrets & reactors.',
   voidadept: 'Sanctioned psyker — PSI burns, hexes & blasts.',
-  warpcaller: 'Ship captain — BOND pets in a positional formation (Wall / Alpha / Butcher).',
   any: 'Colourless cards any class can draft (starters, boss & event pool).',
   curse: 'Unplayable junk that clogs your deck.',
 };
@@ -80,7 +79,7 @@ function effect(def, upgraded) {
 
 var out = [];
 out.push('# VOIDSPIRE — Card Catalogue\n');
-out.push('_Auto-generated from the game data (`node test/cardsdoc.js`). Effect text is exactly what the game shows; numbers are the base values **before** any MIGHT/TECH/PSI/BOND scaling._\n');
+out.push('_Auto-generated from the game data (`node test/cardsdoc.js`). Effect text is exactly what the game shows; numbers are the base values **before** any MIGHT/TECH/PSI scaling._\n');
 
 // table of contents + totals
 var total = Object.keys(CARDS).length;

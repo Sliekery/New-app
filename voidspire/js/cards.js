@@ -32,95 +32,6 @@
     bulwark: 'Bulwark', bloodscent: 'Bloodscent', feast: 'Savage Feast',
   };
 
-  // The Warpcaller's pets (targetable ally units). act: what they do each turn.
-  // `models` = candidate visual models (picked at random on summon) so the pack
-  // looks like a varied menagerie. Art lives in ns.PET_MODELS.
-  ns.PETS = {
-    // -- generic / Butcher fuel --
-    maw:      { name: 'Maw',     hp: 4,  act: { t: 'attack', d: 2 }, color: '#7b8cff', models: ['wretch'] },
-    spawnling:{ name: 'Spawnling', hp: 2, act: { t: 'attack', d: 1 }, onDie: { dmg: 4 }, color: '#8d9bff', models: ['crawler'] },  // cheap body that bursts for 4 on death
-    stinger:  { name: 'Stinger', hp: 3,  act: { t: 'burn', v: 2 },   color: '#9b7bff', models: ['stinger', 'spore'] },
-    // -- Wall --
-    warden:   { name: 'Warden',  hp: 7,  act: { t: 'block', v: 3 },  color: '#6bd8ff', models: ['sentinel'] },
-    leech:    { name: 'Leech',   hp: 5,  act: { t: 'heal', v: 2 },   color: '#6bff9d', models: ['leech'] },
-    behemoth: { name: 'Behemoth', hp: 13, act: { t: 'block', v: 4 }, size: 2, color: '#6bd8ff', models: ['warden_beast'] },
-    // -- support (all) --
-    totem:    { name: 'Totem',   hp: 7,  act: { t: 'support', v: 2 }, color: '#ffd24a', models: ['totem'] },
-    // -- Alpha apex (tanky bruiser: takes the hits AND deals them) --
-    dire_maw: { name: 'Dire Maw', hp: 14, act: { t: 'attack', d: 4 }, size: 2, color: '#5e6bff', models: ['wretch'] },
-  };
-
-  // 9 distinct void-beast silhouettes (+ the Warpcaller avatar = 10 models).
-  // Polylines in a ~-0.7..0.7 box; e = glowing eye points.
-  ns.PET_MODELS = {
-    maw_hound: { name: 'Maw-Hound', art: {
-      p: [[-0.6,-0.32, -0.2,-0.46, 0.12,-0.34, 0.06,-0.02, -0.32,0.04, -0.62,-0.12, -0.6,-0.32],
-          [-0.5,-0.06, -0.44,0.14], [-0.3,-0.1, -0.26,0.12], [-0.08,-0.1, -0.04,0.08],
-          [0.06,-0.2, 0.56,-0.16, 0.66,0.14, 0.16,0.18, 0.06,-0.02],
-          [0.16,0.18, 0.14,0.5], [0.5,0.14, 0.5,0.5], [-0.34,0.02, -0.36,0.46], [-0.04,0.06, -0.06,0.46],
-          [0.66,0.0, 0.92,-0.16, 0.84,-0.34]],
-      e: [[-0.34,-0.28]] } },
-    crawler: { name: 'Crawler', art: {
-      p: [[-0.34,-0.08, 0.0,-0.28, 0.34,-0.08, 0.34,0.12, 0.0,0.26, -0.34,0.12, -0.34,-0.08],
-          [-0.1,-0.2, -0.06,-0.02], [0.1,-0.2, 0.06,-0.02],
-          [-0.34,0.0, -0.7,-0.2], [-0.34,0.06, -0.72,0.1], [-0.3,0.12, -0.62,0.38],
-          [0.34,0.0, 0.7,-0.2], [0.34,0.06, 0.72,0.1], [0.3,0.12, 0.62,0.38],
-          [0.0,0.26, 0.0,0.5]],
-      e: [[-0.12,-0.05],[0.12,-0.05]] } },
-    wretch: { name: 'Wretch', art: {
-      p: [[0,-0.55, 0.18,-0.4, 0.14,-0.18, -0.14,-0.18, -0.18,-0.4, 0,-0.55],
-          [-0.2,-0.16, 0.2,-0.16, 0.3,0.2, 0.12,0.46, -0.12,0.46, -0.3,0.2, -0.2,-0.16],
-          [-0.2,-0.1, -0.5,-0.02, -0.44,0.24], [-0.5,-0.02, -0.62,-0.12], [-0.5,-0.02, -0.58,0.1],
-          [0.2,-0.1, 0.5,-0.02, 0.44,0.24], [0.5,-0.02, 0.62,-0.12], [0.5,-0.02, 0.58,0.1],
-          [-0.12,0.46, -0.16,0.62], [0.12,0.46, 0.16,0.62]],
-      e: [[-0.06,-0.36],[0.06,-0.36]] } },
-    stinger: { name: 'Stinger', art: {
-      p: [[-0.3,-0.2, 0.3,-0.2, 0.34,0.06, 0,0.18, -0.34,0.06, -0.3,-0.2],
-          [-0.22,0.12, -0.28,0.5], [0,0.18, 0.0,0.56], [0.22,0.12, 0.28,0.5],
-          [0,0.56, 0.1,0.66, 0,0.72, -0.1,0.66, 0,0.56],
-          [-0.3,-0.2, -0.2,-0.42], [0.3,-0.2, 0.2,-0.42]],
-      e: [[-0.1,-0.06],[0.1,-0.06]] } },
-    spore: { name: 'Spore', art: {
-      p: [[0,-0.4, 0.34,-0.22, 0.4,0.16, 0.12,0.4, -0.12,0.4, -0.4,0.16, -0.34,-0.22, 0,-0.4],
-          [-0.18,-0.1, 0.18,-0.1], [-0.12,0.06, 0.12,0.06], [-0.06,0.2, 0.06,0.2],
-          [0,-0.4, 0,-0.58], [-0.18,-0.34, -0.3,-0.5], [0.18,-0.34, 0.3,-0.5]],
-      e: [[0,-0.22]] } },
-    warden_beast: { name: 'Warden-Beast', art: {
-      p: [[0,-0.5, 0.44,-0.34, 0.5,0.18, 0.28,0.46, -0.28,0.46, -0.5,0.18, -0.44,-0.34, 0,-0.5],
-          [-0.28,-0.28, 0.28,-0.28], [-0.34,-0.05, 0.34,-0.05], [-0.3,0.2, 0.3,0.2],
-          [0,-0.5, 0,0.42],
-          [-0.5,0.0, -0.66,-0.12], [0.5,0.0, 0.66,-0.12],
-          [-0.2,0.46, -0.22,0.62], [0.2,0.46, 0.22,0.62]],
-      e: [[-0.12,-0.4],[0.12,-0.4]] } },
-    sentinel: { name: 'Sentinel', art: {
-      p: [[0,-0.5, 0.4,-0.28, 0.4,0.28, 0,0.5, -0.4,0.28, -0.4,-0.28, 0,-0.5],
-          [0,-0.32, 0.22,-0.16, 0.22,0.16, 0,0.32, -0.22,0.16, -0.22,-0.16, 0,-0.32],
-          [0,-0.12, 0.12,0, 0,0.12, -0.12,0, 0,-0.12],
-          [0.4,0.0, 0.62,0.0], [-0.4,0.0, -0.62,0.0]],
-      e: [[0,0]] } },
-    leech: { name: 'Leech', art: {
-      p: [[-0.3,-0.28, 0.3,-0.28, 0.36,0.1, 0,0.28, -0.36,0.1, -0.3,-0.28],
-          [-0.16,-0.18, -0.12,-0.02], [0.16,-0.18, 0.12,-0.02], [-0.06,0.04, 0.06,0.04],
-          [0,0.28, -0.08,0.5, 0.04,0.62], [-0.2,0.2, -0.34,0.46], [0.2,0.2, 0.34,0.46]],
-      e: [[-0.1,-0.1],[0.1,-0.1]] } },
-    totem: { name: 'Totem', art: {
-      p: [[-0.3,-0.5, 0.3,-0.5, 0.3,-0.3, -0.3,-0.3, -0.3,-0.5],
-          [-0.36,-0.3, 0.36,-0.3, 0.34,0.0, -0.34,0.0, -0.36,-0.3],
-          [-0.3,0.0, 0.3,0.0, 0.24,0.42, -0.24,0.42, -0.3,0.0],
-          [-0.12,-0.44, 0.12,-0.44, 0.12,-0.36, -0.12,-0.36],
-          [0,-0.2, 0.12,-0.12, 0,-0.04, -0.12,-0.12, 0,-0.2],
-          [-0.36,-0.26, -0.52,-0.34], [0.36,-0.26, 0.52,-0.34],
-          [-0.22,0.42, -0.24,0.58], [0.22,0.42, 0.24,0.58]],
-      e: [[-0.07,-0.4],[0.07,-0.4]] } },
-    dire_maw: { name: 'Dire Maw', art: {
-      p: [[-0.66,-0.4, -0.1,-0.56, 0.24,-0.36, 0.14,0.04, -0.36,0.1, -0.7,-0.14, -0.66,-0.4],
-          [-0.58,-0.04, -0.5,0.2], [-0.4,-0.1, -0.34,0.18], [-0.2,-0.12, -0.14,0.16], [0.0,-0.12, 0.06,0.12],
-          [-0.5,-0.36, -0.46,-0.18], [-0.3,-0.42, -0.26,-0.22], [-0.08,-0.42, -0.04,-0.24],
-          [0.14,-0.18, 0.62,-0.16, 0.74,0.18, 0.2,0.24, 0.14,0.04],
-          [0.2,0.24, 0.18,0.56], [0.58,0.18, 0.58,0.56], [-0.36,0.1, -0.4,0.5], [0.0,0.12, -0.04,0.5],
-          [0.74,0.0, 1.02,-0.2, 0.92,-0.42]],
-      e: [[-0.4,-0.34],[-0.16,-0.36]] } },
-  };
   ns.STATUS_NAMES = STATUS_NAMES;
 
   // Keyword glossary — shown ONLY when a card is inspected, never on the card
@@ -791,155 +702,6 @@
       up: { fx: [{ k: 'hploss', v: 1 }, { k: 'energy', v: 2 }, { k: 'onRoll', max: 7, fx: [{ k: 'status', s: 'psiPow', v: 2, who: 'self' }] }] },
     },
 
-    /* =================== Warpcaller (the ship captain & their crew) ===================
-     * Three self-sufficient builds — each carries its OWN defense + offense, so no
-     * single archetype hoards survival:
-     *   THE WALL    — DEF hard block (warden/behemoth + Bulwark/Aegis); OFF slow BOND chip
-     *   THE ALPHA   — DEF lifesteal (Savage Feast) + tanky apex; OFF one buffed beast, raced
-     *   THE BUTCHER — DEF a body-wall that shields you as it dies (Symbiosis); OFF Bloodscent + Cull
-     * ------------------------------------------------------------------------------------ */
-
-    /* ---- shared core ---- */
-    claw_swipe: {   // weak personal attack — the Warpcaller can barely fight alone
-      name: 'Claw Swipe', cls: 'warpcaller', type: 'attack', rarity: 0, cost: 1,
-      fx: [{ k: 'dmg', v: 4, scale: 'bond' }],
-      up: { fx: [{ k: 'dmg', v: 6, scale: 'bond' }] },
-    },
-    summon_maw: {
-      name: 'Summon Maw', cls: 'warpcaller', type: 'skill', rarity: 0, cost: 1,
-      fx: [{ k: 'pet', id: 'maw', n: 1 }],
-      text: 'Summon a Maw (bites a random enemy each turn).',
-      up: { fx: [{ k: 'pet', id: 'maw', n: 1 }, { k: 'status', s: 'pack', v: 1, who: 'self' }], text: 'Summon a Maw. Gain 1 Pack Fury.' },
-    },
-    howl: {
-      name: 'Howl', cls: 'warpcaller', type: 'skill', rarity: 1, cost: 1,
-      fx: [{ k: 'status', s: 'pack', v: 1, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'pack', v: 2, who: 'self' }] },
-    },
-    summon_totem: {
-      name: 'Raise Totem', cls: 'warpcaller', type: 'skill', rarity: 2, cost: 1,
-      fx: [{ k: 'pet', id: 'totem', n: 1 }],
-      text: 'Summon a Totem — the pets on EITHER SIDE of it deal +2 with their actions. Place it in the middle of the line.',
-      up: { cost: 0, fx: [{ k: 'pet', id: 'totem', n: 1 }], text: 'Summon a Totem — the pets on either side of it deal +2 with their actions.' },
-    },
-    kennel: {
-      name: 'Kennel', cls: 'warpcaller', type: 'power', rarity: 2, cost: 1,
-      fx: [{ k: 'status', s: 'slots', v: 2, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'slots', v: 3, who: 'self' }] },
-    },
-
-    /* ---- THE WALL — DEFENSE: hard block & sustain. OFFENSE: slow BOND chip.
-     *      Survive forever, win by attrition. (Strongest build, so tuned down.) ---- */
-    summon_warden: {
-      name: 'Summon Warden', cls: 'warpcaller', type: 'skill', rarity: 1, cost: 1,
-      fx: [{ k: 'pet', id: 'warden', n: 1 }],
-      text: 'Summon a Warden — your tank. Put it FRONT to body single-target hits; it shields you each turn.',
-      up: { fx: [{ k: 'pet', id: 'warden', n: 1 }, { k: 'block', v: 4, scale: 'bond' }], text: 'Summon a Warden (tank). Gain Shield.' },
-    },
-    summon_leech: {
-      name: 'Summon Leech', cls: 'warpcaller', type: 'skill', rarity: 1, cost: 1,
-      fx: [{ k: 'pet', id: 'leech', n: 1 }],
-      text: 'Summon a Leech — each turn it heals the pet in FRONT of it. Place it behind your tank.',
-      up: { fx: [{ k: 'pet', id: 'leech', n: 1 }, { k: 'draw', v: 1 }], text: 'Summon a Leech. Draw 1.' },
-    },
-    entrench: {   // the Wall's payoff: a planted front tank digs in, escalating
-      name: 'Entrench', cls: 'warpcaller', type: 'power', rarity: 2, cost: 1,
-      fx: [{ k: 'status', s: 'bulwark', v: 2, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'bulwark', v: 3, who: 'self' }] },
-    },
-    aegis: {   // formation-wide defensive burst
-      name: 'Aegis', cls: 'warpcaller', type: 'skill', rarity: 2, cost: 1,
-      fx: [{ k: 'special', id: 'packshield', v: 4 }],
-      text: 'Every pet gains 4 Block.',
-      up: { fx: [{ k: 'special', id: 'packshield', v: 6 }], text: 'Every pet gains 6 Block.' },
-    },
-    summon_behemoth: {
-      name: 'Summon Behemoth', cls: 'warpcaller', type: 'skill', rarity: 3, cost: 2,
-      fx: [{ k: 'pet', id: 'behemoth', n: 1 }],
-      text: 'Summon a Behemoth — a huge tank (16 HP, big self-block). Fills 2 slots; the ultimate front-line wall.',
-      up: { fx: [{ k: 'pet', id: 'behemoth', n: 1 }, { k: 'block', v: 5, scale: 'bond' }], text: 'Summon a Behemoth (2 slots). Gain Shield.' },
-    },
-
-    /* ---- THE ALPHA — DEFENSE: lifesteal off the hunt (Savage Feast) + a tanky
-     *      apex. OFFENSE: funnel every buff into one beast and race them down. ---- */
-    summon_dire: {
-      name: 'Summon Dire Maw', cls: 'warpcaller', type: 'skill', rarity: 2, cost: 2,
-      fx: [{ k: 'pet', id: 'dire_maw', n: 1 }],
-      text: 'Summon a Dire Maw (2 slots, 14 HP) — a huge beast that savages a random enemy each turn. Your apex; it can take hits AND deal them.',
-      up: { fx: [{ k: 'pet', id: 'dire_maw', n: 1 }, { k: 'status', s: 'pack', v: 2, who: 'self' }], text: 'Summon a Dire Maw (2 slots, 14 HP). Gain 2 Pack Fury.' },
-    },
-    savage_feast: {   // the Alpha's defense — the captain heals off every kill-blow
-      name: 'Savage Feast', cls: 'warpcaller', type: 'power', rarity: 2, cost: 1,
-      fx: [{ k: 'status', s: 'feast', v: 2, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'feast', v: 3, who: 'self' }] },
-    },
-    feed_the_alpha: {
-      name: 'Feed the Alpha', cls: 'warpcaller', type: 'skill', rarity: 2, cost: 1,
-      fx: [{ k: 'special', id: 'feed', v: 4 }],
-      text: 'Sacrifice your weakest pet; your strongest pet permanently gains +4 to its action.',
-      up: { fx: [{ k: 'special', id: 'feed', v: 7 }], text: 'Sacrifice your weakest pet; your strongest pet permanently gains +7 to its action.' },
-    },
-    pack_frenzy: {
-      name: 'Pack Frenzy', cls: 'warpcaller', type: 'skill', rarity: 2, cost: 1,
-      fx: [{ k: 'special', id: 'frenzy' }],
-      text: 'Your whole pack acts again immediately.',
-      up: { cost: 0, fx: [{ k: 'special', id: 'frenzy' }], text: 'Your whole pack acts again immediately.' },
-    },
-    apex_predator: {   // pure buff, no sacrifice — the Alpha's payoff power
-      name: 'Apex Predator', cls: 'warpcaller', type: 'power', rarity: 3, cost: 2,
-      fx: [{ k: 'special', id: 'empower', v: 6 }, { k: 'status', s: 'pack', v: 1, who: 'self' }],
-      text: 'Your strongest pet permanently gains +6 to its action. Gain 1 Pack Fury.',
-      up: { fx: [{ k: 'special', id: 'empower', v: 9 }, { k: 'status', s: 'pack', v: 2, who: 'self' }], text: 'Your strongest pet permanently gains +9 to its action. Gain 2 Pack Fury.' },
-    },
-
-    /* ---- THE BUTCHER — DEFENSE: a churning body-wall that shields you as it
-     *      dies (Symbiosis). OFFENSE: Bloodscent escalation + Cull burst. ---- */
-    summon_stinger: {
-      name: 'Summon Stinger', cls: 'warpcaller', type: 'skill', rarity: 1, cost: 1,
-      fx: [{ k: 'pet', id: 'stinger', n: 1 }],
-      text: 'Summon a Stinger (spits Burn at a random enemy each turn).',
-      up: { fx: [{ k: 'pet', id: 'stinger', n: 1 }, { k: 'draw', v: 1 }], text: 'Summon a Stinger. Draw 1.' },
-    },
-    bloodbond: {   // pay HP for a fast pack of fragile bodies
-      name: 'Blood Bond', cls: 'warpcaller', type: 'skill', rarity: 1, cost: 0,
-      fx: [{ k: 'hploss', v: 3 }, { k: 'pet', id: 'spawnling', n: 2 }],
-      text: 'Lose 3 HP. Summon 2 Spawnlings.',
-      up: { fx: [{ k: 'hploss', v: 2 }, { k: 'pet', id: 'spawnling', n: 3 }], text: 'Lose 2 HP. Summon 3 Spawnlings.' },
-    },
-    spawn_brood: {
-      name: 'Spawn Brood', cls: 'warpcaller', type: 'skill', rarity: 2, cost: 2,
-      fx: [{ k: 'pet', id: 'spawnling', n: 3 }],
-      text: 'Summon 3 Spawnlings (1 HP; each bursts for 3 when it dies).',
-      up: { fx: [{ k: 'pet', id: 'spawnling', n: 4 }], text: 'Summon 4 Spawnlings (1 HP; each bursts for 3 when it dies).' },
-    },
-    symbiotic_bond: {   // the Butcher's defense: each body that dies armors you
-      name: 'Symbiotic Bond', cls: 'warpcaller', type: 'power', rarity: 2, cost: 1,
-      fx: [{ k: 'status', s: 'symbiosis', v: 6, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'symbiosis', v: 9, who: 'self' }] },
-    },
-    feeding_frenzy: {   // escalating rage as the pack is fed into the grinder
-      name: 'Feeding Frenzy', cls: 'warpcaller', type: 'power', rarity: 2, cost: 1,
-      fx: [{ k: 'status', s: 'bloodscent', v: 2, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'bloodscent', v: 3, who: 'self' }] },
-    },
-    overgrowth: {
-      name: 'Overgrowth', cls: 'warpcaller', type: 'power', rarity: 3, cost: 2,
-      fx: [{ k: 'status', s: 'brood', v: 1, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'brood', v: 2, who: 'self' }] },
-    },
-    cull_the_weak: {
-      name: 'Cull the Weak', cls: 'warpcaller', type: 'attack', rarity: 3, cost: 1, exhaust: true,
-      fx: [{ k: 'special', id: 'cull', v: 7 }],
-      text: 'Sacrifice your whole pack. Deal 7 damage to the target for each pet culled.',
-      up: { fx: [{ k: 'special', id: 'cull', v: 10 }], text: 'Sacrifice your whole pack. Deal 10 damage to the target for each pet culled.' },
-    },
-    the_swarmlord: {   // Butcher capstone (boss reward)
-      name: 'The Swarmlord', cls: 'warpcaller', type: 'power', rarity: 4, pool: 'boss', cost: 3,
-      fx: [{ k: 'pet', id: 'spawnling', n: 3 }, { k: 'status', s: 'brood', v: 1, who: 'self' }, { k: 'status', s: 'bloodscent', v: 2, who: 'self' }],
-      text: 'Summon 3 Spawnlings. Gain Brood 1 and 2 Bloodscent.',
-      up: { fx: [{ k: 'pet', id: 'spawnling', n: 4 }, { k: 'status', s: 'brood', v: 1, who: 'self' }, { k: 'status', s: 'bloodscent', v: 3, who: 'self' }], text: 'Summon 4 Spawnlings. Gain Brood 1 and 3 Bloodscent.' },
-    },
-
     /* ============ Legendaries (boss rewards only) ============ */
     orbital_bombardment: {
       name: 'Orbital Bombardment', cls: 'vanguard', type: 'attack', rarity: 4, pool: 'boss', cost: 3,
@@ -1415,9 +1177,6 @@
     voidadept:    ['pulse_rifle', 'pulse_rifle',
                    'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield',
                    'mind_spike', 'mind_spike', 'mind_spike', 'mind_spike'],
-    warpcaller:   ['claw_swipe', 'claw_swipe', 'claw_swipe', 'claw_swipe',
-                   'summon_maw', 'summon_maw', 'combat_shield', 'combat_shield',
-                   'summon_warden', 'summon_leech'],
   };
 
   /* ---- Description generator ----------------------------------------- */
@@ -1436,7 +1195,6 @@
           if (dsc === 'might') v += ctx.attrs.might * B.attrs.mightDmgPerPoint * mul;
           if (dsc === 'tech') v += ctx.attrs.tech * mul;
           if (dsc === 'psi') v += ctx.attrs.psi * B.attrs.psiDmgPerPoint * mul;
-          if (dsc === 'bond') v += (ctx.attrs.bond || 0) * B.attrs.bondPetPerPoint * mul;
           v += (ctx.flatDmg || 0);   // relic/augment flat damage (e.g. Honed Edge)
           if (ctx.statuses) {
             v += (ctx.statuses.str || 0);
@@ -1465,7 +1223,6 @@
         parts.push((f.max != null ? 'Roll ' + f.max + ' or less: ' : 'Roll ' + f.min + '+: ') + inner);
       }
       if (f.k === 'heal') parts.push('Heal ' + f.v + ' HP.');
-      if (f.k === 'pet') { var pd = ns.PETS[f.id] || {}, pn = pd.name || f.id, szt = (pd.size || 1) > 1 ? ' [' + pd.size + ' slots]' : ''; parts.push('Summon ' + (f.n > 1 ? f.n + ' ' + pn + 's' : 'a ' + pn) + szt + '.'); }
       if (f.k === 'hploss') parts.push('Lose ' + f.v + ' HP.');
       if (f.k === 'draw') parts.push('Draw ' + f.v + ' card' + (f.v > 1 ? 's' : '') + '.');
       if (f.k === 'energy') parts.push('Gain ' + f.v + ' Energy.');

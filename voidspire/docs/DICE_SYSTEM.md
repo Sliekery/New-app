@@ -194,8 +194,6 @@ Famine Engine, Singularity Core. *(Keep their star-chart toggle.)*
 
 **Sustain / misc:** Blood Chalice, Cryo Capsule, Void Lens.
 
-**Warpcaller-only:** Blood Bond, Brood Womb.
-
 **Quest-unlocked** (unlock condition unchanged, then mounts as Core): Berserker's Pact,
 Pacifist Doctrine, War Chest, Flawless Protocol, Offline Shield, Soul Ledger.
 
@@ -337,8 +335,10 @@ What each one buys:
   the table and you starve the band your build feeds on. Nothing else in the game
   makes a stat you want into a stat you must think about.
 
-The Warpcaller has no table by design; he still rolls, so engravings and roll
-riders fire, but the face does not modulate his cards.
+The engine still supports a class with no table — it rolls, so engravings and
+roll riders fire, but the face does not modulate its cards. No shipping class
+uses that path since the Warpcaller was retired; it is the fallback for any
+future class that wants the die without a damage reading.
 
 Supporting work:
 

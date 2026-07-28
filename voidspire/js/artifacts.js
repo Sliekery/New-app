@@ -119,13 +119,6 @@
     void_conduit: { name: 'Void Conduit', tier: 1, rarity: 'class', cls: 'voidadept', questOnly: true, k: 'firstPowerFree', v: 1,
       desc: 'The first Power you play each combat costs 0.',
       art: { p: [[0,-0.85, 0.4,-0.05, 0.18,0.85, -0.18,0.65, -0.4,-0.15, 0,-0.85], [0,-0.55, 0.05,0.5]], e: [[0,-0.15]] } },
-    blood_bond: { name: 'Blood Bond', tier: 1, rarity: 'class', cls: 'warpcaller', questOnly: true, k: 'petAttackHeal', v: 1,
-      desc: 'Whenever one of your pets attacks, heal 1 HP.',
-      art: { p: [[0,0.6, -0.45,0.15, -0.28,-0.25, 0.02,0.08, 0.12,-0.6, 0.32,-0.12, 0.42,0.22, 0,0.6], [-0.5,-0.4, 0.5,-0.4], [-0.4,-0.55, -0.4,-0.25], [0.4,-0.55, 0.4,-0.25]], e: [] } },
-    brood_womb: { name: 'Brood Womb', tier: 1, rarity: 'class', cls: 'warpcaller', questOnly: true, k: 'petBonusHp', v: 3,
-      desc: 'Your summoned pets start with +3 HP.',
-      art: { p: [[0,-0.7, 0.6,-0.3, 0.6,0.4, 0,0.75, -0.6,0.4, -0.6,-0.3, 0,-0.7], [-0.28,0.05, 0,-0.25, 0.28,0.05, 0,0.4, -0.28,0.05]], e: [[0,0.05]] } },
-
     /* ============ Quest relics (complete the task → unlock the reward) ============ */
     offline_shield: { name: 'Offline Shield', tier: 2,
       quest: { track: 'noShieldWin', goal: 3, label: 'Win 3 combats without gaining any Shield' },

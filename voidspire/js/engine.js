@@ -52,7 +52,7 @@
     E.run = {
       cls: clsId,
       hp: c.hp, maxHp: c.hp,
-      attrs: { might: c.might, tech: c.tech, psi: c.psi, bond: c.bond || 0 },
+      attrs: { might: c.might, tech: c.tech, psi: c.psi },
       credits: B.player.startCredits,
       deck: deck,
       artifacts: [],
@@ -231,10 +231,7 @@
       { track: 'burnApplied', goal: 40, label: 'Apply 40 Burn' },
       { track: 'burnAtOnce', goal: 10, atOnce: true, label: 'Stack 10 Burn on one enemy' },
       { track: 'burnApplied', goal: 120, label: 'Apply 120 Burn total' } ] },
-    warpcaller: { name: 'Brood Covenant', relics: ['blood_bond', 'brood_womb'], steps: [
-      { track: 'petsSummoned', goal: 10, label: 'Summon 10 pets' },
-      { track: 'petsAlive', goal: 4, atOnce: true, label: 'Have 4 pets alive at once' },
-      { track: 'petsSummoned', goal: 22, label: 'Summon 22 pets total' } ] },
+
   };
   E.classChain = function () { return CLASS_CHAINS[E.run && E.run.cls]; };
   function classQuestTick(track, amount) {
@@ -541,7 +538,7 @@
   };
 
   /* ---------------- Level up: Augment Protocol draft ------------------- */
-  var CLASS_STAT = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi', warpcaller: 'bond' };
+  var CLASS_STAT = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
   E.classStat = function () { return CLASS_STAT[E.run.cls] || 'might'; };
 
   // Draft 3 random augments, rarity-weighted and class-flavored, no repeats
@@ -712,12 +709,10 @@
     sc.aggro += (r.attrs.might || 0) * 2;
     sc.bulwark += (r.attrs.tech || 0) * 1.5;
     sc.affliction += (r.attrs.psi || 0) * 1.5;
-    sc.engine += (r.attrs.bond || 0) * 1.5;     // pet/board builds read as 'engine'
     (r.deck || []).forEach(function (card) {
       var def = ns.CARDS[card.id]; if (!def) return;
       if (def.type === 'power') sc.engine += 2;
       (def.fx || []).forEach(function (f) {
-        if (f.k === 'pet') sc.engine += 2;
         if (f.k === 'block') sc.bulwark += 1.2;
         if (f.k === 'draw') sc.engine += 0.5;
         if (f.k === 'dmg' && !f.all) sc.aggro += (f.v >= 10 ? 1.5 : 0.5);
@@ -811,7 +806,6 @@
     var c = E.combat = {
       kind: kind,
       enemies: ids.map(mkEnemy),
-      allies: [],          // the Warpcaller's summoned pets (targetable units)
       turn: 0,
       energy: 0,
       hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
@@ -997,15 +991,12 @@
       });
     }
     var brood = statN(p, 'brood');     // Overgrowth: birth a disposable Spawnling each turn
-    if (brood > 0 && c.turn > 1) summonPet('spawnling', brood);
-    var bw = statN(p, 'bulwark');      // Entrench: the front pet digs in (gains block) each turn
-    if (bw > 0) { var fa = frontAlly(); if (fa) fa.block += bw; }
     var ht = art('healTurn');
     if (ht > 0) heal(ht);
     var bg = art('burnGrow');
     if (bg > 0) c.enemies.forEach(function (en, i) { if (en.alive && statN(en, 'burn') > 0) { addStatus(en, 'burn', bg); emit('status', { who: 'enemy', idx: i, s: 'burn', v: bg }); } });
     var aoe = art('aoeTurnStart');
-    var baseDraw = (E.run.cls === 'warpcaller') ? B.player.drawPerTurn - 1 : B.player.drawPerTurn; // smaller hand: you trade cards for formation control
+    var baseDraw = B.player.drawPerTurn;
     var draws = baseDraw + art('drawTurn') + (c.turn === 1 ? art('drawStart') : 0);
     drawCards(draws);
     c.echoReady = statN(p, 'echo') > 0;   // Echo Core: first attack each turn plays twice
@@ -1150,7 +1141,7 @@
 
   function liveCtx() {
     return {
-      attrs: { might: attr('might'), tech: attr('tech'), psi: attr('psi'), bond: attr('bond') },
+      attrs: { might: attr('might'), tech: attr('tech'), psi: attr('psi') },
       pri: priAttr(),            // primary attribute name (for 'pri'-scaled cards)
       statuses: E.combat ? E.combat.player.statuses : null,
       flatDmg: art('flatDmg'),   // so cards show damage incl. relic/augment buffs
@@ -1159,7 +1150,7 @@
 
   // primary attribute of the active class — lets shared/defensive cards scale
   // with whatever the class actually invests in, instead of a fixed attribute.
-  var PRI_ATTR = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi', warpcaller: 'bond' };
+  var PRI_ATTR = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
   function priAttr() { return PRI_ATTR[E.run && E.run.cls] || 'might'; }
   function resolveScale(s) { return s === 'pri' ? priAttr() : s; }
 
@@ -1171,7 +1162,6 @@
     if (sc === 'might') v += attr('might') * B.attrs.mightDmgPerPoint * mul;
     if (sc === 'tech') v += attr('tech') * mul;
     if (sc === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * mul + statN(p, 'psiPow');
-    if (sc === 'bond') v += attr('bond') * B.attrs.bondPetPerPoint * mul;
     return Math.round(v);   // damage is always a whole number (no decimals)
   }
 
@@ -1353,125 +1343,6 @@
 
   function aliveEnemies() { return E.combat.enemies.filter(function (e) { return e.alive; }); }
   E.aliveEnemies = aliveEnemies;
-
-  /* ---- The Warpcaller's pets (targetable ally units) --------------------- */
-  function aliveAllies() { return E.combat ? E.combat.allies.filter(function (a) { return a.alive; }) : []; }
-  E.aliveAllies = aliveAllies;
-  // A pet's effective action value: BOND scaling + per-pet buffs + pack buffs.
-  function petPower(a) {
-    var p = E.combat.player;
-    return Math.round(attr('bond') * B.attrs.bondPetPerPoint) + (a.bonusDmg || 0) + statN(p, 'pack') + statN(p, 'bloodscent') + adjacentTotem(a);
-  }
-  E.petPower = petPower;
-  // The pack is an ordered formation; c.allies holds only LIVING pets, front first.
-  function frontAlly() { var p = aliveAllies(); return p.length ? p[0] : null; }
-  E.frontAlly = frontAlly;
-  // Sum of adjacent Totems' buff (placement matters — keep a Totem in the middle).
-  function adjacentTotem(a) {
-    var c = E.combat; if (!c) return 0;
-    var i = c.allies.indexOf(a), buff = 0;
-    [i - 1, i + 1].forEach(function (j) { var n = c.allies[j]; if (n && n.alive && n.def.act.t === 'support') buff += n.def.act.v; });
-    return buff;
-  }
-  function mkAlly(id) {
-    var def = ns.PETS[id];
-    var hp = def.hp + Math.round(attr('bond') * 0.3) + art('petBonusHp');   // Brood Womb
-    var models = def.models || [];
-    var model = models.length ? models[Math.floor(rnd() * models.length)] : null;
-    return { id: id, def: def, hp: hp, maxHp: hp, block: 0, statuses: {}, alive: true, bonusDmg: 0, model: model };
-  }
-  // What a pet will do this turn (icon + scaled value) — for the Manifest readout.
-  E.petInfo = function (a) {
-    var act = a.def.act, pw = petPower(a);
-    if (act.t === 'attack') return { icon: 'atk', val: (act.d || 0) + pw };
-    if (act.t === 'burn') return { icon: 'burn', val: act.v + Math.floor(pw * 0.5) };
-    if (act.t === 'block') return { icon: 'block', val: act.v + Math.floor(pw * 0.5) };
-    if (act.t === 'support') return { icon: 'support', val: act.v };
-    return { icon: 'heal', val: act.v + Math.floor(pw * 0.5) };
-  };
-  // The formation has a SLOT capacity; each pet has a `size` (slots it fills).
-  function petSlots() { return E.combat.allies.reduce(function (s, a) { return s + (a.def.size || 1); }, 0); }
-  E.petSlots = petSlots;
-  function maxSlots() { return 4 + statN(E.combat.player, 'slots'); }   // + Kennel etc.
-  E.maxSlots = maxSlots;
-  function summonPet(id, n) {
-    var c = E.combat, sz = (ns.PETS[id].size || 1);
-    for (var i = 0; i < (n || 1); i++) {
-      if (petSlots() + sz > maxSlots()) break;   // no room -> the summon fizzles
-      c.allies.push(mkAlly(id));                  // joins the BACK of the formation
-      emit('petSummon', { idx: c.allies.length - 1, id: id });
-      classQuestTick('petsSummoned', 1);
-      classQuestTick('petsAlive', c.allies.length);
-    }
-  }
-  E.summonPet = summonPet;
-  // Remove a pet from the formation (death/sacrifice) and fire on-death effects.
-  function killAlly(a, sacrifice) {
-    var c = E.combat, i = c.allies.indexOf(a);
-    if (i < 0 || !a.alive) return;
-    a.alive = false;
-    c.allies.splice(i, 1);
-    emit('petDie', { idx: i });
-    // Bloodscent: every death (even a sacrifice) feeds the pack's rage (+1 to all pet actions).
-    if (statN(c.player, 'bloodscent') > 0) addStatus(c.player, 'bloodscent', 1);
-    if (!sacrifice) {
-      var sy = statN(c.player, 'symbiosis');   // a pet dies -> master gains Shield + draws
-      if (sy > 0) { gainBlock(sy); drawCards(1); }
-      // a dying beast's last act — the Spawnling bursts on death.
-      if (a.def.onDie && a.def.onDie.dmg) {
-        var pool = aliveEnemies();
-        if (pool.length) { var en = pick(pool); dealToEnemy(en, c.enemies.indexOf(en), a.def.onDie.dmg, { noCrit: true, src: 'pet' }); }
-      }
-    }
-  }
-  E.killAlly = killAlly;
-  function dealToAlly(a, amount) {
-    var i = E.combat.allies.indexOf(a);
-    var blocked = Math.min(a.block, amount);
-    a.block -= blocked;
-    var hp = amount - blocked;
-    a.hp -= hp;
-    emit('petHurt', { idx: i, amount: amount, hpDmg: hp, hpAfter: Math.max(0, a.hp), blockAfter: a.block });
-    if (a.hp <= 0 && a.alive) killAlly(a);
-    return hp;
-  }
-  // Reorder the formation (the Manifest's tap-swap). Indices into the living line.
-  E.swapPets = function (i, j) {
-    var L = E.combat && E.combat.allies; if (!L) return false;
-    if (i < 0 || j < 0 || i >= L.length || j >= L.length || i === j) return false;
-    var t = L[i]; L[i] = L[j]; L[j] = t; emit('petReorder', {}); return true;
-  };
-  // Pets act after your turn, before the enemy strikes back. Position matters:
-  // the Leech heals the pet directly in FRONT of it.
-  function petsAct() {
-    var c = E.combat;
-    c.allies.slice().forEach(function (a) {
-      if (c.over || E.run.phase === 'dead' || !a.alive) return;
-      var idx = c.allies.indexOf(a), act = a.def.act, pw = petPower(a);
-      emit('petAct', { idx: idx, t: act.t });
-      if (act.t === 'attack') {
-        var pool = aliveEnemies(); if (!pool.length) return;
-        var en = pick(pool);
-        dealToEnemy(en, c.enemies.indexOf(en), (act.d || 0) + pw, { noCrit: true, src: 'pet' });
-        var bb = art('petAttackHeal'); if (bb > 0) heal(bb);   // Blood Bond
-        var feast = statN(c.player, 'feast');   // Savage Feast: the captain heals off the hunt
-        if (feast > 0) heal(feast);
-      } else if (act.t === 'burn') {
-        var p2 = aliveEnemies(); if (!p2.length) return;
-        var e2 = pick(p2), bv = act.v + Math.floor(pw * 0.5);
-        addStatus(e2, 'burn', bv); emit('status', { who: 'enemy', idx: c.enemies.indexOf(e2), s: 'burn', v: bv });
-      } else if (act.t === 'block') {
-        gainBlock(act.v + Math.floor(pw * 0.5));
-      } else if (act.t === 'heal') {
-        var hv = act.v + Math.floor(pw * 0.5);
-        var ahead = idx > 0 ? c.allies[idx - 1] : a;   // heals the pet in front of it (else itself)
-        ahead.hp = Math.min(ahead.maxHp, ahead.hp + hv);
-        emit('petHurt', { idx: c.allies.indexOf(ahead), amount: 0, hpDmg: -hv, hpAfter: ahead.hp });
-      }
-      // support (Totem) does nothing offensive — its buff is the adjacency bonus.
-    });
-  }
-  E.petsAct = petsAct;
 
   function handHasCurse() {
     var c = E.combat;
@@ -1677,7 +1548,7 @@
           var bonus = bsc === 'tech' ? attr('tech') * B.attrs.techBlockPerPoint
                     : bsc === 'might' ? attr('might') * B.attrs.mightBlockPerPoint
                     : bsc === 'psi' ? attr('psi') * B.attrs.psiBlockPerPoint
-                    : bsc === 'bond' ? attr('bond') * B.attrs.bondBlockPerPoint : 0;
+                    : 0;
           // LOAD BALANCE: for a class whose table scales Shield, the same face
           // that would have grazed an attack now sags the plating instead.
           var bmul = (ctx.blockBand && ctx.bandMult) ? ctx.bandMult : 1;
@@ -1688,7 +1559,6 @@
         case 'hploss': spendLife(f.v); break;
         case 'draw': drawCards(f.v); break;
         case 'energy': c.energy += f.v; break;
-        case 'pet': summonPet(f.id, f.n || 1); break;   // Warpcaller: summon a pet
         case 'status': {
           if (f.who === 'self') {
             addStatus(p, f.s, f.v);
@@ -1839,39 +1709,6 @@
             var pw = 0;
             c.consumed.forEach(function (cc) { if (ns.CARDS[cc.id].type === 'power') pw++; });
             if (pw > 0) gainBlock(f.v * pw, true);
-          } else if (f.id === 'frenzy') {
-            // PACK FRENZY: the whole pack acts again, right now.
-            petsAct();
-          } else if (f.id === 'cull') {
-            // CULL: sacrifice every pet, deal f.v per pet culled to the target.
-            var pets = aliveAllies(), nc = pets.length, sytot = statN(p, 'symbiosis');
-            pets.forEach(function (a) { killAlly(a, true); if (sytot > 0) { gainBlock(sytot); drawCards(1); } });
-            if (nc > 0) {
-              var cEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
-              if (cEn) totalDealt += dealToEnemy(cEn, c.enemies.indexOf(cEn), f.v * nc + Math.round(attr('bond') * B.attrs.bondPetPerPoint), { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
-            }
-          } else if (f.id === 'feed') {
-            // FEED THE ALPHA: sacrifice the weakest pet to permanently empower the strongest.
-            var live = aliveAllies();
-            if (live.length >= 1) {
-              var weak = live.slice().sort(function (a, b) { return a.hp - b.hp; })[0];
-              var strong = live.slice().sort(function (a, b) { return (b.bonusDmg || 0) - (a.bonusDmg || 0); })[0];
-              if (live.length > 1 && weak !== strong) killAlly(weak, true);
-              strong.bonusDmg = (strong.bonusDmg || 0) + f.v;
-              emit('petAct', { idx: c.allies.indexOf(strong), t: 'feed' });
-            }
-          } else if (f.id === 'empower') {
-            // APEX PREDATOR: permanently empower your strongest pet (no sacrifice).
-            var liveE = aliveAllies();
-            if (liveE.length) {
-              var champ = liveE.slice().sort(function (a, b) { return E.petInfo(b).val - E.petInfo(a).val; })[0];
-              champ.bonusDmg = (champ.bonusDmg || 0) + f.v;
-              emit('petAct', { idx: c.allies.indexOf(champ), t: 'feed' });
-            }
-          } else if (f.id === 'packshield') {
-            // AEGIS: the whole formation braces — every pet gains f.v block now.
-            aliveAllies().forEach(function (a) { a.block += f.v; });
-            emit('petReorder', {});
           }
           break;
         }
@@ -2087,7 +1924,6 @@
     if (checkWin()) return;
 
     // the pack strikes (after turrets/entropy, before the enemy retaliates)
-    petsAct();
     if (checkWin()) return;
 
     // player status ticks
@@ -2192,16 +2028,7 @@
         var totalToPlayer = 0;
         for (var h = 0; h < hits; h++) {
           if (r.phase === 'dead') break;
-          // The formation soaks single-target hits FRONT-to-back, but each pet only
-          // absorbs up to its own HP+Shield — overflow carries through to the next
-          // pet and finally to the fragile master. Pierce ignores pets entirely.
           var remaining = dmg;
-          while (remaining > 0 && !m.pierce) {
-            var front = frontAlly(); if (!front) break;
-            var absorbed = Math.min(remaining, front.hp + front.block);
-            dealToAlly(front, absorbed);
-            remaining -= absorbed;
-          }
           // Parry (Bloodforge): deflect like a shield, but every parried blow ripostes
           // the attacker for a Might-scaled counter. The berserker turns defence into offence.
           if (remaining > 0 && !m.pierce) {
@@ -2833,7 +2660,7 @@
       r.hp = r.maxHp;
     } else {
       r.hp = c.hp; r.maxHp = c.hp;
-      r.attrs = { might: c.might, tech: c.tech, psi: c.psi, bond: c.bond || 0 };
+      r.attrs = { might: c.might, tech: c.tech, psi: c.psi };
       if (E.hasEcho('ascendant_core')) r.attrs[CLASS_STAT[clsId]] += 2; // legacy stat
       r.credits = B.player.startCredits;
       r.deck = ns.STARTER_DECKS[clsId].map(function (id) { return mkCard(id, false); });
@@ -3048,7 +2875,7 @@
 
   /* ---------------- Gamble den (dice / wheel / cards) ------------------- */
   var GAMBLE_GAMES = ['bones', 'wheel', 'cards'];
-  var CLASS_CORE = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi', warpcaller: 'bond' };
+  var CLASS_CORE = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
   function coreAttrName() { return CLASS_CORE[E.run.cls] || 'might'; }
   function coreAttr() { return attr(coreAttrName()); }
   function clampP(p) { return Math.max(0.15, Math.min(0.82, p)); }
@@ -3480,6 +3307,10 @@
       if (!raw) return false;
       var data = JSON.parse(raw);
       if (!data.run || !data.run.deck) return false;
+      // A save from a retired class can't be resumed — its cards, class table and
+      // art are all gone, so it would load into a run that breaks on the first
+      // fight. Discard it and send the player to the title screen instead.
+      if (!B.classes[data.run.cls]) { try { s.removeItem('voidspire_save'); } catch (e2) {} return false; }
       E.run = data.run;
       rngState = data.rng >>> 0;
       uidCounter = data.uid || 1000;

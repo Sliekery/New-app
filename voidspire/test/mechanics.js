@@ -930,5 +930,51 @@ ok('Aim starves the Voidadept’s HUNGER band', bandShare('voidadept', 8, 'HUNGE
 ok('Aim only helps the Vanguard’s table', bandShare('vanguard', 8, 'GRAZE') < bandShare('vanguard', 2, 'GRAZE'));
 
 
+/* ==================== RETIRED CLASSES ==============================
+ * The Warpcaller was removed. A save written before that can't be resumed —
+ * its cards, class table and art are gone — so load() must reject it rather
+ * than restore a run that breaks on the first fight.
+ * ================================================================ */
+ok('the Warpcaller is gone from the class table', !VS.BALANCE.classes.warpcaller);
+ok('no Warpcaller starter deck', !VS.STARTER_DECKS.warpcaller);
+ok('no Warpcaller cards remain', !Object.keys(VS.CARDS).some(function (k) { return VS.CARDS[k].cls === 'warpcaller'; }));
+ok('no pet data remains', !VS.PETS && !VS.PET_MODELS);
+ok('no card summons a pet', !Object.keys(VS.CARDS).some(function (k) {
+  var s2 = JSON.stringify(VS.cardFx(VS.CARDS[k], false)) + JSON.stringify(VS.cardFx(VS.CARDS[k], true));
+  return s2.indexOf('"pet"') >= 0 || s2.indexOf('bond') >= 0;
+}));
+ok('every remaining class has a die table', Object.keys(VS.BALANCE.classes).every(function (c) {
+  return !!VS.BALANCE.dice.classes[c];
+}));
+ok('every remaining class has a starter deck whose cards all exist',
+  Object.keys(VS.BALANCE.classes).every(function (c) {
+    var d = VS.STARTER_DECKS[c];
+    return d && d.length && d.every(function (id) { return !!VS.CARDS[id]; });
+  }));
+
+(function () {
+  var store = (typeof localStorage !== 'undefined') ? localStorage : null;
+  if (!store) {   // headless: stub just enough for load() to exercise the guard
+    var mem = {};
+    global.localStorage = store = {
+      getItem: function (k) { return mem[k] === undefined ? null : mem[k]; },
+      setItem: function (k, v) { mem[k] = String(v); },
+      removeItem: function (k) { delete mem[k]; },
+    };
+  }
+  store.setItem('voidspire_save', JSON.stringify({
+    run: { cls: 'warpcaller', hp: 40, maxHp: 55, deck: [{ uid: 1, id: 'claw_swipe', up: false }], phase: 'map' },
+    rng: 123, uid: 99,
+  }));
+  var loaded = E.load();
+  ok('a retired-class save is refused by load()', loaded === false);
+  ok('and is deleted, so it cannot be retried forever', store.getItem('voidspire_save') === null);
+
+  // a save for a class that still exists must still load
+  E.seed(1); E.newRun('vanguard'); E.run.phase = 'map'; E.save();
+  ok('a current-class save still loads', E.load() === true && E.run.cls === 'vanguard');
+})();
+
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

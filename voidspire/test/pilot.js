@@ -15,10 +15,6 @@ var FINALE = VS.BALANCE.run.finale;
 
 // what to measure: a greedy baseline per class, then each engine under it.
 var TESTS = [
-  { key: null, cls: 'warpcaller', label: 'warpcaller (greedy)' },
-  { key: 'wall', cls: 'warpcaller', label: '  Wall' },
-  { key: 'alpha', cls: 'warpcaller', label: '  Alpha' },
-  { key: 'butcher', cls: 'warpcaller', label: '  Butcher' },
   { key: null, cls: 'vanguard', label: 'vanguard (greedy)' },
   { key: 'fusillade', cls: 'vanguard', label: '  Fusillade' },
   { key: 'bloodforge', cls: 'vanguard', label: '  Bloodforge' },

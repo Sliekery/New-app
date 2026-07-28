@@ -20,7 +20,6 @@
       vanguard:  { hp: 80, might: 2, tech: 0, psi: 0 },
       technomancer: { hp: 68, might: 0, tech: 2, psi: 0 },
       voidadept: { hp: 78, might: 0, tech: 0, psi: 2 },
-      warpcaller: { hp: 55, might: 0, tech: 0, psi: 0, bond: 2 },  // glass-cannon pet master
     },
 
     /* ---- Attribute scaling ------------------------------------------ */
@@ -29,9 +28,7 @@
       techBlockPerPoint: 1,     // bonus block per TECH on tech-scaling skills
       mightBlockPerPoint: 1,    // bonus block per MIGHT on primary-scaling skills
       psiBlockPerPoint: 1,      // bonus block per PSI on primary-scaling skills
-      bondBlockPerPoint: 1,     // bonus block per BOND on primary-scaling skills
       psiDmgPerPoint: 1.4,      // bonus damage per PSI on psi-scaling attacks
-      bondPetPerPoint: 0.2,     // bonus to a pet's action per point of BOND (the Warpcaller's scaling)
       eventCheckBonusDiv: 1,    // event check bonus = attr / this (rounded down)
     },
 

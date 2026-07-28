@@ -1,15 +1,15 @@
 # VOIDSPIRE — Card Catalogue
 
-_Auto-generated from the game data (`node test/cardsdoc.js`). Effect text is exactly what the game shows; numbers are the base values **before** any MIGHT/TECH/PSI/BOND scaling._
+_Auto-generated from the game data (`node test/cardsdoc.js`). Effect text is exactly what the game shows; numbers are the base values **before** any MIGHT/TECH/PSI scaling._
 
-**139 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Warpcaller](#warpcaller) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
+**178 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
 
 
 ---
 
 ## Vanguard
 
-_Shock trooper — MIGHT weapons & raw aggression. (50 cards)_
+_Shock trooper — MIGHT weapons & raw aggression. (59 cards)_
 
 
 ### Starter
@@ -21,32 +21,41 @@ _Shock trooper — MIGHT weapons & raw aggression. (50 cards)_
 ### Common
 
 - **Breaching Charge**  — Attack · ⚡1  _(Exhaust)_
-    - Base: Deal 9 damage. Exhaust.
-    - Upgraded: Deal 13 damage. Exhaust.
+    - Base: Deal 11 damage. Roll 16+: Draw 1 card. Exhaust.
+    - Upgraded: Deal 15 damage. Roll 14+: Draw 1 card. Exhaust.
+- **Bulwark Stance**  — Skill · ⚡1
+    - Base: Then gain extra Shield equal to twice your Might.
+    - Upgraded: _(no change)_
 - **Burst Fire**  — Attack · ⚡1
-    - Base: Deal 3 damage 2 times.
-    - Upgraded: Deal 3 damage 3 times.
+    - Base: Deal 3 damage 2 times. Roll 15+: Deal 3 damage.
+    - Upgraded: Deal 3 damage 3 times. Roll 13+: Deal 3 damage.
 - **Counterstrike**  — Attack · ⚡1
-    - Base: Deal 4 damage. Gain 4 Parry: it absorbs damage like Shield, and every blow you parry strikes the attacker back (scales with Might).
-    - Upgraded: Deal 6 damage. Gain 5 Parry: it absorbs damage like Shield, and every blow you parry strikes the attacker back (scales with Might).
+    - Base: Deal 4 damage. Gain 4 Parry.
+    - Upgraded: Deal 6 damage. Gain 5 Parry.
+- **Covering Fire**  — Skill · ⚡1
+    - Base: Gain 6 Shield. Apply 1 Weak to ALL enemies.
+    - Upgraded: Gain 9 Shield. Apply 2 Weak to ALL enemies.
 - **Crimson Pact**  — Attack · ⚡0
     - Base: Lose 3 HP. Deal 6 damage.
     - Upgraded: Lose 2 HP. Deal 8 damage.
 - **Deflect**  — Skill · ⚡1
-    - Base: Gain 6 Parry: it absorbs damage like Shield, and every blow you parry strikes the attacker back (scales with Might).
-    - Upgraded: Gain 9 Parry: it absorbs damage like Shield, and every blow you parry strikes the attacker back (scales with Might).
+    - Base: Gain 8 Parry.
+    - Upgraded: Gain 11 Parry.
 - **Field Strip**  — Skill · ⚡0  _(Exhaust)_
     - Base: Draw 2 cards. Exhaust.
     - Upgraded: Draw 3 cards. Exhaust.
 - **Frag Grenade**  — Attack · ⚡1
-    - Base: Deal 5 damage to ALL enemies.
-    - Upgraded: Deal 8 damage to ALL enemies.
-- **Rallying Shout**  — Skill · ⚡1
-    - Base: Gain 1 Might. Gain 5 Shield.
-    - Upgraded: Gain 2 Might. Gain 6 Shield.
+    - Base: Deal 4 damage to ALL enemies. Apply 1 Vulnerable to ALL enemies.
+    - Upgraded: Deal 6 damage to ALL enemies. Apply 2 Vulnerable to ALL enemies.
+- **Hair Trigger**  — Attack · ⚡0
+    - Base: Deal 4 damage. Roll 13+: Gain 1 Energy.
+    - Upgraded: Deal 6 damage. Roll 11+: Gain 1 Energy.
+- **Raking Fire**  — Attack · ⚡1
+    - Base: Deal 6 damage to the target and 3 to every other enemy. Apply 1 Weak to the target.
+    - Upgraded: Deal 8 damage to the target and 5 to every other enemy. Apply 2 Weak to the target.
 - **Rapid Fire**  — Attack · ⚡0
-    - Base: Deal 3 damage. Gain 1 Momentum (your attacks deal +1 each this turn).
-    - Upgraded: Deal 4 damage. Gain 1 Momentum (your attacks deal +1 each this turn).
+    - Base: Deal 3 damage. Gain 1 Momentum.
+    - Upgraded: Deal 4 damage. Gain 1 Momentum.
 - **Reckless Charge**  — Attack · ⚡0  _(Exhaust)_
     - Base: Deal 7 damage. Exhaust.
     - Upgraded: Deal 10 damage. Exhaust.
@@ -54,17 +63,14 @@ _Shock trooper — MIGHT weapons & raw aggression. (50 cards)_
     - Base: Gain 6 Shield. Gain 3 Thorns.
     - Upgraded: Gain 9 Shield. Gain 4 Thorns.
 - **Shield Bash**  — Attack · ⚡1
-    - Base: Deal 6 damage. Gain 4 Shield.
-    - Upgraded: Deal 8 damage. Gain 6 Shield.
-- **Suppressing Barrage**  — Attack · ⚡1
-    - Base: Deal 3 damage to ALL enemies. Apply 1 Weak to ALL enemies.
-    - Upgraded: Deal 5 damage to ALL enemies. Apply 1 Weak to ALL enemies.
-- **Suppressing Fire**  — Attack · ⚡1
-    - Base: Deal 5 damage. Apply 2 Weak.
-    - Upgraded: Deal 8 damage. Apply 2 Weak.
+    - Base: Deal 6 damage. Gain 4 Shield. Roll 13+: Gain 4 Shield.
+    - Upgraded: Deal 8 damage. Gain 6 Shield. Roll 11+: Gain 5 Shield.
+- **Take Aim**  — Skill · ⚡0
+    - Base: Gain 2 Aim.
+    - Upgraded: Gain 3 Aim.
 - **Trigger Discipline**  — Skill · ⚡1
-    - Base: Draw 2 cards. Gain 1 Momentum (your attacks deal +1 each this turn).
-    - Upgraded: Draw 2 cards. Gain 2 Momentum (your attacks deal +1 each this turn).
+    - Base: Draw 2 cards. Gain 1 Momentum.
+    - Upgraded: Draw 2 cards. Gain 2 Momentum.
 - **War Cry**  — Skill · ⚡1
     - Base: Gain 2 Might. Draw 1 card.
     - Upgraded: Gain 3 Might. Draw 1 card.
@@ -81,14 +87,11 @@ _Shock trooper — MIGHT weapons & raw aggression. (50 cards)_
     - Base: Gain 12 Shield. Draw 1 card.
     - Upgraded: Gain 16 Shield. Draw 1 card.
 - **Bunker Down**  — Skill · ⚡2
-    - Base: Gain 8 Shield. Plated Armor 3: each turn gain that much Shield, then it drops by 1.
-    - Upgraded: Gain 12 Shield. Plated Armor 4: each turn gain that much Shield, then it drops by 1.
+    - Base: Gain 8 Shield. Gain 3 Plated Armor.
+    - Upgraded: Gain 12 Shield. Gain 4 Plated Armor.
 - **Cluster Charge**  — Attack · ⚡1  _(Exhaust)_
     - Base: Deal 5 damage to ALL enemies. Exhaust.
     - Upgraded: Deal 7 damage to ALL enemies. Exhaust.
-- **Cluster Munitions**  — Attack · ⚡2
-    - Base: Deal 4 damage to ALL enemies 2 times.
-    - Upgraded: Deal 6 damage to ALL enemies 2 times.
 - **Combat Stims**  — Power · ⚡1
     - Base: Gain 3 Might. Lose 3 HP.
     - Upgraded: Gain 4 Might. Lose 2 HP.
@@ -102,26 +105,41 @@ _Shock trooper — MIGHT weapons & raw aggression. (50 cards)_
     - Base: MIGHT counts three times.
     - Upgraded: Deal 12 damage. MIGHT counts three times.
 - **Iron Resolve**  — Power · ⚡1
-    - Base: Whenever a card is Exhausted, gain 3 Shield.
-    - Upgraded: Whenever a card is Exhausted, gain 4 Shield.
+    - Base: Gain 4 Resolve.
+    - Upgraded: Gain 5 Resolve.
 - **Limit Break**  — Skill · ⚡1 → 0  _(Exhaust)_
     - Base: Double your Might.
     - Upgraded: _(no change)_
+- **Marksman Round**  — Attack · ⚡1
+    - Base: Deal 6 damage. Roll 14+: Apply 2 Vulnerable. Draw 1 card.
+    - Upgraded: Deal 8 damage. Roll 12+: Apply 2 Vulnerable. Draw 1 card.
+- **Misfire Protocol**  — Power · ⚡1
+    - Base: When an attack misfires, gain 3 Momentum and 1 Energy.
+    - Upgraded: When an attack misfires, gain 5 Momentum and 1 Energy.
 - **Munitions Dump**  — Skill · ⚡1  _(Exhaust)_
     - Base: Gain 2 Energy. Draw 1 card. Exhaust.
     - Upgraded: Gain 2 Energy. Draw 2 cards. Exhaust.
+- **Reaping Volley**  — Attack · ⚡1
+    - Base: Heal for half the total damage dealt.
+    - Upgraded: _(no change)_
 - **Reload**  — Skill · ⚡1 → 0
     - Base: Return a random exhausted Attack to your hand.
     - Upgraded: _(no change)_
 - **Shield Slam**  — Attack · ⚡1
     - Base: Deal damage equal to your Shield.
     - Upgraded: Deal damage equal to 150% of your Shield.
+- **Spiked Bulwark**  — Skill · ⚡1
+    - Base: This combat, enemies that attack you take damage equal to your Might + 3.
+    - Upgraded: This combat, enemies that attack you take damage equal to your Might + 5.
+- **Steady Aim**  — Power · ⚡1
+    - Base: Gain 1 more Aim at the start of each turn.
+    - Upgraded: Gain 2 more Aim at the start of each turn.
 - **Unload**  — Attack · ⚡2
     - Base: Deal an additional 2 damage for each Momentum you have.
     - Upgraded: Deal an additional 3 damage for each Momentum you have.
 - **Vengeance**  — Power · ⚡1
-    - Base: After you take a hit or parry a blow, your next Attack heals 4 HP (Vengeance).
-    - Upgraded: After you take a hit or parry a blow, your next Attack heals 6 HP (Vengeance).
+    - Base: Gain 4 Vengeance.
+    - Upgraded: Gain 6 Vengeance.
 - **Whet the Blade**  — Skill · ⚡0
     - Base: Lose 2 HP. Gain 2 Might.
     - Upgraded: Lose 1 HP. Gain 2 Might.
@@ -132,43 +150,52 @@ _Shock trooper — MIGHT weapons & raw aggression. (50 cards)_
 ### Rare
 
 - **Barricade Protocol**  — Power · ⚡2 → 1
-    - Base: Your Shield no longer expires at the start of your turn.
+    - Base: Gain Barricade.
     - Upgraded: _(no change)_
+- **Berserker Engine**  — Power · ⚡2
+    - Base: Gain 1 Blood Rage. Gain 2 Resolve.
+    - Upgraded: Gain 2 Blood Rage. Gain 2 Resolve.
 - **Blood Rage**  — Power · ⚡1
-    - Base: Whenever you lose HP to your own cards, gain 1 Might (Blood Rage).
-    - Upgraded: Whenever you lose HP to your own cards, gain 2 Might (Blood Rage).
+    - Base: Gain 1 Blood Rage.
+    - Upgraded: Gain 2 Blood Rage.
 - **Bloodbath**  — Attack · ⚡2
-    - Base: Deal damage equal to 4× your Strength. Heal for half the damage dealt.
-    - Upgraded: Deal damage equal to 5× your Strength. Heal for half the damage dealt.
+    - Base: Deal damage equal to 5× your Strength. Heal for half the damage dealt.
+    - Upgraded: Deal damage equal to 6× your Strength. Heal for half the damage dealt.
 - **Bloodlust**  — Power · ⚡1
-    - Base: Gain +1 Energy at the start of each turn. Lose 6 HP.
-    - Upgraded: Gain +1 Energy at the start of each turn. Lose 3 HP.
+    - Base: Gain 1 Reactor. Lose 6 HP.
+    - Upgraded: Gain 1 Reactor. Lose 3 HP.
+- **Deadeye Protocol**  — Power · ⚡2
+    - Base: Gain 2 Killing Rage. Gain 1 Deadeye.
+    - Upgraded: Gain 3 Killing Rage. Gain 1 Deadeye.
+- **Demolition Train**  — Power · ⚡2
+    - Base: Whenever you Exhaust a card, deal 4 damage to ALL enemies.
+    - Upgraded: Whenever you Exhaust a card, deal 6 damage to ALL enemies.
 - **Frenzy**  — Attack · ⚡2
     - Base: Each hit is boosted by your Might — a Strength deck turns this lethal.
     - Upgraded: Deal 3 damage 4 times. Each hit is boosted by your Might — a Strength deck turns this lethal.
 - **Full Auto**  — Power · ⚡1
-    - Base: Whenever you play an Attack, gain 1 Momentum (Full Auto).
-    - Upgraded: Whenever you play an Attack, gain 2 Momentum (Full Auto).
+    - Base: Gain 1 Full Auto.
+    - Upgraded: Gain 2 Full Auto.
+- **Killshot**  — Attack · ⚡2
+    - Base: Consume all your Aim. Deal 6 damage plus 4 for each Aim consumed.
+    - Upgraded: Consume all your Aim. Deal 8 damage plus 5 for each Aim consumed.
 - **Orbital Strike**  — Attack · ⚡3
-    - Base: Deal 22 damage to ALL enemies.
-    - Upgraded: Deal 30 damage to ALL enemies.
+    - Base: Deal 16 damage to ALL enemies. Apply 2 Vulnerable to ALL enemies.
+    - Upgraded: Deal 22 damage to ALL enemies. Apply 3 Vulnerable to ALL enemies.
 - **Quartermaster**  — Power · ⚡1
-    - Base: At the start of each turn, return a random exhausted Attack to your hand (Quartermaster).
-    - Upgraded: At the start of each turn, return 2 random exhausted Attacks to your hand (Quartermaster).
-- **Reckless Protocol**  — Power · ⚡2 → 1
-    - Base: Skills cost 0 this combat, but Exhaust when played.
-    - Upgraded: _(no change)_
+    - Base: Gain 1 Quartermaster.
+    - Upgraded: Gain 2 Quartermaster.
 - **Riposte Protocol**  — Power · ⚡2
-    - Base: Whenever you gain Shield, deal 3 damage to a random enemy (Riposte).
-    - Upgraded: Whenever you gain Shield, deal 5 damage to a random enemy (Riposte).
+    - Base: Gain 3 Riposte.
+    - Upgraded: Gain 5 Riposte.
 - **Salvo**  — Power · ⚡1
-    - Base: Whenever you Exhaust a card, deal 3 damage to a random enemy (Salvo).
-    - Upgraded: Whenever you Exhaust a card, deal 5 damage to a random enemy (Salvo).
+    - Base: Gain 4 Salvo.
+    - Upgraded: Gain 6 Salvo.
 - **Scorched Earth**  — Attack · ⚡2  _(Exhaust)_
     - Base: Exhaust your hand. Deal 6 damage to the target for each card Exhausted.
     - Upgraded: Exhaust your hand. Deal 9 damage to the target for each card Exhausted.
 - **Warlord Protocol**  — Power · ⚡2 → 1
-    - Base: Gain 1 Might at the start of each turn.
+    - Base: Gain 1 Warlord.
     - Upgraded: _(no change)_
 
 ### Legendary
@@ -181,7 +208,7 @@ _Shock trooper — MIGHT weapons & raw aggression. (50 cards)_
 
 ## Technomancer
 
-_Machine-priest — TECH shields, turrets & reactors. (24 cards)_
+_Machine-priest — TECH shields, turrets & reactors. (51 cards)_
 
 
 ### Starter
@@ -195,21 +222,48 @@ _Machine-priest — TECH shields, turrets & reactors. (24 cards)_
 - **Arc Welder**  — Attack · ⚡1
     - Base: Deal 7 damage. Gain 4 Shield.
     - Upgraded: Deal 10 damage. Gain 6 Shield.
+- **Disruptor Pulse**  — Attack · ⚡1
+    - Base: Deal 4 damage. Apply 1 Weak.
+    - Upgraded: Deal 6 damage. Apply 2 Weak.
+- **EMP Mine**  — Attack · ⚡0  _(Exhaust)_
+    - Base: Deal 3 damage to ALL enemies. Apply 1 Weak to ALL enemies. Exhaust.
+    - Upgraded: Deal 4 damage to ALL enemies. Apply 1 Weak to ALL enemies. Exhaust.
+- **Feedback Loop**  — Skill · ⚡1
+    - Base: Apply 2 Vulnerable. Draw 1 card.
+    - Upgraded: Apply 3 Vulnerable. Draw 1 card.
 - **Fortify Matrix**  — Skill · ⚡1
     - Base: Gain 8 Shield.
     - Upgraded: Gain 11 Shield.
-- **Nano Repair**  — Skill · ⚡1  _(Exhaust)_
-    - Base: Heal 4 HP. Exhaust.
-    - Upgraded: Heal 7 HP. Exhaust.
+- **Hold the Line**  — Skill · ⚡1  _(Retain)_
+    - Base: Gain 7 Shield. Retain.
+    - Upgraded: Gain 10 Shield. Retain.
+- **Live Wire**  — Attack · ⚡1
+    - Base: Deal 6 damage. Draw 1 card.
+    - Upgraded: Deal 8 damage. Draw 1 card.
 - **Overclock**  — Skill · ⚡0
     - Base: Draw 2 cards. Lose 2 HP.
     - Upgraded: Draw 2 cards. Lose 1 HP.
-- **Shock Coil**  — Attack · ⚡1
-    - Base: Deal 6 damage.
-    - Upgraded: Deal 9 damage.
+- **Recompile**  — Skill · ⚡0
+    - Base: Gain 1 Energy. Draw 1 card. Roll 7 or less: Gain 1 Aim.
+    - Upgraded: Gain 1 Energy. Draw 2 cards. Roll 9 or less: Gain 1 Aim.
+- **Repair Bay**  — Skill · ⚡1  _(Exhaust)_
+    - Base: Heal 4 HP. If you have a Turret or Drone deployed, also gain 6 Shield.
+    - Upgraded: Heal 7 HP. If you have a Turret or Drone deployed, also gain 9 Shield.
+- **Salvage Servitor**  — Attack · ⚡1
+    - Base: Deal 5 damage. Deploy a Turret (1 dmg/turn).
+    - Upgraded: Deal 7 damage. Deploy a Turret (2 dmg/turn).
+- **Targeting Uplink**  — Skill · ⚡1
+    - Base: Deploy a Turret (2 dmg/turn). Draw 1 card.
+    - Upgraded: Deploy a Turret (3 dmg/turn). Draw 1 card.
 
 ### Uncommon
 
+- **Assault Drone**  — Power · ⚡1
+    - Base: Deploy a Drone Swarm (2 to all/turn).
+    - Upgraded: Deploy a Drone Swarm (3 to all/turn).
+- **Capacitor Discharge**  — Attack · ⚡1
+    - Base: Deal 6 damage. Gain 1 Energy.
+    - Upgraded: Deal 9 damage. Gain 1 Energy.
 - **Chain Lightning**  — Attack · ⚡2
     - Base: Deal 4 damage to random enemies 3 times.
     - Upgraded: Deal 6 damage to random enemies 3 times.
@@ -218,64 +272,118 @@ _Machine-priest — TECH shields, turrets & reactors. (24 cards)_
     - Upgraded: Gain 5 Shield for each Power you have played this combat.
 - **Deploy Turret**  — Power · ⚡1
     - Base: At the end of your turn, the turret fires at a random enemy.
-    - Upgraded: Turret: deal 6 damage each turn. At the end of your turn, the turret fires at a random enemy.
+    - Upgraded: Deploy a Turret (6 dmg/turn). At the end of your turn, the turret fires at a random enemy.
 - **EMP Blast**  — Attack · ⚡2
     - Base: Deal 7 damage to ALL enemies. Apply 1 Weak to ALL enemies.
     - Upgraded: Deal 10 damage to ALL enemies. Apply 2 Weak to ALL enemies.
 - **Entrench Field**  — Skill · ⚡2 → 1
     - Base: Double your Shield.
     - Upgraded: _(no change)_
+- **Fortified Strike**  — Attack · ⚡1
+    - Base: Deal 5 damage. Gain 9 Shield.
+    - Upgraded: Deal 7 damage. Gain 12 Shield.
 - **Kinetic Discharge**  — Attack · ⚡1
     - Base: Deal damage equal to your Shield.
     - Upgraded: Deal damage equal to 150% of your Shield.
 - **Leech Coil**  — Attack · ⚡1
     - Base: Gain Shield equal to damage dealt.
     - Upgraded: Deal 8 damage. Gain Shield equal to damage dealt.
+- **Munitions Factory**  — Power · ⚡1
+    - Base: Deploy a Turret (2 dmg/turn). Deploy a Drone Swarm (2 to all/turn).
+    - Upgraded: Deploy a Turret (3 dmg/turn). Deploy a Drone Swarm (3 to all/turn).
+- **Overcharged Capacitor**  — Attack · ⚡1
+    - Base: Both hits scale with your Tech. Doubles under Echo.
+    - Upgraded: Deal 6 damage 2 times. Both hits scale with your Tech. Doubles under Echo.
 - **Overload Capacitor**  — Power · ⚡1
-    - Base: Whenever you play a card, gain 1 Shield.
-    - Upgraded: Whenever you play a card, gain 2 Shield.
+    - Base: Gain 1 Mirror Field.
+    - Upgraded: Gain 2 Mirror Field.
+- **Overload Surge**  — Attack · ⚡2
+    - Base: Deal 6 damage. Apply 2 Weak. Apply 2 Vulnerable.
+    - Upgraded: Deal 9 damage. Apply 3 Weak. Apply 3 Vulnerable.
 - **Railgun**  — Attack · ⚡2
     - Base: Deal 13 damage. Apply 2 Vulnerable.
     - Upgraded: Deal 17 damage. Apply 2 Vulnerable.
+- **Reinforced Hull**  — Power · ⚡1
+    - Base: Gain 3 Plated Armor.
+    - Upgraded: Gain 4 Plated Armor.
 - **Sentry Protocol**  — Power · ⚡1
-    - Base: Turret: deal 3 damage each turn. Gain 2 Shield at the start of each turn.
-    - Upgraded: Turret: deal 4 damage each turn. Gain 3 Shield at the start of each turn.
+    - Base: Deploy a Turret (3 dmg/turn). Gain 2 Plating.
+    - Upgraded: Deploy a Turret (4 dmg/turn). Gain 3 Plating.
 - **Shield Battery**  — Power · ⚡1
-    - Base: Gain 4 Shield at the start of each turn.
-    - Upgraded: Gain 6 Shield at the start of each turn.
+    - Base: Gain 4 Plating.
+    - Upgraded: Gain 6 Plating.
+- **Short Circuit**  — Attack · ⚡1
+    - Base: Deal 5 damage. Apply 2 Vulnerable.
+    - Upgraded: Deal 7 damage. Apply 3 Vulnerable.
 - **Static Field**  — Skill · ⚡1
     - Base: Apply 2 Weak to ALL enemies. Gain 4 Shield.
     - Upgraded: Apply 2 Weak to ALL enemies. Gain 7 Shield.
 - **Static Lance**  — Attack · ⚡2
     - Base: Deal 8 damage. Apply 2 Weak.
     - Upgraded: Deal 11 damage. Apply 3 Weak.
+- **Static Ward**  — Skill · ⚡1
+    - Base: This combat, enemies that attack you gain 2 Weak.
+    - Upgraded: Gain 9 Shield. This combat, enemies that attack you gain 2 Weak.
+- **Surge Protocol**  — Skill · ⚡1
+    - Base: Gain 1 Energy. Draw 2 cards. Roll 15+: Gain 1 Energy.
+    - Upgraded: Gain 2 Energy. Draw 2 cards. Roll 13+: Gain 1 Energy.
+- **System Shock**  — Skill · ⚡1
+    - Base: Apply 1 Weak to ALL enemies. Apply 1 Vulnerable to ALL enemies.
+    - Upgraded: Apply 2 Weak to ALL enemies. Apply 1 Vulnerable to ALL enemies.
 
 ### Rare
 
+- **Aegis Matrix**  — Power · ⚡2 → 1
+    - Base: Gain Barricade.
+    - Upgraded: _(no change)_
 - **Auxiliary Reactor**  — Power · ⚡2 → 1
-    - Base: Gain +1 Energy at the start of each turn.
+    - Base: Gain 1 Reactor.
     - Upgraded: _(no change)_
 - **Drone Swarm**  — Power · ⚡2
-    - Base: Drone Swarm: deal 4 damage to ALL enemies each turn.
-    - Upgraded: Drone Swarm: deal 6 damage to ALL enemies each turn.
+    - Base: Deploy a Drone Swarm (4 to all/turn).
+    - Upgraded: Deploy a Drone Swarm (6 to all/turn).
 - **Echo Core**  — Power · ⚡2 → 1
-    - Base: The first Attack you play each turn is played twice.
+    - Base: Gain Echo.
     - Upgraded: _(no change)_
+- **Flux Capacitor**  — Power · ⚡2
+    - Base: Gain 2 Reactor. Lose 5 HP.
+    - Upgraded: Gain 2 Reactor. Lose 3 HP.
+- **Hive Protocol**  — Power · ⚡2
+    - Base: Gain 1 Hive.
+    - Upgraded: Gain 2 Hive.
+- **Ion Storm**  — Attack · ⚡2
+    - Base: Deal 5 damage to ALL enemies. Apply 1 Weak to ALL enemies. Apply 1 Vulnerable to ALL enemies.
+    - Upgraded: Deal 7 damage to ALL enemies. Apply 2 Weak to ALL enemies. Apply 1 Vulnerable to ALL enemies.
+- **Mortar Array**  — Power · ⚡2
+    - Base: Deploy a Turret (8 dmg/turn).
+    - Upgraded: Deploy a Turret (11 dmg/turn).
 - **Phase Bulwark**  — Power · ⚡2 → 1
-    - Base: Shield no longer expires.
+    - Base: Gain Phase Lock.
     - Upgraded: _(no change)_
+- **Singularity Drive**  — Power · ⚡2 → 1
+    - Base: Gain Echo. Gain 1 Reactor.
+    - Upgraded: _(no change)_
+- **Subroutine**  — Power · ⚡2 → 1
+    - Base: Whenever you play a Power, draw a card.
+    - Upgraded: _(no change)_
+- **Swarm Uplink**  — Power · ⚡2
+    - Base: Whenever one of your constructs fires, gain 2 Shield.
+    - Upgraded: Whenever one of your constructs fires, gain 3 Shield.
+- **Tesla Conduit**  — Power · ⚡2
+    - Base: Gain 5 Conduit.
+    - Upgraded: Gain 7 Conduit.
 
 ### Legendary
 
 - **Omega Protocol**  — Power · ⚡3 → 2  _(boss reward only)_
-    - Base: Shield no longer expires. The first Attack you play each turn is played twice.
+    - Base: Gain Phase Lock. Gain Echo.
     - Upgraded: _(no change)_
 
 ---
 
 ## Void Adept
 
-_Sanctioned psyker — PSI burns, hexes & blasts. (23 cards)_
+_Sanctioned psyker — PSI burns, hexes & blasts. (48 cards)_
 
 
 ### Starter
@@ -286,21 +394,33 @@ _Sanctioned psyker — PSI burns, hexes & blasts. (23 cards)_
 
 ### Common
 
+- **Bloodletting**  — Skill · ⚡0
+    - Base: Lose 2 HP. Draw 1 card. Gain 3 Shield.
+    - Upgraded: Lose 1 HP. Draw 1 card. Gain 5 Shield.
 - **Hemorrhage**  — Skill · ⚡0  _(Exhaust)_
-    - Base: Lose 2 HP. Gain 2 Energy. Exhaust.
-    - Upgraded: Lose 1 HP. Gain 2 Energy. Exhaust.
+    - Base: Lose 2 HP. Gain 2 Energy. Roll 6 or less: Gain 2 Psi Focus. Exhaust.
+    - Upgraded: Lose 1 HP. Gain 2 Energy. Roll 7 or less: Gain 2 Psi Focus. Exhaust.
 - **Hex Weave**  — Skill · ⚡1
-    - Base: Apply 2 Burn to ALL enemies.
-    - Upgraded: Apply 3 Burn to ALL enemies.
+    - Base: Apply 4 Burn. Apply 1 Burn to ALL enemies.
+    - Upgraded: Apply 6 Burn. Apply 2 Burn to ALL enemies.
+- **Immolate**  — Attack · ⚡1
+    - Base: Deal 3 damage. Apply 3 Burn.
+    - Upgraded: Deal 4 damage. Apply 5 Burn.
 - **Premonition**  — Skill · ⚡1
     - Base: Draw 2 cards. Gain 3 Shield.
     - Upgraded: Draw 2 cards. Gain 6 Shield.
-- **Psy Lance**  — Attack · ⚡1
-    - Base: Deal 7 damage.
-    - Upgraded: Deal 10 damage.
+- **Psi Lance**  — Attack · ⚡1
+    - Base: Deal 5 damage. Gain 1 Psi Focus.
+    - Upgraded: Deal 7 damage. Gain 1 Psi Focus.
+- **Sanguine Ward**  — Skill · ⚡1
+    - Base: Lose 2 HP. Gain 8 Shield.
+    - Upgraded: Lose 1 HP. Gain 11 Shield.
 - **Soul Burn**  — Skill · ⚡1
     - Base: Apply 4 Burn.
     - Upgraded: Apply 7 Burn.
+- **Spectral Grasp**  — Skill · ⚡0
+    - Base: Apply 1 Weak. Apply 1 Vulnerable. Roll 15+: Apply 1 Vulnerable. Roll 6 or less: Apply 1 Weak.
+    - Upgraded: Apply 2 Weak. Apply 2 Vulnerable. Roll 13+: Apply 1 Vulnerable. Roll 7 or less: Apply 1 Weak.
 - **Void Bolt**  — Attack · ⚡1
     - Base: Deal 5 damage. Apply 2 Vulnerable.
     - Upgraded: Deal 7 damage. Apply 3 Vulnerable.
@@ -310,148 +430,120 @@ _Sanctioned psyker — PSI burns, hexes & blasts. (23 cards)_
 
 ### Uncommon
 
+- **Backdraft**  — Attack · ⚡1
+    - Base: Lose all your Shield. Apply that much Burn to the target.
+    - Upgraded: Lose all your Shield. Apply 150% of it as Burn to the target.
 - **Blood Sacrifice**  — Skill · ⚡0  _(Exhaust)_
     - Base: Lose 4 HP. Gain 2 Psi Focus. Exhaust.
     - Upgraded: Lose 3 HP. Gain 3 Psi Focus. Exhaust.
 - **Catalyst**  — Skill · ⚡1
     - Base: Double the Burn on the target.
     - Upgraded: Triple the Burn on the target.
+- **Cerebral Spike**  — Attack · ⚡1
+    - Base: Your Psi Focus counts twice.
+    - Upgraded: Deal 6 damage. Your Psi Focus counts twice.
+- **Cinder Burst**  — Attack · ⚡1
+    - Base: Detonate: consume the target's Burn to deal 200% of it (plus your Psi Focus) as damage, splashing half as fresh Burn to another enemy.
+    - Upgraded: Detonate: consume the target's Burn to deal 250% of it (plus your Psi Focus) as damage, splashing half as fresh Burn to another enemy.
+- **Crimson Rite**  — Attack · ⚡1
+    - Base: Heal for half the damage dealt.
+    - Upgraded: Lose 2 HP. Deal 7 damage. Apply 3 Vulnerable. Heal for half the damage dealt.
+- **Dread Whisper**  — Skill · ⚡1
+    - Base: Apply 2 Vulnerable. Gain 1 Psi Focus. Draw 1 card.
+    - Upgraded: Apply 3 Vulnerable. Gain 2 Psi Focus. Draw 1 card.
+- **Ember Storm**  — Skill · ⚡1
+    - Base: Apply 2 Burn to ALL enemies. Draw 1 card.
+    - Upgraded: Apply 3 Burn to ALL enemies. Draw 1 card.
+- **Ember Ward**  — Skill · ⚡1
+    - Base: This combat, enemies that attack you gain 2 Burn.
+    - Upgraded: This combat, enemies that attack you gain 3 Burn.
+- **Entropic Lash**  — Attack · ⚡1
+    - Base: Deal 5 damage. Apply 2 Burn to ALL enemies.
+    - Upgraded: Deal 7 damage. Apply 3 Burn to ALL enemies.
 - **Exsanguinate**  — Attack · ⚡1
     - Base: Heal for half the damage dealt.
     - Upgraded: Lose 3 HP. Deal 14 damage. Heal for half the damage dealt.
+- **Mind Bulwark**  — Skill · ⚡1
+    - Base: Gain Shield equal to twice your Psi Focus.
+    - Upgraded: Gain Shield equal to three times your Psi Focus.
 - **Mind Fracture**  — Skill · ⚡1
     - Base: Apply 1 Vulnerable. Apply 1 Weak. Draw 1 card.
     - Upgraded: Apply 2 Vulnerable. Apply 2 Weak. Draw 1 card.
+- **Mind Lance**  — Attack · ⚡1
+    - Base: Both hits are boosted by your Psi Focus.
+    - Upgraded: Deal 5 damage 2 times. Both hits are boosted by your Psi Focus.
 - **Mind Storm**  — Attack · ⚡0
     - Base: Deal 3 damage for each other card played this turn.
     - Upgraded: Deal 4 damage for each other card played this turn.
+- **Null Field**  — Skill · ⚡1
+    - Base: Apply 2 Weak to ALL enemies. Apply 1 Vulnerable to ALL enemies.
+    - Upgraded: Apply 2 Weak to ALL enemies. Apply 2 Vulnerable to ALL enemies.
+- **Parch**  — Attack · ⚡1
+    - Base: Deal damage equal to the target's Burn. The Burn is NOT consumed.
+    - Upgraded: Apply 2 Burn, then deal damage equal to the target's Burn. The Burn is NOT consumed.
 - **Psionic Focus**  — Power · ⚡1
     - Base: Gain 2 Psi Focus.
     - Upgraded: Gain 3 Psi Focus.
+- **Psionic Scream**  — Attack · ⚡1
+    - Base: Deal 4 damage to ALL enemies. Apply 1 Weak to ALL enemies.
+    - Upgraded: Deal 6 damage to ALL enemies. Apply 2 Weak to ALL enemies.
+- **Soulflare**  — Attack · ⚡1
+    - Base: Deal 4 damage to every Burning enemy (scales with your Psi Focus).
+    - Upgraded: Deal 6 damage to every Burning enemy (scales with your Psi Focus).
 - **Telekinetic Crush**  — Attack · ⚡2
     - Base: Deal 5 damage.
     - Upgraded: Deal 9 damage.
-- **Wither**  — Skill · ⚡1
-    - Base: Apply 3 Burn. Apply 2 Weak.
-    - Upgraded: Apply 5 Burn. Apply 2 Weak.
+- **Vital Lance**  — Attack · ⚡1
+    - Base: Lose 2 HP. Deal 8 damage.
+    - Upgraded: Lose 2 HP. Deal 11 damage.
 
 ### Rare
 
+- **Ascendant Mind**  — Power · ⚡2
+    - Base: Gain 2 Ascendant. Gain 2 Psi Focus.
+    - Upgraded: Gain 3 Ascendant. Gain 2 Psi Focus.
 - **Blood Pact**  — Power · ⚡1
-    - Base: Whenever you lose HP to your own cards, gain 1 Psi Focus.
-    - Upgraded: Whenever you lose HP to your own cards, gain 2 Psi Focus.
+    - Base: Gain 1 Blood Pact.
+    - Upgraded: Gain 2 Blood Pact.
+- **Conflagration**  — Attack · ⚡2
+    - Base: Then Detonate all of it for 200% damage (plus your Psi Focus), splashing fresh Burn to another enemy.
+    - Upgraded: Then Detonate all of it for 250% damage (plus your Psi Focus), splashing fresh Burn to another enemy.
+- **Dimensional Rift**  — Attack · ⚡2
+    - Base: Deal 6 damage. Apply 3 Vulnerable. Draw 1 card.
+    - Upgraded: Deal 9 damage. Apply 4 Vulnerable. Draw 1 card.
 - **Eldritch Storm**  — Attack · ⚡3
     - Base: Deal 4 damage to random enemies 4 times.
     - Upgraded: Deal 5 damage to random enemies 5 times.
 - **Entropy Field**  — Power · ⚡2
-    - Base: At end of turn, apply 2 Burn to ALL enemies.
-    - Upgraded: At end of turn, apply 3 Burn to ALL enemies.
+    - Base: Gain 2 Entropy.
+    - Upgraded: Gain 3 Entropy.
+- **Martyr's Gift**  — Power · ⚡2
+    - Base: Gain 1 Blood Pact. Gain 1 Ascendant.
+    - Upgraded: Gain 1 Blood Pact. Gain 2 Ascendant.
 - **Mind Array**  — Power · ⚡1
-    - Base: Whenever you play a card, deal 2 damage to ALL enemies.
-    - Upgraded: Whenever you play a card, deal 3 damage to ALL enemies.
+    - Base: Gain 2 Blade Array.
+    - Upgraded: Gain 3 Blade Array.
 - **Plague Engine**  — Power · ⚡2
-    - Base: Whenever you apply Burn, apply 1 Burn to ALL enemies.
-    - Upgraded: Whenever you apply Burn, apply 2 Burn to ALL enemies.
+    - Base: Gain 1 Contagion.
+    - Upgraded: Gain 2 Contagion.
+- **Psionic Nova**  — Attack · ⚡2
+    - Base: Deal 5 damage to ALL enemies.
+    - Upgraded: Deal 8 damage to ALL enemies.
 - **Unravel**  — Attack · ⚡1
     - Base: Deal 4 damage for each Vulnerable, Weak, and Burn on the target.
     - Upgraded: Deal 6 damage for each Vulnerable, Weak, and Burn on the target.
+- **Void Rupture**  — Attack · ⚡2
+    - Base: Deal 4 damage to ALL enemies. Apply 2 Vulnerable to ALL enemies.
+    - Upgraded: Deal 6 damage to ALL enemies. Apply 2 Vulnerable to ALL enemies.
+- **Wildfire Engine**  — Power · ⚡2
+    - Base: Gain 1 Wildfire.
+    - Upgraded: Gain 2 Wildfire.
 
 ### Legendary
 
 - **Singularity Bloom**  — Power · ⚡2  _(boss reward only)_
-    - Base: Whenever you apply Burn, apply 1 Burn to ALL enemies. At end of turn, apply 2 Burn to ALL enemies.
-    - Upgraded: Whenever you apply Burn, apply 2 Burn to ALL enemies. At end of turn, apply 2 Burn to ALL enemies.
-
----
-
-## Warpcaller
-
-_Ship captain — BOND pets in a positional formation (Wall / Alpha / Butcher). (23 cards)_
-
-
-### Starter
-
-- **Claw Swipe**  — Attack · ⚡1  _(starting card)_
-    - Base: Deal 4 damage.
-    - Upgraded: Deal 6 damage.
-- **Summon Maw**  — Skill · ⚡1  _(starting card)_
-    - Base: Summon a Maw (bites a random enemy each turn).
-    - Upgraded: Summon a Maw. Gain 1 Pack Fury.
-
-### Common
-
-- **Blood Bond**  — Skill · ⚡0
-    - Base: Lose 3 HP. Summon 2 Spawnlings.
-    - Upgraded: Lose 2 HP. Summon 3 Spawnlings.
-- **Howl**  — Skill · ⚡1
-    - Base: Your pets deal +1 with their actions (Pack Fury).
-    - Upgraded: Your pets deal +2 with their actions (Pack Fury).
-- **Summon Leech**  — Skill · ⚡1  _(starting card)_
-    - Base: Summon a Leech — each turn it heals the pet in FRONT of it. Place it behind your tank.
-    - Upgraded: Summon a Leech. Draw 1.
-- **Summon Stinger**  — Skill · ⚡1
-    - Base: Summon a Stinger (spits Burn at a random enemy each turn).
-    - Upgraded: Summon a Stinger. Draw 1.
-- **Summon Warden**  — Skill · ⚡1  _(starting card)_
-    - Base: Summon a Warden — your tank. Put it FRONT to body single-target hits; it shields you each turn.
-    - Upgraded: Summon a Warden (tank). Gain Shield.
-
-### Uncommon
-
-- **Aegis**  — Skill · ⚡1
-    - Base: Every pet gains 4 Block.
-    - Upgraded: Every pet gains 6 Block.
-- **Entrench**  — Power · ⚡1
-    - Base: At the start of each turn, your FRONT pet gains 2 Block (Bulwark).
-    - Upgraded: At the start of each turn, your FRONT pet gains 3 Block (Bulwark).
-- **Feed the Alpha**  — Skill · ⚡1
-    - Base: Sacrifice your weakest pet; your strongest pet permanently gains +4 to its action.
-    - Upgraded: Sacrifice your weakest pet; your strongest pet permanently gains +7 to its action.
-- **Feeding Frenzy**  — Power · ⚡1
-    - Base: Your pets deal +2 with their actions, and +1 more for every pet that dies (Bloodscent).
-    - Upgraded: Your pets deal +3 with their actions, and +1 more for every pet that dies (Bloodscent).
-- **Kennel**  — Power · ⚡1
-    - Base: +2 formation slots (room for more or bigger pets).
-    - Upgraded: +3 formation slots (room for more or bigger pets).
-- **Pack Frenzy**  — Skill · ⚡1 → 0
-    - Base: Your whole pack acts again immediately.
-    - Upgraded: _(no change)_
-- **Raise Totem**  — Skill · ⚡1 → 0
-    - Base: Summon a Totem — the pets on EITHER SIDE of it deal +2 with their actions. Place it in the middle of the line.
-    - Upgraded: Summon a Totem — the pets on either side of it deal +2 with their actions.
-- **Savage Feast**  — Power · ⚡1
-    - Base: Whenever one of your pets attacks, heal 2 HP (Savage Feast).
-    - Upgraded: Whenever one of your pets attacks, heal 3 HP (Savage Feast).
-- **Spawn Brood**  — Skill · ⚡2
-    - Base: Summon 3 Spawnlings (1 HP; each bursts for 3 when it dies).
-    - Upgraded: Summon 4 Spawnlings (1 HP; each bursts for 3 when it dies).
-- **Summon Dire Maw**  — Skill · ⚡2
-    - Base: Summon a Dire Maw (2 slots, 14 HP) — a huge beast that savages a random enemy each turn. Your apex; it can take hits AND deal them.
-    - Upgraded: Summon a Dire Maw (2 slots, 14 HP). Gain 2 Pack Fury.
-- **Symbiotic Bond**  — Power · ⚡1
-    - Base: Whenever a pet dies, gain 6 Shield and draw a card.
-    - Upgraded: Whenever a pet dies, gain 9 Shield and draw a card.
-
-### Rare
-
-- **Apex Predator**  — Power · ⚡2
-    - Base: Your strongest pet permanently gains +6 to its action. Gain 1 Pack Fury.
-    - Upgraded: Your strongest pet permanently gains +9 to its action. Gain 2 Pack Fury.
-- **Cull the Weak**  — Attack · ⚡1  _(Exhaust)_
-    - Base: Sacrifice your whole pack. Deal 7 damage to the target for each pet culled.
-    - Upgraded: Sacrifice your whole pack. Deal 10 damage to the target for each pet culled.
-- **Overgrowth**  — Power · ⚡2
-    - Base: At the start of each turn, summon a Spawnling.
-    - Upgraded: At the start of each turn, summon 2 Spawnlings.
-- **Summon Behemoth**  — Skill · ⚡2
-    - Base: Summon a Behemoth — a huge tank (16 HP, big self-block). Fills 2 slots; the ultimate front-line wall.
-    - Upgraded: Summon a Behemoth (2 slots). Gain Shield.
-
-### Legendary
-
-- **The Swarmlord**  — Power · ⚡3  _(boss reward only)_
-    - Base: Summon 3 Spawnlings. Gain Brood 1 and 2 Bloodscent.
-    - Upgraded: Summon 4 Spawnlings. Gain Brood 1 and 3 Bloodscent.
+    - Base: Gain 1 Contagion. Gain 2 Entropy.
+    - Upgraded: Gain 2 Contagion. Gain 2 Entropy.
 
 ---
 
@@ -462,7 +554,7 @@ _Colourless cards any class can draft (starters, boss & event pool). (16 cards)_
 
 ### Starter
 
-- **Combat Shield**  — Skill · ⚡1  _(starter: Vanguard, Technomancer, Void Adept, Warpcaller)_
+- **Combat Shield**  — Skill · ⚡1  _(starter: Vanguard, Technomancer, Void Adept)_
     - Base: Gain 5 Shield.
     - Upgraded: Gain 8 Shield.
 - **Pulse Rifle**  — Attack · ⚡1  _(starter: Vanguard, Technomancer, Void Adept)_
@@ -499,7 +591,7 @@ _Colourless cards any class can draft (starters, boss & event pool). (16 cards)_
     - Base: Discover: add one of 3 random cards to your hand.
     - Upgraded: Discover: add one of 3 random cards to your hand. Draw 1.
 - **Salvage Protocol**  — Power · ⚡1 → 0
-    - Base: Whenever a card is Exhausted, draw 1 card.
+    - Base: Gain 1 Salvage.
     - Upgraded: _(no change)_
 - **Salvaged Ordnance**  — Attack · ⚡1  _(event reward only; Exhaust)_
     - Base: Deal 11 damage. Exhaust.
@@ -520,14 +612,14 @@ _Colourless cards any class can draft (starters, boss & event pool). (16 cards)_
 ### Legendary
 
 - **Juggernaut Core**  — Power · ⚡2  _(boss reward only)_
-    - Base: Gain 3 Shield at the start of each turn. Gain 1 Might at the start of each turn.
-    - Upgraded: Gain 4 Shield at the start of each turn. Gain 1 Might at the start of each turn.
+    - Base: Gain 3 Plating. Gain 1 Warlord.
+    - Upgraded: Gain 4 Plating. Gain 1 Warlord.
 
 ---
 
 ## Curses
 
-_Unplayable junk that clogs your deck. (3 cards)_
+_Unplayable junk that clogs your deck. (4 cards)_
 
 
 ### Curse
@@ -537,6 +629,9 @@ _Unplayable junk that clogs your deck. (3 cards)_
     - Upgraded: _(cannot be upgraded)_
 - **Shrapnel**  — Curse · ⚡0  _(Unplayable)_
     - Base: Unplayable. Lose 2 HP if this is in your hand at end of turn.
+    - Upgraded: _(cannot be upgraded)_
+- **Void Swarm**  — Curse · ⚡0  _(Unplayable)_
+    - Base: Unplayable. While in your hand, the cards to its left and right cannot be played.
     - Upgraded: _(cannot be upgraded)_
 - **Void Taint**  — Curse · ⚡0  _(Unplayable)_
     - Base: Unplayable. A whisper gnaws at the edge of your mind.

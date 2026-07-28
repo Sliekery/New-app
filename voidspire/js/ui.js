@@ -11,11 +11,10 @@
   var R = ns.render;
   var B = ns.BALANCE;
 
-  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $manifest, $rail, $railPanel, $railLine, $dock, $die;
+  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $rail, $railPanel, $railLine, $dock, $die;
   var dieTimer = null, dieRolling = false;
   var railOpen = null;      // which rail panel is open ('buffs'|'debuffs'|'relics'|'draw'|'discard') or null
   var selected = -1;        // selected hand index
-  var manifestSel = -1;     // selected pet in the Manifest (tap-to-swap reorder)
   var targeting = false;
   var locked = false;       // input lock while timeline plays
   var toastTimer = null;
@@ -253,9 +252,6 @@
     // The Warpcaller's Crew Manifest — the interactive formation panel (left of
     // the hand). Lists each pet with its model + HP/action; tap two cells to swap
     // their order. The front cell (top) is the one single-target attacks strike.
-    $manifest = el('div', '', '');
-    $manifest.id = 'manifest';
-    $game.appendChild($manifest);
 
     // Cockpit rail — the buttons docked to the right edge (Buffs/Debuffs/Relics/
     // Draw/Discard); each opens a tactical panel above or below it.
@@ -514,7 +510,6 @@
     $potions.style.display = on ? 'flex' : 'none';
     if (!on) { $hint.style.display = 'none'; onPotionCancel(); hidePotionTip(); }
     R.combatVisible = on;
-    if (!on && $manifest) { $manifest.style.display = 'none'; manifestSel = -1; }
   }
 
   // dock d20: tumble while you drag an attack, settle on the roll when you fire.
@@ -569,7 +564,7 @@
     '<path d="M4.5 13.5 13 4.5" stroke-dasharray="2 2"/><circle cx="4.5" cy="13.5" r="2.2"/><circle cx="13" cy="4.5" r="2.2"/></svg>';
   function updateHUD() {
     var r = E.run;
-    if (!r) { $hud.innerHTML = ''; setHud(false); renderManifest(); renderRail(); return; }
+    if (!r) { $hud.innerHTML = ''; setHud(false); renderRail(); return; }
     setHud(true);
     var c = E.combat;
     var fac = ns.FACTIONS[r.faction];
@@ -585,7 +580,7 @@
         '<div class="stat"><b>¢' + r.credits + '</b></div></div>';
     }
     html += '<div class="row2">' +
-      [['MGT', 'might'], ['TEC', 'tech'], ['PSI', 'psi'], ['BND', 'bond']].map(function (a) {
+      [['MGT', 'might'], ['TEC', 'tech'], ['PSI', 'psi']].map(function (a) {
         var v = E.attr(a[1]); return v > 0 ? '<span class="attr">' + a[0] + ' <b>' + v + '</b></span>' : '';
       }).join('') +
       (onMap ? '<span class="attr" style="color:' + fac.color + '">' + (r.loop > 1 ? 'L' + r.loop + '·' : '') + 'S' + r.sector + ' ▴' + Math.max(0, r.mapRow + 1) + '/' + (B.map.rows + 1) + '</span>' : '') +
@@ -644,68 +639,12 @@
     var menuBtn = $hud.querySelector('[data-act="menu"]');
     if (menuBtn) menuBtn.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); showMenu(); });
 
-    renderManifest();
     renderRail();
   }
   U.updateHUD = updateHUD;
 
   /* ====================== CREW MANIFEST (Warpcaller) ====================== */
   // icon glyph + colour per pet action, mirroring the on-field readout.
-  var MF_ACT = {
-    atk:     ['▶', '#ff6a6a'],   // ▶ strike
-    burn:    ['≈', '#ff8a3d'],   // ≈ burn
-    block:   ['⬡', '#6bd8ff'],   // ⬡ shield
-    heal:    ['✚', '#6bff9d'],   // ✚ mend
-    support: ['✦', '#ffd24a'],   // ✦ buff (adjacent)
-  };
-  function renderManifest() {
-    if (!$manifest) return;
-    var c = E.combat;
-    var show = !!c && !!E.run && E.run.cls === 'warpcaller' && R.combatVisible && !c.over;
-    $manifest.style.display = show ? 'flex' : 'none';
-    if (!show) { manifestSel = -1; return; }
-    var allies = c.allies;
-    if (manifestSel >= allies.length) manifestSel = -1;
-    var html = '<div class="mf-head">PACK <b>' + E.petSlots() + '/' + E.maxSlots() + '</b></div>';
-    if (!allies.length) {
-      html += '<div class="mf-empty">no units<br>summoned</div>';
-    } else {
-      allies.forEach(function (a, i) {
-        var info = E.petInfo(a), ac = MF_ACT[info.icon] || MF_ACT.atk;
-        var sz = a.def.size || 1, col = a.def.color || '#7b8cff';
-        var m = a.model && ns.PET_MODELS[a.model] && ns.PET_MODELS[a.model].art;
-        var svg = m ? artSVG(m, 'mf-art', col) : '';
-        var hpPct = Math.max(0, a.hp / a.maxHp);
-        var cls = 'mf-cell' + (i === 0 ? ' front' : '') + (i === manifestSel ? ' sel' : '') + (sz > 1 ? ' big' : '');
-        html += '<div class="' + cls + '" data-mf="' + i + '">' +
-          (i === 0 ? '<span class="mf-front">FRONT</span>' : '') +
-          (sz > 1 ? '<span class="mf-size">' + sz + '□</span>' : '') +
-          '<div class="mf-fig">' + svg + '</div>' +
-          '<div class="mf-hp"><div class="mf-hp-fill" style="transform:scaleX(' + hpPct.toFixed(3) +
-            ');background:' + (hpPct > 0.3 ? col : '#ff5b6b') + '"></div></div>' +
-          '<div class="mf-stats"><span class="mf-act" style="color:' + ac[1] + '">' + ac[0] + info.val + '</span>' +
-          '<span class="mf-hpn">♥' + Math.max(0, Math.ceil(a.hp)) + '</span></div>' +
-        '</div>';
-      });
-    }
-    $manifest.innerHTML = html;
-    $manifest.querySelectorAll('[data-mf]').forEach(function (cell) {
-      cell.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); onManifestTap(+cell.dataset.mf); });
-    });
-  }
-  U.renderManifest = renderManifest;
-  // Tap a pet to pick it up, tap another cell to swap their positions.
-  function onManifestTap(i) {
-    if (locked || !E.combat || E.combat.over) return;
-    var allies = E.combat.allies;
-    if (allies.length < 2) return;            // nothing to reorder with one pet
-    SFX.tap();
-    if (manifestSel < 0) { manifestSel = i; }
-    else if (manifestSel === i) { manifestSel = -1; }  // tap again to cancel
-    else { E.swapPets(manifestSel, i); manifestSel = -1; }
-    renderManifest();
-  }
-
   /* ====================== COCKPIT RAIL ====================== */
   function railDebuffs() {
     var c = E.combat; if (!c) return [];
@@ -1250,7 +1189,6 @@
     vanguard: { name: 'VANGUARD', tag: 'Shock trooper of the 9th Voidborne', desc: 'High HP. Brutal weapons that scale with MIGHT. Hits first, asks never.' },
     technomancer: { name: 'TECHNOMANCER', tag: 'Machine-priest of the Forge Choir', desc: 'Shields, turrets and reactors that scale with TECH. Out-build the enemy.' },
     voidadept: { name: 'VOID ADEPT', tag: 'Sanctioned psyker, mostly stable', desc: 'Burns, hexes and psionic blasts that scale with PSI. The void answers.' },
-    warpcaller: { name: 'WARPCALLER', tag: 'Frail herald of the things between stars', desc: 'Glass cannon. Almost no HP — but your summoned pets fight, soak and scale with BOND. The pack does the killing.' },
   };
 
   function showTitle() {
@@ -2149,7 +2087,7 @@
                            c.consumed.some(function (x) { return x.uid === card.uid; }));
 
     var cf = CARD_FX[E.run.cls];
-    if (!cf) {                                    // warpcaller / unstyled: legacy dematerialise
+    if (!cf) {                                    // unstyled fallback: legacy dematerialise
       var fx = CLASS_FX[E.run.cls] || CLASS_FX.vanguard;
       if (clone) {
         clone.classList.add('card-ghost', fx.cls);

@@ -1,5 +1,8 @@
 # VOIDSPIRE — Relic Rework Proposal (draft for approval)
 
+> **Historical.** Written when the game had four classes. The Warpcaller (BOND / pets)
+> was retired; its rows below are kept for the record and are no longer implemented.
+
 Goal: relics should feel **scarce, exciting, and build-defining** — fewer of them, each
 a real decision, many carrying a **positive + negative** tradeoff you manage with the
 existing **toggle / durability / charge** systems. Hold base relics to the same bar the
