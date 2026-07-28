@@ -42,7 +42,7 @@ Runs are auto-saved at every node — close the tab and continue later.
   the run, then **claim victory** (run ends, recorded) or enter **the
   Recurrence**.
 - **The Recurrence (NG+ loop)** — choosing to go on warps you into a fresh
-  descent of the *same* spire: your powers fade (deck, relics, augments and
+  descent of the *same* spire: your powers fade (deck, relics and
   stats reset to baseline), the world grows `loopPower`-stronger each loop, and
   you carry one permanent **Void Echo** (`js/echoes.js`) into every future loop.
   Echoes are sideways-by-design (glass-cannon, combo, execute-chain, pacts…);
@@ -52,8 +52,12 @@ Runs are auto-saved at every node — close the tab and continue later.
   (damage, Shield, Energy, draw, heal, buffs/debuffs). They drop from fights,
   appear in shops, and the belt is shown beside your hand. ~13 potions across
   three rarities; tap a slot to use (targeted potions ask you to tap an enemy).
-- **Progression** — card rewards & upgrades, ~20 passive artifacts,
-  level-ups after every boss (+attribute or +max HP), credits, deck purges.
+- **Progression** — three tracks, and only three: **cards** (rewards, shops,
+  upgrades), **relics** (~60 passives, live only while mounted in your die's
+  core; a boss lets you pick one of three) and **die engravings** (what fires
+  when the d20 lands on a face). A handful of relics can't be found at all —
+  they state a deed (*hold 35 Shield at once*) and arrive the moment you do it.
+  MIGHT / TECH / PSI are class identity, not a reward: nothing raises them.
 - **Build archetypes** (Slay-the-Spire-inspired) — **four per class**, each
   with build-defining rares that go exponential when the RNG cooperates ("god
   runs"). Some pairs synergise hard, others barely share cards — mixing is a
@@ -97,7 +101,7 @@ Content is data-driven too:
 | File | Contents |
 | --- | --- |
 | `js/cards.js` | All cards: declarative effect lists + upgrade patches. Descriptions auto-generate from effects, so tweaks stay truthful. |
-| `js/artifacts.js` | Relics: one hook key + value each. |
+| `js/artifacts.js` | Relics: one hook key + value each — the ONE pool of permanent passives. A relic only applies while mounted in the die's core. `unlock: {track, goal, label}` marks a relic that cannot drop and must be earned by a deed; `art()` in engine.js sums every live hook. |
 | `js/enemies.js` | Enemy stats, AI move patterns, encounter packs, the finale boss (THE UNMAKER), and vector art (polyline coordinates in a −1..1 box). |
 | `js/potions.js` | Consumables: name, rarity, colour, target flag, and an effect list (same `fx` style as cards). |
 | `js/echoes.js` | Void Echoes (Recurrence/NG+ relics): simple ones carry `hook`/`hooks` (fold into `art()` while equipped); rule-benders are checked by `E.hasEcho(id)`. |
@@ -178,7 +182,7 @@ let html = fs.readFileSync('index.html', 'utf8');
 // String.replace would otherwise treat as a capture-group backreference.
 html = html.replace(/<link rel=\"stylesheet\"[^>]*>/, () => '<style>\n' + fs.readFileSync('css/style.css', 'utf8') + '\n</style>');
 let js = '';
-for (const s of ['balance','cards','cardart','artifacts','augments','potions','echoes','enemies','events','engine','render','music','ui','main']) js += '\n' + fs.readFileSync('js/' + s + '.js', 'utf8');
+for (const s of ['balance','cards','cardart','artifacts','dice','dieview','potions','echoes','enemies','events','story','engine','render','music','ui','main']) js += '\n' + fs.readFileSync('js/' + s + '.js', 'utf8');
 html = html.replace(/(\s*<script src=[^>]*><\/script>)+/, () => '\n<script>\n' + js.replace(/<\/script>/g, '<\\\\/script>') + '\n</script>\n');
 fs.writeFileSync('voidspire.html', html);
 "

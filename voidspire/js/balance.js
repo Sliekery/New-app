@@ -178,12 +178,6 @@
       restHealPct: 0.30,         // heal at a rest node
     },
 
-    /* ---- Level up: Augment Protocol draft (after each boss) ----------- */
-    levelUp: {
-      // how often each augment rarity shows up in the 3-card draft
-      rarityWeights: { 1: 100, 2: 52, 3: 20 },
-    },
-
     /* ---- Shop ---------------------------------------------------------- */
     shop: {
       cardCost:     { 1: 35, 2: 55, 3: 90 },  // by rarity

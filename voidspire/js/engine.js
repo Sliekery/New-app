@@ -72,8 +72,7 @@
       kills: 0, nodesCleared: 0,
       pendingPick: null, pendingAddCard: null,
       quests: {}, questDone: {},
-      classQuest: { step: 0, prog: 0, ready: false, picked: null, locked: null },
-      augments: [], augmentDeckop: null, augmentOffer: null,
+      unlockProg: {},      // progress toward relics that must be earned
       potions: [], won: false,
       loop: 1, echoes: [], loadout: [], echoOffer: null,
       phylacteryUsed: false, salvageKills: 0,
@@ -186,7 +185,7 @@
   // sectors, so depth == sector on the first loop and keeps climbing after.
   E.depth = function () { return (E.run.loop - 1) * B.run.finale + E.run.sector; };
   // Sum of hook k over owned artifacts, including quest "done" hooks once the
-  // artifact's quest has been completed, plus augments and EQUIPPED echoes.
+  // artifact's quest has been completed, plus EQUIPPED echoes.
   function art(k) {
     var t = 0, owned = E.run.artifacts;
     for (var i = 0; i < owned.length; i++) {
@@ -195,13 +194,6 @@
       if (a.k === k) t += a.v;
       if (a.hooks) for (var hh = 0; hh < a.hooks.length; hh++) if (a.hooks[hh].k === k) t += a.hooks[hh].v;  // multi-effect / tradeoff relics
       if (a.done && a.done.k === k && E.run.questDone && E.run.questDone[owned[i]]) t += a.done.v;
-    }
-    var aug = E.run.augments || [];
-    for (var j = 0; j < aug.length; j++) {
-      var g = ns.AUGMENTS[aug[j]];
-      if (!g) continue;
-      if (g.hook && g.hook.k === k) t += g.hook.v;
-      if (g.hooks) for (var h = 0; h < g.hooks.length; h++) if (g.hooks[h].k === k) t += g.hooks[h].v;
     }
     var ech = E.run.loadout || [];
     for (var e = 0; e < ech.length; e++) {
@@ -242,44 +234,60 @@
   };
 
   /* ---------------- Class quest chains (earn your signature relic) -------- */
-  var CLASS_CHAINS = {
-    vanguard: { name: 'The Warpath', relics: ['recoilless_frame', 'execution_protocol'], steps: [
-      { track: 'kills', goal: 8, label: 'Kill 8 enemies' },
-      { track: 'turnDamage', goal: 45, atOnce: true, label: 'Deal 45 damage in a single turn' },
-      { track: 'turnDamage', goal: 80, atOnce: true, label: 'Deal 80 damage in a single turn' } ] },
-    technomancer: { name: 'Forge Liturgy', relics: ['forge_reserve', 'capacitive_plating'], steps: [
-      { track: 'shieldGained', goal: 80, label: 'Gain 80 Shield' },
-      { track: 'shieldAtOnce', goal: 30, atOnce: true, label: 'Hold 30 Shield at once' },
-      { track: 'shieldGained', goal: 200, label: 'Gain 200 Shield total' } ] },
-    voidadept: { name: 'The Long Hunger', relics: ['hexweaver', 'void_conduit'], steps: [
-      { track: 'burnApplied', goal: 40, label: 'Apply 40 Burn' },
-      { track: 'burnAtOnce', goal: 10, atOnce: true, label: 'Stack 10 Burn on one enemy' },
-      { track: 'burnApplied', goal: 120, label: 'Apply 120 Burn total' } ] },
-
+  /* ---- Relics you have to earn ---------------------------------------
+   * These used to be a bespoke 'class quest': a three-step chain with its own
+   * phase, its own screen and its own progress bar, whose only output was a
+   * relic. It is the relic that is interesting, so the requirement lives on
+   * the relic now (ARTIFACTS[id].unlock) and meeting it simply grants it.
+   * ------------------------------------------------------------------ */
+  function lockedRelics() {
+    var r = E.run, out = [];
+    if (!r) return out;
+    Object.keys(ns.ARTIFACTS).forEach(function (id) {
+      var a = ns.ARTIFACTS[id];
+      if (!a.unlock) return;
+      if (a.cls && a.cls !== r.cls) return;
+      if (r.artifacts.indexOf(id) >= 0) return;
+      out.push(id);
+    });
+    return out;
+  }
+  E.lockedRelics = lockedRelics;
+  E.relicProgress = function (id) {
+    var a = ns.ARTIFACTS[id];
+    if (!a || !a.unlock) return null;
+    var prog = (E.run.unlockProg && E.run.unlockProg[id]) || 0;
+    return { prog: Math.min(prog, a.unlock.goal), goal: a.unlock.goal, label: a.unlock.label };
   };
-  E.classChain = function () { return CLASS_CHAINS[E.run && E.run.cls]; };
+  // Called from wherever a tracked deed happens. `atOnce` requirements take the
+  // best single instance; the rest accumulate over the run.
   function classQuestTick(track, amount) {
-    var r = E.run, q = r.classQuest;
-    if (!q || q.ready || q.picked) return;
-    var chain = CLASS_CHAINS[r.cls]; if (!chain) return;
-    var step = chain.steps[q.step]; if (!step || step.track !== track) return;
-    q.prog = step.atOnce ? Math.max(q.prog, amount) : q.prog + amount;
-    if (q.prog >= step.goal) {
-      q.step++; q.prog = 0;
-      if (q.step >= chain.steps.length) { q.ready = true; emit('classQuestReady', { name: chain.name }); }
-      else emit('classQuestStep', { step: q.step, total: chain.steps.length, label: chain.steps[q.step].label, name: chain.name });
-    }
+    var r = E.run;
+    if (!r) return;
+    if (!r.unlockProg) r.unlockProg = {};
+    lockedRelics().forEach(function (id) {
+      var u = ns.ARTIFACTS[id].unlock;
+      if (u.track !== track) return;
+      r.unlockProg[id] = u.atOnce ? Math.max(r.unlockProg[id] || 0, amount) : (r.unlockProg[id] || 0) + amount;
+      if (r.unlockProg[id] >= u.goal) {
+        addArtifact(id);
+        emit('relicUnlocked', { id: id, name: ns.ARTIFACTS[id].name, label: u.label });
+      }
+    });
   }
   E.classQuestTick = classQuestTick;
-  E.takeClassRelic = function (i) {
-    var r = E.run, q = r.classQuest, chain = CLASS_CHAINS[r.cls];
-    if (!q || !q.ready || q.picked || !chain) return;
-    var id = chain.relics[i]; if (!id) return;
-    addArtifact(id);
-    q.picked = id; q.locked = chain.relics[1 - i]; q.ready = false;
-    E.save();
-  };
 
+  // Offer 3 class cards to add — used by events that grant a card of your choice.
+  // This lived in the augment draft; the draft is gone, the helper is not.
+  E.addCardOptions = function () {
+    var pool = Object.keys(ns.CARDS).filter(function (k) {
+      var c = ns.CARDS[k];
+      return !c.pool && c.type !== 'curse' && c.rarity >= 1 && (c.cls === E.run.cls || c.cls === 'any');
+    });
+    shuffle(pool);
+    return pool.slice(0, Math.min(3, pool.length));
+  };
+  E.addChosenCard = function (cid) { E.run.deck.push(mkCard(cid, false)); };
   E.score = function () {
     var r = E.run;
     return (r.sector - 1) * B.score.perSector + r.nodesCleared * B.score.perNode + r.kills * B.score.perKill +
@@ -544,7 +552,12 @@
     var r = E.run;
     r.nodesCleared++;
     var node = currentNode();
-    var next = (node && node.type === 'boss') ? 'levelup' : 'map';
+    // A boss used to pay out twice in a row: an Augment draft, then a relic.
+    // Augments WERE relics — a second pool of engine hooks with another name —
+    // so the draft is gone and the boss just offers relics.
+    var isBoss = !!(node && node.type === 'boss');
+    if (isBoss) setupBossArtifacts(true);   // stock the offer; phase is set below
+    var next = isBoss ? 'boss-artifact' : 'map';
     // A sector boss buys you the cutscene before the spoils — the story beat
     // lands on the kill, not four menus later.
     if (node && node.type === 'boss' && !r.seenCutscene) r.seenCutscene = {};
@@ -558,12 +571,7 @@
         return;
       }
     }
-    if (r.classQuest && r.classQuest.ready && !r.classQuest.picked) {
-      r.classQuest.nextPhase = next;     // claim your signature relic before moving on
-      r.phase = 'class-relic';
-    } else {
-      r.phase = next;
-    }
+    r.phase = next;
     E.save();
   }
   E.nodeComplete = nodeComplete;
@@ -586,95 +594,11 @@
     r.cutscene = null;
     E.save();
   };
-  E.finishClassRelic = function () {
-    var r = E.run;
-    r.phase = (r.classQuest && r.classQuest.nextPhase) || 'map';
-    if (r.classQuest) r.classQuest.nextPhase = null;
-    E.save();
-  };
 
-  /* ---------------- Level up: Augment Protocol draft ------------------- */
   var CLASS_STAT = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
   E.classStat = function () { return CLASS_STAT[E.run.cls] || 'might'; };
 
-  // Draft 3 random augments, rarity-weighted and class-flavored, no repeats
-  // of augments already owned (so variety builds over a run).
-  E.augmentChoices = function () {
-    var r = E.run;
-    if (r.augmentOffer) return r.augmentOffer; // stable across re-renders
-    var W = B.levelUp.rarityWeights || { 1: 100, 2: 52, 3: 20 };
-    var pool = Object.keys(ns.AUGMENTS).filter(function (id) {
-      var g = ns.AUGMENTS[id];
-      if (g.cls !== 'any' && g.cls !== r.cls) return false;
-      // owned single-use passives shouldn't re-offer; stat/heal/deckop can repeat
-      if ((g.kind === 'hook' || g.kind === 'pact') && r.augments.indexOf(id) >= 0) return false;
-      return true;
-    });
-    function rollOne() {
-      var bag = [];
-      pool.forEach(function (id) { var w = W[ns.AUGMENTS[id].rarity] || 1; for (var i = 0; i < w; i++) bag.push(id); });
-      return pick(bag);
-    }
-    var picks = [], guard = 0;
-    while (picks.length < 3 && guard++ < 300 && pool.length) {
-      var id = rollOne();
-      if (picks.indexOf(id) < 0) picks.push(id);
-      if (picks.length >= pool.length) break;
-    }
-    r.augmentOffer = picks;
-    E.save();
-    return picks;
-  };
-
-  // Human-readable label/sub for an augment (resolves 'class' to the real stat).
-  E.augmentInfo = function (id) {
-    var g = ns.AUGMENTS[id];
-    var stat = E.classStat().toUpperCase();
-    var desc = g.desc.replace('core attribute', stat);
-    var tag = g.kind === 'pact' ? 'PACT' : g.kind === 'deckop' ? 'DECK' : g.kind === 'stat' ? 'STAT' : g.kind === 'heal' ? 'REPAIR' : 'MODULE';
-    return { name: g.name, desc: desc, rarity: g.rarity, tag: tag, kind: g.kind };
-  };
-
-  E.chooseAugment = function (id) {
-    var r = E.run, g = ns.AUGMENTS[id];
-    if (!g) return;
-    function applyStat(stat, v) {
-      if (stat === 'maxhp') { r.maxHp += v; heal(v); }
-      else { var a = (stat === 'class') ? E.classStat() : stat; r.attrs[a] += v; }
-    }
-    if (g.kind === 'stat') applyStat(g.stat, g.v);
-    else if (g.kind === 'heal') heal(Math.round(r.maxHp * g.healPct));
-    else if (g.kind === 'hook') r.augments.push(id);
-    else if (g.kind === 'pact') {
-      if (g.maxhpPct) { var lose = Math.round(r.maxHp * g.maxhpPct); r.maxHp -= lose; r.hp = Math.min(r.hp, r.maxHp); }
-      if (g.stat) applyStat(g.stat, g.v);
-      if (g.hook || g.hooks) r.augments.push(id);
-    } else if (g.kind === 'deckop') {
-      r.augmentDeckop = g.deckop;
-      r.augmentOffer = null;
-      if (g.deckop === 'remove') r.pendingPick = 'remove';
-      else if (g.deckop === 'upgrade2') r.pendingPick = 'upgrade';
-      E.save();
-      return; // UI resolves the deck op, then calls finishAugment()
-    }
-    r.augmentOffer = null;
-    setupBossArtifacts();
-  };
-
-  E.finishAugment = function () {
-    E.run.augmentDeckop = null;
-    setupBossArtifacts();
-  };
-
-  // Requisition deck-op: offer 3 class cards to add
-  E.augmentAddOptions = function () {
-    var pool = ns.augmentAddPool(E.run.cls);
-    shuffle(pool);
-    return pool.slice(0, Math.min(3, pool.length));
-  };
-  E.augmentAddCard = function (cid) { E.run.deck.push(mkCard(cid, false)); };
-
-  function setupBossArtifacts() {
+  function setupBossArtifacts(stockOnly) {
     var r = E.run;
     var pool = Object.keys(ns.ARTIFACTS).filter(function (k) {
       return ns.ARTIFACTS[k].tier === 2 && r.artifacts.indexOf(k) < 0;
@@ -682,8 +606,7 @@
     if (pool.length === 0) pool = Object.keys(ns.ARTIFACTS).filter(function (k) { return ns.ARTIFACTS[k].tier === 1 && r.artifacts.indexOf(k) < 0; });
     shuffle(pool);
     r.bossArtifacts = pool.slice(0, Math.min(3, pool.length));
-    r.phase = 'boss-artifact';
-    E.save();
+    if (!stockOnly) { r.phase = 'boss-artifact'; E.save(); }
   }
 
   E.takeBossArtifact = function (i) {
@@ -1213,7 +1136,7 @@
       attrs: { might: attr('might'), tech: attr('tech'), psi: attr('psi') },
       pri: priAttr(),            // primary attribute name (for 'pri'-scaled cards)
       statuses: E.combat ? E.combat.player.statuses : null,
-      flatDmg: art('flatDmg'),   // so cards show damage incl. relic/augment buffs
+      flatDmg: art('flatDmg'),   // so cards show damage incl. relic buffs
     };
   }
 
@@ -2372,7 +2295,8 @@
     if (!a || a.tier !== tier) return false;
     if (E.run.artifacts.indexOf(k) >= 0) return false;            // already owned
     if (a.cls && a.cls !== E.run.cls) return false;               // class-locked: only its class
-    if (a.questOnly || a.cornerstone) return false;               // quest/cornerstone relics never drop
+    if (a.questOnly || a.cornerstone) return false;               // cornerstone relics never drop
+    if (a.unlock) return false;                                   // earned, not dropped
     return true;
   }
   function randomArtifact(tier) {
@@ -2448,6 +2372,13 @@
     if (a.uses) { r.relicUses = r.relicUses || {}; r.relicUses[id] = a.uses; }   // durability charge
     if (a.k === 'maxHp') { r.maxHp += a.v; r.hp += a.v; }
     if (a.special === 'glassCannon') { var lose = Math.round(r.maxHp * 0.25); r.maxHp -= lose; r.hp = Math.min(r.hp, r.maxHp); }
+    // Pact relics (absorbed from the old augment 'pact' kind) bill Max HP once,
+    // when taken — not every time art() is read.
+    (a.hooks || []).forEach(function (h) {
+      if (h.k !== 'maxHpPct') return;
+      var cut = Math.round(r.maxHp * Math.abs(h.v));
+      r.maxHp = Math.max(1, r.maxHp - cut); r.hp = Math.min(r.hp, r.maxHp);
+    });
     if (a.quest && !r.questDone[id]) r.quests[id] = r.quests[id] || 0;
     // slot it into the die straight away if the core has room; otherwise it waits
     // in the vault and the player chooses what to swap out.
@@ -2781,8 +2712,8 @@
     r.removeCost = B.shop.removeCost;
     r.grindCost = B.dieShop.grindCost;
     r.quests = {}; r.questDone = {};
-    r.augmentDeckop = null; r.augmentOffer = null;
-    if (!heart) { r.augments = []; r.potions = []; }   // keep your augments/belt for the climax
+    r.unlockProg = {};
+    if (!heart) { r.potions = []; }   // keep your belt for the climax
     r.phylacteryUsed = false; r.salvageKills = 0;
     r.reward = null; r.shop = null; r.bossArtifacts = null; r.treasure = null;
     r.pendingPick = null; r.pendingAddCard = null; r.echoOffer = null;
@@ -2943,7 +2874,7 @@
       gained.push(removed ? 'Purged ' + removed + ' curse' + (removed > 1 ? 's' : '') : 'No curses to purge');
     }
     if (fx.addCardChoice) {
-      r.pendingAddCard = E.augmentAddOptions();
+      r.pendingAddCard = E.addCardOptions();
       gained.push('Choose a card to add');
     }
     if (fx.tradeCard) {

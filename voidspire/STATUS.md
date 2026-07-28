@@ -52,9 +52,9 @@ Everything is committed and pushed. The game is `voidspire/` (pure HTML/JS, no b
   profile vs StS targets), `node test/analyze.js 250` (class/build standings),
   `NODE_PATH=… node test/dom.js` (real-UI playthrough). Art: `test/sheet.js`,
   `test/shot.js`, `test/mapshot.js`, `test/vanguard.js`.
-- Single-file bundle rebuild (after any source change) — inline css + the 10 js
-  files in this order: balance, cards, artifacts, **augments**, enemies, events,
-  engine, render, ui, main → write `voidspire/voidspire.html`. (See README "Single-file build".)
+- Single-file bundle rebuild after any source change: `node test/bundle.js`
+  (run from `voidspire/`). It inlines the CSS and every `<script src>` from
+  index.html in order, so the file list lives in one place.
 - Checkpoint convention: after a good change, commit, then add a row +
   frozen-link section to `CHECKPOINTS.md`. Frozen play URL pattern:
   `https://rawcdn.githack.com/Sliekery/New-app/<full-sha>/voidspire/voidspire.html`.
@@ -84,6 +84,22 @@ The user dislikes the current Vanguard avatar and we're choosing a replacement.
   `CLASS_ART.vanguard` in `js/render.js` (keep `color:'#5dff88'`). The muzzle-flash
   FX in `drawPlayerFx()` reads `CLASS_ART.vanguard.muzzle`, so keep that field.
   Then rebuild the bundle + new checkpoint.
+
+## RESOLVED: One pool of upgrades (power-system consolidation)
+The game had FIVE overlapping ways to get stronger. Two were the same thing
+under different names: **Augment Protocols** (a post-boss draft) were relics —
+14 of the 23 were a single engine hook — and a boss paid out an augment AND a
+relic back to back. The draft is gone; its 16 hook/pact entries are relics now
+(`js/augments.js` deleted, dropped from the build). **+1 attribute rewards** are
+gone too (War Sigil / Cogitator Implant / Warp Shard, and the Calibration
+augment): attributes are class identity now, not a reward, so the 72
+scaling cards are untouched. Three near-duplicate relics were merged out
+(Void Lens/Honed Edge, Nano Mesh/Armor Weave, Power Fist/Warlord Doctrine).
+**Class quests** are gone as a system: the six relics they gated carry
+`unlock: {track, goal, label}` and are granted the moment you do the deed, with
+a toast. They never drop. Net: 5 systems -> 3 (cards, relics, engravings).
+Removing the double boss payout brought every difficulty metric back INTO band
+(sector-1 7%, median 3, S5+ 21%, 0 stalls) and cut class spread 11.8 -> 9.0.
 
 ## OPEN ISSUES / backlog (flagged, not yet done)
 1. ~~**Balance regression from the augment redesign (v1.6).**~~ **FIXED in

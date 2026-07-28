@@ -10,7 +10,6 @@ require('../js/balance.js');
 require('../js/cards.js');
 require('../js/artifacts.js');
 require('../js/dice.js');
- require('../js/augments.js');
 require('../js/potions.js');
 require('../js/echoes.js');
 require('../js/enemies.js');
@@ -31,6 +30,13 @@ function startFight(cls) {
   E.run.faction = 'hierarchy';
   E.run.nodeIdx = 0;
   E.startNode('fight');
+}
+// Relics only apply while mounted in the die's core, so a test that wants one
+// active has to mount it. (These used to be `run.augments = [...]`, back when
+// augments were a second pool of the same thing.)
+function giveRelic(id) {
+  E.addArtifact(id);                                  // real path: pacts bill Max HP here
+  if (E.run.die && E.run.die.core.indexOf(id) < 0) E.run.die.core.push(id);
 }
 function setHand(ids) {
   E.combat.hand = ids.map(function (id, i) { return { uid: 1000 + i, id: id, up: false }; });
@@ -192,7 +198,7 @@ ok('Offline Shield advances on a shieldless win', E.questState('offline_shield')
 /* 15b. PASSIVE shield (relic/plate) does NOT break the no-Shield quest,
  * but PLAYED shield (a card) does */
 startFight('vanguard');
-E.run.augments = ['armor_weave']; // plate 2 each turn (passive)
+giveRelic('armor_weave'); // plate 2 each turn (passive)
 E.combat.playedShield = false;
 E.combat.player.block = 0;
 E.endTurn(); // triggers a fresh turn with passive plate shield
@@ -203,37 +209,54 @@ setHand(['combat_shield']); // a shield CARD
 playId('combat_shield');
 ok('playing a Shield card DOES set playedShield', E.combat.playedShield === true);
 
-/* ---- augments (level-up draft) ---- */
+/* ---- relics you have to earn (was: the class-quest chain) ---- */
 
-/* 16. Augment draft offers 3 class-legal options */
+/* 16. Unlockable relics are earned, never dropped */
 E.seed(5); E.newRun('vanguard');
-var offer = E.augmentChoices();
-ok('Augment draft offers 3 options', offer.length === 3);
-ok('augments are class-legal', offer.every(function (id) { var g = VS.AUGMENTS[id]; return g.cls === 'any' || g.cls === 'vanguard'; }));
+var locked = E.lockedRelics();
+ok('a class starts with its unlockable relics locked', locked.length === 2);
+ok('and they carry a stated requirement',
+   locked.every(function (id) { var u = VS.ARTIFACTS[id].unlock; return u && u.goal > 0 && !!u.label; }));
+var dropped = [];
+for (var dz = 0; dz < 300; dz++) { E.seed(dz); E.newRun('vanguard'); var got = E.randomArtifact(1); if (got && VS.ARTIFACTS[got].unlock) dropped.push(got); }
+ok('an unlockable relic never turns up as a drop' + (dropped.length ? ' — ' + dropped[0] : ''), dropped.length === 0);
 
-/* 17. A hook augment becomes active immediately */
+/* 17. Meeting the requirement grants it, on the spot */
 E.seed(5); E.newRun('vanguard');
-E.chooseAugment('honed_edge');
-ok('Honed Edge grants +3 flat damage', E.art('flatDmg') === 3);
+var target = E.lockedRelics().filter(function (id) { return VS.ARTIFACTS[id].unlock.track === 'kills'; })[0];
+var goal = VS.ARTIFACTS[target].unlock.goal;
+E.events = [];
+for (var qk = 0; qk < goal; qk++) E.classQuestTick('kills', 1);
+ok('meeting the requirement grants the relic (' + VS.ARTIFACTS[target].name + ')', E.run.artifacts.indexOf(target) >= 0);
+ok('and announces it, so the deed reads as the cause',
+   E.events.some(function (e) { return e.type === 'relicUnlocked' && e.id === target; }));
+ok('it is no longer listed as locked', E.lockedRelics().indexOf(target) < 0);
+var before = E.run.artifacts.length;
+E.classQuestTick('kills', goal);
+ok('and cannot be granted twice', E.run.artifacts.length === before);
 
-/* 18. Stat augment resolves "class" to the right attribute */
-E.seed(5); E.newRun('voidadept');
-var psiBefore = E.run.attrs.psi;
-E.chooseAugment('calibrate');
-ok('Calibration adds to the class stat (PSI for Void Adept)', E.run.attrs.psi === psiBefore + 1);
-
-/* 19. Overclock makes the first card of a turn cost 1 less */
+/* 18. The absorbed augments still work as relics */
 startFight('vanguard');
-E.run.augments = ['overclock'];
+E.run.artifacts.push('overclock'); E.run.die.core.push('overclock');
 E.combat.cardsThisTurn = 0;
 var ra = { uid: 1, id: 'railgun', up: false }; // cost 2
-ok('Overclock: first card costs 1 less', E.cardInfo(ra).cost === 1);
+ok('Overclock Servos: first card costs 1 less', E.cardInfo(ra).cost === 1);
 E.combat.cardsThisTurn = 1;
-ok('Overclock: later cards cost full', E.cardInfo(ra).cost === 2);
+ok('Overclock Servos: later cards cost full', E.cardInfo(ra).cost === 2);
+
+/* 19. Nothing raises an attribute any more — it is class identity, not a reward */
+(function () {
+  var bumps = Object.keys(VS.ARTIFACTS).filter(function (k) { return VS.ARTIFACTS[k].k === 'attr'; });
+  ok('no relic is just a +1 stat' + (bumps.length ? ' — ' + bumps.join(', ') : ''), bumps.length === 0);
+  var starts = {};
+  ['vanguard','technomancer','voidadept'].forEach(function (c) { E.seed(1); E.newRun(c); starts[c] = JSON.stringify(E.run.attrs); });
+  ok('each class still starts with its own attribute spread',
+     starts.vanguard !== starts.technomancer && starts.technomancer !== starts.voidadept);
+})();
 
 /* 20. Killchain draws a card on kill */
 startFight('vanguard');
-E.run.augments = ['killchain'];
+giveRelic('killchain');
 E.combat.enemies[0].hp = 1; E.combat.enemies[0].block = 0;
 E.combat.player.statuses.str = 50;
 var drawCount = E.combat.drawPile.length + E.combat.hand.length;
@@ -245,7 +268,7 @@ ok('Killchain drew on kill', !E.combat.enemies[0].alive); // kill happened; draw
 /* 21. Pact reduces Max HP and grants its benefit */
 E.seed(5); E.newRun('vanguard');
 var mhpBefore = E.run.maxHp;
-E.chooseAugment('reckless_overdrive');
+giveRelic('reckless_overdrive');
 ok('Reckless Overdrive cuts Max HP', E.run.maxHp < mhpBefore);
 ok('Reckless Overdrive grants +1 Energy/turn', E.art('energyEveryTurn') === 1);
 
@@ -460,17 +483,17 @@ VS.BALANCE.dice.critThreshold = 1; // force every attack to crit
 setHand(['pulse_rifle']); var dp0 = E.combat.drawPile.length; playId('pulse_rifle', 0);
 ok('Omega Visor draws a card on crit', dp0 - E.combat.drawPile.length === 1);
 // Targeting Matrix (augment): crit -> +1 Might
-startFight('vanguard'); E.run.augments = ['targeting_matrix']; bigEnemies();
+startFight('vanguard'); giveRelic('targeting_matrix'); bigEnemies();
 VS.BALANCE.dice.critThreshold = 1; E.combat.player.statuses = {};
 setHand(['pulse_rifle']); playId('pulse_rifle', 0);
 ok('Targeting Matrix grants Might on crit', (E.combat.player.statuses.str || 0) >= 1);
 VS.BALANCE.dice.critThreshold = CRIT;
 // Disruptor Field (augment): gain Shield -> apply Weak
-startFight('vanguard'); E.run.augments = ['disruptor_field']; bigEnemies();
+startFight('vanguard'); giveRelic('disruptor_field'); bigEnemies();
 setHand(['combat_shield']); playId('combat_shield');
 ok('Disruptor Field applies Weak on Shield gain', E.combat.enemies.some(function (e) { return (e.statuses.weak || 0) > 0; }));
 // Soul Pyre (augment): attacks also apply Burn
-startFight('voidadept'); E.run.augments = ['soul_pyre']; bigEnemies();
+startFight('voidadept'); giveRelic('soul_pyre'); bigEnemies();
 setHand(['pulse_rifle']); playId('pulse_rifle', 0);
 ok('Soul Pyre applies Burn on attack', (E.combat.enemies[0].statuses.burn || 0) >= 1);
 // no relic strictly upgrades another on the same hook (no scaled-copy pairs)
@@ -489,24 +512,24 @@ ok('Soul Pyre applies Burn on attack', (E.combat.enemies[0].statuses.burn || 0) 
 /* 44. Event relic offered as a take/skip choice */
 E.seed(5); E.newRun('vanguard'); E.run.artifacts = [];
 E.run.currentEvent = VS.EVENTS[0].id; E.run.phase = 'event-result'; E.run.eventResult = {};
-E.run.pendingRelic = 'war_sigil';
+E.run.pendingRelic = 'blood_chalice';
 E.finishEvent();
-ok('finishEvent waits while a relic is pending', E.run.phase === 'event-result' && E.run.pendingRelic === 'war_sigil');
+ok('finishEvent waits while a relic is pending', E.run.phase === 'event-result' && E.run.pendingRelic === 'blood_chalice');
 E.takeEventRelic();
-ok('takeEventRelic grants the relic', E.run.artifacts.indexOf('war_sigil') >= 0 && !E.run.pendingRelic);
-E.run.pendingRelic = 'cog_implant';
+ok('takeEventRelic grants the relic', E.run.artifacts.indexOf('blood_chalice') >= 0 && !E.run.pendingRelic);
+E.run.pendingRelic = 'servo_skull';
 E.skipEventRelic();
-ok('skipEventRelic leaves it behind', !E.run.pendingRelic && E.run.artifacts.indexOf('cog_implant') < 0);
+ok('skipEventRelic leaves it behind', !E.run.pendingRelic && E.run.artifacts.indexOf('servo_skull') < 0);
 
 /* 45. Damage buffs (flat) are reflected on the card description */
 startFight('vanguard');
 var baseN = parseInt(E.cardInfo({ uid: 1, id: 'pulse_rifle', up: false }).desc.match(/Deal (\d+)/)[1], 10);
-E.run.augments = ['honed_edge']; // +3 flat damage
+giveRelic('honed_edge'); // +3 flat damage
 var buffN = parseInt(E.cardInfo({ uid: 2, id: 'pulse_rifle', up: false }).desc.match(/Deal (\d+)/)[1], 10);
 ok('Honed Edge (+3) shows on the card (' + baseN + ' -> ' + buffN + ')', buffN === baseN + 3);
 
 /* 46. Breaching Rounds applies Vulnerable on attack */
-startFight('vanguard'); E.run.augments = ['breaching_rounds']; bigEnemies();
+startFight('vanguard'); giveRelic('breaching_rounds'); bigEnemies();
 setHand(['pulse_rifle']); playId('pulse_rifle', 0);
 ok('Breaching Rounds applies Vulnerable on attack', (E.combat.enemies[0].statuses.vuln || 0) >= 1);
 
@@ -1112,13 +1135,13 @@ ok('every remaining class has a starter deck whose cards all exist',
   var panels = VS.cutsceneFor(E.run.sector).panels.length, steps = 0;
   while (E.run.phase === 'cutscene' && steps < 20) { E.cutsceneNext(); steps++; }
   ok('it takes exactly one tap per panel (' + steps + ' of ' + panels + ')', steps === panels);
-  ok('and hands the run back where it was going (' + E.run.phase + ')', E.run.phase === 'levelup');
+  ok('and hands the run back where it was going (' + E.run.phase + ')', E.run.phase === 'boss-artifact');
   ok('the cutscene state is cleared, so a reload cannot replay it', !E.run.cutscene);
 
   // Skipping must land in the same place as playing it through.
-  E.run.cutscene = { id: 'upper', panel: 0, next: 'levelup' }; E.run.phase = 'cutscene';
+  E.run.cutscene = { id: 'upper', panel: 0, next: 'boss-artifact' }; E.run.phase = 'cutscene';
   E.cutsceneSkip();
-  ok('skipping lands where playing it through would have', E.run.phase === 'levelup' && !E.run.cutscene);
+  ok('skipping lands where playing it through would have', E.run.phase === 'boss-artifact' && !E.run.cutscene);
 
   // Prose budget: the event panel is a fixed box too.
   var longest = 0, worst = '';

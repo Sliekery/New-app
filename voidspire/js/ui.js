@@ -458,8 +458,6 @@
       case 'rest': return showRest();
       case 'forge': return showForge();
       case 'rift': return showRift();
-      case 'levelup': return showLevelUp();
-      case 'class-relic': return showClassRelic();
       case 'boss-artifact': return showBossArtifact();
       case 'first-mark': return showFirstMark();
       case 'cutscene': return showCutscene();
@@ -1123,10 +1121,10 @@
         });
       });
 
-      // core + frame (tap a mounted module to unmount, or mount from the vault)
+      // core + frame (tap a mounted relic to unmount, or mount one from the vault)
       var slots = die.coreSlots || ns.DIE.coreSlotsStart;
       var mh = '<div class="dm-title">CORE <span class="dm-slots">' + die.core.length + '/' + slots + '</span></div><div class="dm-row">';
-      if (!die.core.length) mh += '<span class="dm-empty">no modules mounted</span>';
+      if (!die.core.length) mh += '<span class="dm-empty">no relics mounted</span>';
       die.core.forEach(function (cid, i) {
         var art = ns.ARTIFACTS[cid]; if (!art) return;
         mh += '<div class="dm-chip" data-unmount="' + i + '" title="' + esc(art.name + ' — ' + art.desc) + '">' + artSVG(art.art, 'art-icon') + '</div>';
@@ -2854,6 +2852,7 @@
         case 'block': case 'heal': case 'status': return 60;
         case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120; case 'charge': return 100; case 'jam': return 120; case 'corrupt': return 160; case 'overload': return 120; case 'discipline': return 90;
         case 'revive': return 260; case 'salvage': return 80; case 'win': return 250;
+        case 'relicUnlocked': return 1000;
         case 'enrage': return 900;        // the announcement gets its own beat
         case 'enrageDecay': return 120;
         default: return 0;
@@ -2880,6 +2879,16 @@
     evts.forEach(function (e, _ei) {
       delay = times[_ei];
       switch (e.type) {
+        // A relic you EARNED has to say so at the moment you earn it, or the
+        // requirement may as well not exist.
+        case 'relicUnlocked':
+          (function (e, d) {
+            setTimeout(function () {
+              SFX.win(); R.flash();
+              toast('RELIC UNLOCKED — ' + e.name.toUpperCase() + ' · ' + e.label.toUpperCase(), 3000);
+            }, d);
+          })(e, delay);
+          break;
         // THE COUNT RUNS OUT — a fight that has gone on too long acquires a
         // clock. Announce it loudly the once, then narrate each Shield failure,
         // because losing Shield to an unexplained rule is the worst version of
@@ -3926,60 +3935,17 @@
   }
 
   /* ====================== LEVEL UP: AUGMENT DRAFT ====================== */
-  function showLevelUp() {
-    updateHUD();
-    var s = overlayScreen(true);
-    s.appendChild(el('h2', 'screen-title', 'Augment Protocol'));
-    s.appendChild(el('div', 'screen-sub', 'BOSS PURGED · INSTALL ONE AUGMENT'));
-    var cbar = makeConfirmBar();
-    var rareClass = { 1: '', 2: 'cyan', 3: 'amber' };
-    E.augmentChoices().forEach(function (id) {
-      var info = E.augmentInfo(id);
-      var pcls = info.kind === 'pact' ? 'panel-btn pact' : 'panel-btn ' + (rareClass[info.rarity] || '');
-      var rarTag = info.rarity === 3 ? 'RARE' : info.rarity === 2 ? 'UNCOMMON' : 'COMMON';
-      var btn = el('div', pcls,
-        '<div class="pb-title">' + esc(info.name) + ' <span class="aug-tag">' + info.tag + '</span></div>' +
-        '<div class="pb-desc">' + esc(info.desc) + '</div>' +
-        '<div class="pb-sub">' + rarTag + (info.kind === 'deckop' ? ' · choose your cards next' : '') + '</div>');
-      s.appendChild(btn);
-      selectConfirm(s, btn, cbar, 'Install <b>' + esc(info.name) + '</b>?<span class="cb-note">' + esc(info.desc) + '</span>',
-        function () {
-          SFX.win();
-          E.chooseAugment(id);
-          if (E.run.augmentDeckop) runDeckop(E.run.augmentDeckop, function () { E.finishAugment(); U.refresh(); });
-          else U.refresh();
-        }, info.kind === 'pact' ? 'red' : '');
-    });
-    s.appendChild(cbar.el);
-  }
-
-  // Resolve a deck-operation augment (remove / upgrade 2 / add a card), then done()
-  function runDeckop(op, done) {
-    if (op === 'remove') {
-      E.run.pendingPick = 'remove';
-      showPickModal('remove', done);
-    } else if (op === 'upgrade2') {
-      E.run.pendingPick = 'upgrade';
-      showPickModal('upgrade', function () {
-        E.run.pendingPick = 'upgrade';
-        showPickModal('upgrade', done);
-      });
-    } else if (op === 'addCard') {
-      showAddCard(done);
-    } else done();
-  }
-
   function showAddCard(done) {
     var s = overlayScreen(true);
     s.appendChild(el('h2', 'screen-title', 'Requisition'));
     s.appendChild(el('div', 'screen-sub', 'TAP A CARD TO PREVIEW · CONFIRM TO ADD'));
     var grid = el('div', 'card-grid');
     var cbar = makeConfirmBar();
-    E.augmentAddOptions().forEach(function (cid) {
+    E.addCardOptions().forEach(function (cid) {
       var d = cardEl(cid, false);
       grid.appendChild(d);
       selectConfirm(grid, d, cbar, 'Add <b>' + esc(ns.CARDS[cid].name) + '</b> to your deck?',
-        function () { E.augmentAddCard(cid); done(); }, 'cyan');
+        function () { E.addChosenCard(cid); done(); }, 'cyan');
     });
     s.appendChild(grid);
     s.appendChild(cbar.el);
@@ -4230,24 +4196,6 @@
     }
     paintMeter();
     paintActions(false);
-  }
-
-  function showClassRelic() {
-    updateHUD();
-    var r = E.run, chain = E.classChain && E.classChain();
-    var s = overlayScreen(true);
-    s.appendChild(el('h2', 'screen-title', chain ? chain.name + ' · Complete' : 'Signature Relic'));
-    s.appendChild(el('div', 'screen-sub', 'CLAIM ONE — THE OTHER IS LOST FOR THIS RUN'));
-    var cbar = makeConfirmBar();
-    (chain ? chain.relics : []).forEach(function (id, i) {
-      var a = ns.ARTIFACTS[id];
-      var btn = el('div', 'panel-btn amber',
-        '<div class="pb-title"><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + '</div><div class="pb-desc">' + esc(a.desc) + '</div>');
-      s.appendChild(btn);
-      selectConfirm(s, btn, cbar, 'Claim <b>' + esc(a.name) + '</b>?<span class="cb-note">' + esc(a.desc) + '</span>',
-        function () { SFX.coin(); E.takeClassRelic(i); E.finishClassRelic(); U.refresh(); }, 'amber');
-    });
-    s.appendChild(cbar.el);
   }
 
   function showBossArtifact() {
@@ -4793,7 +4741,8 @@
         E2('Card rewards', 'After most fights, take 1 of 3 offered cards — or skip to keep your deck lean.'),
         E2('Upgrades', 'Rest sites and some events upgrade a card to stronger numbers.'),
         E2('Relics', 'Passive artifacts that last the whole run; from bosses, elites, treasure and shops.'),
-        E2('Augment draft', 'After each boss you draft an Augment Protocol — a permanent module or stat boost.'),
+        E2('Relics', 'Permanent passives. Elites, events and shops offer them; a boss lets you pick one of three. They only apply while MOUNTED in your die\u2019s core.'),
+        E2('Earned relics', 'A few relics cannot be found at all. Each states a deed \u2014 kill 8 enemies, hold 35 Shield at once \u2014 and is granted the moment you do it.'),
         E2('Credits & Shop', 'Spend credits on cards, relics, healing, and removing weak cards from your deck.'),
       ] },
       { cat: 'Potions', entries: [
@@ -4807,7 +4756,7 @@
       ] },
       { cat: 'Recurrence', intro: 'New Game+ : beating THE UNMAKER opens an endless loop of the same spire.', entries: [
         E2('Victory', 'Beat the Unmaker, then claim victory (run recorded) or enter the Recurrence for a fresh descent.', 'sp'),
-        E2('Powers fade', 'Each loop your deck, relics, augments and stats reset to baseline. You start over — almost.'),
+        E2('Powers fade', 'Each loop your deck and relics reset to baseline. You start over — almost.'),
         E2('Void Echoes', 'You keep one permanent Echo per loop — sideways relics (glass-cannon, combo, execute-chains, pacts). Equip up to ' + slots + ' at once.', 'sp'),
         E2('The world strengthens', 'Enemies gain +' + loop + '% HP & damage per loop, on top of normal scaling. Deep loops are a build puzzle, not a treadmill.'),
       ] },
