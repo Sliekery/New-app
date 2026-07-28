@@ -126,6 +126,23 @@
       healAmount: 18,
     },
 
+    /* ---- The die economy ------------------------------------------------
+     * Fights hand you engravings; the bench is where you buy the ones you
+     * actually want and undo the ones you didn't choose. A Flaw is only a real
+     * curse if grinding it out costs something, so the prices below are the
+     * counterplay tax — deliberately steep enough that you weigh moving a Flaw
+     * out of reach (cheap) against destroying it (dear).
+     * ------------------------------------------------------------------ */
+    dieShop: {
+      stock: 2,                            // engravings a bench carries
+      // an engraving is worth about a relic (¢80) — a shade under, because a
+      // relic is unconditional and a face only fires when the die lands there.
+      engravingCost: { 1: 70, 2: 105, 3: 150 },
+      grindCost: 50,                       // destroy a Flaw outright
+      grindCostInc: 25,                    // per grind this run
+      reseatCost: 30,                      // move an installed engraving
+    },
+
     /* ---- Combat feel (UI timings, ms) ---------------------------------- */
     feel: {
       enemyActDelay: 520,        // stagger between enemy actions

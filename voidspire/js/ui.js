@@ -122,6 +122,12 @@
 
   /* ====================== vector art -> inline SVG ====================== */
   // Same polyline format as enemies: {p:[[x,y,...]], e:[[x,y]], m:[x,y,...]}
+  // The die's own glyph — a d20 silhouette, used wherever the die is the subject.
+  function dieChipSVG(cls) {
+    return '<svg viewBox="0 0 40 40" class="' + (cls || 'art-icon') + '">'
+      + '<polygon points="20,3 35,12 35,28 20,37 5,28 5,12" fill="none" stroke="currentColor" stroke-width="2.4"/>'
+      + '<polygon points="20,10 29,25 11,25" fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.6"/></svg>';
+  }
   function artSVG(art, cls, color) {
     function pts(arr) {
       var o = [];
@@ -591,9 +597,7 @@
     // can tap to toggle them on/off; in combat a tap reads its tooltip. Relics
     // with limited uses show a remaining-count badge.
     html += '<div class="artifact-row">';
-    html += '<div class="artifact-chip die-chip" data-die="1" title="Inspect the die">'
-         +  '<svg viewBox="0 0 40 40" class="art-icon"><polygon points="20,3 35,12 35,28 20,37 5,28 5,12" fill="none" stroke="currentColor" stroke-width="2.4"/>'
-         +  '<polygon points="20,10 29,25 11,25" fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.6"/></svg></div>';
+    html += '<div class="artifact-chip die-chip" data-die="1" title="Inspect the die">' + dieChipSVG() + '</div>';
     html += '</div>';
     if ((r.pressure || 0) > 0) html += '<span class="hud-press">P' + r.pressure + ' ' + esc(E.pressureName(r.pressure)) + '</span>';
     // Relics live INSIDE the die now — the HUD only shows what is mounted, as a
@@ -920,14 +924,22 @@
     return '<div class="' + cls + '" data-face="' + face + '"><span class="df-n">' + face + '</span>' + body + tag + '</div>';
   }
   var dieView = null;
-  function showDieScreen() {
+  // The free-engraving sandbox is a dev tool, not content — it would hand you
+  // for nothing what the bench charges for. Opt in with ?workshop=1.
+  var DEV_WORKSHOP = (function () {
+    try { return /[?&]workshop=1/.test(location.search); } catch (e) { return false; }
+  })();
+  function showDieScreen(opts) {
     var r = E.run; if (!r) return;
     if (!r.die) r.die = ns.newDie();
     var die = r.die;
+    var bench = !!(opts && opts.bench) && E.benchOpen();
+    var back = opts && opts.back;
+    var buying = null, moving = null;   // bench: engraving being placed / reseated
     var wasCombat = r.phase === 'combat';
     var sel = 20, pickOpen = false;
     var s = overlayScreen();
-    s.appendChild(el('h2', 'screen-title', 'The Die'));
+    s.appendChild(el('h2', 'screen-title', bench ? 'The Bench' : 'The Die'));
     var sub = el('div', 'screen-sub', '');
     s.appendChild(sub);
 
@@ -954,9 +966,16 @@
       var a = aim(), rc = reach();
       var pend = (die.pending && die.pending.length) ? die.pending[0] : null;
       var pg = pend ? ns.dieEngraving(pend) : null;
-      sub.innerHTML = pg
+      var buyG = (buying != null && r.shop && r.shop.engravings[buying]) ? ns.dieEngraving(r.shop.engravings[buying].id) : null;
+      var moveG = (moving != null && die.faces[moving]) ? ns.dieEngraving(die.faces[moving].id) : null;
+      sub.innerHTML = buyG
+        ? ('<span class="die-place">CUTTING: ' + esc(buyG.name) + ' — TAP A FACE · ¢' + r.credits + '</span>')
+        : moveG
+        ? ('<span class="die-place">MOVING: ' + esc(moveG.name) + ' — TAP A NEW FACE · ¢' + r.credits + '</span>')
+        : pg
         ? ('<span class="die-place">PLACING: ' + esc(pg.name) + ' — TAP A FACE</span>')
-        : (a > 0
+        : (bench ? '“BRING ME THE DIE.” · ¢' + r.credits + ' — ' : '')
+          + (a > 0
           ? ('AIM +' + a + ' — YOU LAND ON ' + Math.min(20, 2 + a) + '–20, PLUS FACE 1 ON A NATURAL 1')
           : 'NO AIM — EVERY FACE IS IN REACH');
 
@@ -972,6 +991,17 @@
         row.addEventListener('pointerdown', function (ev) {
           ev.stopPropagation(); SFX.tap(); pickOpen = false;
           var f = +row.dataset.face;
+          if (buying != null) {          // bench: pay on placement
+            var bw = E.shopBuyEngraving(buying, f);
+            if (bw) { toast(bw.toUpperCase(), 1700); return; }
+            SFX.coin(); buying = null; sel = f; renderAll(true, true); return;
+          }
+          if (moving != null) {          // bench: reseat an installed engraving
+            if (f === moving) { moving = null; renderAll(false, false); return; }
+            var mw = E.shopReseat(moving, f);
+            if (mw) { toast(mw.toUpperCase(), 1700); return; }
+            SFX.coin(); moving = null; sel = f; renderAll(true, true); return;
+          }
           if (pend) {   // placing a freshly-won engraving
             var why = ns.dieCanEngrave(die, pend, f);
             if (why) { toast(why, 1700); return; }
@@ -992,15 +1022,56 @@
         : '<div class="di-name bare">bare</div><div class="di-desc">Nothing engraved on this face.</div>');
       wrap.querySelectorAll('.df').forEach(function (row) { row.classList.toggle('sel', +row.dataset.face === sel); });
 
-      // ---- workshop ----
-      var h = '<div class="ws-title">WORKSHOP <span class="ws-note">sandbox — acquisition isn\'t built yet</span></div>';
+      // ---- the bench (a real shop) ----
+      var h = '';
+      if (bench) {
+        var stock = (r.shop.engravings || []);
+        h += '<div class="ws-title">ENGRAVING BENCH <span class="ws-note">¢' + r.credits + '</span></div>';
+        h += '<div class="bench-grid">';
+        if (!stock.length) h += '<span class="dm-empty">nothing in the case</span>';
+        stock.forEach(function (it, i) {
+          var g = ns.dieEngraving(it.id); if (!g) return;
+          var can = !it.sold && r.credits >= it.cost;
+          h += '<button class="bench-it' + (it.sold ? ' sold' : can ? '' : ' poor') + (buying === i ? ' arming' : '') + '" data-buy="' + i + '">'
+            +  '<span class="bi-icon">' + artSVG(g.art, 'df-icon') + '</span>'
+            +  '<span class="bi-body"><span class="bi-name">' + esc(g.name) + '</span>'
+            +  '<span class="bi-desc">' + esc(g.desc) + '</span></span>'
+            +  '<span class="bi-cost">' + (it.sold ? 'SOLD' : '¢' + it.cost) + '</span>'
+            +  '<span class="bi-tier">T' + (g.tier || 1) + (g.span > 1 ? ' · ' + g.span + 'f' : '') + '</span></button>';
+        });
+        h += '</div>';
+
+        // services operate on the selected face
+        var root = die.faces[sel] ? die.faces[sel].root : null;
+        var flaws = Object.keys(die.faces).filter(function (f) {
+          var e2 = ns.dieEngraving(die.faces[f].id); return e2 && e2.flaw && die.faces[f].root === +f;
+        });
+        h += '<div class="ws-row bench-row">';
+        if (d && d.flaw) {
+          h += '<button class="ws-btn danger wide' + (r.shop.grindUsed || r.credits < E.grindCost() ? ' bad' : '') + '" data-grind="' + root + '">'
+            +  (r.shop.grindUsed ? 'GRINDER SPENT' : 'GRIND OUT ' + esc(d.name).toUpperCase() + ' · ¢' + E.grindCost()) + '</button>';
+        } else if (flaws.length) {
+          h += '<span class="ws-hint">' + flaws.length + ' FLAW' + (flaws.length > 1 ? 'S' : '') + ' ON THE DIE — SELECT ONE TO GRIND IT OUT</span>';
+        }
+        if (d) {
+          h += '<button class="ws-btn wide' + (r.shop.reseatUsed || r.credits < E.reseatCost() ? ' bad' : '') + (moving != null ? ' arming' : '') + '" data-move="' + root + '">'
+            +  (r.shop.reseatUsed ? 'JIG RESET' : moving != null ? 'CANCEL MOVE' : 'RESEAT · ¢' + E.reseatCost()) + '</button>';
+        }
+        h += '</div>';
+        if (!d && !flaws.length) h += '<div class="ws-hint">SELECT AN ENGRAVED FACE FOR THE GRINDER OR THE JIG.</div>';
+      }
+
+      // ---- inspection / dev workshop ----
       h += '<div class="ws-row"><span class="ws-lab">AIM</span>'
         +  '<button class="ws-btn" data-aim="-1">−</button><span class="ws-val">+' + a + '</span><button class="ws-btn" data-aim="1">+</button>'
-        +  '<span class="ws-gap"></span>'
-        +  '<button class="ws-btn wide" data-pick="1">' + (pickOpen ? 'CANCEL' : 'ENGRAVE FACE ' + sel) + '</button>'
-        +  (d ? '<button class="ws-btn danger" data-scrub="1">SCRUB</button>' : '')
+        +  '<span class="ws-note">preview what stays in reach</span>'
+        + (DEV_WORKSHOP
+          ? ('<span class="ws-gap"></span>'
+            + '<button class="ws-btn wide" data-pick="1">' + (pickOpen ? 'CANCEL' : 'ENGRAVE FACE ' + sel) + '</button>'
+            + (d ? '<button class="ws-btn danger" data-scrub="1">SCRUB</button>' : ''))
+          : '')
         +  '</div>';
-      if (pickOpen) {
+      if (pickOpen && DEV_WORKSHOP) {
         h += '<div class="ws-pick">';
         [['AUGMENTS', ns.DIE_AUGMENTS], ['FLAWS', ns.DIE_FLAWS]].forEach(function (grp) {
           h += '<div class="ws-grp">' + grp[0] + '</div><div class="ws-grid">';
@@ -1015,6 +1086,31 @@
         h += '</div>';
       }
       shop.innerHTML = h;
+      shop.querySelectorAll('[data-buy]').forEach(function (b) {
+        b.addEventListener('pointerdown', function (ev) {
+          ev.stopPropagation(); SFX.tap();
+          var i = +b.dataset.buy, it = r.shop.engravings[i];
+          if (it.sold) { toast('SOLD OUT', 1400); return; }
+          if (r.credits < it.cost) { toast('NOT ENOUGH CREDITS', 1400); return; }
+          buying = (buying === i) ? null : i; moving = null;
+          renderAll(false, false);
+        });
+      });
+      var gb = shop.querySelector('[data-grind]');
+      if (gb) gb.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation(); SFX.tap();
+        var why = E.shopGrindFlaw(+gb.dataset.grind);
+        if (why) { toast(why.toUpperCase(), 1700); return; }
+        SFX.coin(); renderAll(true, true);
+      });
+      var mb = shop.querySelector('[data-move]');
+      if (mb) mb.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation(); SFX.tap();
+        if (r.shop.reseatUsed) { toast('THE JIG IS ALREADY RESET', 1600); return; }
+        if (r.credits < E.reseatCost()) { toast('NOT ENOUGH CREDITS', 1400); return; }
+        moving = (moving != null) ? null : +mb.dataset.move; buying = null;
+        renderAll(false, false);
+      });
       shop.querySelectorAll('[data-aim]').forEach(function (b) {
         b.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); SFX.tap(); dieSetAim(aim() + (+b.dataset.aim)); renderAll(false, false); });
       });
@@ -1071,11 +1167,11 @@
       if (spinTo && dieView) dieView.setFace(sel, !!flair);
     }
 
-    var btn = el('button', 'btn', 'CLOSE');
+    var btn = el('button', 'btn', bench ? 'BACK TO THE TRADER' : 'CLOSE');
     btn.addEventListener('pointerdown', function () {
       SFX.tap();
       if (dieView) { dieView.destroy(); dieView = null; }
-      if (wasCombat) showCombat(); else U.refresh();
+      if (back) back(); else if (wasCombat) showCombat(); else U.refresh();
     });
     s.appendChild(btn);
 
@@ -3465,6 +3561,24 @@
     }
     row.appendChild(rb);
     s.appendChild(row);
+
+    // The bench: engravings, the grinder and the jig, all on the die screen so
+    // you can see the faces you are buying into.
+    var stock = (sh.engravings || []).filter(function (it) { return !it.sold; });
+    var dieFlaws = Object.keys((r.die && r.die.faces) || {}).filter(function (f) {
+      var e2 = ns.dieEngraving(r.die.faces[f].id); return e2 && e2.flaw && r.die.faces[f].root === +f;
+    }).length;
+    var svc = [];
+    if (stock.length) svc.push(stock.length + ' ENGRAVING' + (stock.length > 1 ? 'S' : '') + ' IN THE CASE');
+    if (dieFlaws && !sh.grindUsed) svc.push('GRIND OUT A FLAW · ¢' + E.grindCost());
+    if (!sh.reseatUsed) svc.push('RESEAT ONE · ¢' + E.reseatCost());
+    var bb = el('div', 'panel-btn green', '<div class="pb-title"><span class="pb-icon">' + dieChipSVG() + '</span>THE BENCH</div>'
+      + '<div class="pb-desc">' + esc(svc.join(' · ') || 'Nothing on offer for the die.') + '</div>');
+    bb.addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation(); SFX.tap();
+      showDieScreen({ bench: true, back: function () { showShop(); } });
+    });
+    s.appendChild(bb);
 
     var leave = el('button', 'btn', 'DEPART');
     leave.addEventListener('pointerdown', function () { SFX.tap(); E.leaveShop(); U.refresh(); });

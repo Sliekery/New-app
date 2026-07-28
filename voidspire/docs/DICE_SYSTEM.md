@@ -298,6 +298,36 @@ Augments replace relic drops 1:1, so run pacing is unchanged.
 
 Choosing the face at install time is the decision that makes this better than relics.
 
+### 8.1 The bench — BUILT
+
+Every shop carries a bench, opened from the shop screen and presented on the die screen
+itself, so you are looking at the faces you are buying into. Three services:
+
+| Service | Price | Limit |
+|---|---|---|
+| Buy an engraving | ¢70 / ¢105 / ¢150 by tier | 2 in stock per shop |
+| **Grind out a Flaw** | ¢50, **+¢25 per grind this run** | once per shop |
+| **Reseat** an engraving | ¢30 | once per shop |
+
+Rules the implementation settles:
+
+- **You pay on placement, not on purchase.** You pick the item, then tap a face; the
+  charge lands when the cut succeeds. So you can never buy something that will not fit.
+- The case never stocks a **face-locked** augment whose one face is already taken.
+- **Reseating is the cheap answer to a Flaw, grinding is the certain one.** Because
+  augments fire on the *effective* roll, moving a Flaw below your Aim floor means it
+  never fires again — for ¢30 rather than ¢50-and-rising. That only works while your
+  Aim is high enough to have a floor, which is exactly the tension we wanted: Aim is a
+  build commitment that quietly doubles as insurance.
+- The grinder's price **rises per use in a run**, so a scarred die stays a real problem
+  rather than a credit-denominated inconvenience.
+- A band augment that will not fit at the new seat is refused and put back *exactly*
+  where it was, and the reseat is not consumed.
+- Everything scales with `pressureMods().shopCost`, so SINGULARITY gouges the bench too.
+
+Deliberately **not** built: selling or scrapping your own augments. A face you engraved
+is a commitment; the jig lets you move it, not undo it.
+
 ---
 
 ## 9. Balance model

@@ -166,23 +166,55 @@ function botManageDie() {
 
 // Place any queued engravings. A decent player cuts them where the die actually
 // lands, i.e. inside the Aim band, and keeps face 1 for its own anchor.
-function botPlaceEngravings() {
-  var r = VS.engine.run, d = r && r.die; if (!d || !d.pending || !d.pending.length) return;
+function botFaceOrder(id) {
+  var r = VS.engine.run;
   var aim = (r.cls === 'vanguard') ? (VS.BALANCE.dice.vanguardAim || 0) : 0;
   var lo = Math.min(20, 2 + aim);
+  var g = VS.DIE_AUGMENTS[id];
+  if (g && g.onlyFace) return [g.onlyFace];
+  var order = [];
+  for (var f = 20; f >= lo; f--) order.push(f);
+  order.push(1);
+  return order;
+}
+function botBestFace(id) {
+  var d = VS.engine.run.die, order = botFaceOrder(id);
+  for (var i = 0; i < order.length; i++) if (!VS.dieCanEngrave(d, id, order[i])) return order[i];
+  return -1;
+}
+function botPlaceEngravings() {
+  var r = VS.engine.run, d = r && r.die; if (!d || !d.pending || !d.pending.length) return;
   var left = [];
   d.pending.forEach(function (id) {
-    var g = VS.DIE_AUGMENTS[id];
-    var order = [];
-    if (g && g.onlyFace) order = [g.onlyFace];
-    else { for (var f = 20; f >= lo; f--) order.push(f); order.push(1); }
-    var done = false;
-    for (var i = 0; i < order.length && !done; i++) {
-      if (!VS.dieCanEngrave(d, id, order[i])) { VS.dieEngrave(d, id, order[i]); done = true; }
-    }
-    if (!done) left.push(id);
+    var f = botBestFace(id);
+    if (f > 0) VS.dieEngrave(d, id, f); else left.push(id);
   });
   d.pending = left;
+}
+
+// THE BENCH. A competent player pays to undo a Flaw before buying anything new
+// — a Flaw is pure downside on a face they would rather sell to an augment —
+// and prefers moving one out of Aim's reach when the jig is the cheaper answer.
+function botBench() {
+  var E = VS.engine, r = E.run, d = r.die; if (!d || !r.shop) return;
+  var roots = Object.keys(d.faces).filter(function (f) { return d.faces[f].root === +f; });
+  var flaw = roots.filter(function (f) {
+    var g = VS.dieEngraving(d.faces[f].id); return g && g.flaw;
+  }).map(Number).sort(function (a, b) { return b - a; })[0];   // the one highest up the die hurts most
+  if (flaw != null) {
+    var aim = (r.cls === 'vanguard') ? (VS.BALANCE.dice.vanguardAim || 0) : 0;
+    var lo = Math.min(20, 2 + aim);
+    // if a bare face below the Aim floor exists, shunting it there is cheaper
+    var dump = -1;
+    for (var f2 = 2; f2 < lo && dump < 0; f2++) if (!d.faces[f2]) dump = f2;
+    if (flaw >= lo && dump > 0 && r.credits >= E.reseatCost() && !r.shop.reseatUsed) E.shopReseat(flaw, dump);
+    else if (r.credits >= E.grindCost() && !r.shop.grindUsed) E.shopGrindFlaw(flaw);
+  }
+  (r.shop.engravings || []).forEach(function (it, i) {
+    if (it.sold || r.credits < it.cost) return;
+    var face = botBestFace(it.id);
+    if (face > 0) E.shopBuyEngraving(i, face);
+  });
 }
 
 function botCombat() {
@@ -564,6 +596,7 @@ function step() {
       break;
     case 'shop': {
       if (E.shopBuyRemove()) E.applyPick(pickRemoveIdx());
+      botManageDie(); botPlaceEngravings(); botBench();
       if (r.shop.artifact && !r.shop.artifact.sold && r.credits >= r.shop.artifact.cost) E.shopBuyArtifact();
       var cards = r.shop.cards.slice().sort(function (a, b) { return scoreRewardCard(b.id) - scoreRewardCard(a.id); });
       cards.forEach(function (it) {

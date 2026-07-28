@@ -68,6 +68,7 @@
       phase: 'none',
       usedEvents: [],
       removeCost: Math.round(B.shop.removeCost * (E.pressureMods().shopCost || 1)),
+      grindCost: Math.round(B.dieShop.grindCost * (E.pressureMods().shopCost || 1)),
       kills: 0, nodesCleared: 0,
       pendingPick: null, pendingAddCard: null,
       quests: {}, questDone: {},
@@ -2792,6 +2793,7 @@
     r.mapRow = -1; r.mapCol = 0;
     r.usedEvents = [];
     r.removeCost = B.shop.removeCost;
+    r.grindCost = B.dieShop.grindCost;
     r.quests = {}; r.questDone = {};
     r.augmentDeckop = null; r.augmentOffer = null;
     if (!heart) { r.augments = []; r.potions = []; }   // keep your augments/belt for the climax
@@ -3246,13 +3248,27 @@
     }
     var aid = randomArtifact(1);
     var pid = (rnd() < B.potions.shopChance) ? rollPotion() : null;
+    // The bench: engravings you can buy outright rather than wait for a drop.
+    var pm = E.pressureMods();
+    // never stock something you could not possibly cut in — a face-locked
+    // augment whose one face is already taken is a shelf full of nothing.
+    var engs = randomEngravings(B.dieShop.stock + 2).filter(function (eid) {
+      var lock = (ns.DIE_AUGMENTS[eid] || {}).onlyFace;
+      return !lock || !(r.die && r.die.faces && r.die.faces[lock]);
+    }).slice(0, B.dieShop.stock).map(function (eid) {
+      var t = (ns.DIE_AUGMENTS[eid] || {}).tier || 1;
+      return { id: eid, cost: Math.round((B.dieShop.engravingCost[t] || 55) * (pm.shopCost || 1)) - (market ? 10 : 0), sold: false };
+    });
     r.shop = {
       market: !!market,
       cards: cards,
       artifact: aid ? { id: aid, cost: B.shop.artifactCost - (market ? 15 : 0), sold: false } : null,
       potion: pid ? { id: pid, cost: B.potions.shopCost[ns.POTIONS[pid].rarity] || 40, sold: false } : null,
+      engravings: engs,
       healUsed: false,
       removeUsed: false,
+      grindUsed: false,
+      reseatUsed: false,
       removeDiscount: market ? 15 : 0,
     };
   }
@@ -3300,6 +3316,77 @@
     r.pendingPick = 'remove';
     return true;
   };
+  /* ---------------- The bench: the die economy -----------------------------
+   * Fights hand you engravings at random; the bench is where you buy the one
+   * you actually wanted and undo the one you didn't choose. Buying resolves at
+   * PLACEMENT, so you see where a thing fits before you pay for it.
+   *
+   * Grinding destroys a Flaw. Reseating merely MOVES an engraving — which,
+   * because augments fire on the effective roll, lets you shove a Flaw below
+   * your Aim floor for a third of the grinder's price. Aim is the cheap answer
+   * to a scarred die; credits are the certain one.
+   * ---------------------------------------------------------------------- */
+  E.benchOpen = function () { var r = E.run; return !!(r && r.shop && r.phase === 'shop'); };
+  E.grindCost = function () { var r = E.run; return (r && r.grindCost != null) ? r.grindCost : B.dieShop.grindCost; };
+  E.reseatCost = function () { return Math.round(B.dieShop.reseatCost * (E.pressureMods().shopCost || 1)); };
+
+  // Buy engraving `i` and cut it straight into `face`. Returns null on success,
+  // else a reason string (the UI toasts it verbatim).
+  E.shopBuyEngraving = function (i, face) {
+    var r = E.run;
+    if (!E.benchOpen()) return 'the bench is closed';
+    var it = r.shop.engravings && r.shop.engravings[i];
+    if (!it || it.sold) return 'sold out';
+    if (r.credits < it.cost) return 'not enough credits';
+    if (!r.die) r.die = ns.newDie();
+    var why = ns.dieCanEngrave(r.die, it.id, face);
+    if (why) return why;
+    ns.dieEngrave(r.die, it.id, face);
+    r.credits -= it.cost;
+    it.sold = true;
+    E.save();
+    return null;
+  };
+
+  E.shopGrindFlaw = function (face) {
+    var r = E.run;
+    if (!E.benchOpen()) return 'the bench is closed';
+    if (r.shop.grindUsed) return 'the grinder is spent';
+    var id = r.die && ns.dieFaceId(r.die, face);
+    var g = id ? ns.dieEngraving(id) : null;
+    if (!g || !g.flaw) return 'nothing to grind out here';
+    var cost = E.grindCost();
+    if (r.credits < cost) return 'not enough credits';
+    ns.dieScrub(r.die, face);
+    r.credits -= cost;
+    r.grindCost = cost + B.dieShop.grindCostInc;   // the wheel wears down
+    r.shop.grindUsed = true;
+    E.save();
+    return null;
+  };
+
+  E.shopReseat = function (from, to) {
+    var r = E.run;
+    if (!E.benchOpen()) return 'the bench is closed';
+    if (r.shop.reseatUsed) return 'the jig is already reset';
+    var slot = r.die && r.die.faces[from];
+    if (!slot) return 'that face is bare';
+    var cost = E.reseatCost();
+    if (r.credits < cost) return 'not enough credits';
+    var id = slot.id, root = slot.root;
+    if (to === root) return 'already seated there';
+    // lift the whole span, then try to reseat it; put it back if it will not fit
+    var span = [];
+    Object.keys(r.die.faces).forEach(function (f) { if (r.die.faces[f].root === root) span.push(+f); });
+    span.forEach(function (f) { delete r.die.faces[f]; });
+    var why = ns.dieEngrave(r.die, id, to);
+    if (why) { span.forEach(function (f) { r.die.faces[f] = { id: id, root: root }; }); return why; }
+    r.credits -= cost;
+    r.shop.reseatUsed = true;
+    E.save();
+    return null;
+  };
+
   E.leaveShop = function () {
     E.run.shop = null;
     nodeComplete();

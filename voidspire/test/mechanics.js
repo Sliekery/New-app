@@ -703,5 +703,77 @@ E.combat.player.statuses.weak = 4;
 gcore.intent = { t: 'attack', gaze: true };
 ok('the gaze hits harder per debuff on you', E.intentInfo(gcore).label !== cleanGaze);
 
+/* ============================ THE BENCH (die economy) ====================
+ * A Flaw is only a curse if undoing one costs something, so the bench is where
+ * the die's downside gets its counterplay: buy the engraving you wanted, grind
+ * a Flaw out, or — cheaper — reseat it below your Aim floor where it never fires.
+ * ==================================================================== */
+E.seed(77); E.newRun('vanguard');
+var br = E.run;
+E.startNode('shop');
+br.credits = 500;
+ok('a shop stocks engravings', (br.shop.engravings || []).length === VS.BALANCE.dieShop.stock);
+ok('engravings are priced by tier', br.shop.engravings.every(function (it) {
+  return it.cost === VS.BALANCE.dieShop.engravingCost[VS.DIE_AUGMENTS[it.id].tier || 1];
+}));
+ok('a face-locked augment is never stocked onto a taken face', br.shop.engravings.every(function (it) {
+  var lock = VS.DIE_AUGMENTS[it.id].onlyFace;
+  return !lock || !br.die.faces[lock];
+}));
+
+// pin the stock so the rest is deterministic
+br.shop.engravings = [{ id: 'kinetic_buffer', cost: 55, sold: false }, { id: 'ignition_coil', cost: 55, sold: false }];
+var bc0 = br.credits;
+ok('buying cuts the engraving into the face you chose', E.shopBuyEngraving(0, 19) === null && VS.dieFaceId(br.die, 19) === 'kinetic_buffer');
+ok('buying charges credits', br.credits === bc0 - 55);
+ok('a sold engraving cannot be rebought', E.shopBuyEngraving(0, 18) === 'sold out');
+ok('an occupied face is refused', typeof E.shopBuyEngraving(1, 19) === 'string');
+br.credits = 0;
+ok('no credits, no engraving', E.shopBuyEngraving(1, 17) === 'not enough credits');
+ok('a refused purchase leaves the face bare', VS.dieFaceId(br.die, 17) === null);
+br.credits = 500;
+
+// the grinder
+VS.dieEngrave(br.die, 'warp_etching', 15);
+ok('the grinder refuses a bare face', E.shopGrindFlaw(14) === 'nothing to grind out here');
+ok('the grinder refuses one of your own augments', E.shopGrindFlaw(19) === 'nothing to grind out here');
+var gcost = E.grindCost(); bc0 = br.credits;
+ok('grinding destroys the Flaw', E.shopGrindFlaw(15) === null && VS.dieFaceId(br.die, 15) === null);
+ok('grinding charges credits', br.credits === bc0 - gcost);
+ok('the wheel wears: the next grind costs more', E.grindCost() === gcost + VS.BALANCE.dieShop.grindCostInc);
+ok('one grind per bench', E.shopGrindFlaw(15) === 'the grinder is spent');
+
+// the jig
+var rcost = E.reseatCost(); bc0 = br.credits;
+ok('reseating moves the engraving', E.shopReseat(19, 12) === null && VS.dieFaceId(br.die, 12) === 'kinetic_buffer' && VS.dieFaceId(br.die, 19) === null);
+ok('reseating charges credits', br.credits === bc0 - rcost);
+ok('one reseat per bench', E.shopReseat(12, 11) === 'the jig is already reset');
+
+// a band that will not fit must be put back exactly as it was
+E.startNode('shop'); br.credits = 500;
+VS.dieEngrave(br.die, 'scrap_sifter', 5);           // spans 5,6,7
+ok('a band augment occupies its whole span', VS.dieFaceId(br.die, 7) === 'scrap_sifter');
+ok('a band that will not fit is refused', typeof E.shopReseat(5, 11) === 'string');   // 11-13, and 12 is taken
+ok('a refused reseat puts the band back', VS.dieFaceId(br.die, 5) === 'scrap_sifter' && VS.dieFaceId(br.die, 7) === 'scrap_sifter');
+ok('a refused reseat costs nothing', br.credits === 500 && !br.shop.reseatUsed);
+ok('the band reseats where it does fit', E.shopReseat(5, 16) === null && VS.dieFaceId(br.die, 18) === 'scrap_sifter' && VS.dieFaceId(br.die, 5) === null);
+
+// the bench is a place, not a menu
+br.phase = 'map';
+ok('no bench off the star chart', E.shopBuyEngraving(0, 3) === 'the bench is closed');
+ok('no grinder off the star chart', E.shopGrindFlaw(3) === 'the bench is closed');
+
+// VOID PRESSURE gouges the bench like everything else
+E.newRun('vanguard');
+E.run.pressure = 11;                                 // SINGULARITY
+E.run.grindCost = Math.round(VS.BALANCE.dieShop.grindCost * E.pressureMods().shopCost);
+E.startNode('shop');
+var pmul = E.pressureMods().shopCost;
+ok('SINGULARITY raises engraving prices', pmul > 1 && E.run.shop.engravings.every(function (it) {
+  return it.cost === Math.round(VS.BALANCE.dieShop.engravingCost[VS.DIE_AUGMENTS[it.id].tier || 1] * pmul);
+}));
+ok('SINGULARITY raises the grinder price', E.grindCost() === Math.round(VS.BALANCE.dieShop.grindCost * pmul));
+
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

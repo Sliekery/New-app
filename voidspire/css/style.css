@@ -1345,7 +1345,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 /* ---- The Die: workshop (sandbox editor) -------------------------------- */
 .die-shop { width: 100%; max-width: 620px; margin: 4px auto 6px; }
 .ws-title { font: 700 9px/1.4 ui-monospace, monospace; letter-spacing: 0.12em; color: #9bb0a6; margin-bottom: 5px; }
-.ws-note { color: #6a7f73; letter-spacing: 0.04em; font-weight: 600; text-transform: none; }
+.ws-note { font: 600 9px/1.4 ui-monospace, monospace; color: #6a7f73; letter-spacing: 0.04em; text-transform: none; }
 .ws-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .ws-lab { font: 700 9px/1 ui-monospace, monospace; letter-spacing: 0.1em; color: #9bb0a6; }
 .ws-val { font: 700 12px/1 ui-monospace, monospace; color: #ffb02e; min-width: 26px; text-align: center; }
@@ -1369,6 +1369,29 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .ws-aug.flaw { border-color: rgba(255,74,94,0.45); color: #ffc4cc; }
 .ws-aug.bad { opacity: 0.35; }
 .ws-t { color: #7f9a8b; font-size: 7.5px; flex: 0 0 auto; }
+.ws-hint { font: 700 8px/1.4 ui-monospace, monospace; letter-spacing: 0.1em; color: #6f8579; }
+.ws-btn.bad { opacity: 0.42; }
+.ws-btn.arming { border-color: #ffb02e; color: #ffd48a; box-shadow: 0 0 10px rgba(255,176,46,0.35); }
+
+/* ---- The Die: the bench (engraving shop) ------------------------------- */
+.bench-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 5px; margin-bottom: 7px; }
+.bench-it {
+  position: relative; display: flex; align-items: center; gap: 7px; text-align: left;
+  background: rgba(10,20,14,0.85); border: 1px solid rgba(93,255,136,0.35); border-radius: 3px;
+  padding: 6px 7px; cursor: pointer;
+}
+.bench-it .bi-icon { flex: 0 0 auto; width: 20px; height: 20px; color: #7dffa8; display: flex; }
+.bench-it .bi-icon svg { width: 100%; height: 100%; }
+.bench-it .bi-body { flex: 1 1 auto; min-width: 0; }
+.bench-it .bi-name { display: block; font: 700 9px/1.2 ui-monospace, monospace; letter-spacing: 0.06em; color: #d6ffe4; }
+.bench-it .bi-desc { display: block; font: 600 8px/1.3 ui-monospace, monospace; color: #9bb0a6; margin-top: 2px; }
+.bench-it .bi-cost { flex: 0 0 auto; font: 700 10px/1 ui-monospace, monospace; color: #ffb02e; }
+.bench-it .bi-tier { position: absolute; right: 6px; bottom: 3px; font: 700 7px/1 ui-monospace, monospace; color: #6f8579; }
+.bench-it.poor { opacity: 0.45; }
+.bench-it.sold { opacity: 0.32; pointer-events: none; }
+.bench-it.sold .bi-cost { color: #7f9a8b; }
+.bench-it.arming { border-color: #ffb02e; box-shadow: 0 0 12px rgba(255,176,46,0.35); }
+.bench-row { margin-bottom: 8px; }
 .dm-chip.vault { opacity: 0.55; border-style: dashed; }
 .dm-chip { cursor: pointer; }
 .die-place { color: #ffb02e; font-weight: 700; text-shadow: 0 0 8px rgba(255,176,46,0.7); }
