@@ -521,6 +521,40 @@
     if (dieTimer) clearInterval(dieTimer);
     dieTimer = setInterval(function () { n.textContent = 1 + Math.floor(Math.random() * 20); }, 60);
   }
+  // The engraving fires before the card resolves, so its name arrives ahead of
+  // the roll it belongs to. Hold it until the readout is drawn.
+  var firedFace = null;
+  var pendingRoll = null;   // a roll the class table had nothing to say about
+  // A new fight starts with a clean die — a readout that persists must not
+  // outlive the combat it belongs to.
+  function clearDieResult() {
+    firedFace = null; pendingRoll = null;
+    if (!$die) return;
+    var $f = $die.querySelector('.die-flash');
+    if ($f) { $f.innerHTML = ''; $f.classList.remove('go'); }
+    var $n = $die.querySelector('.die-n'); if ($n) $n.textContent = '\u2014';
+    var $a = $die.querySelector('.die-aim'); if ($a) $a.style.display = 'none';
+    $die.classList.remove('graze', 'solid', 'misfire', 'crit');
+  }
+
+  function setDieResult(value, band, tone, crit, misfire) {
+    if (!$die) return;
+    var $f = $die.querySelector('.die-flash');
+    if (!$f) { $f = document.createElement('span'); $f.className = 'die-flash'; $die.appendChild($f); }
+    var lab = crit ? 'CRIT' : (band || '');
+    var line = '<span class="dl-roll">' + value + (lab ? ' <b>' + esc(lab) + '</b>' : '') + '</span>';
+    if (firedFace) {
+      line += '<span class="dl-fired' + (firedFace.flaw ? ' flaw' : '') + '">' +
+        (firedFace.flaw ? '\u2716 ' : '\u25c6 ') + esc(firedFace.name) + '</span>';
+    }
+    $f.innerHTML = line;
+    firedFace = null;
+    // The readout STAYS until the next roll replaces it — it used to fade after
+    // 0.85s, which meant the thing that just triggered was gone before you
+    // could read what it was.
+    $f.classList.remove('go'); void $f.offsetWidth; $f.classList.add('go');
+  }
+
   function settleDie(value, crit, misfire, aim, band, tone) {
     if (!$die) return;
     dieRolling = false;
@@ -542,11 +576,7 @@
     if (crit) $die.classList.add('crit');
     else if (tone === 'up') $die.classList.add('solid');
     else if (tone === 'down') $die.classList.add(misfire ? 'misfire' : 'graze');
-    // Big transient readout — the die is central now, so every roll announces itself.
-    var $f = $die.querySelector('.die-flash');
-    if (!$f) { $f = document.createElement('span'); $f.className = 'die-flash'; $die.appendChild($f); }
-    $f.textContent = value + (band ? ' ' + band : '');
-    $f.classList.remove('go'); void $f.offsetWidth; $f.classList.add('go');
+    setDieResult(value, band, tone, crit, misfire);
     $die.classList.remove('settle'); void $die.offsetWidth; $die.classList.add('settle');   // settle pop
   }
   function cancelDieRoll() {
@@ -1554,6 +1584,7 @@
   function showCombat() {
     hideOverlay();
     combatChrome(true);
+    if (E.combat && E.combat.turn <= 1 && !E.combat._dieShown) { E.combat._dieShown = true; clearDieResult(); }
     R.syncCombat();
     updateHUD();
     renderHand(true);
@@ -3135,15 +3166,32 @@
           })(e, delay);
           delay += 90;
           break;
+        case 'roll':
+          // The class table had nothing to say about this card, so no banded
+          // settle is coming. Hold the roll in case an engraving fires off it —
+          // `roll` is emitted BEFORE `dieFace`, so this cannot settle yet.
+          pendingRoll = { v: (e.eff != null ? e.eff : e.roll), crit: !!e.crit, misfire: !!e.misfire, aim: e.aim || 0 };
+          break;
         case 'dieFace':
           // the whole point of the die is that you SEE it fire
           floater(pp.x + 62, pp.y - 84, (e.flaw ? '\u2716 ' : '\u25c6 ') + e.name, e.flaw ? 'dieflaw' : 'dieaug');
+          firedFace = { name: e.name, flaw: !!e.flaw };   // named under the die too
+          // An unbanded roll that fires an engraving used to be completely
+          // invisible: the die never settled, so the trigger had no cause on
+          // screen. Settle it here, where we know something happened.
+          if (pendingRoll) {
+            (function (pr, d) {
+              setTimeout(function () { settleDie(pr.v, pr.crit, pr.misfire, pr.aim, '', ''); }, d);
+            })(pendingRoll, delay);
+            pendingRoll = null;
+          }
           break;
         case 'cardPlayed':
           // Settle the dock d20 whenever the face actually MODULATED the card.
           // That is not "attacks only" any more: the Technomancer's table scales
           // Shield, so his defensive turns have to announce themselves too.
           if (e.roll != null && e.band) {
+            pendingRoll = null;
             settleDie(e.roll, e.crit, e.misfire, e.aim || 0, e.band, e.tone);
             if (e.crit) floater(pp.x + 60, pp.y - 56, 'CRIT!', 'crit');
             else if (e.band) floater(pp.x + 60, pp.y - (e.misfire ? 56 : 52), e.band,

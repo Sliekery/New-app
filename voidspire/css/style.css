@@ -1576,17 +1576,31 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .die-place { color: #ffb02e; font-weight: 700; text-shadow: 0 0 8px rgba(255,176,46,0.7); }
 
 /* The roll flash: a big transient readout so you always catch what the die did. */
+/* The roll readout STAYS under the die until the next roll replaces it. It
+   used to fade out after 0.85s, so whatever the die had just triggered was
+   gone before you could read it. It names the face AND the engraving that
+   fired, because those are the two things a player needs to connect. */
 #combat-die .die-flash {
-  position: absolute; left: 50%; top: 46px; transform: translateX(-50%);
-  font: 700 15px/1 ui-monospace, monospace; letter-spacing: 0.06em;
+  position: absolute; left: 50%; top: 50px; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
   white-space: nowrap; pointer-events: none; opacity: 0; color: currentColor;
 }
-#combat-die .die-flash.go { animation: dieFlash 0.85s cubic-bezier(0.15, 0.9, 0.3, 1) forwards; }
+#combat-die .die-flash .dl-roll { font: 700 15px/1 ui-monospace, monospace; letter-spacing: 0.06em; }
+#combat-die .die-flash .dl-roll b { font-weight: 700; }
+#combat-die .die-flash .dl-fired {
+  font: 700 9.5px/1.1 ui-monospace, monospace; letter-spacing: 0.08em;
+  color: #ffd98a; text-shadow: 0 0 7px rgba(255,176,46,0.8);
+  border-top: 1px solid rgba(255,176,46,0.35); padding-top: 3px;
+}
+#combat-die .die-flash .dl-fired.flaw { color: #ffb3bd; text-shadow: 0 0 7px rgba(255,74,94,0.8); border-top-color: rgba(255,74,94,0.4); }
+#combat-die .die-flash.go { animation: dieFlash 0.42s cubic-bezier(0.15, 0.9, 0.3, 1) forwards; }
 @keyframes dieFlash {
-  0%   { opacity: 0; transform: translateX(-50%) scale(0.5); }
-  18%  { opacity: 1; transform: translateX(-50%) scale(1.35); }
-  40%  { opacity: 1; transform: translateX(-50%) scale(1); }
-  100% { opacity: 0; transform: translateX(-50%) scale(1) translateY(-14px); }
+  0%   { opacity: 0; transform: translateX(-50%) scale(0.55); }
+  55%  { opacity: 1; transform: translateX(-50%) scale(1.22); }
+  100% { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #combat-die .die-flash.go { animation: none; opacity: 1; transform: translateX(-50%); }
 }
 #combat-die.settle .die-svg { animation: dieSettle 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.5); }
 
