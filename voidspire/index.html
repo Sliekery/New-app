@@ -1505,7 +1505,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .ws-aug.flaw { border-color: rgba(255,74,94,0.45); color: #ffc4cc; }
 .ws-aug.bad { opacity: 0.35; }
 .ws-t { color: #7f9a8b; font-size: 7.5px; flex: 0 0 auto; }
-.ws-hint { font: 700 8px/1.4 ui-monospace, monospace; letter-spacing: 0.1em; color: #6f8579; }
+.ws-hint { font: 700 8.5px/1.45 ui-monospace, monospace; letter-spacing: 0.1em; color: #7d9487; }
 .ws-btn.bad { opacity: 0.42; }
 .ws-btn.arming { border-color: #ffb02e; color: #ffd48a; box-shadow: 0 0 10px rgba(255,176,46,0.35); }
 
@@ -1546,6 +1546,38 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .bench-it.sold .bi-cost { color: #7f9a8b; }
 .bench-it.arming { border-color: #ffb02e; box-shadow: 0 0 12px rgba(255,176,46,0.35); }
 .bench-row { margin-bottom: 8px; }
+
+/* ---- THE DESCENT ------------------------------------------------------ */
+.descent-screen { justify-content: safe center; }
+.col-gauge { width: 100%; max-width: 330px; margin: 4px 0 12px; }
+.cg-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+.cg-name { font: 700 11px/1 ui-monospace, monospace; letter-spacing: 2px; color: #5dff88; }
+.cg-name.t-settling { color: var(--amber); }
+.cg-name.t-closing { color: #ff5e6e; }
+.cg-desc { font: 600 9.5px/1.3 ui-monospace, monospace; color: #8fa89a; font-style: italic; }
+.cg-bar { height: 5px; background: rgba(120,160,140,0.18); border: 1px solid rgba(120,160,140,0.3); }
+.cg-bar span { display: block; height: 100%; background: linear-gradient(90deg, #5dff88, var(--amber) 60%, #ff5e6e); transition: width 0.4s ease; }
+
+.route-table { width: 100%; max-width: 330px; margin-bottom: 14px; }
+.rt-head { font: 700 8.5px/1 ui-monospace, monospace; letter-spacing: 1.6px; color: #7d968a; margin-bottom: 5px; }
+.rt-row { display: flex; gap: 10px; align-items: baseline; padding: 2px 0; border-bottom: 1px solid rgba(120,160,140,0.12); }
+.rt-f { flex: 0 0 46px; font: 700 11px/1.3 ui-monospace, monospace; color: #cfe8d8; text-align: right; }
+.rt-t { font: 600 10px/1.3 ui-monospace, monospace; letter-spacing: 1px; color: #9bb0a6; }
+.rt-row.good .rt-t { color: #7dffa8; }
+.rt-row.bad .rt-t { color: #ff9aa4; }
+
+.landing {
+  width: 100%; max-width: 330px; text-align: center; padding: 14px 10px; margin-bottom: 14px;
+  border: 1px solid rgba(120,160,140,0.4); background: rgba(6,14,10,0.7);
+  clip-path: polygon(0 8px, 8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+}
+.landing.good { border-color: rgba(93,255,136,0.6); }
+.landing.bad { border-color: rgba(255,94,110,0.6); }
+.ld-face { font: 700 34px/1 ui-monospace, monospace; color: #eafcff; text-shadow: 0 0 14px rgba(65,216,255,0.7); }
+.ld-what { font: 700 13px/1.2 ui-monospace, monospace; letter-spacing: 3px; margin-top: 6px; color: #d6ffe4; }
+.landing.bad .ld-what { color: #ffc3c9; }
+.ld-aim { font: 600 9px/1 ui-monospace, monospace; letter-spacing: 1.4px; color: var(--amber); margin-top: 6px; }
+.btn.big { font-size: 15px; padding: 11px 26px; letter-spacing: 3px; }
 
 /* ---- engravings in hand ---------------------------------------------
    Same object as a bench item, so it reuses that chrome. Cyan rather than
@@ -1798,6 +1830,41 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     /* ---- Sector / encounters ---------------------------------------- */
     sector: {
       eliteChance2Enemies: 0.35, // chance an elite brings a minion (sector 3+)
+    },
+
+    /* ---- THE DESCENT: rolling your way down --------------------------
+     * You do not pick a room, you roll for one. The same d20 you fight with
+     * decides where you land, so AIM is a route-planning stat as well as a
+     * combat one — and each class reads the route the way it reads a fight.
+     *
+     * Layered on top: the shaft does not wait. `collapse` rises every step,
+     * faster when you reroll or linger, and each tier it crosses reads a
+     * harsher table. Rerolling is the push-your-luck valve AND the thing that
+     * closes the route, so one number drives both halves.
+     * ------------------------------------------------------------------ */
+    descent: {
+      steps: 12,             // rooms per sector before the boss
+      rerollCollapse: 2,     // collapse added by refusing a landing
+      lingerCollapse: 1,     // ...and by stopping at a rest / shop / forge
+      stepCollapse: 1,       // the shaft settles on its own as you go
+      tiers: [
+        { at: 0,  name: 'OPEN',     desc: 'The shaft holds.' },
+        { at: 7,  name: 'SETTLING', desc: 'Structure groans — the quiet rooms are going.' },
+        { at: 13, name: 'CLOSING',  desc: 'Nothing is left but what is coming for you.' },
+      ],
+      // d20 -> room. One table per tier; the roll is read against your class
+      // band, so the same face means different things to different builds.
+      // Bands are [min, type] read high-to-low.
+      tables: {
+        // 20 faces each. Combat holds ~60% throughout — what degrades is the
+        // quiet: treasure and forges go first, then shops, then rest itself.
+        OPEN:     [[20,'treasure'], [18,'rest'], [17,'shop'], [16,'forge'], [13,'event'], [3,'fight'], [1,'elite']],
+        SETTLING: [[20,'shop'],     [18,'rest'], [15,'event'], [4,'fight'], [1,'elite']],
+        CLOSING:  [[20,'rest'],     [17,'event'], [4,'fight'], [2,'elite'], [1,'beacon']],
+      },
+      // rooms that cost you time to use
+      lingerTypes: ['rest', 'shop', 'forge'],
+      maxRerolls: 2,         // per landing — the shaft only bends so far
     },
 
     /* ---- Branching map (Slay-the-Spire-style star chart) ------------- */
@@ -6143,6 +6210,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       pendingPick: null, pendingAddCard: null,
       quests: {}, questDone: {},
       unlockProg: {},      // progress toward relics that must be earned
+      descent: null,       // THE DESCENT: {step, collapse, landing} when rolling the route
       potions: [], won: false,
       loop: 1, echoes: [], loadout: [], echoOffer: null,
       phylacteryUsed: false, salvageKills: 0,
@@ -6154,6 +6222,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
     E.run.map = generateMap(1);
     E.run.phase = 'map';
+    // THE DESCENT is opt-in while both routes exist; the run remembers which
+    // one it began under so a save never changes mode mid-run.
+    if (E.descentEnabled) {
+      E.run.descent = { step: 0, collapse: 0, landing: null };
+      E.run.mapRow = 0;
+      E.run.phase = 'descent';
+    }
     // VOID PRESSURE: the frame buckles (fewer core slots) and HULL BREACH
     // launches you with a Flaw already cut into the die.
     (function () {
@@ -6194,7 +6269,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     r.die.pending.push(m.eng);
     r.deck.push(mkCard(m.card, false));
     r.firstMark = m.id;
-    r.phase = 'map';
+    r.phase = E.descentOn() ? 'descent' : 'map';
     E.save();
     return true;
   };
@@ -6551,6 +6626,77 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return true;
   };
 
+  /* ================= THE DESCENT =====================================
+   * Navigation by die. You roll, you see the room you would fall into, and
+   * you either take it or refuse it and fall further — which costs collapse.
+   * Collapse also ticks every step and every time you linger, and each tier
+   * it crosses reads a harsher table, so the shaft closes around you at a
+   * rate you are partly setting yourself.
+   * ================================================================ */
+  E.descentOn = function () { return !!(B.descent && E.run && E.run.descent); };
+
+  function descentTier() {
+    var c = (E.run.descent && E.run.descent.collapse) || 0;
+    var t = B.descent.tiers[0];
+    B.descent.tiers.forEach(function (x) { if (c >= x.at) t = x; });
+    return t;
+  }
+  E.descentTier = descentTier;
+
+  // The face you rolled, read against your class's route table. High is good
+  // for a marksman; the Voidadept's table is inverted below, because the void
+  // is generous at the bottom and bills you for it.
+  function descentRoom(face) {
+    var tbl = B.descent.tables[descentTier().name] || B.descent.tables.OPEN;
+    var f = face;
+    if (E.run.cls === 'voidadept') f = 21 - face;      // THE HUNGER reads the table upside down
+    for (var i = 0; i < tbl.length; i++) if (f >= tbl[i][0]) return tbl[i][1];
+    return 'fight';
+  }
+  E.descentRoom = descentRoom;
+
+  E.descentRoll = function () {
+    var r = E.run, d = r.descent;
+    if (!d || d.landing) return null;
+    var raw = d20();
+    var eff = Math.min(20, raw + statN({ statuses: { aim: 0 } }, 'aim') + E.dieAim());
+    d.landing = { raw: raw, eff: eff, type: descentRoom(eff), rerolls: 0 };
+    emit('descentRoll', { raw: raw, eff: eff, type: d.landing.type });
+    E.save();
+    return d.landing;
+  };
+
+  E.descentReroll = function () {
+    var r = E.run, d = r.descent;
+    if (!d || !d.landing) return false;
+    if (d.landing.rerolls >= (B.descent.maxRerolls || 2)) return false;
+    var was = d.landing.rerolls + 1;
+    d.collapse += B.descent.rerollCollapse;
+    var raw = d20();
+    var eff = Math.min(20, raw + E.dieAim());
+    d.landing = { raw: raw, eff: eff, type: descentRoom(eff), rerolls: was };
+    emit('descentRoll', { raw: raw, eff: eff, type: d.landing.type, reroll: true });
+    E.save();
+    return true;
+  };
+
+  E.descentAccept = function () {
+    var r = E.run, d = r.descent;
+    if (!d || !d.landing) return false;
+    var t = d.landing.type;
+    d.collapse += B.descent.stepCollapse;
+    if ((B.descent.lingerTypes || []).indexOf(t) >= 0) d.collapse += B.descent.lingerCollapse;
+    d.step++;
+    r.mapRow = d.step;                 // depth scaling still reads this
+    d.landing = null;
+    E.startNode(t);
+    E.save();
+    return true;
+  };
+
+  // Total Aim the die is carrying out of combat (relics + engraved faces).
+  E.dieAim = function () { return art('aimStart') + art('aim') + ((B.dice.classes[E.run.cls] || {}).aim || 0) + (B.dice.baseAim || 0); };
+
   E.startNode = function (type) {
     var r = E.run;
     r.nodeType = type;
@@ -6625,7 +6771,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // A boss used to pay out twice in a row: an Augment draft, then a relic.
     // Augments WERE relics — a second pool of engine hooks with another name —
     // so the draft is gone and the boss just offers relics.
-    var isBoss = !!(node && node.type === 'boss');
+    if (E.descentOn()) {
+      var d = E.run.descent;
+      var atBoss = d.step >= B.descent.steps;
+      if (!atBoss) { r.phase = 'descent'; E.save(); return; }
+      // the sector's floor: the boss is what is down there
+      if (r.nodeType !== 'boss') { E.startNode('boss'); return; }
+    }
+    var isBoss = !!(node && node.type === 'boss') || (E.descentOn() && r.nodeType === 'boss');
     if (isBoss) setupBossArtifacts(true);   // stock the offer; phase is set below
     var next = isBoss ? 'boss-artifact' : 'map';
     // A sector boss buys you the cutscene before the spoils — the story beat
@@ -6694,12 +6847,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     r.faction = pick(factions);
     r.map = generateMap(r.sector);
     r.mapRow = -1; r.mapCol = 0;
+    if (r.descent) { r.descent = { step: 0, collapse: 0, landing: null }; r.mapRow = 0; }
     var sh = art('sectorHeal');
     if (sh > 0) heal(Math.round(r.maxHp * sh));
     r.phase = 'sector-intro';
     E.save();
   }
-  E.beginSector = function () { E.run.phase = 'map'; E.save(); };
+  E.beginSector = function () { E.run.phase = E.descentOn() ? 'descent' : 'map'; E.save(); };
 
   /* ---------------- Combat: setup --------------------------------------- */
   // Extra enemy power from the Recurrence loop and the Unmaker's Tithe echo,
@@ -12146,6 +12300,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       case 'forge': return showForge();
       case 'rift': return showRift();
       case 'boss-artifact': return showBossArtifact();
+      case 'descent': return showDescent();
       case 'first-mark': return showFirstMark();
       case 'cutscene': return showCutscene();
       case 'sector-intro': return showSectorIntro();
@@ -16001,6 +16156,98 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
   }
 
+  /* ====================== THE DESCENT ======================
+   * Navigation by die. You roll, you see the room you would fall into, and
+   * you take it or refuse it and fall further. Refusing costs collapse, and
+   * collapse is also what closes the route — so the push-your-luck valve and
+   * the pressure system are the same number, read twice.
+   * ==================================================================== */
+  var ROOM_LABEL = {
+    fight: 'HOSTILES', elite: 'AN ELITE', beacon: 'A BEACON', event: 'SOMETHING',
+    shop: 'A DEALER', rest: 'QUIET GROUND', forge: 'A FORGE', treasure: 'SALVAGE',
+  };
+  var ROOM_TONE = { fight: 'bad', elite: 'bad', beacon: 'bad', rest: 'good', shop: 'good', forge: 'good', treasure: 'good', event: '' };
+
+  function showDescent() {
+    combatChrome(false);
+    updateHUD();
+    var r = E.run, D = B.descent, d = r.descent;
+    if (!d) { r.phase = 'map'; return U.refresh(); }
+    var tier = E.descentTier();
+    var s = overlayScreen();
+    s.classList.add('descent-screen');
+
+    s.appendChild(el('h2', 'screen-title', 'The Descent'));
+    s.appendChild(el('div', 'screen-sub', 'SECTOR ' + r.sector + ' \u00b7 ' + d.step + ' / ' + D.steps + ' FLOORS FALLEN'));
+
+    // collapse gauge — the shaft settling around you
+    var pct = Math.min(100, Math.round(100 * d.collapse / (D.tiers[D.tiers.length - 1].at + 6)));
+    var gauge = el('div', 'col-gauge');
+    gauge.innerHTML = '<div class="cg-head"><span class="cg-name t-' + tier.name.toLowerCase() + '">' + tier.name +
+      '</span><span class="cg-desc">' + esc(tier.desc) + '</span></div>' +
+      '<div class="cg-bar"><span style="width:' + pct + '%"></span></div>';
+    s.appendChild(gauge);
+
+    // the route table you are actually reading, so the roll is never opaque
+    var tbl = D.tables[tier.name] || D.tables.OPEN;
+    var inv = (r.cls === 'voidadept');
+    var rt = el('div', 'route-table');
+    var rows = tbl.map(function (b, i) {
+      var hi = (i === 0) ? 20 : tbl[i - 1][0] - 1;
+      var lo = b[0];
+      var a = inv ? (21 - hi) : lo, z = inv ? (21 - lo) : hi;
+      return { lo: Math.min(a, z), hi: Math.max(a, z), t: b[1] };
+    }).sort(function (x, y) { return y.hi - x.hi; });
+    rt.innerHTML = '<div class="rt-head">THE FACES \u2014 ' + (inv ? 'THE HUNGER READS THEM UPSIDE DOWN' : 'AIM CLIMBS THE TABLE') + '</div>' +
+      rows.map(function (x) {
+        return '<div class="rt-row ' + (ROOM_TONE[x.t] || '') + '"><span class="rt-f">' +
+          (x.lo === x.hi ? x.lo : x.lo + '\u2013' + x.hi) + '</span><span class="rt-t">' +
+          esc(ROOM_LABEL[x.t] || x.t) + '</span></div>';
+      }).join('');
+    s.appendChild(rt);
+
+    if (!d.landing) {
+      var roll = el('button', 'btn big', 'FALL');
+      roll.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation(); SFX.tap();
+        E.descentRoll(); R.flash(); U.refresh();
+      });
+      s.appendChild(roll);
+      s.appendChild(el('div', 'ws-hint', 'THE DIE DECIDES WHERE YOU LAND. AIM STEERS IT.'));
+      return;
+    }
+
+    // what you rolled, and what it means
+    var L = d.landing;
+    var land = el('div', 'landing ' + (ROOM_TONE[L.type] || ''));
+    land.innerHTML = '<div class="ld-face">' + L.eff + '</div>' +
+      '<div class="ld-what">' + esc(ROOM_LABEL[L.type] || L.type) + '</div>' +
+      (L.eff !== L.raw ? '<div class="ld-aim">ROLLED ' + L.raw + ' \u00b7 AIM +' + (L.eff - L.raw) + '</div>' : '');
+    s.appendChild(land);
+
+    var take = el('button', 'btn big', 'TAKE IT');
+    take.addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation(); SFX.play();
+      E.descentAccept(); U.refresh();
+    });
+    s.appendChild(take);
+
+    var left = (D.maxRerolls || 2) - L.rerolls;
+    if (left > 0) {
+      var again = el('div', 'panel-btn red',
+        '<div class="pb-title">\u2193 FALL FURTHER</div>' +
+        '<div class="pb-desc">Refuse this floor and drop past it. The shaft settles further behind you \u2014 +' +
+        D.rerollCollapse + ' collapse. ' + left + ' left.</div>');
+      again.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation(); SFX.hit(); R.flash();
+        E.descentReroll(); U.refresh();
+      });
+      s.appendChild(again);
+    } else {
+      s.appendChild(el('div', 'ws-hint', 'THE SHAFT WILL NOT BEND FURTHER. TAKE THE FLOOR.'));
+    }
+  }
+
   /* ====================== THE FIRST MARK ======================
    * Turn zero. Three class-specific offers, each an engraving paired with the
    * card that archetype needs to start. Both halves are shown at full size —
@@ -16620,6 +16867,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
     requestAnimationFrame(loop);
   }
+
+  // THE DESCENT is opt-in while both navigation modes exist: ?descent=1 rolls
+  // your route instead of walking a chart. A run remembers the mode it began
+  // under, so switching the flag never changes a save mid-run.
+  try { ns.engine.descentEnabled = /[?&]descent=1/.test(location.search); } catch (e) {}
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
