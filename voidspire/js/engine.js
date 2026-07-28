@@ -1515,9 +1515,14 @@
           // the bottom of their tables, so the bottom needs riders too.
           // The ends are absolute: a natural 20 always counts as high and a
           // natural 1 always counts as low, whatever Aim says.
+          // With BOTH set the rider is two-tailed: it fires at either extreme
+          // and sleeps in the middle (the Voidadept's U-shaped Hunger die).
           var rv = (eff != null ? eff : roll), ok;
-          if (f.max != null) ok = (roll != null) && (roll === 1 || (roll < 20 && rv <= f.max));
-          else ok = (roll === 20) || (roll != null && roll > 1 && rv >= (f.min || 0));
+          var low = (roll != null) && (roll === 1 || (roll < 20 && rv <= f.max));
+          var high = (roll === 20) || (roll != null && roll > 1 && rv >= (f.min || 0));
+          if (f.max != null && f.min != null) ok = low || high;
+          else if (f.max != null) ok = low;
+          else ok = high;
           if (ok) totalDealt += applyCardFx(f.fx || [], ctx);
           break;
         }

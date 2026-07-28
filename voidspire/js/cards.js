@@ -89,8 +89,12 @@
     'Mirror Field': 'Whenever you play a card, gain Shield.',
     'Contagion': 'Whenever you apply Burn, also apply Burn to ALL enemies.',
     'Corruption': 'Skills cost 0 this combat, but Exhaust when played.',
-    'Turret': 'A deployed unit that attacks an enemy for its damage each turn.',
+    'Turret': 'A deployed unit that attacks a random enemy for its damage at the end of each of your turns.',
     'Drone Swarm': 'A deployed unit that hits ALL enemies for its damage each turn.',
+    'Siphon': 'Heal for half of the damage this card deals.',
+    'Scry': 'Look at that many cards from the top of your draw pile and discard any number of them.',
+    'Discover': 'Choose one of 3 random cards and add it to your hand.',
+    'Primed': 'Counts down at the end of each of your turns, then detonates.',
     'Pack Fury': 'Your pets deal extra damage with their actions.',
     'Bloodscent': "Your pets deal extra damage, and +1 more for every pet that dies.",
     'Bulwark': 'At the start of each turn, your front pet gains Block.',
@@ -153,8 +157,8 @@
     suppressing_fire: {   // a raking burst — hammers one target, pins it, and carries through the pack
       name: 'Raking Fire', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
       fx: [{ k: 'special', id: 'cleave', v: 6, splash: 3 }, { k: 'status', s: 'weak', v: 1, who: 'target' }],
-      text: 'Deal 6 damage to the target and 3 to every other enemy. Apply 1 Weak to the target.',
-      up: { fx: [{ k: 'special', id: 'cleave', v: 8, splash: 5 }, { k: 'status', s: 'weak', v: 2, who: 'target' }], text: 'Deal 8 damage to the target and 5 to every other enemy. Apply 2 Weak to the target.' },
+      text: 'Deal 6 damage, and 3 to every other enemy.',
+      up: { fx: [{ k: 'special', id: 'cleave', v: 8, splash: 5 }, { k: 'status', s: 'weak', v: 2, who: 'target' }], text: 'Deal 8 damage, and 5 to every other enemy.' },
     },
     frag_grenade: {   // AoE setup — chips the pack and cracks their armour for the follow-up
       name: 'Frag Grenade', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
@@ -185,7 +189,7 @@
     executioner: {
       name: 'Executioner Round', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
       fx: [{ k: 'dmg', v: 10, scale: 'might' }, { k: 'special', id: 'execute' }],
-      text: 'Double damage if the target is below 30% HP.',
+      text: 'Doubled if the target is below 30% HP.',
       up: { fx: [{ k: 'dmg', v: 14, scale: 'might' }, { k: 'special', id: 'execute' }] },
     },
     orbital_strike: {   // the finisher — flattens the field and leaves the survivors cracked open
@@ -213,8 +217,8 @@
     nano_repair: {   // patch up — and if a construct is covering you, bolt on some armour too
       name: 'Repair Bay', cls: 'technomancer', type: 'skill', rarity: 1, cost: 1, exhaust: true,
       fx: [{ k: 'special', id: 'repairBay', v: 4, block: 6 }],
-      text: 'Heal 4 HP. If you have a Turret or Drone deployed, also gain 6 Shield.',
-      up: { fx: [{ k: 'special', id: 'repairBay', v: 7, block: 9 }], text: 'Heal 7 HP. If you have a Turret or Drone deployed, also gain 9 Shield.' },
+      text: 'Heal 4 HP. Gain 6 Shield if a Turret or Drone is out.',
+      up: { fx: [{ k: 'special', id: 'repairBay', v: 7, block: 9 }], text: 'Heal 7 HP. Gain 9 Shield if a Turret or Drone is out.' },
     },
     overclock: {
       name: 'Overclock', cls: 'technomancer', type: 'skill', rarity: 1, cost: 0,
@@ -230,7 +234,6 @@
     deploy_turret: {
       name: 'Deploy Turret', cls: 'technomancer', type: 'power', rarity: 2, cost: 1,
       fx: [{ k: 'status', s: 'turret', v: 4, who: 'self' }],
-      text: 'At the end of your turn, the turret fires at a random enemy.',
       up: { fx: [{ k: 'status', s: 'turret', v: 6, who: 'self' }] },
     },
     emp_blast: {
@@ -423,8 +426,7 @@
     cluster_munitions: {   // AoE with bite — strafe the pack and drink back the spillage (Bloodforge sustain)
       name: 'Reaping Volley', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
       fx: [{ k: 'dmg', v: 5, all: true, scale: 'might' }, { k: 'special', id: 'drain' }],
-      text: 'Heal for half the total damage dealt.',
-      up: { fx: [{ k: 'dmg', v: 7, all: true, scale: 'might' }, { k: 'special', id: 'drain' }], text: 'Heal for half the total damage dealt.' },
+      up: { fx: [{ k: 'dmg', v: 7, all: true, scale: 'might' }, { k: 'special', id: 'drain' }] },
     },
     bunker_down: {
       name: 'Bunker Down', cls: 'vanguard', type: 'skill', rarity: 2, cost: 2,
@@ -450,14 +452,13 @@
     rallying_shout: {   // Might as defence — forge your stacked Strength into a wall
       name: 'Bulwark Stance', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
       fx: [{ k: 'status', s: 'str', v: 1, who: 'self' }, { k: 'block', v: 3, scale: 'pri' }, { k: 'special', id: 'forgeBarrier', v: 2 }],
-      text: 'Then gain extra Shield equal to twice your Might.',
-      up: { fx: [{ k: 'status', s: 'str', v: 2, who: 'self' }, { k: 'block', v: 4, scale: 'pri' }, { k: 'special', id: 'forgeBarrier', v: 2 }], text: 'Then gain extra Shield equal to twice your Might.' },
+      text: 'Then gain Shield equal to twice your Might.',
+      up: { fx: [{ k: 'status', s: 'str', v: 2, who: 'self' }, { k: 'block', v: 4, scale: 'pri' }, { k: 'special', id: 'forgeBarrier', v: 2 }], text: 'Then gain Shield equal to twice your Might.' },
     },
     // --- new rares: each anchors a different Vanguard build ---
     frenzy: {   // the Strength payoff — multi-hit, every hit rides your MIGHT
       name: 'Frenzy', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
       fx: [{ k: 'dmg', v: 3, hits: 3, scale: 'might' }],
-      text: 'Each hit is boosted by your Might — a Strength deck turns this lethal.',
       up: { fx: [{ k: 'dmg', v: 3, hits: 4, scale: 'might' }] },
     },
     bloodlust: {   // glass-cannon engine: permanent extra energy bought with HP
@@ -485,7 +486,7 @@
     hail_of_lead: {   // multi-hit payoff — every shot rides your Momentum (and Might)
       name: 'Hail of Lead', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
       fx: [{ k: 'dmg', v: 2, hits: 3, scale: 'might' }],
-      text: 'Each of the 3 hits is boosted by your Momentum and Might.',
+      text: 'Each hit also scales with Momentum.',
       up: { fx: [{ k: 'dmg', v: 3, hits: 3, scale: 'might' }] },
     },
     full_auto: {   // the engine anchor — every attack now snowballs Momentum
@@ -496,8 +497,8 @@
     unload: {   // the cashout — dump a turn of built-up Momentum into one hit
       name: 'Unload', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
       fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'special', id: 'unload', v: 2 }],
-      text: 'Deal an additional 2 damage for each Momentum you have.',
-      up: { fx: [{ k: 'dmg', v: 5, scale: 'might' }, { k: 'special', id: 'unload', v: 3 }], text: 'Deal an additional 3 damage for each Momentum you have.' },
+      text: 'Deal 2 more damage per Momentum.',
+      up: { fx: [{ k: 'dmg', v: 5, scale: 'might' }, { k: 'special', id: 'unload', v: 3 }], text: 'Deal 3 more damage per Momentum.' },
     },
     // --- BLOODFORGE: spend life to stoke Might; defend by parrying (deflect + riposte),
     //     not turtling. Stacked Strength powers your attacks, your parries, and the cashout. ---
@@ -534,8 +535,7 @@
     bloodbath: {   // the cashout — pour all your stacked Might into one brutal blow, and drink deep
       name: 'Bloodbath', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
       fx: [{ k: 'special', id: 'bloodbath', v: 5 }, { k: 'special', id: 'drain' }],
-      text: 'Deal damage equal to 5× your Strength. Heal for half the damage dealt.',
-      up: { fx: [{ k: 'special', id: 'bloodbath', v: 6 }, { k: 'special', id: 'drain' }], text: 'Deal damage equal to 6× your Strength. Heal for half the damage dealt.' },
+      up: { fx: [{ k: 'special', id: 'bloodbath', v: 6 }, { k: 'special', id: 'drain' }] },
     },
     // --- BANDOLIER: heavy ordnance, spent & reloaded. Big shots Exhaust (spent
     //     shells); payoffs reward spending them; Reload racks them back. ---
@@ -597,8 +597,8 @@
     wither: {   // a burn PAYOFF that doesn't consume — cash the stack while the fire keeps burning
       name: 'Parch', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
       fx: [{ k: 'special', id: 'parch' }],
-      text: "Deal damage equal to the target's Burn. The Burn is NOT consumed.",
-      up: { fx: [{ k: 'status', s: 'burn', v: 2, who: 'target' }, { k: 'special', id: 'parch' }], text: "Apply 2 Burn, then deal damage equal to the target's Burn. The Burn is NOT consumed." },
+      text: "Deal damage equal to the target's Burn. It is not consumed.",
+      up: { fx: [{ k: 'status', s: 'burn', v: 2, who: 'target' }, { k: 'special', id: 'parch' }], text: "Deal damage equal to the target's Burn. It is not consumed." },
     },
     blood_sacrifice: {
       name: 'Blood Sacrifice', cls: 'voidadept', type: 'skill', rarity: 2, cost: 0, exhaust: true,
@@ -612,8 +612,8 @@
     scorched_earth: {
       name: 'Scorched Earth', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2, exhaust: true,
       fx: [{ k: 'special', id: 'fiendFire', v: 6 }],
-      text: 'Exhaust your hand. Deal 6 damage to the target for each card Exhausted.',
-      up: { fx: [{ k: 'special', id: 'fiendFire', v: 9 }], text: 'Exhaust your hand. Deal 9 damage to the target for each card Exhausted.' },
+      text: 'Exhaust your hand. Deal 6 damage per card Exhausted.',
+      up: { fx: [{ k: 'special', id: 'fiendFire', v: 9 }], text: 'Exhaust your hand. Deal 9 damage per card Exhausted.' },
     },
     munitions_dump: {
       name: 'Munitions Dump', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1, exhaust: true,
@@ -674,13 +674,11 @@
     exsanguinate: {
       name: 'Exsanguinate', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
       fx: [{ k: 'hploss', v: 3 }, { k: 'dmg', v: 10, scale: 'psi' }, { k: 'special', id: 'drain' }],
-      text: 'Heal for half the damage dealt.',
       up: { fx: [{ k: 'hploss', v: 3 }, { k: 'dmg', v: 14, scale: 'psi' }, { k: 'special', id: 'drain' }] },
     },
     void_siphon: {   // the class's only AoE — drains life from the whole field
       name: 'Void Siphon', cls: 'voidadept', type: 'attack', rarity: 1, cost: 1,
       fx: [{ k: 'dmg', v: 4, scale: 'psi', all: true }, { k: 'special', id: 'drain' }],
-      text: 'Heal for half the total damage dealt.',
       up: { fx: [{ k: 'dmg', v: 6, scale: 'psi', all: true }, { k: 'special', id: 'drain' }] },
     },
     unravel: {
@@ -840,7 +838,7 @@
     overcharged_capacitor: {   // OVERCHARGE filler payoff — a cheap repeatable jolt that loves Echo
       name: 'Overcharged Capacitor', cls: 'technomancer', type: 'attack', rarity: 2, cost: 1,
       fx: [{ k: 'dmg', v: 4, hits: 2, scale: 'tech' }],
-      text: 'Both hits scale with your Tech. Doubles under Echo.',
+      text: 'Doubles under Echo.',
       up: { fx: [{ k: 'dmg', v: 6, hits: 2, scale: 'tech' }] },
     },
     disruptor_pulse: {   // cheap enabler — chip + a Weak to trip the Conduit
@@ -895,8 +893,8 @@
     cinder_burst: {   // the Detonate payoff — cash a Burn stack in for a burst
       name: 'Cinder Burst', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
       fx: [{ k: 'special', id: 'detonate', v: 2 }],
-      text: "Detonate: consume the target's Burn to deal 200% of it (plus your Psi Focus) as damage, splashing half as fresh Burn to another enemy.",
-      up: { fx: [{ k: 'special', id: 'detonate', v: 2.5 }], text: "Detonate: consume the target's Burn to deal 250% of it (plus your Psi Focus) as damage, splashing half as fresh Burn to another enemy." },
+      text: "Detonate the target's Burn for 200% damage.",
+      up: { fx: [{ k: 'special', id: 'detonate', v: 2.5 }], text: "Detonate the target's Burn for 250% damage." },
     },
     ember_storm: {   // field seed — Burn everything and keep the hand flowing
       name: 'Ember Storm', cls: 'voidadept', type: 'skill', rarity: 2, cost: 1,
@@ -911,8 +909,8 @@
     conflagration: {   // the heavy Detonate — pay big, blow the whole stack
       name: 'Conflagration', cls: 'voidadept', type: 'attack', rarity: 3, cost: 2,
       fx: [{ k: 'status', s: 'burn', v: 5, who: 'target' }, { k: 'special', id: 'detonate', v: 2 }],
-      text: "Then Detonate all of it for 200% damage (plus your Psi Focus), splashing fresh Burn to another enemy.",
-      up: { fx: [{ k: 'status', s: 'burn', v: 8, who: 'target' }, { k: 'special', id: 'detonate', v: 2.5 }], text: "Then Detonate all of it for 250% damage (plus your Psi Focus), splashing fresh Burn to another enemy." },
+      text: 'Then Detonate it all for 200% damage.',
+      up: { fx: [{ k: 'status', s: 'burn', v: 8, who: 'target' }, { k: 'special', id: 'detonate', v: 2.5 }], text: 'Then Detonate it all for 250% damage.' },
     },
 
     /* -- PSI FOCUS -- */
@@ -948,7 +946,6 @@
     crimson_rite: {   // a bleeding strike that marks the prey — smaller than Exsanguinate, but it sets up the kill
       name: 'Crimson Rite', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
       fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 5, scale: 'psi' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }, { k: 'special', id: 'drain' }],
-      text: 'Heal for half the damage dealt.',
       up: { fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 7, scale: 'psi' }, { k: 'status', s: 'vuln', v: 3, who: 'target' }, { k: 'special', id: 'drain' }] },
     },
 
@@ -988,8 +985,8 @@
     mind_burn: {   // a blast that scales with how WIDE your fire has spread (every Burning foe)
       name: 'Soulflare', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
       fx: [{ k: 'special', id: 'soulflare', v: 4 }],
-      text: 'Deal 4 damage to every Burning enemy (scales with your Psi Focus).',
-      up: { fx: [{ k: 'special', id: 'soulflare', v: 6 }], text: 'Deal 6 damage to every Burning enemy (scales with your Psi Focus).' },
+      text: 'Deal 4 damage to every Burning enemy.',
+      up: { fx: [{ k: 'special', id: 'soulflare', v: 6 }], text: 'Deal 6 damage to every Burning enemy.' },
     },
     entropic_lash: {   // a strike that seeds the whole field with fire (Affliction enabler)
       name: 'Entropic Lash', cls: 'voidadept', type: 'attack', rarity: 2, cost: 1,
@@ -1011,11 +1008,9 @@
                         // lets go in the middle where it is bored.
       name: 'Spectral Grasp', cls: 'voidadept', type: 'skill', rarity: 1, cost: 0,
       fx: [{ k: 'status', s: 'weak', v: 1, who: 'target' }, { k: 'status', s: 'vuln', v: 1, who: 'target' },
-           { k: 'onRoll', min: 15, fx: [{ k: 'status', s: 'vuln', v: 1, who: 'target' }] },
-           { k: 'onRoll', max: 6, fx: [{ k: 'status', s: 'weak', v: 1, who: 'target' }] }],
+           { k: 'onRoll', min: 15, max: 6, fx: [{ k: 'status', s: 'weak', v: 1, who: 'target' }, { k: 'status', s: 'vuln', v: 1, who: 'target' }] }],
       up: { fx: [{ k: 'status', s: 'weak', v: 2, who: 'target' }, { k: 'status', s: 'vuln', v: 2, who: 'target' },
-           { k: 'onRoll', min: 13, fx: [{ k: 'status', s: 'vuln', v: 1, who: 'target' }] },
-           { k: 'onRoll', max: 7, fx: [{ k: 'status', s: 'weak', v: 1, who: 'target' }] }] },
+           { k: 'onRoll', min: 13, max: 7, fx: [{ k: 'status', s: 'weak', v: 1, who: 'target' }, { k: 'status', s: 'vuln', v: 1, who: 'target' }] }] },
     },
 
     /* ============ VANGUARD — MARKSMAN: the d20 as a resource ============
@@ -1113,8 +1108,8 @@
     spiked_bulwark: {   // a turtle that bites — attackers gore themselves on your Might
       name: 'Spiked Bulwark', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
       fx: [{ k: 'block', v: 8, scale: 'pri' }, { k: 'status', s: 'spikeward', v: 3, who: 'self' }],
-      text: 'This combat, enemies that attack you take damage equal to your Might + 3.',
-      up: { fx: [{ k: 'block', v: 11, scale: 'pri' }, { k: 'status', s: 'spikeward', v: 5, who: 'self' }], text: 'This combat, enemies that attack you take damage equal to your Might + 5.' },
+      text: 'This combat, attackers take your Might + 3 damage.',
+      up: { fx: [{ k: 'block', v: 11, scale: 'pri' }, { k: 'status', s: 'spikeward', v: 5, who: 'self' }], text: 'This combat, attackers take your Might + 5 damage.' },
     },
     demolition_train: {   // BUILD-AROUND — every spent shell shrapnels the whole pack
       name: 'Demolition Train', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
@@ -1127,8 +1122,8 @@
     recon: {   // Scry — sculpt your next draws
       name: 'Recon', cls: 'any', type: 'skill', rarity: 1, pool: 'colorless', cost: 0,
       fx: [{ k: 'special', id: 'scry', v: 3, draw: 1 }],
-      text: 'Scry 3 (look at the top 3 cards of your draw pile and discard any number). Draw 1.',
-      up: { fx: [{ k: 'special', id: 'scry', v: 5, draw: 1 }], text: 'Scry 5 (look at the top 5 cards of your draw pile and discard any number). Draw 1.' },
+      text: 'Scry 3. Draw 1.',
+      up: { fx: [{ k: 'special', id: 'scry', v: 5, draw: 1 }], text: 'Scry 5. Draw 1.' },
     },
     requisition: {   // Tutor — find your combo piece
       name: 'Requisition', cls: 'any', type: 'skill', rarity: 2, pool: 'colorless', cost: 1,
@@ -1139,14 +1134,14 @@
     salvage_cache: {   // Discover — generate a choice of cards
       name: 'Salvage Cache', cls: 'any', type: 'skill', rarity: 2, pool: 'colorless', cost: 1, exhaust: true,
       fx: [{ k: 'special', id: 'discover' }],
-      text: 'Discover: add one of 3 random cards to your hand.',
-      up: { fx: [{ k: 'special', id: 'discover' }, { k: 'draw', v: 1 }], text: 'Discover: add one of 3 random cards to your hand. Draw 1.' },
+      text: 'Discover a card.',
+      up: { fx: [{ k: 'special', id: 'discover' }, { k: 'draw', v: 1 }], text: 'Discover a card.' },
     },
     fusion_charge: {   // Primed — a ticking delayed bomb
       name: 'Fusion Charge', cls: 'any', type: 'skill', rarity: 3, pool: 'colorless', cost: 1,
       fx: [{ k: 'special', id: 'primed', v: 30, t: 3 }],
-      text: 'Primed 3: in 3 turns, detonate for 30 damage to ALL enemies.',
-      up: { fx: [{ k: 'special', id: 'primed', v: 45, t: 3 }], text: 'Primed 3: in 3 turns, detonate for 45 damage to ALL enemies.' },
+      text: 'Primed 3: then 30 damage to ALL enemies.',
+      up: { fx: [{ k: 'special', id: 'primed', v: 45, t: 3 }], text: 'Primed 3: then 45 damage to ALL enemies.' },
     },
 
     /* ---------------- Curses ---------------- */
@@ -1156,15 +1151,15 @@
     },
     shrapnel: {
       name: 'Shrapnel', cls: 'curse', type: 'curse', rarity: -1, cost: 0, unplayable: true,
-      fx: [], text: 'Unplayable. Lose 2 HP if this is in your hand at end of turn.',
+      fx: [], text: 'Unplayable. Lose 2 HP if still in hand at end of turn.',
     },
     recurring_curse: {
       name: 'Recurring Dread', cls: 'curse', type: 'curse', rarity: -1, cost: 0, unplayable: true, retain: true,
-      fx: [], text: 'Unplayable. A fragment of the loop, lodged in your mind — it will not leave.',
+      fx: [], text: 'Unplayable. A fragment of the loop, lodged in your mind.',
     },
     void_swarm: {
       name: 'Void Swarm', cls: 'curse', type: 'curse', rarity: -1, cost: 0, unplayable: true, disableNeighbors: true,
-      fx: [], text: 'Unplayable. While in your hand, the cards to its left and right cannot be played.',
+      fx: [], text: 'Unplayable. Its neighbours in hand cannot be played.',
     },
   };
 
@@ -1180,12 +1175,22 @@
   };
 
   /* ---- Description generator ----------------------------------------- */
+  // `special` ops are card-specific and normally described by the card's own
+  // text, but a few are shared riders with a keyword name.
+  var SPECIAL_KW = { drain: 'Siphon.' };
+  // Specials whose whole description is a number the card already carries.
+  var SPECIAL_FMT = { bloodbath: function (f) { return 'Deal ' + f.v + '\u00d7 your Might as damage.'; } };
+
   // ctx (optional): {attrs, statuses} so descriptions show live modified numbers.
   ns.cardDesc = function (def, upgraded, ctx, vtouch) {
     var fx = (upgraded && def.up && def.up.fx) ? def.up.fx : def.fx;
     if (vtouch) fx = voidBoost(fx);
-    var parts = [];
     var B = ns.BALANCE;
+    // Each entry is either a plain string or {s, aoe} — `aoe` is the short form
+    // used when a run of consecutive board-wide effects gets folded into one
+    // clause (see collapse() below).
+    var parts = [];
+    parts.grp = function (long, short, g) { this.push({ s: long, short: short, g: g }); };
     fx.forEach(function (f) {
       if (f.k === 'dmg') {
         var v = f.v;
@@ -1206,7 +1211,8 @@
         if (f.random) s += ' to random enemies';
         if (f.xcost) s += ', X times (X = current Energy)';
         else if (f.hits && f.hits > 1) s += ' ' + f.hits + ' times';
-        parts.push(s + '.');
+        if (f.all && !f.random && !f.xcost && !(f.hits > 1)) parts.grp(s + '.', Math.round(v) + ' damage', 'all');
+        else parts.push(s + '.');
       }
       if (f.k === 'block') {
         var b = f.v;
@@ -1216,12 +1222,20 @@
           else if (bsc === 'might') b += ctx.attrs.might * B.attrs.mightBlockPerPoint;
           else if (bsc === 'psi') b += ctx.attrs.psi * B.attrs.psiBlockPerPoint;
         }
-        parts.push('Gain ' + Math.round(b) + ' Shield.');
+        parts.grp('Gain ' + Math.round(b) + ' Shield.', Math.round(b) + ' Shield', 'self');
       }
       if (f.k === 'onRoll') {
         var inner = ns.cardDesc({ fx: f.fx || [] }, false, ctx, false);
-        parts.push((f.max != null ? 'Roll ' + f.max + ' or less: ' : 'Roll ' + f.min + '+: ') + inner);
+        var lead = (f.max != null && f.min != null) ? 'Roll ' + f.min + '+ or ' + f.max + '-: '
+                 : f.max != null ? 'Roll ' + f.max + ' or less: '
+                 : 'Roll ' + f.min + '+: ';
+        parts.push(lead + inner);
       }
+      // Riders that every card spelled out longhand ("Heal for half the damage
+      // dealt." on five different cards) are keywords instead — one word on the
+      // card, the full rule in the inspect glossary.
+      if (f.k === 'special' && SPECIAL_KW[f.id]) parts.push(SPECIAL_KW[f.id]);
+      if (f.k === 'special' && SPECIAL_FMT[f.id]) parts.push(SPECIAL_FMT[f.id](f));
       if (f.k === 'heal') parts.push('Heal ' + f.v + ' HP.');
       if (f.k === 'hploss') parts.push('Lose ' + f.v + ' HP.');
       if (f.k === 'draw') parts.push('Draw ' + f.v + ' card' + (f.v > 1 ? 's' : '') + '.');
@@ -1233,20 +1247,52 @@
         else if (f.s === 'drone') parts.push('Deploy a Drone Swarm (' + (f.v + (ctx ? ctx.attrs.tech : 0)) + ' to all/turn).');
         else if (f.s === 'brood') parts.push('Each turn, summon ' + (f.v > 1 ? f.v + ' Spawnlings' : 'a Spawnling') + '.');
         else if (f.s === 'slots') parts.push('+' + f.v + ' formation slot' + (f.v > 1 ? 's' : '') + ' (Kennel).');
-        else if (f.s === 'echo' || f.s === 'corruption' || f.s === 'barricade' || f.s === 'retain') parts.push('Gain ' + n + '.');
+        else if (f.s === 'echo' || f.s === 'corruption' || f.s === 'barricade' || f.s === 'retain') parts.grp('Gain ' + n + '.', n, 'self');
         else if (f.s === 'emberward' || f.s === 'staticward' || f.s === 'spikeward' || f.s === 'demoCharge' || f.s === 'subroutine' || f.s === 'aegisLink' || f.s === 'aimPerTurn' || f.s === 'misfireGuard') { /* the card's own text describes these reactive/trigger effects */ }
-        else if (f.who === 'self') parts.push('Gain ' + f.v + ' ' + n + '.');
-        else if (f.who === 'allEnemies') parts.push('Apply ' + f.v + ' ' + n + ' to ALL enemies.');
-        else parts.push('Apply ' + f.v + ' ' + n + '.');
+        else if (f.who === 'self') parts.grp('Gain ' + f.v + ' ' + n + '.', f.v + ' ' + n, 'self');
+        else if (f.who === 'allEnemies') parts.grp('Apply ' + f.v + ' ' + n + ' to ALL enemies.', f.v + ' ' + n, 'all');
+        else parts.grp('Apply ' + f.v + ' ' + n + '.', f.v + ' ' + n, 'tgt');
       }
     });
+    var out = collapse(parts);
     var text = (upgraded && def.up && def.up.text) ? def.up.text : def.text;
-    if (text) parts.push(text);
-    if (def.retain) parts.push('Retain.');
-    if (def.exhaust) parts.push('Exhaust.');
-    if (vtouch) parts.push('Void-Touched: lose ' + ns.VTOUCH_HP + ' HP when played.');
-    return parts.join(' ');
+    if (text) out.push(text);
+    if (def.retain) out.push('Retain.');
+    if (def.exhaust) out.push('Exhaust.');
+    if (vtouch) out.push('Void-Touched: lose ' + ns.VTOUCH_HP + ' HP when played.');
+    return out.join(' ');
   };
+
+  /* "Deal 5 damage to ALL enemies. Apply 1 Weak to ALL enemies. Apply 1
+     Vulnerable to ALL enemies." states the scope three times to say one thing,
+     and repetition like it was the single biggest source of card text that
+     would not fit. Card games state a shared subject once and list what lands,
+     so a run of two or more consecutive effects with the same subject folds:
+
+       ALL enemies: 5 damage, 1 Weak, 1 Vulnerable.
+       Apply 1 Weak, 1 Vulnerable.
+       Gain 1 Might, 3 Shield.
+
+     A lone effect keeps its full sentence — a list of one reads worse. Only
+     CONSECUTIVE effects fold, so nothing is ever reordered. */
+  var GROUP_LEAD = { all: 'ALL enemies: ', tgt: 'Apply ', self: 'Gain ' };
+  function collapse(parts) {
+    var out = [];
+    for (var i = 0; i < parts.length; i++) {
+      var g = parts[i].g;
+      if (!g) { out.push(parts[i].s || parts[i]); continue; }
+      var j = i;
+      while (j + 1 < parts.length && parts[j + 1].g === g) j++;
+      if (j === i) out.push(parts[i].s);
+      else {
+        var shorts = [];
+        for (var k = i; k <= j; k++) shorts.push(parts[k].short);
+        out.push(GROUP_LEAD[g] + shorts.join(', ') + '.');
+      }
+      i = j;
+    }
+    return out;
+  }
 
   // Does this card need an enemy target?
   ns.cardNeedsTarget = function (def, upgraded) {

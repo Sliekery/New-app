@@ -915,20 +915,31 @@ h2.screen-title {
   display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
   max-width: 440px; margin-bottom: 16px;
 }
-.card-grid .card { margin: 0; pointer-events: auto; width: 112px; height: 198px; }
+/* Every grid card is exactly this size — a row of rewards only reads as a
+   comparison if the cards are the same shape, so text fits the card and the
+   card never grows to fit the text. 112px is the widest that still puts three
+   across the 400px design frame (364px usable + two 10px gaps). */
+.card-grid .card { margin: 0; pointer-events: auto; width: 112px; height: 159px; }
 /* A bigger card with the same 8.5px text just wraps less — it is still hard to
    read. Scale the card's insides with it (~1.24x, matching 90px → 112px) and
    give the name room to clear the type badge in the corner. */
-/* On a hand card the name shares its row with the cost pip, which leaves ~60px
-   — enough at 8.5px, not at reading size ("Requisition" needs 80px, and
-   "Counterstrike" more). Grid cards have 31px of extra height, so the name gets
-   its own full-width line below the pip instead of being wedged beside it. */
-.card-grid .card .cname { font-size: 10.5px; line-height: 1.15; min-height: 26px; margin: 31px 6px 2px 7px; overflow-wrap: break-word; }
+/* The name used to sit on its own row BELOW the cost pip, which spent 31px of a
+   159px card on one number and left the rules text just three lines — cards as
+   ordinary as "Apply 1 Vulnerable. Apply 1 Weak. Draw 1 card." clipped. Card
+   games put the pip ON the art instead (Slay the Spire, Monster Train), so it
+   costs no vertical space at all. Doing the same gives the name the full width
+   at the top and hands the reclaimed 27px to the rules box: 3 lines → 5. */
+/* NOT break-word: a name that does not fit is shrunk by fitName(), because
+   "CONFLAGRATIO / N" reads worse than a slightly smaller title. */
+.card-grid .card .cname { font-size: 10.5px; line-height: 1.15; min-height: 26px; margin: 4px 6px 2px 7px; overflow: hidden; }
 .card-grid .card .cdesc { font-size: 10.5px; line-height: 1.32; padding: 0 7px 4px; }
-.card-grid .card .cart { height: 42px; }
+.card-grid .card .cart { height: 44px; }
 .card-grid .card .cart svg { width: 41px; height: 41px; }
-.card-grid .card .cost { width: 29px; height: 29px; }
+.card-grid .card .cost { width: 29px; height: 29px; top: 33px; left: 3px; }
 .card-grid .card .cost-n { font-size: 13px; }
+/* the type badge rides the other side of the art, mirroring the pip, so the
+   name gets the full top row rather than dodging a corner */
+.card-grid .card .ctype { top: 37px; right: 4px; width: 15px; height: 15px; }
 .card-grid .card .rtag { font-size: 8.5px; top: -9px; }
 .card-grid .card .price { font-size: 12px; bottom: 4px; right: 6px; }
 /* the dense (whole-deck) grid keeps hand proportions */
@@ -936,7 +947,8 @@ h2.screen-title {
 .card-grid.dense .card .cdesc { font-size: 8.5px; line-height: 1.3; padding: 0 5px 3px; }
 .card-grid.dense .card .cart { height: 38px; }
 .card-grid.dense .card .cart svg { width: 33px; height: 33px; }
-.card-grid.dense .card .cost { width: 24px; height: 24px; }
+.card-grid.dense .card .cost { width: 24px; height: 24px; top: 0; left: 0; }
+.card-grid.dense .card .ctype { top: 4px; right: 4px; width: 13px; height: 13px; }
 .card-grid.dense .card .cost-n { font-size: 11px; }
 .card-grid.dense .card .rtag { font-size: 6.5px; top: -7px; }
 .card-grid.dense { max-width: 400px; }

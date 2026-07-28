@@ -905,13 +905,19 @@ for (var lf = 0; lf < 120; lf++) {
   var rr = E.events.filter(function (ev) { return ev.type === 'roll'; })[0];
   var weak = E.combat.enemies[0].statuses.weak || 0;
   if (rr) {
+    // Spectral Grasp is TWO-TAILED — it grips at either extreme of the Hunger
+    // die and lets go in the middle — so the rider fires low OR high.
     var low = (rr.roll === 1) || (rr.roll < 20 && rr.eff <= 6);
-    if (low) { lowFired++; if (weak !== 2) wrong++; }
+    var high = (rr.roll === 20) || (rr.roll > 1 && rr.eff >= 15);
+    if (low || high) { lowFired++; if (weak !== 2) wrong++; }
     else { lowMissed++; if (weak !== 1) wrong++; }
   }
   E.run.phase = 'map';
 }
-ok('the low-roll rider fires on low faces and not otherwise (' + lowFired + ' low / ' + lowMissed + ' high)', wrong === 0 && lowFired > 0 && lowMissed > 0);
+ok('the two-tailed rider fires at both extremes and not in between (' + lowFired + ' fired / ' + lowMissed + ' slept)',
+   wrong === 0 && lowFired > 0 && lowMissed > 0);
+ok('a two-tailed rider reads as one clause, not two',
+   /Roll 15\+ or 6-:/.test(VS.cardDesc(VS.CARDS.spectral_grasp, false, null, false)));
 
 /* Aim is a genuine TRADE for the Voidadept: climbing the table starves the
  * bottom bands his blood engines feed on. Nobody else pays for Aim. */
@@ -1001,6 +1007,53 @@ ok('every remaining class has a starter deck whose cards all exist',
   ok('every enemy move type has an animation envelope' + (missing.length ? ' (missing: ' + missing.join(', ') + ')' : ''),
      missing.length === 0);
   ok('enemies actually use most of the animated set', Object.keys(used).length >= 10);
+})();
+
+
+/* ============ CARD TEXT BUDGET =========================================
+ * Cards are a fixed size, so the text has to fit the card — the card never
+ * grows to fit the text. test/cardfit.js measures that for real in Chromium;
+ * this is the cheap guardrail that runs on every commit, so a wordy new card
+ * fails here rather than silently clipping on someone's phone.
+ *
+ * The reward-grid rules box is 110x74px and holds five lines at its CSS size.
+ * Line breaks make the exact limit text-dependent, but nothing in the deck
+ * needs more than ~73 characters, so 84 is a ceiling with room to spare.
+ * ==================================================================== */
+(function () {
+  var BUDGET = 84;
+  var over = [], dup = [];
+  Object.keys(VS.CARDS).forEach(function (cid) {
+    var def = VS.CARDS[cid];
+    [false, true].forEach(function (up) {
+      if (up && !def.up) return;
+      var d = VS.cardDesc(def, up, null, false);
+      if (d.length > BUDGET) over.push(def.name + (up ? '+' : '') + ' (' + d.length + ')');
+      // A manual `text` APPENDS to the generated clauses, so it is easy to
+      // restate an effect the generator already printed (Parch and Raking Fire
+      // both did). Any sentence appearing twice is that bug.
+      var seen = {};
+      d.split(/(?<=\.)\s+/).forEach(function (sent) {
+        var t = sent.trim();
+        if (t.length > 6) { if (seen[t]) dup.push(def.name + (up ? '+' : '') + ': "' + t + '"'); seen[t] = 1; }
+      });
+    });
+  });
+  ok('every card fits the ' + BUDGET + '-char rules box' + (over.length ? ' — over: ' + over.join(', ') : ''),
+     over.length === 0);
+  ok('no card restates a clause it already generated' + (dup.length ? ' — ' + dup.join('; ') : ''),
+     dup.length === 0);
+
+  // The folding that keeps text short must never drop or reorder an effect.
+  var ion = VS.cardDesc(VS.CARDS.ion_storm, false, null, false);
+  ok('consecutive board-wide effects fold to one scope clause',
+     ion === 'ALL enemies: 5 damage, 1 Weak, 1 Vulnerable.');
+  var lone = VS.cardDesc({ fx: [{ k: 'dmg', v: 9, all: true }] }, false, null, false);
+  ok('a lone board-wide effect keeps its full sentence', lone === 'Deal 9 damage to ALL enemies.');
+  var split = VS.cardDesc({ fx: [{ k: 'status', s: 'weak', v: 1, who: 'allEnemies' }, { k: 'draw', v: 1 },
+                                 { k: 'status', s: 'vuln', v: 1, who: 'allEnemies' }] }, false, null, false);
+  ok('non-adjacent effects are never folded across what sits between them',
+     split === 'Apply 1 Weak to ALL enemies. Draw 1 card. Apply 1 Vulnerable to ALL enemies.');
 })();
 
 

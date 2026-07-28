@@ -1843,9 +1843,30 @@
       cs -= 0.4; desc.style.fontSize = cs.toFixed(2) + 'px';
     }
   }
+  // A name is one or two words, so it cannot be reflowed — "CONFLAGRATION" is
+  // simply wider than the band. Breaking it mid-word ("CONFLAGRATIO/N") is the
+  // worst of the options, so shrink the longest word until it fits instead.
+  // Names that wrap at a space are already fitting and are left alone.
+  function fitName(n) {
+    n.style.fontSize = '';
+    n.style.overflowWrap = 'normal';          // shrink before considering a break
+    var cs = parseFloat(getComputedStyle(n).fontSize) || 8.5;
+    var guard = 0;
+    // 2px of slack: letter-spacing leaves a trailing gap after the last glyph,
+    // so scrollWidth sits a pixel or two over clientWidth even when it fits.
+    while (n.scrollWidth > n.clientWidth + 2 && cs > 6.5 && guard++ < 14) {
+      cs -= 0.4; n.style.fontSize = cs.toFixed(2) + 'px';
+    }
+    // A hand card's name band is only ~47px wide, and a 13-letter single word
+    // (CONFLAGRATION) does not fit it at any readable size. There, breaking the
+    // word beats hiding half of it — but only after shrinking has failed.
+    if (n.scrollWidth > n.clientWidth + 2) n.style.overflowWrap = 'break-word';
+  }
   function fitCards(root) {
     if (!root) return;
-    (root.querySelectorAll ? root : document).querySelectorAll('.card .cdesc').forEach(fitOne);
+    var scope = root.querySelectorAll ? root : document;
+    scope.querySelectorAll('.card .cname').forEach(fitName);
+    scope.querySelectorAll('.card .cdesc').forEach(fitOne);
   }
   U.fitCards = fitCards;
 
@@ -3197,6 +3218,7 @@
       ns.cardDesc(def, up, ctx, vtouch), def.unplayable, cid);
     return d;
   }
+  U.cardEl = cardEl;   // test/cardfit.js measures real cards in a real grid
 
   /* ====================== card inspect (right-click / long-press) ====================== */
   var $inspect = null;
