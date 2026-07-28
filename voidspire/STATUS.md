@@ -101,11 +101,20 @@ The user dislikes the current Vanguard avatar and we're choosing a replacement.
    that residual ~0.6-0.8 spread is left as-is rather than risk fractional
    block nerfs that hurt its identity — if revisited, target its block engine
    (`techBlockPerPoint` / Echo) from the top, not the laggards from the bottom.
-2. **Rare combat stalemate.** A pure-defence build (lots of Shield + Phase Lock
-   retain) vs a non-escalating enemy can loop forever (~1 in several thousand bot
-   runs; sim's loop guard catches it and counts it as a "stall"). Proposed fix:
-   an **enrage** — enemies gain +1 Strength per turn after ~turn 12-15. Add a
-   knob in `js/balance.js` and apply in the enemy turn in `js/engine.js`.
+2. ~~**Rare combat stalemate.**~~ **FIXED — "the count runs out"** (`BALANCE.enrage`).
+   Diagnosis first: the stalls were not one bug. A Jammer can burn your last
+   attack into exhaust, leaving a Barricade build literally unable to deal
+   damage while also unable to die — 2500 Shield vs a 14 HP drone, forever.
+   Threshold set from measurement, not taste: over **26,469 simulated fights**
+   p99 = 8 turns, p99.9 = 14, bosses p99 = 12, and only **0.05% reach turn 20**.
+   So past turn 20 enemies gain +2 Might per turn *and* 34% of your Shield fails
+   per turn — both, because Might alone cannot chew an unbounded Barricade pool
+   in any number of turns a player would sit through. An offenceless turtle now
+   dies at turn ~30 with a loud warning at 20. **0 stalls in 8100 runs** (the old
+   rate would have expected ~9), with every difficulty metric unchanged.
+   Note: the sim's loop guard was counting *iterations* (card plays), not turns,
+   so it was clipping long-but-terminating fights at ~29 turns and reporting
+   them as stalls; it counts turns now.
 3. Minor: user noted the Void Adept psi-motes are quite faint — could brighten
    slightly if asked (in `drawPlayerFx` in `js/render.js`).
 

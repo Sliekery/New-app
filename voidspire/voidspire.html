@@ -1700,6 +1700,28 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       },
     },
 
+    /* ---- The count runs out ------------------------------------------
+     * A fight with no clock can run forever: Barricade / Phase Lock stop your
+     * Shield expiring, so a defensive build that has lost its offence (a Jammer
+     * burning out the last attack, say) becomes both unkillable and unable to
+     * kill. It happened in roughly 1 bot run in 900.
+     *
+     * `turn` is set from measurement, not taste: over 26,469 simulated fights
+     * the 99th percentile is 8 turns and the 99.9th is 14, and bosses — the
+     * longest legitimate fights — sit at p99 = 12. Only 0.05% of fights reach
+     * turn 20 at all, and essentially all of those are the pathology.
+     *
+     * Past that line the Spire stops waiting. Enemies gain Might every turn AND
+     * your Shield starts sloughing off, because raising damage alone does not
+     * beat an unbounded Shield pool in any sensible number of turns.
+     * ------------------------------------------------------------------ */
+    enrage: {
+      turn: 20,          // last patient turn; escalation begins on the next one
+      str: 2,            // Might each enemy gains per turn, cumulative
+      shieldDecay: 0.34, // fraction of your Shield that fails each turn
+      shieldFloor: 5,    // ...and at least this much, so small pools still drain
+    },
+
     /* ---- Status effects ---------------------------------------------- */
     status: {
       vulnMult: 1.5,            // damage taken multiplier while Vulnerable
@@ -7909,6 +7931,25 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (statN(p, 'regen')) { heal(statN(p, 'regen')); addStatus(p, 'regen', -1); }
     if (statN(p, 'vuln')) addStatus(p, 'vuln', -1);
     if (statN(p, 'weak')) addStatus(p, 'weak', -1);
+
+    // THE COUNT RUNS OUT: past the patience threshold the fight acquires a
+    // clock. Enemies gain Might every turn and your Shield starts failing —
+    // both, because Might alone cannot chew through an unbounded Barricade pool
+    // in any number of turns a player would sit through. See BALANCE.enrage.
+    var ENR = B.enrage || {};
+    if (ENR.turn && c.turn > ENR.turn && !c.over && r.phase !== 'dead') {
+      if (!c.enraged) { c.enraged = true; emit('enrage', { turn: c.turn }); }
+      c.enemies.forEach(function (en, idx) {
+        if (!en.alive) return;
+        addStatus(en, 'str', ENR.str || 1);
+        emit('status', { who: 'enemy', idx: idx, s: 'str', v: statN(en, 'str') });
+      });
+      if (p.block > 0) {
+        var lost = Math.max(ENR.shieldFloor || 5, Math.ceil(p.block * (ENR.shieldDecay || 0.25)));
+        p.block = Math.max(0, p.block - lost);
+        emit('enrageDecay', { lost: lost, block: p.block });
+      }
+    }
 
     // enemies act
     var s = r.sector;
@@ -14418,6 +14459,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         case 'block': case 'heal': case 'status': return 60;
         case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120; case 'charge': return 100; case 'jam': return 120; case 'corrupt': return 160; case 'overload': return 120; case 'discipline': return 90;
         case 'revive': return 260; case 'salvage': return 80; case 'win': return 250;
+        case 'enrage': return 900;        // the announcement gets its own beat
+        case 'enrageDecay': return 120;
         default: return 0;
       }
     }
@@ -14442,6 +14485,28 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     evts.forEach(function (e, _ei) {
       delay = times[_ei];
       switch (e.type) {
+        // THE COUNT RUNS OUT — a fight that has gone on too long acquires a
+        // clock. Announce it loudly the once, then narrate each Shield failure,
+        // because losing Shield to an unexplained rule is the worst version of
+        // this mechanic.
+        case 'enrage':
+          (function (d) {
+            setTimeout(function () {
+              SFX.hit();
+              R.flash();
+              toast('THE COUNT RUNS OUT — HOSTILES GROW STRONGER EACH TURN', 2600);
+            }, d);
+          })(delay);
+          break;
+        case 'enrageDecay':
+          // On the turn it starts, the announcement above is the message that
+          // matters — don't let the running total overwrite it 900ms later.
+          if (!evts.some(function (x) { return x.type === 'enrage'; })) {
+            (function (e, d) {
+              setTimeout(function () { toast('YOUR SHIELD FAILS  −' + e.lost, 1200); }, d);
+            })(e, delay);
+          }
+          break;
         case 'enemyMove':
           // EVERY move animates now, not just attack/drain. A turn where three
           // enemies buff, shield and hex used to be completely silent.
@@ -16269,6 +16334,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         E2('The d20', 'Every attack rolls a visible d20. A high enough roll is a CRIT for ' + crit + '× damage. Some relics widen the crit range.'),
         E2('Damage order', 'Damage strips Shield first, then HP. Vulnerable and Weak change the numbers before they land.'),
         E2('Death', 'At 0 HP the run ends — unless a relic or Echo pulls you back.', 'bad'),
+        E2('The count runs out', 'Nothing down here waits forever. After turn ' + (B.enrage ? B.enrage.turn : 20) +
+          ' every enemy gains Might each turn and your Shield begins to fail. Fights almost never reach it — but a turtle that has lost its offence will not be allowed to stand there.', 'bad'),
       ] },
       { cat: 'Attributes', entries: [
         E2('MIGHT', 'Raises Might-scaling weapon damage. The Vanguard’s core stat.', 'off'),

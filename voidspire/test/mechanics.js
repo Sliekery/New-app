@@ -1231,5 +1231,71 @@ ok('every remaining class has a starter deck whose cards all exist',
      inert.length === 0);
 })();
 
+/* ============ THE COUNT RUNS OUT (enrage) ==============================
+ * A fight used to have no clock: Barricade stops your Shield expiring, so a
+ * defensive build that has lost its offence — a Jammer burning out the last
+ * attack — was both unkillable and unable to kill. Roughly 1 bot run in 900
+ * hit it. The fix has to end that fight WITHOUT touching the 99.95% of fights
+ * that finish long before it, so both halves are asserted here.
+ * ==================================================================== */
+(function () {
+  var ENR = VS.BALANCE.enrage;
+  ok('the patience threshold clears every legitimate fight (turn ' + ENR.turn + ')', ENR.turn >= 15);
+
+  function turtle(cards) {
+    E.seed(3); E.newRun('technomancer'); E.takeFirstMark(0);
+    E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
+    E.startNode('fight');
+    var c = E.combat;
+    c.player.statuses.barricade = 1;    // Shield never expires
+    c.player.block = 2500;
+    if (!cards) { c.hand = []; c.drawPile = []; c.discard = []; }   // zero offence
+    return c;
+  }
+
+  // 1. the pathology terminates
+  var c = turtle(false), turns = 0;
+  while (!c.over && E.run.phase !== 'dead' && turns < 300) { E.endTurn(); turns++; }
+  ok('an offenceless turtle no longer stands there forever (' + turns + ' turns)', turns < 120);
+  ok('and the fight actually resolves rather than just stopping',
+     E.run.phase === 'dead' || c.over);
+
+  // 2. nothing happens before the line
+  // Enemies buff themselves as part of normal play, so the assertion is about
+  // the RULE firing, not about Might being zero.
+  var c2 = turtle(false);
+  E.events.length = 0;
+  for (var t = 0; t < ENR.turn - 1 && !c2.over && E.run.phase !== 'dead'; t++) E.endTurn();
+  var early = E.events.filter(function (e) { return e.type === 'enrage' || e.type === 'enrageDecay'; });
+  ok('nothing escalates before the threshold (' + early.length + ' events)', early.length === 0);
+  ok('and Shield only falls to actual damage, not to decay', !c2.enraged);
+
+  // 3. it announces itself before it starts costing you anything
+  var c3 = turtle(false);
+  E.events.length = 0;
+  while (!c3.enraged && !c3.over && E.run.phase !== 'dead') E.endTurn();
+  var evs = E.events.filter(function (e) { return e.type === 'enrage'; });
+  ok('the escalation announces itself exactly once', evs.length === 1);
+  ok('and it starts after the threshold, not on it', evs.length === 1 && evs[0].turn > ENR.turn);
+
+  // 4. a normal fight never sees it — this is the half that matters most
+  var reached = 0, fights = 0;
+  for (var seed = 0; seed < 60; seed++) {
+    E.seed(seed); E.newRun('vanguard'); E.takeFirstMark(0);
+    E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
+    E.startNode('fight');
+    var cc = E.combat, guard = 0;
+    while (!cc.over && E.run.phase !== 'dead' && guard++ < 60) {
+      var played = false;
+      for (var h = 0; h < cc.hand.length; h++) { if (E.playCard(h, 0)) { played = true; break; } }
+      if (!played) E.endTurn();
+    }
+    fights++;
+    if (cc.enraged) reached++;
+    E.run.phase = 'map';
+  }
+  ok('an ordinary fight never reaches the clock (' + reached + '/' + fights + ')', reached === 0);
+})();
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

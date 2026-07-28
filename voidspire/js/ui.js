@@ -2854,6 +2854,8 @@
         case 'block': case 'heal': case 'status': return 60;
         case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120; case 'charge': return 100; case 'jam': return 120; case 'corrupt': return 160; case 'overload': return 120; case 'discipline': return 90;
         case 'revive': return 260; case 'salvage': return 80; case 'win': return 250;
+        case 'enrage': return 900;        // the announcement gets its own beat
+        case 'enrageDecay': return 120;
         default: return 0;
       }
     }
@@ -2878,6 +2880,28 @@
     evts.forEach(function (e, _ei) {
       delay = times[_ei];
       switch (e.type) {
+        // THE COUNT RUNS OUT — a fight that has gone on too long acquires a
+        // clock. Announce it loudly the once, then narrate each Shield failure,
+        // because losing Shield to an unexplained rule is the worst version of
+        // this mechanic.
+        case 'enrage':
+          (function (d) {
+            setTimeout(function () {
+              SFX.hit();
+              R.flash();
+              toast('THE COUNT RUNS OUT — HOSTILES GROW STRONGER EACH TURN', 2600);
+            }, d);
+          })(delay);
+          break;
+        case 'enrageDecay':
+          // On the turn it starts, the announcement above is the message that
+          // matters — don't let the running total overwrite it 900ms later.
+          if (!evts.some(function (x) { return x.type === 'enrage'; })) {
+            (function (e, d) {
+              setTimeout(function () { toast('YOUR SHIELD FAILS  −' + e.lost, 1200); }, d);
+            })(e, delay);
+          }
+          break;
         case 'enemyMove':
           // EVERY move animates now, not just attack/drain. A turn where three
           // enemies buff, shield and hex used to be completely silent.
@@ -4705,6 +4729,8 @@
         E2('The d20', 'Every attack rolls a visible d20. A high enough roll is a CRIT for ' + crit + '× damage. Some relics widen the crit range.'),
         E2('Damage order', 'Damage strips Shield first, then HP. Vulnerable and Weak change the numbers before they land.'),
         E2('Death', 'At 0 HP the run ends — unless a relic or Echo pulls you back.', 'bad'),
+        E2('The count runs out', 'Nothing down here waits forever. After turn ' + (B.enrage ? B.enrage.turn : 20) +
+          ' every enemy gains Might each turn and your Shield begins to fail. Fights almost never reach it — but a turtle that has lost its offence will not be allowed to stand there.', 'bad'),
       ] },
       { cat: 'Attributes', entries: [
         E2('MIGHT', 'Raises Might-scaling weapon damage. The Vanguard’s core stat.', 'off'),

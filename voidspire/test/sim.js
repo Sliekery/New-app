@@ -278,7 +278,11 @@ function botCombat() {
     var ok = E.playCard(choice, target);
     if (!ok) E.endTurn();
   }
-  if (guard >= 400) throw new Error('combat loop guard tripped (sector ' + E.run.sector + ')');
+  // Turns, not iterations: a defensive deck plays several cards a turn, so an
+  // iteration budget silently clipped long-but-terminating fights. The clock in
+  // BALANCE.enrage ends any real fight well inside this.
+  if (E.combat && E.combat.turn >= 150) throw new Error('combat loop guard tripped (sector ' + E.run.sector + ')');
+  if (guard >= 4000) throw new Error('combat loop guard tripped (sector ' + E.run.sector + ')');
 }
 function card0(c, idx) { return c.hand[idx]; }
 

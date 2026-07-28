@@ -98,6 +98,28 @@
       },
     },
 
+    /* ---- The count runs out ------------------------------------------
+     * A fight with no clock can run forever: Barricade / Phase Lock stop your
+     * Shield expiring, so a defensive build that has lost its offence (a Jammer
+     * burning out the last attack, say) becomes both unkillable and unable to
+     * kill. It happened in roughly 1 bot run in 900.
+     *
+     * `turn` is set from measurement, not taste: over 26,469 simulated fights
+     * the 99th percentile is 8 turns and the 99.9th is 14, and bosses — the
+     * longest legitimate fights — sit at p99 = 12. Only 0.05% of fights reach
+     * turn 20 at all, and essentially all of those are the pathology.
+     *
+     * Past that line the Spire stops waiting. Enemies gain Might every turn AND
+     * your Shield starts sloughing off, because raising damage alone does not
+     * beat an unbounded Shield pool in any sensible number of turns.
+     * ------------------------------------------------------------------ */
+    enrage: {
+      turn: 20,          // last patient turn; escalation begins on the next one
+      str: 2,            // Might each enemy gains per turn, cumulative
+      shieldDecay: 0.34, // fraction of your Shield that fails each turn
+      shieldFloor: 5,    // ...and at least this much, so small pools still drain
+    },
+
     /* ---- Status effects ---------------------------------------------- */
     status: {
       vulnMult: 1.5,            // damage taken multiplier while Vulnerable

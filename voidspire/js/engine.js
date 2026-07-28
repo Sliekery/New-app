@@ -1994,6 +1994,25 @@
     if (statN(p, 'vuln')) addStatus(p, 'vuln', -1);
     if (statN(p, 'weak')) addStatus(p, 'weak', -1);
 
+    // THE COUNT RUNS OUT: past the patience threshold the fight acquires a
+    // clock. Enemies gain Might every turn and your Shield starts failing —
+    // both, because Might alone cannot chew through an unbounded Barricade pool
+    // in any number of turns a player would sit through. See BALANCE.enrage.
+    var ENR = B.enrage || {};
+    if (ENR.turn && c.turn > ENR.turn && !c.over && r.phase !== 'dead') {
+      if (!c.enraged) { c.enraged = true; emit('enrage', { turn: c.turn }); }
+      c.enemies.forEach(function (en, idx) {
+        if (!en.alive) return;
+        addStatus(en, 'str', ENR.str || 1);
+        emit('status', { who: 'enemy', idx: idx, s: 'str', v: statN(en, 'str') });
+      });
+      if (p.block > 0) {
+        var lost = Math.max(ENR.shieldFloor || 5, Math.ceil(p.block * (ENR.shieldDecay || 0.25)));
+        p.block = Math.max(0, p.block - lost);
+        emit('enrageDecay', { lost: lost, block: p.block });
+      }
+    }
+
     // enemies act
     var s = r.sector;
     c.enemies.forEach(function (en, idx) {
