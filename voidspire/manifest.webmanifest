@@ -1,0 +1,17 @@
+{
+  "name": "VOIDSPIRE",
+  "short_name": "VOIDSPIRE",
+  "description": "A one-finger turn-based sci-fi roguelike deckbuilder.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "portrait",
+  "background_color": "#04080a",
+  "theme_color": "#04080a",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
