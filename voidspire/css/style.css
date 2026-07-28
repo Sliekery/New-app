@@ -203,10 +203,12 @@ html, body {
 /* energy cost — a clean vector hexagon (line-art, matches the CRT look) */
 .card .cost { position: absolute; top: 0; left: 0; width: 24px; height: 24px; z-index: 3; }
 .card .cost svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.card .cost svg polygon {
-  fill: rgba(4, 12, 16, 0.5); stroke: var(--cyan); stroke-width: 1.5;
-  vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 2.5px rgba(65, 216, 255, 0.85));
+.card .cost svg { display: none; }   /* the hex pip is replaced by a lozenge */
+.card .cost {
+  background: rgba(4, 12, 16, 0.82); border: 1.5px solid var(--cyan); border-radius: 999px;
+  box-shadow: 0 0 6px -1px rgba(65, 216, 255, 0.8);
 }
+.card.unaffordable .cost { border-color: #ff6a6a; box-shadow: 0 0 6px -1px rgba(255,80,80,0.7); }
 .card .cost .cost-n {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: bold; color: #eaffff; text-shadow: 0 0 4px rgba(65, 216, 255, 0.9), 0 1px 1px #000;
@@ -240,34 +242,28 @@ html, body {
 .kw-ex { color: #ff8090; } .kw-rt { color: #9bd6ff; } .kw-hl { color: #7dffb0; }
 .kw-ec, .kw-th, .kw-rg, .kw-pa { color: #cfeede; }
 /* rare cards get an animated frame glow */
-.card.rare { border-color: var(--amber); }
+.card.rare { --cc: var(--amber); }
 .card.rare::before {
-  content: ''; position: absolute; inset: -1px; pointer-events: none; z-index: 2;
-  border: 1px solid rgba(255, 176, 46, 0.5);
-  clip-path: polygon(0 6px, 6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 2;
   animation: rareGlow 2.4s ease-in-out infinite;
 }
 @keyframes rareGlow { 0%, 100% { box-shadow: inset 0 0 6px rgba(255,176,46,0.25); } 50% { box-shadow: inset 0 0 12px rgba(255,176,46,0.5); } }
-.card.unc { border-color: #3aa6c8; }
+.card.unc { }
 /* legendary cards — brighter gold animated frame */
-.card.legendary { border-color: #ffd24a; }
+.card.legendary { --cc: #ffd24a; }
 .card.legendary::before {
-  content: ''; position: absolute; inset: -1px; pointer-events: none; z-index: 2;
-  border: 1px solid rgba(255, 210, 74, 0.7);
-  clip-path: polygon(0 6px, 6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 2;
   animation: legGlow 1.8s ease-in-out infinite;
 }
 @keyframes legGlow { 0%, 100% { box-shadow: inset 0 0 8px rgba(255,210,74,0.35); } 50% { box-shadow: inset 0 0 18px rgba(255,210,74,0.75); } }
 .card .rline.r4 { background: linear-gradient(90deg, #ffd24a, transparent); box-shadow: 0 0 6px rgba(255,210,74,0.7); }
 .card .rline.r4 .rtag { color: #ffe88a; }
 /* void-touched (corrupted) cards — magenta, hungry */
-.card.vtouched { border-color: var(--magenta); }
+.card.vtouched { --cc: var(--magenta); }
 .card.vtouched .cart { color: var(--magenta) !important; }
 .card.vtouched .cname { color: #dca6ff; }
 .card.vtouched::before {
-  content: ''; position: absolute; inset: -1px; pointer-events: none; z-index: 2;
-  border: 1px solid rgba(200, 107, 255, 0.65);
-  clip-path: polygon(0 6px, 6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 2;
   animation: vtouchGlow 2s ease-in-out infinite;
 }
 @keyframes vtouchGlow { 0%, 100% { box-shadow: inset 0 0 8px rgba(200,107,255,0.3); } 50% { box-shadow: inset 0 0 18px rgba(200,107,255,0.6); } }
@@ -279,12 +275,39 @@ html, body {
 .card.cls-voidadept   { --cc: #c86bff; --ccd: #53306e; }
 .card.cls-warpcaller  { --cc: #8f7bff; --ccd: #37346a; }
 .card.cls-shared      { --cc: #9fb6c0; --ccd: #445158; }
+/* ===== "Targeting Solution": no frame — four corner brackets and a reticle.
+   Brackets live in the background stack so .rare / .corrupted / .swarm-disabled
+   can still own ::before and ::after. ===== */
 .card {
-  border: 1.5px solid var(--cc);
-  background:
+  --bkt: 15px;            /* bracket arm length */
+  --bkw: 2px;             /* bracket thickness  */
+  border: 1.5px solid transparent;
+  background-image:
+    /* top-left */    linear-gradient(var(--cc), var(--cc)), linear-gradient(var(--cc), var(--cc)),
+    /* top-right */   linear-gradient(var(--cc), var(--cc)), linear-gradient(var(--cc), var(--cc)),
+    /* bottom-left */ linear-gradient(var(--cc), var(--cc)), linear-gradient(var(--cc), var(--cc)),
+    /* bottom-right */linear-gradient(var(--cc), var(--cc)), linear-gradient(var(--cc), var(--cc)),
     linear-gradient(160deg, rgba(255,255,255,0.035), transparent 36%),
     linear-gradient(160deg, var(--panel2), var(--panel));
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.45), inset 0 0 11px rgba(0,0,0,0.5), 0 0 7px -2px var(--cc);
+  background-repeat: no-repeat;
+  background-size:
+    var(--bkt) var(--bkw), var(--bkw) var(--bkt),
+    var(--bkt) var(--bkw), var(--bkw) var(--bkt),
+    var(--bkt) var(--bkw), var(--bkw) var(--bkt),
+    var(--bkt) var(--bkw), var(--bkw) var(--bkt),
+    auto, auto;
+  background-position:
+    0 0, 0 0,
+    100% 0, 100% 0,
+    0 100%, 0 100%,
+    100% 100%, 100% 100%,
+    0 0, 0 0;
+  background-origin: border-box;
+  /* the silhouette has to read on its own now the frame is gone — a dark inner
+     edge plus the class glow keeps fanned cards from blurring together */
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.6), inset 0 0 14px rgba(0,0,0,0.66),
+              -4px 0 12px rgba(0,0,0,0.8);
+  clip-path: none;
 }
 /* name band, in the class colour */
 .card .cname {
@@ -301,6 +324,15 @@ html, body {
 .card .cmotif { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 0; opacity: 0.13; }
 .card .cmotif svg.cmotif-svg { width: 48px; height: 48px; color: var(--cc); }
 .card .cart svg.cart-svg { position: relative; z-index: 1; width: 32px; height: 32px; filter: drop-shadow(0 0 3px var(--cc)); }
+/* fire-control reticle: a ring and two range ticks sat behind the glyph */
+.card .cart::after {
+  content: ''; position: absolute; z-index: 0; left: 50%; top: 50%; width: 34px; height: 34px;
+  transform: translate(-50%, -50%); border: 1px solid var(--cc); border-radius: 50%; opacity: 0.34;
+}
+.card .cart .cmotif::after {
+  content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 46px; height: 1px; background: var(--cc); opacity: 0.22;
+}
 /* type badge (consistent across classes so type stays readable) */
 .card .ctype { position: absolute; top: 4px; right: 4px; width: 13px; height: 13px; z-index: 3; }
 .card .ctype svg { width: 100%; height: 100%; filter: drop-shadow(0 0 2px currentColor); }
