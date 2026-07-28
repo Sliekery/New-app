@@ -46,6 +46,13 @@ var SCREENS = {
   forge: function () { var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.startNode('forge'); VS.ui.refresh(); },
   treasure: function () { var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.startNode('treasure'); VS.ui.refresh(); },
   die: function () { var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.run.phase = 'map'; VS.ui.refresh(); VS.ui.showDie(); },
+  sector: function () { var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.run.sector = 2; E.run.phase = 'sector-intro'; VS.ui.refresh(); },
+  // the widest panel in the game, and the longest single line of prose
+  cutscene: function () {
+    var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.run.sector = 4;
+    E.run.cutscene = { id: 'floor', panel: 1, next: 'map' };
+    E.run.phase = 'cutscene'; VS.ui.refresh();
+  },
 };
 
 // Runs in the page: measure the live overlay.

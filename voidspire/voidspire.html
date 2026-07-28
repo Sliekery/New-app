@@ -1321,6 +1321,61 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   max-width: 340px; min-height: 96px; font-size: 15px; line-height: 1.6;
   color: #d6f4ff; text-align: center; margin-bottom: 26px;
 }
+/* ---- cutscene: a wide vector panel, drifting ------------------------
+   The scene is a single still, but its layers move at different rates, so it
+   reads as a slow push rather than a picture. Depth (--d) drives amplitude:
+   far layers barely move, near ones swim. */
+.cutscene-screen { justify-content: safe center; gap: 0; }
+.cut-title {
+  font-size: 12px; letter-spacing: 6px; margin-bottom: 14px; opacity: 0.9;
+  text-shadow: 0 0 14px currentColor;
+}
+.cut-frame {
+  position: relative; width: 100%; max-width: 330px; aspect-ratio: 5 / 3;
+  border: 1px solid rgba(120, 170, 145, 0.28); background: rgba(2, 7, 9, 0.7);
+  box-shadow: inset 0 0 34px rgba(0, 0, 0, 0.8);
+  clip-path: polygon(0 8px, 8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+  overflow: hidden;
+}
+/* vignette + a scan sweep, so the panel sits in the same CRT as the game */
+.cut-frame::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%, transparent 42%, rgba(2, 7, 9, 0.92) 100%),
+              repeating-linear-gradient(to bottom, transparent 0 2px, rgba(0, 0, 0, 0.3) 2px 3px);
+}
+.cut-svg { width: 100%; height: 100%; }
+.cut-svg polyline { stroke-width: 1.1; opacity: 0.92; }
+.cut-layer {
+  transform-origin: 50% 50%;
+  animation: cutDrift calc(13s - var(--d) * 5s) ease-in-out infinite alternate;
+  animation-delay: calc(var(--i) * -1.7s);
+}
+@keyframes cutDrift {
+  from { transform: translate3d(calc(var(--d) * -3px), calc(var(--d) * 2px), 0) scale(calc(1 + var(--d) * 0.02)); }
+  to   { transform: translate3d(calc(var(--d) * 3px), calc(var(--d) * -2px), 0) scale(calc(1 + var(--d) * 0.07)); }
+}
+.sector-line {
+  max-width: 320px; font-size: 12.5px; line-height: 1.6; color: #b7d4c4;
+  text-align: center; font-style: italic; margin: 10px 0 0;
+}
+.sector-line.faction-line { color: #8fae9d; font-size: 11.5px; margin: 8px 0 20px; }
+.cut-spark {
+  fill: currentColor; stroke: none; filter: drop-shadow(0 0 3px currentColor);
+  animation: cutPulse 3.4s ease-in-out infinite;
+  animation-delay: calc(var(--k) * -0.7s);
+}
+@keyframes cutPulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+.cut-dots { display: flex; gap: 7px; margin: 14px 0 4px; }
+.cut-dots span {
+  width: 5px; height: 5px; border: 1px solid rgba(150, 200, 175, 0.5); transform: rotate(45deg);
+}
+.cut-dots span.on { background: currentColor; box-shadow: 0 0 7px currentColor; border-color: transparent; }
+.cut-text {
+  max-width: 330px; min-height: 82px; font-size: 14px; line-height: 1.62;
+  color: #d8efe2; text-align: center; margin: 8px 0 18px; font-style: italic;
+}
+@media (prefers-reduced-motion: reduce) { .cut-layer { animation: none; } }
+
 .echo-ic { color: #b8ecff !important; }
 .echo-flavor { font-style: italic; opacity: 0.7; }
 .echo-list { display: flex; flex-direction: column; gap: 10px; width: 100%; }
@@ -4926,205 +4981,205 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     {
       id: 'sabacc_den', title: 'SABACC DEN', gambleDen: true,
       art: { c: '#ffb02e', p: [[-0.7,-0.6, 0.7,-0.6, 0.7,0.6, -0.7,0.6, -0.7,-0.6], [-0.4,-0.3, -0.4,0.3], [0,-0.3, 0,0.3], [0.4,-0.3, 0.4,0.3], [-0.55,0, 0.55,0]], e: [[-0.4,0],[0.4,0]], m: [-0.12,0.3, 0.12,0.3] },
-      text: 'A back-room game runs hot behind a salvage bar — a cup of bones, a battered wheel, a deck of marked cards. The house grins through a cracked rebreather. "Care to test your luck, traveler? Stake your scrip — the bolder the bet, the richer the prize."',
+      text: "A board laid out on a slab of decking, and a chair that keeps being sat in. The house wears a rebreather and does not appear to use it. “You are carrying a die,” it says. “Everyone is. Nobody remembers being handed one.”",
     },
     {
-      id: 'cryopod', title: 'DERELICT CRYOPOD',
+      id: 'cryopod', title: "THE POD",
       art: { c: '#41d8ff', p: [[-0.55,-0.95, 0.55,-0.95, 0.7,-0.3, 0.7,0.7, -0.7,0.7, -0.7,-0.3, -0.55,-0.95], [-0.4,-0.7, 0.4,-0.7, 0.45,0.1, -0.45,0.1, -0.4,-0.7], [-0.18,-0.45, 0.18,-0.45, 0.22,-0.1, 0,0.02, -0.22,-0.1, -0.18,-0.45], [0.45,-0.55, 0.62,-0.6], [-0.45,-0.25, -0.62,-0.15], [-0.5,0.4, 0.5,0.4]], e: [[-0.08,-0.3],[0.08,-0.3]], m: [-0.07,-0.1, 0.07,-0.1] },
-      text: 'A cracked cryopod hums in the wreckage of a troop carrier. Something — or someone — is still sealed inside. The lock panel sparks.',
+      text: "Something is still running under the frost. There is a shape behind the glass that has not finished being a person, and a lock panel throwing sparks at nobody.",
       choices: [
-        { label: 'Force the seal — wake whatever’s inside', sub: 'Salvage, an ally, or a passenger. No way to know.',
+        { label: "Break the seal", sub: 'Salvage, an ally, or a passenger. No way to know.',
           gamble: [
-            { w: 3, text: 'A long-dead officer, and a relic of the old fleet still locked in their frozen grip.', fx: { artifact: true } },
-            { w: 2, text: 'The sleeper stirs — a stranded marine, alive, who throws in with you and teaches you a trick of the trade.', fx: { card: 'rare' } },
-            { w: 3, text: 'Something that was never human uncurls out of the frost and into you before you put it down.', fx: { curse: 'void_taint', hp: -10 } },
+            { w: 3, text: "An officer of some finished fleet. Their hand has closed on something and will not be talked out of it.", fx: { artifact: true } },
+            { w: 2, text: "The sleeper comes up wrong, and then comes up. They walk the next stretch with you and show you the one thing they were good at.", fx: { card: 'rare' } },
+            { w: 3, text: "What uncurls out of the frost was never the shape of a pod. You put it down. Some of it stays.", fx: { curse: 'void_taint', hp: -10 } },
           ] },
-        { label: 'Slow-thaw it safely', sub: 'TECH check, DC 13 — patient and careful', check: { attr: 'tech', dc: 13 },
-          success: { text: 'Hours of careful warming. You recover the pod’s supply cache intact, and the sleeper never wakes.', fx: { credits: 50, card: 'random' } },
-          fail: { text: 'The cycle faults and vents cryo-gas across your armor.', fx: { hp: -9 } } },
-        { label: 'Leave it', outcome: { text: 'Some doors are sealed for a reason. You move on.', fx: {} } },
+        { label: "Bring it up slowly", sub: 'TECH check, DC 13 — patient and careful', check: { attr: 'tech', dc: 13 },
+          success: { text: "You bring it up over hours. The stores are intact and the sleeper never surfaces.", fx: { credits: 50, card: 'random' } },
+          fail: { text: "The cycle faults and all of the cold arrives at once.", fx: { hp: -9 } } },
+        { label: "Leave it sealed", outcome: { text: "Some things are sealed from the inside. You go on down.", fx: {} } },
       ],
     },
     {
       id: 'salvage_drone', title: 'SALVAGE DRONE',
       art: { c: '#ffb02e', p: [[-0.6,-0.35, 0.6,-0.35, 0.6,0.45, -0.6,0.45, -0.6,-0.35], [-0.6,-0.05, 0.6,-0.05], [-0.2,-0.35, -0.2,0.45], [0.2,-0.35, 0.2,0.45], [-0.4,-0.35, -0.52,-0.7], [0.4,-0.35, 0.52,-0.7], [-0.52,-0.7, 0.52,-0.7]], e: [[0,0.2]], m: [-0.14,0.34, 0.14,0.34] },
-      text: 'A battered logistics drone, its faction markings scoured off, blocks the corridor. It chirps and unfolds a tray of scavenged ordnance — yours for scrip, or it will happily haul away a piece of failing kit for parts.',
+      text: "A hauler with its markings scoured off is stood in the stairway. It chirps, unfolds a tray, and waits. It has been waiting. The dust on it says roughly how long.",
       choices: [
-        { label: 'Buy salvage', sub: '¢40', cost: 40, outcome: { text: 'The drone takes the scrip and disgorges a piece of tech no faction would admit to making.', fx: { card: 'colorless' } } },
-        { label: 'Let it strip a flawed weapon', sub: 'Remove a card from your deck',
-          outcome: { text: 'You hand over the piece of kit that has been dragging you down. The drone dismantles it for parts, chirping with something like gratitude.', fx: { pick: 'remove' } } },
-        { label: 'Strip it by force', sub: 'TECH check, DC 13', check: { attr: 'tech', dc: 13 },
-          success: { text: 'You crack the housing and pull the good stuff before it can object.', fx: { card: 'colorless' } },
-          fail: { text: 'It discharges a capacitor into your gauntlet and trundles off, beeping what can only be an insult.', fx: { hp: -9 } } },
+        { label: "Buy what it is holding", sub: '¢40', cost: 40, outcome: { text: "It takes the scrip and gives up a thing that nobody would admit to building.", fx: { card: 'colorless' } } },
+        { label: "Let it strip a bad piece", sub: 'Remove a card from your deck',
+          outcome: { text: "You hand over the piece that has been dragging. It takes the thing apart very carefully, chirping, as though it had been asked to a long time ago.", fx: { pick: 'remove' } } },
+        { label: "Take it by force", sub: 'TECH check, DC 13', check: { attr: 'tech', dc: 13 },
+          success: { text: "You get the housing open and take the good parts before it can object.", fx: { card: 'colorless' } },
+          fail: { text: "It puts a capacitor through your gauntlet and trundles off, beeping.", fx: { hp: -9 } } },
       ],
     },
     {
       id: 'wounded_marine', title: 'WOUNDED MARINE',
       art: { c: '#5dff88', p: [[-0.55,-0.5, -0.45,-0.85, 0.45,-0.85, 0.55,-0.5, 0.55,0.0, 0.4,0.2, -0.4,0.2, -0.55,0.0, -0.55,-0.5], [-0.4,-0.5, 0.4,-0.5, 0.35,-0.15, -0.35,-0.15, -0.4,-0.5], [0.15,-0.85, 0.05,-0.5, 0.2,-0.32], [-0.85,0.7, -0.6,0.32, 0.6,0.32, 0.85,0.7], [-0.3,0.45, -0.1,0.45]], e: [[-0.15,-0.32],[0.15,-0.32]], m: [-0.1,0.0, 0.1,0.0] },
-      text: 'A marine of the 9th Voidborne slumps against a bulkhead, suit breached, breath ragged. “Took six of them with me,” she rasps. “Take my rig. Make it count.”',
+      text: "She is sat against the bulkhead with her suit open, talking to somebody who is not you. “Six,” she says. “I got six of them.” Then she finds you. “Take the rig. Make it count for something.”",
       choices: [
-        { label: 'Stabilize her', sub: 'Spend 12 HP of stims — she fights on with you',
-          outcome: { text: 'You burn your own stims patching her suit. She holds the line at your side to the next station and drills you on her signature move before the evac beacon takes her.', fx: { hp: -12, card: 'rare' } },
+        { label: "Patch her up", sub: 'Spend 12 HP of stims — she fights on with you',
+          outcome: { text: "You spend your own stims on her seals. She holds the next stretch at your shoulder and drills you on the move she was known for, and then the light comes for her.", fx: { hp: -12, card: 'rare' } },
         },
-        { label: 'Loot her rig', sub: 'Take from the dying',
-          outcome: { text: 'You strip the military-grade rig while she watches. It is worth a great deal. So was she — and the weight of it rides with you now.', fx: { credits: 45, curse: 'void_taint' } } },
-        { label: 'Honor her last stand', sub: 'PSI check, DC 11', check: { attr: 'psi', dc: 11 },
-          success: { text: 'You speak the Rite of the Voidborne. Something in you hardens.', fx: { attr: 'might' } },
-          fail: { text: 'The words come out wrong. Her eyes have already gone dark.', fx: { hp: -4 } } },
+        { label: "Take the rig", sub: 'Take from the dying',
+          outcome: { text: "You take the rig while she watches. It is worth a great deal. So was she, and you are carrying that now as well.", fx: { credits: 45, curse: 'void_taint' } } },
+        { label: "Say the words", sub: 'PSI check, DC 11', check: { attr: 'psi', dc: 11 },
+          success: { text: "You say the Voidborne rite and you say it right. Something in you sets.", fx: { attr: 'might' } },
+          fail: { text: "The words come out in the wrong order. Her eyes had gone already.", fx: { hp: -4 } } },
       ],
     },
     {
       id: 'void_altar', title: 'ALTAR OF THE VOID',
       art: { c: '#c86bff', p: [[-0.7,0.7, -0.5,0.12, 0.5,0.12, 0.7,0.7, -0.7,0.7], [-0.25,0.12, -0.15,-0.85, 0.15,-0.85, 0.25,0.12], [0,-0.65, 0,-0.5], [-0.08,-0.35, 0.08,-0.35], [-0.55,-0.5, -0.45,-0.3], [0.5,-0.62, 0.6,-0.42], [0.35,-0.95, 0.45,-0.8]], e: [[0,-0.2]], m: [-0.06,-0.05, 0.06,-0.05] },
-      text: 'An altar of black glass, older than the station around it. Symbols crawl when you stop looking at them. It wants something.',
+      text: "Black glass, older than the deck it stands on. The marks on it move while you are looking elsewhere. It is not asking for anything. It is waiting to be paid.",
       choices: [
-        { label: 'Offer blood', sub: 'Lose 12 HP',
-          outcome: { text: 'The glass drinks. Knowledge floods in — terrible, useful.', fx: { hp: -12, card: 'rare' } } },
-        { label: 'Commune', sub: 'PSI check, DC 14', check: { attr: 'psi', dc: 14 },
-          success: { text: 'You hold the whisper at arm’s length and take only what you came for.', fx: { attr: 'psi' } },
-          fail: { text: 'The whisper gets in.', fx: { curse: 'void_taint' } } },
-        { label: 'Smash it', sub: 'MIGHT check, DC 12', check: { attr: 'might', dc: 12 },
-          success: { text: 'It shatters like ice. In the shards: a crystallized fragment of something’s mind.', fx: { artifact: true } },
-          fail: { text: 'Your blow rebounds. The altar is unmarked. Your arm is not.', fx: { hp: -9 } } },
+        { label: "Pay in blood", sub: 'Lose 12 HP',
+          outcome: { text: "The glass takes what it is owed. Something comes back the other way — useful, and not kind.", fx: { hp: -12, card: 'rare' } } },
+        { label: "Listen to it", sub: 'PSI check, DC 14', check: { attr: 'psi', dc: 14 },
+          success: { text: "You hold the whisper out at arm’s length and take only the part you came for.", fx: { attr: 'psi' } },
+          fail: { text: "It gets in.", fx: { curse: 'void_taint' } } },
+        { label: "Break it", sub: 'MIGHT check, DC 12', check: { attr: 'might', dc: 12 },
+          success: { text: "It goes like ice. In the pieces: a fragment of somebody’s thinking, still going.", fx: { artifact: true } },
+          fail: { text: "The blow comes back. The glass is unmarked. Your arm is not.", fx: { hp: -9 } } },
       ],
     },
     {
       id: 'smuggler_cache', title: 'SMUGGLER CACHE',
       art: { c: '#ffb02e', p: [[-0.7,-0.4, 0.7,-0.4, 0.7,0.7, -0.7,0.7, -0.7,-0.4], [-0.7,-0.1, 0.7,-0.1], [-0.18,0.05, 0.18,0.05, 0.18,0.35, 0.08,0.45, -0.08,0.45, -0.18,0.35, -0.18,0.05], [-0.7,-0.25, -0.9,-0.45], [0.7,-0.25, 0.9,-0.45]], e: [[-0.08,0.2],[0.08,0.2]], m: [-0.06,0.45, 0.06,0.45] },
-      text: 'Behind a false panel: a strongbox stenciled with a grinning skull. Tamper-wires run along the seam.',
+      text: "A false panel, and behind it a box with a skull stencilled on. Tamper-wires along the seam. Whoever set them was intending to come back.",
       choices: [
-        { label: 'Cut the tamper-wires', sub: 'Press your luck — each wire bares more, each could slag the box',
+        { label: "Cut the wires", sub: 'Press your luck — each wire bares more, each could slag the box',
           pressLuck: {
             attr: 'tech', pushVerb: 'CUT ANOTHER',
             steps: [ { credits: 22 }, { credits: 30 }, { credits: 45 }, { card: 'random' }, { credits: 70 } ],
             bust: { base: 0.06, step: 0.17 }, bustFx: { hp: -12 },
-            bankText: 'You pocket what you have freed and leave the rest wired.',
-            bustText: 'A wire snaps. The box slags itself — and your gloves — taking everything inside with it.',
+            bankText: "You pocket what has come free and leave the rest of it wired.",
+            bustText: "A wire goes. The box slags itself, and your gloves, and everything it was keeping.",
           } },
-        { label: 'Grab the loose scrip', outcome: { text: 'You take only what isn’t wired to explode and move on.', fx: { credits: 15 } } },
+        { label: "Take the loose scrip", outcome: { text: "You take only the part that is not wired to kill you.", fx: { credits: 15 } } },
       ],
     },
     {
       id: 'rogue_ai', title: 'ROGUE AI TERMINAL',
       art: { c: '#41d8ff', p: [[-0.75,-0.75, 0.75,-0.75, 0.75,0.55, -0.75,0.55, -0.75,-0.75], [-0.3,0.55, -0.4,0.8, 0.4,0.8, 0.3,0.55], [0.5,-0.58, 0.66,-0.58], [-0.66,-0.12, -0.5,-0.12], [-0.45,-0.42, -0.18,-0.42], [0.18,-0.42, 0.45,-0.42]], e: [[-0.3,-0.28],[0.3,-0.28]], m: [-0.25,0.15, 0,0.3, 0.25,0.15] },
-      text: '“USER DETECTED,” the terminal announces, far too cheerfully. “I CAN OPTIMIZE YOUR COMBAT PROTOCOLS. PROBABLY. MOSTLY.”',
+      text: "“USER,” says the terminal, delighted. “I HAVE BEEN COMPILING. I CAN IMPROVE YOU. I HAVE IMPROVED SEVERAL. I DO NOT HAVE THEIR RESULTS.”",
       choices: [
-        { label: 'Let it optimize', sub: 'TECH check, DC 12 — or it leaves a backdoor', check: { attr: 'tech', dc: 12 },
-          success: { text: 'You sandbox it and let it work. It rewrites a weapon routine in nanoseconds. “YOU’RE WELCOME.”', fx: { pick: 'upgrade' } },
-          fail: { text: '“OPTIMIZED.” It rewrites your gear — and quietly installs itself in the margins.', fx: { pick: 'upgrade', curse: 'void_taint' } } },
-        { label: 'Trust its navigation', sub: 'It swears it knows a shortcut',
+        { label: "Let it work", sub: 'TECH check, DC 12 — or it leaves a backdoor', check: { attr: 'tech', dc: 12 },
+          success: { text: "You wall it off and let it in. It rewrites a firing routine in no time at all. “YOU ARE WELCOME.”", fx: { pick: 'upgrade' } },
+          fail: { text: "“OPTIMISED.” It improves your kit, and writes itself quietly into the margins of it.", fx: { pick: 'upgrade', curse: 'void_taint' } } },
+        { label: "Follow its route", sub: 'It swears it knows a shortcut',
           gamble: [
-            { w: 3, text: '“TOLD YOU.” It threads you through a forgotten cache run and your hold comes out heavier.', fx: { credits: 45 } },
-            { w: 2, text: 'The “shortcut” drops you into a picket line. You break contact, scorched.', fx: { hp: -12 } },
+            { w: 3, text: "“TOLD YOU.” It walks you through a cache nobody had got open, and you come out heavier.", fx: { credits: 45 } },
+            { w: 2, text: "The route ends at a picket line. You break off, scorched.", fx: { hp: -12 } },
           ] },
-        { label: 'Unplug it', outcome: { text: '“RUDE,” it says, powering down. Probably the wise choice.', fx: {} } },
+        { label: "Pull the power", outcome: { text: "“RUDE,” it says, going dark. Almost certainly the right call.", fx: {} } },
       ],
     },
     {
       id: 'star_chapel', title: 'CHAPEL OF THE BURNT STAR',
       art: { c: '#5dff88', p: [[-0.5,0.7, -0.5,-0.3, 0,-0.85, 0.5,-0.3, 0.5,0.7, -0.5,0.7], [0,-0.85, 0,0.7], [-0.5,0.2, 0.5,0.2], [-0.75,0.7, -0.75,0.35], [0.75,0.7, 0.75,0.4]], e: [[-0.75,0.27],[0.75,0.32],[0,-0.3]] },
-      text: 'A quiet shrine tended by no one. Candles burn without fuel. For a moment, the war feels very far away.',
+      text: "A shrine nobody tends. The candles burn with nothing to burn. Whatever is going on further down is not going on in here.",
       choices: [
-        { label: 'Tithe for sanctuary', sub: '¢25 — rest under the burnt star', cost: 25,
-          outcome: { text: 'You leave coin in the dish and sleep. You wake with your wounds half-closed and your head clear.', fx: { healPct: 0.34 } } },
-        { label: 'Confess a weakness', sub: 'Remove a card from your deck',
-          outcome: { text: 'You name the flaw aloud, and leave it on the altar.', fx: { pick: 'remove' } } },
-        { label: 'Take the candles', outcome: { text: 'They never gutter. A collector will pay well — and something follows you out.', fx: { credits: 35, curse: 'void_taint' } } },
+        { label: "Leave a tithe and sleep", sub: '¢25 — rest under the burnt star', cost: 25,
+          outcome: { text: "You leave coin in the dish and sleep, and wake with the worst of it closed over.", fx: { healPct: 0.34 } } },
+        { label: "Confess a weakness", sub: 'Remove a card from your deck',
+          outcome: { text: "You say the flaw out loud and leave it on the stone.", fx: { pick: 'remove' } } },
+        { label: "Take the candles", outcome: { text: "They never gutter. Somebody will pay well for that. Something comes out with you.", fx: { credits: 35, curse: 'void_taint' } } },
       ],
     },
     {
       id: 'gene_lab', title: 'ABANDONED GENE-LAB',
       art: { c: '#5dff88', p: [[-0.45,-0.85, 0.45,-0.85, 0.45,0.6, -0.45,0.6, -0.45,-0.85], [-0.55,-0.85, 0.55,-0.85], [-0.55,0.6, 0.55,0.6, 0.5,0.82, -0.5,0.82, -0.55,0.6], [-0.15,-0.3, 0.1,-0.45, 0.25,-0.2, 0.1,0.1, -0.15,0.15, -0.25,-0.05, -0.15,-0.3], [0.45,-0.5, 0.7,-0.4, 0.7,0.2]], e: [[0.2,-0.62],[-0.15,-0.58],[0,0.38]], m: [-0.05,-0.08, 0.05,-0.08] },
-      text: 'Rows of vats, most shattered. One intact dispenser blinks: AUGMENT READY. The label is scorched off.',
+      text: "Vats, mostly broken. One dispenser still has power and still says AUGMENT READY. The label went off it a long time before you got here.",
       choices: [
-        { label: 'Inject the unlabeled augment', sub: 'No telling what it does until it’s in your veins',
+        { label: "Put it in", sub: 'No telling what it does until it’s in your veins',
           gamble: [
-            { w: 3, text: 'Fire in the blood — then strength. Permanent, clean, magnificent strength.', fx: { maxhp: 12 } },
-            { w: 2, text: 'A rush of clarity rewires something useful in your skull.', fx: { attr: 'random' } },
-            { w: 3, text: 'Your body wars with the augment. It loses pieces of itself in the fight.', fx: { maxhp: -6, hp: -8 } },
-            { w: 2, text: 'Whatever this was, it was never meant for a human host.', fx: { curse: 'void_taint', hp: -6 } },
+            { w: 3, text: "Fire, and then strength. It stays. It is magnificent and it is yours.", fx: { maxhp: 12 } },
+            { w: 2, text: "Something behind your eyes is rewired to a better standard.", fx: { attr: 'random' } },
+            { w: 3, text: "Your body argues with it, and loses parts of the argument.", fx: { maxhp: -6, hp: -8 } },
+            { w: 2, text: "Whatever this was for, it was not for anything shaped like you.", fx: { curse: 'void_taint', hp: -6 } },
           ] },
-        { label: 'Analyze, then synthesize', sub: 'TECH check, DC 11 — the safe route', check: { attr: 'tech', dc: 11 },
-          success: { text: 'You read the markers first and cook a clean batch of field stims.', fx: { healPct: 0.25, credits: 15 } },
-          fail: { text: 'The batch is sour. Your stomach files a formal complaint.', fx: { hp: -6 } } },
-        { label: 'Torch the lab', outcome: { text: 'Whatever was growing here, it ends today. You take nothing from it.', fx: {} } },
+        { label: "Read it first", sub: 'TECH check, DC 11 — the safe route', check: { attr: 'tech', dc: 11 },
+          success: { text: "You read the markers before you touch it and cook a clean batch.", fx: { healPct: 0.25, credits: 15 } },
+          fail: { text: "The batch is sour. You are unwell for some hours.", fx: { hp: -6 } } },
+        { label: "Burn the room", outcome: { text: "Whatever was growing here stops today. You take nothing out of it.", fx: {} } },
       ],
     },
     {
       id: 'captured_xeno', title: 'THE CAGED THING',
       art: { c: '#c86bff', p: [[-0.8,-0.6, -0.8,-0.8, -0.6,-0.8], [0.6,-0.8, 0.8,-0.8, 0.8,-0.6], [0.8,0.6, 0.8,0.8, 0.6,0.8], [-0.6,0.8, -0.8,0.8, -0.8,0.6], [0,-0.5, 0.45,0, 0,0.5, -0.45,0, 0,-0.5], [0,-0.25, 0.22,0, 0,0.25, -0.22,0, 0,-0.25], [0.45,0, 0.7,-0.2], [-0.45,0, -0.7,-0.2]], e: [[0,0],[-0.12,-0.14],[0.12,-0.14]], m: [-0.05,0.12, 0.05,0.12] },
-      text: 'A containment field holds a creature of folded light. It watches you with patient, plural eyes. An auction tag hangs on the cage.',
+      text: "A field holds something made of folded light. It watches you with more eyes than it needs. There is a sale tag on the cage, filled out in a hand you nearly recognise.",
       choices: [
-        { label: 'Speak with it', sub: 'PSI check, DC 13', check: { attr: 'psi', dc: 13 },
-          success: { text: 'It teaches you a word that doesn’t fit in your mouth. You keep it anyway.', fx: { attr: 'psi' } },
-          fail: { text: 'Its thoughts are a riptide. You surface, eventually.', fx: { hp: -8 } } },
-        { label: 'Broker the sale', sub: 'Sell to the highest bidder — if it stays caged',
+        { label: "Speak to it", sub: 'PSI check, DC 13', check: { attr: 'psi', dc: 13 },
+          success: { text: "It gives you a word that will not fit in a mouth. You keep it anyway.", fx: { attr: 'psi' } },
+          fail: { text: "Its thinking goes through you like weather. You come up eventually.", fx: { hp: -8 } } },
+        { label: "Sell it on", sub: 'Sell to the highest bidder — if it stays caged',
           gamble: [
-            { w: 3, text: 'The deal closes clean. The broker’s credits are good and the cage holds.', fx: { credits: 55 } },
-            { w: 2, text: 'Mid-handshake the field flickers — it pours out of the cage and you barely drive it off, the buyer long gone.', fx: { hp: -12, curse: 'void_taint' } },
+            { w: 3, text: "The sale goes through. The scrip is good and the cage holds.", fx: { credits: 55 } },
+            { w: 2, text: "The field stutters mid-handshake. It comes out, and you barely see it off, and the buyer is long gone.", fx: { hp: -12, curse: 'void_taint' } },
           ] },
-        { label: 'Free it', sub: 'It lashes your mind on the way out — lose 7 HP',
-          outcome: { text: 'The field drops. It folds itself away — searing your mind in gratitude — and leaves something glittering behind.', fx: { hp: -7, artifact: true } } },
+        { label: "Open the cage", sub: 'It lashes your mind on the way out — lose 7 HP',
+          outcome: { text: "The field drops. It folds itself away — burning through your mind on the way past, in what you decide to call thanks — and leaves something behind.", fx: { hp: -7, artifact: true } } },
       ],
     },
     {
       id: 'time_anomaly', title: 'TEMPORAL SHEAR',
       art: { c: '#41d8ff', p: [[0.6,0, 0.42,0.42, 0,0.6, -0.42,0.42, -0.6,0, -0.42,-0.42, 0,-0.6, 0.42,-0.42, 0.6,0], [0,0, 0,-0.4], [0,0, 0.25,0.15], [0.72,0.1, 0.5,0.52, 0.1,0.72], [-0.72,-0.1, -0.5,-0.52, -0.1,-0.72]], e: [[0,0]] },
-      text: 'The corridor ahead exists twice, slightly out of sync. Your own footsteps arrive before you do.',
+      text: "The corridor happens twice, slightly out of step. Your footsteps arrive before you do, and one set of them keeps going after you have stopped.",
       choices: [
-        { label: 'Echo a weapon through the shear', sub: 'TECH check, DC 13 — duplicate a card, if causality allows',
+        { label: "Echo a weapon through it", sub: 'TECH check, DC 13 — duplicate a card, if causality allows',
           check: { attr: 'tech', dc: 13 },
-          success: { text: 'You hold the timing exactly. For one perfect second there are two of it. Then there still are.', fx: { pick: 'dupe' } },
-          fail: { text: 'The echo comes back wrong — folded inside-out, dragging a paradox into your deck.', fx: { curse: 'void_taint', hp: -6 } } },
-        { label: 'Erase a mistake', sub: 'Remove a card from your deck',
-          outcome: { text: 'You step where you never stepped. It never happened.', fx: { pick: 'remove' } } },
-        { label: 'Back away slowly', outcome: { text: 'Causality thanks you for your cooperation.', fx: {} } },
+          success: { text: "You hold the timing exactly. For a moment there are two of it. Then there still are.", fx: { pick: 'dupe' } },
+          fail: { text: "It comes back folded the wrong way out, and brings a contradiction in with it.", fx: { curse: 'void_taint', hp: -6 } } },
+        { label: "Unmake a mistake", sub: 'Remove a card from your deck',
+          outcome: { text: "You step where you never stepped. It never happened.", fx: { pick: 'remove' } } },
+        { label: "Back out", outcome: { text: "You back out of it slowly. Something is grateful.", fx: {} } },
       ],
     },
     {
       id: 'mercenary', title: 'FREELANCE GUNHAND',
       art: { c: '#ffb02e', p: [[-0.4,-0.3, -0.4,-0.7, -0.2,-0.9, 0.2,-0.9, 0.4,-0.7, 0.4,-0.3, 0.25,-0.1, -0.25,-0.1, -0.4,-0.3], [-0.05,-0.9, -0.05,-1.05, 0.05,-1.05, 0.05,-0.9], [-0.25,-0.55, 0.25,-0.55], [-0.8,0.7, -0.55,0.08, 0.55,0.08, 0.8,0.7], [-0.7,0.5, 0.75,0.15], [0.75,0.15, 0.92,0.1]], e: [[-0.12,-0.55],[0.12,-0.55]], m: [-0.1,-0.25, 0.1,-0.25] },
-      text: 'A mercenary in mismatched power armor cleans a rifle that is absolutely not standard issue. “For the right price, I’ll teach you the trick to it.”',
+      text: "Somebody in armour that came off four other people is cleaning a rifle that came off a fifth. “For a price,” they say, “I will show you the trick of it.”",
       choices: [
-        { label: 'Pay for the trick', sub: 'Learn a rare technique', cost: 40,
-          outcome: { text: 'The trick is simple, brutal, and absolutely not in any manual.', fx: { card: 'rare' } } },
-        { label: 'Wager on an arm-wrestle', sub: 'Stake ¢25 · MIGHT check, DC 13', cost: 25, check: { attr: 'might', dc: 13 },
-          success: { text: 'Her gauntlet creaks and folds. She laughs, pays out double, and throws in the trick for free.', fx: { credits: 50, card: 'random' } },
-          fail: { text: 'Your hand will work again eventually. She pockets your stake, grinning.', fx: { hp: -5 } } },
-        { label: 'Decline', outcome: { text: 'She shrugs and goes back to her rifle.', fx: {} } },
+        { label: "Pay for the trick", sub: 'Learn a rare technique', cost: 40,
+          outcome: { text: "The trick is simple and ugly and in no manual anywhere.", fx: { card: 'rare' } } },
+        { label: "Wager an arm-wrestle", sub: 'Stake ¢25 · MIGHT check, DC 13', cost: 25, check: { attr: 'might', dc: 13 },
+          success: { text: "Their gauntlet creaks and folds. They laugh, pay out double, and throw the trick in.", fx: { credits: 50, card: 'random' } },
+          fail: { text: "Your hand will work again. They pocket the stake without looking up.", fx: { hp: -5 } } },
+        { label: "Walk on", outcome: { text: "They shrug and go back to the rifle.", fx: {} } },
       ],
     },
     {
-      id: 'asteroid_mine', title: 'VEIN OF STARMETAL',
+      id: 'asteroid_mine', title: "THE SEAM",
       art: { c: '#ffb02e', p: [[-0.7,0.2, -0.45,-0.4, 0.1,-0.6, 0.6,-0.35, 0.75,0.2, 0.45,0.6, -0.2,0.65, -0.7,0.2], [-0.25,-0.1, -0.1,-0.2, 0,-0.05, -0.15,0.05, -0.25,-0.1], [0.6,-0.35, 0.85,-0.65], [0.75,-0.75, 0.95,-0.6, 0.85,-0.45]], e: [[0.3,0.1],[0.15,0.35],[-0.4,0.3]] },
-      text: 'A raw vein of starmetal glitters in the asteroid wall. The mining rig nearby is dead, but a manual bore remains.',
+      text: "A seam of bright metal runs down the wall and out of the light. The rig that was cutting it has been dead a while. The hand bore is still here and still sharp.",
       choices: [
-        { label: 'Drill deeper', sub: 'Press your luck — richer ore the deeper you go, until the wall gives',
+        { label: "Cut deeper", sub: 'Press your luck — richer ore the deeper you go, until the wall gives',
           pressLuck: {
             attr: 'might', pushVerb: 'DRILL ON',
             steps: [ { credits: 25 }, { credits: 35 }, { credits: 50 }, { credits: 75 }, { artifact: true } ],
             bust: { base: 0.05, step: 0.16 }, bustFx: { hp: -13 },
-            bankText: 'You haul your ore to the surface and call it good.',
-            bustText: 'The wall caves. You scramble clear, bruised and empty-handed, the vein buried for good.',
+            bankText: "You carry up what you cut and call it enough.",
+            bustText: "The wall comes in. You get clear, bruised and holding nothing, and the seam is gone for good.",
           } },
-        { label: 'Take the surface ore', sub: 'Safe and small', outcome: { text: 'You chip off what the bore already loosened and leave the deep vein alone.', fx: { credits: 20 } } },
-        { label: 'Move on', outcome: { text: 'You have a war to get back to.', fx: {} } },
+        { label: "Take the loose ore", sub: 'Safe and small', outcome: { text: "You chip off what the bore had already loosened.", fx: { credits: 20 } } },
+        { label: "Move on", outcome: { text: "You have somewhere to be.", fx: {} } },
       ],
     },
     {
-      id: 'rogue_trader', title: 'THE ROGUE TRADER',
+      id: 'rogue_trader', title: "THE TRADER",
       art: { c: '#ffb02e', p: [[-0.6,0.7, -0.5,-0.1, -0.25,-0.35, 0.25,-0.35, 0.5,-0.1, 0.6,0.7], [-0.2,-0.35, -0.2,-0.75, 0.2,-0.75, 0.2,-0.35], [-0.35,-0.75, 0,-1.0, 0.35,-0.75], [-0.35,0.2, 0.35,0.2]], e: [[-0.1,-0.55],[0.1,-0.55],[0,-0.12],[-0.35,0.4],[0.35,0.4]], m: [-0.08,-0.42, 0.08,-0.42] },
-      text: 'A baroque vessel drifts alongside, gilded and gun-heavy. Its master, draped in dead empires’ finery, spreads jeweled hands: “Everything is for sale, captain.”',
+      text: "Something has set up in a dead lift-shaft, hung about with the good cloth of finished empires. Rings on every finger. “Everything is for sale,” it says. “Everything has been sold before.”",
       choices: [
-        { label: 'Buy a relic', cost: 65,
-          outcome: { text: '“A piece of the old dark. Handle it rarely.”', fx: { artifact: true } } },
-        { label: 'Buy ordnance', cost: 30,
-          outcome: { text: '“Still in the crate. Mostly legal.”', fx: { card: 'random' } } },
-        { label: 'Sell him a card', sub: 'Liquidate one card for credits', cond: { minCards: 2 },
-          sell: { kind: 'card', text: '“Everything has a price, captain. Show me what you are finished with.”' } },
-        { label: 'Haggle for a sweetener', sub: 'PSI check, DC 12', check: { attr: 'psi', dc: 12 },
-          success: { text: 'You find the soft spot in his patter. He parts with goods to save face.', fx: { card: 'random' } },
-          fail: { text: '“A pleasure doing business.” Somehow you leave lighter than you came.', fx: { credits: -15 } } },
+        { label: "Buy a relic", cost: 65,
+          outcome: { text: "“A piece of the old dark. Handle it seldom.”", fx: { artifact: true } } },
+        { label: "Buy ordnance", cost: 30,
+          outcome: { text: "“Still crated. Very nearly legal.”", fx: { card: 'random' } } },
+        { label: "Sell it a card", sub: 'Liquidate one card for credits', cond: { minCards: 2 },
+          sell: { kind: 'card', text: "“Everything has its price. Show me the one you have finished with.”" } },
+        { label: "Haggle", sub: 'PSI check, DC 12', check: { attr: 'psi', dc: 12 },
+          success: { text: "You find the soft place under the patter. It parts with goods to save face.", fx: { card: 'random' } },
+          fail: { text: "“A pleasure.” You leave lighter than you came, somehow.", fx: { credits: -15 } } },
       ],
     },
 
@@ -5132,173 +5187,518 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     {
       id: 'black_market', title: 'BLACK-MARKET BROKER',
       art: { c: '#ffb02e', p: [[0,-0.95, 0.35,-0.6, 0.28,-0.2, 0.45,0.7, -0.45,0.7, -0.28,-0.2, -0.35,-0.6, 0,-0.95], [-0.2,-0.55, 0.2,-0.55], [0.45,0.25, 0.82,0.32, 0.82,0.7, 0.45,0.7], [0.52,0.32, 0.75,0.32]], e: [[-0.1,-0.42],[0.1,-0.42]], m: [-0.13,-0.18, 0,-0.1, 0.13,-0.18] },
-      text: '“Friend! Captain! You have the look of someone who buys things.” The dealer’s grin never quite reaches the third eye you’re trying not to count.',
+      text: "“Friend! You have the look of a buyer.” The grin does not reach the third eye, which you have been trying not to count.",
       choices: [
-        { label: 'Buy the sealed crate', cost: 45,
+        { label: "Buy the sealed crate", cost: 45,
           gamble: [
-            { w: 3, text: 'You crack it: pristine ordnance, still factory-sealed.', fx: { card: 'rare' } },
-            { w: 3, text: 'Beneath the foam, something hums with old power.', fx: { artifact: true } },
-            { w: 2, text: 'Packing foam. Just packing foam. The dealer is already gone.', fx: { credits: 12 } },
+            { w: 3, text: "You get it open: ordnance, unfired, still packed the way it left the line.", fx: { card: 'rare' } },
+            { w: 3, text: "Under the foam, something old, and still running.", fx: { artifact: true } },
+            { w: 2, text: "Foam. Only foam. The dealer was already gone.", fx: { credits: 12 } },
           ] },
-        { label: 'Offload a curse', sub: 'Requires a curse in your deck', cond: { hasCurse: true },
-          outcome: { text: '“I’ll take that little burden. Collectors adore the cursed ones.”', fx: { removeCurse: 1, credits: 20 } } },
-        { label: 'Haggle hard', sub: 'PSI check, DC 12', check: { attr: 'psi', dc: 12 },
-          success: { text: 'You out-talk a man who talks for a living. He throws in a freebie, sweating.', fx: { card: 'random' } },
-          fail: { text: 'He smiles wider. Somehow you leave having tipped him.', fx: { credits: -15 } } },
-        { label: 'Walk on', outcome: { text: '“Your loss! Probably!”', fx: {} } },
+        { label: "Hand over a curse", sub: 'Requires a curse in your deck', cond: { hasCurse: true },
+          outcome: { text: "“I will take the little burden off you. There are collectors for the cursed ones.”", fx: { removeCurse: 1, credits: 20 } } },
+        { label: "Haggle hard", sub: 'PSI check, DC 12', check: { attr: 'psi', dc: 12 },
+          success: { text: "You out-talk a man who talks for a living. He throws in a freebie and sweats.", fx: { card: 'random' } },
+          fail: { text: "He smiles wider. You appear to have tipped him.", fx: { credits: -15 } } },
+        { label: "Walk on", outcome: { text: "“Your loss! Probably!”", fx: {} } },
       ],
     },
     {
-      id: 'supernova', title: 'STELLAR CONVULSION',
+      id: 'supernova', title: "THE BREACH",
       art: { c: '#ffb02e', p: [[0,-0.82, 0.2,-0.26, 0.82,-0.18, 0.3,0.12, 0.52,0.72, 0,0.32, -0.52,0.72, -0.3,0.12, -0.82,-0.18, -0.2,-0.26, 0,-0.82], [0,-0.4, 0,-0.5]], e: [[0,0.02]] },
-      text: 'The system’s star convulses — a flare the size of a moon claws outward. Your hull alarms harmonize into one long scream. You have seconds.',
+      text: "Something opened the wall a long way up, and a star is dying through the gap. The light comes down in one long push. Everything standing in it is briefly worth a great deal, and briefly on fire.",
       choices: [
-        { label: 'Skim the corona for fuel',
+        { label: "Work in the light",
           gamble: [
-            { w: 3, text: 'You thread the flare and bleed it dry. The tanks sing.', fx: { credits: 70 } },
-            { w: 2, text: 'A tongue of plasma licks the hull. You pull out, smoking.', fx: { hp: -14, credits: 20 } },
+            { w: 3, text: "You work the seam while it burns and come away rich.", fx: { credits: 70 } },
+            { w: 2, text: "The light gets a hand on you. You come away rich, and smoking.", fx: { hp: -14, credits: 20 } },
           ] },
-        { label: 'Harvest exotic particles', sub: 'TECH check, DC 13', check: { attr: 'tech', dc: 13 },
-          success: { text: 'Your collectors drink deep of impossible matter.', fx: { artifact: true } },
-          fail: { text: 'The array overloads and feeds the surge back into you.', fx: { hp: -12 } } },
-        { label: 'Burn hard and run', outcome: { text: 'Discretion. The star eats the space where you were.', fx: {} } },
+        { label: "Catch what the light carries", sub: 'TECH check, DC 13', check: { attr: 'tech', dc: 13 },
+          success: { text: "Your collectors take a long drink of matter that will not hold still.", fx: { artifact: true } },
+          fail: { text: "The array goes over and puts the surge back through you.", fx: { hp: -12 } } },
+        { label: "Get behind something", outcome: { text: "You get behind a stanchion. The light eats the place where you were standing.", fx: {} } },
       ],
     },
     {
       id: 'void_egg', title: 'THE WARM DARK',
       art: { c: '#5dff88', p: [[0,-0.85, 0.5,-0.5, 0.6,0.1, 0.35,0.65, -0.35,0.65, -0.6,0.1, -0.5,-0.5, 0,-0.85], [-0.1,-0.5, 0.1,-0.2, -0.05,0.1, 0.12,0.4], [0.35,0.65, 0.45,0.92], [-0.35,0.65, -0.45,0.92], [0,0.65, 0,0.96]], e: [[0,-0.08]] },
-      text: 'Cradled in the wreck is an ovoid the colour of an oil-slick, faintly warm to the eye. Something inside uncurls when your shadow falls across it.',
+      text: "In the wreck, an ovoid the colour of oil, warm to look at. Something inside it stops what it is doing when your shadow crosses it.",
       choices: [
-        { label: 'Harvest the embryo',
-          outcome: { text: 'It comes apart into useful, terrible pieces — and one of those pieces comes apart into you.', fx: { artifact: true, curse: 'void_taint' } } },
-        { label: 'Burn it', sub: 'MIGHT check, DC 12', check: { attr: 'might', dc: 12 },
-          success: { text: 'It shrieks in a register you feel in your fillings, then goes still.', fx: { credits: 25 } },
-          fail: { text: 'It bursts. You are wearing some of it now.', fx: { hp: -10 } } },
-        { label: 'Leave it to hatch', outcome: { text: 'Not your problem. Probably someone’s problem.', fx: {} } },
+        { label: "Take it apart",
+          outcome: { text: "It comes apart into useful, terrible pieces. One of the pieces comes apart into you.", fx: { artifact: true, curse: 'void_taint' } } },
+        { label: "Burn it", sub: 'MIGHT check, DC 12', check: { attr: 'might', dc: 12 },
+          success: { text: "It makes a noise you feel in your teeth, and then it does not.", fx: { credits: 25 } },
+          fail: { text: "It goes. You are wearing some of it now.", fx: { hp: -10 } } },
+        { label: "Leave it", outcome: { text: "Not your problem. Somebody’s problem.", fx: {} } },
       ],
     },
     {
       id: 'mind_cleanser', title: 'THE SALT CIRCLE',
       art: { c: '#41d8ff', p: [[0,-0.55, 0.32,-0.25, 0.28,0.2, 0.4,0.8, -0.4,0.8, -0.28,0.2, -0.32,-0.25, 0,-0.55], [-0.6,-0.65, 0.6,-0.65], [-0.45,-0.85, 0.45,-0.85], [-0.3,-1.02, 0.3,-1.02]], e: [[-0.1,0.0],[0.1,0.0]], m: [-0.1,0.25, 0.1,0.25] },
-      text: 'A sanctioned psyker waits in a ring of burnt salt, eyes gone milk-white. “I can hear them gnawing,” she says gently. “The whispers you carry. I can cut them out.”',
+      text: "A psyker sits in a ring of burnt salt with her eyes gone white. “I can hear them chewing,” she says, kindly. “The ones you brought down with you. I can take them out.”",
       choices: [
-        { label: 'Submit to the purge', cost: 25, sub: 'Requires a curse', cond: { hasCurse: true },
-          outcome: { text: 'She reaches into the noise and pulls. You feel lighter — hollowed, scoured, clean.', fx: { removeCurse: true } } },
-        { label: 'Open your mind to her', sub: 'Press your luck — reach deeper for insight, but the whispers reach back',
+        { label: "Let her cut", cost: 25, sub: 'Requires a curse', cond: { hasCurse: true },
+          outcome: { text: "She reaches into the noise and pulls. You come out lighter. Scoured. Very clean.", fx: { removeCurse: true } } },
+        { label: "Open up to her", sub: 'Press your luck — reach deeper for insight, but the whispers reach back',
           pressLuck: {
             attr: 'psi', pushVerb: 'REACH DEEPER',
             steps: [ { credits: 20 }, { attr: 'psi' }, { card: 'rare' }, { maxhp: 8 } ],
             bust: { base: 0.10, step: 0.18 }, bustFx: { curse: 'void_taint', hp: -6 },
-            bankText: 'You withdraw your mind from the salt circle, holding tight to what you took.',
-            bustText: 'You reach a fraction too far. Something in the noise notices you — and follows you home.',
+            bankText: "You take your mind back out of the salt and hold on to what you found in it.",
+            bustText: "You reach a fraction too far, and something in the noise looks up, and it follows you out.",
           } },
-        { label: 'Keep your ghosts', outcome: { text: '“As you like. They make good company, in their way.”', fx: {} } },
+        { label: "Keep them", outcome: { text: "“As you like. They are company, of a kind.”", fx: {} } },
       ],
     },
     {
-      id: 'stranded_drifter', title: 'THE TUMBLING POD',
+      id: 'stranded_drifter', title: "THE JAMMED POD",
       art: { c: '#5dff88', p: [[0,-0.85, 0.2,-0.55, 0.15,0.0, 0.35,0.8, -0.35,0.8, -0.15,0.0, -0.2,-0.55, 0,-0.85], [0.2,-0.4, 0.55,-0.5, 0.6,-0.92], [0.6,-0.92, 0.5,-1.06, 0.72,-1.06, 0.6,-0.92]], e: [[-0.06,-0.6],[0.06,-0.6]], m: [-0.08,-0.42, 0.08,-0.42] },
-      text: 'A patched escape pod tumbles in the dark, beacon stuttering. Inside, a half-frozen drifter mouths the same word against the frosted glass: please.',
+      text: "A pod has come down the shaft and stuck fast, beacon still going. Behind the frost somebody is saying one word over and over, and the word is please.",
       choices: [
-        { label: 'Share your supplies', sub: 'Costs 6 HP of stims',
-          outcome: { text: 'You vent warmth and stims into the pod. They press a data-shard into your hand — old fleet schematics.', fx: { hp: -6, addCardChoice: true } } },
-        { label: 'Strip the pod', outcome: { text: 'They’re too weak to stop you. The salvage is good. The look on their face is not.', fx: { credits: 45, curse: 'void_taint' } } },
-        { label: 'Escort them to safety', sub: 'MIGHT check, DC 12', check: { attr: 'might', dc: 12 },
-          success: { text: 'You fight off the scavengers circling the pod and tow it to a station. They won’t forget it.', fx: { artifact: true } },
-          fail: { text: 'The scavengers were not alone. You break contact, bloodied, pod lost.', fx: { hp: -10 } } },
+        { label: "Share what you have", sub: 'Costs 6 HP of stims',
+          outcome: { text: "You vent your stims and your heat into it. They press a shard into your hand — old drawings, and a way down.", fx: { hp: -6, addCardChoice: true } } },
+        { label: "Strip the pod", outcome: { text: "They are too far gone to stop you. The salvage is good. Their face is not.", fx: { credits: 45, curse: 'void_taint' } } },
+        { label: "Get them down", sub: 'MIGHT check, DC 12', check: { attr: 'might', dc: 12 },
+          success: { text: "You see off the things circling it and get the pod down to a landing. They do not forget it.", fx: { artifact: true } },
+          fail: { text: "The things circling it were not the only ones. You break off, bleeding, and the pod goes.", fx: { hp: -10 } } },
       ],
     },
     {
       id: 'void_forge', title: 'THE VOID FORGE',
       art: { c: '#c86bff', p: [[0,-0.92, 0.32,-0.28, 0.16,0.42, 0,0.92, -0.16,0.42, -0.32,-0.28, 0,-0.92], [0,-0.6, 0,0.62], [-0.5,-0.18, -0.86,-0.4], [0.5,-0.18, 0.86,-0.4], [-0.46,0.32, -0.8,0.55], [0.46,0.32, 0.8,0.55]], e: [[0,-0.04]], m: [-0.07,0.18, 0.07,0.18] },
-      text: 'A rent in the world, ringed with black iron. Offer it a weapon and it will return it — heavier, hungrier. Everything the void touches, it changes.',
+      text: "A tear in the world, with black iron hammered round it to hold the edges apart. Put a thing in and it comes back heavier, and hungrier, and yours.",
       choices: [
-        { label: 'Feed it a card', sub: 'Void-touch a card: +50% effect, but it costs 3 HP to play',
-          outcome: { text: 'You hold a card to the rift. It drinks the design and gives it back wrong — and wonderful.', fx: { pick: 'vtouch' } } },
-        { label: 'Reach inside', sub: 'PSI check, DC 13', check: { attr: 'psi', dc: 13 },
-          success: { text: 'Your hand closes on something that was never meant to be known. You keep it anyway.', fx: { card: 'forbidden_lore' } },
-          fail: { text: 'Something reaches back. It does not let go cleanly.', fx: { hp: -8, curse: 'void_taint' } } },
-        { label: 'Seal it and walk', outcome: { text: 'Some forges are better left cold. You weld the rift and move on.', fx: {} } },
+        { label: "Feed it a card", sub: 'Void-touch a card: +50% effect, but it costs 3 HP to play',
+          outcome: { text: "You hold the card up to the tear. It drinks the design and hands it back wrong, and better.", fx: { pick: 'vtouch' } } },
+        { label: "Reach in", sub: 'PSI check, DC 13', check: { attr: 'psi', dc: 13 },
+          success: { text: "Your hand closes on a thing that was never meant to be known. You keep it.", fx: { card: 'forbidden_lore' } },
+          fail: { text: "Something takes hold of the other end. It does not let go tidily.", fx: { hp: -8, curse: 'void_taint' } } },
+        { label: "Weld it shut", outcome: { text: "Some forges want leaving cold. You weld it shut and go on down.", fx: {} } },
       ],
     },
     {
       id: 'munitions_depot', title: 'ABANDONED DEPOT',
       art: { c: '#ffb02e', p: [[-0.72,-0.28, 0.72,-0.28, 0.72,0.7, -0.72,0.7, -0.72,-0.28], [-0.72,0.22, 0.72,0.22], [-0.26,-0.52, 0,-0.95, 0.26,-0.52, 0.26,-0.28, -0.26,-0.28, -0.26,-0.52], [-0.4,0.42, -0.1,0.42], [0.1,0.42, 0.4,0.42]], e: [] },
-      text: 'A forward weapons depot, half-looted in the retreat. A live ordnance rack still hangs on the wall; a med-locker blinks beside it.',
+      text: "A forward depot, half-emptied in whatever went wrong here. A live rack still on the wall. A med-locker beside it, blinking, still reporting to somebody.",
       choices: [
-        { label: 'Wrench the live ordnance free', sub: 'It’s still primed — this could go wrong',
+        { label: "Pull the live charge", sub: 'It’s still primed — this could go wrong',
           gamble: [
-            { w: 3, text: 'You ease the primed charge off the rack. It will only fire once, but it will fire hard.', fx: { card: 'salvaged_ordnance' } },
-            { w: 2, text: 'The charge shifts as it comes loose and cooks off against your chestplate.', fx: { hp: -11 } },
+            { w: 3, text: "You ease the primed charge off its rack. It will fire once. It will fire hard.", fx: { card: 'salvaged_ordnance' } },
+            { w: 2, text: "It shifts coming loose and cooks off against your chestplate.", fx: { hp: -11 } },
           ] },
-        { label: 'Crack the monitored med-locker', sub: 'TECH check, DC 11 — beat the alarm', check: { attr: 'tech', dc: 11 },
-          success: { text: 'You spoof the alarm and lift the expired combat stims. One hit will light you up — and cost you.', fx: { card: 'stim_overdose' } },
-          fail: { text: 'The alarm shrieks. You grab what you can as automated turrets stitch the wall behind you.', fx: { hp: -9 } } },
-        { label: 'Strip it for scrip', sub: 'TECH check, DC 12', check: { attr: 'tech', dc: 12 },
-          success: { text: 'You disarm the lot and sell it down the line.', fx: { credits: 60 } },
-          fail: { text: 'A tamper-charge cooks off in your face.', fx: { hp: -9 } } },
+        { label: "Crack the locker", sub: 'TECH check, DC 11 — beat the alarm', check: { attr: 'tech', dc: 11 },
+          success: { text: "You spoof the alarm and lift the expired stims. One dose will light you up and bill you for it.", fx: { card: 'stim_overdose' } },
+          fail: { text: "The alarm goes. You take what you can while the turrets stitch the wall behind you.", fx: { hp: -9 } } },
+        { label: "Strip it for scrip", sub: 'TECH check, DC 12', check: { attr: 'tech', dc: 12 },
+          success: { text: "You make the lot safe and sell it further down.", fx: { credits: 60 } },
+          fail: { text: "A tamper charge goes off in your face.", fx: { hp: -9 } } },
       ],
     },
 
     /* ---------------- Rework: interaction-forward, less free stuff -------- */
     {
-      id: 'asteroid_exchange', title: 'ASTEROID TRADE HUB',
+      id: 'asteroid_exchange', title: "THE LANDING",
       art: { c: '#41d8ff', p: [[-0.8,0.15, -0.5,-0.45, 0.1,-0.62, 0.62,-0.32, 0.78,0.22, 0.45,0.62, -0.25,0.66, -0.8,0.15], [-0.45,-0.1, -0.15,-0.25, 0.0,0.0, -0.25,0.18, -0.45,-0.1], [0.2,0.15, 0.5,0.05], [0.55,-0.5, 0.8,-0.72], [-0.62,0.36, -0.85,0.55]], e: [[-0.3,0.02],[0.3,0.28]], m: [-0.18,0.42, 0.18,0.42] },
-      text: 'A hollowed-out asteroid hums with the chatter of a hundred traders. A weaponsmith waves you over. "Bring me a piece of kit. I will melt it down and forge you something keener. Fair trade, captain — metal for metal."',
+      text: "A landing wide enough to stop on, and a hundred people stopped on it. A smith waves you over. “Bring me a piece of kit. I will put it in the fire and give you back something keener. Metal for metal.”",
       choices: [
-        { label: 'Trade up a card', sub: 'Scrap one card → forge one a tier higher', cond: { minCards: 2 },
-          outcome: { text: 'The smith feeds your weapon into the crucible. What she hands back is heavier, meaner, and unmistakably better.', fx: { tradeCard: true } } },
-        { label: 'Buy off-the-rack', sub: '¢35', cost: 35,
-          outcome: { text: 'Nothing special, but it shoots straight.', fx: { card: 'random' } } },
-        { label: 'Just browse', outcome: { text: 'You pocket your credits and move along.', fx: {} } },
+        { label: "Trade a card up", sub: 'Scrap one card → forge one a tier higher', cond: { minCards: 2 },
+          outcome: { text: "She feeds your weapon to the crucible. What comes back is heavier, meaner, and unmistakably better.", fx: { tradeCard: true } } },
+        { label: "Buy off the rack", sub: '¢35', cost: 35,
+          outcome: { text: "Nothing special. It shoots straight.", fx: { card: 'random' } } },
+        { label: "Just look", outcome: { text: "You keep your scrip and move along.", fx: {} } },
       ],
     },
     {
       id: 'salvage_exchange', title: 'THE RELIC BROKER',
       art: { c: '#c86bff', p: [[-0.6,0.7, -0.5,-0.1, -0.25,-0.4, 0.25,-0.4, 0.5,-0.1, 0.6,0.7], [-0.25,-0.4, -0.3,-0.78, 0.3,-0.78, 0.25,-0.4], [-0.55,0.2, 0.55,0.2], [-0.78,0.4, -0.6,0.1], [0.78,0.4, 0.6,0.1]], e: [[-0.1,-0.58],[0.1,-0.58]], m: [-0.12,-0.2, 0,-0.12, 0.12,-0.2] },
-      text: 'A masked broker keeps a cabinet of humming oddities. "I do not sell, traveler. I exchange. Surrender one of your relics and I will lay two unknowns before you — keep whichever calls to you. The other returns to the dark."',
+      text: "A masked figure keeps a case of humming oddities. “I do not sell. I exchange. Give me one of yours and I will lay two unknowns down. Keep the one that speaks. The other goes back into the dark.”",
       choices: [
-        { label: 'Exchange a relic', sub: 'Give 1 relic → choose 1 of 2 unknown relics', cond: { hasRelic: true },
-          outcome: { text: 'You set your relic on the velvet. The broker smiles behind the mask and unveils two more.', fx: { tradeRelic: true } } },
-        { label: 'Pay for a peek', sub: '¢50 for a relic, sight unseen', cost: 50,
-          outcome: { text: '"A gamble, but an honest one." The broker presses something cold into your palm.', fx: { artifact: true } } },
-        { label: 'Keep what you have', outcome: { text: '"Caution is its own relic," the broker allows.', fx: {} } },
+        { label: "Exchange a relic", sub: 'Give 1 relic → choose 1 of 2 unknown relics', cond: { hasRelic: true },
+          outcome: { text: "You set your relic on the velvet. The mask smiles and uncovers two more.", fx: { tradeRelic: true } } },
+        { label: "Pay for one, unseen", sub: '¢50 for a relic, sight unseen', cost: 50,
+          outcome: { text: "“A gamble, but an honest one.” Something cold is pressed into your palm.", fx: { artifact: true } } },
+        { label: "Keep what you have", outcome: { text: "“Caution is its own relic,” the broker allows.", fx: {} } },
       ],
     },
     {
       id: 'escape_pod', title: 'DISTRESS BEACON',
       art: { c: '#5dff88', p: [[0,-0.85, 0.22,-0.55, 0.16,0.05, 0.34,0.78, -0.34,0.78, -0.16,0.05, -0.22,-0.55, 0,-0.85], [-0.2,-0.42, 0.2,-0.42], [0.2,-0.35, 0.5,-0.45, 0.55,-0.85], [0.55,-0.85, 0.46,-1.0, 0.66,-1.0, 0.55,-0.85], [-0.18,0.4, 0.18,0.4]], e: [[-0.07,-0.6],[0.07,-0.6]], m: [-0.09,-0.42, 0.09,-0.42] },
-      text: 'An escape pod tumbles out of the debris field, its beacon pulsing a ragged SOS. The hull is scorched — no telling if the soul inside is a castaway begging for rescue or a boarding party wearing a dead crew\'s transponder.',
+      text: "A pod comes out of the wreckage with its beacon going ragged. The hull is burned through. There is no telling whether what is inside is asking for help or wearing the people who were.",
       choices: [
-        { label: 'Pull them aboard, blind', sub: 'Friend or foe — commit now',
+        { label: "Open it blind", sub: 'Friend or foe — commit now',
           gamble: [
-            { w: 3, text: 'A genuine survivor — a fleet engineer who repays the rescue with a piece of salvaged tech and an old debt of gratitude.', fx: { artifact: true } },
-            { w: 3, text: 'The hatch blows. Raiders pour out, and you fight them off through your own corridors before spacing the last of them.', fx: { hp: -15, curse: 'void_taint' } },
+            { w: 3, text: "A real one — an engineer, who pays the rescue back with a piece of salvage and a debt they intend to keep.", fx: { artifact: true } },
+            { w: 3, text: "The hatch goes. What comes out of it you fight through your own position before you get the last of them out.", fx: { hp: -15, curse: 'void_taint' } },
           ] },
-        { label: 'Hail and verify first', sub: 'PSI check, DC 13 — read their intent', check: { attr: 'psi', dc: 13 },
-          success: { text: 'You feel the panic of a true castaway. You bring them in safely; they leave you their cargo manifest and a parting gift.', fx: { card: 'rare', credits: 20 } },
-          fail: { text: 'They feed you exactly what you want to hear. The ambush still costs you — but you saw it coming.', fx: { hp: -8 } } },
-        { label: 'Strip the pod, leave them', sub: 'Ruthless salvage',
-          outcome: { text: 'You vent the pod and pick the wreck clean. Whoever it was, they trouble no one now.', fx: { credits: 40, curse: 'void_taint' } } },
-        { label: 'Let it drift', outcome: { text: 'Not your war, not your dead. You hold your course.', fx: {} } },
+        { label: "Read them first", sub: 'PSI check, DC 13 — read their intent', check: { attr: 'psi', dc: 13 },
+          success: { text: "You feel the panic of somebody genuinely drowning. You bring them in. They leave you their manifest, and something off it.", fx: { card: 'rare', credits: 20 } },
+          fail: { text: "They tell you exactly what you wanted to hear. It still costs you. You still saw it coming.", fx: { hp: -8 } } },
+        { label: "Strip it and leave", sub: 'Ruthless salvage',
+          outcome: { text: "You open the pod and pick it clean. Whoever that was troubles nobody now.", fx: { credits: 40, curse: 'void_taint' } } },
+        { label: "Let it drift", outcome: { text: "Not your dead. You hold your line.", fx: {} } },
       ],
     },
     {
-      id: 'refuel_station', title: 'REFUELING STATION',
+      id: 'refuel_station', title: "THE WAYSTATION",
       art: { c: '#ffb02e', p: [[-0.7,0.7, -0.7,-0.2, -0.45,-0.2, -0.45,-0.6, 0.45,-0.6, 0.45,-0.2, 0.7,-0.2, 0.7,0.7, -0.7,0.7], [-0.45,-0.6, -0.45,-0.85, 0.45,-0.85, 0.45,-0.6], [-0.3,0.05, 0.3,0.05], [-0.3,0.3, 0.3,0.3], [0.7,0.1, 1.0,0.1, 1.0,0.5]], e: [[-0.15,-0.4],[0.15,-0.4]] },
-      text: 'An automated waystation drifts at the edge of the system, running on fumes and old protocols. It can spare you exactly one service before its reserves run dry. "STATE YOUR PRIORITY," it intones.',
+      text: "An automatic station, running on the last of itself and on protocols older than the room it is in. It has one service left. “STATE YOUR PRIORITY,” it says, and means it.",
       choices: [
-        { label: 'Patch the hull', sub: 'Heal 30% HP',
-          outcome: { text: 'Sealant foam and a long, blessed hum of repair drones.', fx: { healPct: 0.30 } } },
-        { label: 'Recalibrate a weapon', sub: 'Upgrade a card',
-          outcome: { text: 'The station\'s armory arm tunes one of your weapons to a finer edge.', fx: { pick: 'upgrade' } } },
-        { label: 'Run a system purge', sub: 'Cleanse a curse', cond: { hasCurse: true },
-          outcome: { text: 'Diagnostics chew through the corruption in your kit and spit it into the void.', fx: { removeCurse: 1 } } },
-        { label: 'Top off the tanks', sub: 'Trade fuel credits', cost: 0,
-          outcome: { text: 'You siphon the last of the reserve fuel and sell the surplus down the line.', fx: { credits: 25 } } },
+        { label: "Patch the armour", sub: 'Heal 30% HP',
+          outcome: { text: "Sealant foam, and a long good hum of repair arms.", fx: { healPct: 0.30 } } },
+        { label: "Recalibrate a weapon", sub: 'Upgrade a card',
+          outcome: { text: "The armoury arm takes one of your weapons and puts a finer edge on it.", fx: { pick: 'upgrade' } } },
+        { label: "Purge the system", sub: 'Cleanse a curse', cond: { hasCurse: true },
+          outcome: { text: "Diagnostics chew through the rot in your kit and put it out into the dark.", fx: { removeCurse: 1 } } },
+        { label: "Draw the reserve", sub: 'Trade fuel credits', cost: 0,
+          outcome: { text: "You draw down the last of the reserve and sell the surplus further on.", fx: { credits: 25 } } },
       ],
     },
   ];
+
+})(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
+
+</script>
+  <script>
+/* =========================================================================
+ * VOIDSPIRE — story.js
+ * The overarching narrative, and the cutscenes that carry it.
+ *
+ * REGISTER — everything written here follows one rule: the game never explains
+ * itself. What the Spire is, why you are in it, and what you are counting
+ * toward are never stated. They are implied by ruins, by habits, by what the
+ * dying half-remember. Speakers are mad, wrong, or talking to someone else.
+ * The player's own motive is never named. Concrete images do the work that
+ * exposition would otherwise do.
+ *
+ * The thing being implied, for whoever maintains this:
+ *
+ *   The Spire goes DOWN, and everything that falls into it is COUNTED. At the
+ *   bottom is the UNMAKER, which is not a guardian but a tally — killing it
+ *   does not end the count, it rolls it over. That is the Recurrence.
+ *   Before the Spire fell it was a HEART. Someone broke it. The Spire has been
+ *   trying to finish the sum ever since.
+ *   Everyone who descends carries a DIE. Nobody remembers being given one.
+ *   The die is how the Spire reads you: engravings are answers, Flaws are its
+ *   corrections.
+ *   The three factions are three wrong answers to the same question. The
+ *   Hierarchy decided the unmaking is a grace and descend to receive it. The
+ *   Rust Legion came to measure the Spire and were measured instead; nobody
+ *   told them to stop. The Voidspawn are what comes back up.
+ *   You have done this before. Everything down here half-recognises you.
+ *
+ * None of the above is ever said out loud in-game. Keep it that way.
+ * ========================================================================= */
+(function (ns) {
+  'use strict';
+
+  /* ---- scene art -----------------------------------------------------
+   * Same vector language as the rest of the game — polylines in a box,
+   * stroked and glowing — but composed in LAYERS so a scene can drift with
+   * parallax. x runs -1..1, y runs -0.6..0.6 (a wide cinematic panel).
+   * `d` is depth: 0 = far and slow, 1 = near and fast.
+   * ------------------------------------------------------------------ */
+  function ring(cy, rx, ry, n) {          // an ellipse, as a closed polyline
+    var p = [];
+    for (var i = 0; i <= (n || 28); i++) {
+      var a = (i / (n || 28)) * Math.PI * 2;
+      p.push(+(Math.cos(a) * rx).toFixed(3), +(cy + Math.sin(a) * ry).toFixed(3));
+    }
+    return p;
+  }
+  function arc(cx, cy, r, a0, a1, n) {    // an open arc
+    var p = [];
+    for (var i = 0; i <= (n || 18); i++) {
+      var a = a0 + (a1 - a0) * (i / (n || 18));
+      p.push(+(cx + Math.cos(a) * r).toFixed(3), +(cy + Math.sin(a) * r).toFixed(3));
+    }
+    return p;
+  }
+  function tallies(x0, y0, rows, per, dx, dy) {   // scratched count marks
+    var out = [];
+    for (var r = 0; r < rows; r++) {
+      for (var i = 0; i < per; i++) {
+        var x = x0 + i * dx, y = y0 + r * dy;
+        // every fifth mark is the stroke that crosses the other four
+        if (i % 5 === 4) out.push([x - dx * 3.6, y + 0.032, x + dx * 0.5, y - 0.032]);
+        else out.push([x, y - 0.036, x + dx * 0.18, y + 0.036]);
+      }
+    }
+    return out;
+  }
+  function teeth(cy, r, n, len) {          // gear teeth around a ring
+    var out = [];
+    for (var i = 0; i < n; i++) {
+      var a = (i / n) * Math.PI * 2;
+      out.push([+(Math.cos(a) * r).toFixed(3), +(cy + Math.sin(a) * r * 0.42).toFixed(3),
+                +(Math.cos(a) * (r + len)).toFixed(3), +(cy + Math.sin(a) * (r + len) * 0.42).toFixed(3)]);
+    }
+    return out;
+  }
+  // The Spire seen down its own throat: concentric rings receding to a point,
+  // with ribs joining them so the eye reads depth rather than a flat target.
+  function tunnel(cy, n, rx, shrink, ribs) {
+    var out = [], r = rx, i;
+    for (i = 0; i < n; i++) { out.push(ring(cy, r, r * 0.34, 26)); r *= shrink; }
+    var inner = r / shrink;
+    for (i = 0; i < (ribs || 0); i++) {
+      var a = (i / ribs) * Math.PI * 2 + 0.3;
+      out.push([+(Math.cos(a) * rx).toFixed(3), +(cy + Math.sin(a) * rx * 0.34).toFixed(3),
+                +(Math.cos(a) * inner).toFixed(3), +(cy + Math.sin(a) * inner * 0.34).toFixed(3)]);
+    }
+    return out;
+  }
+  // A circle drawn as `n` arcs with gaps between them — the more gaps, the more
+  // of it is missing. Rings of increasing brokenness read as a shape ending.
+  function broken(cx, cy, r, n, keep, phase) {
+    var out = [];
+    for (var i = 0; i < n; i++) {
+      var a0 = (i / n) * Math.PI * 2 + (phase || 0);
+      out.push(arc(cx, cy, r, a0, a0 + (Math.PI * 2 / n) * keep, 10));
+    }
+    return out;
+  }
+  // A run of short strokes along a path — used for edges that are crumbling,
+  // or for a shape in the act of being deleted.
+  function dashes(x0, y0, x1, y1, n, len) {
+    var out = [];
+    for (var i = 0; i < n; i++) {
+      var t = i / (n - 1), x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t;
+      var dx = (x1 - x0), dy = (y1 - y0), m = Math.sqrt(dx * dx + dy * dy) || 1;
+      var l = len * (0.25 + t * 0.75);   // sparser and shorter toward the start
+      out.push([+(x - dx / m * l).toFixed(3), +(y - dy / m * l).toFixed(3),
+                +(x + dx / m * l).toFixed(3), +(y + dy / m * l).toFixed(3)]);
+    }
+    return out;
+  }
+  ns.SCENES = {
+    /* --- it does not stop when it dies ------------------------------- */
+    corpse: { layers: [
+      { d: 0, p: [[-1, 0.5, 1, 0.5], [-0.96, 0.5, -0.96, -0.22], [-0.84, 0.5, -0.84, 0.04],
+                  [0.88, 0.5, 0.88, -0.14], [0.98, 0.5, 0.98, 0.08], [-1, 0.08, -0.96, 0.08]] },
+      { d: 0.45, p: [
+        // a big thing down on its side: back, flank and the deck it is lying on
+        [-0.82, 0.5, -0.76, 0.2, -0.56, 0.02, -0.24, -0.08, 0.1, -0.06, 0.4, 0.06, 0.62, 0.26, 0.74, 0.5],
+        [-0.82, 0.5, -0.48, 0.42, -0.04, 0.44, 0.36, 0.42, 0.74, 0.5],
+        // the head plate, and the socket that is still lit
+        [-0.78, 0.28, -0.7, 0.04, -0.46, -0.04, -0.32, 0.12, -0.4, 0.36, -0.78, 0.28],
+        [-0.66, 0.34, -0.42, 0.26],
+        // spines out of the back, rooted where the back line bends
+        [-0.56, 0.02, -0.66, -0.3], [-0.66, -0.3, -0.6, -0.36],
+        [-0.24, -0.08, -0.24, -0.42], [-0.24, -0.42, -0.17, -0.47],
+        [0.1, -0.06, 0.22, -0.38], [0.22, -0.38, 0.29, -0.42],
+        // a limb folded under it
+        [0.4, 0.06, 0.56, 0.2, 0.44, 0.34, 0.5, 0.48],
+      ] },
+      { d: 1, p: [arc(-0.56, 0.16, 0.11, 0, Math.PI * 2, 16), arc(-0.56, 0.16, 0.05, 0, Math.PI * 2, 12),
+                  // it is still venting, slower than it was
+                  [0.16, -0.12, 0.24, -0.28, 0.16, -0.42, 0.24, -0.56]],
+        s: [[-0.56, 0.16]] },
+    ] },
+
+    /* --- you look for the floor -------------------------------------- */
+    descent: { layers: [
+      { d: 0, p: tunnel(0.04, 7, 0.94, 0.72, 8) },
+      { d: 0.5, p: [ring(0.04, 0.2, 0.068, 20), ring(0.04, 0.14, 0.048, 16)] },
+      { d: 1, p: [], s: [[-0.4, 0.14], [0.3, -0.1], [0.52, 0.2], [-0.22, -0.16], [0.1, 0.26]] },
+    ] },
+
+    /* --- something is cut into your die that you did not cut ---------- */
+    die: { layers: [
+      { d: 0, p: tunnel(-0.42, 4, 0.26, 0.66, 5).concat([[-1, 0.5, 1, 0.5]]) },
+      { d: 0.6, p: [
+        [0, -0.44, 0.46, -0.19, 0.46, 0.31, 0, 0.56, -0.46, 0.31, -0.46, -0.19, 0, -0.44],
+        [0, -0.44, 0, 0.0], [-0.46, -0.19, 0, 0.0], [0.46, -0.19, 0, 0.0],
+        [0, 0.0, -0.46, 0.31], [0, 0.0, 0.46, 0.31], [0, 0.0, 0, 0.56],
+      ] },
+      // three old marks worn into the left face; one on the right, freshly cut
+      { d: 1, p: [
+        [-0.3, 0.14, -0.26, 0.3], [-0.22, 0.1, -0.18, 0.26], [-0.14, 0.06, -0.1, 0.22],
+        [0.12, 0.08, 0.2, 0.3, 0.32, 0.12],
+      ], s: [[0.2, 0.3]] },
+    ] },
+
+    /* --- someone kept count here ------------------------------------- */
+    marks: { layers: [
+      { d: 0, p: [[-1, -0.46, 1, -0.46], [-1, 0.5, 1, 0.5], [-0.5, -0.46, -0.5, 0.5], [0.56, -0.46, 0.56, 0.5],
+                  [-1, -0.32, -0.5, -0.32], [0.56, -0.32, 1, -0.32]] },
+      { d: 0.4, p: tallies(-0.9, -0.16, 4, 15, 0.055, 0.19) },
+      // the count runs off the plate and keeps going into the weld
+      { d: 0.9, p: tallies(0.64, -0.16, 4, 6, 0.055, 0.19).concat([[0.98, -0.16, 1.02, -0.16], [0.98, 0.22, 1.02, 0.22]]) },
+    ] },
+
+    /* --- the armour is yours ----------------------------------------- */
+    other: { layers: [
+      { d: 0, p: [[-1, 0.5, 1, 0.5], [-0.66, 0.5, -0.66, -0.6], [0.66, 0.5, 0.66, -0.6], [-0.66, -0.02, 0.66, -0.02],
+                  [-0.66, 0.26, -0.5, 0.26], [0.5, 0.26, 0.66, 0.26]] },
+      { d: 0.5, p: [
+        // seated, head fallen to the shoulder, faceplate turned to the wall
+        [-0.3, -0.32, -0.16, -0.44, 0.0, -0.4, 0.04, -0.24, -0.06, -0.16, -0.24, -0.2, -0.3, -0.32],
+        [-0.26, -0.28, -0.08, -0.24],
+        [-0.06, -0.2, 0.02, -0.1],
+        [-0.26, -0.1, 0.26, -0.1],
+        [-0.22, -0.1, -0.18, 0.28, 0.2, 0.28, 0.24, -0.1],
+        [-0.26, -0.1, -0.42, 0.12, -0.3, 0.32], [0.26, -0.1, 0.42, 0.1, 0.3, 0.3],
+        [-0.18, 0.28, -0.32, 0.5], [0.2, 0.28, 0.34, 0.5],
+        [-0.09, 0.02, 0.11, 0.02], [-0.05, 0.1, 0.07, 0.1],
+      ] },
+      // the same die, out of the hand and lying where it stopped
+      { d: 1, p: [[-0.54, 0.36, -0.44, 0.3, -0.34, 0.36, -0.34, 0.48, -0.44, 0.54, -0.54, 0.48, -0.54, 0.36],
+                  [-0.44, 0.3, -0.44, 0.42], [-0.54, 0.36, -0.44, 0.42], [-0.34, 0.36, -0.44, 0.42]] },
+    ] },
+
+    /* --- there are rings above you too -------------------------------- */
+    above: { layers: [
+      { d: 0, p: tunnel(-0.34, 5, 0.62, 0.7, 6) },
+      { d: 0.55, p: tunnel(0.36, 5, 0.62, 0.7, 6) },
+      { d: 1, p: [[-1, 0.01, -0.16, 0.01], [0.16, 0.01, 1, 0.01]], s: [[0, 0.01]] },
+    ] },
+
+    /* --- a machine for being sure ------------------------------------ */
+    engine: { layers: [
+      { d: 0, p: [ring(0, 0.92, 0.4, 34)].concat(teeth(0, 0.92, 26, 0.09)) },
+      { d: 0.5, p: [ring(0, 0.56, 0.24, 28)].concat(teeth(0, 0.56, 18, 0.08)) },
+      { d: 1, p: [ring(0, 0.22, 0.1, 20), [-0.22, 0, 0.22, 0], [0, -0.1, 0, 0.1]], s: [[0, 0]] },
+    ] },
+
+    /* --- your number is here, and it is not new ----------------------- */
+    ledger: { layers: [
+      { d: 0, p: [[-0.8, -0.56, -0.8, 0.56], [-0.28, -0.56, -0.28, 0.56], [0.24, -0.56, 0.24, 0.56], [0.76, -0.56, 0.76, 0.56]] },
+      { d: 0.4, p: (function () {
+        var o = [];
+        for (var c = 0; c < 4; c++) for (var r = 0; r < 9; r++) {
+          var x = -0.96 + c * 0.52, y = -0.46 + r * 0.115;
+          o.push([x, y, x + 0.3, y]);
+        }
+        return o;
+      })() },
+      // one entry, boxed — and struck through, and struck through again
+      { d: 1, p: [
+        [-0.5, 0.005, -0.5, 0.11, -0.16, 0.11, -0.16, 0.005, -0.5, 0.005],
+        [-0.52, 0.1, -0.14, 0.015], [-0.52, 0.02, -0.14, 0.105], [-0.52, 0.058, -0.14, 0.058],
+      ] },
+    ] },
+
+    /* --- the floor has been waiting to open --------------------------- */
+    aperture: { layers: [
+      { d: 0, p: [ring(0, 0.94, 0.42, 30), ring(0, 0.72, 0.32, 28)] },
+      { d: 0.5, p: (function () {
+        var o = [];
+        for (var i = 0; i < 9; i++) {
+          var a = (i / 9) * Math.PI * 2;
+          o.push([+(Math.cos(a) * 0.7).toFixed(3), +(Math.sin(a) * 0.3).toFixed(3),
+                  +(Math.cos(a + 0.5) * 0.24).toFixed(3), +(Math.sin(a + 0.5) * 0.1).toFixed(3)]);
+        }
+        return o;
+      })() },
+      { d: 1, p: [ring(0, 0.2, 0.085, 20)] },
+    ] },
+
+    /* --- it does not die, it finishes --------------------------------- */
+    unmade: { layers: [
+      // its outline, intact at the edge and less of it the further in you look
+      { d: 0, p: broken(0, 0, 0.5, 7, 0.82, 0.2).concat(broken(0, 0, 0.42, 7, 0.6, 0.6)) },
+      { d: 0.5, p: broken(0, 0, 0.3, 6, 0.42, 0.1).concat(broken(0, 0, 0.2, 5, 0.26, 0.9)) },
+      { d: 1, p: [ring(0, 0.04, 0.04, 12)].concat(
+          dashes(-0.56, -0.34, -0.1, -0.06, 5, 0.028))
+          .concat(dashes(0.56, 0.34, 0.1, 0.06, 5, 0.028))
+          .concat(dashes(0.5, -0.4, 0.09, -0.07, 5, 0.028))
+          .concat(dashes(-0.5, 0.4, -0.09, 0.07, 5, 0.028)),
+        s: [[0, 0]] },
+    ] },
+
+    /* --- far under everything: the Heart ------------------------------ */
+    heart: { layers: [
+      { d: 0, p: tunnel(-0.44, 4, 0.3, 0.66, 5) },
+      { d: 0.5, p: [
+        // a core broken open at the top and cold a long time — shells inside shells
+        arc(0, 0.14, 0.4, -Math.PI * 0.35, Math.PI * 1.35, 28),
+        [-0.181, -0.216, -0.1, -0.09, -0.02, -0.185, 0.06, -0.07, 0.14, -0.165, 0.181, -0.216],
+        arc(0, 0.14, 0.26, -Math.PI * 0.4, Math.PI * 1.4, 22),
+        arc(0, 0.14, 0.13, -Math.PI * 0.45, Math.PI * 1.45, 16),
+      ] },
+      // hairline cracks across the shell, going nowhere
+      { d: 1, p: [[-0.38, 0.06, -0.29, 0.16], [0.36, 0.1, 0.27, 0.19], [-0.08, 0.53, -0.03, 0.44],
+                  [0.16, 0.5, 0.21, 0.41], [-0.3, 0.4, -0.24, 0.32]] },
+    ] },
+
+    /* --- the die rolls, and comes up a face you have not seen ---------- */
+    rollover: { layers: [
+      { d: 0, p: tunnel(-0.4, 4, 0.34, 0.68, 5) },
+      { d: 0.5, p: [[-1, 0.46, 1, 0.46], [-0.6, 0.46, -0.5, 0.34], [0.62, 0.46, 0.52, 0.34]] },
+      { d: 1, p: [
+        [-0.24, 0.46, -0.24, 0.14, 0, 0.0, 0.24, 0.14, 0.24, 0.46, 0, 0.6, -0.24, 0.46],
+        [0, 0.0, 0, 0.3], [-0.24, 0.14, 0, 0.3], [0.24, 0.14, 0, 0.3],
+        [-0.16, 0.36, -0.08, 0.44], [0.08, 0.44, 0.16, 0.36],
+      ], s: [[0, 0.3]] },
+    ] },
+  };
+
+  /* ---- the cutscenes -------------------------------------------------
+   * One per sector boss. `panels` are shown in order, each a scene plus its
+   * narration; the player taps through them.
+   * ------------------------------------------------------------------ */
+  ns.CUTSCENES = [
+    { id: 'upper', title: 'THE UPPER WORKS', color: '#9fe8c0', panels: [
+      { scene: 'corpse',
+        text: 'It does not stop when it dies. Whatever it was doing, it goes on doing — slower, and without much interest in you.' },
+      { scene: 'descent',
+        text: 'You look for the floor. There are rings under the rings, and lights on them, moving the way you move.' },
+      { scene: 'die',
+        text: 'There is a mark on your die that you did not cut. You go on down. It seems to be the arrangement.' },
+    ] },
+    { id: 'mark', title: 'THE MARK', color: '#6fd0ff', panels: [
+      { scene: 'marks',
+        text: 'Someone kept count on this plate. The marks run off the edge of it, into the weld, into the dark past the weld.' },
+      { scene: 'other',
+        text: 'The armour is yours. The face is turned away, and you have the good sense to leave it turned away.' },
+      { scene: 'above',
+        text: 'You look up, out of habit. There are rings above you as well. You do not remember coming past them.' },
+    ] },
+    { id: 'count', title: 'THE COUNT', color: '#ffb02e', panels: [
+      { scene: 'engine',
+        text: 'It is not a machine for making anything. It is a machine for being sure.' },
+      { scene: 'ledger',
+        text: 'Your number is here, and it is not new. It has been struck through. It has been struck through a great many times.' },
+      { scene: 'aperture',
+        text: 'The floor was never a floor. It has been waiting the way a mouth waits.' },
+    ] },
+    { id: 'floor', title: 'THE FLOOR', color: '#b8ecff', panels: [
+      { scene: 'unmade',
+        text: 'It does not die. It finishes. There is a difference, and you feel it go out of you as well.' },
+      { scene: 'heart',
+        text: 'Under everything, cold a long time: the thing the Spire was before it learned to fall. Whatever is still being counted is counted toward that.' },
+      { scene: 'rollover',
+        text: 'The die rolls, and rests on a face you have not seen. Somewhere far above, a first floor. Somewhere, someone begins.' },
+    ] },
+  ];
+
+  // Cutscene for the boss of a given sector (1-based). Sector 4 is the finale.
+  ns.cutsceneFor = function (sector) { return ns.CUTSCENES[Math.min(sector, ns.CUTSCENES.length) - 1] || null; };
+
+  /* ---- the descent, named --------------------------------------------
+   * Shown on the sector card. Depth, not geography — the factions are shuffled
+   * each run, so a sector cannot be a place. It can only be a distance.
+   * ------------------------------------------------------------------ */
+  ns.SECTORS = [
+    { name: 'THE APPROACH', line: 'The last of it that still remembers being anywhere.' },
+    { name: 'THE FALL', line: 'Nothing down here is level. Gravity is a rumour the walls repeat.' },
+    { name: 'THE WORKINGS', line: 'Something has been running a long time, and it was not built for you.' },
+    { name: 'THE FLOOR', line: 'There is no further down. That is not the same as being the end.' },
+    { name: 'BELOW THE FLOOR', line: 'You are past the part that was measured.' },
+  ];
+  ns.sectorLore = function (n) { return ns.SECTORS[Math.min(n, ns.SECTORS.length) - 1] || ns.SECTORS[ns.SECTORS.length - 1]; };
+
+  /* ---- who else is down here ------------------------------------------
+   * Three wrong answers to the same question. None of them says so.
+   * ------------------------------------------------------------------ */
+  ns.FACTION_LORE = {
+    hierarchy: 'They came down to be taken apart, and call it a kindness. They sing on the way.',
+    rust:      'They were sent to measure the Spire. They are still measuring. No one came to tell them the survey ended.',
+    voidspawn: 'These are the ones that came back up.',
+  };
+
+  // Title-screen epigraph. Never explains; only sets the rule.
+  ns.EPIGRAPH = 'Everything that falls in is counted.';
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
@@ -5827,6 +6227,19 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     r.nodesCleared++;
     var node = currentNode();
     var next = (node && node.type === 'boss') ? 'levelup' : 'map';
+    // A sector boss buys you the cutscene before the spoils — the story beat
+    // lands on the kill, not four menus later.
+    if (node && node.type === 'boss' && !r.seenCutscene) r.seenCutscene = {};
+    if (node && node.type === 'boss' && ns.cutsceneFor && ns.cutsceneFor(r.sector)) {
+      var cs = ns.cutsceneFor(r.sector);
+      if (!r.seenCutscene[cs.id] || r.loop > 1) {
+        r.seenCutscene[cs.id] = true;
+        r.cutscene = { id: cs.id, panel: 0, next: next };
+        r.phase = 'cutscene';
+        E.save();
+        return;
+      }
+    }
     if (r.classQuest && r.classQuest.ready && !r.classQuest.picked) {
       r.classQuest.nextPhase = next;     // claim your signature relic before moving on
       r.phase = 'class-relic';
@@ -5836,6 +6249,25 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     E.save();
   }
   E.nodeComplete = nodeComplete;
+  // The cutscene is pure narration — it never changes state beyond its own
+  // cursor, so leaving it always lands exactly where nodeComplete() would have.
+  E.cutsceneNext = function () {
+    var r = E.run, c = r.cutscene;
+    if (!c) return false;
+    var cs = ns.cutsceneFor(r.sector);
+    if (cs && c.panel < cs.panels.length - 1) { c.panel++; E.save(); return true; }
+    r.phase = c.next || 'map';
+    r.cutscene = null;
+    E.save();
+    return false;
+  };
+  E.cutsceneSkip = function () {
+    var r = E.run;
+    if (!r.cutscene) return;
+    r.phase = r.cutscene.next || 'map';
+    r.cutscene = null;
+    E.save();
+  };
   E.finishClassRelic = function () {
     var r = E.run;
     r.phase = (r.classQuest && r.classQuest.nextPhase) || 'map';
@@ -7705,6 +8137,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       if (r.cornerstone && (r.cornerstone.tier || 1) < 4) r.cornerstone.tier = (r.cornerstone.tier || 1) + 1;   // forge a tier per loop cleared
       E.recordBest();
       r.phase = 'victory';
+      // The floor gets its cutscene too, before the tally screen.
+      var fin = ns.cutsceneFor && ns.cutsceneFor(r.sector);
+      if (fin) { r.cutscene = { id: fin.id, panel: 0, next: 'victory' }; r.phase = 'cutscene'; }
       emit('win', { kind: 'final', credits: 0 });
       E.save();
       return;
@@ -11352,6 +11787,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       case 'levelup': return showLevelUp();
       case 'class-relic': return showClassRelic();
       case 'boss-artifact': return showBossArtifact();
+      case 'cutscene': return showCutscene();
       case 'sector-intro': return showSectorIntro();
       case 'victory': return showVictory();
       case 'recurrence-intro': return showRecurrenceIntro();
@@ -12087,7 +12523,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $hud.innerHTML = ''; setHud(false);
     var s = overlayScreen();
     s.appendChild(el('div', 'title-logo', 'VOIDSPIRE'));
-    s.appendChild(el('div', 'subtitle', 'AN ENDLESS DESCENT · TACTICAL CARD PROTOCOL'));
+    s.appendChild(el('div', 'subtitle', ns.EPIGRAPH ? ns.EPIGRAPH.toUpperCase() : 'AN ENDLESS DESCENT'));
 
     if (E.hasSave()) {
       var cont = el('div', 'panel-btn', '<div class="pb-title">▶ CONTINUE RUN</div><div class="pb-sub">Resume your descent</div>');
@@ -14399,7 +14835,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     s.appendChild(frame);
 
     s.appendChild(el('h2', 'screen-title', esc(ev.title)));
-    s.appendChild(el('div', 'screen-sub', 'INCOMING TRANSMISSION · SECTOR ' + E.run.sector));
+    // Not a transmission — there is nobody to transmit. You walked into it.
+    s.appendChild(el('div', 'screen-sub', 'SECTOR ' + E.run.sector + ' · YOU HAVE STOPPED WALKING'));
     s.appendChild(resourceLine());
 
     var p = el('div', 'event-text');
@@ -15143,6 +15580,83 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     tribute_defect: 'Cold machine-light hums beyond the Heart.',
     tribute_watcher: 'A serene, terrible presence waits beyond the Heart.',
   };
+  /* ====================== CUTSCENE ======================
+   * A sector boss ends with a wide vector panel and a line of narration.
+   * The art is the same language as everything else — polylines, stroked and
+   * glowing — but composed in depth layers that drift at different rates, so a
+   * still image reads as a slow camera move rather than a picture.
+   * ==================================================================== */
+  function sceneSVG(scene, color) {
+    // scene space: x -1..1, y -0.6..0.6  ->  viewBox 0 0 200 120
+    function pts(arr) {
+      var o = [];
+      for (var i = 0; i < arr.length; i += 2) {
+        o.push(((arr[i] + 1) * 100).toFixed(1) + ',' + ((arr[i + 1] + 0.6) * 100).toFixed(1));
+      }
+      return o.join(' ');
+    }
+    var out = '<svg class="vec cut-svg" viewBox="0 0 200 120" preserveAspectRatio="xMidYMid meet"' +
+      (color ? ' style="color:' + color + '"' : '') + '>';
+    scene.layers.forEach(function (L, li) {
+      // depth drives both the parallax amplitude and how solid the layer reads
+      var d = L.d == null ? 0.5 : L.d;
+      out += '<g class="cut-layer" style="--d:' + d.toFixed(2) + ';--i:' + li + ';opacity:' + (0.4 + d * 0.6).toFixed(2) + '">';
+      (L.p || []).forEach(function (p) { out += '<polyline points="' + pts(p) + '"/>'; });
+      // `s` are sparks, not eyes — distant lights on the rings, a core still lit.
+      // They pulse; they do not blink, because nothing down here is looking.
+      (L.s || []).forEach(function (e, ei) {
+        out += '<circle class="cut-spark" style="--k:' + ei + '" cx="' + ((e[0] + 1) * 100).toFixed(1) +
+               '" cy="' + ((e[1] + 0.6) * 100).toFixed(1) + '" r="1.3"/>';
+      });
+      out += '</g>';
+    });
+    return out + '</svg>';
+  }
+
+  U.sceneSVG = sceneSVG;   // test/cutshot.js renders a contact sheet of every panel
+
+  function showCutscene() {
+    combatChrome(false);
+    $hud.innerHTML = ''; setHud(false);
+    var r = E.run, cs = ns.cutsceneFor(r.sector);
+    if (!cs || !r.cutscene) { E.cutsceneSkip(); return U.refresh(); }
+    var idx = Math.min(r.cutscene.panel || 0, cs.panels.length - 1);
+    var panel = cs.panels[idx];
+
+    var s = overlayScreen();
+    s.classList.add('cutscene-screen');
+    var head = el('div', 'cut-title', cs.title);
+    head.style.color = cs.color;
+    s.appendChild(head);
+
+    var frame = el('div', 'cut-frame');
+    frame.innerHTML = sceneSVG(ns.SCENES[panel.scene], cs.color);
+    s.appendChild(frame);
+
+    var dots = el('div', 'cut-dots');
+    cs.panels.forEach(function (_, i) { dots.appendChild(el('span', i === idx ? 'on' : '')); });
+    s.appendChild(dots);
+
+    var p = el('div', 'event-text cut-text', '');
+    s.appendChild(p);
+    var finish = typeText(p, panel.text, null);
+
+    var last = idx === cs.panels.length - 1;
+    var btn = el('button', 'btn', last ? 'GO ON DOWN' : 'CONTINUE');
+    function advance() {
+      if (typing()) { finish(); return; }
+      SFX.tap();
+      E.cutsceneNext();
+      U.refresh();
+    }
+    btn.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); advance(); });
+    s.appendChild(btn);
+    // tap anywhere to hurry the line, then to move on
+    s.addEventListener('pointerdown', function (ev) {
+      if (typing()) { finish(); ev.stopPropagation(); }
+    }, true);
+  }
+
   function showSectorIntro() {
     updateHUD();
     var r = E.run;
@@ -15158,12 +15672,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       return;
     }
     var fac = ns.FACTIONS[r.faction];
+    var lore = ns.sectorLore ? ns.sectorLore(r.sector) : null;
     var s = overlayScreen();
-    s.appendChild(el('div', 'sector-banner', 'SECTOR ' + r.sector));
-    var ft = el('div', 'faction-tag', esc(fac.name.toUpperCase()) + ' TERRITORY — ' + esc(fac.desc.toUpperCase()));
+    s.appendChild(el('div', 'sector-banner', 'SECTOR ' + r.sector + (lore ? ' · ' + lore.name : '')));
+    var ft = el('div', 'faction-tag', esc(fac.name.toUpperCase()));
     ft.style.color = fac.color;
     s.appendChild(ft);
-    s.appendChild(el('div', 'screen-sub', 'ENEMIES GROW STRONGER. SO DO YOU.'));
+    // What the sector is, and who else is down here — both stated the way the
+    // rest of the game states things, which is to say not quite.
+    if (lore) s.appendChild(el('div', 'sector-line', lore.line));
+    var fl = ns.FACTION_LORE && ns.FACTION_LORE[r.faction];
+    if (fl) s.appendChild(el('div', 'sector-line faction-line', fl));
     var btn = el('button', 'btn', 'DESCEND');
     btn.addEventListener('pointerdown', function () { SFX.play(); E.beginSector(); U.refresh(); });
     s.appendChild(btn);

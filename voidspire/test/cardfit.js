@@ -59,11 +59,14 @@ function measure() {
       var clipped = d.scrollHeight > d.clientHeight + 0.5;
       // the name has no auto-shrink — it either fits its band or it is cut
       var n = card.querySelector('.cname');
-      var nameClipped = n.scrollHeight > n.clientHeight + 0.5 || n.scrollWidth > n.clientWidth + 0.5;
+      // 2px of slack: letter-spacing leaves a trailing gap after the last glyph,
+      // so scrollWidth reads a pixel or two over clientWidth even when it fits.
+      var nameOver = Math.max(n.scrollHeight - n.clientHeight, n.scrollWidth - n.clientWidth);
+      var nameClipped = nameOver > 2;
       out.push({
         id: cid + (up ? '+' : ''), name: def.name, chars: text.length,
         px: Math.round(px * 10) / 10, clipped: clipped, shrunk: overflowAtCss,
-        nameClipped: nameClipped, text: text,
+        nameClipped: nameClipped, nameOver: Math.round(nameOver), text: text,
       });
       grid.removeChild(card);
     });
@@ -95,7 +98,7 @@ function measure() {
       Math.floor(r.box.h / (CSS_PX * 1.32)) + ' lines\n');
 
     var badName = r.cards.filter(function (c) { return c.nameClipped; });
-    if (badName.length) console.log('NAME CLIPPED: ' + badName.map(function (c) { return c.name; }).join(', ') + '\n');
+    if (badName.length) console.log('NAME CLIPPED: ' + badName.map(function (c) { return c.name + '(+' + c.nameOver + 'px)'; }).join(', ') + '\n');
 
     var clipped = r.cards.filter(function (c) { return c.clipped; });
     var shrunk = r.cards.filter(function (c) { return !c.clipped && c.shrunk; });

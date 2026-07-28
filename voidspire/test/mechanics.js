@@ -15,6 +15,7 @@ require('../js/potions.js');
 require('../js/echoes.js');
 require('../js/enemies.js');
 require('../js/events.js');
+require('../js/story.js');
 require('../js/engine.js');
 
 var E = VS.engine;
@@ -354,6 +355,10 @@ E.run.potions = ['frag_charge']; // 12 dmg, lethal
 E.usePotion(0, 0);
 ok('finale boss is dead', !E.combat.enemies[0].alive);
 ok('finale victory sets run.won', E.run.won === true);
+// The floor gets its cutscene before the tally screen; skipping it must land
+// on victory exactly as beating it used to.
+ok('finale victory plays the last cutscene first', E.run.phase === 'cutscene' && E.run.cutscene.id === 'floor');
+E.cutsceneSkip();
 ok('finale victory enters the victory phase', E.run.phase === 'victory');
 ok('enterRecurrence opens the narrative', (E.enterRecurrence(), E.run.phase === 'recurrence-intro'));
 
@@ -1056,6 +1061,78 @@ ok('every remaining class has a starter deck whose cards all exist',
      split === 'Apply 1 Weak to ALL enemies. Draw 1 card. Apply 1 Vulnerable to ALL enemies.');
 })();
 
+
+/* ============ STORY & CUTSCENES ========================================
+ * The cutscene is pure narration, so the only things that can break are the
+ * ones that would strand a player: a panel with no art, a boss kill that does
+ * not reach the cutscene, or a cutscene that does not hand the run back.
+ * ==================================================================== */
+(function () {
+  ok('every sector has a cutscene, and the finale has the last one',
+     VS.cutsceneFor(1).id === 'upper' && VS.cutsceneFor(4).id === 'floor' && VS.cutsceneFor(9).id === 'floor');
+
+  var missing = [], empty = [];
+  VS.CUTSCENES.forEach(function (cs) {
+    cs.panels.forEach(function (p) {
+      var sc = VS.SCENES[p.scene];
+      if (!sc) missing.push(cs.id + '/' + p.scene);
+      else if (!sc.layers.some(function (L) { return (L.p || []).length || (L.s || []).length; })) empty.push(p.scene);
+      if (!p.text || p.text.length < 20) missing.push(cs.id + '/no text');
+    });
+  });
+  ok('every panel has art and a line' + (missing.length ? ' — ' + missing.join(', ') : ''), missing.length === 0);
+  ok('no scene draws nothing' + (empty.length ? ' — ' + empty.join(', ') : ''), empty.length === 0);
+
+  // Art lives in a -1..1 by -0.6..0.6 box; anything outside is cropped away.
+  var outside = [];
+  Object.keys(VS.SCENES).forEach(function (k) {
+    VS.SCENES[k].layers.forEach(function (L) {
+      (L.p || []).forEach(function (poly) {
+        for (var i = 0; i < poly.length; i += 2) {
+          if (Math.abs(poly[i]) > 1.06 || Math.abs(poly[i + 1]) > 0.66) { outside.push(k); return; }
+        }
+      });
+    });
+  });
+  outside = outside.filter(function (v, i, a) { return a.indexOf(v) === i; });
+  ok('no scene draws outside the panel' + (outside.length ? ' — ' + outside.join(', ') : ''), outside.length === 0);
+
+  // Killing a sector boss must route through the cutscene and back out again.
+  E.seed(7); E.newRun('vanguard'); E.run.faction = 'hierarchy';
+  E.run.sector = 1; E.run.nodeIdx = 0;
+  E.run.mapRow = E.run.map.ROWS;          // stand on the boss node itself
+  E.run.mapCol = E.run.map.boss.col;
+  E.startNode('boss');
+  E.combat.enemies.forEach(function (en) { en.hp = 0; en.alive = false; });
+  E.endTurn();
+  var reachedReward = E.run.phase === 'reward';
+  E.finishReward();
+  ok('a sector boss leads into its cutscene (' + E.run.phase + ')', reachedReward && E.run.phase === 'cutscene');
+
+  var panels = VS.cutsceneFor(E.run.sector).panels.length, steps = 0;
+  while (E.run.phase === 'cutscene' && steps < 20) { E.cutsceneNext(); steps++; }
+  ok('it takes exactly one tap per panel (' + steps + ' of ' + panels + ')', steps === panels);
+  ok('and hands the run back where it was going (' + E.run.phase + ')', E.run.phase === 'levelup');
+  ok('the cutscene state is cleared, so a reload cannot replay it', !E.run.cutscene);
+
+  // Skipping must land in the same place as playing it through.
+  E.run.cutscene = { id: 'upper', panel: 0, next: 'levelup' }; E.run.phase = 'cutscene';
+  E.cutsceneSkip();
+  ok('skipping lands where playing it through would have', E.run.phase === 'levelup' && !E.run.cutscene);
+
+  // Prose budget: the event panel is a fixed box too.
+  var longest = 0, worst = '';
+  VS.EVENTS.forEach(function (ev) {
+    function look(t) { if (t && t.length > longest) { longest = t.length; worst = ev.id; } }
+    look(ev.text);
+    (ev.choices || []).forEach(function (c) {
+      ['outcome', 'success', 'fail'].forEach(function (k) { if (c[k]) look(c[k].text); });
+      (c.gamble || []).forEach(function (g) { look(g.text); });
+      if (c.pressLuck) { look(c.pressLuck.bankText); look(c.pressLuck.bustText); }
+    });
+  });
+  ok('no event runs past the panel it is shown in (' + longest + ' chars, ' + worst + ')', longest <= 260);
+})();
 
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

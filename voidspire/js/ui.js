@@ -461,6 +461,7 @@
       case 'levelup': return showLevelUp();
       case 'class-relic': return showClassRelic();
       case 'boss-artifact': return showBossArtifact();
+      case 'cutscene': return showCutscene();
       case 'sector-intro': return showSectorIntro();
       case 'victory': return showVictory();
       case 'recurrence-intro': return showRecurrenceIntro();
@@ -1196,7 +1197,7 @@
     $hud.innerHTML = ''; setHud(false);
     var s = overlayScreen();
     s.appendChild(el('div', 'title-logo', 'VOIDSPIRE'));
-    s.appendChild(el('div', 'subtitle', 'AN ENDLESS DESCENT · TACTICAL CARD PROTOCOL'));
+    s.appendChild(el('div', 'subtitle', ns.EPIGRAPH ? ns.EPIGRAPH.toUpperCase() : 'AN ENDLESS DESCENT'));
 
     if (E.hasSave()) {
       var cont = el('div', 'panel-btn', '<div class="pb-title">▶ CONTINUE RUN</div><div class="pb-sub">Resume your descent</div>');
@@ -3508,7 +3509,8 @@
     s.appendChild(frame);
 
     s.appendChild(el('h2', 'screen-title', esc(ev.title)));
-    s.appendChild(el('div', 'screen-sub', 'INCOMING TRANSMISSION · SECTOR ' + E.run.sector));
+    // Not a transmission — there is nobody to transmit. You walked into it.
+    s.appendChild(el('div', 'screen-sub', 'SECTOR ' + E.run.sector + ' · YOU HAVE STOPPED WALKING'));
     s.appendChild(resourceLine());
 
     var p = el('div', 'event-text');
@@ -4252,6 +4254,83 @@
     tribute_defect: 'Cold machine-light hums beyond the Heart.',
     tribute_watcher: 'A serene, terrible presence waits beyond the Heart.',
   };
+  /* ====================== CUTSCENE ======================
+   * A sector boss ends with a wide vector panel and a line of narration.
+   * The art is the same language as everything else — polylines, stroked and
+   * glowing — but composed in depth layers that drift at different rates, so a
+   * still image reads as a slow camera move rather than a picture.
+   * ==================================================================== */
+  function sceneSVG(scene, color) {
+    // scene space: x -1..1, y -0.6..0.6  ->  viewBox 0 0 200 120
+    function pts(arr) {
+      var o = [];
+      for (var i = 0; i < arr.length; i += 2) {
+        o.push(((arr[i] + 1) * 100).toFixed(1) + ',' + ((arr[i + 1] + 0.6) * 100).toFixed(1));
+      }
+      return o.join(' ');
+    }
+    var out = '<svg class="vec cut-svg" viewBox="0 0 200 120" preserveAspectRatio="xMidYMid meet"' +
+      (color ? ' style="color:' + color + '"' : '') + '>';
+    scene.layers.forEach(function (L, li) {
+      // depth drives both the parallax amplitude and how solid the layer reads
+      var d = L.d == null ? 0.5 : L.d;
+      out += '<g class="cut-layer" style="--d:' + d.toFixed(2) + ';--i:' + li + ';opacity:' + (0.4 + d * 0.6).toFixed(2) + '">';
+      (L.p || []).forEach(function (p) { out += '<polyline points="' + pts(p) + '"/>'; });
+      // `s` are sparks, not eyes — distant lights on the rings, a core still lit.
+      // They pulse; they do not blink, because nothing down here is looking.
+      (L.s || []).forEach(function (e, ei) {
+        out += '<circle class="cut-spark" style="--k:' + ei + '" cx="' + ((e[0] + 1) * 100).toFixed(1) +
+               '" cy="' + ((e[1] + 0.6) * 100).toFixed(1) + '" r="1.3"/>';
+      });
+      out += '</g>';
+    });
+    return out + '</svg>';
+  }
+
+  U.sceneSVG = sceneSVG;   // test/cutshot.js renders a contact sheet of every panel
+
+  function showCutscene() {
+    combatChrome(false);
+    $hud.innerHTML = ''; setHud(false);
+    var r = E.run, cs = ns.cutsceneFor(r.sector);
+    if (!cs || !r.cutscene) { E.cutsceneSkip(); return U.refresh(); }
+    var idx = Math.min(r.cutscene.panel || 0, cs.panels.length - 1);
+    var panel = cs.panels[idx];
+
+    var s = overlayScreen();
+    s.classList.add('cutscene-screen');
+    var head = el('div', 'cut-title', cs.title);
+    head.style.color = cs.color;
+    s.appendChild(head);
+
+    var frame = el('div', 'cut-frame');
+    frame.innerHTML = sceneSVG(ns.SCENES[panel.scene], cs.color);
+    s.appendChild(frame);
+
+    var dots = el('div', 'cut-dots');
+    cs.panels.forEach(function (_, i) { dots.appendChild(el('span', i === idx ? 'on' : '')); });
+    s.appendChild(dots);
+
+    var p = el('div', 'event-text cut-text', '');
+    s.appendChild(p);
+    var finish = typeText(p, panel.text, null);
+
+    var last = idx === cs.panels.length - 1;
+    var btn = el('button', 'btn', last ? 'GO ON DOWN' : 'CONTINUE');
+    function advance() {
+      if (typing()) { finish(); return; }
+      SFX.tap();
+      E.cutsceneNext();
+      U.refresh();
+    }
+    btn.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); advance(); });
+    s.appendChild(btn);
+    // tap anywhere to hurry the line, then to move on
+    s.addEventListener('pointerdown', function (ev) {
+      if (typing()) { finish(); ev.stopPropagation(); }
+    }, true);
+  }
+
   function showSectorIntro() {
     updateHUD();
     var r = E.run;
@@ -4267,12 +4346,17 @@
       return;
     }
     var fac = ns.FACTIONS[r.faction];
+    var lore = ns.sectorLore ? ns.sectorLore(r.sector) : null;
     var s = overlayScreen();
-    s.appendChild(el('div', 'sector-banner', 'SECTOR ' + r.sector));
-    var ft = el('div', 'faction-tag', esc(fac.name.toUpperCase()) + ' TERRITORY — ' + esc(fac.desc.toUpperCase()));
+    s.appendChild(el('div', 'sector-banner', 'SECTOR ' + r.sector + (lore ? ' · ' + lore.name : '')));
+    var ft = el('div', 'faction-tag', esc(fac.name.toUpperCase()));
     ft.style.color = fac.color;
     s.appendChild(ft);
-    s.appendChild(el('div', 'screen-sub', 'ENEMIES GROW STRONGER. SO DO YOU.'));
+    // What the sector is, and who else is down here — both stated the way the
+    // rest of the game states things, which is to say not quite.
+    if (lore) s.appendChild(el('div', 'sector-line', lore.line));
+    var fl = ns.FACTION_LORE && ns.FACTION_LORE[r.faction];
+    if (fl) s.appendChild(el('div', 'sector-line faction-line', fl));
     var btn = el('button', 'btn', 'DESCEND');
     btn.addEventListener('pointerdown', function () { SFX.play(); E.beginSector(); U.refresh(); });
     s.appendChild(btn);

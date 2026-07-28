@@ -521,6 +521,19 @@
     r.nodesCleared++;
     var node = currentNode();
     var next = (node && node.type === 'boss') ? 'levelup' : 'map';
+    // A sector boss buys you the cutscene before the spoils — the story beat
+    // lands on the kill, not four menus later.
+    if (node && node.type === 'boss' && !r.seenCutscene) r.seenCutscene = {};
+    if (node && node.type === 'boss' && ns.cutsceneFor && ns.cutsceneFor(r.sector)) {
+      var cs = ns.cutsceneFor(r.sector);
+      if (!r.seenCutscene[cs.id] || r.loop > 1) {
+        r.seenCutscene[cs.id] = true;
+        r.cutscene = { id: cs.id, panel: 0, next: next };
+        r.phase = 'cutscene';
+        E.save();
+        return;
+      }
+    }
     if (r.classQuest && r.classQuest.ready && !r.classQuest.picked) {
       r.classQuest.nextPhase = next;     // claim your signature relic before moving on
       r.phase = 'class-relic';
@@ -530,6 +543,25 @@
     E.save();
   }
   E.nodeComplete = nodeComplete;
+  // The cutscene is pure narration — it never changes state beyond its own
+  // cursor, so leaving it always lands exactly where nodeComplete() would have.
+  E.cutsceneNext = function () {
+    var r = E.run, c = r.cutscene;
+    if (!c) return false;
+    var cs = ns.cutsceneFor(r.sector);
+    if (cs && c.panel < cs.panels.length - 1) { c.panel++; E.save(); return true; }
+    r.phase = c.next || 'map';
+    r.cutscene = null;
+    E.save();
+    return false;
+  };
+  E.cutsceneSkip = function () {
+    var r = E.run;
+    if (!r.cutscene) return;
+    r.phase = r.cutscene.next || 'map';
+    r.cutscene = null;
+    E.save();
+  };
   E.finishClassRelic = function () {
     var r = E.run;
     r.phase = (r.classQuest && r.classQuest.nextPhase) || 'map';
@@ -2399,6 +2431,9 @@
       if (r.cornerstone && (r.cornerstone.tier || 1) < 4) r.cornerstone.tier = (r.cornerstone.tier || 1) + 1;   // forge a tier per loop cleared
       E.recordBest();
       r.phase = 'victory';
+      // The floor gets its cutscene too, before the tally screen.
+      var fin = ns.cutsceneFor && ns.cutsceneFor(r.sector);
+      if (fin) { r.cutscene = { id: fin.id, panel: 0, next: 'victory' }; r.phase = 'cutscene'; }
       emit('win', { kind: 'final', credits: 0 });
       E.save();
       return;

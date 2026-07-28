@@ -102,6 +102,7 @@ Content is data-driven too:
 | `js/potions.js` | Consumables: name, rarity, colour, target flag, and an effect list (same `fx` style as cards). |
 | `js/echoes.js` | Void Echoes (Recurrence/NG+ relics): simple ones carry `hook`/`hooks` (fold into `art()` while equipped); rule-benders are checked by `E.hasEcho(id)`. |
 | `js/events.js` | Decision events with skill checks and outcome effects. |
+| `js/story.js` | The overarching narrative: sector and faction lore, the cutscene that plays after each sector boss, and the vector scene art they are drawn from. The header comment states what the game is *implying* — none of it is ever said out loud in-game, and it should stay that way. |
 
 ### Validate your tweaks headlessly
 
@@ -110,6 +111,21 @@ node test/sim.js 300        # bot plays full runs; prints avg sector reached,
                             # death locations, and a difficulty profile
 node test/mechanics.js      # unit tests for the build-defining keywords
                             # (power consumption, Echo, Corruption, Catalyst, …)
+                            # plus the card-text budget and the cutscene flow
+```
+
+Layout is the one thing these cannot check — jsdom computes no geometry — so
+two tools drive real headless Chromium instead. Install `playwright-core`
+first, and remove `node_modules` before committing:
+
+```sh
+npm install playwright-core --no-save
+node test/uifit.js          # every overlay screen at phone / small / desktop:
+                            # fails on clipped text, sub-8.4px text, overflow
+node test/cardfit.js        # every card variant in a real reward grid: fails if
+                            # any description still clips at the auto-shrink floor
+node test/cardfit.js --all  # …and lists the ones that only fit by shrinking
+rm -rf node_modules
 ```
 
 The bot plays like a competent-but-not-expert human (blocks lethal damage,
