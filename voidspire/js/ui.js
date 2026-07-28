@@ -2280,20 +2280,62 @@
     // marksman / dice
     take_aim: 'scan', steady_aim: 'scan', deadeye_protocol: 'warhorn', misfire_protocol: 'reload',
     marksman_round: 'boltRound', hair_trigger: 'boltRound', killshot: 'execRound',
-    // -- Technomancer --
-    shock_coil: 'zap', static_lance: 'rail', railgun: 'rail', leech_coil: 'rail',
-    chain_lightning: 'arc', arc_welder: 'arc', emp_blast: 'pulse', static_field: 'pulse',
-    deploy_turret: 'deploy', sentry_protocol: 'deploy', drone_swarm: 'deploy',
-    echo_core: 'overcharge', aux_reactor: 'overcharge', phase_bulwark: 'overcharge', overload_capacitor: 'overcharge',
-    shield_battery: 'overcharge', omega_protocol: 'overcharge', cogwork_surge: 'overcharge', salvage_protocol: 'overcharge',
-    nano_repair: 'repair', overclock: 'overclock',
-    // -- Void Adept --
-    mind_spike: 'psiBolt', psy_lance: 'psiBolt', void_bolt: 'psiBolt', void_siphon: 'psiBolt',
-    mind_storm: 'psiStorm', tk_crush: 'crush', exsanguinate: 'drainBolt',
-    soul_burn: 'ignite', hex_weave: 'ignite', wither: 'ignite', catalyst: 'ignite',
-    mind_fracture: 'hex', unravel: 'reap', eldritch_storm: 'psiRain',
-    psionic_focus: 'sigil', blood_pact: 'sigil', entropy_field: 'sigil', mind_array: 'sigil', plague_engine: 'sigil',
-    singularity_bloom: 'singularity', blood_sacrifice: 'drainSelf', hemorrhage: 'drainSelf',
+    // -- Technomancer (Forge Choir: rails, arcs, hydraulics and coolant. His
+    //    table scales Shield, so plating cards get real casts too) --
+    // rail and coil weapons
+    shock_coil: 'zap', static_lance: 'railShot', railgun: 'railShot', fortified_strike: 'railShot',
+    capacitor_discharge: 'capDump', overcharged_capacitor: 'capDump', overload_surge: 'capDump',
+    leech_coil: 'hungerDrain',
+    // arcs and electrical fields
+    chain_lightning: 'arcChain', arc_welder: 'arcChain', tesla_conduit: 'teslaField',
+    static_field: 'teslaField', static_ward: 'teslaField', ion_storm: 'ionStorm',
+    emp_blast: 'empWave', emp_mine: 'empWave', disruptor_pulse: 'empWave', system_shock: 'empWave',
+    short_circuit: 'shortCircuit', feedback_loop: 'shortCircuit',
+    mortar_array: 'mortarArc', hive_protocol: 'mortarArc',
+    // constructs
+    deploy_turret: 'servoDeploy', sentry_protocol: 'servoDeploy', drone_swarm: 'servoDeploy',
+    assault_drone: 'servoDeploy', swarm_uplink: 'servoDeploy', munitions_factory: 'servoDeploy',
+    // plating — the band scales these, so they land like plate, not like a puff
+    overshield: 'plateWeld', fortify_matrix: 'plateWeld', entrench_field: 'plateWeld',
+    reinforced_hull: 'plateWeld', hold_the_line: 'plateWeld', aegis_matrix: 'plateWeld',
+    phase_bulwark: 'plateWeld',
+    // reactors and powers
+    echo_core: 'reactorSpool', aux_reactor: 'reactorSpool', overload_capacitor: 'reactorSpool',
+    shield_battery: 'reactorSpool', omega_protocol: 'reactorSpool', singularity_drive: 'reactorSpool',
+    flux_capacitor: 'reactorSpool', subroutine: 'reactorSpool',
+    // logistics and calibration
+    cogwork_surge: 'logicSurge', salvage_protocol: 'logicSurge', surge_protocol: 'logicSurge',
+    targeting_uplink: 'logicSurge', overclock: 'overclock',
+    recompile: 'recalibrate',
+    nano_repair: 'coolantVent',
+    // -- Void Adept (THE HUNGER: nothing here has a mechanism. Blood costs get a
+    //    sound you feel rather than hear) --
+    // focused thought
+    mind_spike: 'psiLance', psy_lance: 'psiLance', void_bolt: 'psiLance',
+    mind_lance: 'psiLance', cerebral_spike: 'psiLance', vital_lance: 'psiLance',
+    mind_storm: 'psiScream', psionic_scream: 'psiScream', psionic_nova: 'psiScream',
+    ascendant_mind: 'psiScream',
+    tk_crush: 'mindGrip', mind_bulwark: 'mindGrip',
+    // fire
+    soul_burn: 'emberBloom', hex_weave: 'emberBloom', catalyst: 'emberBloom',
+    immolate: 'emberBloom', cinder_burst: 'emberBloom', mind_burn: 'emberBloom',
+    ember_storm: 'conflagrate', conflagration: 'conflagrate', wildfire_engine: 'conflagrate',
+    backdraft: 'backdraft', ember_ward: 'sanguineWard',
+    // blood
+    blood_sacrifice: 'bloodPrice', hemorrhage: 'bloodPrice', bloodletting: 'bloodPrice',
+    crimson_rite: 'bloodPrice', martyrs_gift: 'bloodPrice',
+    exsanguinate: 'hungerDrain', void_siphon: 'hungerDrain',
+    sanguine_ward: 'sanguineWard',
+    // decay and dread
+    wither: 'witherTouch', entropic_lash: 'witherTouch', null_field: 'witherTouch',
+    mind_fracture: 'dreadWhisper', dread_whisper: 'dreadWhisper', spectral_grasp: 'dreadWhisper',
+    unravel: 'reap',
+    // tearing the world
+    void_rupture: 'voidRupture', singularity_bloom: 'voidRupture',
+    dimensional_rift: 'dimensionRift', eldritch_storm: 'dimensionRift',
+    // powers
+    psionic_focus: 'sigilBurn', blood_pact: 'sigilBurn', entropy_field: 'sigilBurn',
+    mind_array: 'sigilBurn', plague_engine: 'sigilBurn',
     premonition: 'foresee', forbidden_lore: 'foresee',
     // -- Neutral --
     combat_scan: 'scan', reload: 'reload', med_stim: 'repair', stim_overdose: 'energize',
@@ -2393,6 +2435,127 @@
       s: function (e) { synth(190 * e.pm, 0.18, 'sawtooth', 0.045, -120, { detune: 10 }); setTimeout(function () { synth(90, 0.22, 'square', 0.05, -26, { detune: 14 }); }, 110); },
       a: function (e) { R.implode(e.pp.x, e.pp.y - 6, '#ff4a5e', 34, 40, 14); R.ring(e.pp.x, e.pp.y - 6, '#ff4a5e', 44, 0.45); if (e.tp) setTimeout(function () { R.beamBolt(e.sx, e.sy, e.tp.x, e.tp.y, '#ff8a6e', 6); R.quake(e.tp.x, e.tp.y, '#ff4a5e', 2); }, 110); },
     },
+    /* ---- Technomancer: FORGE CHOIR. Where the Vanguard is percussive and
+       physical, the Magos is electrical and mechanical — capacitor whine,
+       relay clunk, coolant hiss. His table scales Shield, so his plating cards
+       get real casts too, not a generic block puff. ---- */
+    railShot: {   // magnetic accelerator: the coil spools audibly, then one crack
+      s: function (e) { synth(200 * e.pm, 0.24, 'sawtooth', 0.028, 1100, { detune: 8, filter: [500, 3200] }); setTimeout(function () { noise(0.05, 0.06, 7000, 900); synth(1500 * e.pm, 0.09, 'square', 0.05, -1200); }, 200); },
+      a: function (e) { setTimeout(function () { if (e.tp) { R.beamBolt(e.sx, e.sy, e.tp.x, e.tp.y, '#d8f6ff', 6); R.quake(e.tp.x, e.tp.y, e.col, 2); R.ring(e.sx, e.sy, e.col, 22, 0.16); } }, 200); if (e.tp) R.aura(e.sx, e.sy, e.col); },
+    },
+    arcChain: {   // the bolt walks from body to body, each jump a little flatter
+      s: function (e) { noise(0.16, 0.04, 6000, 1800); [0, 1, 2].forEach(function (i) { setTimeout(function () { synth((820 - i * 130) * e.pm, 0.11, 'square', 0.034, -240, { vib: 34, vibRate: 32 }); }, i * 90); }); },
+      a: function (e) { var src = { x: e.sx, y: e.sy }; e.targets.forEach(function (tg, i) { setTimeout(function () { R.arc(src.x, src.y, tg.x, tg.y, '#d8f6ff', 8, 13); R.burst(tg.x, tg.y, e.col, 5); }, i * 90); src = tg; }); },
+    },
+    empWave: {   // an EM front rolls out and everything it touches stutters
+      s: function (e) { synth(90 * e.pm, 0.4, 'sine', 0.06, 260, { filter: [200, 2600] }); noise(0.22, 0.03, 900, 4000); },
+      a: function (e) { R.ring(e.pp.x, e.pp.y - 12, e.col, 34, 0.42); R.ring(e.pp.x, e.pp.y - 12, '#d8f6ff', 20, 0.3); e.targets.forEach(function (tg, i) { setTimeout(function () { R.glitch(tg.x, tg.y, e.col); R.burst(tg.x, tg.y, e.col, 4); }, 70 + i * 55); }); },
+    },
+    capDump: {   // a bank of capacitors emptied at once: fat, low, over quickly
+      s: function (e) { synth(58 * e.pm, 0.3, 'square', 0.075, -14, { detune: 16, filter: [900, 90] }); noise(0.1, 0.05, 2400, 200); },
+      a: function (e) { if (e.tp) { R.beamBolt(e.sx, e.sy, e.tp.x, e.tp.y, '#d8f6ff', 9); R.quake(e.tp.x, e.tp.y, e.col, 3); } R.ring(e.sx, e.sy, e.col, 26, 0.2); },
+    },
+    servoDeploy: {   // something unfolds, seats, and locks
+      s: function (e) { noise(0.1, 0.03, 1400, 3000); setTimeout(function () { synth(300 * e.pm, 0.14, 'sawtooth', 0.035, 220, { filter: [700, 2200] }); }, 60); setTimeout(function () { noise(0.05, 0.06, 800, 180); }, 220); },
+      a: function (e) { var x = e.pp.x - 26, y = e.pp.y - 18; R.aura(x, y, e.col); setTimeout(function () { R.polyRing(x, y, e.col, 6, 20, 2, 0.36, 4, 1.4); R.burst(x, y, '#d8f6ff', 7); }, 200); },
+    },
+    plateWeld: {   // hydraulics hiss, then a plate seats with a clunk. His SHIELD.
+      s: function (e) { noise(0.16, 0.032, 2600, 700); setTimeout(function () { synth(140 * e.pm, 0.16, 'square', 0.06, -40, { filter: [1200, 200] }); noise(0.05, 0.05, 700, 160); }, 150); },
+      a: function (e) { R.aura(e.pp.x, e.pp.y - 10, e.col); setTimeout(function () { R.polyRing(e.pp.x, e.pp.y - 10, e.col, 6, 30, 3, 0.34, 0, 0); R.burst(e.pp.x, e.pp.y - 10, '#d8f6ff', 8); }, 150); },
+    },
+    coolantVent: {   // pressure released: a long hiss and a falling tone
+      s: function (e) { noise(0.42, 0.035, 5200, 700); synth(420 * e.pm, 0.3, 'sine', 0.03, -180, { filter: [2200, 500] }); },
+      a: function (e) { for (var i = 0; i < 3; i++) (function (d) { setTimeout(function () { R.aura(e.pp.x + 10 - d * 6, e.pp.y - 20, '#d8f6ff'); }, d * 90); })(i); },
+    },
+    reactorSpool: {   // a POWER coming online: rising harmonic stack, then it holds
+      s: function (e) { [0, 1, 2, 3].forEach(function (i) { setTimeout(function () { synth((160 + i * 110) * e.pm, 0.3, 'sawtooth', 0.026, 40, { detune: 7, filter: [600 + i * 500, 2600] }); }, i * 90); }); },
+      a: function (e) { [0, 90, 180, 270].forEach(function (d, i) { setTimeout(function () { R.polyRing(e.pp.x, e.pp.y - 16, e.col, 6, 14 + i * 9, 2, 0.4, 3, 0.8); }, d); }); setTimeout(function () { R.aura(e.pp.x, e.pp.y - 16, '#d8f6ff'); }, 300); },
+    },
+    logicSurge: {   // data moving: clean machine chirps, no weight at all
+      s: function (e) { arp(mul([880, 1174, 1568], e.pm), 46, 0.05, 'square', 0.028); },
+      a: function (e) { R.scan(e.pp.x, e.pp.y - 20, e.col); R.burst(e.pp.x + 6, e.pp.y - 14, '#d8f6ff', 6); },
+    },
+    mortarArc: {   // shells lobbed high and dropped in
+      s: function (e) { [0, 1, 2].forEach(function (i) { setTimeout(function () { noise(0.05, 0.03, 900, 2600); }, i * 120); setTimeout(function () { noise(0.1, 0.06, 1600, 160); synth(88 * e.pm, 0.2, 'square', 0.05, -22); }, 340 + i * 120); }); },
+      a: function (e) { e.targets.slice(0, 3).forEach(function (tg, i) { setTimeout(function () { R.lob(e.sx, e.sy, tg.x, tg.y, e.col); }, i * 120); setTimeout(function () { R.quake(tg.x, tg.y, e.col, 2); R.burst(tg.x, tg.y, '#d8f6ff', 8); }, 340 + i * 120); }); },
+    },
+    teslaField: {   // a standing field, crackling where it touches things
+      s: function (e) { noise(0.5, 0.028, 4200, 1400); [0, 1, 2, 3].forEach(function (i) { setTimeout(function () { synth((640 + (i % 2) * 180) * e.pm, 0.09, 'square', 0.024, -140, { vib: 40, vibRate: 36 }); }, i * 110); }); },
+      a: function (e) { R.ring(e.pp.x, e.pp.y - 14, e.col, 40, 0.5); e.targets.forEach(function (tg, i) { [0, 160, 320].forEach(function (d) { setTimeout(function () { R.arc(e.sx, e.sy, tg.x, tg.y, e.col, 5, 9); }, d + i * 40); }); }); },
+    },
+    shortCircuit: {   // it fails, violently: a sputter and thrown sparks
+      s: function (e) { [0, 1, 2, 3, 4].forEach(function (i) { setTimeout(function () { noise(0.03, 0.05, 6000 - i * 700, 900); }, i * 38); }); synth(210 * e.pm, 0.16, 'sawtooth', 0.04, -160, { vib: 50, vibRate: 44 }); },
+      a: function (e) { if (e.tp) { R.arc(e.sx, e.sy, e.tp.x, e.tp.y, '#d8f6ff', 9, 15); R.burst(e.tp.x, e.tp.y, e.col, 10); R.glitch(e.tp.x, e.tp.y, e.col); } },
+    },
+    ionStorm: {   // the whole field goes electrical
+      s: function (e) { noise(0.7, 0.04, 5000, 800); [0, 1, 2, 3, 4, 5].forEach(function (i) { setTimeout(function () { synth((520 + (i % 3) * 220) * e.pm, 0.12, 'square', 0.03, -200, { vib: 36, vibRate: 30 }); }, i * 95); }); },
+      a: function (e) { R.ring(e.pp.x, e.pp.y - 16, e.col, 52, 0.6); e.targets.forEach(function (tg, i) { [0, 130, 260, 390].forEach(function (d, k) { setTimeout(function () { R.arc(e.sx, e.sy, tg.x, tg.y, k % 2 ? '#d8f6ff' : e.col, 7, 12); R.burst(tg.x, tg.y, e.col, 4); }, d + i * 45); }); }); },
+    },
+    recalibrate: {   // a servo re-seats and the machine settles a notch straighter
+      s: function (e) { synth(520 * e.pm, 0.08, 'square', 0.03, -120); setTimeout(function () { synth(700 * e.pm, 0.1, 'square', 0.032, 160); noise(0.04, 0.035, 1600, 500); }, 90); },
+      a: function (e) { R.polyRing(e.pp.x, e.pp.y - 18, e.col, 4, 18, 2, 0.32, 6, 2.2); R.burst(e.pp.x, e.pp.y - 18, '#d8f6ff', 5); },
+    },
+
+    /* ---- Void Adept: THE HUNGER. Breathy, dissonant, wet — nothing here has a
+       mechanism. Where the Magos clunks and the Vanguard cracks, the psyker
+       exhales. Blood costs get a sound you feel rather than hear. ---- */
+    psiLance: {   // a single focused thought, driven through
+      s: function (e) { synth(340 * e.pm, 0.22, 'triangle', 0.042, -110, { vib: 16, vibRate: 9, detune: 6, filter: [2600, 700] }); },
+      a: function (e) { if (e.tp) { R.beamBolt(e.sx, e.sy - 20, e.tp.x, e.tp.y, PSI_COL, 5); R.polyRing(e.tp.x, e.tp.y, PSI_COL, 3, 24, 3, 0.42, 7, 2); R.burst(e.tp.x, e.tp.y, PSI_COL, 6); } },
+    },
+    psiScream: {   // a shriek that arrives in every skull at once
+      s: function (e) { synth(700 * e.pm, 0.42, 'sawtooth', 0.03, -420, { vib: 26, vibRate: 17, detune: 22, filter: [3800, 600] }); synth(707 * e.pm, 0.4, 'triangle', 0.024, -400, { detune: 30 }); },
+      a: function (e) { R.ring(e.pp.x, e.pp.y - 24, PSI_COL, 46, 0.5); e.targets.forEach(function (tg, i) { setTimeout(function () { R.glitch(tg.x, tg.y, PSI_COL); R.polyRing(tg.x, tg.y, PSI_COL, 3, 20, 2, 0.34, 9, 3); }, i * 55); }); },
+    },
+    emberBloom: {   // fire taking hold, unhurried, certain
+      s: function (e) { noise(0.36, 0.04, 2800, 420); setTimeout(function () { synth(190 * e.pm, 0.24, 'triangle', 0.03, 70, { vib: 9, vibRate: 6 }); }, 70); },
+      a: function (e) { if (e.tp) { R.embers(e.tp.x, e.tp.y, BURN_COL, 16 + e.power * 5); R.aura(e.tp.x, e.tp.y, BURN_COL); } },
+    },
+    conflagrate: {   // every fire on the field is fed at once
+      s: function (e) { noise(0.62, 0.055, 3200, 350); [0, 1, 2].forEach(function (i) { setTimeout(function () { synth((150 + i * 40) * e.pm, 0.3, 'sawtooth', 0.03, 60, { filter: [1400, 300] }); }, i * 120); }); },
+      a: function (e) { e.targets.forEach(function (tg, i) { setTimeout(function () { R.embers(tg.x, tg.y, BURN_COL, 20); R.nova(tg.x, tg.y, BURN_COL, 2); }, i * 100); }); R.aura(e.pp.x, e.pp.y - 16, BURN_COL); },
+    },
+    bloodPrice: {   // he pays. A wet, low cost — the sound is nearly inside you.
+      s: function (e) { synth(74 * e.pm, 0.34, 'sine', 0.07, -26, { detune: 9, filter: [420, 110] }); noise(0.12, 0.026, 700, 160); },
+      a: function (e) { R.aura(e.pp.x, e.pp.y - 22, '#ff4a5e'); for (var i = 0; i < 7; i++) R.burst(e.pp.x + (Math.random() - 0.5) * 16, e.pp.y - 14 + Math.random() * 12, '#ff4a5e', 3); },
+    },
+    sanguineWard: {   // blood set as a barrier, not spent as a weapon
+      s: function (e) { synth(110 * e.pm, 0.34, 'triangle', 0.05, 34, { vib: 8, vibRate: 5, detune: 11 }); noise(0.14, 0.022, 900, 300); },
+      a: function (e) { R.polyRing(e.pp.x, e.pp.y - 12, '#ff4a5e', 3, 30, 3, 0.4, 4, 1.2); R.aura(e.pp.x, e.pp.y - 12, PSI_COL); },
+    },
+    witherTouch: {   // something is quietly taken away
+      s: function (e) { synth(260 * e.pm, 0.34, 'sine', 0.034, -150, { vib: 13, vibRate: 7, filter: [1400, 300] }); },
+      a: function (e) { if (e.tp) { R.spiral(e.tp.x, e.tp.y, PSI_COL, 14, 26); R.glitch(e.tp.x, e.tp.y, PSI_COL); } },
+    },
+    voidRupture: {   // the floor of the world gives way for a moment
+      s: function (e) { synth(52 * e.pm, 0.5, 'sawtooth', 0.06, -18, { detune: 26, filter: [700, 90] }); noise(0.3, 0.03, 400, 2600); },
+      a: function (e) { if (e.tp) { R.implode(e.tp.x, e.tp.y, PSI_COL, 76, 76, 26); setTimeout(function () { R.nova(e.tp.x, e.tp.y, PSI_COL, 3); R.quake(e.tp.x, e.tp.y, PSI_COL, 2); }, 210); } },
+    },
+    mindGrip: {   // held, then closed
+      s: function (e) { synth(300 * e.pm, 0.26, 'triangle', 0.032, -170, { vib: 20, vibRate: 12 }); setTimeout(function () { synth(90 * e.pm, 0.16, 'square', 0.055, -34); }, 220); },
+      a: function (e) { if (e.tp) { R.implode(e.tp.x, e.tp.y, PSI_COL, 60, 60, 20); setTimeout(function () { R.quake(e.tp.x, e.tp.y, PSI_COL, 2); R.burst(e.tp.x, e.tp.y, PSI_COL, 9); }, 220); } },
+    },
+    hungerDrain: {   // it comes back to him, and he is the one who wanted it
+      s: function (e) { synth(180 * e.pm, 0.3, 'sine', 0.04, 190, { vib: 12, vibRate: 8, filter: [900, 2400] }); },
+      a: function (e) { if (e.tp) { R.beamBolt(e.tp.x, e.tp.y, e.pp.x, e.pp.y - 20, '#ff6b8a', 4); R.spiral(e.tp.x, e.tp.y, '#ff6b8a', 12, 22); setTimeout(function () { R.aura(e.pp.x, e.pp.y - 20, PSI_COL); }, 180); } },
+    },
+    sigilBurn: {   // a POWER: the mark is scorched into the air and stays
+      s: function (e) { synth(150 * e.pm, 0.45, 'triangle', 0.038, 90, { vib: 7, vibRate: 4, detune: 14 }); setTimeout(function () { arp(mul([392, 466, 587], e.pm), 70, 0.16, 'triangle', 0.028); }, 120); },
+      a: function (e) { R.sigil(e.pp.x, e.pp.y - 26, PSI_COL, 30); setTimeout(function () { R.polyRing(e.pp.x, e.pp.y - 26, PSI_COL, 3, 26, 2, 0.5, 5, 1.1); }, 180); },
+    },
+    dreadWhisper: {   // barely a sound. It is meant for one listener.
+      s: function (e) { noise(0.3, 0.018, 1800, 500); synth(420 * e.pm, 0.32, 'sine', 0.022, -230, { vib: 22, vibRate: 14 }); },
+      a: function (e) { if (e.tp) { R.spiral(e.tp.x, e.tp.y, PSI_COL, 10, 20); R.glitch(e.tp.x, e.tp.y, PSI_COL); } R.aura(e.pp.x, e.pp.y - 22, PSI_COL); },
+    },
+    dimensionRift: {   // a seam opens where there was not one
+      s: function (e) { synth(66 * e.pm, 0.55, 'sawtooth', 0.05, 130, { detune: 30, filter: [300, 3000] }); noise(0.4, 0.028, 6000, 400); },
+      a: function (e) { R.ring(e.pp.x, e.pp.y - 20, PSI_COL, 38, 0.5); e.targets.forEach(function (tg, i) { setTimeout(function () { R.implode(tg.x, tg.y, PSI_COL, 54, 54, 16); R.shards(tg.x, tg.y, PSI_COL, 8); }, i * 90); }); },
+    },
+    backdraft: {   // the fire he set is spent all at once
+      s: function (e) { noise(0.1, 0.03, 1200, 4000); setTimeout(function () { noise(0.24, 0.07, 3000, 260); synth(96 * e.pm, 0.26, 'square', 0.06, -30, { detune: 12 }); }, 130); },
+      a: function (e) { if (e.tp) { R.aura(e.tp.x, e.tp.y, BURN_COL); setTimeout(function () { R.nova(e.tp.x, e.tp.y, BURN_COL, 3 + e.power); R.quake(e.tp.x, e.tp.y, BURN_COL, 3); R.embers(e.tp.x, e.tp.y, BURN_COL, 18); }, 130); } },
+    },
+
     bullet: {
       s: function (e) { synth(430 * e.pm, 0.09, 'square', 0.045, -150, { detune: 7 }); },
       a: function (e) { if (e.tp) { R.shot(e.sx, e.sy, e.tp.x, e.tp.y, e.col); R.burst(e.sx, e.sy, e.col, 4); } },
@@ -2597,8 +2760,18 @@
     var env = { pp: pp, sx: pp.x + 8, sy: pp.y - 10, tp: tp, targets: targets, col: col, cls: cls,
       power: Math.max(0, Math.min(4, cost)), pm: semiMul(card.id, 7), id: card.id };
     var m = MOTIF[CARD_MOTIF[card.id] || fallbackMotif(flavor, cls)] || MOTIF.utility;
+    if (U.strictFx) { m.s(env); m.a(env); return; }        // tests: surface the throw
     try { m.s(env); m.a(env); } catch (err) { /* never let a cosmetic fx break a turn */ }
   }
+  // A cast that throws is SILENT in play, by design — which means a broken one
+  // can ship unnoticed. This lets a test drive every card's cast with a real
+  // combat env and a real target, with the swallow turned off.
+  U.probeCast = function (cardId) {
+    var def = ns.CARDS[cardId]; if (!def || !E.combat) return false;
+    var card = { uid: -1, id: cardId, up: false };
+    playCardFX(card, def, 0, cardFlavor(def, ns.cardFx(def, false)));
+    return true;
+  };
 
   function playCardAt(i, targetIdx) {
     setTargeting(false);

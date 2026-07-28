@@ -32,6 +32,12 @@
   var t = 0;
   var stars = [];
   var particles = [];
+  // Every particle in the game is born here. The counter is monotonic, which is
+  // what lets a test prove a card's cast actually DREW something — live count
+  // alone can't, because particles from the previous cast are expiring while
+  // you measure.
+  var fxSpawns = 0;
+  function spawn(p) { fxSpawns++; particles.push(p); return p; }
   var screenShake = 0;
   var flashAlpha = 0;
 
@@ -206,8 +212,8 @@
       if (ti == null) for (var i = 0; i < R.views.length; i++) if (R.views[i] && R.views[i].alive) { ti = i; break; }
       var ep = ti != null ? R.enemyPos(ti) : { x: p.x + sc * 4, y: p.y };
       R.player.atkTX = ep.x; R.player.atkTY = ep.y;
-      R.player.aimFired = false;   // one-shot latch for muzzle-flash / tracer / recoil spawn
-      if (cls === 'voidadept') { var a = CLASS_ART.voidadept.atk; R.player.shardPick = Math.floor(Math.random() * (a ? a.n : 8)); }
+      // one-shot latches: muzzle flash / staff slam / shard volley each fire once
+      R.player.aimFired = false; R.player.staffFired = false; R.player.shardFired = false;
     }
     if (type === 'defend') burst(p.x, p.y - sc * 0.35, col, 9);
     else if (type === 'utility') burst(p.x, p.y - sc * 0.5, col, 11);
@@ -266,18 +272,42 @@
     ctx.restore();
   }
   // Voidadept halo of shards; on attack one swells then streaks to the card target.
-  function drawShards(a, px, py, sc, col, glow, prog, pick, tx, ty) {
+  /* The psyker's shard ring. At rest it orbits; on a cast the WHOLE ring
+   * contracts, converges on a point in front of the raised hand, then throws
+   * itself at the target. Every shard moves — the Vanguard fires one round, the
+   * Voidadept spends the whole halo. */
+  function drawShards(a, px, py, sc, col, glow, prog, tx, ty) {
+    var cvx = 0.72, cvy = -0.62;                        // convergence point (the raised hand)
     ctx.save(); ctx.strokeStyle = col; ctx.lineJoin = 'round'; ctx.shadowColor = col; ctx.shadowBlur = glow; ctx.lineWidth = 1.6;
     for (var i = 0; i < a.n; i++) {
-      var ang = t * 0.5 + i / a.n * Math.PI * 2;
-      var hx = px + (a.cx + Math.cos(ang) * a.rad) * sc, hy = py + (a.cy + Math.sin(ang) * a.rad) * sc;
-      var X = hx, Y = hy, S = a.size * sc, alpha = 1;
-      if (prog >= 0 && i === pick) {
-        if (prog < 0.42) { S = a.size * sc * (1 + (prog / 0.42) * 2.6); }              // swell in place
-        else { var f = (prog - 0.42) / 0.58; X = hx + ((tx == null ? hx + sc * 3 : tx) - hx) * f; Y = hy + ((ty == null ? hy : ty) - hy) * f; S = a.size * sc * 3.6 * (1 - f * 0.55); alpha = 1 - f * 0.45; }
+      var spin = prog >= 0 ? t * (0.5 + prog * 7) : t * 0.5;
+      var ang = spin + i / a.n * Math.PI * 2;
+      var rad = a.rad, S = a.size * sc, alpha = 0.9, X, Y;
+      if (prog >= 0 && prog < 0.34) {                   // contract and spool up
+        var e0 = prog / 0.34;
+        rad = a.rad * (1 - e0 * 0.55); S = a.size * sc * (1 + e0 * 0.7);
+      } else if (prog >= 0.34 && prog < 0.52) {         // converge to the hand
+        var e1 = (prog - 0.34) / 0.18;
+        rad = a.rad * 0.45 * (1 - e1);
+        S = a.size * sc * (1.7 + e1 * 0.9);
+      } else if (prog >= 0.52) {                        // thrown
+        var e2 = Math.min(1, (prog - 0.52) / 0.48);
+        var hx0 = px + cvx * sc, hy0 = py + cvy * sc;
+        X = hx0 + ((tx == null ? hx0 + sc * 3 : tx) - hx0) * e2;
+        Y = hy0 + ((ty == null ? hy0 : ty) - hy0) * e2;
+        S = a.size * sc * 2.6 * (1 - e2 * 0.6); alpha = 1 - e2 * 0.8;
+      }
+      if (X == null) {
+        var ox0 = a.cx + Math.cos(ang) * rad, oy0 = a.cy + Math.sin(ang) * rad * 0.7;
+        if (prog >= 0.34 && prog < 0.52) {              // slide the orbit centre toward the hand
+          var e3 = (prog - 0.34) / 0.18;
+          ox0 += (cvx - a.cx) * e3; oy0 += (cvy - a.cy) * e3;
+        }
+        X = px + ox0 * sc; Y = py + oy0 * sc;
       }
       ctx.globalAlpha = alpha;
       ctx.beginPath(); ctx.moveTo(X, Y - S * 1.5); ctx.lineTo(X + S, Y); ctx.lineTo(X, Y + S * 1.5); ctx.lineTo(X - S, Y); ctx.closePath(); ctx.stroke();
+      X = null;
     }
     ctx.restore();
   }
@@ -306,7 +336,7 @@
   function burst(x, y, color, n) {
     for (var i = 0; i < n; i++) {
       var a = Math.random() * Math.PI * 2, sp = 40 + Math.random() * 140;
-      particles.push({
+      spawn({
         x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
         life: 0.4 + Math.random() * 0.4, age: 0, color: color, size: 1 + Math.random() * 2,
       });
@@ -318,7 +348,7 @@
   R.beam = function (x, y, color, w, h, n) {
     for (var i = 0; i < n; i++) {
       var sp = 50 + Math.random() * 120;
-      particles.push({
+      spawn({
         x: x + (Math.random() - 0.5) * w, y: y + (Math.random() - 0.5) * h,
         vx: (Math.random() - 0.5) * 50, vy: -sp,
         life: 0.5 + Math.random() * 0.6, age: 0, color: color, size: 0.7 + Math.random() * 1.6,
@@ -331,7 +361,7 @@
     for (var i = 0; i < n; i++) {
       var px = x + (Math.random() - 0.5) * w, py = y + (Math.random() - 0.5) * h;
       var dx = x - px, dy = y - py, d = Math.sqrt(dx * dx + dy * dy) || 1, sp = 110 + Math.random() * 130;
-      particles.push({
+      spawn({
         x: px, y: py, vx: dx / d * sp, vy: dy / d * sp,
         life: 0.32 + Math.random() * 0.34, age: 0, color: color, size: 0.8 + Math.random() * 1.7,
       });
@@ -348,25 +378,25 @@
   R.shot = function (x0, y0, x1, y1, color) {
     var dx = x1 - x0, dy = y1 - y0, d = Math.sqrt(dx * dx + dy * dy) || 1;
     var sp = Math.max(440, d / 0.13);
-    particles.push({ kind: 'streak', x: x0, y: y0, vx: dx / d * sp, vy: dy / d * sp,
+    spawn({ kind: 'streak', x: x0, y: y0, vx: dx / d * sp, vy: dy / d * sp,
       len: 16, life: d / sp, age: 0, color: color, size: 2 });
-    for (var i = 0; i < 4; i++) particles.push({
+    for (var i = 0; i < 4; i++) spawn({
       x: x0 + (Math.random() - 0.5) * 6, y: y0 + (Math.random() - 0.5) * 6,
       vx: dx / d * sp * 0.45 * (0.6 + Math.random() * 0.6), vy: dy / d * sp * 0.45 * (0.6 + Math.random() * 0.6),
       life: 0.16 + Math.random() * 0.14, age: 0, color: color, size: 1 + Math.random() });
   };
   // Expanding vector shockwave ring (AoE / impacts / shield bloom).
   R.ring = function (x, y, color, maxR, life) {
-    particles.push({ kind: 'ring', x: x, y: y, r0: 5, r1: maxR || 60, life: life || 0.42, age: 0, color: color, lw: 2 });
+    spawn({ kind: 'ring', x: x, y: y, r0: 5, r1: maxR || 60, life: life || 0.42, age: 0, color: color, lw: 2 });
   };
   // Lobbed ordnance: a shell that arcs from (x0,y0) to (x1,y1) under gravity and
   // lands after `time` seconds — solve the ballistic so it hits exactly on time.
   R.lob = function (x0, y0, x1, y1, color, time) {
     var T = time || 0.3, g = 1500;
-    particles.push({ kind: 'streak', x: x0, y: y0,
+    spawn({ kind: 'streak', x: x0, y: y0,
       vx: (x1 - x0) / T, vy: (y1 - y0) / T - 0.5 * g * T, grav: g,
       len: 9, life: T, age: 0, color: color, size: 2.4 });
-    for (var i = 0; i < 5; i++) particles.push({   // smoke puffs off the arc
+    for (var i = 0; i < 5; i++) spawn({   // smoke puffs off the arc
       x: x0, y: y0, vx: (x1 - x0) / T * (0.2 + Math.random() * 0.5), vy: -(30 + Math.random() * 50),
       life: 0.2 + Math.random() * 0.3, age: 0, color: color, size: 1 + Math.random() });
   };
@@ -378,14 +408,14 @@
     R.ring(x, y, color, 30 + p * 16, 0.34 + p * 0.05);
     for (var i = 0; i < 4 + p * 3; i++) {
       var a = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.5, sp = 90 + Math.random() * (120 + p * 60);
-      particles.push({ kind: 'streak', x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, grav: 620,
+      spawn({ kind: 'streak', x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, grav: 620,
         len: 5 + p, life: 0.28 + Math.random() * 0.3, age: 0, color: color, size: 1.4 + p * 0.3 });
     }
     if (p >= 1) R.shake(0.2 + p * 0.13);
   };
   // Upward flickering embers (Burn / fire). Floats up and slows.
   R.embers = function (x, y, color, n) {
-    for (var i = 0; i < (n || 12); i++) particles.push({
+    for (var i = 0; i < (n || 12); i++) spawn({
       x: x + (Math.random() - 0.5) * 22, y: y + (Math.random() - 0.5) * 12,
       vx: (Math.random() - 0.5) * 30, vy: -(50 + Math.random() * 95), grav: -55,
       life: 0.4 + Math.random() * 0.55, age: 0, color: Math.random() < 0.4 ? '#ffd23d' : color, size: 1 + Math.random() * 2 });
@@ -393,14 +423,14 @@
   // Buff/power aura: a ring pulse + rising sparks in the class colour.
   R.aura = function (x, y, color) {
     R.ring(x, y, color, 46, 0.5);
-    for (var i = 0; i < 14; i++) particles.push({
+    for (var i = 0; i < 14; i++) spawn({
       x: x + (Math.random() - 0.5) * 34, y: y + (Math.random() - 0.5) * 42,
       vx: (Math.random() - 0.5) * 22, vy: -(38 + Math.random() * 70),
       life: 0.5 + Math.random() * 0.5, age: 0, color: color, size: 1 + Math.random() * 1.8 });
   };
   // Debuff/hex: horizontal glitch shards that streak sideways then vanish.
   R.glitch = function (x, y, color) {
-    for (var i = 0; i < 10; i++) particles.push({ kind: 'streak',
+    for (var i = 0; i < 10; i++) spawn({ kind: 'streak',
       x: x + (Math.random() - 0.5) * 28, y: y + (Math.random() - 0.5) * 34,
       vx: (Math.random() < 0.5 ? -1 : 1) * (120 + Math.random() * 130), vy: 0,
       len: 6 + Math.random() * 10, life: 0.16 + Math.random() * 0.22, age: 0, color: color, size: 1.6 });
@@ -409,7 +439,7 @@
   // its radius from rFrom to rTo over its life. The shape vocabulary for
   // shields, sigils and shockwaves.
   R.polyRing = function (x, y, color, rFrom, rTo, sides, life, spin, lw) {
-    particles.push({ kind: 'ring', x: x, y: y, r0: rFrom, r1: rTo, sides: sides || 0,
+    spawn({ kind: 'ring', x: x, y: y, r0: rFrom, r1: rTo, sides: sides || 0,
       rot0: Math.random() * Math.PI, spin: spin || 0, life: life || 0.5, age: 0, color: color, lw: lw || 2 });
   };
   // Jagged lightning between two points (chain/arc/tesla attacks).
@@ -421,17 +451,17 @@
       if (s > 0 && s < segs) { x += (Math.random() - 0.5) * jitter * 2; y += (Math.random() - 0.5) * jitter * 2; }
       pts.push([x, y]);
     }
-    particles.push({ kind: 'bolt', pts: pts, life: 0.18, age: 0, color: color, lw: 2.2 });
-    particles.push({ kind: 'bolt', pts: pts, life: 0.1, age: 0, color: '#ffffff', lw: 1 });
+    spawn({ kind: 'bolt', pts: pts, life: 0.18, age: 0, color: color, lw: 2.2 });
+    spawn({ kind: 'bolt', pts: pts, life: 0.1, age: 0, color: '#ffffff', lw: 1 });
   };
   // Thick piercing beam (railgun / lance), bright core, quick decay.
   R.beamBolt = function (x0, y0, x1, y1, color, width) {
-    particles.push({ kind: 'beam', x0: x0, y0: y0, x1: x1, y1: y1, life: 0.24, age: 0, color: color, w: width || 5 });
-    particles.push({ kind: 'beam', x0: x0, y0: y0, x1: x1, y1: y1, life: 0.15, age: 0, color: '#ffffff', w: (width || 5) * 0.4 });
+    spawn({ kind: 'beam', x0: x0, y0: y0, x1: x1, y1: y1, life: 0.24, age: 0, color: color, w: width || 5 });
+    spawn({ kind: 'beam', x0: x0, y0: y0, x1: x1, y1: y1, life: 0.15, age: 0, color: '#ffffff', w: (width || 5) * 0.4 });
   };
   // Orbital strike: a streak that falls from above onto a target + impact ring.
   R.strike = function (x, y, color, power) {
-    particles.push({ kind: 'streak', x: x, y: -12, vx: 0, vy: (y + 12) / 0.16, len: 28 + power * 8, life: 0.16, age: 0, color: color, size: 2.5 + power });
+    spawn({ kind: 'streak', x: x, y: -12, vx: 0, vy: (y + 12) / 0.16, len: 28 + power * 8, life: 0.16, age: 0, color: color, size: 2.5 + power });
     R.ring(x, y, color, 34 + power * 12, 0.45);
     burst(x, y, color, 8 + power * 3);
   };
@@ -439,7 +469,7 @@
   R.shards = function (x, y, color, n, dir, spread) {
     for (var i = 0; i < n; i++) {
       var ang = dir + (Math.random() - 0.5) * (spread || 1.0), sp = 150 + Math.random() * 170;
-      particles.push({ kind: 'streak', x: x, y: y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, grav: 130,
+      spawn({ kind: 'streak', x: x, y: y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, grav: 130,
         len: 7, life: 0.3 + Math.random() * 0.25, age: 0, color: color, size: 1.5 });
     }
   };
@@ -448,7 +478,7 @@
     r = r || 30;
     for (var i = 0; i < n; i++) {
       var ang = i / n * Math.PI * 2, px = x + Math.cos(ang) * r, py = y + Math.sin(ang) * r, sp = 210;
-      particles.push({ kind: 'streak', x: px, y: py, vx: -Math.sin(ang) * sp, vy: Math.cos(ang) * sp, len: 15, life: 0.28, age: 0, color: color, size: 2 });
+      spawn({ kind: 'streak', x: px, y: py, vx: -Math.sin(ang) * sp, vy: Math.cos(ang) * sp, len: 15, life: 0.28, age: 0, color: color, size: 2 });
     }
   };
   // Rotating warding sigil — counter-spinning polygons + orbiting motes (PSI).
@@ -456,7 +486,7 @@
     r = r || 32;
     R.polyRing(x, y, color, r, r, 6, 0.6, 4, 2);
     R.polyRing(x, y, color, r * 0.62, r * 0.62, 3, 0.6, -5.5, 1.6);
-    for (var i = 0; i < 8; i++) { var a = i / 8 * Math.PI * 2; particles.push({ x: x + Math.cos(a) * r, y: y + Math.sin(a) * r, vx: -Math.sin(a) * 38, vy: Math.cos(a) * 38, life: 0.5, age: 0, color: color, size: 1.6 }); }
+    for (var i = 0; i < 8; i++) { var a = i / 8 * Math.PI * 2; spawn({ x: x + Math.cos(a) * r, y: y + Math.sin(a) * r, vx: -Math.sin(a) * 38, vy: Math.cos(a) * 38, life: 0.5, age: 0, color: color, size: 1.6 }); }
   };
   // Big multi-ring detonation (AoE bombs / capstones). Scales with power.
   R.nova = function (x, y, color, power) {
@@ -466,10 +496,15 @@
     burst(x, y, color, 16 + power * 8); burst(x, y, '#ffffff', 6 + power * 3);
   };
   R.shake = function (v) { screenShake = Math.max(screenShake, v || 0.6); };
+  // Total particles ever spawned. A card cast that silently draws NOTHING (a
+  // helper called with the wrong arity, say) is invisible in play AND invisible
+  // to a smoke test that only checks for throws — this is what makes it
+  // assertable. Test-facing only; nothing in the game reads it.
+  R.fxSpawns = function () { return fxSpawns; };
   // Targeting scan: a reticle bracket + a scan-line sweeping down the target.
   R.scan = function (x, y, color) {
     R.polyRing(x, y, color, 26, 26, 4, 0.55, 0, 1.6);
-    particles.push({ kind: 'scanline', x: x, y0: y - 17, y1: y + 17, w: 36, life: 0.5, age: 0, color: color });
+    spawn({ kind: 'scanline', x: x, y0: y - 17, y1: y + 17, w: 36, life: 0.5, age: 0, color: color });
   };
 
   /* ---- class shields (one per archetype) --------------------------------- */
@@ -483,7 +518,7 @@
   R.shieldTech = function (x, y, col) {
     R.polyRing(x, y, col, 22, 46, 6, 0.5, 3, 2);
     R.polyRing(x, y, '#bff6ff', 18, 40, 6, 0.46, -4, 1.5);
-    for (var i = 0; i < 8; i++) { var a = i / 8 * Math.PI * 2; particles.push({ x: x + Math.cos(a) * 44, y: y + Math.sin(a) * 44, vx: 0, vy: 0, life: 0.42, age: 0, color: col, size: 1.6 }); }
+    for (var i = 0; i < 8; i++) { var a = i / 8 * Math.PI * 2; spawn({ x: x + Math.cos(a) * 44, y: y + Math.sin(a) * 44, vx: 0, vy: 0, life: 0.42, age: 0, color: col, size: 1.6 }); }
   };
   // Void Adept: warding sigil ward — spinning glyphs of containment.
   R.shieldVoid = function (x, y, col) {
@@ -794,6 +829,57 @@
   }
 
   /* ---- entity drawing -------------------------------------------------------- */
+  // A toothed gear ring, built once at load. The Forge Choir's cog-halo is the
+  // Technomancer's single most recognisable shape, so it is generated rather
+  // than hand-typed — 12 teeth is 96 numbers nobody should maintain by hand.
+  function cogPath(cx, cy, rOut, rIn, teeth) {
+    var p = [], step = Math.PI * 2 / teeth;
+    for (var i = 0; i < teeth; i++) {
+      var a0 = i * step;
+      p.push(cx + Math.cos(a0) * rIn, cy + Math.sin(a0) * rIn);
+      p.push(cx + Math.cos(a0 + step * 0.24) * rOut, cy + Math.sin(a0 + step * 0.24) * rOut);
+      p.push(cx + Math.cos(a0 + step * 0.50) * rOut, cy + Math.sin(a0 + step * 0.50) * rOut);
+      p.push(cx + Math.cos(a0 + step * 0.74) * rIn, cy + Math.sin(a0 + step * 0.74) * rIn);
+    }
+    p.push(p[0], p[1]);
+    return p;
+  }
+
+  /* Stroke polylines whose TIPS drift while their roots stay pinned. One
+   * primitive covers both signature idles: a Magos's mechadendrites coiling in
+   * the air, and a psyker's hem fraying into the warp. Displacement ramps as
+   * the square of the distance along the run, so the anchor barely moves and
+   * the far end really travels — that is what sells "attached to something"
+   * rather than "the whole shape is wobbling".
+   * `flare` pushes every point outward from the body on a cast. */
+  function strokeLive(paths, px, py, sc, col, glow, o) {
+    o = o || {};
+    var amp = o.amp || 0.03, speed = o.speed || 1.2, ph0 = o.phase || 0, flare = o.flare || 0;
+    ctx.save();
+    ctx.strokeStyle = col; ctx.lineWidth = o.lw || 1.6; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.shadowColor = col; ctx.shadowBlur = glow; ctx.globalAlpha = o.alpha == null ? 1 : o.alpha;
+    paths.forEach(function (p, k) {
+      var n = Math.max(1, p.length / 2 - 1), tipX = null, tipY = null;
+      ctx.beginPath();
+      for (var i = 0; i < p.length; i += 2) {
+        var f = (i / 2) / n, w = f * f;
+        var ph = ph0 + k * 1.73 + f * 2.4;
+        var X = p[i]     + Math.sin(t * speed + ph) * amp * w + (p[i] < 0 ? -flare : flare) * w;
+        var Y = p[i + 1] + Math.cos(t * speed * 0.77 + ph) * amp * 0.6 * w + flare * 0.25 * w;
+        if (i === 0) ctx.moveTo(px + X * sc, py + Y * sc); else ctx.lineTo(px + X * sc, py + Y * sc);
+        if (i === p.length - 2) { tipX = px + X * sc; tipY = py + Y * sc; }
+      }
+      ctx.stroke();
+      if (o.tip && tipX != null) {                  // a manipulator claw at the end
+        var g = sc * 0.035;
+        ctx.beginPath();
+        ctx.moveTo(tipX, tipY - g * 1.6); ctx.lineTo(tipX + g, tipY); ctx.lineTo(tipX, tipY + g * 1.6); ctx.lineTo(tipX - g, tipY);
+        ctx.closePath(); ctx.stroke();
+      }
+    });
+    ctx.restore();
+  }
+
   function strokePaths(paths, x, y, scale, color, glow, alpha) {
     ctx.save();
     ctx.translate(x, y);
@@ -1392,18 +1478,102 @@
     },
     technomancer: {
       color: '#41d8ff',
-      p: [[0,-1.12,0.27,-0.86,0.2,-0.58,-0.2,-0.58,-0.27,-0.86,0,-1.12], [0,-1.12,0,-1.36], [-0.07,-1.34,0.07,-1.34,0.07,-1.48,-0.07,-1.48,-0.07,-1.34], [-0.12,-0.84,0.12,-0.84,0.1,-0.62,-0.1,-0.62,-0.12,-0.84], [-0.42,-0.52,0.42,-0.52,0.52,0.96,-0.52,0.96,-0.42,-0.52], [-0.52,0.74,0.52,0.74], [0,-0.36,0.13,-0.2,0,-0.04,-0.13,-0.2,0,-0.36], [0.07,-0.2,0.049,-0.22,0.049,-0.249,0.02,-0.249,0,-0.27,-0.02,-0.249,-0.049,-0.249,-0.049,-0.22,-0.07,-0.2,-0.049,-0.18,-0.049,-0.151,-0.02,-0.151,0,-0.13,0.02,-0.151,0.049,-0.151,0.049,-0.18,0.07,-0.2], [0,-0.04,0,0.6], [-0.24,-0.14,-0.24,0.55], [0.24,-0.14,0.24,0.55], [-0.24,0.2,-0.1,0.2], [0.24,0.36,0.1,0.36], [0.42,-0.4,0.62,-0.44,0.64,-0.3]],
-      e: [[-0.08,-0.74], [0.08,-0.74], [0,-0.2]],
-      weapon: [[0.64,-1.06,0.64,0.9], [0.54,-1.06,0.74,-1.06,0.74,-0.88,0.54,-0.88,0.54,-1.06], [0.64,-1.2,0.64,-1.06], [0.72,-0.97,0.712,-1.005,0.69,-1.033,0.658,-1.048,0.622,-1.048,0.59,-1.033,0.568,-1.005,0.56,-0.97,0.568,-0.935,0.59,-0.907,0.622,-0.892,0.658,-0.892,0.69,-0.907,0.712,-0.935,0.72,-0.97], [0.676,-0.97,0.665,-0.995,0.64,-1.006,0.615,-0.995,0.604,-0.97,0.615,-0.945,0.64,-0.934,0.665,-0.945,0.676,-0.97]],
-      atk: { type: 'staff', pivot: [0.64,-0.34], orb: [0.64,-0.97], frames: [0.9, 1.6, 1.35, 0.9] },
-    
+      // MAGOS OF THE FORGE CHOIR: peaked cowl over an augmetic lens-cluster face,
+      // a toothed cog-halo turning at his back, a ribbed reactor cuirass, and
+      // three mechadendrites coiling in the air on their own time. He does not
+      // stand like a soldier — he stands like a machine that has been left on.
+      p: [
+          // cowl, and the recessed face plate sunk inside it
+          [-0.02,-1.06, 0.20,-0.92, 0.26,-0.68, 0.24,-0.52, -0.24,-0.52, -0.26,-0.68, -0.20,-0.92, -0.02,-1.06],
+          [-0.17,-0.88, 0.17,-0.88],
+          [-0.15,-0.85, 0.15,-0.85, 0.13,-0.58, -0.13,-0.58, -0.15,-0.85],
+          [-0.13,-0.79, 0.13,-0.79],                    // lens bar
+          [-0.10,-0.70, 0.10,-0.70], [-0.10,-0.65, 0.10,-0.65],   // respirator grille
+          [0.13,-0.76, 0.22,-0.72, 0.22,-0.62, 0.13,-0.60],       // cheek augmetic
+          // heavy mantle over the shoulders, ribbed
+          [-0.24,-0.52, -0.46,-0.48, -0.57,-0.34, -0.51,-0.19, -0.27,-0.15],
+          [0.24,-0.52, 0.46,-0.48, 0.57,-0.34, 0.51,-0.19, 0.27,-0.15],
+          [-0.44,-0.44, -0.50,-0.29], [0.44,-0.44, 0.50,-0.29],
+          // reactor cuirass
+          [-0.26,-0.50, 0.26,-0.50, 0.30,-0.16, 0.28,0.06, -0.28,0.06, -0.30,-0.16, -0.26,-0.50],
+          [0,-0.44, 0.16,-0.35, 0.16,-0.16, 0,-0.07, -0.16,-0.16, -0.16,-0.35, 0,-0.44],
+          [0,-0.36, 0.09,-0.31, 0.09,-0.20, 0,-0.15, -0.09,-0.20, -0.09,-0.31, 0,-0.36],
+          [0.16,-0.31, 0.30,-0.35], [-0.16,-0.31, -0.30,-0.35],   // coolant runs
+          // belt and ribbed robe falling to the hem
+          [-0.29,0.02, 0.29,0.02], [-0.28,0.11, 0.28,0.11],
+          [-0.28,0.06, -0.40,0.44, -0.45,0.86, 0.45,0.86, 0.40,0.44, 0.28,0.06],
+          [-0.19,0.12, -0.22,0.86], [0.19,0.12, 0.22,0.86], [0,0.12, 0,0.86],
+          // servo-boots under the hem
+          [-0.33,0.86, -0.36,0.97, -0.16,0.98, -0.16,0.86],
+          [0.33,0.86, 0.36,0.97, 0.16,0.98, 0.16,0.86],
+          // forearm crossing to grip the staff
+          [0.28,-0.30, 0.46,-0.33, 0.58,-0.39],
+          [0.30,-0.22, 0.47,-0.26]],
+      e: [[-0.08,-0.79], [0,-0.79], [0.08,-0.79]],
+      // the cog-halo turns behind him, always
+      halo: { paths: [cogPath(0, -0.78, 0.56, 0.46, 12)], pivot: [0, -0.78], speed: 0.22, alpha: 0.5 },
+      // three mechadendrites: two low and forward, one arcing over the cowl
+      dendrites: [
+        [-0.30,-0.44, -0.61,-0.53, -0.85,-0.36, -0.87,-0.05, -0.69,0.11],
+        [-0.26,-0.55, -0.47,-0.93, -0.24,-1.25, 0.17,-1.33, 0.44,-1.17],
+        [0.28,-0.42, 0.51,-0.31, 0.62,-0.11, 0.55,0.10]],
+      // POWER-STAFF: plasma coil in a pronged housing, ferrule shod for the slam
+      weapon: [[0.66,-1.00, 0.66,0.92],
+               [0.56,-1.12, 0.76,-1.12, 0.76,-0.94, 0.56,-0.94, 0.56,-1.12],
+               [0.60,-1.30, 0.60,-1.12], [0.72,-1.30, 0.72,-1.12],
+               [0.60,-1.30, 0.57,-1.43], [0.72,-1.30, 0.75,-1.43],
+               [0.57,-1.43, 0.66,-1.35, 0.75,-1.43],
+               [0.598,-1.03, 0.626,-1.06, 0.666,-1.06, 0.694,-1.03, 0.694,-0.99, 0.666,-0.96, 0.626,-0.96, 0.598,-0.99, 0.598,-1.03],
+               [0.60,-0.42, 0.72,-0.42], [0.60,-0.32, 0.72,-0.32],
+               [0.60,0.84, 0.72,0.84, 0.70,0.94, 0.62,0.94, 0.60,0.84]],
+      // LOAD BALANCE made concrete: wind the staff back, SLAM the ferrule into
+      // the deck, discharge the coil, recover to the carry.
+      atk: { type: 'staff', pivot: [0.66,-0.34], orb: [0.66,-1.02], ferrule: [0.66,0.90],
+             carry: 0, wind: -0.34, slam: 0.30 },
     },
     voidadept: {
       color: '#c86bff',
-      p: [[0,-1.06,0.26,-0.82,0.2,-0.56,-0.2,-0.56,-0.26,-0.82,0,-1.06], [-0.12,-0.72,0.12,-0.72], [0,-0.92,0.06,-0.84,0,-0.76,-0.06,-0.84,0,-0.92], [-0.32,-0.5,0.32,-0.5,0.4,0.1,0.28,0.4,0.14,0.18,0,0.5,-0.14,0.18,-0.28,0.4,-0.4,0.1,-0.32,-0.5], [-0.32,-0.42,-0.1,-0.22,0.18,-0.34], [0.32,-0.42,0.1,-0.22,-0.18,-0.34], [-0.18,-0.34,0.18,-0.34]],
-      e: [[0,-0.74]],
-      atk: { type: 'shard', cx: 0, cy: -0.84, rad: 0.42, n: 8, size: 0.06 },
-    
+      // THE HUNGER, given a body: a psyker who does not touch the ground. Tall
+      // hollow cowl with one vertical eye, torn banner-cloth streaming off the
+      // back, and a hem that frays into ribbons instead of ending in feet.
+      p: [
+          // cowl, and the hollow inside it
+          [0,-1.16, 0.22,-0.94, 0.28,-0.66, 0.24,-0.48, -0.24,-0.48, -0.28,-0.66, -0.22,-0.94, 0,-1.16],
+          [-0.16,-0.92, -0.18,-0.66, -0.10,-0.54, 0.10,-0.54, 0.18,-0.66, 0.16,-0.92, 0,-1.00, -0.16,-0.92],
+          // the third eye: a vertical lens, the only thing inside the hood
+          [0,-0.92, 0.055,-0.80, 0,-0.66, -0.055,-0.80, 0,-0.92],
+          // hunched mantle
+          [-0.24,-0.48, -0.42,-0.40, -0.49,-0.24, -0.40,-0.13],
+          [0.24,-0.48, 0.42,-0.40, 0.49,-0.24, 0.40,-0.13],
+          // robe front and the sash crossing it
+          [-0.24,-0.48, -0.30,-0.10, -0.34,0.24, 0.34,0.24, 0.30,-0.10, 0.24,-0.48],
+          [-0.26,-0.34, 0.28,-0.19],
+          [-0.22,0.06, 0.26,0.06],
+          // raised channelling hand, fingers splayed
+          [0.40,-0.13, 0.57,-0.34, 0.67,-0.58, 0.63,-0.73],
+          [0.63,-0.73, 0.56,-0.85], [0.63,-0.73, 0.67,-0.87], [0.63,-0.73, 0.73,-0.80],
+          [0.40,-0.13, 0.51,0.06, 0.44,0.23],
+          // low hand, drawing something up out of the floor
+          [-0.40,-0.13, -0.52,0.04, -0.57,0.23],
+          [-0.57,0.23, -0.63,0.34], [-0.57,0.23, -0.55,0.36], [-0.57,0.23, -0.48,0.33],
+          [-0.40,-0.13, -0.57,0.01, -0.53,0.19]],
+      e: [[0,-0.80]],
+      // torn banner-cloth caught in a wind that is not there
+      banner: [
+        [-0.26,-0.47, -0.55,-0.38, -0.76,-0.49, -0.93,-0.31, -0.82,-0.11, -0.61,-0.21, -0.42,-0.12, -0.26,-0.28],
+        [-0.28,-0.10, -0.50,0.02, -0.66,-0.03, -0.78,0.14]],
+      // the hem frays into the warp instead of ending in feet
+      tatters: [
+        [-0.34,0.24, -0.45,0.47, -0.38,0.64],
+        [-0.23,0.26, -0.28,0.55, -0.18,0.74, -0.27,0.82],
+        [-0.10,0.28, -0.12,0.47],
+        [0.01,0.28, 0.05,0.58, -0.03,0.78],
+        [0.13,0.27, 0.19,0.50, 0.11,0.66],
+        [0.25,0.26, 0.33,0.44],
+        [0.34,0.24, 0.45,0.52, 0.36,0.70, 0.44,0.80]],
+      // THE HUNGER: the ring contracts, converges to a point, and is thrown as
+      // one volley — the void answers all at once or not at all.
+      atk: { type: 'shard', cx: 0, cy: -0.74, rad: 0.56, n: 8, size: 0.07 },
     },
     warpcaller: {
       // gaunt void-herald: antlered cowl, fuller robe, a tall conduit staff with
@@ -1644,6 +1814,18 @@
     // weight shift boot-to-boot — the trooper is holding a stance, not standing still.
     var bob = Math.sin(t * 1.6) * 1.4 + Math.sin(t * 0.83) * 0.7;
     var swayX = (r.cls === 'vanguard') ? Math.sin(t * 0.62) * 1.7 : 0;
+    if (r.cls === 'voidadept') {
+      // he HOVERS. A slower, deeper rise and fall than breathing, with a lateral
+      // drift on a different period so the two never sync into a bounce.
+      bob = Math.sin(t * 0.74) * 4.2 + Math.sin(t * 1.31) * 1.1;
+      swayX = Math.sin(t * 0.45) * 2.6;
+    } else if (r.cls === 'technomancer') {
+      // a machine left running: almost no drift, but a servo hitch every few
+      // seconds so he reads as powered rather than paused.
+      var hitch = Math.max(0, Math.sin(t * 0.55) - 0.985) * 120;
+      bob = Math.sin(t * 1.1) * 0.8 + hitch;
+      swayX = Math.sin(t * 0.31) * 0.7;
+    }
     var flash = (t - R.player.flashT < 0.15);
     var px = p.x + swayX, py = p.y + bob, sc = scale, glow = flash ? 14 : 9;
     var art = CLASS_ART[r.cls] || CLASS_ART.vanguard, atk = art.atk;
@@ -1663,7 +1845,19 @@
     // the whole soldier is shoved back off the shot (recoil), then settles
     px -= aimKick * sc * 0.13; py -= aimKick * sc * 0.02; glow += aimKick * 6;
     var col = flash ? '#ff4a5e' : art.color;
+
+    // BEHIND the figure: the cog-halo, and the psyker's torn banner-cloth.
+    if (art.halo) strokeRot(art.halo.paths, px, py, sc, art.halo.pivot, t * art.halo.speed, col, glow * 0.7);
+    if (art.banner) strokeLive(art.banner, px, py, sc, col, glow * 0.8, { amp: 0.055, speed: 0.9, alpha: 0.75 });
+
     strokePaths(art.p, px, py, sc, col, glow, 1);
+
+    // Live parts: the mechadendrites and the frayed hem move on their OWN
+    // timers, which is most of what makes these two read as alive rather than
+    // as a wireframe that happens to bob. A cast flares them outward.
+    var castFlare = (aprog >= 0 && atype === 'attack') ? Math.sin(aprog * Math.PI) * 0.10 : 0;
+    if (art.dendrites) strokeLive(art.dendrites, px, py, sc, col, glow, { amp: 0.045, speed: 1.35, flare: castFlare, tip: true });
+    if (art.tatters) strokeLive(art.tatters, px, py, sc, col, glow * 0.85, { amp: 0.05, speed: 0.85, flare: castFlare * 1.4, alpha: 0.9 });
 
     // weapon / attack animation per class
     var atking = atype === 'attack' && aprog >= 0, tx = R.player.atkTX, ty = R.player.atkTY;
@@ -1690,15 +1884,64 @@
           if (tx != null) { R.beamBolt(mx, my, tx, ty, '#ffe9c0', 5); R.shot(mx, my, tx, ty, '#fff2c8'); }
           burst(mx, my, '#ffe9c0', 8);
           R.ring(mx, my, '#fff2c8', sc * 0.24, 0.14);   // tight muzzle pop, not a big bubble
-          for (var ce = 0; ce < 3; ce++) particles.push({ x: mx - sc * 0.12, y: my, vx: -55 - Math.random() * 70, vy: -130 - Math.random() * 80, life: 0.45 + Math.random() * 0.2, age: 0, color: '#ffcf6b', size: 1.5 + Math.random(), grav: 560 });
+          for (var ce = 0; ce < 3; ce++) spawn({ x: mx - sc * 0.12, y: my, vx: -55 - Math.random() * 70, vy: -130 - Math.random() * 80, life: 0.45 + Math.random() * 0.2, age: 0, color: '#ffcf6b', size: 1.5 + Math.random(), grav: 560 });
         }
       }
-    } else if (atk && atk.type === 'staff') {        // technomancer: staff lower/level/fire/raise
-      var sf = atking ? Math.min(3, Math.floor(aprog * 4)) : -1, sang = atking ? atk.frames[sf] : 0;
-      strokeRot(art.weapon, px, py, sc, atk.pivot, sang, col, glow);
-      if (atking && sf === 1) { var ob = rotPt(atk.orb, atk.pivot, sang); muzzleFlash(px + ob[0] * sc, py + ob[1] * sc, sc, art.color, tx, ty); }
-    } else if (atk && atk.type === 'shard') {        // voidadept: shard swells + streaks to target
-      drawShards(atk, px, py, sc, col, glow, atking ? aprog : -1, R.player.shardPick | 0, tx, ty);
+    } else if (atk && atk.type === 'staff') {
+      /* MAGOS: wind the staff back, SLAM the ferrule into the deck, discharge
+       * the coil, recover to the carry. The slam is the beat — it lands on the
+       * floor with a ring and a quake, so the weight is felt before the bolt
+       * even leaves the orb. */
+      var srest = atk.carry + Math.sin(t * 0.7) * 0.02;
+      var sang = srest, charge = 0, discharging = false;
+      if (atking) {
+        if (aprog < 0.30) { sang = srest + (atk.wind - srest) * ease(aprog / 0.30); charge = aprog / 0.30 * 0.5; }
+        else if (aprog < 0.42) { sang = atk.wind + (atk.slam - atk.wind) * ease((aprog - 0.30) / 0.12); charge = 0.5 + (aprog - 0.30) / 0.12 * 0.5; }
+        else if (aprog < 0.64) { sang = atk.slam; charge = 1; discharging = true; }
+        else { sang = atk.slam + (srest - atk.slam) * ease((aprog - 0.64) / 0.36); charge = Math.max(0, 1 - (aprog - 0.64) / 0.36); }
+      }
+      strokeRot(art.weapon, px, py, sc, atk.pivot, sang, col, glow + charge * 8);
+      var orbP = rotPt(atk.orb, atk.pivot, sang), ox2 = px + orbP[0] * sc, oy2 = py + orbP[1] * sc;
+      R.player.muzzleX = ox2; R.player.muzzleY = oy2;
+      // the coil visibly spools up before it lets go
+      if (charge > 0.02) {
+        ctx.save();
+        ctx.strokeStyle = '#d8f6ff'; ctx.shadowColor = art.color; ctx.shadowBlur = 10 + charge * 14;
+        ctx.globalAlpha = 0.35 + charge * 0.55; ctx.lineWidth = 1 + charge * 1.6;
+        ctx.beginPath(); ctx.arc(ox2, oy2, sc * (0.05 + charge * 0.13), 0, 7); ctx.stroke();
+        ctx.restore();
+      }
+      if (atking && !R.player.aimFired && aprog >= 0.30 && aprog < 0.42) {
+        R.player.aimFired = true;                              // the SLAM, once
+        var fp = rotPt(atk.ferrule, atk.pivot, sang);
+        var fx2 = px + fp[0] * sc, fy2 = py + fp[1] * sc;
+        R.ring(fx2, fy2, art.color, sc * 0.9, 0.3);
+        for (var sp = 0; sp < 9; sp++) spawn({ x: fx2, y: fy2, vx: (Math.random() - 0.5) * 180, vy: -40 - Math.random() * 110, life: 0.4 + Math.random() * 0.25, age: 0, color: '#d8f6ff', size: 1.4 + Math.random(), grav: 520 });
+      }
+      if (discharging && !R.player.staffFired) {
+        R.player.staffFired = true;                            // then the coil lets go
+        muzzleFlash(ox2, oy2, sc, art.color, tx, ty);
+        if (tx != null) { R.beamBolt(ox2, oy2, tx, ty, '#d8f6ff', 5); R.shot(ox2, oy2, tx, ty, art.color); }
+        burst(ox2, oy2, '#d8f6ff', 9);
+        R.ring(ox2, oy2, art.color, sc * 0.3, 0.16);
+      }
+      if (!atking) R.player.staffFired = false;
+
+    } else if (atk && atk.type === 'shard') {
+      /* PSYKER: the ring contracts, converges to a single point in front of the
+       * raised hand, and is thrown as ONE volley — the void answers all at once
+       * or not at all. Nothing like the Vanguard's aimed single round. */
+      drawShards(atk, px, py, sc, col, glow, atking ? aprog : -1, tx, ty);
+      if (atking && !R.player.shardFired && aprog >= 0.52) {
+        R.player.shardFired = true;
+        var cvx = px + 0.72 * sc, cvy = py - 0.62 * sc;
+        if (tx != null) for (var v = 0; v < 5; v++) (function (d) {
+          setTimeout(function () { R.shot(cvx, cvy, tx, ty, '#e6c4ff'); }, d);
+        })(v * 34);
+        burst(cvx, cvy, '#e6c4ff', 10);
+        R.ring(cvx, cvy, art.color, sc * 0.42, 0.2);
+      }
+      if (!atking) R.player.shardFired = false;
     }
 
     // glowing eye/visor points
