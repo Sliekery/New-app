@@ -609,6 +609,9 @@ function step() {
       E.takeBossArtifact(idx);
       break;
     }
+    // THE FIRST MARK: cycle the three offers across runs so a batch measures
+    // all of them, not whichever one the bot happens to like.
+    case 'first-mark': E.takeFirstMark(FIRST_MARK_PICK % Math.max(1, E.firstMarkOffers().length)); break;
     case 'sector-intro': E.beginSector(); break;
     case 'victory': E.enterRecurrence(); break;          // beat the finale -> next loop
     case 'recurrence-intro': E.recurrenceContinue(); break;
@@ -637,7 +640,9 @@ function sanity() {
 }
 
 /* ---- one full bot run; returns the finished run state ------------------ */
-function playOneRun(cls, seed) {
+var FIRST_MARK_PICK = 0;
+function playOneRun(cls, seed, markPick) {
+  FIRST_MARK_PICK = markPick || 0;
   E.seed(seed >>> 0);
   E.newRun(cls);
   var steps = 0, s1min = 1, s1fight = 1;
@@ -710,13 +715,20 @@ var only = (process.argv[3] || '').split(',').filter(function (c) { return CLASS
 var classes = only.length ? only : CLASSES;
 var stats = {};
 var stalls = 0;
+var markStats = {};
 var s1mins = [], s1fights = [];   // lowest HP fraction reached in sector 1 (overall / hallway fights)
 classes.forEach(function (c) { stats[c] = { sectors: [], deaths: {}, wins: 0, runs: 0 }; });
 
+// PAIRED SEEDS: the three First Marks of a class run the SAME seeds, so a gap
+// between them is the mark and not which maps and drops each happened to draw.
+// Without this the mark-to-mark noise is wider than the effects being measured.
 for (var run = 0; run < RUNS; run++) {
   var cls = classes[run % classes.length];
+  var rep = Math.floor(run / classes.length);
+  var markPick = rep % 3;
+  var pairSeed = ((Math.floor(rep / 3) * 3 + classes.indexOf(cls)) * 2654435761) >>> 0;
   try {
-    playOneRun(cls, (run * 2654435761) >>> 0);
+    playOneRun(cls, pairSeed, markPick);
   } catch (e) {
     // a defensive build can stalemate a non-escalating enemy forever; the bot's
     // loop guard surfaces it. Count it rather than aborting the whole batch.
@@ -725,6 +737,11 @@ for (var run = 0; run < RUNS; run++) {
   }
   var s = stats[cls];
   s.runs++;
+  var mk = (VS.firstMarks(cls)[markPick] || {}).name || '(none)';
+  var mrow = markStats[mk] || (markStats[mk] = { runs: 0, wins: 0, depth: 0, cls: cls });
+  mrow.runs++;
+  if ((E.run.loop || 1) > 1) mrow.wins++;
+  mrow.depth += (E.run._depth != null) ? E.run._depth : E.run.sector;
   if (E.run._s1min != null) s1mins.push(E.run._s1min);
   if (E.run._s1fight != null) s1fights.push(E.run._s1fight);
   // cumulative depth (== sector until you beat the Unmaker, then climbs by loop)
@@ -782,6 +799,17 @@ console.log('median sector reached: ' + median + '   [~3-4]');
 console.log('reached sector 5+: ' + Math.round(100 * reach5 / RUNS) + '%   [~15-30%]');
 if (totalDeaths) console.log('deaths at elites/bosses: ' + Math.round(100 * spikeDeaths / totalDeaths) + '%   [>= ~55%]');
 console.log('stalled combats (turtle vs non-escalating enemy): ' + stalls + ' / ' + RUNS);
+
+/* ---- THE FIRST MARK: the three openings should be live, not one obvious pick */
+console.log('\n--- first-mark parity (each mark gets a third of its class runs) ---');
+classes.forEach(function (c) {
+  Object.keys(markStats).filter(function (k) { return markStats[k].cls === c; }).forEach(function (k) {
+    var m = markStats[k];
+    console.log('   ' + (c + ':').padEnd(14) + k.padEnd(20) +
+      (100 * m.wins / Math.max(1, m.runs)).toFixed(1).padStart(5) + '% win   avg depth ' +
+      (m.depth / Math.max(1, m.runs)).toFixed(2) + '   (n=' + m.runs + ')');
+  });
+});
 
 /* ---- class parity (StS-style: archetypes should win at similar rates) ----- */
 console.log('\n--- class parity (win = beat the Unmaker) ---');

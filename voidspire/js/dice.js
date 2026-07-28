@@ -154,6 +154,73 @@
       desc: 'Heal 6 HP and gain 2 Psi Power. Engraved on face 1 only — what the void takes, it gives back.',
       art: { p: [[0,-0.78, 0.42,-0.12, 0.28,0.54, -0.28,0.54, -0.42,-0.12, 0,-0.78], [-0.42,-0.12, 0.42,-0.12], [0,-0.78, 0,0.54]] },
     },
+    /* -- THE FIRST MARK: the run-start inscriptions --------------------
+     * One of these is cut before you go down (see ns.FIRST_MARKS below), so
+     * each is a statement of intent rather than a pickup. They are `startOnly`
+     * — never in a shop, never a drop — and each is tuned to how ITS class
+     * reads the die, which is why they are worth more than a tier-1 face:
+     *
+     *   Vanguard    climbs the table with Aim, so his marks want the top of it
+     *   Technomancer never steers, so his are priced for a face he cannot aim at
+     *   Voidadept   is strongest at BOTH ends and bored in the middle
+     * ---------------------------------------------------------------- */
+    ranging_mark: {
+      name: 'Ranging Mark', tier: 2, span: 3, startOnly: true, cls: 'vanguard',
+      fx: [{ k: 'status', s: 'aim', v: 1, who: 'self' }, { k: 'draw', v: 1 }],
+      desc: 'Gain 1 Aim. Draw 1 card.',
+      art: { p: [[-0.8,0, 0.8,0], [0,-0.8, 0,0.8], [0.5,-0.5, 0.5,0.5], [-0.5,-0.5, -0.5,0.5], [0.34,0, 0.2,-0.14], [0.34,0, 0.2,0.14]], e: [[0,0]] },
+    },
+    whetstone_mark: {
+      name: 'Whetstone Mark', tier: 2, span: 3, startOnly: true, cls: 'vanguard',
+      fx: [{ k: 'dmg', v: 3, scale: 'might' }, { k: 'status', s: 'str', v: 3, who: 'self' }],
+      desc: 'Deal 3 damage. Gain 3 Might.',
+      art: { p: [[-0.7,0.3, 0.5,-0.5, 0.7,-0.2, -0.5,0.6, -0.7,0.3], [-0.2,0.02, 0.1,-0.2], [0.2,-0.62, 0.34,-0.8]] },
+    },
+    anvil_mark: {
+      name: 'Anvil Mark', tier: 2, span: 3, startOnly: true, cls: 'vanguard',
+      fx: [{ k: 'block', v: 5 }, { k: 'status', s: 'thorns', v: 1, who: 'self' }],
+      desc: 'Gain 5 Shield, 1 Thorns.',
+      art: { p: [[-0.7,-0.2, 0.7,-0.2, 0.5,0.14, -0.5,0.14, -0.7,-0.2], [-0.24,0.14, -0.34,0.62, 0.34,0.62, 0.24,0.14], [-0.5,-0.2, -0.36,-0.5], [0.5,-0.2, 0.36,-0.5], [0,-0.2, 0,-0.56]] },
+    },
+
+    assembly_mark: {
+      name: 'Assembly Mark', tier: 2, span: 3, startOnly: true, cls: 'technomancer',
+      fx: [{ k: 'status', s: 'turret', v: 3, who: 'self' }],
+      desc: 'Deploy a Turret (3 dmg/turn).',
+      art: { p: [[-0.6,0.6, -0.3,0.0, 0.3,0.0, 0.6,0.6], [-0.3,0.0, 0.3,0.0, 0.24,-0.4, -0.24,-0.4, -0.3,0.0], [0.24,-0.28, 0.74,-0.28], [-0.5,0.6, 0.5,0.6]], e: [[0,-0.2]] },
+    },
+    breaker_mark: {
+      name: 'Bus Tap', tier: 2, span: 3, startOnly: true, cls: 'technomancer',
+      fx: [{ k: 'energy', v: 1 }, { k: 'draw', v: 1 }],
+      desc: 'Gain 1 Energy. Draw 1 card.',
+      art: { p: [[-0.6,-0.6, -0.6,0.6], [0.6,-0.6, 0.6,0.6], [-0.6,-0.2, 0.3,0.2], [0.3,0.2, 0.6,0.2], [0.1,-0.5, -0.16,-0.1, 0.06,-0.1, -0.1,0.4]] },
+    },
+    damping_mark: {
+      name: 'Damping Mark', tier: 2, span: 3, startOnly: true, cls: 'technomancer',
+      fx: [{ k: 'block', v: 5 }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }],
+      desc: 'Gain 5 Shield. Apply 1 Weak to ALL enemies.',
+      art: { p: [[0,-0.75, 0.62,-0.4, 0.62,0.2, 0,0.76, -0.62,0.2, -0.62,-0.4, 0,-0.75], [-0.62,-0.1, 0.62,-0.1], [-0.4,0.24, 0.4,0.24], [-0.2,0.5, 0.2,0.5]] },
+    },
+
+    ember_mark: {
+      name: 'Ember Mark', tier: 2, span: 3, startOnly: true, cls: 'voidadept',
+      fx: [{ k: 'status', s: 'burn', v: 5, who: 'target' }],
+      desc: 'Apply 5 Burn.',
+      art: { p: [[0,-0.8, 0.3,-0.3, 0.14,0.0, 0.4,0.3, 0.16,0.66, 0,0.78, -0.16,0.66, -0.4,0.3, -0.14,0.0, -0.3,-0.3, 0,-0.8], [0,0.24, 0.12,0.5, 0,0.66, -0.12,0.5, 0,0.24]] },
+    },
+    vein_mark: {
+      name: 'Vein Mark', tier: 2, span: 3, startOnly: true, cls: 'voidadept',
+      fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 16, scale: 'psi' }],
+      desc: 'Lose 2 HP. Deal 16 damage.',
+      art: { p: [[0,-0.8, 0,0.5], [0,-0.4, -0.4,-0.7], [0,-0.1, 0.42,-0.4], [0,0.2, -0.36,0.0], [0,0.5, 0.2,0.74], [-0.16,0.62, 0,0.5, 0.16,0.62]] },
+    },
+    whisper_mark: {
+      name: 'Whisper Mark', tier: 2, span: 3, startOnly: true, cls: 'voidadept',
+      fx: [{ k: 'status', s: 'psiPow', v: 2, who: 'self' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }],
+      desc: 'Gain 2 Psi Focus. Apply 2 Vulnerable.',
+      art: { p: [[-0.75,0, -0.4,-0.4, 0.1,-0.2, 0.5,-0.6, 0.78,-0.1], [-0.6,0.34, -0.2,0.1, 0.2,0.44, 0.62,0.16]], e: [[0,-0.06]] },
+    },
+
     executioners_mark: {
       name: "Executioner's Mark", tier: 3, span: 1,
       fx: [{ k: 'special', id: 'dieExecute', v: 12 }],
@@ -187,6 +254,54 @@
       art: { p: [[0,0, 0.2,-0.22, 0.06,-0.48, -0.32,-0.42, -0.48,0, -0.22,0.48, 0.32,0.52, 0.66,0.06, 0.42,-0.52, -0.2,-0.76]] },
     },
   };
+
+  /* ---- THE FIRST MARK --------------------------------------------------
+   * The die comes to you blank and nobody says where from. Before the descent
+   * you cut one answer into it — an engraving, and the card that answer implies
+   * — and that pair is the run's opening statement of intent.
+   *
+   * Each mark names an archetype the class already has cards for but no reason
+   * to commit to on turn one. The engraving is granted PENDING, so you choose
+   * the face yourself on the die screen: the mark says what you are playing,
+   * you say where on the table you want it to land. `want` is the face band it
+   * was tuned for — a hint on the card, never a restriction.
+   * ------------------------------------------------------------------- */
+  ns.FIRST_MARKS = {
+    vanguard: [
+      { id: 'the_long_shot', name: 'THE LONG SHOT', eng: 'ranging_mark', card: 'sighting_round',
+        want: 'HIGH FACES · 15–20',
+        line: 'You cut it near the top of the table, where the shot is already going.' },
+      { id: 'the_red_debt', name: 'THE RED DEBT', eng: 'whetstone_mark', card: 'red_ledger',
+        want: 'LOW FACES · 2–7',
+        line: 'A bad face is still a face. You give the bottom of the die something to do.' },
+      { id: 'the_set_shield', name: 'THE SET SHIELD', eng: 'anvil_mark', card: 'set_against_it',
+        want: 'MIDDLE FACES · 8–14',
+        line: 'You cut it where the die spends most of its time, and stop trying to steer.' },
+    ],
+    technomancer: [
+      { id: 'the_standing_line', name: 'THE STANDING LINE', eng: 'assembly_mark', card: 'assembly_line',
+        want: 'ANYWHERE · THE MACHINE DOES NOT AIM',
+        line: 'Something should be working while you are not. You give it a place to stand.' },
+      { id: 'the_closed_circuit', name: 'THE CLOSED CIRCUIT', eng: 'breaker_mark', card: 'surge_routing',
+        want: 'ANYWHERE · IT ALL COMES BACK TO THE BUS',
+        line: 'Nothing is wasted if the charge has somewhere to go. You give it somewhere.' },
+      { id: 'the_damping_field', name: 'THE DAMPING FIELD', eng: 'damping_mark', card: 'null_lattice',
+        want: 'MIDDLE FACES · 8–14',
+        line: 'You cut it flat across the middle, where a machine lives, and let it hum.' },
+    ],
+    voidadept: [
+      { id: 'the_first_ember', name: 'THE FIRST EMBER', eng: 'ember_mark', card: 'kindling',
+        want: 'LOW FACES · 2–7',
+        line: 'You cut it low, in the part of the table that is already hungry.' },
+      { id: 'the_open_vein', name: 'THE OPEN VEIN', eng: 'vein_mark', card: 'red_thread',
+        want: 'EITHER END · 2–7 OR 15–20',
+        line: 'The void answers at both ends. You only decide which end it bills.' },
+      { id: 'the_long_whisper', name: 'THE LONG WHISPER', eng: 'whisper_mark', card: 'long_whisper',
+        want: 'MIDDLE FACES · 8–14',
+        line: 'You cut it through the middle, where the void gets bored, and give it a reason.' },
+    ],
+  };
+  ns.firstMarks = function (cls) { return ns.FIRST_MARKS[cls] || []; };
 
   // Every engraving, chosen or not.
   ns.dieEngraving = function (id) { return ns.DIE_AUGMENTS[id] || ns.DIE_FLAWS[id] || null; };

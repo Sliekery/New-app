@@ -2,14 +2,14 @@
 
 _Auto-generated from the game data (`node test/cardsdoc.js`). Effect text is exactly what the game shows; numbers are the base values **before** any MIGHT/TECH/PSI scaling._
 
-**178 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
+**187 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
 
 
 ---
 
 ## Vanguard
 
-_Shock trooper — MIGHT weapons & raw aggression. (59 cards)_
+_Shock trooper — MIGHT weapons & raw aggression. (62 cards)_
 
 
 ### Starter
@@ -122,12 +122,21 @@ _Shock trooper — MIGHT weapons & raw aggression. (59 cards)_
 - **Reaping Volley**  — Attack · ⚡1
     - Base: Deal 5 damage to ALL enemies. Siphon.
     - Upgraded: Deal 7 damage to ALL enemies. Siphon.
+- **Red Ledger**  — Power · ⚡1
+    - Base: Lose 3 HP. Gain 2 Might, 2 Blood Rage.
+    - Upgraded: Lose 3 HP. Gain 3 Might, 3 Blood Rage.
 - **Reload**  — Skill · ⚡1 → 0
     - Base: Return a random exhausted Attack to your hand.
     - Upgraded: _(no change)_
+- **Set Against It**  — Power · ⚡1
+    - Base: Gain 2 Thorns, 2 Plating.
+    - Upgraded: Gain 4 Thorns, 3 Plating.
 - **Shield Slam**  — Attack · ⚡1
     - Base: Deal damage equal to your Shield.
     - Upgraded: Deal damage equal to 150% of your Shield.
+- **Sighting Round**  — Attack · ⚡0  _(Retain)_
+    - Base: Deal 4 damage. Gain 1 Aim. Retain.
+    - Upgraded: Deal 6 damage. Gain 1 Aim. Retain.
 - **Spiked Bulwark**  — Skill · ⚡1
     - Base: This combat, attackers take your Might + 3 damage.
     - Upgraded: This combat, attackers take your Might + 5 damage.
@@ -208,7 +217,7 @@ _Shock trooper — MIGHT weapons & raw aggression. (59 cards)_
 
 ## Technomancer
 
-_Machine-priest — TECH shields, turrets & reactors. (51 cards)_
+_Machine-priest — TECH shields, turrets & reactors. (54 cards)_
 
 
 ### Starter
@@ -261,6 +270,9 @@ _Machine-priest — TECH shields, turrets & reactors. (51 cards)_
 - **Assault Drone**  — Power · ⚡1
     - Base: Deploy a Drone Swarm (2 to all/turn).
     - Upgraded: Deploy a Drone Swarm (3 to all/turn).
+- **Assembly Line**  — Power · ⚡1
+    - Base: Deploy a Turret (2 dmg/turn). Gain 1 Hive.
+    - Upgraded: Deploy a Turret (3 dmg/turn). Gain 1 Hive.
 - **Capacitor Discharge**  — Attack · ⚡1
     - Base: Deal 6 damage. Gain 1 Energy.
     - Upgraded: Deal 9 damage. Gain 1 Energy.
@@ -291,6 +303,9 @@ _Machine-priest — TECH shields, turrets & reactors. (51 cards)_
 - **Munitions Factory**  — Power · ⚡1
     - Base: Deploy a Turret (2 dmg/turn). Deploy a Drone Swarm (2 to all/turn).
     - Upgraded: Deploy a Turret (3 dmg/turn). Deploy a Drone Swarm (3 to all/turn).
+- **Null Lattice**  — Power · ⚡1
+    - Base: Gain 1 Conduit, 2 Plating.
+    - Upgraded: Gain 2 Conduit, 2 Plating.
 - **Overcharged Capacitor**  — Attack · ⚡1
     - Base: Doubles under Echo.
     - Upgraded: Deal 6 damage 2 times. Doubles under Echo.
@@ -327,6 +342,9 @@ _Machine-priest — TECH shields, turrets & reactors. (51 cards)_
 - **Surge Protocol**  — Skill · ⚡1
     - Base: Gain 1 Energy. Draw 2 cards. Roll 15+: Gain 1 Energy.
     - Upgraded: Gain 2 Energy. Draw 2 cards. Roll 13+: Gain 1 Energy.
+- **Surge Routing**  — Power · ⚡1
+    - Base: Whenever you play a Power, draw a card.
+    - Upgraded: Whenever you play a Power, draw 2 cards.
 - **System Shock**  — Skill · ⚡1
     - Base: ALL enemies: 1 Weak, 1 Vulnerable.
     - Upgraded: ALL enemies: 2 Weak, 1 Vulnerable.
@@ -383,7 +401,7 @@ _Machine-priest — TECH shields, turrets & reactors. (51 cards)_
 
 ## Void Adept
 
-_Sanctioned psyker — PSI burns, hexes & blasts. (48 cards)_
+_Sanctioned psyker — PSI burns, hexes & blasts. (51 cards)_
 
 
 ### Starter
@@ -463,6 +481,12 @@ _Sanctioned psyker — PSI burns, hexes & blasts. (48 cards)_
 - **Exsanguinate**  — Attack · ⚡1
     - Base: Lose 3 HP. Deal 10 damage. Siphon.
     - Upgraded: Lose 3 HP. Deal 14 damage. Siphon.
+- **Kindling**  — Power · ⚡1
+    - Base: Gain 2 Entropy.
+    - Upgraded: Gain 3 Entropy.
+- **Long Whisper**  — Power · ⚡1
+    - Base: Gain 1 Ascendant, 1 Conduit.
+    - Upgraded: Gain 2 Ascendant, 1 Conduit.
 - **Mind Bulwark**  — Skill · ⚡1
     - Base: Gain Shield equal to twice your Psi Focus.
     - Upgraded: Gain Shield equal to three times your Psi Focus.
@@ -487,6 +511,9 @@ _Sanctioned psyker — PSI burns, hexes & blasts. (48 cards)_
 - **Psionic Scream**  — Attack · ⚡1
     - Base: ALL enemies: 4 damage, 1 Weak.
     - Upgraded: ALL enemies: 6 damage, 2 Weak.
+- **Red Thread**  — Power · ⚡1
+    - Base: Gain 2 Blood Pact, 2 Psi Focus, 3 Regen.
+    - Upgraded: Gain 3 Blood Pact, 3 Psi Focus, 4 Regen.
 - **Soulflare**  — Attack · ⚡1
     - Base: Deal 4 damage to every Burning enemy.
     - Upgraded: Deal 6 damage to every Burning enemy.

@@ -1134,5 +1134,102 @@ ok('every remaining class has a starter deck whose cards all exist',
   ok('no event runs past the panel it is shown in (' + longest + ' chars, ' + worst + ')', longest <= 260);
 })();
 
+/* ============ THE FIRST MARK ===========================================
+ * The run-start inscription. What can break here is not the numbers — the sim
+ * measures those — but the wiring: a mark that names a card or engraving that
+ * does not exist, a start-only engraving leaking into shops, or a run that can
+ * begin without the choice being made.
+ * ==================================================================== */
+(function () {
+  var CLS = ['vanguard', 'technomancer', 'voidadept'];
+  var bad = [];
+  CLS.forEach(function (cls) {
+    var marks = VS.firstMarks(cls);
+    if (marks.length !== 3) bad.push(cls + ' has ' + marks.length + ' marks');
+    marks.forEach(function (m) {
+      var eng = VS.dieEngraving(m.eng), card = VS.CARDS[m.card];
+      if (!eng) bad.push(m.id + ': no engraving ' + m.eng);
+      if (!card) bad.push(m.id + ': no card ' + m.card);
+      if (card && card.cls !== cls) bad.push(m.id + ': card is ' + card.cls + ', not ' + cls);
+      if (card && card.pool !== 'mark') bad.push(m.id + ': card is not pool:mark');
+      if (card && !card.up) bad.push(m.id + ': card has no upgrade');
+      if (eng && !eng.startOnly) bad.push(m.id + ': engraving is not startOnly');
+      if (eng && eng.cls !== cls) bad.push(m.id + ': engraving is ' + eng.cls + ', not ' + cls);
+      if (!m.want || !m.line) bad.push(m.id + ': missing want/line');
+    });
+  });
+  ok('every mark names a real engraving and a real class card' + (bad.length ? ' — ' + bad.join('; ') : ''), bad.length === 0);
+
+  // A mark card must never turn up anywhere else — the one you pick is the only
+  // one you see all run, which is the whole point of choosing.
+  var leaked = [];
+  for (var t = 0; t < 400; t++) {
+    E.seed(t); E.newRun('vanguard'); E.takeFirstMark(0);
+    var c = E.rollRewardCard ? E.rollRewardCard(0) : null;
+    if (c && VS.CARDS[c].pool === 'mark') leaked.push('reward:' + c);
+  }
+  ok('mark cards never appear as a reward' + (leaked.length ? ' — ' + leaked[0] : ''), leaked.length === 0);
+
+  // Same for the engravings: they are cut once, not stocked.
+  var engLeak = [];
+  for (var q = 0; q < 300; q++) {
+    E.seed(q + 900);
+    E.randomEngravings(3).forEach(function (id) {
+      if ((VS.DIE_AUGMENTS[id] || {}).startOnly) engLeak.push(id);
+    });
+  }
+  ok('start-only engravings never drop or stock' + (engLeak.length ? ' — ' + engLeak[0] : ''), engLeak.length === 0);
+
+  // The run cannot start without the choice, and taking one wires up both halves.
+  E.seed(11); E.newRun('voidadept');
+  ok('a new run opens on the First Mark', E.run.phase === 'first-mark');
+  var deck0 = E.run.deck.length;
+  var mark = VS.firstMarks('voidadept')[1];
+  E.takeFirstMark(1);
+  ok('taking a mark adds its card to the deck',
+     E.run.deck.length === deck0 + 1 && E.run.deck[E.run.deck.length - 1].id === mark.card);
+  ok('and queues its engraving for you to place',
+     E.run.die.pending && E.run.die.pending.length === 1 && E.run.die.pending[0] === mark.eng);
+  ok('the die itself is still blank — the face is your call', Object.keys(E.run.die.faces).length === 0);
+  ok('and the run proceeds to the map', E.run.phase === 'map');
+  E.takeFirstMark(0);
+  ok('the mark cannot be taken twice', E.run.deck.length === deck0 + 1);
+
+  // Every mark engraving must actually fit somewhere on a blank die.
+  var unplaceable = [];
+  CLS.forEach(function (cls) {
+    VS.firstMarks(cls).forEach(function (m) {
+      E.seed(3); E.newRun(cls);
+      var fits = false;
+      for (var f = 1; f <= VS.DIE.faces; f++) if (!VS.dieCanEngrave(E.run.die, m.eng, f)) fits = true;
+      if (!fits) unplaceable.push(m.id);
+    });
+  });
+  ok('every mark can be cut somewhere on a blank die' + (unplaceable.length ? ' — ' + unplaceable.join(', ') : ''),
+     unplaceable.length === 0);
+
+  // The engravings resolve through applyCardFx like any other face, so a typo in
+  // a status key would fire silently forever. Check each one moves the game.
+  var inert = [];
+  CLS.forEach(function (cls) {
+    VS.firstMarks(cls).forEach(function (m) {
+      E.seed(5); E.newRun(cls); E.takeFirstMark(0);
+      E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
+      E.startNode('fight');
+      // face-locked marks only fit where they are allowed to fit
+      var face = VS.dieEngraving(m.eng).onlyFace || 12;
+      VS.dieEngrave(E.run.die, m.eng, face);
+      var p = E.combat.player, en = E.combat.enemies[0];
+      var before = JSON.stringify([p.statuses, E.run.hp, en.hp, en.statuses, E.combat.energy, E.combat.hand.length, p.block]);
+      E.fireDieFace(face, 0);
+      var after = JSON.stringify([p.statuses, E.run.hp, en.hp, en.statuses, E.combat.energy, E.combat.hand.length, p.block]);
+      if (before === after) inert.push(m.eng);
+      E.run.phase = 'map';
+    });
+  });
+  ok('every mark engraving actually does something when it fires' + (inert.length ? ' — ' + inert.join(', ') : ''),
+     inert.length === 0);
+})();
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

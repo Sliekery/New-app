@@ -461,6 +461,7 @@
       case 'levelup': return showLevelUp();
       case 'class-relic': return showClassRelic();
       case 'boss-artifact': return showBossArtifact();
+      case 'first-mark': return showFirstMark();
       case 'cutscene': return showCutscene();
       case 'sector-intro': return showSectorIntro();
       case 'victory': return showVictory();
@@ -4246,6 +4247,56 @@
       btn2.addEventListener('pointerdown', function () { E.takeBossArtifact(-1); U.refresh(); });
       s.appendChild(btn2);
     }
+  }
+
+  /* ====================== THE FIRST MARK ======================
+   * Turn zero. Three class-specific offers, each an engraving paired with the
+   * card that archetype needs to start. Both halves are shown at full size —
+   * the engraving with its art and rule, the card as a real card — because
+   * this is the run's opening decision and it should be readable, not a list
+   * of names. The face is NOT chosen here: the engraving lands pending and the
+   * die screen asks where, so the choice stays open while you learn the table.
+   * ==================================================================== */
+  function showFirstMark() {
+    combatChrome(false);
+    $hud.innerHTML = ''; setHud(false);
+    var r = E.run, offers = E.firstMarkOffers();
+    if (!offers.length) { E.run.phase = 'map'; return U.refresh(); }
+
+    var s = overlayScreen();
+    s.classList.add('firstmark-screen');
+    s.appendChild(el('h2', 'screen-title', 'The First Mark'));
+    s.appendChild(el('div', 'screen-sub', 'THE DIE CAME TO YOU BLANK · CUT ONE ANSWER INTO IT'));
+
+    var cbar = makeConfirmBar();
+    offers.forEach(function (m, i) {
+      var eng = ns.dieEngraving(m.eng);
+      var card = ns.CARDS[m.card];
+      var row = el('div', 'panel-btn mark-row');
+      row.innerHTML =
+        '<div class="pb-title">' + esc(m.name) + '</div>' +
+        '<div class="mark-line">' + esc(m.line) + '</div>' +
+        '<div class="mark-body">' +
+          '<div class="mark-eng">' +
+            '<div class="me-head"><span class="pb-icon">' + artSVG(eng.art) + '</span>' + esc(eng.name) + '</div>' +
+            '<div class="me-desc">' + esc(eng.desc) + '</div>' +
+            '<div class="me-want">' + esc(m.want) + '</div>' +
+          '</div>' +
+        '</div>';
+      // the card, rendered as the card it is
+      // reading size, not the dense whole-deck size — this is one card you are
+      // choosing a run around, and its rarity tag has to stay legible
+      var grid = el('div', 'card-grid mark-card');
+      grid.appendChild(cardEl(m.card, false, false));
+      row.querySelector('.mark-body').appendChild(grid);
+      s.appendChild(row);
+      fitCards(grid);
+      selectConfirm(s, row, cbar,
+        'Cut <b>' + esc(eng.name) + '</b> and take <b>' + esc(card.name) + '</b>?' +
+        '<span class="cb-note">You choose the face on the die screen.</span>',
+        function () { SFX.coin(); E.takeFirstMark(i); U.refresh(); }, 'cyan');
+    });
+    s.appendChild(cbar.el);
   }
 
   var TRIBUTE_TEASE = {

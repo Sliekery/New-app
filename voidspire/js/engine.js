@@ -103,7 +103,31 @@
         }
       }
     })();
+    // THE FIRST MARK: cut one answer into the blank die before going down.
+    if (ns.firstMarks && ns.firstMarks(clsId).length) E.run.phase = 'first-mark';
     E.save();
+  };
+
+  /* ---- The First Mark -------------------------------------------------
+   * Three offers, class-specific, each an engraving paired with the card that
+   * archetype needs to get started. The engraving lands PENDING so the player
+   * picks its face on the die screen — the mark decides what you are playing,
+   * the face is still yours.
+   * ------------------------------------------------------------------- */
+  E.firstMarkOffers = function () { return (E.run && ns.firstMarks(E.run.cls)) || []; };
+
+  E.takeFirstMark = function (i) {
+    var r = E.run;
+    if (!r || r.phase !== 'first-mark') return false;
+    var m = E.firstMarkOffers()[i];
+    if (!m) return false;
+    r.die.pending = r.die.pending || [];
+    r.die.pending.push(m.eng);
+    r.deck.push(mkCard(m.card, false));
+    r.firstMark = m.id;
+    r.phase = 'map';
+    E.save();
+    return true;
   };
 
   // A relic only applies while it's switched ON and not spent (durability > 0).
@@ -2323,6 +2347,10 @@
   function randomEngravings(n) {
     var ids = Object.keys(ns.DIE_AUGMENTS), pool = [];
     ids.forEach(function (k) {
+      // The First Mark engravings are cut once, before the descent. They are
+      // priced as a declaration of intent, not as a drop, so they never appear
+      // in a reward or on a bench — including for the class they belong to.
+      if (ns.DIE_AUGMENTS[k].startOnly) return;
       var t = ns.DIE_AUGMENTS[k].tier || 1, w = t === 1 ? 6 : t === 2 ? 3 : 1;
       for (var i = 0; i < w; i++) pool.push(k);
     });

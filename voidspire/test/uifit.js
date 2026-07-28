@@ -47,6 +47,8 @@ var SCREENS = {
   treasure: function () { var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.startNode('treasure'); VS.ui.refresh(); },
   die: function () { var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.run.phase = 'map'; VS.ui.refresh(); VS.ui.showDie(); },
   sector: function () { var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.run.sector = 2; E.run.phase = 'sector-intro'; VS.ui.refresh(); },
+  // turn zero: three offers, each an engraving beside a full-size card
+  mark: function () { var E = VS.engine; E.seed(5); E.newRun('technomancer'); VS.ui.refresh(); },
   // the widest panel in the game, and the longest single line of prose
   cutscene: function () {
     var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.run.sector = 4;

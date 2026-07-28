@@ -733,6 +733,66 @@
       fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }, { k: 'hploss', v: 3 }],
       up: { fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }, { k: 'hploss', v: 1 }] },
     },
+    /* ---------------- THE FIRST MARK ----------------
+     * One of these comes down with you, chosen at the mouth of the Spire
+     * alongside the engraving it belongs to (see ns.FIRST_MARKS in dice.js).
+     * `pool: 'mark'` keeps them out of every reward and shop, so the one you
+     * pick stays the only one you will see all run.
+     *
+     * None of them is a big number. Each one turns a pile of cards you might
+     * otherwise never draft into a plan — they are archetype seeds, and they
+     * are deliberately weak on their own.
+     * ---------------------------------------------- */
+    sighting_round: {   // MARKSMANSHIP: a free shot that climbs the table
+      name: 'Sighting Round', cls: 'vanguard', type: 'attack', rarity: 2, pool: 'mark', cost: 0, retain: true,
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'status', s: 'aim', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'status', s: 'aim', v: 1, who: 'self' }] },
+    },
+    red_ledger: {   // MIGHT/BLOOD: every HP you spend on yourself is paid back
+      name: 'Red Ledger', cls: 'vanguard', type: 'power', rarity: 2, pool: 'mark', cost: 1,
+      fx: [{ k: 'hploss', v: 3 }, { k: 'status', s: 'str', v: 2, who: 'self' }, { k: 'status', s: 'bloodrage', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'hploss', v: 3 }, { k: 'status', s: 'str', v: 3, who: 'self' }, { k: 'status', s: 'bloodrage', v: 3, who: 'self' }] },
+    },
+    set_against_it: {   // BLOCK/THORNS: turn the turtle into a hazard
+      name: 'Set Against It', cls: 'vanguard', type: 'power', rarity: 2, pool: 'mark', cost: 1,
+      fx: [{ k: 'status', s: 'thorns', v: 2, who: 'self' }, { k: 'status', s: 'plate', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'thorns', v: 4, who: 'self' }, { k: 'status', s: 'plate', v: 3, who: 'self' }] },
+    },
+
+    assembly_line: {   // CONSTRUCTS: one turret, and everything fires twice
+      name: 'Assembly Line', cls: 'technomancer', type: 'power', rarity: 2, pool: 'mark', cost: 1,
+      fx: [{ k: 'status', s: 'turret', v: 2, who: 'self' }, { k: 'status', s: 'hive', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'turret', v: 3, who: 'self' }, { k: 'status', s: 'hive', v: 1, who: 'self' }] },
+    },
+    surge_routing: {   // POWER: Powers pay for themselves
+      name: 'Surge Routing', cls: 'technomancer', type: 'power', rarity: 2, pool: 'mark', cost: 1,
+      fx: [{ k: 'status', s: 'reactor', v: 1, who: 'self' }, { k: 'status', s: 'subroutine', v: 1, who: 'self' }],
+      text: 'Whenever you play a Power, draw a card.',
+      up: { fx: [{ k: 'status', s: 'reactor', v: 1, who: 'self' }, { k: 'status', s: 'subroutine', v: 2, who: 'self' }],
+            text: 'Whenever you play a Power, draw 2 cards.' },
+    },
+    null_lattice: {   // CONTROL: every hex you apply also bites
+      name: 'Null Lattice', cls: 'technomancer', type: 'power', rarity: 2, pool: 'mark', cost: 1,
+      fx: [{ k: 'status', s: 'conduit', v: 1, who: 'self' }, { k: 'status', s: 'plate', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'conduit', v: 2, who: 'self' }, { k: 'status', s: 'plate', v: 2, who: 'self' }] },
+    },
+
+    kindling: {   // BURN: the field is alight from turn one
+      name: 'Kindling', cls: 'voidadept', type: 'power', rarity: 2, pool: 'mark', cost: 1,
+      fx: [{ k: 'status', s: 'entropy', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'entropy', v: 3, who: 'self' }] },
+    },
+    red_thread: {   // BLOOD: what the void takes, it pays interest on
+      name: 'Red Thread', cls: 'voidadept', type: 'power', rarity: 2, pool: 'mark', cost: 1,
+      fx: [{ k: 'status', s: 'bloodPact', v: 2, who: 'self' }, { k: 'status', s: 'psiPow', v: 2, who: 'self' }, { k: 'status', s: 'regen', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'bloodPact', v: 3, who: 'self' }, { k: 'status', s: 'psiPow', v: 3, who: 'self' }, { k: 'status', s: 'regen', v: 4, who: 'self' }] },
+    },
+    long_whisper: {   // PSI/CONTROL: the ramp, and a reason to hex
+      name: 'Long Whisper', cls: 'voidadept', type: 'power', rarity: 2, pool: 'mark', cost: 1,
+      fx: [{ k: 'status', s: 'psiRamp', v: 1, who: 'self' }, { k: 'status', s: 'conduit', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'psiRamp', v: 2, who: 'self' }, { k: 'status', s: 'conduit', v: 1, who: 'self' }] },
+    },
+
     forbidden_lore: {
       name: 'Forbidden Lore', cls: 'any', type: 'skill', rarity: 3, pool: 'event', cost: 1, exhaust: true,
       fx: [{ k: 'draw', v: 3 }, { k: 'status', s: 'psiPow', v: 1, who: 'self' }],

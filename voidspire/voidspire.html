@@ -1354,6 +1354,31 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   from { transform: translate3d(calc(var(--d) * -3px), calc(var(--d) * 2px), 0) scale(calc(1 + var(--d) * 0.02)); }
   to   { transform: translate3d(calc(var(--d) * 3px), calc(var(--d) * -2px), 0) scale(calc(1 + var(--d) * 0.07)); }
 }
+/* ---- the first mark: engraving + card, side by side -----------------
+   Each offer shows both halves at full size, because this is the run's
+   opening decision. On a phone the two halves stack; from ~340px of usable
+   width they sit beside each other with the card on the right. */
+.firstmark-screen .mark-row { text-align: left; cursor: pointer; }
+.mark-line {
+  font-size: 11.5px; line-height: 1.5; color: #a8c5b4; font-style: italic;
+  margin: 2px 0 9px;
+}
+.mark-body { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
+.mark-eng { flex: 1 1 150px; min-width: 0; }
+.me-head {
+  display: flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: 1px;
+  color: var(--cyan); text-transform: uppercase;
+}
+.me-head .pb-icon { flex: none; margin: 0; color: var(--cyan); }
+.me-desc { font-size: 11.5px; line-height: 1.45; color: var(--text); margin: 5px 0 6px; }
+.me-want {
+  font-size: 9px; letter-spacing: 1.4px; color: var(--amber); opacity: 0.85;
+  border: 1px solid rgba(255, 176, 46, 0.4); padding: 2px 6px; display: inline-block;
+}
+/* the card sits in a dense grid of exactly one, so it keeps hand proportions */
+.card-grid.mark-card { flex: none; max-width: none; margin: 0; gap: 0; }
+.firstmark-screen .card-grid.mark-card .card { pointer-events: none; }
+
 .sector-line {
   max-width: 320px; font-size: 12.5px; line-height: 1.6; color: #b7d4c4;
   text-align: center; font-style: italic; margin: 10px 0 0;
@@ -2570,6 +2595,66 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }, { k: 'hploss', v: 3 }],
       up: { fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }, { k: 'hploss', v: 1 }] },
     },
+    /* ---------------- THE FIRST MARK ----------------
+     * One of these comes down with you, chosen at the mouth of the Spire
+     * alongside the engraving it belongs to (see ns.FIRST_MARKS in dice.js).
+     * `pool: 'mark'` keeps them out of every reward and shop, so the one you
+     * pick stays the only one you will see all run.
+     *
+     * None of them is a big number. Each one turns a pile of cards you might
+     * otherwise never draft into a plan — they are archetype seeds, and they
+     * are deliberately weak on their own.
+     * ---------------------------------------------- */
+    sighting_round: {   // MARKSMANSHIP: a free shot that climbs the table
+      name: 'Sighting Round', cls: 'vanguard', type: 'attack', rarity: 2, pool: 'mark', cost: 0, retain: true,
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'status', s: 'aim', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'status', s: 'aim', v: 1, who: 'self' }] },
+    },
+    red_ledger: {   // MIGHT/BLOOD: every HP you spend on yourself is paid back
+      name: 'Red Ledger', cls: 'vanguard', type: 'power', rarity: 2, pool: 'mark', cost: 1,
+      fx: [{ k: 'hploss', v: 3 }, { k: 'status', s: 'str', v: 2, who: 'self' }, { k: 'status', s: 'bloodrage', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'hploss', v: 3 }, { k: 'status', s: 'str', v: 3, who: 'self' }, { k: 'status', s: 'bloodrage', v: 3, who: 'self' }] },
+    },
+    set_against_it: {   // BLOCK/THORNS: turn the turtle into a hazard
+      name: 'Set Against It', cls: 'vanguard', type: 'power', rarity: 2, pool: 'mark', cost: 1,
+      fx: [{ k: 'status', s: 'thorns', v: 2, who: 'self' }, { k: 'status', s: 'plate', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'thorns', v: 4, who: 'self' }, { k: 'status', s: 'plate', v: 3, who: 'self' }] },
+    },
+
+    assembly_line: {   // CONSTRUCTS: one turret, and everything fires twice
+      name: 'Assembly Line', cls: 'technomancer', type: 'power', rarity: 2, pool: 'mark', cost: 1,
+      fx: [{ k: 'status', s: 'turret', v: 2, who: 'self' }, { k: 'status', s: 'hive', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'turret', v: 3, who: 'self' }, { k: 'status', s: 'hive', v: 1, who: 'self' }] },
+    },
+    surge_routing: {   // POWER: Powers pay for themselves
+      name: 'Surge Routing', cls: 'technomancer', type: 'power', rarity: 2, pool: 'mark', cost: 1,
+      fx: [{ k: 'status', s: 'reactor', v: 1, who: 'self' }, { k: 'status', s: 'subroutine', v: 1, who: 'self' }],
+      text: 'Whenever you play a Power, draw a card.',
+      up: { fx: [{ k: 'status', s: 'reactor', v: 1, who: 'self' }, { k: 'status', s: 'subroutine', v: 2, who: 'self' }],
+            text: 'Whenever you play a Power, draw 2 cards.' },
+    },
+    null_lattice: {   // CONTROL: every hex you apply also bites
+      name: 'Null Lattice', cls: 'technomancer', type: 'power', rarity: 2, pool: 'mark', cost: 1,
+      fx: [{ k: 'status', s: 'conduit', v: 1, who: 'self' }, { k: 'status', s: 'plate', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'conduit', v: 2, who: 'self' }, { k: 'status', s: 'plate', v: 2, who: 'self' }] },
+    },
+
+    kindling: {   // BURN: the field is alight from turn one
+      name: 'Kindling', cls: 'voidadept', type: 'power', rarity: 2, pool: 'mark', cost: 1,
+      fx: [{ k: 'status', s: 'entropy', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'entropy', v: 3, who: 'self' }] },
+    },
+    red_thread: {   // BLOOD: what the void takes, it pays interest on
+      name: 'Red Thread', cls: 'voidadept', type: 'power', rarity: 2, pool: 'mark', cost: 1,
+      fx: [{ k: 'status', s: 'bloodPact', v: 2, who: 'self' }, { k: 'status', s: 'psiPow', v: 2, who: 'self' }, { k: 'status', s: 'regen', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'bloodPact', v: 3, who: 'self' }, { k: 'status', s: 'psiPow', v: 3, who: 'self' }, { k: 'status', s: 'regen', v: 4, who: 'self' }] },
+    },
+    long_whisper: {   // PSI/CONTROL: the ramp, and a reason to hex
+      name: 'Long Whisper', cls: 'voidadept', type: 'power', rarity: 2, pool: 'mark', cost: 1,
+      fx: [{ k: 'status', s: 'psiRamp', v: 1, who: 'self' }, { k: 'status', s: 'conduit', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'psiRamp', v: 2, who: 'self' }, { k: 'status', s: 'conduit', v: 1, who: 'self' }] },
+    },
+
     forbidden_lore: {
       name: 'Forbidden Lore', cls: 'any', type: 'skill', rarity: 3, pool: 'event', cost: 1, exhaust: true,
       fx: [{ k: 'draw', v: 3 }, { k: 'status', s: 'psiPow', v: 1, who: 'self' }],
@@ -3193,6 +3278,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     scan: { p: [[-0.58,-0.58, -0.58,-0.22], [-0.58,-0.58, -0.22,-0.58], [0.58,-0.58, 0.22,-0.58], [0.58,-0.58, 0.58,-0.22], [-0.58,0.58, -0.58,0.22], [-0.58,0.58, -0.22,0.58], [0.58,0.58, 0.58,0.22], [0.58,0.58, 0.22,0.58], [-0.52,0, 0.52,0], [0,-0.52, 0,0.52]], e: [[0,0]] },
     drain: { p: [[-0.34,-0.6, 0.34,-0.6, 0.3,0.12, 0,0.54, -0.3,0.12, -0.34,-0.6], [-0.2,-0.7, 0.2,-0.7], [0.12,-0.7, 0.34,-0.92, 0.54,-0.82], [-0.16,-0.06, 0.16,-0.06], [-0.08,0.16, 0.08,0.16]] },
     skull: { p: [[-0.5,0.12, -0.55,-0.4, -0.3,-0.72, 0.3,-0.72, 0.55,-0.4, 0.5,0.12, 0.3,0.24, 0.3,0.5, 0.12,0.5, 0.12,0.26, -0.12,0.26, -0.12,0.5, -0.3,0.5, -0.3,0.24, -0.5,0.12], [0,-0.06, -0.13,0.16, 0.13,0.16, 0,-0.06]], e: [[-0.25,-0.22], [0.25,-0.22]] },
+    // --- the First Mark cards: each opens a run, so each gets its own face ---
+    ledger: { p: [[-0.5,-0.7, 0.5,-0.7, 0.5,0.7, -0.5,0.7, -0.5,-0.7], [-0.34,-0.42, 0.34,-0.42], [-0.34,-0.14, 0.34,-0.14], [-0.34,0.14, 0.34,0.14], [-0.34,0.42, 0.1,0.42], [-0.66,0.58, 0.66,-0.58]] },
+    spiked: { p: [[0,-0.66, 0.54,-0.38, 0.54,0.14, 0,0.72, -0.54,0.14, -0.54,-0.38, 0,-0.66], [0,-0.66, 0,-0.94], [0.54,-0.38, 0.84,-0.54], [0.54,0.14, 0.86,0.22], [-0.54,-0.38, -0.84,-0.54], [-0.54,0.14, -0.86,0.22], [-0.3,-0.1, 0.3,-0.1]] },
+    circuit: { p: [[-0.86,-0.4, -0.2,-0.4, -0.2,0.12, 0.4,0.12], [0.4,0.12, 0.4,0.6], [-0.86,0.46, -0.46,0.46, -0.46,-0.16, 0.76,-0.16], [0.76,-0.16, 0.76,-0.64]], e: [[-0.2,-0.4], [0.4,0.12], [-0.46,0.46], [0.76,-0.16]] },
+    lattice: { p: [[-0.8,-0.3, 0.8,-0.3], [-0.8,0.3, 0.8,0.3], [-0.3,-0.8, -0.3,0.8], [0.3,-0.8, 0.3,0.8], [-0.78,-0.78, 0.78,0.78], [0.78,-0.78, -0.78,0.78]] },
+    thread: { p: [[-0.72,-0.7, -0.3,-0.2, -0.62,0.16, -0.08,0.5, 0.24,0.06, 0.72,0.44], [-0.3,-0.2, 0.1,-0.56], [-0.08,0.5, -0.02,0.8]], e: [[0.24,0.06]] },
   };
 
   // Explicit card -> glyph mapping. Anything unmapped falls back by type.
@@ -3248,6 +3339,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     ember_ward: 'flame', backdraft: 'flame', mind_bulwark: 'shield',
     static_ward: 'shield', swarm_uplink: 'turret', subroutine: 'core',
     spiked_bulwark: 'shieldStrike', demolition_train: 'shell',
+    // the First Mark cards
+    sighting_round: 'scan', red_ledger: 'ledger', set_against_it: 'spiked',
+    assembly_line: 'turret', surge_routing: 'circuit', null_lattice: 'lattice',
+    kindling: 'flame', red_thread: 'thread', long_whisper: 'eye',
   };
   var TYPE_DEFAULT = { attack: 'rifle', skill: 'shield', power: 'core', curse: 'skull' };
 
@@ -3622,6 +3717,73 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       desc: 'Heal 6 HP and gain 2 Psi Power. Engraved on face 1 only — what the void takes, it gives back.',
       art: { p: [[0,-0.78, 0.42,-0.12, 0.28,0.54, -0.28,0.54, -0.42,-0.12, 0,-0.78], [-0.42,-0.12, 0.42,-0.12], [0,-0.78, 0,0.54]] },
     },
+    /* -- THE FIRST MARK: the run-start inscriptions --------------------
+     * One of these is cut before you go down (see ns.FIRST_MARKS below), so
+     * each is a statement of intent rather than a pickup. They are `startOnly`
+     * — never in a shop, never a drop — and each is tuned to how ITS class
+     * reads the die, which is why they are worth more than a tier-1 face:
+     *
+     *   Vanguard    climbs the table with Aim, so his marks want the top of it
+     *   Technomancer never steers, so his are priced for a face he cannot aim at
+     *   Voidadept   is strongest at BOTH ends and bored in the middle
+     * ---------------------------------------------------------------- */
+    ranging_mark: {
+      name: 'Ranging Mark', tier: 2, span: 3, startOnly: true, cls: 'vanguard',
+      fx: [{ k: 'status', s: 'aim', v: 1, who: 'self' }, { k: 'draw', v: 1 }],
+      desc: 'Gain 1 Aim. Draw 1 card.',
+      art: { p: [[-0.8,0, 0.8,0], [0,-0.8, 0,0.8], [0.5,-0.5, 0.5,0.5], [-0.5,-0.5, -0.5,0.5], [0.34,0, 0.2,-0.14], [0.34,0, 0.2,0.14]], e: [[0,0]] },
+    },
+    whetstone_mark: {
+      name: 'Whetstone Mark', tier: 2, span: 3, startOnly: true, cls: 'vanguard',
+      fx: [{ k: 'dmg', v: 3, scale: 'might' }, { k: 'status', s: 'str', v: 3, who: 'self' }],
+      desc: 'Deal 3 damage. Gain 3 Might.',
+      art: { p: [[-0.7,0.3, 0.5,-0.5, 0.7,-0.2, -0.5,0.6, -0.7,0.3], [-0.2,0.02, 0.1,-0.2], [0.2,-0.62, 0.34,-0.8]] },
+    },
+    anvil_mark: {
+      name: 'Anvil Mark', tier: 2, span: 3, startOnly: true, cls: 'vanguard',
+      fx: [{ k: 'block', v: 5 }, { k: 'status', s: 'thorns', v: 1, who: 'self' }],
+      desc: 'Gain 5 Shield, 1 Thorns.',
+      art: { p: [[-0.7,-0.2, 0.7,-0.2, 0.5,0.14, -0.5,0.14, -0.7,-0.2], [-0.24,0.14, -0.34,0.62, 0.34,0.62, 0.24,0.14], [-0.5,-0.2, -0.36,-0.5], [0.5,-0.2, 0.36,-0.5], [0,-0.2, 0,-0.56]] },
+    },
+
+    assembly_mark: {
+      name: 'Assembly Mark', tier: 2, span: 3, startOnly: true, cls: 'technomancer',
+      fx: [{ k: 'status', s: 'turret', v: 3, who: 'self' }],
+      desc: 'Deploy a Turret (3 dmg/turn).',
+      art: { p: [[-0.6,0.6, -0.3,0.0, 0.3,0.0, 0.6,0.6], [-0.3,0.0, 0.3,0.0, 0.24,-0.4, -0.24,-0.4, -0.3,0.0], [0.24,-0.28, 0.74,-0.28], [-0.5,0.6, 0.5,0.6]], e: [[0,-0.2]] },
+    },
+    breaker_mark: {
+      name: 'Bus Tap', tier: 2, span: 3, startOnly: true, cls: 'technomancer',
+      fx: [{ k: 'energy', v: 1 }, { k: 'draw', v: 1 }],
+      desc: 'Gain 1 Energy. Draw 1 card.',
+      art: { p: [[-0.6,-0.6, -0.6,0.6], [0.6,-0.6, 0.6,0.6], [-0.6,-0.2, 0.3,0.2], [0.3,0.2, 0.6,0.2], [0.1,-0.5, -0.16,-0.1, 0.06,-0.1, -0.1,0.4]] },
+    },
+    damping_mark: {
+      name: 'Damping Mark', tier: 2, span: 3, startOnly: true, cls: 'technomancer',
+      fx: [{ k: 'block', v: 5 }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }],
+      desc: 'Gain 5 Shield. Apply 1 Weak to ALL enemies.',
+      art: { p: [[0,-0.75, 0.62,-0.4, 0.62,0.2, 0,0.76, -0.62,0.2, -0.62,-0.4, 0,-0.75], [-0.62,-0.1, 0.62,-0.1], [-0.4,0.24, 0.4,0.24], [-0.2,0.5, 0.2,0.5]] },
+    },
+
+    ember_mark: {
+      name: 'Ember Mark', tier: 2, span: 3, startOnly: true, cls: 'voidadept',
+      fx: [{ k: 'status', s: 'burn', v: 5, who: 'target' }],
+      desc: 'Apply 5 Burn.',
+      art: { p: [[0,-0.8, 0.3,-0.3, 0.14,0.0, 0.4,0.3, 0.16,0.66, 0,0.78, -0.16,0.66, -0.4,0.3, -0.14,0.0, -0.3,-0.3, 0,-0.8], [0,0.24, 0.12,0.5, 0,0.66, -0.12,0.5, 0,0.24]] },
+    },
+    vein_mark: {
+      name: 'Vein Mark', tier: 2, span: 3, startOnly: true, cls: 'voidadept',
+      fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 16, scale: 'psi' }],
+      desc: 'Lose 2 HP. Deal 16 damage.',
+      art: { p: [[0,-0.8, 0,0.5], [0,-0.4, -0.4,-0.7], [0,-0.1, 0.42,-0.4], [0,0.2, -0.36,0.0], [0,0.5, 0.2,0.74], [-0.16,0.62, 0,0.5, 0.16,0.62]] },
+    },
+    whisper_mark: {
+      name: 'Whisper Mark', tier: 2, span: 3, startOnly: true, cls: 'voidadept',
+      fx: [{ k: 'status', s: 'psiPow', v: 2, who: 'self' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }],
+      desc: 'Gain 2 Psi Focus. Apply 2 Vulnerable.',
+      art: { p: [[-0.75,0, -0.4,-0.4, 0.1,-0.2, 0.5,-0.6, 0.78,-0.1], [-0.6,0.34, -0.2,0.1, 0.2,0.44, 0.62,0.16]], e: [[0,-0.06]] },
+    },
+
     executioners_mark: {
       name: "Executioner's Mark", tier: 3, span: 1,
       fx: [{ k: 'special', id: 'dieExecute', v: 12 }],
@@ -3655,6 +3817,54 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       art: { p: [[0,0, 0.2,-0.22, 0.06,-0.48, -0.32,-0.42, -0.48,0, -0.22,0.48, 0.32,0.52, 0.66,0.06, 0.42,-0.52, -0.2,-0.76]] },
     },
   };
+
+  /* ---- THE FIRST MARK --------------------------------------------------
+   * The die comes to you blank and nobody says where from. Before the descent
+   * you cut one answer into it — an engraving, and the card that answer implies
+   * — and that pair is the run's opening statement of intent.
+   *
+   * Each mark names an archetype the class already has cards for but no reason
+   * to commit to on turn one. The engraving is granted PENDING, so you choose
+   * the face yourself on the die screen: the mark says what you are playing,
+   * you say where on the table you want it to land. `want` is the face band it
+   * was tuned for — a hint on the card, never a restriction.
+   * ------------------------------------------------------------------- */
+  ns.FIRST_MARKS = {
+    vanguard: [
+      { id: 'the_long_shot', name: 'THE LONG SHOT', eng: 'ranging_mark', card: 'sighting_round',
+        want: 'HIGH FACES · 15–20',
+        line: 'You cut it near the top of the table, where the shot is already going.' },
+      { id: 'the_red_debt', name: 'THE RED DEBT', eng: 'whetstone_mark', card: 'red_ledger',
+        want: 'LOW FACES · 2–7',
+        line: 'A bad face is still a face. You give the bottom of the die something to do.' },
+      { id: 'the_set_shield', name: 'THE SET SHIELD', eng: 'anvil_mark', card: 'set_against_it',
+        want: 'MIDDLE FACES · 8–14',
+        line: 'You cut it where the die spends most of its time, and stop trying to steer.' },
+    ],
+    technomancer: [
+      { id: 'the_standing_line', name: 'THE STANDING LINE', eng: 'assembly_mark', card: 'assembly_line',
+        want: 'ANYWHERE · THE MACHINE DOES NOT AIM',
+        line: 'Something should be working while you are not. You give it a place to stand.' },
+      { id: 'the_closed_circuit', name: 'THE CLOSED CIRCUIT', eng: 'breaker_mark', card: 'surge_routing',
+        want: 'ANYWHERE · IT ALL COMES BACK TO THE BUS',
+        line: 'Nothing is wasted if the charge has somewhere to go. You give it somewhere.' },
+      { id: 'the_damping_field', name: 'THE DAMPING FIELD', eng: 'damping_mark', card: 'null_lattice',
+        want: 'MIDDLE FACES · 8–14',
+        line: 'You cut it flat across the middle, where a machine lives, and let it hum.' },
+    ],
+    voidadept: [
+      { id: 'the_first_ember', name: 'THE FIRST EMBER', eng: 'ember_mark', card: 'kindling',
+        want: 'LOW FACES · 2–7',
+        line: 'You cut it low, in the part of the table that is already hungry.' },
+      { id: 'the_open_vein', name: 'THE OPEN VEIN', eng: 'vein_mark', card: 'red_thread',
+        want: 'EITHER END · 2–7 OR 15–20',
+        line: 'The void answers at both ends. You only decide which end it bills.' },
+      { id: 'the_long_whisper', name: 'THE LONG WHISPER', eng: 'whisper_mark', card: 'long_whisper',
+        want: 'MIDDLE FACES · 8–14',
+        line: 'You cut it through the middle, where the void gets bored, and give it a reason.' },
+    ],
+  };
+  ns.firstMarks = function (cls) { return ns.FIRST_MARKS[cls] || []; };
 
   // Every engraving, chosen or not.
   ns.dieEngraving = function (id) { return ns.DIE_AUGMENTS[id] || ns.DIE_FLAWS[id] || null; };
@@ -5809,7 +6019,31 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         }
       }
     })();
+    // THE FIRST MARK: cut one answer into the blank die before going down.
+    if (ns.firstMarks && ns.firstMarks(clsId).length) E.run.phase = 'first-mark';
     E.save();
+  };
+
+  /* ---- The First Mark -------------------------------------------------
+   * Three offers, class-specific, each an engraving paired with the card that
+   * archetype needs to get started. The engraving lands PENDING so the player
+   * picks its face on the die screen — the mark decides what you are playing,
+   * the face is still yours.
+   * ------------------------------------------------------------------- */
+  E.firstMarkOffers = function () { return (E.run && ns.firstMarks(E.run.cls)) || []; };
+
+  E.takeFirstMark = function (i) {
+    var r = E.run;
+    if (!r || r.phase !== 'first-mark') return false;
+    var m = E.firstMarkOffers()[i];
+    if (!m) return false;
+    r.die.pending = r.die.pending || [];
+    r.die.pending.push(m.eng);
+    r.deck.push(mkCard(m.card, false));
+    r.firstMark = m.id;
+    r.phase = 'map';
+    E.save();
+    return true;
   };
 
   // A relic only applies while it's switched ON and not spent (durability > 0).
@@ -8029,6 +8263,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function randomEngravings(n) {
     var ids = Object.keys(ns.DIE_AUGMENTS), pool = [];
     ids.forEach(function (k) {
+      // The First Mark engravings are cut once, before the descent. They are
+      // priced as a declaration of intent, not as a drop, so they never appear
+      // in a reward or on a bench — including for the class they belong to.
+      if (ns.DIE_AUGMENTS[k].startOnly) return;
       var t = ns.DIE_AUGMENTS[k].tier || 1, w = t === 1 ? 6 : t === 2 ? 3 : 1;
       for (var i = 0; i < w; i++) pool.push(k);
     });
@@ -11787,6 +12025,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       case 'levelup': return showLevelUp();
       case 'class-relic': return showClassRelic();
       case 'boss-artifact': return showBossArtifact();
+      case 'first-mark': return showFirstMark();
       case 'cutscene': return showCutscene();
       case 'sector-intro': return showSectorIntro();
       case 'victory': return showVictory();
@@ -15572,6 +15811,56 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       btn2.addEventListener('pointerdown', function () { E.takeBossArtifact(-1); U.refresh(); });
       s.appendChild(btn2);
     }
+  }
+
+  /* ====================== THE FIRST MARK ======================
+   * Turn zero. Three class-specific offers, each an engraving paired with the
+   * card that archetype needs to start. Both halves are shown at full size —
+   * the engraving with its art and rule, the card as a real card — because
+   * this is the run's opening decision and it should be readable, not a list
+   * of names. The face is NOT chosen here: the engraving lands pending and the
+   * die screen asks where, so the choice stays open while you learn the table.
+   * ==================================================================== */
+  function showFirstMark() {
+    combatChrome(false);
+    $hud.innerHTML = ''; setHud(false);
+    var r = E.run, offers = E.firstMarkOffers();
+    if (!offers.length) { E.run.phase = 'map'; return U.refresh(); }
+
+    var s = overlayScreen();
+    s.classList.add('firstmark-screen');
+    s.appendChild(el('h2', 'screen-title', 'The First Mark'));
+    s.appendChild(el('div', 'screen-sub', 'THE DIE CAME TO YOU BLANK · CUT ONE ANSWER INTO IT'));
+
+    var cbar = makeConfirmBar();
+    offers.forEach(function (m, i) {
+      var eng = ns.dieEngraving(m.eng);
+      var card = ns.CARDS[m.card];
+      var row = el('div', 'panel-btn mark-row');
+      row.innerHTML =
+        '<div class="pb-title">' + esc(m.name) + '</div>' +
+        '<div class="mark-line">' + esc(m.line) + '</div>' +
+        '<div class="mark-body">' +
+          '<div class="mark-eng">' +
+            '<div class="me-head"><span class="pb-icon">' + artSVG(eng.art) + '</span>' + esc(eng.name) + '</div>' +
+            '<div class="me-desc">' + esc(eng.desc) + '</div>' +
+            '<div class="me-want">' + esc(m.want) + '</div>' +
+          '</div>' +
+        '</div>';
+      // the card, rendered as the card it is
+      // reading size, not the dense whole-deck size — this is one card you are
+      // choosing a run around, and its rarity tag has to stay legible
+      var grid = el('div', 'card-grid mark-card');
+      grid.appendChild(cardEl(m.card, false, false));
+      row.querySelector('.mark-body').appendChild(grid);
+      s.appendChild(row);
+      fitCards(grid);
+      selectConfirm(s, row, cbar,
+        'Cut <b>' + esc(eng.name) + '</b> and take <b>' + esc(card.name) + '</b>?' +
+        '<span class="cb-note">You choose the face on the die screen.</span>',
+        function () { SFX.coin(); E.takeFirstMark(i); U.refresh(); }, 'cyan');
+    });
+    s.appendChild(cbar.el);
   }
 
   var TRIBUTE_TEASE = {

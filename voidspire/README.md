@@ -102,6 +102,7 @@ Content is data-driven too:
 | `js/potions.js` | Consumables: name, rarity, colour, target flag, and an effect list (same `fx` style as cards). |
 | `js/echoes.js` | Void Echoes (Recurrence/NG+ relics): simple ones carry `hook`/`hooks` (fold into `art()` while equipped); rule-benders are checked by `E.hasEcho(id)`. |
 | `js/events.js` | Decision events with skill checks and outcome effects. |
+| `js/dice.js` | The Augmented Die: face engravings, Flaws, and `FIRST_MARKS` — the three class-specific inscriptions offered at the mouth of the Spire, each pairing an engraving with the card its archetype needs. Engravings flagged `startOnly` are cut once and never drop or stock. |
 | `js/story.js` | The overarching narrative: sector and faction lore, the cutscene that plays after each sector boss, and the vector scene art they are drawn from. The header comment states what the game is *implying* — none of it is ever said out loud in-game, and it should stay that way. |
 
 ### Validate your tweaks headlessly
