@@ -1696,7 +1696,7 @@
     s.appendChild(el('h2', 'screen-title', (which === 'draw' ? 'Draw Pile' : 'Discard Pile') + ' (' + cards.length + ')'));
     s.appendChild(el('div', 'screen-sub', which === 'draw' ? 'ORDER IS HIDDEN UNTIL DRAWN' : 'MOST RECENTLY PLAYED LAST'));
     if (!cards.length) s.appendChild(el('div', 'screen-sub', '— EMPTY —'));
-    var grid = el('div', 'card-grid');
+    var grid = el('div', 'card-grid dense');
     var list = (which === 'draw') ? cards.sort(function (a, b) { return ns.CARDS[a.id].cost - ns.CARDS[b.id].cost; }) : cards;
     list.forEach(function (card) { grid.appendChild(cardEl(card.id, card.up, card.vtouch)); });
     s.appendChild(grid);
@@ -1833,8 +1833,13 @@
   function fitOne(desc) {
     desc.style.fontSize = '';                 // reset to the CSS default
     var cs = parseFloat(getComputedStyle(desc).fontSize) || 8.5;
+    // A hand card can shrink hard — it is one of ten, and you can tap to inspect
+    // it. A card you are CHOOSING between (reward, shop) is the opposite: the
+    // text is the whole decision, so it gets a floor that stays readable and
+    // enough card height to reach it.
+    var floor = desc.closest && desc.closest('.card-grid:not(.dense)') ? 8.6 : 5.5;
     var guard = 0;
-    while (desc.scrollHeight > desc.clientHeight + 0.5 && cs > 5.5 && guard++ < 14) {
+    while (desc.scrollHeight > desc.clientHeight + 0.5 && cs > floor && guard++ < 14) {
       cs -= 0.4; desc.style.fontSize = cs.toFixed(2) + 'px';
     }
   }
@@ -3651,7 +3656,7 @@
     var okClass = { remove: 'red', upgrade: 'amber', dupe: 'cyan', vtouch: 'magenta' }[type] || '';
     s.appendChild(el('h2', 'screen-title', titles[type] || 'Choose a Card'));
     s.appendChild(el('div', 'screen-sub', 'TAP A CARD TO PREVIEW · CONFIRM TO ' + (verbs[type] || 'SELECT').toUpperCase()));
-    var grid = el('div', 'card-grid');
+    var grid = el('div', 'card-grid dense');
     var cbar = makeConfirmBar();
     var any = false;
     r.deck.forEach(function (card, i) {
@@ -3983,7 +3988,7 @@
     var s = overlayScreen();
     s.appendChild(el('h2', 'screen-title', 'Trade Up'));
     s.appendChild(el('div', 'screen-sub', 'SCRAP A CARD · FORGE ONE A TIER HIGHER'));
-    var grid = el('div', 'card-grid');
+    var grid = el('div', 'card-grid dense');
     var cbar = makeConfirmBar();
     var any = false;
     r.deck.forEach(function (card, i) {
