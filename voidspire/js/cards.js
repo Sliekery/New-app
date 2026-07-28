@@ -372,8 +372,7 @@
     entrench_field: {
       name: 'Entrench Field', cls: 'technomancer', type: 'skill', rarity: 2, cost: 2,
       fx: [{ k: 'special', id: 'doubleBlock' }],
-      text: 'Double your Shield.',
-      up: { cost: 1, fx: [{ k: 'special', id: 'doubleBlock' }], text: 'Double your Shield.' },
+      up: { cost: 1, fx: [{ k: 'special', id: 'doubleBlock' }] },
     },
     overload_capacitor: {
       name: 'Overload Capacitor', cls: 'technomancer', type: 'power', rarity: 2, cost: 1,
@@ -399,7 +398,7 @@
       up: { fx: [{ k: 'status', s: 'thousandCuts', v: 3, who: 'self' }] },
     },
     plague_engine: {
-      name: 'Plague Engine', cls: 'voidadept', type: 'power', rarity: 3, cost: 2,
+      name: 'Plague Engine', cls: 'voidadept', type: 'power', rarity: 3, cost: 1,
       fx: [{ k: 'status', s: 'plague', v: 1, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'plague', v: 2, who: 'self' }] },
     },
@@ -733,6 +732,48 @@
       fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }, { k: 'hploss', v: 3 }],
       up: { fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }, { k: 'hploss', v: 1 }] },
     },
+    /* ---------------- DIE-READ SIGNATURES ----------------
+     * The die tables are the class identities, so these are the cards that
+     * make you FEEL your table: the marksman gambles on the top of it, the
+     * machine converts a sag into tempo, the void feasts at both ends and is
+     * bored by the middle. All riders, no new engine code.
+     * ---------------------------------------------------- */
+    one_in_the_chamber: {   // MARKSMANSHIP: everything on one shot — Aim makes it a plan
+      name: 'One in the Chamber', cls: 'vanguard', type: 'attack', rarity: 3, cost: 1, exhaust: true,
+      fx: [{ k: 'onRoll', min: 8, fx: [{ k: 'dmg', v: 24, scale: 'might' }] }],
+      up: { fx: [{ k: 'onRoll', min: 6, fx: [{ k: 'dmg', v: 30, scale: 'might' }] }] },
+    },
+    ricochet: {   // the trick shot: lands well, it carries
+      name: 'Ricochet', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'onRoll', min: 14, fx: [{ k: 'dmg', v: 6, all: true }] }],
+      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'onRoll', min: 12, fx: [{ k: 'dmg', v: 8, all: true }] }] },
+    },
+    mains_surge: {   // LOAD BALANCE: ride a SURGE and the wall doubles
+      name: 'Mains Surge', cls: 'technomancer', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'block', v: 7, scale: 'tech' }, { k: 'onRoll', min: 15, fx: [{ k: 'special', id: 'doubleBlock' }] }],
+      up: { fx: [{ k: 'block', v: 9, scale: 'tech' }, { k: 'onRoll', min: 13, fx: [{ k: 'special', id: 'doubleBlock' }] }] },
+    },
+    brownout: {   // a machine does not miss, it sags — and a sag is still charge
+      name: 'Brownout', cls: 'technomancer', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'dmg', v: 9, scale: 'tech' }, { k: 'onRoll', max: 6, fx: [{ k: 'energy', v: 2 }] }],
+      up: { fx: [{ k: 'dmg', v: 12, scale: 'tech' }, { k: 'onRoll', max: 7, fx: [{ k: 'energy', v: 2 }] }] },
+    },
+    feast_or_famine: {   // THE HUNGER: the void answers at the extremes, or not at all
+      name: 'Feast or Famine', cls: 'voidadept', type: 'attack', rarity: 3, cost: 1,
+      fx: [{ k: 'onRoll', min: 15, max: 6, fx: [{ k: 'dmg', v: 22, scale: 'psi' }] }],
+      up: { fx: [{ k: 'onRoll', min: 13, max: 8, fx: [{ k: 'dmg', v: 26, scale: 'psi' }] }] },
+    },
+    ashes_ashes: {   // two-tailed fire: the middle of the table bores it
+      name: 'Ashes, Ashes', cls: 'voidadept', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'burn', v: 3, who: 'target' }, { k: 'onRoll', min: 15, max: 6, fx: [{ k: 'status', s: 'burn', v: 4, who: 'target' }] }],
+      up: { fx: [{ k: 'status', s: 'burn', v: 4, who: 'target' }, { k: 'onRoll', min: 14, max: 7, fx: [{ k: 'status', s: 'burn', v: 5, who: 'target' }] }] },
+    },
+    hungry_dark: {   // blood buys the board: the control deck's opening bell
+      name: 'The Hungry Dark', cls: 'voidadept', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'weak', v: 2, who: 'allEnemies' }, { k: 'status', s: 'vuln', v: 2, who: 'allEnemies' }],
+      up: { fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'weak', v: 2, who: 'allEnemies' }, { k: 'status', s: 'vuln', v: 3, who: 'allEnemies' }] },
+    },
+
     /* ---------------- ARCHETYPE PAYOFFS / ENTRIES ----------------
      * Added after auditing every class against the genre. The gaps were not
      * missing archetypes — the count is fine at 4-6 per class — but archetypes
@@ -1290,7 +1331,7 @@
   /* ---- Description generator ----------------------------------------- */
   // `special` ops are card-specific and normally described by the card's own
   // text, but a few are shared riders with a keyword name.
-  var SPECIAL_KW = { drain: 'Siphon.' };
+  var SPECIAL_KW = { drain: 'Siphon.', doubleBlock: 'Double your Shield.' };
   // Specials whose whole description is a number the card already carries.
   var SPECIAL_FMT = { bloodbath: function (f) { return 'Deal ' + f.v + '\u00d7 your Might as damage.'; } };
 

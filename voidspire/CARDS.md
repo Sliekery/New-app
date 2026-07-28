@@ -2,14 +2,14 @@
 
 _Auto-generated from the game data (`node test/cardsdoc.js`). Effect text is exactly what the game shows; numbers are the base values **before** any MIGHT/TECH/PSI scaling._
 
-**194 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
+**201 cards total.** Jump to: [Vanguard](#vanguard) · [Technomancer](#technomancer) · [Void Adept](#void-adept) · [Neutral (any class)](#neutral-any-class) · [Curses](#curses)
 
 
 ---
 
 ## Vanguard
 
-_Shock trooper — MIGHT weapons & raw aggression. (64 cards)_
+_Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
 
 
 ### Starter
@@ -131,6 +131,9 @@ _Shock trooper — MIGHT weapons & raw aggression. (64 cards)_
 - **Reload**  — Skill · ⚡1 → 0
     - Base: Return a random exhausted Attack to your hand.
     - Upgraded: _(no change)_
+- **Ricochet**  — Attack · ⚡1
+    - Base: Deal 6 damage. Roll 14+: Deal 6 damage to ALL enemies.
+    - Upgraded: Deal 8 damage. Roll 12+: Deal 8 damage to ALL enemies.
 - **Set Against It**  — Power · ⚡1
     - Base: Gain 2 Thorns, 2 Plating.
     - Upgraded: Gain 4 Thorns, 3 Plating.
@@ -191,6 +194,9 @@ _Shock trooper — MIGHT weapons & raw aggression. (64 cards)_
 - **Killshot**  — Attack · ⚡2
     - Base: Consume all your Aim. Deal 6 damage plus 4 for each Aim consumed.
     - Upgraded: Consume all your Aim. Deal 8 damage plus 5 for each Aim consumed.
+- **One in the Chamber**  — Attack · ⚡1  _(Exhaust)_
+    - Base: Roll 8+: Deal 24 damage. Exhaust.
+    - Upgraded: Roll 6+: Deal 30 damage. Exhaust.
 - **Orbital Strike**  — Attack · ⚡3
     - Base: ALL enemies: 16 damage, 2 Vulnerable.
     - Upgraded: ALL enemies: 22 damage, 3 Vulnerable.
@@ -223,7 +229,7 @@ _Shock trooper — MIGHT weapons & raw aggression. (64 cards)_
 
 ## Technomancer
 
-_Machine-priest — TECH shields, turrets & reactors. (57 cards)_
+_Machine-priest — TECH shields, turrets & reactors. (59 cards)_
 
 
 ### Starter
@@ -285,6 +291,9 @@ _Machine-priest — TECH shields, turrets & reactors. (57 cards)_
 - **Assembly Line**  — Power · ⚡1
     - Base: Deploy a Turret (2 dmg/turn). Gain 1 Hive.
     - Upgraded: Deploy a Turret (3 dmg/turn). Gain 1 Hive.
+- **Brownout**  — Attack · ⚡1
+    - Base: Deal 9 damage. Roll 6 or less: Gain 2 Energy.
+    - Upgraded: Deal 12 damage. Roll 7 or less: Gain 2 Energy.
 - **Capacitor Discharge**  — Attack · ⚡1
     - Base: Deal 6 damage. Gain 1 Energy.
     - Upgraded: Deal 9 damage. Gain 1 Energy.
@@ -312,6 +321,9 @@ _Machine-priest — TECH shields, turrets & reactors. (57 cards)_
 - **Leech Coil**  — Attack · ⚡1
     - Base: Gain Shield equal to damage dealt.
     - Upgraded: Deal 8 damage. Gain Shield equal to damage dealt.
+- **Mains Surge**  — Skill · ⚡1
+    - Base: Gain 7 Shield. Roll 15+: Double your Shield.
+    - Upgraded: Gain 9 Shield. Roll 13+: Double your Shield.
 - **Munitions Factory**  — Power · ⚡1
     - Base: Deploy a Turret (2 dmg/turn). Deploy a Drone Swarm (2 to all/turn).
     - Upgraded: Deploy a Turret (3 dmg/turn). Deploy a Drone Swarm (3 to all/turn).
@@ -416,7 +428,7 @@ _Machine-priest — TECH shields, turrets & reactors. (57 cards)_
 
 ## Void Adept
 
-_Sanctioned psyker — PSI burns, hexes & blasts. (53 cards)_
+_Sanctioned psyker — PSI burns, hexes & blasts. (56 cards)_
 
 
 ### Starter
@@ -466,6 +478,9 @@ _Sanctioned psyker — PSI burns, hexes & blasts. (53 cards)_
 
 ### Uncommon
 
+- **Ashes, Ashes**  — Skill · ⚡1
+    - Base: Apply 3 Burn. Roll 15+ or 6-: Apply 4 Burn.
+    - Upgraded: Apply 4 Burn. Roll 14+ or 7-: Apply 5 Burn.
 - **Backdraft**  — Attack · ⚡1
     - Base: Lose all your Shield. Apply that much Burn to the target.
     - Upgraded: Lose all your Shield. Apply 150% of it as Burn to the target.
@@ -541,6 +556,9 @@ _Sanctioned psyker — PSI burns, hexes & blasts. (53 cards)_
 - **Telekinetic Crush**  — Attack · ⚡2
     - Base: Deal 5 damage.
     - Upgraded: Deal 9 damage.
+- **The Hungry Dark**  — Skill · ⚡1
+    - Base: Lose 2 HP. ALL enemies: 2 Weak, 2 Vulnerable.
+    - Upgraded: Lose 2 HP. ALL enemies: 2 Weak, 3 Vulnerable.
 - **Vital Lance**  — Attack · ⚡1
     - Base: Lose 2 HP. Deal 8 damage.
     - Upgraded: Lose 2 HP. Deal 11 damage.
@@ -565,13 +583,16 @@ _Sanctioned psyker — PSI burns, hexes & blasts. (53 cards)_
 - **Entropy Field**  — Power · ⚡2
     - Base: Gain 2 Entropy.
     - Upgraded: Gain 3 Entropy.
+- **Feast or Famine**  — Attack · ⚡1
+    - Base: Roll 15+ or 6-: Deal 22 damage.
+    - Upgraded: Roll 13+ or 8-: Deal 26 damage.
 - **Martyr's Gift**  — Power · ⚡2
     - Base: Gain 1 Blood Pact, 1 Ascendant.
     - Upgraded: Gain 1 Blood Pact, 2 Ascendant.
 - **Mind Array**  — Power · ⚡1
     - Base: Gain 2 Blade Array.
     - Upgraded: Gain 3 Blade Array.
-- **Plague Engine**  — Power · ⚡2
+- **Plague Engine**  — Power · ⚡1
     - Base: Gain 1 Contagion.
     - Upgraded: Gain 2 Contagion.
 - **Psionic Nova**  — Attack · ⚡2

@@ -96,6 +96,9 @@
     ember_ward: 'flame', backdraft: 'flame', mind_bulwark: 'shield',
     static_ward: 'shield', swarm_uplink: 'turret', subroutine: 'core',
     spiked_bulwark: 'shieldStrike', demolition_train: 'shell',
+    // die-read signatures
+    one_in_the_chamber: 'shell', ricochet: 'burst', mains_surge: 'shieldStrike',
+    brownout: 'bolt', feast_or_famine: 'eye', ashes_ashes: 'flame', hungry_dark: 'vortex',
     // archetype payoffs / entries
     brace_plate: 'shield', worry_wound: 'hex', sympathetic_ache: 'vortex', follow_through: 'burst',
     overrun: 'cannon', munitions_link: 'turret', bootstrap: 'circuit',

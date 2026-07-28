@@ -19,16 +19,16 @@
     classes: {
       vanguard:  { hp: 80, might: 2, tech: 0, psi: 0 },
       technomancer: { hp: 68, might: 0, tech: 2, psi: 0 },
-      voidadept: { hp: 78, might: 0, tech: 0, psi: 2 },
+      voidadept: { hp: 80, might: 0, tech: 0, psi: 2 },
     },
 
     /* ---- Attribute scaling ------------------------------------------ */
     attrs: {
-      mightDmgPerPoint: 1.8,    // bonus damage per MIGHT on might-scaling attacks
+      mightDmgPerPoint: 1.7,    // bonus damage per MIGHT (trimmed: Vanguard led parity by ~10pts)
       techBlockPerPoint: 1,     // bonus block per TECH on tech-scaling skills
       mightBlockPerPoint: 1,    // bonus block per MIGHT on primary-scaling skills
       psiBlockPerPoint: 1,      // bonus block per PSI on primary-scaling skills
-      psiDmgPerPoint: 1.4,      // bonus damage per PSI on psi-scaling attacks
+      psiDmgPerPoint: 1.55,     // bonus damage per PSI (raised: Voidadept trailed parity)
       eventCheckBonusDiv: 1,    // event check bonus = attr / this (rounded down)
     },
 
