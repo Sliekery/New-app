@@ -395,11 +395,13 @@ html, body {
 
 /* combat d20 — rides the bottom dock (left, under the energy pip), tumbles on attack */
 #combat-die {
-  position: absolute; left: 16px;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 100px);
-  z-index: 27; width: 42px; height: 42px; display: none; color: #41d8ff; pointer-events: none;
+  /* The die is a core system now, so it sits centre-stage under the HUD rather
+     than tucked in a dock corner. */
+  position: absolute; left: 50%; transform: translateX(-50%);
+  top: calc(env(safe-area-inset-top, 0px) + 86px);
+  z-index: 27; width: 46px; height: 46px; display: none; color: #41d8ff; pointer-events: none;
 }
-#combat-die .die-svg { width: 42px; height: 42px; display: block; filter: drop-shadow(0 0 5px rgba(65,216,255,0.5)); }
+#combat-die .die-svg { width: 46px; height: 46px; display: block; filter: drop-shadow(0 0 5px rgba(65,216,255,0.5)); }
 #combat-die .die-n {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font: bold 17px ui-monospace, monospace; color: #eafcff; text-shadow: 0 0 6px rgba(65,216,255,0.7);
@@ -412,11 +414,7 @@ html, body {
   position: absolute; top: -4px; right: -6px; font: 700 10px/1 ui-monospace, monospace;
   color: var(--amber); text-shadow: 0 0 6px rgba(255,176,46,0.9); pointer-events: none;
 }
-#combat-die .die-band {
-  position: absolute; left: 50%; transform: translateX(-50%); top: 41px;
-  font: 700 8px/1 ui-monospace, monospace; letter-spacing: 0.08em;
-  color: currentColor; opacity: 0.95; white-space: nowrap; pointer-events: none;
-}
+#combat-die .die-band { display: none; }   /* the flash names the band instead */
 #combat-die.graze { color: #9bb0a6; }
 #combat-die.solid { color: #5dff88; }
 #combat-die.misfire { color: #ff4a5e; }
@@ -1353,6 +1351,21 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .dm-chip.vault { opacity: 0.55; border-style: dashed; }
 .dm-chip { cursor: pointer; }
 .die-place { color: #ffb02e; font-weight: 700; text-shadow: 0 0 8px rgba(255,176,46,0.7); }
+
+/* The roll flash: a big transient readout so you always catch what the die did. */
+#combat-die .die-flash {
+  position: absolute; left: 50%; top: 46px; transform: translateX(-50%);
+  font: 700 15px/1 ui-monospace, monospace; letter-spacing: 0.06em;
+  white-space: nowrap; pointer-events: none; opacity: 0; color: currentColor;
+}
+#combat-die .die-flash.go { animation: dieFlash 0.85s cubic-bezier(0.15, 0.9, 0.3, 1) forwards; }
+@keyframes dieFlash {
+  0%   { opacity: 0; transform: translateX(-50%) scale(0.5); }
+  18%  { opacity: 1; transform: translateX(-50%) scale(1.35); }
+  40%  { opacity: 1; transform: translateX(-50%) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) scale(1) translateY(-14px); }
+}
+#combat-die.settle .die-svg { animation: dieSettle 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.5); }
 
 </style>
 </head>
@@ -11089,6 +11102,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     else if (band === 'SOLID') $die.classList.add('solid');
     if (misfire) $die.classList.add('misfire'); else $die.classList.remove('misfire');
     if (crit) $die.classList.add('crit'); else $die.classList.remove('crit');
+    // Big transient readout — the die is central now, so every roll announces itself.
+    var $f = $die.querySelector('.die-flash');
+    if (!$f) { $f = document.createElement('span'); $f.className = 'die-flash'; $die.appendChild($f); }
+    $f.textContent = value + (band ? ' ' + band : '');
+    $f.classList.remove('go'); void $f.offsetWidth; $f.classList.add('go');
     $die.classList.remove('settle'); void $die.offsetWidth; $die.classList.add('settle');   // settle pop
   }
   function cancelDieRoll() {

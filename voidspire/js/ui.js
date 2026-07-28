@@ -540,6 +540,11 @@
     else if (band === 'SOLID') $die.classList.add('solid');
     if (misfire) $die.classList.add('misfire'); else $die.classList.remove('misfire');
     if (crit) $die.classList.add('crit'); else $die.classList.remove('crit');
+    // Big transient readout — the die is central now, so every roll announces itself.
+    var $f = $die.querySelector('.die-flash');
+    if (!$f) { $f = document.createElement('span'); $f.className = 'die-flash'; $die.appendChild($f); }
+    $f.textContent = value + (band ? ' ' + band : '');
+    $f.classList.remove('go'); void $f.offsetWidth; $f.classList.add('go');
     $die.classList.remove('settle'); void $die.offsetWidth; $die.classList.add('settle');   // settle pop
   }
   function cancelDieRoll() {
