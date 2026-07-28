@@ -1440,5 +1440,93 @@ ok('every remaining class has a starter deck whose cards all exist',
   ok('a full die leaves an engraving with no room, and says so', room === 0);
 })();
 
+/* ============ THE DESCENT (opt-in navigation) ==========================
+ * Rolling your route instead of walking a chart. Two systems welded: the die
+ * picks the room, and refusing a room costs COLLAPSE — which is also what
+ * closes the route. So the push-your-luck valve and the pressure clock are
+ * the same number. It is opt-in, so the first thing to assert is that a
+ * normal run is completely unaffected.
+ * ==================================================================== */
+(function () {
+  var B = VS.BALANCE, D = B.descent;
+  E.descentEnabled = false;
+  E.seed(3); E.newRun('vanguard');
+  ok('a normal run still walks the star chart', E.run.phase === 'first-mark' && !E.run.descent);
+  E.takeFirstMark(0);
+  ok('...and lands on the map, not the descent', E.run.phase === 'map');
+
+  E.descentEnabled = true;
+  E.seed(3); E.newRun('vanguard'); E.takeFirstMark(0);
+  ok('a descent run rolls its route instead', E.run.phase === 'descent' && !!E.run.descent);
+
+  // every face must map to a real room, in every tier, for every class
+  var bad = [];
+  ['OPEN', 'SETTLING', 'CLOSING'].forEach(function (tier) {
+    ['vanguard', 'technomancer', 'voidadept'].forEach(function (cls) {
+      E.seed(1); E.newRun(cls);
+      E.run.descent.collapse = D.tiers.filter(function (x) { return x.name === tier; })[0].at;
+      if (E.descentTier().name !== tier) bad.push(tier + ' unreachable');
+      for (var f = 1; f <= 20; f++) {
+        var t = E.descentRoom(f);
+        if (['fight','elite','beacon','event','shop','rest','forge','treasure'].indexOf(t) < 0) bad.push(tier + '/' + cls + '/' + f + '=' + t);
+      }
+    });
+  });
+  ok('every face maps to a real room in every tier' + (bad.length ? ' — ' + bad[0] : ''), bad.length === 0);
+
+  // combat share has to stay near the genre's ~60%, and RISE as the shaft closes
+  function combatShare(tier, cls) {
+    E.seed(1); E.newRun(cls);
+    E.run.descent.collapse = D.tiers.filter(function (x) { return x.name === tier; })[0].at;
+    var n = 0;
+    for (var f = 1; f <= 20; f++) if (['fight','elite','beacon'].indexOf(E.descentRoom(f)) >= 0) n++;
+    return n * 5;
+  }
+  var o = combatShare('OPEN', 'vanguard'), st = combatShare('SETTLING', 'vanguard'), cl = combatShare('CLOSING', 'vanguard');
+  ok('the open shaft is about 60% combat (' + o + '%)', o >= 55 && o <= 65);
+  ok('and it only gets worse as it closes (' + o + ' -> ' + st + ' -> ' + cl + ')', st > o && cl > st);
+
+  // the Voidadept reads the table upside down — the same face is a different room
+  E.seed(1); E.newRun('voidadept');
+  var vLow = E.descentRoom(2);
+  E.seed(1); E.newRun('vanguard');
+  var mLow = E.descentRoom(2);
+  ok('THE HUNGER reads the route inverted (face 2: ' + mLow + ' vs ' + vLow + ')', vLow !== mLow);
+
+  // refusing a floor costs collapse, and the shaft only bends so far
+  E.descentEnabled = true;
+  E.seed(9); E.newRun('vanguard'); E.takeFirstMark(0);
+  var d = E.run.descent;
+  E.descentRoll();
+  var c0 = d.collapse;
+  ok('a roll alone costs nothing', c0 === 0 && !!d.landing);
+  E.descentReroll();
+  ok('refusing costs collapse', d.collapse === c0 + D.rerollCollapse);
+  for (var g = 0; g < 6; g++) E.descentReroll();
+  ok('and cannot be refused forever', d.landing.rerolls === D.maxRerolls);
+
+  // taking a quiet room costs MORE than taking a fight — that is the whole clock
+  function stepCost(type) {
+    E.seed(9); E.newRun('vanguard'); E.takeFirstMark(0);
+    var dd = E.run.descent;
+    dd.landing = { raw: 10, eff: 10, type: type, rerolls: 0 };
+    var before = dd.collapse;
+    E.descentAccept();
+    return dd.collapse - before;
+  }
+  ok('a fight costs one step of collapse', stepCost('fight') === D.stepCollapse);
+  ok('lingering costs more', stepCost('rest') === D.stepCollapse + D.lingerCollapse);
+
+  // the floor of the sector is the boss
+  E.seed(3); E.newRun('vanguard'); E.takeFirstMark(0);
+  var d2 = E.run.descent;
+  d2.step = D.steps;
+  E.run.nodeType = 'fight';
+  E.nodeComplete();
+  ok('the last floor drops you on the boss (' + E.run.nodeType + ')', E.run.nodeType === 'boss');
+
+  E.descentEnabled = false;   // leave the suite in the default mode
+})();
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

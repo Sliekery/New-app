@@ -459,6 +459,7 @@
       case 'forge': return showForge();
       case 'rift': return showRift();
       case 'boss-artifact': return showBossArtifact();
+      case 'descent': return showDescent();
       case 'first-mark': return showFirstMark();
       case 'cutscene': return showCutscene();
       case 'sector-intro': return showSectorIntro();
@@ -4311,6 +4312,98 @@
       var btn2 = el('button', 'btn', 'CONTINUE');
       btn2.addEventListener('pointerdown', function () { E.takeBossArtifact(-1); U.refresh(); });
       s.appendChild(btn2);
+    }
+  }
+
+  /* ====================== THE DESCENT ======================
+   * Navigation by die. You roll, you see the room you would fall into, and
+   * you take it or refuse it and fall further. Refusing costs collapse, and
+   * collapse is also what closes the route — so the push-your-luck valve and
+   * the pressure system are the same number, read twice.
+   * ==================================================================== */
+  var ROOM_LABEL = {
+    fight: 'HOSTILES', elite: 'AN ELITE', beacon: 'A BEACON', event: 'SOMETHING',
+    shop: 'A DEALER', rest: 'QUIET GROUND', forge: 'A FORGE', treasure: 'SALVAGE',
+  };
+  var ROOM_TONE = { fight: 'bad', elite: 'bad', beacon: 'bad', rest: 'good', shop: 'good', forge: 'good', treasure: 'good', event: '' };
+
+  function showDescent() {
+    combatChrome(false);
+    updateHUD();
+    var r = E.run, D = B.descent, d = r.descent;
+    if (!d) { r.phase = 'map'; return U.refresh(); }
+    var tier = E.descentTier();
+    var s = overlayScreen();
+    s.classList.add('descent-screen');
+
+    s.appendChild(el('h2', 'screen-title', 'The Descent'));
+    s.appendChild(el('div', 'screen-sub', 'SECTOR ' + r.sector + ' \u00b7 ' + d.step + ' / ' + D.steps + ' FLOORS FALLEN'));
+
+    // collapse gauge — the shaft settling around you
+    var pct = Math.min(100, Math.round(100 * d.collapse / (D.tiers[D.tiers.length - 1].at + 6)));
+    var gauge = el('div', 'col-gauge');
+    gauge.innerHTML = '<div class="cg-head"><span class="cg-name t-' + tier.name.toLowerCase() + '">' + tier.name +
+      '</span><span class="cg-desc">' + esc(tier.desc) + '</span></div>' +
+      '<div class="cg-bar"><span style="width:' + pct + '%"></span></div>';
+    s.appendChild(gauge);
+
+    // the route table you are actually reading, so the roll is never opaque
+    var tbl = D.tables[tier.name] || D.tables.OPEN;
+    var inv = (r.cls === 'voidadept');
+    var rt = el('div', 'route-table');
+    var rows = tbl.map(function (b, i) {
+      var hi = (i === 0) ? 20 : tbl[i - 1][0] - 1;
+      var lo = b[0];
+      var a = inv ? (21 - hi) : lo, z = inv ? (21 - lo) : hi;
+      return { lo: Math.min(a, z), hi: Math.max(a, z), t: b[1] };
+    }).sort(function (x, y) { return y.hi - x.hi; });
+    rt.innerHTML = '<div class="rt-head">THE FACES \u2014 ' + (inv ? 'THE HUNGER READS THEM UPSIDE DOWN' : 'AIM CLIMBS THE TABLE') + '</div>' +
+      rows.map(function (x) {
+        return '<div class="rt-row ' + (ROOM_TONE[x.t] || '') + '"><span class="rt-f">' +
+          (x.lo === x.hi ? x.lo : x.lo + '\u2013' + x.hi) + '</span><span class="rt-t">' +
+          esc(ROOM_LABEL[x.t] || x.t) + '</span></div>';
+      }).join('');
+    s.appendChild(rt);
+
+    if (!d.landing) {
+      var roll = el('button', 'btn big', 'FALL');
+      roll.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation(); SFX.tap();
+        E.descentRoll(); R.flash(); U.refresh();
+      });
+      s.appendChild(roll);
+      s.appendChild(el('div', 'ws-hint', 'THE DIE DECIDES WHERE YOU LAND. AIM STEERS IT.'));
+      return;
+    }
+
+    // what you rolled, and what it means
+    var L = d.landing;
+    var land = el('div', 'landing ' + (ROOM_TONE[L.type] || ''));
+    land.innerHTML = '<div class="ld-face">' + L.eff + '</div>' +
+      '<div class="ld-what">' + esc(ROOM_LABEL[L.type] || L.type) + '</div>' +
+      (L.eff !== L.raw ? '<div class="ld-aim">ROLLED ' + L.raw + ' \u00b7 AIM +' + (L.eff - L.raw) + '</div>' : '');
+    s.appendChild(land);
+
+    var take = el('button', 'btn big', 'TAKE IT');
+    take.addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation(); SFX.play();
+      E.descentAccept(); U.refresh();
+    });
+    s.appendChild(take);
+
+    var left = (D.maxRerolls || 2) - L.rerolls;
+    if (left > 0) {
+      var again = el('div', 'panel-btn red',
+        '<div class="pb-title">\u2193 FALL FURTHER</div>' +
+        '<div class="pb-desc">Refuse this floor and drop past it. The shaft settles further behind you \u2014 +' +
+        D.rerollCollapse + ' collapse. ' + left + ' left.</div>');
+      again.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation(); SFX.hit(); R.flash();
+        E.descentReroll(); U.refresh();
+      });
+      s.appendChild(again);
+    } else {
+      s.appendChild(el('div', 'ws-hint', 'THE SHAFT WILL NOT BEND FURTHER. TAKE THE FLOOR.'));
     }
   }
 

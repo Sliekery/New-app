@@ -73,6 +73,7 @@
       pendingPick: null, pendingAddCard: null,
       quests: {}, questDone: {},
       unlockProg: {},      // progress toward relics that must be earned
+      descent: null,       // THE DESCENT: {step, collapse, landing} when rolling the route
       potions: [], won: false,
       loop: 1, echoes: [], loadout: [], echoOffer: null,
       phylacteryUsed: false, salvageKills: 0,
@@ -84,6 +85,13 @@
     }
     E.run.map = generateMap(1);
     E.run.phase = 'map';
+    // THE DESCENT is opt-in while both routes exist; the run remembers which
+    // one it began under so a save never changes mode mid-run.
+    if (E.descentEnabled) {
+      E.run.descent = { step: 0, collapse: 0, landing: null };
+      E.run.mapRow = 0;
+      E.run.phase = 'descent';
+    }
     // VOID PRESSURE: the frame buckles (fewer core slots) and HULL BREACH
     // launches you with a Flaw already cut into the die.
     (function () {
@@ -124,7 +132,7 @@
     r.die.pending.push(m.eng);
     r.deck.push(mkCard(m.card, false));
     r.firstMark = m.id;
-    r.phase = 'map';
+    r.phase = E.descentOn() ? 'descent' : 'map';
     E.save();
     return true;
   };
@@ -481,6 +489,77 @@
     return true;
   };
 
+  /* ================= THE DESCENT =====================================
+   * Navigation by die. You roll, you see the room you would fall into, and
+   * you either take it or refuse it and fall further — which costs collapse.
+   * Collapse also ticks every step and every time you linger, and each tier
+   * it crosses reads a harsher table, so the shaft closes around you at a
+   * rate you are partly setting yourself.
+   * ================================================================ */
+  E.descentOn = function () { return !!(B.descent && E.run && E.run.descent); };
+
+  function descentTier() {
+    var c = (E.run.descent && E.run.descent.collapse) || 0;
+    var t = B.descent.tiers[0];
+    B.descent.tiers.forEach(function (x) { if (c >= x.at) t = x; });
+    return t;
+  }
+  E.descentTier = descentTier;
+
+  // The face you rolled, read against your class's route table. High is good
+  // for a marksman; the Voidadept's table is inverted below, because the void
+  // is generous at the bottom and bills you for it.
+  function descentRoom(face) {
+    var tbl = B.descent.tables[descentTier().name] || B.descent.tables.OPEN;
+    var f = face;
+    if (E.run.cls === 'voidadept') f = 21 - face;      // THE HUNGER reads the table upside down
+    for (var i = 0; i < tbl.length; i++) if (f >= tbl[i][0]) return tbl[i][1];
+    return 'fight';
+  }
+  E.descentRoom = descentRoom;
+
+  E.descentRoll = function () {
+    var r = E.run, d = r.descent;
+    if (!d || d.landing) return null;
+    var raw = d20();
+    var eff = Math.min(20, raw + statN({ statuses: { aim: 0 } }, 'aim') + E.dieAim());
+    d.landing = { raw: raw, eff: eff, type: descentRoom(eff), rerolls: 0 };
+    emit('descentRoll', { raw: raw, eff: eff, type: d.landing.type });
+    E.save();
+    return d.landing;
+  };
+
+  E.descentReroll = function () {
+    var r = E.run, d = r.descent;
+    if (!d || !d.landing) return false;
+    if (d.landing.rerolls >= (B.descent.maxRerolls || 2)) return false;
+    var was = d.landing.rerolls + 1;
+    d.collapse += B.descent.rerollCollapse;
+    var raw = d20();
+    var eff = Math.min(20, raw + E.dieAim());
+    d.landing = { raw: raw, eff: eff, type: descentRoom(eff), rerolls: was };
+    emit('descentRoll', { raw: raw, eff: eff, type: d.landing.type, reroll: true });
+    E.save();
+    return true;
+  };
+
+  E.descentAccept = function () {
+    var r = E.run, d = r.descent;
+    if (!d || !d.landing) return false;
+    var t = d.landing.type;
+    d.collapse += B.descent.stepCollapse;
+    if ((B.descent.lingerTypes || []).indexOf(t) >= 0) d.collapse += B.descent.lingerCollapse;
+    d.step++;
+    r.mapRow = d.step;                 // depth scaling still reads this
+    d.landing = null;
+    E.startNode(t);
+    E.save();
+    return true;
+  };
+
+  // Total Aim the die is carrying out of combat (relics + engraved faces).
+  E.dieAim = function () { return art('aimStart') + art('aim') + ((B.dice.classes[E.run.cls] || {}).aim || 0) + (B.dice.baseAim || 0); };
+
   E.startNode = function (type) {
     var r = E.run;
     r.nodeType = type;
@@ -555,7 +634,14 @@
     // A boss used to pay out twice in a row: an Augment draft, then a relic.
     // Augments WERE relics — a second pool of engine hooks with another name —
     // so the draft is gone and the boss just offers relics.
-    var isBoss = !!(node && node.type === 'boss');
+    if (E.descentOn()) {
+      var d = E.run.descent;
+      var atBoss = d.step >= B.descent.steps;
+      if (!atBoss) { r.phase = 'descent'; E.save(); return; }
+      // the sector's floor: the boss is what is down there
+      if (r.nodeType !== 'boss') { E.startNode('boss'); return; }
+    }
+    var isBoss = !!(node && node.type === 'boss') || (E.descentOn() && r.nodeType === 'boss');
     if (isBoss) setupBossArtifacts(true);   // stock the offer; phase is set below
     var next = isBoss ? 'boss-artifact' : 'map';
     // A sector boss buys you the cutscene before the spoils — the story beat
@@ -624,12 +710,13 @@
     r.faction = pick(factions);
     r.map = generateMap(r.sector);
     r.mapRow = -1; r.mapCol = 0;
+    if (r.descent) { r.descent = { step: 0, collapse: 0, landing: null }; r.mapRow = 0; }
     var sh = art('sectorHeal');
     if (sh > 0) heal(Math.round(r.maxHp * sh));
     r.phase = 'sector-intro';
     E.save();
   }
-  E.beginSector = function () { E.run.phase = 'map'; E.save(); };
+  E.beginSector = function () { E.run.phase = E.descentOn() ? 'descent' : 'map'; E.save(); };
 
   /* ---------------- Combat: setup --------------------------------------- */
   // Extra enemy power from the Recurrence loop and the Unmaker's Tithe echo,

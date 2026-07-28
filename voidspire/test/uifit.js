@@ -53,7 +53,18 @@ var SCREENS = {
     E.run.die.pending = ['ranging_mark', 'jam_clearance', 'executioners_mark'];
     VS.ui.refresh(); VS.ui.showDie();
   },
-  sector: function () { var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.run.sector = 2; E.run.phase = 'sector-intro'; VS.ui.refresh(); },
+  // THE DESCENT: opt-in navigation, both states of the screen
+  descent: function () {
+    var E = VS.engine; E.descentEnabled = true;
+    E.seed(7); E.newRun('vanguard'); E.takeFirstMark(0); VS.ui.refresh();
+  },
+  descentland: function () {
+    var E = VS.engine; E.descentEnabled = true;
+    E.seed(7); E.newRun('vanguard'); E.takeFirstMark(0);
+    E.run.descent.collapse = 14;                 // CLOSING: the harshest table
+    E.descentRoll(); VS.ui.refresh();
+  },
+  sector: function () { VS.engine.descentEnabled = false; var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.run.sector = 2; E.run.phase = 'sector-intro'; VS.ui.refresh(); },
   // turn zero: three offers, each an engraving beside a full-size card
   mark: function () { var E = VS.engine; E.seed(5); E.newRun('technomancer'); VS.ui.refresh(); },
   // the widest panel in the game, and the longest single line of prose
