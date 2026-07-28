@@ -147,7 +147,7 @@
         deathT: same ? old.deathT : -1,
         spawnT: same ? old.spawnT : t,         // warp-in animation
         spawned: same ? old.spawned : false,
-        flashT: -9, shakeT: -9, lungeT: -9,
+        flashT: -9, shakeT: -9, lungeT: -9, actT: -9, actEnv: null,
         intent: en.intent,
         anchorFrom: en.summonedBy != null ? en.summonedBy : -1,
         x: 0, y: 0, r: 10,
@@ -165,7 +165,7 @@
     R.views.push({
       def: en.def, en: en, hp: en.hp, maxHp: en.maxHp, dispHp: en.hp,
       block: en.block, alive: en.alive, deathT: -1, spawnT: t, spawned: false,
-      flashT: -9, shakeT: -9, lungeT: -9, intent: en.intent,
+      flashT: -9, shakeT: -9, lungeT: -9, actT: -9, actEnv: null, intent: en.intent,
       anchorFrom: en.summonedBy != null ? en.summonedBy : -1,
       x: 0, y: 0, r: 10,
     });
@@ -311,10 +311,63 @@
     }
     ctx.restore();
   }
-  R.enemyLunge = function (idx) {
-    var v = R.views[idx];
-    if (v) v.lungeT = t;
+  /* ---- Enemy act animations ------------------------------------------------
+   * Every enemy used to share one sideways lunge, and only `attack`/`drain`
+   * animated at all — block, buff, debuff, summon, heal, curse and disrupt were
+   * visually silent, which is most of what a turn actually contains. Each move
+   * type now gets its own envelope, read by drawEnemy:
+   *
+   *   dir  -1 lunge at the player · +1 recoil away · 0 stay put
+   *   rise how far it lifts (buffs swell upward, heals settle down)
+   *   sc   scale pulse (summon splits outward, block hunkers in)
+   *   spin a shear/tilt (disrupt stutters, curse writhes)
+   * ------------------------------------------------------------------------ */
+  var ACT_ENVELOPE = {
+    attack:  { dur: 0.34, dir: -1,   wind: 0.34, rise: 0.05, sc:  0.07, spin: 0 },
+    drain:   { dur: 0.52, dir: -0.5, wind: 0.5, rise: -0.05, sc: -0.04, spin: 0 },
+    block:   { dur: 0.40, dir:  0.25, wind: 0.3, rise: 0.06, sc: -0.10, spin: 0 },
+    guard:   { dur: 0.46, dir: -0.35, wind: 0.28, rise: -0.04, sc: 0.04, spin: 0 },
+    buff:    { dur: 0.50, dir:  0,   wind: 0.45, rise: -0.16, sc:  0.10, spin: 0 },
+    heal:    { dur: 0.50, dir:  0,   wind: 0.5, rise:  0.05, sc: -0.06, spin: 0 },
+    debuff:  { dur: 0.44, dir: -0.55, wind: 0.55, rise: -0.04, sc: 0.03, spin: 0.06 },
+    curse:   { dur: 0.60, dir: -0.35, wind: 0.6, rise: -0.08, sc:  0.05, spin: 0.14 },
+    summon:  { dur: 0.55, dir:  0,   wind: 0.35, rise: -0.06, sc:  0.20, spin: 0 },
+    disrupt: { dur: 0.40, dir: -0.3, wind: 0.4, rise:  0,    sc:  0.04, spin: 0.22 },
+    etch:    { dur: 0.60, dir: -0.3, wind: 0.6, rise: -0.05, sc:  0.04, spin: 0.10 },
+    unmake:  { dur: 0.85, dir: -0.4, wind: 0.6, rise: -0.14, sc:  0.22, spin: 0.08 },
   };
+
+  /* The envelope evaluated at progress `au` (0..1). Pure — no canvas, no view —
+   * so the motion can be asserted directly instead of eyeballed in a frame.
+   * `dx` is in units of the figure's radius and is negative toward the player. */
+  function actPose(moveType, au) {
+    var env = ACT_ENVELOPE[moveType] || ACT_ENVELOPE.attack;
+    if (!(au >= 0 && au < 1)) return { dx: 0, dy: 0, scale: 1, tilt: 0, glow: 0, e: 0 };
+    // wind back, then commit: negative before `wind`, full swing after
+    var e = au < env.wind
+      ? -Math.sin((au / env.wind) * Math.PI) * 0.3
+      : Math.sin(((au - env.wind) / (1 - env.wind)) * Math.PI);
+    return {
+      dx: env.dir * e * 0.42,
+      dy: env.rise * e,
+      scale: 1 + env.sc * e,
+      tilt: env.spin * e * Math.sin(au * 22),
+      glow: Math.max(0, e) * 7,
+      e: e,
+    };
+  }
+  R.actPose = actPose;
+  R.actMoveTypes = function () { return Object.keys(ACT_ENVELOPE); };
+
+  R.enemyAct = function (idx, moveType) {
+    var v = R.views[idx];
+    if (!v) return;
+    v.actT = t;
+    v.actMove = ACT_ENVELOPE[moveType] ? moveType : 'attack';
+    v.actEnv = ACT_ENVELOPE[v.actMove];
+  };
+  // kept for callers that only mean "it swung at me"
+  R.enemyLunge = function (idx) { R.enemyAct(idx, 'attack'); };
   R.flash = function () { flashAlpha = 0.35; };
 
   R.enemyPos = function (idx) {
@@ -1144,13 +1197,54 @@
     if (dying && (v.deathT < 0 || t - v.deathT > dieDur)) return;
 
     var grounded = !!v.def.grounded;
-    // grounded enemies stand still (a faint sway); floating ones bob
-    var bob = grounded ? Math.sin(t * 1.2 + idx) * 0.8 : Math.sin(t * 1.8 + idx * 1.7) * 3;
-    var sx = 0;
-    if (t - v.shakeT < 0.22) sx = (Math.random() - 0.5) * 8;
-    // lunge toward the player when attacking
+    /* IDLE, by faction. A drilled soldier, a failing machine and a warp-thing
+     * should not share one sine wave. `grounded` still separates standing from
+     * floating; the faction decides the *character* of the motion. */
+    var ph = idx * 1.7;
+    var bob, sx = 0, idleTilt = 0;
+    var fac = v.def.faction;
+    if (fac === 'hierarchy') {
+      // disciplined: almost still, with a crisp micro-correction now and then —
+      // a soldier holding formation, not a creature breathing.
+      var snap = Math.max(0, Math.sin(t * 0.7 + ph) - 0.97) * 40;
+      bob = (grounded ? 0.5 : 2.2) * Math.sin(t * 1.1 + ph) - snap;
+      sx = Math.sin(t * 0.4 + ph) * 0.7;
+    } else if (fac === 'rust') {
+      // failing machinery: irregular hitches and a sputter that never quite
+      // settles into a rhythm.
+      var hitch = Math.max(0, Math.sin(t * 3.1 + ph) - 0.93) * 26;
+      bob = (grounded ? 0.7 : 2.4) * Math.sin(t * 1.6 + ph) + hitch;
+      sx = Math.sin(t * 2.3 + ph) * 0.9 + Math.sin(t * 7.9 + ph) * 0.35;
+      idleTilt = Math.sin(t * 1.9 + ph) * 0.012;
+    } else if (fac === 'voidspawn') {
+      // warp-thing: a slow drift on two periods that never sync, so it reads as
+      // adrift rather than bobbing.
+      bob = (grounded ? 1.4 : 3.4) * Math.sin(t * 0.62 + ph) + 1.5 * Math.sin(t * 1.13 + ph * 0.7);
+      sx = Math.sin(t * 0.47 + ph) * 2.4;
+      idleTilt = Math.sin(t * 0.53 + ph) * 0.035;
+    } else {
+      // faction-less (the finale bosses): heavy, slow, deliberate
+      bob = (grounded ? 0.9 : 2.0) * Math.sin(t * 0.8 + ph);
+      idleTilt = Math.sin(t * 0.4 + ph) * 0.018;
+    }
+    if (t - v.shakeT < 0.22) sx += (Math.random() - 0.5) * 8;
+
+    /* ACT: the move-type envelope. `dir` is toward the player, who stands to the
+     * LEFT of every enemy, so a lunge is -x. */
+    var actScale = 1, actTilt = 0, actGlow = 0;
+    var env = v.actEnv || ACT_ENVELOPE.attack;
+    var au = (t - v.actT) / env.dur;
+    if (au >= 0 && au < 1) {
+      var pose = actPose(v.actMove, au);
+      sx += pose.dx * v.r;
+      bob += pose.dy * v.r;
+      actScale = pose.scale;
+      actTilt = pose.tilt;
+      actGlow = pose.glow;
+    }
+    // legacy single-lunge path (anything still calling enemyLunge directly)
     var lu = (t - v.lungeT) / 0.3;
-    if (lu >= 0 && lu < 1) sx -= Math.sin(lu * Math.PI) * v.r * 0.35;
+    if (lu >= 0 && lu < 1 && v.actT < v.lungeT) sx -= Math.sin(lu * Math.PI) * v.r * 0.35;
 
     var alpha = 1, scale = v.r;
     if (dying) {
@@ -1174,8 +1268,14 @@
     var flash = (t - v.flashT < 0.13);
     var x = v.x + sx, y = v.y + bob;
     var art = (v.en && v.en.art) || v.def.art;   // per-spawn art model (artAlt)
+    scale *= actScale;
 
-    strokePaths(art.p, x, y, scale, flash ? '#ffffff' : color, flash ? 16 : 9, alpha);
+    // Tilt (idle lean + act shear) needs a rotation strokePaths doesn't do, so
+    // rotate the canvas about the figure's centre and draw in local space.
+    var tilt = idleTilt + actTilt;
+    if (tilt) { ctx.save(); ctx.translate(x, y); ctx.rotate(tilt); ctx.translate(-x, -y); }
+    strokePaths(art.p, x, y, scale, flash ? '#ffffff' : color, (flash ? 16 : 9) + actGlow, alpha);
+    if (tilt) ctx.restore();
 
     // eyes
     if (!dying || alpha > 0.4) {

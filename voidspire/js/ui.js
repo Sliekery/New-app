@@ -2685,6 +2685,38 @@
     else R.shieldVan(p.x, p.y - 6, col);
   }
 
+  /* Enemy act flourishes, keyed to the telegraphed move type. The figure's own
+   * motion lives in render (ACT_ENVELOPE); this is the effect that sells what
+   * the motion MEANS — a shield snapping up reads differently from a hex. */
+  var ENEMY_MOVE_FX = {
+    // `attack` deliberately has no entry: the lunge plus the impact fx from the
+    // dmg event already carry it, and doubling up reads as noise.
+    drain:   function (p, col) { var pp = R.playerXY(); R.beamBolt(p.x, p.y, pp.x, pp.y, '#ff6b8a', 3); R.spiral(p.x, p.y, '#ff6b8a', 10, 20); },
+    block:   function (p, col) { R.polyRing(p.x, p.y, '#41d8ff', 6, 30, 6, 0.34, 0, 1.6); R.burst(p.x, p.y, '#41d8ff', 5); },
+    guard:   function (p, col) { R.polyRing(p.x, p.y, '#41d8ff', 6, 34, 4, 0.36, 0, 1.8); },
+    buff:    function (p, col) { R.aura(p.x, p.y, col); R.polyRing(p.x, p.y, col, 8, 30, 3, 0.42, 4, 1.4); },
+    heal:    function (p, col) { R.implode(p.x, p.y, '#5dff88', 54, 54, 14); R.ring(p.x, p.y, '#5dff88', 22, 0.34); },
+    debuff:  function (p, col) { var pp = R.playerXY(); R.arc(p.x, p.y, pp.x, pp.y, col, 6, 10); R.glitch(pp.x, pp.y, col); },
+    curse:   function (p, col) { var pp = R.playerXY(); R.sigil(p.x, p.y, '#c86bff', 24); R.spiral(pp.x, pp.y, '#c86bff', 10, 22); },
+    summon:  function (p, col) { R.ring(p.x, p.y, col, 36, 0.4); R.shards(p.x, p.y, col, 9); R.burst(p.x, p.y, col, 8); },
+    disrupt: function (p, col) { R.glitch(p.x, p.y, col); var pp = R.playerXY(); R.glitch(pp.x, pp.y, col); },
+    etch:    function (p, col) { var pp = R.playerXY(); R.arc(p.x, p.y, pp.x, pp.y, '#ff4a5e', 7, 12); R.spiral(pp.x, pp.y, '#ff4a5e', 8, 18); },
+    unmake:  function (p, col) { R.nova(p.x, p.y, col, 3); R.quake(p.x, p.y, col, 3); R.shake(1); },
+  };
+  function enemyMoveFx(idx, moveType) {
+    R.enemyAct(idx, moveType);
+    var fn = ENEMY_MOVE_FX[moveType];
+    if (!fn) return;
+    var p = R.enemyPos(idx); if (!p) return;
+    var en = E.combat && E.combat.enemies[idx];
+    var col = (en && en.def && en.def.color) || (en && ns.FACTIONS[en.def.faction] && ns.FACTIONS[en.def.faction].color) || '#ff4a5e';
+    if (U.strictFx) { fn(p, col); return; }        // tests: surface the throw
+    try { fn(p, col); } catch (err) { /* a cosmetic flourish must never break a turn */ }
+  }
+  // Same probe hook the card casts use — an enemy flourish that throws or draws
+  // nothing is invisible in play, so tests need to drive it directly.
+  U.probeEnemyMove = function (idx, moveType) { enemyMoveFx(idx, moveType); };
+
   function playCardFX(card, def, targetIdx, flavor) {
     var c = E.combat; if (!c) return;
     var pp = R.playerXY();
@@ -2819,9 +2851,11 @@
       delay = times[_ei];
       switch (e.type) {
         case 'enemyMove':
-          if (e.move && (e.move.t === 'attack' || e.move.t === 'drain')) {
+          // EVERY move animates now, not just attack/drain. A turn where three
+          // enemies buff, shield and hex used to be completely silent.
+          if (e.move) {
             (function (e, d) {
-              setTimeout(function () { R.enemyLunge(e.idx); }, d);
+              setTimeout(function () { enemyMoveFx(e.idx, e.move.t); }, d);
             })(e, delay);
           }
           break;

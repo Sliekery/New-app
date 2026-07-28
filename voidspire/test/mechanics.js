@@ -976,5 +976,33 @@ ok('every remaining class has a starter deck whose cards all exist',
 })();
 
 
+/* ============ ENEMY ANIMATION (data-level assertions) ==================
+ * The motion itself lives in render.js behind a canvas, but the ENVELOPE that
+ * drives it is pure data — so the parts that are easy to get wrong (a move with
+ * no animation at all, two moves that look identical, an envelope that never
+ * returns to rest) are assertable here without a browser.
+ * ==================================================================== */
+(function () {
+  // every move type an enemy can actually telegraph, straight from the data
+  var used = {};
+  Object.keys(VS.ENEMIES).forEach(function (k) {
+    (VS.ENEMIES[k].moves || []).forEach(function (m) { if (m && m.t) used[m.t] = true; });
+  });
+  Object.keys(VS.FINAL_BOSS || {}).forEach(function (k) {
+    var d = VS.FINAL_BOSS[k];
+    if (d && d.moves) d.moves.forEach(function (m) { if (m && m.t) used[m.t] = true; });
+  });
+
+  // The envelope table is render-side; mirror the key list here so a new move
+  // type added to an enemy without an animation fails loudly.
+  var ANIMATED = ['attack', 'drain', 'block', 'guard', 'buff', 'heal', 'debuff',
+                  'curse', 'summon', 'disrupt', 'etch', 'unmake'];
+  var missing = Object.keys(used).filter(function (m) { return ANIMATED.indexOf(m) < 0; });
+  ok('every enemy move type has an animation envelope' + (missing.length ? ' (missing: ' + missing.join(', ') + ')' : ''),
+     missing.length === 0);
+  ok('enemies actually use most of the animated set', Object.keys(used).length >= 10);
+})();
+
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);
