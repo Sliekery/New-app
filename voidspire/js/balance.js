@@ -40,7 +40,8 @@
       critThreshold: 20,        // roll + Aim >= (threshold - critBonus) crits
       critMult: 2.0,            // crit damage multiplier
       misfireMult: 0.5,         // natural 1: the shot goes wide
-      vanguardAim: 1,           // the marksman class sights in: starting Aim each combat
+      baseAim: 1,               // every class steers the die a little — it is a game-wide system
+      vanguardAim: 1,           // the marksman sights in further on top of the base
       // MARKSMANSHIP BANDS (Vanguard only): the whole d20 face matters, not just
       // its ends. Effective roll = d20 + Aim. Averages ~1.03x at Aim 0, so this
       // is a feel change rather than a power change; Aim pushes you up the table.

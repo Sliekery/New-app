@@ -590,16 +590,19 @@
          +  '<svg viewBox="0 0 40 40" class="art-icon"><polygon points="20,3 35,12 35,28 20,37 5,28 5,12" fill="none" stroke="currentColor" stroke-width="2.4"/>'
          +  '<polygon points="20,10 29,25 11,25" fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.6"/></svg></div>';
     html += '</div>';
-    if (r.artifacts.length) {
+    // Relics live INSIDE the die now — the HUD only shows what is mounted, as a
+    // read-only strip beside the die chip. Everything else is in the vault.
+    var mounted = (r.die ? r.die.core.concat(r.die.frame) : []);
+    if (mounted.length) {
       html += '<div class="artifact-row">';
-      r.artifacts.forEach(function (id, i) {
-        var a = ns.ARTIFACTS[id], cls = 'artifact-chip';
+      mounted.forEach(function (id) {
+        var a = ns.ARTIFACTS[id]; if (!a) return;
+        var cls = 'artifact-chip';
         if (a.quest) { var qs = E.questState(id); cls += qs.done ? ' quest-done' : ' quest'; }
         var uses = E.relicUsesLeft(id), spent = uses != null && uses <= 0;
-        if (!E.relicActive(id)) cls += ' relic-off';
-        if (!spent) cls += ' relic-toggle';
+        if (spent) cls += ' relic-off';
         var badge = (uses != null) ? '<span class="relic-uses">' + uses + '</span>' : '';
-        html += '<div class="' + cls + '" data-art="' + i + '">' + artSVG(a.art, 'art-icon') + badge + '</div>';
+        html += '<div class="' + cls + '" data-mounted="' + id + '">' + artSVG(a.art, 'art-icon') + badge + '</div>';
       });
       html += '</div>';
     }
@@ -620,16 +623,9 @@
     if (dieChip) dieChip.addEventListener('pointerdown', function (ev) {
       ev.stopPropagation(); if (locked) return; SFX.tap(); showDieScreen();
     });
-    $hud.querySelectorAll('[data-art]').forEach(function (chip) {
+    $hud.querySelectorAll('[data-mounted]').forEach(function (chip) {
       chip.addEventListener('pointerdown', function (ev) {
-        ev.stopPropagation();
-        var id = r.artifacts[+chip.dataset.art];
-        if (r.phase === 'map' && E.toggleRelic(id)) {   // tap toggles a relic on the chart
-          SFX.tap(); updateHUD();
-          toast(ns.ARTIFACTS[id].name + (E.relicActive(id) ? ' — ONLINE' : ' — OFFLINE'), 1400);
-        } else {
-          toast(artifactTip(id), 2800);
-        }
+        ev.stopPropagation(); toast(artifactTip(chip.dataset.mounted), 2800);
       });
     });
     var mapBtn = $hud.querySelector('[data-act="map"]');
@@ -950,9 +946,13 @@
 
     function renderAll(spinTo, flair) {
       var a = aim(), rc = reach();
-      sub.textContent = a > 0
-        ? ('AIM +' + a + ' — YOU LAND ON ' + Math.min(20, 2 + a) + '–20, PLUS FACE 1 ON A NATURAL 1')
-        : 'NO AIM — EVERY FACE IS IN REACH';
+      var pend = (die.pending && die.pending.length) ? die.pending[0] : null;
+      var pg = pend ? ns.dieEngraving(pend) : null;
+      sub.innerHTML = pg
+        ? ('<span class="die-place">PLACING: ' + esc(pg.name) + ' — TAP A FACE</span>')
+        : (a > 0
+          ? ('AIM +' + a + ' — YOU LAND ON ' + Math.min(20, 2 + a) + '–20, PLUS FACE 1 ON A NATURAL 1')
+          : 'NO AIM — EVERY FACE IS IN REACH');
 
       // face index
       wrap.innerHTML = '';
@@ -965,7 +965,14 @@
       wrap.querySelectorAll('.df').forEach(function (row) {
         row.addEventListener('pointerdown', function (ev) {
           ev.stopPropagation(); SFX.tap(); pickOpen = false;
-          sel = +row.dataset.face; renderAll(true, false);
+          var f = +row.dataset.face;
+          if (pend) {   // placing a freshly-won engraving
+            var why = ns.dieCanEngrave(die, pend, f);
+            if (why) { toast(why, 1700); return; }
+            ns.dieEngrave(die, pend, f); die.pending.shift(); E.save();
+            sel = f; renderAll(true, true); return;
+          }
+          sel = f; renderAll(true, false);
         });
       });
 
@@ -2760,6 +2767,26 @@
       var skipR = el('button', 'btn dim small', 'LEAVE THE RELIC');
       skipR.addEventListener('pointerdown', function () { SFX.tap(); rw.artifactPicked = true; showReward(); });
       s.appendChild(skipR);
+      return;
+    }
+
+    // ENGRAVINGS: choose one, then cut it into a face on the die screen.
+    if (rw.engChoices && rw.engChoices.length && !rw.engPicked) {
+      s.appendChild(el('div', 'screen-sub', 'CHOOSE AN ENGRAVING'));
+      var ecbar = makeConfirmBar();
+      rw.engChoices.forEach(function (gid) {
+        var g = ns.dieEngraving(gid); if (!g) return;
+        var gpb = el('div', 'panel-btn',
+          '<div class="pb-title"><span class="pb-icon">' + artSVG(g.art) + '</span>' + esc(g.name) + '</div>'
+          + '<div class="pb-desc">' + esc(g.desc) + (g.span > 1 ? ' (covers ' + g.span + ' faces)' : '') + '</div>');
+        s.appendChild(gpb);
+        selectConfirm(s, gpb, ecbar, 'Cut <b>' + esc(g.name) + '</b> into the die?<span class="cb-note">' + esc(g.desc) + '</span>',
+          function () { SFX.coin(); E.takeEngraving(gid); showReward(); });
+      });
+      s.appendChild(ecbar.el);
+      var skipE = el('button', 'btn dim small', 'LEAVE THE ENGRAVING');
+      skipE.addEventListener('pointerdown', function () { SFX.tap(); rw.engPicked = true; showReward(); });
+      s.appendChild(skipE);
       return;
     }
 

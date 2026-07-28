@@ -27,83 +27,86 @@
 
   /* ---- Face augments -------------------------------------------------
    * span: how many consecutive faces the engraving occupies (1 = point).
-   * A point augment fires ~5% of rolls, so its effect is chunky; a band
-   * augment fires more often and is priced down accordingly.
+   * PRICING RULE (see docs/DICE_SYSTEM.md sec 9): a point augment fires on ~5% of
+   * rolls, i.e. ~0.2x per turn. To be worth a relic that ticks every turn, each
+   * trigger must therefore be worth roughly 3x that relic's per-turn effect.
+   * Band augments cover several faces, fire proportionally more often, and are
+   * priced down to match. Content authored at "per-turn" values is ~5x too weak.
    * `anyFace: false` means it can only be engraved where noted.
    * ------------------------------------------------------------------ */
   ns.DIE_AUGMENTS = {
     overcharge_cell: {
       name: 'Overcharge Cell', tier: 1, span: 1,
-      fx: [{ k: 'energy', v: 1 }],
-      desc: 'Gain 1 Energy.',
+      fx: [{ k: 'energy', v: 2 }],
+      desc: 'Gain 2 Energy.',
       art: { p: [[-0.5,-0.6, 0.5,-0.6, 0.5,0.6, -0.5,0.6, -0.5,-0.6], [-0.22,-0.6, -0.22,-0.82, 0.22,-0.82, 0.22,-0.6], [0.16,-0.3, -0.18,0.08, 0.06,0.08, -0.14,0.46]] },
     },
     munition_feed: {
       name: 'Munition Feed', tier: 1, span: 1,
-      fx: [{ k: 'draw', v: 1 }],
-      desc: 'Draw 1 card.',
+      fx: [{ k: 'draw', v: 2 }],
+      desc: 'Draw 2 cards.',
       art: { p: [[-0.55,-0.5, 0.15,-0.5, 0.15,0.55, -0.55,0.55, -0.55,-0.5], [-0.25,-0.5, -0.25,0.55], [0.15,-0.3, 0.62,-0.3, 0.62,0.4, 0.15,0.4]] },
     },
     repair_nanites: {
       name: 'Repair Nanites', tier: 1, span: 1,
-      fx: [{ k: 'heal', v: 3 }],
-      desc: 'Heal 3 HP.',
+      fx: [{ k: 'heal', v: 6 }],
+      desc: 'Heal 6 HP.',
       art: { p: [[-0.2,-0.7, 0.2,-0.7, 0.2,-0.2, 0.7,-0.2, 0.7,0.2, 0.2,0.2, 0.2,0.7, -0.2,0.7, -0.2,0.2, -0.7,0.2, -0.7,-0.2, -0.2,-0.2, -0.2,-0.7]] },
     },
     kinetic_buffer: {
       name: 'Kinetic Buffer', tier: 1, span: 1,
-      fx: [{ k: 'block', v: 5 }],
-      desc: 'Gain 5 Shield.',
+      fx: [{ k: 'block', v: 9 }],
+      desc: 'Gain 9 Shield.',
       art: { p: [[0,-0.8, 0.66,-0.46, 0.66,0.2, 0,0.82, -0.66,0.2, -0.66,-0.46, 0,-0.8], [0,-0.5, 0,0.5], [-0.44,-0.16, 0.44,-0.16]] },
     },
     targeting_spike: {
       name: 'Targeting Spike', tier: 1, span: 1,
-      fx: [{ k: 'status', s: 'vuln', v: 2, who: 'target' }],
-      desc: 'Apply 2 Vulnerable.',
+      fx: [{ k: 'status', s: 'vuln', v: 3, who: 'target' }],
+      desc: 'Apply 3 Vulnerable.',
       art: { p: [[-0.6,-0.6, -0.6,-0.24], [-0.6,-0.6, -0.24,-0.6], [0.6,-0.6, 0.24,-0.6], [0.6,-0.6, 0.6,-0.24], [-0.6,0.6, -0.6,0.24], [-0.6,0.6, -0.24,0.6], [0.6,0.6, 0.6,0.24], [0.6,0.6, 0.24,0.6], [-0.5,0, 0.5,0], [0,-0.5, 0,0.5]], e: [[0,0]] },
     },
     ignition_coil: {
       name: 'Ignition Coil', tier: 1, span: 1,
-      fx: [{ k: 'status', s: 'burn', v: 3, who: 'target' }],
-      desc: 'Apply 3 Burn.',
+      fx: [{ k: 'status', s: 'burn', v: 6, who: 'target' }],
+      desc: 'Apply 6 Burn.',
       art: { p: [[0,-0.85, 0.34,-0.4, 0.18,-0.06, 0.46,0.24, 0.2,0.62, 0,0.8, -0.2,0.62, -0.46,0.24, -0.18,-0.06, -0.34,-0.4, 0,-0.85]] },
     },
     static_discharge: {
       name: 'Static Discharge', tier: 1, span: 1,
-      fx: [{ k: 'dmg', v: 4, random: true }],
-      desc: 'Deal 4 damage to a random enemy.',
+      fx: [{ k: 'dmg', v: 8, random: true }],
+      desc: 'Deal 8 damage to a random enemy.',
       art: { p: [[0.2,-0.86, -0.34,-0.04, 0.06,-0.04, -0.24,0.86, 0.42,-0.08, 0.02,-0.08, 0.36,-0.86, 0.2,-0.86]] },
     },
     scavenger_port: {
       name: 'Scavenger Port', tier: 1, span: 1,
-      fx: [{ k: 'special', id: 'dieCredits', v: 6 }],
-      desc: 'Gain 6 credits.',
+      fx: [{ k: 'special', id: 'dieCredits', v: 12 }],
+      desc: 'Gain 12 credits.',
       art: { p: [[-0.6,-0.34, 0.6,-0.34, 0.6,0.5, -0.6,0.5, -0.6,-0.34], [-0.26,-0.34, -0.26,-0.6, 0.26,-0.6, 0.26,-0.34], [-0.2,0.08, 0.2,0.08]] },
     },
     // -- band augments: wider, so cheaper per trigger --
     scrap_sifter: {
       name: 'Scrap Sifter', tier: 1, span: 3,
-      fx: [{ k: 'block', v: 2 }],
-      desc: 'Gain 2 Shield.',
+      fx: [{ k: 'block', v: 4 }],
+      desc: 'Gain 4 Shield.',
       art: { p: [[0,-0.7, 0.58,-0.4, 0.58,0.18, 0,0.72, -0.58,0.18, -0.58,-0.4, 0,-0.7], [-0.3,0, 0.3,0]] },
     },
     pressure_valve: {
       name: 'Pressure Valve', tier: 2, span: 3,
-      fx: [{ k: 'heal', v: 1 }, { k: 'block', v: 1 }],
-      desc: 'Heal 1 HP and gain 1 Shield.',
+      fx: [{ k: 'heal', v: 1 }, { k: 'block', v: 2 }],
+      desc: 'Heal 1 HP and gain 2 Shield.',
       art: { p: [[-0.5,-0.2, 0.5,-0.2, 0.5,0.5, -0.5,0.5, -0.5,-0.2], [0,-0.2, 0,-0.7], [-0.3,-0.7, 0.3,-0.7], [-0.2,0.1, 0.2,0.1]] },
     },
     // -- Vanguard flavour --
     momentum_tap: {
       name: 'Momentum Tap', tier: 2, span: 1,
-      fx: [{ k: 'status', s: 'momentum', v: 2, who: 'self' }],
-      desc: 'Gain 2 Momentum.',
+      fx: [{ k: 'status', s: 'momentum', v: 3, who: 'self' }],
+      desc: 'Gain 3 Momentum.',
       art: { p: [[-0.7,0.3, -0.2,-0.3, 0.1,0.1, 0.7,-0.5], [0.7,-0.5, 0.3,-0.5], [0.7,-0.5, 0.7,-0.12]] },
     },
     blood_tithe: {
       name: 'Blood Tithe', tier: 2, span: 1,
-      fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'str', v: 1, who: 'self' }],
-      desc: 'Lose 2 HP. Gain 1 Might.',
+      fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'str', v: 2, who: 'self' }],
+      desc: 'Lose 2 HP. Gain 2 Might.',
       art: { p: [[0,-0.8, 0.4,-0.1, 0.28,0.5, -0.28,0.5, -0.4,-0.1, 0,-0.8], [-0.2,0.06, 0.2,0.06]] },
     },
     aim_assist: {
@@ -115,14 +118,14 @@
     // -- face-locked --
     jam_clearance: {
       name: 'Jam Clearance', tier: 2, span: 1, onlyFace: 1,
-      fx: [{ k: 'status', s: 'momentum', v: 2, who: 'self' }, { k: 'energy', v: 1 }],
-      desc: 'Gain 2 Momentum and 1 Energy. Engraved on face 1 only — the shot that jams still pays.',
+      fx: [{ k: 'status', s: 'momentum', v: 3, who: 'self' }, { k: 'energy', v: 1 }],
+      desc: 'Gain 3 Momentum and 1 Energy. Engraved on face 1 only — the shot that jams still pays.',
       art: { p: [[-0.6,-0.5, 0.6,-0.5, 0.6,0.5, -0.6,0.5, -0.6,-0.5], [-0.6,-0.5, 0.6,0.5], [0.6,-0.5, -0.6,0.5]] },
     },
     executioners_mark: {
       name: "Executioner's Mark", tier: 3, span: 1,
-      fx: [{ k: 'special', id: 'dieExecute', v: 8 }],
-      desc: 'Deal 8 damage to the target — doubled if it is below 30% HP.',
+      fx: [{ k: 'special', id: 'dieExecute', v: 12 }],
+      desc: 'Deal 12 damage to the target — doubled if it is below 30% HP.',
       art: { p: [[-0.5,0.12, -0.55,-0.4, -0.3,-0.72, 0.3,-0.72, 0.55,-0.4, 0.5,0.12, 0.3,0.24, 0.3,0.5, -0.3,0.5, -0.3,0.24, -0.5,0.12]], e: [[-0.24,-0.22], [0.24,-0.22]] },
     },
   };

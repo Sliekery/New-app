@@ -135,7 +135,7 @@ ok('Plated Armor decays by 1', (E.combat.player.statuses.platedArmor || 0) === 6
 
 /* 11. Static Capacitor: gaining Shield pings a random enemy */
 startFight('technomancer');
-E.run.artifacts = ['static_capacitor'];
+E.run.artifacts = ['static_capacitor']; E.run.die.core = ['static_capacitor'];
 bigEnemies();
 var hpA = E.combat.enemies[0].hp + E.combat.enemies[0].block;
 setHand(['combat_shield']);
@@ -145,7 +145,7 @@ ok('Static Capacitor pings an enemy when you gain Shield', anyHurt);
 
 /* 12. Reaper Protocol: heal on kill */
 startFight('vanguard');
-E.run.artifacts = ['reaper_protocol'];
+E.run.artifacts = ['reaper_protocol']; E.run.die.core = ['reaper_protocol'];
 E.run.hp = 30; E.run.maxHp = 80;
 E.combat.enemies[0].hp = 1; E.combat.enemies[0].block = 0;
 E.combat.player.statuses.str = 50;
@@ -438,7 +438,7 @@ ok('Salvage forgoes card rewards', E.run.reward && E.run.reward.cards.length ===
 /* 43. Reworked relics/augments: distinct crit / shield / burn payoffs */
 var CRIT = VS.BALANCE.dice.critThreshold;
 // Omega Visor (relic): crit -> draw
-startFight('vanguard'); E.run.artifacts = ['omega_visor']; bigEnemies();
+startFight('vanguard'); E.run.artifacts = ['omega_visor']; E.run.die.core = ['omega_visor']; bigEnemies();
 VS.BALANCE.dice.critThreshold = 1; // force every attack to crit
 setHand(['pulse_rifle']); var dp0 = E.combat.drawPile.length; playId('pulse_rifle', 0);
 ok('Omega Visor draws a card on crit', dp0 - E.combat.drawPile.length === 1);

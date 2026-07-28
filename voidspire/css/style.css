@@ -1341,3 +1341,4 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .ws-t { color: #7f9a8b; font-size: 7.5px; flex: 0 0 auto; }
 .dm-chip.vault { opacity: 0.55; border-style: dashed; }
 .dm-chip { cursor: pointer; }
+.die-place { color: #ffb02e; font-weight: 700; text-shadow: 0 0 8px rgba(255,176,46,0.7); }

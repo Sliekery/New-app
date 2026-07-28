@@ -1352,6 +1352,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .ws-t { color: #7f9a8b; font-size: 7.5px; flex: 0 0 auto; }
 .dm-chip.vault { opacity: 0.55; border-style: dashed; }
 .dm-chip { cursor: pointer; }
+.die-place { color: #ffb02e; font-weight: 700; text-shadow: 0 0 8px rgba(255,176,46,0.7); }
 
 </style>
 </head>
@@ -1410,7 +1411,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       critThreshold: 20,        // roll + Aim >= (threshold - critBonus) crits
       critMult: 2.0,            // crit damage multiplier
       misfireMult: 0.5,         // natural 1: the shot goes wide
-      vanguardAim: 1,           // the marksman class sights in: starting Aim each combat
+      baseAim: 1,               // every class steers the die a little — it is a game-wide system
+      vanguardAim: 1,           // the marksman sights in further on top of the base
       // MARKSMANSHIP BANDS (Vanguard only): the whole d20 face matters, not just
       // its ends. Effective roll = d20 + Aim. Averages ~1.03x at Aim 0, so this
       // is a feel change rather than a power change; Aim pushes you up the table.
@@ -3398,83 +3400,86 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   /* ---- Face augments -------------------------------------------------
    * span: how many consecutive faces the engraving occupies (1 = point).
-   * A point augment fires ~5% of rolls, so its effect is chunky; a band
-   * augment fires more often and is priced down accordingly.
+   * PRICING RULE (see docs/DICE_SYSTEM.md sec 9): a point augment fires on ~5% of
+   * rolls, i.e. ~0.2x per turn. To be worth a relic that ticks every turn, each
+   * trigger must therefore be worth roughly 3x that relic's per-turn effect.
+   * Band augments cover several faces, fire proportionally more often, and are
+   * priced down to match. Content authored at "per-turn" values is ~5x too weak.
    * `anyFace: false` means it can only be engraved where noted.
    * ------------------------------------------------------------------ */
   ns.DIE_AUGMENTS = {
     overcharge_cell: {
       name: 'Overcharge Cell', tier: 1, span: 1,
-      fx: [{ k: 'energy', v: 1 }],
-      desc: 'Gain 1 Energy.',
+      fx: [{ k: 'energy', v: 2 }],
+      desc: 'Gain 2 Energy.',
       art: { p: [[-0.5,-0.6, 0.5,-0.6, 0.5,0.6, -0.5,0.6, -0.5,-0.6], [-0.22,-0.6, -0.22,-0.82, 0.22,-0.82, 0.22,-0.6], [0.16,-0.3, -0.18,0.08, 0.06,0.08, -0.14,0.46]] },
     },
     munition_feed: {
       name: 'Munition Feed', tier: 1, span: 1,
-      fx: [{ k: 'draw', v: 1 }],
-      desc: 'Draw 1 card.',
+      fx: [{ k: 'draw', v: 2 }],
+      desc: 'Draw 2 cards.',
       art: { p: [[-0.55,-0.5, 0.15,-0.5, 0.15,0.55, -0.55,0.55, -0.55,-0.5], [-0.25,-0.5, -0.25,0.55], [0.15,-0.3, 0.62,-0.3, 0.62,0.4, 0.15,0.4]] },
     },
     repair_nanites: {
       name: 'Repair Nanites', tier: 1, span: 1,
-      fx: [{ k: 'heal', v: 3 }],
-      desc: 'Heal 3 HP.',
+      fx: [{ k: 'heal', v: 6 }],
+      desc: 'Heal 6 HP.',
       art: { p: [[-0.2,-0.7, 0.2,-0.7, 0.2,-0.2, 0.7,-0.2, 0.7,0.2, 0.2,0.2, 0.2,0.7, -0.2,0.7, -0.2,0.2, -0.7,0.2, -0.7,-0.2, -0.2,-0.2, -0.2,-0.7]] },
     },
     kinetic_buffer: {
       name: 'Kinetic Buffer', tier: 1, span: 1,
-      fx: [{ k: 'block', v: 5 }],
-      desc: 'Gain 5 Shield.',
+      fx: [{ k: 'block', v: 9 }],
+      desc: 'Gain 9 Shield.',
       art: { p: [[0,-0.8, 0.66,-0.46, 0.66,0.2, 0,0.82, -0.66,0.2, -0.66,-0.46, 0,-0.8], [0,-0.5, 0,0.5], [-0.44,-0.16, 0.44,-0.16]] },
     },
     targeting_spike: {
       name: 'Targeting Spike', tier: 1, span: 1,
-      fx: [{ k: 'status', s: 'vuln', v: 2, who: 'target' }],
-      desc: 'Apply 2 Vulnerable.',
+      fx: [{ k: 'status', s: 'vuln', v: 3, who: 'target' }],
+      desc: 'Apply 3 Vulnerable.',
       art: { p: [[-0.6,-0.6, -0.6,-0.24], [-0.6,-0.6, -0.24,-0.6], [0.6,-0.6, 0.24,-0.6], [0.6,-0.6, 0.6,-0.24], [-0.6,0.6, -0.6,0.24], [-0.6,0.6, -0.24,0.6], [0.6,0.6, 0.6,0.24], [0.6,0.6, 0.24,0.6], [-0.5,0, 0.5,0], [0,-0.5, 0,0.5]], e: [[0,0]] },
     },
     ignition_coil: {
       name: 'Ignition Coil', tier: 1, span: 1,
-      fx: [{ k: 'status', s: 'burn', v: 3, who: 'target' }],
-      desc: 'Apply 3 Burn.',
+      fx: [{ k: 'status', s: 'burn', v: 6, who: 'target' }],
+      desc: 'Apply 6 Burn.',
       art: { p: [[0,-0.85, 0.34,-0.4, 0.18,-0.06, 0.46,0.24, 0.2,0.62, 0,0.8, -0.2,0.62, -0.46,0.24, -0.18,-0.06, -0.34,-0.4, 0,-0.85]] },
     },
     static_discharge: {
       name: 'Static Discharge', tier: 1, span: 1,
-      fx: [{ k: 'dmg', v: 4, random: true }],
-      desc: 'Deal 4 damage to a random enemy.',
+      fx: [{ k: 'dmg', v: 8, random: true }],
+      desc: 'Deal 8 damage to a random enemy.',
       art: { p: [[0.2,-0.86, -0.34,-0.04, 0.06,-0.04, -0.24,0.86, 0.42,-0.08, 0.02,-0.08, 0.36,-0.86, 0.2,-0.86]] },
     },
     scavenger_port: {
       name: 'Scavenger Port', tier: 1, span: 1,
-      fx: [{ k: 'special', id: 'dieCredits', v: 6 }],
-      desc: 'Gain 6 credits.',
+      fx: [{ k: 'special', id: 'dieCredits', v: 12 }],
+      desc: 'Gain 12 credits.',
       art: { p: [[-0.6,-0.34, 0.6,-0.34, 0.6,0.5, -0.6,0.5, -0.6,-0.34], [-0.26,-0.34, -0.26,-0.6, 0.26,-0.6, 0.26,-0.34], [-0.2,0.08, 0.2,0.08]] },
     },
     // -- band augments: wider, so cheaper per trigger --
     scrap_sifter: {
       name: 'Scrap Sifter', tier: 1, span: 3,
-      fx: [{ k: 'block', v: 2 }],
-      desc: 'Gain 2 Shield.',
+      fx: [{ k: 'block', v: 4 }],
+      desc: 'Gain 4 Shield.',
       art: { p: [[0,-0.7, 0.58,-0.4, 0.58,0.18, 0,0.72, -0.58,0.18, -0.58,-0.4, 0,-0.7], [-0.3,0, 0.3,0]] },
     },
     pressure_valve: {
       name: 'Pressure Valve', tier: 2, span: 3,
-      fx: [{ k: 'heal', v: 1 }, { k: 'block', v: 1 }],
-      desc: 'Heal 1 HP and gain 1 Shield.',
+      fx: [{ k: 'heal', v: 1 }, { k: 'block', v: 2 }],
+      desc: 'Heal 1 HP and gain 2 Shield.',
       art: { p: [[-0.5,-0.2, 0.5,-0.2, 0.5,0.5, -0.5,0.5, -0.5,-0.2], [0,-0.2, 0,-0.7], [-0.3,-0.7, 0.3,-0.7], [-0.2,0.1, 0.2,0.1]] },
     },
     // -- Vanguard flavour --
     momentum_tap: {
       name: 'Momentum Tap', tier: 2, span: 1,
-      fx: [{ k: 'status', s: 'momentum', v: 2, who: 'self' }],
-      desc: 'Gain 2 Momentum.',
+      fx: [{ k: 'status', s: 'momentum', v: 3, who: 'self' }],
+      desc: 'Gain 3 Momentum.',
       art: { p: [[-0.7,0.3, -0.2,-0.3, 0.1,0.1, 0.7,-0.5], [0.7,-0.5, 0.3,-0.5], [0.7,-0.5, 0.7,-0.12]] },
     },
     blood_tithe: {
       name: 'Blood Tithe', tier: 2, span: 1,
-      fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'str', v: 1, who: 'self' }],
-      desc: 'Lose 2 HP. Gain 1 Might.',
+      fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'str', v: 2, who: 'self' }],
+      desc: 'Lose 2 HP. Gain 2 Might.',
       art: { p: [[0,-0.8, 0.4,-0.1, 0.28,0.5, -0.28,0.5, -0.4,-0.1, 0,-0.8], [-0.2,0.06, 0.2,0.06]] },
     },
     aim_assist: {
@@ -3486,14 +3491,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // -- face-locked --
     jam_clearance: {
       name: 'Jam Clearance', tier: 2, span: 1, onlyFace: 1,
-      fx: [{ k: 'status', s: 'momentum', v: 2, who: 'self' }, { k: 'energy', v: 1 }],
-      desc: 'Gain 2 Momentum and 1 Energy. Engraved on face 1 only — the shot that jams still pays.',
+      fx: [{ k: 'status', s: 'momentum', v: 3, who: 'self' }, { k: 'energy', v: 1 }],
+      desc: 'Gain 3 Momentum and 1 Energy. Engraved on face 1 only — the shot that jams still pays.',
       art: { p: [[-0.6,-0.5, 0.6,-0.5, 0.6,0.5, -0.6,0.5, -0.6,-0.5], [-0.6,-0.5, 0.6,0.5], [0.6,-0.5, -0.6,0.5]] },
     },
     executioners_mark: {
       name: "Executioner's Mark", tier: 3, span: 1,
-      fx: [{ k: 'special', id: 'dieExecute', v: 8 }],
-      desc: 'Deal 8 damage to the target — doubled if it is below 30% HP.',
+      fx: [{ k: 'special', id: 'dieExecute', v: 12 }],
+      desc: 'Deal 12 damage to the target — doubled if it is below 30% HP.',
       art: { p: [[-0.5,0.12, -0.55,-0.4, -0.3,-0.72, 0.3,-0.72, 0.55,-0.4, 0.5,0.12, 0.3,0.24, 0.3,0.5, -0.3,0.5, -0.3,0.24, -0.5,0.12]], e: [[-0.24,-0.22], [0.24,-0.22]] },
     },
   };
@@ -5320,6 +5325,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var r = E.run; if (!r) return true;
     if (r.relicOff && r.relicOff[id]) return false;
     if (r.relicUses && r.relicUses[id] != null && r.relicUses[id] <= 0) return false;
+    // FULLY COMMITTED TO THE DIE: owning a module is not using it. Only what is
+    // mounted in the die's core (or welded into its frame) is live; everything
+    // else sits in the vault. Cornerstones are welded in and always count.
+    var d = r.die;
+    if (d) {
+      var cs = r.cornerstone && r.cornerstone.id;
+      if (id === cs) return true;
+      if (d.core.indexOf(id) < 0 && d.frame.indexOf(id) < 0) return false;
+    }
     return true;
   };
 
@@ -5604,6 +5618,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var order = r.bossOrder && r.bossOrder.length ? r.bossOrder : [].concat(ns.BOSSES[r.faction]);
     return order[(r.sector - 1) % order.length];
   };
+  E.growDieCore = function () {
+    var d = E.run && E.run.die; if (!d) return;
+    d.coreSlots = Math.min(ns.DIE.coreSlotsMax, (d.coreSlots || ns.DIE.coreSlotsStart) + ns.DIE.coreSlotsPerBoss);
+  };
   E.sectorBossName = function () { var d = ns.ENEMIES[E.sectorBossId()]; return d ? d.name : 'SECTOR BOSS'; };
 
   E.mapReachable = function () {
@@ -5831,6 +5849,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function newSector() {
     var r = E.run;
     r.sector++;
+    E.growDieCore();   // the die is re-machined between sectors: one more core slot
     var factions = Object.keys(ns.FACTIONS).filter(function (f) { return f !== r.faction; });
     r.faction = pick(factions);
     r.map = generateMap(r.sector);
@@ -5966,7 +5985,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // The Vanguard is the marksman class: he sights in every fight, so he starts
       // with Aim on the die. It offsets the misfire risk every attacker carries and
       // makes the d20 matter from turn one, not just for a dedicated dice build.
-      player: { block: 0, statuses: (r.cls === 'vanguard' ? { aim: B.dice.vanguardAim } : {}) },
+      // Everyone rolls, so everyone gets some Aim to steer with; the Vanguard,
+      // as the marksman, sights in further on top of the shared baseline.
+      player: { block: 0, statuses: { aim: (B.dice.baseAim || 0) + (r.cls === 'vanguard' ? B.dice.vanguardAim : 0) } },
       pending: null,       // an in-combat choice awaiting a pick (Scry/Tutor/Discover)
       primed: [],          // armed delayed detonations (Primed)
       echoReady: false,
@@ -7543,6 +7564,30 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return pick(pool);
   }
   // N distinct random artifacts of a tier (for pick-1-of-N rewards)
+  // Weighted by tier so a tier-3 engraving stays a find.
+  function randomEngravings(n) {
+    var ids = Object.keys(ns.DIE_AUGMENTS), pool = [];
+    ids.forEach(function (k) {
+      var t = ns.DIE_AUGMENTS[k].tier || 1, w = t === 1 ? 6 : t === 2 ? 3 : 1;
+      for (var i = 0; i < w; i++) pool.push(k);
+    });
+    var out = [];
+    var guard = 0;
+    while (out.length < n && guard++ < 200) { var c = pick(pool); if (out.indexOf(c) < 0) out.push(c); }
+    return out;
+  }
+  E.randomEngravings = randomEngravings;
+  // Queue an engraving for placement; the die screen asks which face.
+  E.takeEngraving = function (id) {
+    var r = E.run; if (!r || !r.die) return false;
+    if (!r.reward || r.reward.engPicked) return false;
+    r.die.pending = r.die.pending || [];
+    r.die.pending.push(id);
+    r.reward.engPicked = true;
+    E.save();
+    return true;
+  };
+
   function randomArtifactChoices(tier, n) {
     var pool = Object.keys(ns.ARTIFACTS).filter(function (k) { return artifactDroppable(k, tier); });
     shuffle(pool);
@@ -7583,6 +7628,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (a.k === 'maxHp') { r.maxHp += a.v; r.hp += a.v; }
     if (a.special === 'glassCannon') { var lose = Math.round(r.maxHp * 0.25); r.maxHp -= lose; r.hp = Math.min(r.hp, r.maxHp); }
     if (a.quest && !r.questDone[id]) r.quests[id] = r.quests[id] || 0;
+    // slot it into the die straight away if the core has room; otherwise it waits
+    // in the vault and the player chooses what to swap out.
+    var d = r.die;
+    if (d) {
+      var isFrame = (a.k === 'critBonus');   // die-behaviour modules weld to the frame
+      if (isFrame) { if (d.frame.indexOf(id) < 0) d.frame.push(id); }
+      else if (d.core.indexOf(id) < 0 && d.core.length < (d.coreSlots || ns.DIE.coreSlotsStart)) d.core.push(id);
+    }
     emit('artifact', { id: id });
   }
   E.addArtifact = addArtifact;
@@ -7662,6 +7715,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // none, which is why cutting the free-relic nodes hurt so much).
     var artifactChoices = (kind === 'elite') ? randomArtifactChoices(1, 2)
                         : (kind === 'boss') ? randomArtifactChoices(2, 2) : [];
+    // Engravings drop from the fights that earn them; they queue up as `pending`
+    // and the player picks the face on the die screen.
+    var engChoices = [];
+    if (kind === 'elite' || kind === 'boss' || kind === 'beacon') engChoices = randomEngravings(2);
+    else if (rnd() < 0.22) engChoices = randomEngravings(2);
     var artifactDrop = null;   // no auto-grant; picked from artifactChoices
     // The Unmaker's Tithe: an extra relic from every elite & boss
     var bonusArtifact = null;
@@ -7671,7 +7729,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
     var dropP = (kind === 'boss') ? B.potions.bossDropChance : B.potions.dropChance;
     var potionDrop = (rnd() < dropP) ? rollPotion() : null;
-    r.reward = { credits: credits, cards: cards, artifact: artifactDrop, artifactChoices: artifactChoices, artifactPicked: false, bonusArtifact: bonusArtifact, potion: potionDrop, potionTaken: false, cardTaken: false, kind: kind };
+    r.reward = { credits: credits, cards: cards, artifact: artifactDrop, artifactChoices: artifactChoices, engChoices: engChoices, engPicked: false, artifactPicked: false, bonusArtifact: bonusArtifact, potion: potionDrop, potionTaken: false, cardTaken: false, kind: kind };
     r.phase = 'reward';
     emit('win', { kind: kind, credits: credits });
     E.save();
@@ -11081,16 +11139,19 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
          +  '<svg viewBox="0 0 40 40" class="art-icon"><polygon points="20,3 35,12 35,28 20,37 5,28 5,12" fill="none" stroke="currentColor" stroke-width="2.4"/>'
          +  '<polygon points="20,10 29,25 11,25" fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.6"/></svg></div>';
     html += '</div>';
-    if (r.artifacts.length) {
+    // Relics live INSIDE the die now — the HUD only shows what is mounted, as a
+    // read-only strip beside the die chip. Everything else is in the vault.
+    var mounted = (r.die ? r.die.core.concat(r.die.frame) : []);
+    if (mounted.length) {
       html += '<div class="artifact-row">';
-      r.artifacts.forEach(function (id, i) {
-        var a = ns.ARTIFACTS[id], cls = 'artifact-chip';
+      mounted.forEach(function (id) {
+        var a = ns.ARTIFACTS[id]; if (!a) return;
+        var cls = 'artifact-chip';
         if (a.quest) { var qs = E.questState(id); cls += qs.done ? ' quest-done' : ' quest'; }
         var uses = E.relicUsesLeft(id), spent = uses != null && uses <= 0;
-        if (!E.relicActive(id)) cls += ' relic-off';
-        if (!spent) cls += ' relic-toggle';
+        if (spent) cls += ' relic-off';
         var badge = (uses != null) ? '<span class="relic-uses">' + uses + '</span>' : '';
-        html += '<div class="' + cls + '" data-art="' + i + '">' + artSVG(a.art, 'art-icon') + badge + '</div>';
+        html += '<div class="' + cls + '" data-mounted="' + id + '">' + artSVG(a.art, 'art-icon') + badge + '</div>';
       });
       html += '</div>';
     }
@@ -11111,16 +11172,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (dieChip) dieChip.addEventListener('pointerdown', function (ev) {
       ev.stopPropagation(); if (locked) return; SFX.tap(); showDieScreen();
     });
-    $hud.querySelectorAll('[data-art]').forEach(function (chip) {
+    $hud.querySelectorAll('[data-mounted]').forEach(function (chip) {
       chip.addEventListener('pointerdown', function (ev) {
-        ev.stopPropagation();
-        var id = r.artifacts[+chip.dataset.art];
-        if (r.phase === 'map' && E.toggleRelic(id)) {   // tap toggles a relic on the chart
-          SFX.tap(); updateHUD();
-          toast(ns.ARTIFACTS[id].name + (E.relicActive(id) ? ' — ONLINE' : ' — OFFLINE'), 1400);
-        } else {
-          toast(artifactTip(id), 2800);
-        }
+        ev.stopPropagation(); toast(artifactTip(chip.dataset.mounted), 2800);
       });
     });
     var mapBtn = $hud.querySelector('[data-act="map"]');
@@ -11441,9 +11495,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     function renderAll(spinTo, flair) {
       var a = aim(), rc = reach();
-      sub.textContent = a > 0
-        ? ('AIM +' + a + ' — YOU LAND ON ' + Math.min(20, 2 + a) + '–20, PLUS FACE 1 ON A NATURAL 1')
-        : 'NO AIM — EVERY FACE IS IN REACH';
+      var pend = (die.pending && die.pending.length) ? die.pending[0] : null;
+      var pg = pend ? ns.dieEngraving(pend) : null;
+      sub.innerHTML = pg
+        ? ('<span class="die-place">PLACING: ' + esc(pg.name) + ' — TAP A FACE</span>')
+        : (a > 0
+          ? ('AIM +' + a + ' — YOU LAND ON ' + Math.min(20, 2 + a) + '–20, PLUS FACE 1 ON A NATURAL 1')
+          : 'NO AIM — EVERY FACE IS IN REACH');
 
       // face index
       wrap.innerHTML = '';
@@ -11456,7 +11514,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       wrap.querySelectorAll('.df').forEach(function (row) {
         row.addEventListener('pointerdown', function (ev) {
           ev.stopPropagation(); SFX.tap(); pickOpen = false;
-          sel = +row.dataset.face; renderAll(true, false);
+          var f = +row.dataset.face;
+          if (pend) {   // placing a freshly-won engraving
+            var why = ns.dieCanEngrave(die, pend, f);
+            if (why) { toast(why, 1700); return; }
+            ns.dieEngrave(die, pend, f); die.pending.shift(); E.save();
+            sel = f; renderAll(true, true); return;
+          }
+          sel = f; renderAll(true, false);
         });
       });
 
@@ -13251,6 +13316,26 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var skipR = el('button', 'btn dim small', 'LEAVE THE RELIC');
       skipR.addEventListener('pointerdown', function () { SFX.tap(); rw.artifactPicked = true; showReward(); });
       s.appendChild(skipR);
+      return;
+    }
+
+    // ENGRAVINGS: choose one, then cut it into a face on the die screen.
+    if (rw.engChoices && rw.engChoices.length && !rw.engPicked) {
+      s.appendChild(el('div', 'screen-sub', 'CHOOSE AN ENGRAVING'));
+      var ecbar = makeConfirmBar();
+      rw.engChoices.forEach(function (gid) {
+        var g = ns.dieEngraving(gid); if (!g) return;
+        var gpb = el('div', 'panel-btn',
+          '<div class="pb-title"><span class="pb-icon">' + artSVG(g.art) + '</span>' + esc(g.name) + '</div>'
+          + '<div class="pb-desc">' + esc(g.desc) + (g.span > 1 ? ' (covers ' + g.span + ' faces)' : '') + '</div>');
+        s.appendChild(gpb);
+        selectConfirm(s, gpb, ecbar, 'Cut <b>' + esc(g.name) + '</b> into the die?<span class="cb-note">' + esc(g.desc) + '</span>',
+          function () { SFX.coin(); E.takeEngraving(gid); showReward(); });
+      });
+      s.appendChild(ecbar.el);
+      var skipE = el('button', 'btn dim small', 'LEAVE THE ENGRAVING');
+      skipE.addEventListener('pointerdown', function () { SFX.tap(); rw.engPicked = true; showReward(); });
+      s.appendChild(skipE);
       return;
     }
 

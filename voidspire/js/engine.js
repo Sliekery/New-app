@@ -91,6 +91,15 @@
     var r = E.run; if (!r) return true;
     if (r.relicOff && r.relicOff[id]) return false;
     if (r.relicUses && r.relicUses[id] != null && r.relicUses[id] <= 0) return false;
+    // FULLY COMMITTED TO THE DIE: owning a module is not using it. Only what is
+    // mounted in the die's core (or welded into its frame) is live; everything
+    // else sits in the vault. Cornerstones are welded in and always count.
+    var d = r.die;
+    if (d) {
+      var cs = r.cornerstone && r.cornerstone.id;
+      if (id === cs) return true;
+      if (d.core.indexOf(id) < 0 && d.frame.indexOf(id) < 0) return false;
+    }
     return true;
   };
 
@@ -375,6 +384,10 @@
     var order = r.bossOrder && r.bossOrder.length ? r.bossOrder : [].concat(ns.BOSSES[r.faction]);
     return order[(r.sector - 1) % order.length];
   };
+  E.growDieCore = function () {
+    var d = E.run && E.run.die; if (!d) return;
+    d.coreSlots = Math.min(ns.DIE.coreSlotsMax, (d.coreSlots || ns.DIE.coreSlotsStart) + ns.DIE.coreSlotsPerBoss);
+  };
   E.sectorBossName = function () { var d = ns.ENEMIES[E.sectorBossId()]; return d ? d.name : 'SECTOR BOSS'; };
 
   E.mapReachable = function () {
@@ -602,6 +615,7 @@
   function newSector() {
     var r = E.run;
     r.sector++;
+    E.growDieCore();   // the die is re-machined between sectors: one more core slot
     var factions = Object.keys(ns.FACTIONS).filter(function (f) { return f !== r.faction; });
     r.faction = pick(factions);
     r.map = generateMap(r.sector);
@@ -737,7 +751,9 @@
       // The Vanguard is the marksman class: he sights in every fight, so he starts
       // with Aim on the die. It offsets the misfire risk every attacker carries and
       // makes the d20 matter from turn one, not just for a dedicated dice build.
-      player: { block: 0, statuses: (r.cls === 'vanguard' ? { aim: B.dice.vanguardAim } : {}) },
+      // Everyone rolls, so everyone gets some Aim to steer with; the Vanguard,
+      // as the marksman, sights in further on top of the shared baseline.
+      player: { block: 0, statuses: { aim: (B.dice.baseAim || 0) + (r.cls === 'vanguard' ? B.dice.vanguardAim : 0) } },
       pending: null,       // an in-combat choice awaiting a pick (Scry/Tutor/Discover)
       primed: [],          // armed delayed detonations (Primed)
       echoReady: false,
@@ -2314,6 +2330,30 @@
     return pick(pool);
   }
   // N distinct random artifacts of a tier (for pick-1-of-N rewards)
+  // Weighted by tier so a tier-3 engraving stays a find.
+  function randomEngravings(n) {
+    var ids = Object.keys(ns.DIE_AUGMENTS), pool = [];
+    ids.forEach(function (k) {
+      var t = ns.DIE_AUGMENTS[k].tier || 1, w = t === 1 ? 6 : t === 2 ? 3 : 1;
+      for (var i = 0; i < w; i++) pool.push(k);
+    });
+    var out = [];
+    var guard = 0;
+    while (out.length < n && guard++ < 200) { var c = pick(pool); if (out.indexOf(c) < 0) out.push(c); }
+    return out;
+  }
+  E.randomEngravings = randomEngravings;
+  // Queue an engraving for placement; the die screen asks which face.
+  E.takeEngraving = function (id) {
+    var r = E.run; if (!r || !r.die) return false;
+    if (!r.reward || r.reward.engPicked) return false;
+    r.die.pending = r.die.pending || [];
+    r.die.pending.push(id);
+    r.reward.engPicked = true;
+    E.save();
+    return true;
+  };
+
   function randomArtifactChoices(tier, n) {
     var pool = Object.keys(ns.ARTIFACTS).filter(function (k) { return artifactDroppable(k, tier); });
     shuffle(pool);
@@ -2354,6 +2394,14 @@
     if (a.k === 'maxHp') { r.maxHp += a.v; r.hp += a.v; }
     if (a.special === 'glassCannon') { var lose = Math.round(r.maxHp * 0.25); r.maxHp -= lose; r.hp = Math.min(r.hp, r.maxHp); }
     if (a.quest && !r.questDone[id]) r.quests[id] = r.quests[id] || 0;
+    // slot it into the die straight away if the core has room; otherwise it waits
+    // in the vault and the player chooses what to swap out.
+    var d = r.die;
+    if (d) {
+      var isFrame = (a.k === 'critBonus');   // die-behaviour modules weld to the frame
+      if (isFrame) { if (d.frame.indexOf(id) < 0) d.frame.push(id); }
+      else if (d.core.indexOf(id) < 0 && d.core.length < (d.coreSlots || ns.DIE.coreSlotsStart)) d.core.push(id);
+    }
     emit('artifact', { id: id });
   }
   E.addArtifact = addArtifact;
@@ -2433,6 +2481,11 @@
     // none, which is why cutting the free-relic nodes hurt so much).
     var artifactChoices = (kind === 'elite') ? randomArtifactChoices(1, 2)
                         : (kind === 'boss') ? randomArtifactChoices(2, 2) : [];
+    // Engravings drop from the fights that earn them; they queue up as `pending`
+    // and the player picks the face on the die screen.
+    var engChoices = [];
+    if (kind === 'elite' || kind === 'boss' || kind === 'beacon') engChoices = randomEngravings(2);
+    else if (rnd() < 0.22) engChoices = randomEngravings(2);
     var artifactDrop = null;   // no auto-grant; picked from artifactChoices
     // The Unmaker's Tithe: an extra relic from every elite & boss
     var bonusArtifact = null;
@@ -2442,7 +2495,7 @@
     }
     var dropP = (kind === 'boss') ? B.potions.bossDropChance : B.potions.dropChance;
     var potionDrop = (rnd() < dropP) ? rollPotion() : null;
-    r.reward = { credits: credits, cards: cards, artifact: artifactDrop, artifactChoices: artifactChoices, artifactPicked: false, bonusArtifact: bonusArtifact, potion: potionDrop, potionTaken: false, cardTaken: false, kind: kind };
+    r.reward = { credits: credits, cards: cards, artifact: artifactDrop, artifactChoices: artifactChoices, engChoices: engChoices, engPicked: false, artifactPicked: false, bonusArtifact: bonusArtifact, potion: potionDrop, potionTaken: false, cardTaken: false, kind: kind };
     r.phase = 'reward';
     emit('win', { kind: kind, credits: credits });
     E.save();

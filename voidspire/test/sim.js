@@ -142,9 +142,54 @@ function pickTarget() {
   return alive[0];
 }
 
+// A decent player keeps their best modules mounted. When the core is full and a
+// better module turns up, swap the weakest one out for it.
+function botManageDie() {
+  var r = VS.engine.run, d = r && r.die; if (!d) return;
+  var slots = d.coreSlots || VS.DIE.coreSlotsStart;
+  var tier = function (id) { var a = VS.ARTIFACTS[id]; return (a && a.tier) || 1; };
+  // fill empty slots first
+  r.artifacts.forEach(function (id) {
+    if (d.core.length >= slots) return;
+    if (d.core.indexOf(id) < 0 && d.frame.indexOf(id) < 0) d.core.push(id);
+  });
+  // then upgrade: swap the weakest mounted for a stronger benched one
+  var bench = r.artifacts.filter(function (id) { return d.core.indexOf(id) < 0 && d.frame.indexOf(id) < 0; });
+  bench.sort(function (a, b) { return tier(b) - tier(a); });
+  bench.forEach(function (id) {
+    if (!d.core.length) return;
+    var worstI = 0;
+    for (var i = 1; i < d.core.length; i++) if (tier(d.core[i]) < tier(d.core[worstI])) worstI = i;
+    if (tier(id) > tier(d.core[worstI])) d.core[worstI] = id;
+  });
+}
+
+// Place any queued engravings. A decent player cuts them where the die actually
+// lands, i.e. inside the Aim band, and keeps face 1 for its own anchor.
+function botPlaceEngravings() {
+  var r = VS.engine.run, d = r && r.die; if (!d || !d.pending || !d.pending.length) return;
+  var aim = (r.cls === 'vanguard') ? (VS.BALANCE.dice.vanguardAim || 0) : 0;
+  var lo = Math.min(20, 2 + aim);
+  var left = [];
+  d.pending.forEach(function (id) {
+    var g = VS.DIE_AUGMENTS[id];
+    var order = [];
+    if (g && g.onlyFace) order = [g.onlyFace];
+    else { for (var f = 20; f >= lo; f--) order.push(f); order.push(1); }
+    var done = false;
+    for (var i = 0; i < order.length && !done; i++) {
+      if (!VS.dieCanEngrave(d, id, order[i])) { VS.dieEngrave(d, id, order[i]); done = true; }
+    }
+    if (!done) left.push(id);
+  });
+  d.pending = left;
+}
+
 function botCombat() {
   var E = VS.engine;
   var guard = 0;
+  botManageDie();
+  botPlaceEngravings();
   while (E.run.phase === 'combat' && guard++ < 400) {
     var c = E.combat;
     if (c.over || aliveIdx().length === 0) break;
@@ -450,6 +495,16 @@ function step() {
       if (r.reward.artifactChoices && r.reward.artifactChoices.length && !r.reward.artifactPicked) {
         var rp = bestRelic(r.reward.artifactChoices);
         if (rp.score > 0) E.takeRewardArtifact(rp.idx);
+      }
+      // take the offered engraving and actually cut it into the die — the face
+      // layer is where the power that used to sit in spare relics now lives
+      if (r.reward.engChoices && r.reward.engChoices.length && !r.reward.engPicked) {
+        var best = null, bestT = -1;
+        r.reward.engChoices.forEach(function (id) {
+          var g = VS.DIE_AUGMENTS[id]; if (!g) return;
+          if ((g.tier || 1) > bestT) { bestT = g.tier || 1; best = id; }
+        });
+        if (best) { E.takeEngraving(best); botPlaceEngravings(); }
       }
       var bi = -1, bs = 0;
       r.reward.cards.forEach(function (cid, i) {
