@@ -1393,5 +1393,52 @@ ok('every remaining class has a starter deck whose cards all exist',
      unreachable.length === 0);
 })();
 
+/* ============ ENGRAVINGS IN HAND =======================================
+ * Holding two engravings used to mean choosing neither: the die screen read
+ * pending[0] and that was the one you placed. The queue is a tray you pick
+ * from now, so the rules it relies on are asserted here — the UI wiring is
+ * checked in the browser, but these are the invariants under it.
+ * ==================================================================== */
+(function () {
+  E.seed(5); E.newRun('vanguard');
+  var die = E.run.die;
+  die.pending = ['ranging_mark', 'ignition_coil', 'executioners_mark'];
+
+  // 1. any of them can be cut, not just the head of the queue
+  var pick = die.pending[2];
+  ok('no engraving is placed yet', Object.keys(die.faces).length === 0);
+  var why = VS.dieCanEngrave(die, pick, 9);
+  ok('the third in hand fits an empty face', why === null);
+  VS.dieEngrave(die, pick, 9);
+  die.pending.splice(2, 1);
+  ok('cutting the third leaves the other two in order',
+     die.pending.length === 2 && die.pending[0] === 'ranging_mark' && die.pending[1] === 'ignition_coil');
+  ok('and the face holds what was actually chosen', VS.dieFaceId(die, 9) === 'executioners_mark');
+
+  // 2. a band takes its whole span, so "which faces fit" is not just "is it bare"
+  var band = VS.dieEngraving('ranging_mark');
+  ok('Ranging Mark is a band', (band.span || 1) === 3);
+  ok('it cannot start where it would run off the die', !!VS.dieCanEngrave(die, 'ranging_mark', 19));
+  ok('nor where its span would overlap something', !!VS.dieCanEngrave(die, 'ranging_mark', 7));
+  VS.dieEngrave(die, 'ranging_mark', 15);
+  ok('placing it covers every face in its span',
+     VS.dieFaceId(die, 15) === 'ranging_mark' && VS.dieFaceId(die, 16) === 'ranging_mark' && VS.dieFaceId(die, 17) === 'ranging_mark');
+
+  // 3. a face-locked engraving has exactly one legal seat, and the tray has to
+  //    be able to say so before the player taps and gets a rejection
+  E.seed(5); E.newRun('vanguard');
+  var d2 = E.run.die, fits = [];
+  for (var f = 1; f <= VS.DIE.faces; f++) if (!VS.dieCanEngrave(d2, 'jam_clearance', f)) fits.push(f);
+  ok('a face-locked engraving reports exactly one legal face (' + fits.join(',') + ')',
+     fits.length === 1 && fits[0] === 1);
+
+  // 4. an engraving with nowhere to go must be reportable rather than silently stuck
+  var d3 = E.run.die;
+  for (var q = 1; q <= VS.DIE.faces; q++) if (!d3.faces[q]) VS.dieEngrave(d3, 'overcharge_cell', q);
+  var room = 0;
+  for (var f2 = 1; f2 <= VS.DIE.faces; f2++) if (!VS.dieCanEngrave(d3, 'ignition_coil', f2)) room++;
+  ok('a full die leaves an engraving with no room, and says so', room === 0);
+})();
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

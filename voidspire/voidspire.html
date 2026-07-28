@@ -1538,14 +1538,50 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .bench-it .bi-icon svg { width: 100%; height: 100%; }
 .bench-it .bi-body { flex: 1 1 auto; min-width: 0; }
 .bench-it .bi-name { display: block; font: 700 9px/1.2 ui-monospace, monospace; letter-spacing: 0.06em; color: #d6ffe4; }
-.bench-it .bi-desc { display: block; font: 600 8px/1.3 ui-monospace, monospace; color: #9bb0a6; margin-top: 2px; }
+.bench-it .bi-desc { display: block; font: 600 8.5px/1.35 ui-monospace, monospace; color: #a8bdb2; margin-top: 2px; }
 .bench-it .bi-cost { flex: 0 0 auto; font: 700 10px/1 ui-monospace, monospace; color: #ffb02e; }
-.bench-it .bi-tier { position: absolute; right: 6px; bottom: 3px; font: 700 7px/1 ui-monospace, monospace; color: #6f8579; }
+.bench-it .bi-tier { position: absolute; right: 6px; bottom: 3px; font: 700 8.5px/1 ui-monospace, monospace; color: #86a094; }
 .bench-it.poor { opacity: 0.45; }
 .bench-it.sold { opacity: 0.32; pointer-events: none; }
 .bench-it.sold .bi-cost { color: #7f9a8b; }
 .bench-it.arming { border-color: #ffb02e; box-shadow: 0 0 12px rgba(255,176,46,0.35); }
 .bench-row { margin-bottom: 8px; }
+
+/* ---- engravings in hand ---------------------------------------------
+   Same object as a bench item, so it reuses that chrome. Cyan rather than
+   amber because these are already yours — nothing is being bought. */
+.pend-tray { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 5px; margin-bottom: 7px; }
+.pend-it {
+  position: relative; display: flex; align-items: center; gap: 7px; text-align: left;
+  background: rgba(8,20,26,0.85); border: 1px solid rgba(65,216,255,0.4); border-radius: 3px;
+  padding: 6px 7px; cursor: pointer;
+}
+.pend-it .bi-icon { flex: 0 0 auto; width: 20px; height: 20px; color: #7fdcff; display: flex; }
+.pend-it .bi-icon svg { width: 100%; height: 100%; }
+.pend-it .bi-body { flex: 1 1 auto; min-width: 0; }
+.pend-it .bi-name { display: block; font: 700 9px/1.2 ui-monospace, monospace; letter-spacing: 0.06em; color: #ddf6ff; }
+.pend-it .bi-desc { display: block; font: 600 8.5px/1.35 ui-monospace, monospace; color: #a2b8c2; margin-top: 2px; }
+.pend-it .bi-tier { position: absolute; right: 6px; bottom: 3px; font: 700 8.5px/1 ui-monospace, monospace; color: #84a0ad; }
+/* the tier badge is absolute, so the description has to leave it room */
+.pend-it .bi-body, .bench-it .bi-body { padding-right: 74px; padding-bottom: 9px; }
+
+/* an uncut engraving is doing nothing — say so from the HUD */
+.die-chip { position: relative; }
+.die-chip.has-pending { border-color: var(--amber); box-shadow: 0 0 10px rgba(255,176,46,0.5); }
+.die-pend-badge {
+  position: absolute; top: -5px; right: -5px; min-width: 13px; height: 13px; padding: 0 2px;
+  border-radius: 999px; background: var(--amber); color: #1a1002;
+  font: 700 9px/13px ui-monospace, monospace; text-align: center;
+  animation: pendPulse 1.8s ease-in-out infinite;
+}
+@keyframes pendPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) { .die-pend-badge { animation: none; } }
+.pend-it.poor { opacity: 0.5; }            /* nowhere left on the die to put it */
+.pend-it.arming { border-color: #ffb02e; box-shadow: 0 0 12px rgba(255,176,46,0.35); }
+
+/* while something is armed, the face list says where it will go */
+.df.fits { border-color: rgba(93,255,136,0.75); box-shadow: inset 0 0 10px rgba(93,255,136,0.14); }
+.df.no-fit { opacity: 0.34; }
 .dm-chip.vault { opacity: 0.55; border-style: dashed; }
 .dm-chip { cursor: pointer; }
 .die-place { color: #ffb02e; font-weight: 700; text-shadow: 0 0 8px rgba(255,176,46,0.7); }
@@ -12181,7 +12217,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // can tap to toggle them on/off; in combat a tap reads its tooltip. Relics
     // with limited uses show a remaining-count badge.
     html += '<div class="artifact-row">';
-    html += '<div class="artifact-chip die-chip" data-die="1" title="Inspect the die">' + dieChipSVG() + '</div>';
+    var waiting = (E.run.die && E.run.die.pending) ? E.run.die.pending.length : 0;
+    html += '<div class="artifact-chip die-chip' + (waiting ? ' has-pending' : '') + '" data-die="1" title="' +
+      (waiting ? waiting + ' engraving' + (waiting > 1 ? 's' : '') + ' waiting to be cut' : 'Inspect the die') + '">' +
+      dieChipSVG() + (waiting ? '<span class="die-pend-badge">' + waiting + '</span>' : '') + '</div>';
     html += '</div>';
     if ((r.pressure || 0) > 0) html += '<span class="hud-press">P' + r.pressure + ' ' + esc(E.pressureName(r.pressure)) + '</span>';
     // Relics live INSIDE the die now — the HUD only shows what is mounted, as a
@@ -12487,11 +12526,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return { label: m.label, crit: false, good: m.mult > 1.02 };
   }
 
-  function dieFaceRowHTML(die, face, reach) {
+  function dieFaceRowHTML(die, face, reach, armedId) {
     var id = ns.dieFaceId(die, face), d = id ? ns.dieEngraving(id) : null;
     var slot = die.faces[face];
     var cont = slot && slot.root !== face;                 // continuation of a band
     var cls = 'df' + (d ? (d.flaw ? ' flaw' : ' aug') : ' bare') + (reach(face) ? '' : ' unreach');
+    // While something is armed, say up-front which faces will take it. A band
+    // that runs off the end of the die, or a face-locked engraving, used to be
+    // discoverable only by tapping and reading a rejection.
+    if (armedId) cls += ns.dieCanEngrave(die, armedId, face) ? ' no-fit' : ' fits';
     var et = dieEndTag(E.run && E.run.cls, face);
     var tag = et ? '<span class="df-tag' + (et.crit || et.good ? ' crit' : '') + '">' + esc(et.label) + '</span>' : '';
     var body = d
@@ -12513,6 +12556,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var bench = !!(opts && opts.bench) && E.benchOpen();
     var back = opts && opts.back;
     var buying = null, moving = null;   // bench: engraving being placed / reseated
+    var armed = null;                   // index into die.pending being placed
     var wasCombat = r.phase === 'combat';
     var sel = 20, pickOpen = false;
     var s = overlayScreen();
@@ -12543,7 +12587,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     function renderAll(spinTo, flair) {
       var a = aim(), rc = reach();
-      var pend = (die.pending && die.pending.length) ? die.pending[0] : null;
+      var queue = die.pending || [];
+      if (armed != null && armed >= queue.length) armed = null;
+      var pend = (armed != null) ? queue[armed] : null;
       var pg = pend ? ns.dieEngraving(pend) : null;
       var buyG = (buying != null && r.shop && r.shop.engravings[buying]) ? ns.dieEngraving(r.shop.engravings[buying].id) : null;
       var moveG = (moving != null && die.faces[moving]) ? ns.dieEngraving(die.faces[moving].id) : null;
@@ -12552,7 +12598,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         : moveG
         ? ('<span class="die-place">MOVING: ' + esc(moveG.name) + ' — TAP A NEW FACE · ¢' + r.credits + '</span>')
         : pg
-        ? ('<span class="die-place">PLACING: ' + esc(pg.name) + ' — TAP A FACE</span>')
+        ? ('<span class="die-place">CUTTING: ' + esc(pg.name) + ' — TAP A FACE IN GREEN</span>')
+        : queue.length
+        ? ('<span class="die-place">' + queue.length + ' ENGRAVING' + (queue.length > 1 ? 'S' : '') + ' WAITING — CHOOSE ONE BELOW</span>')
         : (bench ? '“BRING ME THE DIE.” · ¢' + r.credits + ' — ' : '')
           + (a > 0
           ? ('AIM +' + a + ' — YOU LAND ON ' + Math.min(20, 2 + a) + '–20, PLUS FACE 1 ON A NATURAL 1')
@@ -12562,7 +12610,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       wrap.innerHTML = '';
       [[1, 10], [11, 20]].forEach(function (rng) {
         var col = el('div', 'die-col'), h = '';
-        for (var f = rng[0]; f <= rng[1]; f++) h += dieFaceRowHTML(die, f, rc);
+        for (var f = rng[0]; f <= rng[1]; f++) h += dieFaceRowHTML(die, f, rc, pend);
         col.innerHTML = h;
         wrap.appendChild(col);
       });
@@ -12581,10 +12629,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             if (mw) { toast(mw.toUpperCase(), 1700); return; }
             SFX.coin(); moving = null; sel = f; renderAll(true, true); return;
           }
-          if (pend) {   // placing a freshly-won engraving
+          if (pend) {   // cutting in the engraving the player armed
             var why = ns.dieCanEngrave(die, pend, f);
-            if (why) { toast(why, 1700); return; }
-            ns.dieEngrave(die, pend, f); die.pending.shift(); E.save();
+            if (why) { toast(why.toUpperCase(), 1700); return; }
+            ns.dieEngrave(die, pend, f);
+            die.pending.splice(armed, 1);
+            armed = null;
+            E.save();
             sel = f; renderAll(true, true); return;
           }
           sel = f; renderAll(true, false);
@@ -12604,8 +12655,29 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
       read.innerHTML = dieReadHTML(r.cls, a);
 
-      // ---- the bench (a real shop) ----
+      // ---- engravings in hand -------------------------------------------
+      // These used to be a silent FIFO: the die screen grabbed pending[0] and
+      // you placed that one or nothing. Two engravings meant no choice at all,
+      // and while one was queued every face tap tried to cut rather than
+      // inspect, so you could not even read the die you were changing.
       var h = '';
+      if (queue.length) {
+        h += '<div class="ws-title">IN HAND <span class="ws-note">' + queue.length +
+             ' TO CUT</span></div><div class="pend-tray">';
+        queue.forEach(function (pid, i) {
+          var g = ns.dieEngraving(pid); if (!g) return;
+          var fits = 0;
+          for (var pf = 1; pf <= ns.DIE.faces; pf++) if (!ns.dieCanEngrave(die, pid, pf)) fits++;
+          h += '<button class="pend-it' + (armed === i ? ' arming' : '') + (fits ? '' : ' poor') + '" data-pend="' + i + '">'
+            +  '<span class="bi-icon">' + artSVG(g.art, 'df-icon') + '</span>'
+            +  '<span class="bi-body"><span class="bi-name">' + esc(g.name) + '</span>'
+            +  '<span class="bi-desc">' + esc(g.desc) + '</span></span>'
+            +  '<span class="bi-tier">' + (g.span > 1 ? g.span + ' FACES' : '1 FACE') + ' · '
+            +  (fits ? fits + ' FIT' : 'NO ROOM') + '</span></button>';
+        });
+        h += '</div>';
+        if (armed != null) h += '<div class="ws-hint">TAP A GREEN FACE TO CUT IT IN, OR TAP THE ENGRAVING AGAIN TO PUT IT DOWN.</div>';
+      }
       if (bench) {
         var stock = (r.shop.engravings || []);
         h += '<div class="ws-title">ENGRAVING BENCH <span class="ws-note">¢' + r.credits + '</span></div>';
@@ -12668,13 +12740,22 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         h += '</div>';
       }
       shop.innerHTML = h;
+      shop.querySelectorAll('[data-pend]').forEach(function (b) {
+        b.addEventListener('pointerdown', function (ev) {
+          ev.stopPropagation(); SFX.tap();
+          var i = +b.dataset.pend;
+          armed = (armed === i) ? null : i;   // tapping the armed one puts it down
+          buying = null; moving = null;
+          renderAll(false, false);
+        });
+      });
       shop.querySelectorAll('[data-buy]').forEach(function (b) {
         b.addEventListener('pointerdown', function (ev) {
           ev.stopPropagation(); SFX.tap();
           var i = +b.dataset.buy, it = r.shop.engravings[i];
           if (it.sold) { toast('SOLD OUT', 1400); return; }
           if (r.credits < it.cost) { toast('NOT ENOUGH CREDITS', 1400); return; }
-          buying = (buying === i) ? null : i; moving = null;
+          buying = (buying === i) ? null : i; moving = null; armed = null;
           renderAll(false, false);
         });
       });

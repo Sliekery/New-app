@@ -22,7 +22,8 @@ var CHROME = process.env.CHROME_PATH || '/opt/pw-browsers/chromium-1194/chrome-l
 var PAGE = 'file://' + path.resolve(__dirname, '..', 'voidspire.html');
 
 var TEXT_FLOOR = 8.4;      // below this a condensed mono face stops being readable on a phone
-var SCROLL_SLACK = 520;    // screens legitimately longer than a frame (die screen, codex)
+var SCROLL_SLACK = 520;    // default allowance
+var SLACK = { die: 900, dietray: 900 };   // the face index is a long list on purpose
 
 var VIEWPORTS = [
   ['phone',   390, 844],
@@ -46,6 +47,12 @@ var SCREENS = {
   forge: function () { var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.startNode('forge'); VS.ui.refresh(); },
   treasure: function () { var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.startNode('treasure'); VS.ui.refresh(); },
   die: function () { var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.run.phase = 'map'; VS.ui.refresh(); VS.ui.showDie(); },
+  // the die with a full tray: the longest screen in the game
+  dietray: function () {
+    var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.run.phase = 'map';
+    E.run.die.pending = ['ranging_mark', 'jam_clearance', 'executioners_mark'];
+    VS.ui.refresh(); VS.ui.showDie();
+  },
   sector: function () { var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.run.sector = 2; E.run.phase = 'sector-intro'; VS.ui.refresh(); },
   // turn zero: three offers, each an engraving beside a full-size card
   mark: function () { var E = VS.engine; E.seed(5); E.newRun('technomancer'); VS.ui.refresh(); },
@@ -112,7 +119,7 @@ function probe(floor) {
         else {
           if (r.clipped.length) bad.push('CLIPPED ' + r.clipped.join(','));
           if (r.tiny.length) bad.push('TINY ' + r.tiny.join(','));
-          if (r.over > SCROLL_SLACK) bad.push('OVERFLOW ' + r.over + 'px');
+          if (r.over > (SLACK[key] || SCROLL_SLACK)) bad.push('OVERFLOW ' + r.over + 'px');
         }
         if (bad.length) { fails++; console.log(' FAIL ' + name + '/' + key + ': ' + bad.join(' · ')); }
         else console.log('  ok  ' + name + '/' + key);

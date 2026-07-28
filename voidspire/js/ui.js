@@ -593,7 +593,10 @@
     // can tap to toggle them on/off; in combat a tap reads its tooltip. Relics
     // with limited uses show a remaining-count badge.
     html += '<div class="artifact-row">';
-    html += '<div class="artifact-chip die-chip" data-die="1" title="Inspect the die">' + dieChipSVG() + '</div>';
+    var waiting = (E.run.die && E.run.die.pending) ? E.run.die.pending.length : 0;
+    html += '<div class="artifact-chip die-chip' + (waiting ? ' has-pending' : '') + '" data-die="1" title="' +
+      (waiting ? waiting + ' engraving' + (waiting > 1 ? 's' : '') + ' waiting to be cut' : 'Inspect the die') + '">' +
+      dieChipSVG() + (waiting ? '<span class="die-pend-badge">' + waiting + '</span>' : '') + '</div>';
     html += '</div>';
     if ((r.pressure || 0) > 0) html += '<span class="hud-press">P' + r.pressure + ' ' + esc(E.pressureName(r.pressure)) + '</span>';
     // Relics live INSIDE the die now — the HUD only shows what is mounted, as a
@@ -899,11 +902,15 @@
     return { label: m.label, crit: false, good: m.mult > 1.02 };
   }
 
-  function dieFaceRowHTML(die, face, reach) {
+  function dieFaceRowHTML(die, face, reach, armedId) {
     var id = ns.dieFaceId(die, face), d = id ? ns.dieEngraving(id) : null;
     var slot = die.faces[face];
     var cont = slot && slot.root !== face;                 // continuation of a band
     var cls = 'df' + (d ? (d.flaw ? ' flaw' : ' aug') : ' bare') + (reach(face) ? '' : ' unreach');
+    // While something is armed, say up-front which faces will take it. A band
+    // that runs off the end of the die, or a face-locked engraving, used to be
+    // discoverable only by tapping and reading a rejection.
+    if (armedId) cls += ns.dieCanEngrave(die, armedId, face) ? ' no-fit' : ' fits';
     var et = dieEndTag(E.run && E.run.cls, face);
     var tag = et ? '<span class="df-tag' + (et.crit || et.good ? ' crit' : '') + '">' + esc(et.label) + '</span>' : '';
     var body = d
@@ -925,6 +932,7 @@
     var bench = !!(opts && opts.bench) && E.benchOpen();
     var back = opts && opts.back;
     var buying = null, moving = null;   // bench: engraving being placed / reseated
+    var armed = null;                   // index into die.pending being placed
     var wasCombat = r.phase === 'combat';
     var sel = 20, pickOpen = false;
     var s = overlayScreen();
@@ -955,7 +963,9 @@
 
     function renderAll(spinTo, flair) {
       var a = aim(), rc = reach();
-      var pend = (die.pending && die.pending.length) ? die.pending[0] : null;
+      var queue = die.pending || [];
+      if (armed != null && armed >= queue.length) armed = null;
+      var pend = (armed != null) ? queue[armed] : null;
       var pg = pend ? ns.dieEngraving(pend) : null;
       var buyG = (buying != null && r.shop && r.shop.engravings[buying]) ? ns.dieEngraving(r.shop.engravings[buying].id) : null;
       var moveG = (moving != null && die.faces[moving]) ? ns.dieEngraving(die.faces[moving].id) : null;
@@ -964,7 +974,9 @@
         : moveG
         ? ('<span class="die-place">MOVING: ' + esc(moveG.name) + ' — TAP A NEW FACE · ¢' + r.credits + '</span>')
         : pg
-        ? ('<span class="die-place">PLACING: ' + esc(pg.name) + ' — TAP A FACE</span>')
+        ? ('<span class="die-place">CUTTING: ' + esc(pg.name) + ' — TAP A FACE IN GREEN</span>')
+        : queue.length
+        ? ('<span class="die-place">' + queue.length + ' ENGRAVING' + (queue.length > 1 ? 'S' : '') + ' WAITING — CHOOSE ONE BELOW</span>')
         : (bench ? '“BRING ME THE DIE.” · ¢' + r.credits + ' — ' : '')
           + (a > 0
           ? ('AIM +' + a + ' — YOU LAND ON ' + Math.min(20, 2 + a) + '–20, PLUS FACE 1 ON A NATURAL 1')
@@ -974,7 +986,7 @@
       wrap.innerHTML = '';
       [[1, 10], [11, 20]].forEach(function (rng) {
         var col = el('div', 'die-col'), h = '';
-        for (var f = rng[0]; f <= rng[1]; f++) h += dieFaceRowHTML(die, f, rc);
+        for (var f = rng[0]; f <= rng[1]; f++) h += dieFaceRowHTML(die, f, rc, pend);
         col.innerHTML = h;
         wrap.appendChild(col);
       });
@@ -993,10 +1005,13 @@
             if (mw) { toast(mw.toUpperCase(), 1700); return; }
             SFX.coin(); moving = null; sel = f; renderAll(true, true); return;
           }
-          if (pend) {   // placing a freshly-won engraving
+          if (pend) {   // cutting in the engraving the player armed
             var why = ns.dieCanEngrave(die, pend, f);
-            if (why) { toast(why, 1700); return; }
-            ns.dieEngrave(die, pend, f); die.pending.shift(); E.save();
+            if (why) { toast(why.toUpperCase(), 1700); return; }
+            ns.dieEngrave(die, pend, f);
+            die.pending.splice(armed, 1);
+            armed = null;
+            E.save();
             sel = f; renderAll(true, true); return;
           }
           sel = f; renderAll(true, false);
@@ -1016,8 +1031,29 @@
 
       read.innerHTML = dieReadHTML(r.cls, a);
 
-      // ---- the bench (a real shop) ----
+      // ---- engravings in hand -------------------------------------------
+      // These used to be a silent FIFO: the die screen grabbed pending[0] and
+      // you placed that one or nothing. Two engravings meant no choice at all,
+      // and while one was queued every face tap tried to cut rather than
+      // inspect, so you could not even read the die you were changing.
       var h = '';
+      if (queue.length) {
+        h += '<div class="ws-title">IN HAND <span class="ws-note">' + queue.length +
+             ' TO CUT</span></div><div class="pend-tray">';
+        queue.forEach(function (pid, i) {
+          var g = ns.dieEngraving(pid); if (!g) return;
+          var fits = 0;
+          for (var pf = 1; pf <= ns.DIE.faces; pf++) if (!ns.dieCanEngrave(die, pid, pf)) fits++;
+          h += '<button class="pend-it' + (armed === i ? ' arming' : '') + (fits ? '' : ' poor') + '" data-pend="' + i + '">'
+            +  '<span class="bi-icon">' + artSVG(g.art, 'df-icon') + '</span>'
+            +  '<span class="bi-body"><span class="bi-name">' + esc(g.name) + '</span>'
+            +  '<span class="bi-desc">' + esc(g.desc) + '</span></span>'
+            +  '<span class="bi-tier">' + (g.span > 1 ? g.span + ' FACES' : '1 FACE') + ' · '
+            +  (fits ? fits + ' FIT' : 'NO ROOM') + '</span></button>';
+        });
+        h += '</div>';
+        if (armed != null) h += '<div class="ws-hint">TAP A GREEN FACE TO CUT IT IN, OR TAP THE ENGRAVING AGAIN TO PUT IT DOWN.</div>';
+      }
       if (bench) {
         var stock = (r.shop.engravings || []);
         h += '<div class="ws-title">ENGRAVING BENCH <span class="ws-note">¢' + r.credits + '</span></div>';
@@ -1080,13 +1116,22 @@
         h += '</div>';
       }
       shop.innerHTML = h;
+      shop.querySelectorAll('[data-pend]').forEach(function (b) {
+        b.addEventListener('pointerdown', function (ev) {
+          ev.stopPropagation(); SFX.tap();
+          var i = +b.dataset.pend;
+          armed = (armed === i) ? null : i;   // tapping the armed one puts it down
+          buying = null; moving = null;
+          renderAll(false, false);
+        });
+      });
       shop.querySelectorAll('[data-buy]').forEach(function (b) {
         b.addEventListener('pointerdown', function (ev) {
           ev.stopPropagation(); SFX.tap();
           var i = +b.dataset.buy, it = r.shop.engravings[i];
           if (it.sold) { toast('SOLD OUT', 1400); return; }
           if (r.credits < it.cost) { toast('NOT ENOUGH CREDITS', 1400); return; }
-          buying = (buying === i) ? null : i; moving = null;
+          buying = (buying === i) ? null : i; moving = null; armed = null;
           renderAll(false, false);
         });
       });
