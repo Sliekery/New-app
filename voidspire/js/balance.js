@@ -83,10 +83,14 @@
       // a Final Approach that ends on a guaranteed rest before the boss.
       act1End: 3,          // rows 1..act1End  = Approach (fights/events only)
       act2End: 8,          // rows act1End+1..act2End = The Push (elites/shops/forges...)
+      // NODE DIET: 11 types -> 7. `market` folded into `shop`, `rift` cut (its
+      // "boon with a price" is what events already do), `treasure` made rare so a
+      // free relic is an event rather than routine. Combat pushed to ~60% of the
+      // map, in line with the genre, so rewards are things you fought for.
       actWeights: {
-        approach: { fight: 62, event: 16, rift: 8, treasure: 8 },
-        push:     { fight: 26, event: 9,  random: 6, elite: 15, beacon: 8, shop: 9, market: 5, rest: 8, forge: 7, rift: 4, treasure: 4 },
-        final:    { fight: 36, event: 11, random: 6, shop: 8, market: 4, rest: 11, elite: 6, forge: 7, rift: 3, treasure: 6 },
+        approach: { fight: 66, event: 18, treasure: 4, rest: 6 },
+        push:     { fight: 34, elite: 18, beacon: 7, event: 14, shop: 8, rest: 10, forge: 6, treasure: 3 },
+        final:    { fight: 40, elite: 10, event: 14, shop: 8, rest: 14, forge: 7, treasure: 3 },
       },
       restBeforeBoss: true, // the top content row is always a rest (catch your breath)
     },

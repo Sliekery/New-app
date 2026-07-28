@@ -48,6 +48,7 @@
   E.newRun = function (clsId) {
     var c = B.classes[clsId];
     var deck = ns.STARTER_DECKS[clsId].map(function (id) { return mkCard(id, false); });
+    var fac = pick(Object.keys(ns.FACTIONS));
     E.run = {
       cls: clsId,
       hp: c.hp, maxHp: c.hp,
@@ -56,10 +57,11 @@
       deck: deck,
       artifacts: [],
       die: ns.newDie(),    // THE AUGMENTED DIE: faces / core / frame
+      bossOrder: shuffle((ns.BOSSES[fac] || []).slice()),   // no sector boss repeats in a run
       relicOff: {},        // relics switched off (toggled on the star chart)
       relicUses: {},       // remaining durability for relics that have it
       sector: 1,
-      faction: pick(Object.keys(ns.FACTIONS)),
+      faction: fac,
       map: null,
       mapRow: -1, mapCol: 0,
       phase: 'none',
@@ -370,7 +372,8 @@
     var r = E.run;
     if ((r.loop || 1) === B.run.heartLoop) return E.counterBossId(r);
     if (r.sector === B.run.finale) return ns.FINAL_BOSS;
-    return ns.BOSSES[r.faction];
+    var order = r.bossOrder && r.bossOrder.length ? r.bossOrder : [].concat(ns.BOSSES[r.faction]);
+    return order[(r.sector - 1) % order.length];
   };
   E.sectorBossName = function () { var d = ns.ENEMIES[E.sectorBossId()]; return d ? d.name : 'SECTOR BOSS'; };
 
@@ -698,9 +701,10 @@
     if (kind === 'boss') {
       if ((r.loop || 1) === B.run.heartLoop) { ids = [E.counterBossId(r)]; isFinal = true; }
       else if (r.sector === B.run.finale) { ids = [ns.FINAL_BOSS]; isFinal = true; }
-      else ids = [ns.BOSSES[r.faction]];
+      else ids = [E.sectorBossId()];
     } else if (kind === 'elite' || kind === 'beacon') {
-      ids = [ns.ELITES[r.faction]];
+      var epool = [].concat(ns.ELITES[r.faction]);
+      ids = [pick(epool)];
       if (r.sector >= 3 && rnd() < B.sector.eliteChance2Enemies) ids.push(ns.ELITE_MINIONS[r.faction]);
     } else {
       var packs = ns.PACKS[r.faction];
@@ -708,12 +712,12 @@
       // (the new-mechanic enemies, slots 4+) are held back until sector 2+ so
       // sector 1 stays a gentle on-ramp.
       var prog = Math.min(1, r.mapRow / Math.max(1, B.map.rows - 1));
-      var hi = (r.sector <= 1) ? 4 : packs.length;
+      var hi = (r.sector <= 1) ? 6 : packs.length;
       // cap lo at hi-4 so the window stays 4 packs wide instead of collapsing to
       // a single pack near the top of a sector (which flooded sector 1 with the
       // swarm pack and made late-sector fights monotonous).
-      var lo = Math.max(0, Math.min(Math.floor(prog * (packs.length - 3)), hi - 4));
-      ids = pick(packs.slice(lo, Math.min(hi, lo + 4))).slice();
+      var lo = Math.max(0, Math.min(Math.floor(prog * (packs.length - 5)), hi - 6));
+      ids = pick(packs.slice(lo, Math.min(hi, lo + 6))).slice();
       // Sector 1 only: add a fodder minion so hallway fights bite even with
       // perfect blocking (more simultaneous telegraph than one block can cover).
       // The very first fight stays gentle as a tutorial; no bleed into sector 2+.
@@ -989,6 +993,7 @@
     if (m.t === 'ds_fuse') return { icon: 'fuse', label: scaledDmg(m.d, s) + ' in ' + m.fuse };
     if (m.t === 'debuff') return { icon: 'debuff', label: '' };
     if (m.t === 'curse') return { icon: 'curse', label: '' };
+    if (m.t === 'etch') return { icon: 'corrupt', label: 'ETCH' };
     if (m.t === 'unmake') return { icon: 'unmake', label: '' };
     return { icon: '?', label: '' };
   };
@@ -2162,6 +2167,21 @@
           stripped++;
         }
         if (stripped === 0) { c.discard.push(mkCard('void_taint', false)); emit('curse', { idx: idx, card: 'void_taint' }); }
+      } else if (m.t === 'etch') {
+        // WARP ETCHER: scars your die. A Flaw takes a face — and denies you the slot.
+        var dieR = r.die;
+        if (dieR) {
+          var flawIds = Object.keys(ns.DIE_FLAWS || {});
+          var freeF = [];
+          for (var ef = 1; ef <= (ns.DIE.faces || 20); ef++) if (!dieR.faces[ef]) freeF.push(ef);
+          if (flawIds.length && freeF.length) {
+            var fid = pick(flawIds), ff = pick(freeF);
+            ns.dieEngrave(dieR, fid, ff);
+            emit('etch', { idx: idx, id: fid, face: ff, name: (ns.DIE_FLAWS[fid] || {}).name || fid });
+          } else {   // nowhere left to cut — it just hurts you instead
+            hurtPlayer(scaledDmg(8, s));
+          }
+        }
       } else if (m.t === 'unmake') {
         // THE UNMAKER's signature: erase your defences, jam your deck, knit itself
         if (p.block > 0) { p.block = 0; emit('block', { who: 'player', amount: 0, blockAfter: 0 }); }
@@ -2408,7 +2428,11 @@
     }
     // Elites offer a pick-1-of-2 relic (chosen on the reward screen); beacons no
     // longer hand out a relic (they keep their colorless-card payoff).
-    var artifactChoices = (kind === 'elite') ? randomArtifactChoices(1, 2) : [];
+    // Rewards come from the fights that earn them: elites offer a pick of two,
+    // and bosses now drop a pick of two TIER-2 relics (they previously dropped
+    // none, which is why cutting the free-relic nodes hurt so much).
+    var artifactChoices = (kind === 'elite') ? randomArtifactChoices(1, 2)
+                        : (kind === 'boss') ? randomArtifactChoices(2, 2) : [];
     var artifactDrop = null;   // no auto-grant; picked from artifactChoices
     // The Unmaker's Tithe: an extra relic from every elite & boss
     var bonusArtifact = null;

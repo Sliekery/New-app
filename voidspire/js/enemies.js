@@ -519,26 +519,217 @@
   ns.FINAL_BOSS = 'unmaker';
 
   /* ---- Encounter packs per faction, ordered easy -> hard --------------- */
+
+  /* ================= EXPANDED ROSTER ==================================
+   * Three elites and three bosses per faction so neither ever repeats in a
+   * run. Each one leans on a different player archetype rather than just
+   * carrying bigger numbers.
+   * =================================================================== */
+
+  /* ---- HIERARCHY ---- */
+  ns.ENEMIES.arch_confessor = {
+    name: 'ARCH-CONFESSOR VELM', faction: 'hierarchy', hp: 88, size: 1.3, boss: true, ai: 'cycle',
+    discipline: { cards: 3, dmg: 11 },        // punishes dumping your hand
+    moves: [
+      { t: 'debuff', s: 'vuln', v: 2 }, { t: 'attack', d: 12 },
+      { t: 'curse', card: 'void_taint' }, { t: 'attack', d: 7, hits: 2 },
+      { t: 'block', b: 12 }, { t: 'attack', d: 17 },
+    ],
+    art: { p: [[0,-0.86, 0.3,-0.6, 0.24,-0.3, -0.24,-0.3, -0.3,-0.6, 0,-0.86],
+               [-0.18,-0.56, 0.18,-0.56],
+               [-0.34,-0.26, 0.34,-0.26, 0.46,0.34, 0.3,0.8, -0.3,0.8, -0.46,0.34, -0.34,-0.26],
+               [0,-0.26, 0,0.8], [-0.34,0.06, 0.34,0.06],
+               [-0.46,0.1, -0.72,-0.1], [0.46,0.1, 0.72,-0.1],
+               [0,-0.86, 0,-1.06], [-0.14,-0.98, 0.14,-0.98]],
+           e: [[-0.09,-0.62], [0.09,-0.62]] },
+  };
+  ns.ENEMIES.saint_kaleth = {
+    name: 'SAINT KA’LETH', faction: 'hierarchy', hp: 84, size: 1.3, boss: true, ai: 'cycle',
+    cleanse: true, rampStr: 2,                // burns off your afflictions and grows
+    moves: [
+      { t: 'buff', s: 'str', v: 2 }, { t: 'attack', d: 10, hits: 2 },
+      { t: 'heal', v: 10 }, { t: 'attack', d: 15 },
+      { t: 'debuff', s: 'weak', v: 2 }, { t: 'attack', d: 19 },
+    ],
+    art: { p: [[0,-0.92, 0.26,-0.66, 0.2,-0.34, -0.2,-0.34, -0.26,-0.66, 0,-0.92],
+               [-0.4,-0.3, 0.4,-0.3, 0.34,0.5, 0,0.82, -0.34,0.5, -0.4,-0.3],
+               [0,-0.34, 0,0.82],
+               [-0.62,-0.5, -0.3,-0.36], [0.62,-0.5, 0.3,-0.36],
+               [-0.72,-0.64, -0.62,-0.5, -0.72,-0.36], [0.72,-0.64, 0.62,-0.5, 0.72,-0.36],
+               [-0.2,-0.06, 0.2,-0.06], [-0.14,0.24, 0.14,0.24]],
+           e: [[0,-0.62]] },
+  };
+  ns.ENEMIES.inquisitor = {
+    name: 'Inquisitor', faction: 'hierarchy', hp: 46, size: 1, elite: true, ai: 'cycle',
+    thorns: 3,
+    moves: [
+      { t: 'debuff', s: 'weak', v: 2 }, { t: 'attack', d: 11 },
+      { t: 'debuff', s: 'vuln', v: 2 }, { t: 'attack', d: 6, hits: 2 },
+    ],
+    art: { p: [[0,-0.7, 0.22,-0.5, 0.16,-0.22, -0.16,-0.22, -0.22,-0.5, 0,-0.7],
+               [-0.3,-0.18, 0.3,-0.18, 0.38,0.36, 0.22,0.7, -0.22,0.7, -0.38,0.36, -0.3,-0.18],
+               [-0.38,0.0, -0.66,0.24], [0.38,0.0, 0.66,0.24],
+               [0,-0.18, 0,0.7]],
+           e: [[-0.08,-0.46], [0.08,-0.46]] },
+  };
+  ns.ENEMIES.choir_adept = {
+    name: 'Choir Adept', faction: 'hierarchy', hp: 44, size: 1, elite: true, ai: 'cycle',
+    moves: [
+      { t: 'summon', id: 'drone_skirmisher', n: 1 }, { t: 'attack', d: 9 },
+      { t: 'guard', v: 9 }, { t: 'attack', d: 5, hits: 2 },
+    ],
+    art: { p: [[0,-0.72, 0.24,-0.48, 0.18,-0.2, -0.18,-0.2, -0.24,-0.48, 0,-0.72],
+               [-0.32,-0.16, 0.32,-0.16, 0.28,0.66, -0.28,0.66, -0.32,-0.16],
+               [-0.32,0.06, -0.62,-0.14], [0.32,0.06, 0.62,-0.14],
+               [-0.16,0.22, 0.16,0.22], [0,-0.72, 0,-0.9]],
+           e: [[0,-0.46]] },
+  };
+
+  /* ---- RUST ---- */
+  ns.ENEMIES.overseer_prime = {
+    name: 'OVERSEER PRIME', faction: 'rust', hp: 96, size: 1.35, boss: true, grounded: true, ai: 'cycle',
+    plated: true,                              // soaks the first hit each turn
+    moves: [
+      { t: 'block', b: 16 }, { t: 'attack', d: 14 },
+      { t: 'summon', id: 'scrap_hound', n: 1 }, { t: 'attack', d: 8, hits: 2 },
+      { t: 'debuff', s: 'weak', v: 2 }, { t: 'attack', d: 20 },
+    ],
+    art: { p: [[-0.5,-0.5, 0.5,-0.5, 0.6,0.1, 0.44,0.72, -0.44,0.72, -0.6,0.1, -0.5,-0.5],
+               [-0.28,-0.5, -0.28,-0.76, 0.28,-0.76, 0.28,-0.5],
+               [-0.34,-0.28, 0.34,-0.28], [-0.4,0.04, 0.4,0.04], [-0.36,0.36, 0.36,0.36],
+               [-0.6,-0.2, -0.86,-0.02], [0.6,-0.2, 0.86,-0.02],
+               [-0.16,-0.76, -0.16,-0.94], [0.16,-0.76, 0.16,-0.94]],
+           e: [[-0.14,-0.63], [0.14,-0.63]] },
+  };
+  ns.ENEMIES.scrap_leviathan = {
+    name: 'THE SCRAP LEVIATHAN', faction: 'rust', hp: 100, size: 1.4, boss: true, grounded: true, ai: 'cycle',
+    charge: { turns: 2, dmg: 34 },             // winds up a hit you must race or eat
+    overload: 12,                              // detonates when it dies
+    moves: [
+      { t: 'attack', d: 12 }, { t: 'block', b: 14 },
+      { t: 'attack', d: 7, hits: 3 }, { t: 'heal', v: 8 },
+    ],
+    art: { p: [[-0.72,-0.3, 0.72,-0.3, 0.86,0.2, 0.6,0.76, -0.6,0.76, -0.86,0.2, -0.72,-0.3],
+               [-0.4,-0.3, -0.34,-0.62, 0.34,-0.62, 0.4,-0.3],
+               [-0.5,0.0, 0.5,0.0], [-0.54,0.36, 0.54,0.36],
+               [-0.2,-0.62, -0.2,-0.86], [0.2,-0.62, 0.2,-0.86],
+               [-0.86,0.06, -1.02,-0.14], [0.86,0.06, 1.02,-0.14]],
+           e: [[-0.18,-0.46], [0.18,-0.46]] },
+  };
+  ns.ENEMIES.rust_ogre = {
+    name: 'Rust Ogre', faction: 'rust', hp: 54, size: 1.1, elite: true, grounded: true, ai: 'cycle',
+    thorns: 4, enrage: 2,
+    moves: [
+      { t: 'attack', d: 14 }, { t: 'buff', s: 'str', v: 2 },
+      { t: 'attack', d: 9, hits: 2 }, { t: 'block', b: 8 },
+    ],
+    art: { p: [[-0.44,-0.34, 0.44,-0.34, 0.52,0.2, 0.36,0.68, -0.36,0.68, -0.52,0.2, -0.44,-0.34],
+               [-0.24,-0.34, -0.2,-0.62, 0.2,-0.62, 0.24,-0.34],
+               [-0.3,-0.06, 0.3,-0.06],
+               [-0.52,-0.1, -0.78,0.12], [0.52,-0.1, 0.78,0.12],
+               [-0.3,0.3, -0.16,0.5], [0.3,0.3, 0.16,0.5]],
+           e: [[-0.12,-0.48], [0.12,-0.48]] },
+  };
+  ns.ENEMIES.salvage_crawler = {
+    name: 'Salvage Crawler', faction: 'rust', hp: 50, size: 1.05, elite: true, grounded: true, ai: 'cycle',
+    plated: true,
+    moves: [
+      { t: 'block', b: 11 }, { t: 'attack', d: 10 },
+      { t: 'attack', d: 5, hits: 3 }, { t: 'debuff', s: 'weak', v: 2 },
+    ],
+    art: { p: [[-0.5,-0.2, 0.5,-0.2, 0.56,0.24, 0.3,0.6, -0.3,0.6, -0.56,0.24, -0.5,-0.2],
+               [-0.26,-0.2, -0.22,-0.46, 0.22,-0.46, 0.26,-0.2],
+               [-0.36,0.1, 0.36,0.1],
+               [-0.56,0.1, -0.84,0.3], [0.56,0.1, 0.84,0.3],
+               [-0.5,-0.1, -0.76,-0.28], [0.5,-0.1, 0.76,-0.28]],
+           e: [[0,-0.33]] },
+  };
+
+  /* ---- VOIDSPAWN ---- */
+  ns.ENEMIES.the_maw = {
+    name: 'THE MAW', faction: 'voidspawn', hp: 86, size: 1.35, boss: true, ai: 'cycle',
+    absorb: { threshold: 14, card: 'void_swarm' },   // caps big hits and jams your deck
+    regen: 3,
+    moves: [
+      { t: 'drain', d: 11 }, { t: 'attack', d: 8, hits: 2 },
+      { t: 'debuff', s: 'vuln', v: 2 }, { t: 'attack', d: 16 },
+      { t: 'summon', id: 'void_larva', n: 2 },
+    ],
+    art: { p: [[0,-0.8, 0.56,-0.4, 0.7,0.2, 0.36,0.74, -0.36,0.74, -0.7,0.2, -0.56,-0.4, 0,-0.8],
+               [-0.42,-0.1, 0.42,-0.1], [-0.34,0.16, 0.34,0.16], [-0.24,0.42, 0.24,0.42],
+               [-0.2,-0.1, -0.12,0.16], [0.2,-0.1, 0.12,0.16],
+               [-0.56,-0.4, -0.78,-0.62], [0.56,-0.4, 0.78,-0.62]],
+           e: [[-0.22,-0.44], [0.22,-0.44]] },
+  };
+  ns.ENEMIES.nullifier = {
+    name: 'THE NULLIFIER', faction: 'voidspawn', hp: 82, size: 1.3, boss: true, ai: 'cycle',
+    cleanse: true,
+    moves: [
+      { t: 'disrupt', n: 1 }, { t: 'attack', d: 13 },
+      { t: 'curse', card: 'void_taint' }, { t: 'attack', d: 6, hits: 3 },
+      { t: 'disrupt', n: 2 }, { t: 'attack', d: 18 },
+    ],
+    art: { p: [[0,-0.84, 0.5,-0.3, 0.5,0.3, 0,0.84, -0.5,0.3, -0.5,-0.3, 0,-0.84],
+               [0,-0.5, 0.28,-0.18, 0.28,0.18, 0,0.5, -0.28,0.18, -0.28,-0.18, 0,-0.5],
+               [-0.5,-0.3, 0.5,0.3], [0.5,-0.3, -0.5,0.3],
+               [-0.72,0, -0.5,0], [0.72,0, 0.5,0]],
+           e: [[0,0]] },
+  };
+  ns.ENEMIES.warp_etcher = {
+    name: 'Warp Etcher', faction: 'voidspawn', hp: 46, size: 1.05, elite: true, ai: 'cycle',
+    moves: [
+      { t: 'attack', d: 9 }, { t: 'etch' },          // scars your die with a Flaw
+      { t: 'attack', d: 5, hits: 2 }, { t: 'debuff', s: 'vuln', v: 2 },
+    ],
+    art: { p: [[0,-0.74, 0.34,-0.36, 0.26,0.14, -0.26,0.14, -0.34,-0.36, 0,-0.74],
+               [-0.26,0.14, -0.34,0.66], [0.26,0.14, 0.34,0.66], [0,0.14, 0,0.72],
+               [-0.34,-0.36, -0.7,-0.56], [0.34,-0.36, 0.7,-0.56],
+               [-0.7,-0.56, -0.78,-0.34], [0.7,-0.56, 0.78,-0.34],
+               [-0.16,-0.5, 0.16,-0.5]],
+           e: [[-0.1,-0.36], [0.1,-0.36]] },
+  };
+  ns.ENEMIES.void_priest = {
+    name: 'Void Priest', faction: 'voidspawn', hp: 48, size: 1, elite: true, ai: 'cycle',
+    regen: 3,
+    moves: [
+      { t: 'curse', card: 'void_taint' }, { t: 'attack', d: 10 },
+      { t: 'heal', v: 8, all: true }, { t: 'attack', d: 6, hits: 2 },
+    ],
+    art: { p: [[0,-0.78, 0.26,-0.5, 0.2,-0.2, -0.2,-0.2, -0.26,-0.5, 0,-0.78],
+               [-0.34,-0.16, 0.34,-0.16, 0.3,0.68, -0.3,0.68, -0.34,-0.16],
+               [-0.34,0.1, -0.66,-0.12], [0.34,0.1, 0.66,-0.12],
+               [0,-0.2, 0,0.68], [-0.18,0.3, 0.18,0.3]],
+           e: [[0,-0.5]] },
+  };
+
   ns.PACKS = {
     hierarchy: [
       ['drone_skirmisher', 'drone_skirmisher'],
       ['zealot_warrior'],
       ['plasma_acolyte', 'drone_skirmisher'],
+      ['plasma_acolyte', 'plasma_acolyte'],
       ['zealot_warrior', 'drone_skirmisher'],
       ['jammer', 'drone_skirmisher'],
+      ['jammer', 'zealot_warrior'],
       ['iron_zealot', 'drone_skirmisher'],
+      ['iron_zealot', 'plasma_acolyte', 'drone_skirmisher'],
       ['dominus', 'zealot_warrior'],
+      ['dominus', 'drone_skirmisher', 'drone_skirmisher'],
       ['dominus', 'iron_zealot', 'drone_skirmisher'],
     ],
     rust: [
       ['scrap_hound', 'scrap_hound'],
       ['rust_cultist', 'scrap_hound'],
       ['forge_walker'],
+      ['rust_cultist', 'rust_cultist', 'scrap_hound'],
       ['swarm_core', 'swarm_drone'],
       ['forge_walker', 'scrap_hound'],
+      ['swarm_core', 'swarm_drone', 'swarm_drone'],
       ['drop_ship'],
       ['siege_walker'],
+      ['siege_walker', 'scrap_hound'],
       ['rust_sentinel', 'scrap_hound'],
+      ['forge_acolyte', 'scrap_hound'],
       ['forge_acolyte', 'forge_walker'],
       ['rust_sentinel', 'forge_acolyte', 'scrap_hound'],
     ],
@@ -546,19 +737,32 @@
       ['void_larva', 'void_larva', 'void_larva'],
       ['husk_stalker'],
       ['husk_stalker', 'void_larva'],
+      ['voidling', 'voidling', 'void_larva'],
       ['psy_wraith', 'void_larva'],
       ['husk_stalker', 'voidling', 'voidling'],
       ['void_drone', 'void_larva'],
+      ['void_drone', 'voidling', 'void_larva'],
       ['void_shard', 'void_larva'],
+      ['psy_wraith', 'husk_stalker'],
       ['brood_maw', 'void_larva'],
+      ['brood_maw', 'psy_wraith'],
       ['revenant', 'husk_stalker'],
       ['psy_wraith', 'revenant', 'void_larva'],
       ['void_gaze', 'gaze_eye', 'gaze_eye', 'gaze_eye'],
     ],
   };
 
-  ns.ELITES = { hierarchy: 'honor_guard', rust: 'iron_butcher', voidspawn: 'abyss_horror' };
-  ns.BOSSES = { hierarchy: 'hierophant', rust: 'forge_tyrant', voidspawn: 'devourer' };
+  // Three of each per faction so neither an elite nor a boss repeats in a run.
+  ns.ELITES = {
+    hierarchy: ['honor_guard', 'inquisitor', 'choir_adept'],
+    rust:      ['iron_butcher', 'rust_ogre', 'salvage_crawler'],
+    voidspawn: ['abyss_horror', 'warp_etcher', 'void_priest'],
+  };
+  ns.BOSSES = {
+    hierarchy: ['hierophant', 'arch_confessor', 'saint_kaleth'],
+    rust:      ['forge_tyrant', 'overseer_prime', 'scrap_leviathan'],
+    voidspawn: ['devourer', 'the_maw', 'nullifier'],
+  };
   ns.ELITE_MINIONS = { hierarchy: 'drone_skirmisher', rust: 'scrap_hound', voidspawn: 'void_larva' };
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));

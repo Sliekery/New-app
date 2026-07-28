@@ -1453,10 +1453,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // a Final Approach that ends on a guaranteed rest before the boss.
       act1End: 3,          // rows 1..act1End  = Approach (fights/events only)
       act2End: 8,          // rows act1End+1..act2End = The Push (elites/shops/forges...)
+      // NODE DIET: 11 types -> 7. `market` folded into `shop`, `rift` cut (its
+      // "boon with a price" is what events already do), `treasure` made rare so a
+      // free relic is an event rather than routine. Combat pushed to ~60% of the
+      // map, in line with the genre, so rewards are things you fought for.
       actWeights: {
-        approach: { fight: 62, event: 16, rift: 8, treasure: 8 },
-        push:     { fight: 26, event: 9,  random: 6, elite: 15, beacon: 8, shop: 9, market: 5, rest: 8, forge: 7, rift: 4, treasure: 4 },
-        final:    { fight: 36, event: 11, random: 6, shop: 8, market: 4, rest: 11, elite: 6, forge: 7, rift: 3, treasure: 6 },
+        approach: { fight: 66, event: 18, treasure: 4, rest: 6 },
+        push:     { fight: 34, elite: 18, beacon: 7, event: 14, shop: 8, rest: 10, forge: 6, treasure: 3 },
+        final:    { fight: 40, elite: 10, event: 14, shop: 8, rest: 14, forge: 7, treasure: 3 },
       },
       restBeforeBoss: true, // the top content row is always a rest (catch your breath)
     },
@@ -4580,26 +4584,217 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   ns.FINAL_BOSS = 'unmaker';
 
   /* ---- Encounter packs per faction, ordered easy -> hard --------------- */
+
+  /* ================= EXPANDED ROSTER ==================================
+   * Three elites and three bosses per faction so neither ever repeats in a
+   * run. Each one leans on a different player archetype rather than just
+   * carrying bigger numbers.
+   * =================================================================== */
+
+  /* ---- HIERARCHY ---- */
+  ns.ENEMIES.arch_confessor = {
+    name: 'ARCH-CONFESSOR VELM', faction: 'hierarchy', hp: 88, size: 1.3, boss: true, ai: 'cycle',
+    discipline: { cards: 3, dmg: 11 },        // punishes dumping your hand
+    moves: [
+      { t: 'debuff', s: 'vuln', v: 2 }, { t: 'attack', d: 12 },
+      { t: 'curse', card: 'void_taint' }, { t: 'attack', d: 7, hits: 2 },
+      { t: 'block', b: 12 }, { t: 'attack', d: 17 },
+    ],
+    art: { p: [[0,-0.86, 0.3,-0.6, 0.24,-0.3, -0.24,-0.3, -0.3,-0.6, 0,-0.86],
+               [-0.18,-0.56, 0.18,-0.56],
+               [-0.34,-0.26, 0.34,-0.26, 0.46,0.34, 0.3,0.8, -0.3,0.8, -0.46,0.34, -0.34,-0.26],
+               [0,-0.26, 0,0.8], [-0.34,0.06, 0.34,0.06],
+               [-0.46,0.1, -0.72,-0.1], [0.46,0.1, 0.72,-0.1],
+               [0,-0.86, 0,-1.06], [-0.14,-0.98, 0.14,-0.98]],
+           e: [[-0.09,-0.62], [0.09,-0.62]] },
+  };
+  ns.ENEMIES.saint_kaleth = {
+    name: 'SAINT KA’LETH', faction: 'hierarchy', hp: 84, size: 1.3, boss: true, ai: 'cycle',
+    cleanse: true, rampStr: 2,                // burns off your afflictions and grows
+    moves: [
+      { t: 'buff', s: 'str', v: 2 }, { t: 'attack', d: 10, hits: 2 },
+      { t: 'heal', v: 10 }, { t: 'attack', d: 15 },
+      { t: 'debuff', s: 'weak', v: 2 }, { t: 'attack', d: 19 },
+    ],
+    art: { p: [[0,-0.92, 0.26,-0.66, 0.2,-0.34, -0.2,-0.34, -0.26,-0.66, 0,-0.92],
+               [-0.4,-0.3, 0.4,-0.3, 0.34,0.5, 0,0.82, -0.34,0.5, -0.4,-0.3],
+               [0,-0.34, 0,0.82],
+               [-0.62,-0.5, -0.3,-0.36], [0.62,-0.5, 0.3,-0.36],
+               [-0.72,-0.64, -0.62,-0.5, -0.72,-0.36], [0.72,-0.64, 0.62,-0.5, 0.72,-0.36],
+               [-0.2,-0.06, 0.2,-0.06], [-0.14,0.24, 0.14,0.24]],
+           e: [[0,-0.62]] },
+  };
+  ns.ENEMIES.inquisitor = {
+    name: 'Inquisitor', faction: 'hierarchy', hp: 46, size: 1, elite: true, ai: 'cycle',
+    thorns: 3,
+    moves: [
+      { t: 'debuff', s: 'weak', v: 2 }, { t: 'attack', d: 11 },
+      { t: 'debuff', s: 'vuln', v: 2 }, { t: 'attack', d: 6, hits: 2 },
+    ],
+    art: { p: [[0,-0.7, 0.22,-0.5, 0.16,-0.22, -0.16,-0.22, -0.22,-0.5, 0,-0.7],
+               [-0.3,-0.18, 0.3,-0.18, 0.38,0.36, 0.22,0.7, -0.22,0.7, -0.38,0.36, -0.3,-0.18],
+               [-0.38,0.0, -0.66,0.24], [0.38,0.0, 0.66,0.24],
+               [0,-0.18, 0,0.7]],
+           e: [[-0.08,-0.46], [0.08,-0.46]] },
+  };
+  ns.ENEMIES.choir_adept = {
+    name: 'Choir Adept', faction: 'hierarchy', hp: 44, size: 1, elite: true, ai: 'cycle',
+    moves: [
+      { t: 'summon', id: 'drone_skirmisher', n: 1 }, { t: 'attack', d: 9 },
+      { t: 'guard', v: 9 }, { t: 'attack', d: 5, hits: 2 },
+    ],
+    art: { p: [[0,-0.72, 0.24,-0.48, 0.18,-0.2, -0.18,-0.2, -0.24,-0.48, 0,-0.72],
+               [-0.32,-0.16, 0.32,-0.16, 0.28,0.66, -0.28,0.66, -0.32,-0.16],
+               [-0.32,0.06, -0.62,-0.14], [0.32,0.06, 0.62,-0.14],
+               [-0.16,0.22, 0.16,0.22], [0,-0.72, 0,-0.9]],
+           e: [[0,-0.46]] },
+  };
+
+  /* ---- RUST ---- */
+  ns.ENEMIES.overseer_prime = {
+    name: 'OVERSEER PRIME', faction: 'rust', hp: 96, size: 1.35, boss: true, grounded: true, ai: 'cycle',
+    plated: true,                              // soaks the first hit each turn
+    moves: [
+      { t: 'block', b: 16 }, { t: 'attack', d: 14 },
+      { t: 'summon', id: 'scrap_hound', n: 1 }, { t: 'attack', d: 8, hits: 2 },
+      { t: 'debuff', s: 'weak', v: 2 }, { t: 'attack', d: 20 },
+    ],
+    art: { p: [[-0.5,-0.5, 0.5,-0.5, 0.6,0.1, 0.44,0.72, -0.44,0.72, -0.6,0.1, -0.5,-0.5],
+               [-0.28,-0.5, -0.28,-0.76, 0.28,-0.76, 0.28,-0.5],
+               [-0.34,-0.28, 0.34,-0.28], [-0.4,0.04, 0.4,0.04], [-0.36,0.36, 0.36,0.36],
+               [-0.6,-0.2, -0.86,-0.02], [0.6,-0.2, 0.86,-0.02],
+               [-0.16,-0.76, -0.16,-0.94], [0.16,-0.76, 0.16,-0.94]],
+           e: [[-0.14,-0.63], [0.14,-0.63]] },
+  };
+  ns.ENEMIES.scrap_leviathan = {
+    name: 'THE SCRAP LEVIATHAN', faction: 'rust', hp: 100, size: 1.4, boss: true, grounded: true, ai: 'cycle',
+    charge: { turns: 2, dmg: 34 },             // winds up a hit you must race or eat
+    overload: 12,                              // detonates when it dies
+    moves: [
+      { t: 'attack', d: 12 }, { t: 'block', b: 14 },
+      { t: 'attack', d: 7, hits: 3 }, { t: 'heal', v: 8 },
+    ],
+    art: { p: [[-0.72,-0.3, 0.72,-0.3, 0.86,0.2, 0.6,0.76, -0.6,0.76, -0.86,0.2, -0.72,-0.3],
+               [-0.4,-0.3, -0.34,-0.62, 0.34,-0.62, 0.4,-0.3],
+               [-0.5,0.0, 0.5,0.0], [-0.54,0.36, 0.54,0.36],
+               [-0.2,-0.62, -0.2,-0.86], [0.2,-0.62, 0.2,-0.86],
+               [-0.86,0.06, -1.02,-0.14], [0.86,0.06, 1.02,-0.14]],
+           e: [[-0.18,-0.46], [0.18,-0.46]] },
+  };
+  ns.ENEMIES.rust_ogre = {
+    name: 'Rust Ogre', faction: 'rust', hp: 54, size: 1.1, elite: true, grounded: true, ai: 'cycle',
+    thorns: 4, enrage: 2,
+    moves: [
+      { t: 'attack', d: 14 }, { t: 'buff', s: 'str', v: 2 },
+      { t: 'attack', d: 9, hits: 2 }, { t: 'block', b: 8 },
+    ],
+    art: { p: [[-0.44,-0.34, 0.44,-0.34, 0.52,0.2, 0.36,0.68, -0.36,0.68, -0.52,0.2, -0.44,-0.34],
+               [-0.24,-0.34, -0.2,-0.62, 0.2,-0.62, 0.24,-0.34],
+               [-0.3,-0.06, 0.3,-0.06],
+               [-0.52,-0.1, -0.78,0.12], [0.52,-0.1, 0.78,0.12],
+               [-0.3,0.3, -0.16,0.5], [0.3,0.3, 0.16,0.5]],
+           e: [[-0.12,-0.48], [0.12,-0.48]] },
+  };
+  ns.ENEMIES.salvage_crawler = {
+    name: 'Salvage Crawler', faction: 'rust', hp: 50, size: 1.05, elite: true, grounded: true, ai: 'cycle',
+    plated: true,
+    moves: [
+      { t: 'block', b: 11 }, { t: 'attack', d: 10 },
+      { t: 'attack', d: 5, hits: 3 }, { t: 'debuff', s: 'weak', v: 2 },
+    ],
+    art: { p: [[-0.5,-0.2, 0.5,-0.2, 0.56,0.24, 0.3,0.6, -0.3,0.6, -0.56,0.24, -0.5,-0.2],
+               [-0.26,-0.2, -0.22,-0.46, 0.22,-0.46, 0.26,-0.2],
+               [-0.36,0.1, 0.36,0.1],
+               [-0.56,0.1, -0.84,0.3], [0.56,0.1, 0.84,0.3],
+               [-0.5,-0.1, -0.76,-0.28], [0.5,-0.1, 0.76,-0.28]],
+           e: [[0,-0.33]] },
+  };
+
+  /* ---- VOIDSPAWN ---- */
+  ns.ENEMIES.the_maw = {
+    name: 'THE MAW', faction: 'voidspawn', hp: 86, size: 1.35, boss: true, ai: 'cycle',
+    absorb: { threshold: 14, card: 'void_swarm' },   // caps big hits and jams your deck
+    regen: 3,
+    moves: [
+      { t: 'drain', d: 11 }, { t: 'attack', d: 8, hits: 2 },
+      { t: 'debuff', s: 'vuln', v: 2 }, { t: 'attack', d: 16 },
+      { t: 'summon', id: 'void_larva', n: 2 },
+    ],
+    art: { p: [[0,-0.8, 0.56,-0.4, 0.7,0.2, 0.36,0.74, -0.36,0.74, -0.7,0.2, -0.56,-0.4, 0,-0.8],
+               [-0.42,-0.1, 0.42,-0.1], [-0.34,0.16, 0.34,0.16], [-0.24,0.42, 0.24,0.42],
+               [-0.2,-0.1, -0.12,0.16], [0.2,-0.1, 0.12,0.16],
+               [-0.56,-0.4, -0.78,-0.62], [0.56,-0.4, 0.78,-0.62]],
+           e: [[-0.22,-0.44], [0.22,-0.44]] },
+  };
+  ns.ENEMIES.nullifier = {
+    name: 'THE NULLIFIER', faction: 'voidspawn', hp: 82, size: 1.3, boss: true, ai: 'cycle',
+    cleanse: true,
+    moves: [
+      { t: 'disrupt', n: 1 }, { t: 'attack', d: 13 },
+      { t: 'curse', card: 'void_taint' }, { t: 'attack', d: 6, hits: 3 },
+      { t: 'disrupt', n: 2 }, { t: 'attack', d: 18 },
+    ],
+    art: { p: [[0,-0.84, 0.5,-0.3, 0.5,0.3, 0,0.84, -0.5,0.3, -0.5,-0.3, 0,-0.84],
+               [0,-0.5, 0.28,-0.18, 0.28,0.18, 0,0.5, -0.28,0.18, -0.28,-0.18, 0,-0.5],
+               [-0.5,-0.3, 0.5,0.3], [0.5,-0.3, -0.5,0.3],
+               [-0.72,0, -0.5,0], [0.72,0, 0.5,0]],
+           e: [[0,0]] },
+  };
+  ns.ENEMIES.warp_etcher = {
+    name: 'Warp Etcher', faction: 'voidspawn', hp: 46, size: 1.05, elite: true, ai: 'cycle',
+    moves: [
+      { t: 'attack', d: 9 }, { t: 'etch' },          // scars your die with a Flaw
+      { t: 'attack', d: 5, hits: 2 }, { t: 'debuff', s: 'vuln', v: 2 },
+    ],
+    art: { p: [[0,-0.74, 0.34,-0.36, 0.26,0.14, -0.26,0.14, -0.34,-0.36, 0,-0.74],
+               [-0.26,0.14, -0.34,0.66], [0.26,0.14, 0.34,0.66], [0,0.14, 0,0.72],
+               [-0.34,-0.36, -0.7,-0.56], [0.34,-0.36, 0.7,-0.56],
+               [-0.7,-0.56, -0.78,-0.34], [0.7,-0.56, 0.78,-0.34],
+               [-0.16,-0.5, 0.16,-0.5]],
+           e: [[-0.1,-0.36], [0.1,-0.36]] },
+  };
+  ns.ENEMIES.void_priest = {
+    name: 'Void Priest', faction: 'voidspawn', hp: 48, size: 1, elite: true, ai: 'cycle',
+    regen: 3,
+    moves: [
+      { t: 'curse', card: 'void_taint' }, { t: 'attack', d: 10 },
+      { t: 'heal', v: 8, all: true }, { t: 'attack', d: 6, hits: 2 },
+    ],
+    art: { p: [[0,-0.78, 0.26,-0.5, 0.2,-0.2, -0.2,-0.2, -0.26,-0.5, 0,-0.78],
+               [-0.34,-0.16, 0.34,-0.16, 0.3,0.68, -0.3,0.68, -0.34,-0.16],
+               [-0.34,0.1, -0.66,-0.12], [0.34,0.1, 0.66,-0.12],
+               [0,-0.2, 0,0.68], [-0.18,0.3, 0.18,0.3]],
+           e: [[0,-0.5]] },
+  };
+
   ns.PACKS = {
     hierarchy: [
       ['drone_skirmisher', 'drone_skirmisher'],
       ['zealot_warrior'],
       ['plasma_acolyte', 'drone_skirmisher'],
+      ['plasma_acolyte', 'plasma_acolyte'],
       ['zealot_warrior', 'drone_skirmisher'],
       ['jammer', 'drone_skirmisher'],
+      ['jammer', 'zealot_warrior'],
       ['iron_zealot', 'drone_skirmisher'],
+      ['iron_zealot', 'plasma_acolyte', 'drone_skirmisher'],
       ['dominus', 'zealot_warrior'],
+      ['dominus', 'drone_skirmisher', 'drone_skirmisher'],
       ['dominus', 'iron_zealot', 'drone_skirmisher'],
     ],
     rust: [
       ['scrap_hound', 'scrap_hound'],
       ['rust_cultist', 'scrap_hound'],
       ['forge_walker'],
+      ['rust_cultist', 'rust_cultist', 'scrap_hound'],
       ['swarm_core', 'swarm_drone'],
       ['forge_walker', 'scrap_hound'],
+      ['swarm_core', 'swarm_drone', 'swarm_drone'],
       ['drop_ship'],
       ['siege_walker'],
+      ['siege_walker', 'scrap_hound'],
       ['rust_sentinel', 'scrap_hound'],
+      ['forge_acolyte', 'scrap_hound'],
       ['forge_acolyte', 'forge_walker'],
       ['rust_sentinel', 'forge_acolyte', 'scrap_hound'],
     ],
@@ -4607,19 +4802,32 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       ['void_larva', 'void_larva', 'void_larva'],
       ['husk_stalker'],
       ['husk_stalker', 'void_larva'],
+      ['voidling', 'voidling', 'void_larva'],
       ['psy_wraith', 'void_larva'],
       ['husk_stalker', 'voidling', 'voidling'],
       ['void_drone', 'void_larva'],
+      ['void_drone', 'voidling', 'void_larva'],
       ['void_shard', 'void_larva'],
+      ['psy_wraith', 'husk_stalker'],
       ['brood_maw', 'void_larva'],
+      ['brood_maw', 'psy_wraith'],
       ['revenant', 'husk_stalker'],
       ['psy_wraith', 'revenant', 'void_larva'],
       ['void_gaze', 'gaze_eye', 'gaze_eye', 'gaze_eye'],
     ],
   };
 
-  ns.ELITES = { hierarchy: 'honor_guard', rust: 'iron_butcher', voidspawn: 'abyss_horror' };
-  ns.BOSSES = { hierarchy: 'hierophant', rust: 'forge_tyrant', voidspawn: 'devourer' };
+  // Three of each per faction so neither an elite nor a boss repeats in a run.
+  ns.ELITES = {
+    hierarchy: ['honor_guard', 'inquisitor', 'choir_adept'],
+    rust:      ['iron_butcher', 'rust_ogre', 'salvage_crawler'],
+    voidspawn: ['abyss_horror', 'warp_etcher', 'void_priest'],
+  };
+  ns.BOSSES = {
+    hierarchy: ['hierophant', 'arch_confessor', 'saint_kaleth'],
+    rust:      ['forge_tyrant', 'overseer_prime', 'scrap_leviathan'],
+    voidspawn: ['devourer', 'the_maw', 'nullifier'],
+  };
   ns.ELITE_MINIONS = { hierarchy: 'drone_skirmisher', rust: 'scrap_hound', voidspawn: 'void_larva' };
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
@@ -5069,6 +5277,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   E.newRun = function (clsId) {
     var c = B.classes[clsId];
     var deck = ns.STARTER_DECKS[clsId].map(function (id) { return mkCard(id, false); });
+    var fac = pick(Object.keys(ns.FACTIONS));
     E.run = {
       cls: clsId,
       hp: c.hp, maxHp: c.hp,
@@ -5077,10 +5286,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       deck: deck,
       artifacts: [],
       die: ns.newDie(),    // THE AUGMENTED DIE: faces / core / frame
+      bossOrder: shuffle((ns.BOSSES[fac] || []).slice()),   // no sector boss repeats in a run
       relicOff: {},        // relics switched off (toggled on the star chart)
       relicUses: {},       // remaining durability for relics that have it
       sector: 1,
-      faction: pick(Object.keys(ns.FACTIONS)),
+      faction: fac,
       map: null,
       mapRow: -1, mapCol: 0,
       phase: 'none',
@@ -5391,7 +5601,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var r = E.run;
     if ((r.loop || 1) === B.run.heartLoop) return E.counterBossId(r);
     if (r.sector === B.run.finale) return ns.FINAL_BOSS;
-    return ns.BOSSES[r.faction];
+    var order = r.bossOrder && r.bossOrder.length ? r.bossOrder : [].concat(ns.BOSSES[r.faction]);
+    return order[(r.sector - 1) % order.length];
   };
   E.sectorBossName = function () { var d = ns.ENEMIES[E.sectorBossId()]; return d ? d.name : 'SECTOR BOSS'; };
 
@@ -5719,9 +5930,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (kind === 'boss') {
       if ((r.loop || 1) === B.run.heartLoop) { ids = [E.counterBossId(r)]; isFinal = true; }
       else if (r.sector === B.run.finale) { ids = [ns.FINAL_BOSS]; isFinal = true; }
-      else ids = [ns.BOSSES[r.faction]];
+      else ids = [E.sectorBossId()];
     } else if (kind === 'elite' || kind === 'beacon') {
-      ids = [ns.ELITES[r.faction]];
+      var epool = [].concat(ns.ELITES[r.faction]);
+      ids = [pick(epool)];
       if (r.sector >= 3 && rnd() < B.sector.eliteChance2Enemies) ids.push(ns.ELITE_MINIONS[r.faction]);
     } else {
       var packs = ns.PACKS[r.faction];
@@ -5729,12 +5941,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // (the new-mechanic enemies, slots 4+) are held back until sector 2+ so
       // sector 1 stays a gentle on-ramp.
       var prog = Math.min(1, r.mapRow / Math.max(1, B.map.rows - 1));
-      var hi = (r.sector <= 1) ? 4 : packs.length;
+      var hi = (r.sector <= 1) ? 6 : packs.length;
       // cap lo at hi-4 so the window stays 4 packs wide instead of collapsing to
       // a single pack near the top of a sector (which flooded sector 1 with the
       // swarm pack and made late-sector fights monotonous).
-      var lo = Math.max(0, Math.min(Math.floor(prog * (packs.length - 3)), hi - 4));
-      ids = pick(packs.slice(lo, Math.min(hi, lo + 4))).slice();
+      var lo = Math.max(0, Math.min(Math.floor(prog * (packs.length - 5)), hi - 6));
+      ids = pick(packs.slice(lo, Math.min(hi, lo + 6))).slice();
       // Sector 1 only: add a fodder minion so hallway fights bite even with
       // perfect blocking (more simultaneous telegraph than one block can cover).
       // The very first fight stays gentle as a tutorial; no bleed into sector 2+.
@@ -6010,6 +6222,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (m.t === 'ds_fuse') return { icon: 'fuse', label: scaledDmg(m.d, s) + ' in ' + m.fuse };
     if (m.t === 'debuff') return { icon: 'debuff', label: '' };
     if (m.t === 'curse') return { icon: 'curse', label: '' };
+    if (m.t === 'etch') return { icon: 'corrupt', label: 'ETCH' };
     if (m.t === 'unmake') return { icon: 'unmake', label: '' };
     return { icon: '?', label: '' };
   };
@@ -7183,6 +7396,21 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           stripped++;
         }
         if (stripped === 0) { c.discard.push(mkCard('void_taint', false)); emit('curse', { idx: idx, card: 'void_taint' }); }
+      } else if (m.t === 'etch') {
+        // WARP ETCHER: scars your die. A Flaw takes a face — and denies you the slot.
+        var dieR = r.die;
+        if (dieR) {
+          var flawIds = Object.keys(ns.DIE_FLAWS || {});
+          var freeF = [];
+          for (var ef = 1; ef <= (ns.DIE.faces || 20); ef++) if (!dieR.faces[ef]) freeF.push(ef);
+          if (flawIds.length && freeF.length) {
+            var fid = pick(flawIds), ff = pick(freeF);
+            ns.dieEngrave(dieR, fid, ff);
+            emit('etch', { idx: idx, id: fid, face: ff, name: (ns.DIE_FLAWS[fid] || {}).name || fid });
+          } else {   // nowhere left to cut — it just hurts you instead
+            hurtPlayer(scaledDmg(8, s));
+          }
+        }
       } else if (m.t === 'unmake') {
         // THE UNMAKER's signature: erase your defences, jam your deck, knit itself
         if (p.block > 0) { p.block = 0; emit('block', { who: 'player', amount: 0, blockAfter: 0 }); }
@@ -7429,7 +7657,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
     // Elites offer a pick-1-of-2 relic (chosen on the reward screen); beacons no
     // longer hand out a relic (they keep their colorless-card payoff).
-    var artifactChoices = (kind === 'elite') ? randomArtifactChoices(1, 2) : [];
+    // Rewards come from the fights that earn them: elites offer a pick of two,
+    // and bosses now drop a pick of two TIER-2 relics (they previously dropped
+    // none, which is why cutting the free-relic nodes hurt so much).
+    var artifactChoices = (kind === 'elite') ? randomArtifactChoices(1, 2)
+                        : (kind === 'boss') ? randomArtifactChoices(2, 2) : [];
     var artifactDrop = null;   // no auto-grant; picked from artifactChoices
     // The Unmaker's Tithe: an extra relic from every elite & boss
     var bonusArtifact = null;
