@@ -1538,14 +1538,50 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .bench-it .bi-icon svg { width: 100%; height: 100%; }
 .bench-it .bi-body { flex: 1 1 auto; min-width: 0; }
 .bench-it .bi-name { display: block; font: 700 9px/1.2 ui-monospace, monospace; letter-spacing: 0.06em; color: #d6ffe4; }
-.bench-it .bi-desc { display: block; font: 600 8px/1.3 ui-monospace, monospace; color: #9bb0a6; margin-top: 2px; }
+.bench-it .bi-desc { display: block; font: 600 8.5px/1.35 ui-monospace, monospace; color: #a8bdb2; margin-top: 2px; }
 .bench-it .bi-cost { flex: 0 0 auto; font: 700 10px/1 ui-monospace, monospace; color: #ffb02e; }
-.bench-it .bi-tier { position: absolute; right: 6px; bottom: 3px; font: 700 7px/1 ui-monospace, monospace; color: #6f8579; }
+.bench-it .bi-tier { position: absolute; right: 6px; bottom: 3px; font: 700 8.5px/1 ui-monospace, monospace; color: #86a094; }
 .bench-it.poor { opacity: 0.45; }
 .bench-it.sold { opacity: 0.32; pointer-events: none; }
 .bench-it.sold .bi-cost { color: #7f9a8b; }
 .bench-it.arming { border-color: #ffb02e; box-shadow: 0 0 12px rgba(255,176,46,0.35); }
 .bench-row { margin-bottom: 8px; }
+
+/* ---- engravings in hand ---------------------------------------------
+   Same object as a bench item, so it reuses that chrome. Cyan rather than
+   amber because these are already yours — nothing is being bought. */
+.pend-tray { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 5px; margin-bottom: 7px; }
+.pend-it {
+  position: relative; display: flex; align-items: center; gap: 7px; text-align: left;
+  background: rgba(8,20,26,0.85); border: 1px solid rgba(65,216,255,0.4); border-radius: 3px;
+  padding: 6px 7px; cursor: pointer;
+}
+.pend-it .bi-icon { flex: 0 0 auto; width: 20px; height: 20px; color: #7fdcff; display: flex; }
+.pend-it .bi-icon svg { width: 100%; height: 100%; }
+.pend-it .bi-body { flex: 1 1 auto; min-width: 0; }
+.pend-it .bi-name { display: block; font: 700 9px/1.2 ui-monospace, monospace; letter-spacing: 0.06em; color: #ddf6ff; }
+.pend-it .bi-desc { display: block; font: 600 8.5px/1.35 ui-monospace, monospace; color: #a2b8c2; margin-top: 2px; }
+.pend-it .bi-tier { position: absolute; right: 6px; bottom: 3px; font: 700 8.5px/1 ui-monospace, monospace; color: #84a0ad; }
+/* the tier badge is absolute, so the description has to leave it room */
+.pend-it .bi-body, .bench-it .bi-body { padding-right: 74px; padding-bottom: 9px; }
+
+/* an uncut engraving is doing nothing — say so from the HUD */
+.die-chip { position: relative; }
+.die-chip.has-pending { border-color: var(--amber); box-shadow: 0 0 10px rgba(255,176,46,0.5); }
+.die-pend-badge {
+  position: absolute; top: -5px; right: -5px; min-width: 13px; height: 13px; padding: 0 2px;
+  border-radius: 999px; background: var(--amber); color: #1a1002;
+  font: 700 9px/13px ui-monospace, monospace; text-align: center;
+  animation: pendPulse 1.8s ease-in-out infinite;
+}
+@keyframes pendPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) { .die-pend-badge { animation: none; } }
+.pend-it.poor { opacity: 0.5; }            /* nowhere left on the die to put it */
+.pend-it.arming { border-color: #ffb02e; box-shadow: 0 0 12px rgba(255,176,46,0.35); }
+
+/* while something is armed, the face list says where it will go */
+.df.fits { border-color: rgba(93,255,136,0.75); box-shadow: inset 0 0 10px rgba(93,255,136,0.14); }
+.df.no-fit { opacity: 0.34; }
 .dm-chip.vault { opacity: 0.55; border-style: dashed; }
 .dm-chip { cursor: pointer; }
 .die-place { color: #ffb02e; font-weight: 700; text-shadow: 0 0 8px rgba(255,176,46,0.7); }
@@ -1705,6 +1741,28 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       },
     },
 
+    /* ---- The count runs out ------------------------------------------
+     * A fight with no clock can run forever: Barricade / Phase Lock stop your
+     * Shield expiring, so a defensive build that has lost its offence (a Jammer
+     * burning out the last attack, say) becomes both unkillable and unable to
+     * kill. It happened in roughly 1 bot run in 900.
+     *
+     * `turn` is set from measurement, not taste: over 26,469 simulated fights
+     * the 99th percentile is 8 turns and the 99.9th is 14, and bosses — the
+     * longest legitimate fights — sit at p99 = 12. Only 0.05% of fights reach
+     * turn 20 at all, and essentially all of those are the pathology.
+     *
+     * Past that line the Spire stops waiting. Enemies gain Might every turn AND
+     * your Shield starts sloughing off, because raising damage alone does not
+     * beat an unbounded Shield pool in any sensible number of turns.
+     * ------------------------------------------------------------------ */
+    enrage: {
+      turn: 20,          // last patient turn; escalation begins on the next one
+      str: 2,            // Might each enemy gains per turn, cumulative
+      shieldDecay: 0.34, // fraction of your Shield that fails each turn
+      shieldFloor: 5,    // ...and at least this much, so small pools still drain
+    },
+
     /* ---- Status effects ---------------------------------------------- */
     status: {
       vulnMult: 1.5,            // damage taken multiplier while Vulnerable
@@ -1761,12 +1819,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       eliteRareChance: 0.25,     // rarity boost for elite rewards
       bossHealPct: 0.28,         // heal option after beating a boss
       restHealPct: 0.30,         // heal at a rest node
-    },
-
-    /* ---- Level up: Augment Protocol draft (after each boss) ----------- */
-    levelUp: {
-      // how often each augment rarity shows up in the 3-card draft
-      rarityWeights: { 1: 100, 2: 52, 3: 20 },
     },
 
     /* ---- Shop ---------------------------------------------------------- */
@@ -2600,6 +2652,59 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }, { k: 'hploss', v: 3 }],
       up: { fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }, { k: 'hploss', v: 1 }] },
     },
+    /* ---------------- ARCHETYPE PAYOFFS / ENTRIES ----------------
+     * Added after auditing every class against the genre. The gaps were not
+     * missing archetypes — the count is fine at 4-6 per class — but archetypes
+     * you could feed and never cash, and archetypes with no cheap way in:
+     *
+     *   Voidadept control  11 cards apply Weak/Vulnerable, ONE cashed them
+     *                      (Unravel, rare). Now a common and an engine.
+     *   Vanguard Momentum  3 ways to build it, Unload the only way to spend it.
+     *   Technomancer       both construct payoffs were rare; every single card
+     *                      in the Power archetype was rare, so there was no way
+     *                      to start one before a rare showed up.
+     * ------------------------------------------------------------ */
+    worry_wound: {   // the common cash-in the Voidadept's hex pile never had
+      name: 'Worry the Wound', cls: 'voidadept', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'special', id: 'reap', v: 2 }],
+      text: 'Deal 2 damage for each Vulnerable, Weak, and Burn on the target.',
+      up: { fx: [{ k: 'special', id: 'reap', v: 3 }], text: 'Deal 3 damage for each Vulnerable, Weak, and Burn on the target.' },
+    },
+    sympathetic_ache: {   // hexing becomes damage, so control stops being setup-only
+      name: 'Sympathetic Ache', cls: 'voidadept', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'conduit', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'conduit', v: 3, who: 'self' }] },
+    },
+    follow_through: {   // a common way to spend Momentum, not just build it
+      name: 'Follow Through', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'special', id: 'unload', v: 1 }],
+      text: 'Deal 1 more damage per Momentum.',
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'special', id: 'unload', v: 2 }], text: 'Deal 2 more damage per Momentum.' },
+    },
+    overrun: {   // the Momentum capstone
+      name: 'Overrun', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
+      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'special', id: 'unload', v: 4 }],
+      text: 'Deal 4 more damage per Momentum.',
+      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'special', id: 'unload', v: 5 }], text: 'Deal 5 more damage per Momentum.' },
+    },
+    brace_plate: {   // the common entry the Shield stack lacked — every other
+                     // plating card in the class is uncommon or rare
+      name: 'Brace Plate', cls: 'technomancer', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'block', v: 4, scale: 'tech' }, { k: 'status', s: 'plate', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'block', v: 6, scale: 'tech' }, { k: 'status', s: 'plate', v: 3, who: 'self' }] },
+    },
+    munitions_link: {   // an uncommon way into the construct payoff, which was rare-only
+      name: 'Munitions Link', cls: 'technomancer', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'aegisLink', v: 1, who: 'self' }],
+      text: 'Whenever one of your constructs fires, gain 1 Shield.',
+      up: { fx: [{ k: 'status', s: 'aegisLink', v: 2, who: 'self' }], text: 'Whenever one of your constructs fires, gain 2 Shield.' },
+    },
+    bootstrap: {   // a Power cheap enough to START a Power deck with
+      name: 'Bootstrap', cls: 'technomancer', type: 'power', rarity: 1, cost: 0,
+      fx: [{ k: 'draw', v: 1 }],
+      up: { fx: [{ k: 'draw', v: 2 }] },
+    },
+
     /* ---------------- THE FIRST MARK ----------------
      * One of these comes down with you, chosen at the mouth of the Spire
      * alongside the engraving it belongs to (see ns.FIRST_MARKS in dice.js).
@@ -3344,6 +3449,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     ember_ward: 'flame', backdraft: 'flame', mind_bulwark: 'shield',
     static_ward: 'shield', swarm_uplink: 'turret', subroutine: 'core',
     spiked_bulwark: 'shieldStrike', demolition_train: 'shell',
+    // archetype payoffs / entries
+    brace_plate: 'shield', worry_wound: 'hex', sympathetic_ache: 'vortex', follow_through: 'burst',
+    overrun: 'cannon', munitions_link: 'turret', bootstrap: 'circuit',
     // the First Mark cards
     sighting_round: 'scan', red_ledger: 'ledger', set_against_it: 'spiked',
     assembly_line: 'turret', surge_routing: 'circuit', null_lattice: 'lattice',
@@ -3413,14 +3521,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       art: { p: [[-0.6,-0.8, 0.6,-0.8, 0.45,-0.2, 0,0.05, -0.45,-0.2, -0.6,-0.8], [0,0.05, 0,0.55], [-0.4,0.8, 0.4,0.8], [-0.4,0.8, 0,0.55, 0.4,0.8]], e: [[0,-0.45]] } },
     targeting_visor: { name: 'Targeting Visor',   tier: 1, k: 'critBonus',       v: 2,    desc: 'Crit on a d20 roll of 18 or higher.',
       art: { p: [[0.5,0, 0.35,0.35, 0,0.5, -0.35,0.35, -0.5,0, -0.35,-0.35, 0,-0.5, 0.35,-0.35, 0.5,0], [0.5,0, 0.9,0], [-0.5,0, -0.9,0], [0,-0.5, 0,-0.9], [0,0.5, 0,0.9]], e: [[0,0]] } },
-    power_fist:      { name: 'Power Fist',        tier: 1, k: 'strStart',        v: 1,    desc: 'Start each combat with 1 Might.',
-      art: { p: [[-0.7,-0.4, 0.3,-0.6, 0.6,-0.3, 0.6,0.4, -0.3,0.6, -0.7,0.3, -0.7,-0.4], [0.6,-0.1, 0.9,-0.1], [0.6,0.2, 0.9,0.2], [-0.7,-0.05, -1.0,0]], e: [] } },
-    war_sigil:       { name: 'War Sigil',         tier: 1, k: 'attr', a: 'might', v: 1,   desc: '+1 MIGHT.',
-      art: { p: [[0,-1, 0,0.95], [0,-0.9, 0.85,-0.55, 0,-0.2], [-0.3,0.95, 0.3,0.95]], e: [] } },
-    cog_implant:     { name: 'Cogitator Implant', tier: 1, k: 'attr', a: 'tech',  v: 1,   desc: '+1 TECH.',
-      art: { p: [[-0.55,-0.55, 0.55,-0.55, 0.55,0.55, -0.55,0.55, -0.55,-0.55], [0,-0.55, 0,-0.9], [0.55,0, 0.9,0], [0,0.55, 0,0.9], [-0.55,0, -0.9,0], [0,-0.25, 0.25,0, 0,0.25, -0.25,0, 0,-0.25]], e: [] } },
-    warp_shard:      { name: 'Warp Shard',        tier: 1, k: 'attr', a: 'psi',   v: 1,   desc: '+1 PSI.',
-      art: { p: [[0,-1, 0.45,-0.1, 0.2,0.9, -0.2,0.7, -0.45,-0.2, 0,-1], [0,-0.7, 0.05,0.5]], e: [[0,-0.2]] } },
     hexheart:        { name: 'Hexheart',          tier: 1, cornerstone: 'voidadept', cls: 'voidadept', noRemove: true,
       desc: 'Cornerstone. Survives the Recurrence and forges stronger each loop you clear: +PSI, amplifies your first Burn, and at higher tiers steels you with starting Shield.',
       art: { p: [[0,0.9, -0.8,-0.2, -0.45,-0.7, 0,-0.35, 0.45,-0.7, 0.8,-0.2, 0,0.9], [0,-0.35, 0,0.5]], e: [[0,-0.05]] } },
@@ -3428,10 +3528,63 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       art: { p: [[-0.6,-0.1, 0.6,-0.1, 0.6,0.8, -0.6,0.8, -0.6,-0.1], [-0.6,0.35, 0.6,0.35], [0,-0.1, 0,-0.5, 0.3,-0.7, 0.15,-0.95]], e: [] } },
     adrenaline_pump: { name: 'Adrenaline Pump',   tier: 1, k: 'energyTurn1',     v: 1,    desc: '+1 Energy on your first turn.',
       art: { p: [[0,0.8, -0.8,-0.1, -0.45,-0.65, 0,-0.25, 0.45,-0.65, 0.8,-0.1, 0,0.8], [-0.3,-0.05, 0,0.3, 0.3,-0.05]], e: [] } },
-    nano_mesh:       { name: 'Nano Mesh',         tier: 1, k: 'plate',           v: 2,    desc: 'Gain 2 Shield at the start of each turn.',
-      art: { p: [[0,-0.9, 0.9,0, 0,0.9, -0.9,0, 0,-0.9], [-0.45,-0.45, 0.45,0.45], [0.45,-0.45, -0.45,0.45]], e: [] } },
-    void_lens:       { name: 'Void Lens',         tier: 1, k: 'flatDmg',         v: 1,    desc: 'Your attacks deal +1 damage.',
-      art: { p: [[-0.9,0, -0.3,-0.5, 0.3,-0.5, 0.9,0, 0.3,0.5, -0.3,0.5, -0.9,0], [0,-0.25, 0.25,0, 0,0.25, -0.25,0, 0,-0.25]], e: [[0,0]] } },
+    /* ---- absorbed from the old Augment draft --------------------------
+     * These were "Augment Protocols": a second pool of permanent passives,
+     * drafted after every boss from its own screen, with its own name. They
+     * were relics in everything but the word — 14 of the 23 were a single
+     * engine hook, which is the definition of a relic here. The draft is gone
+     * and these live in the one pool now.
+     * -------------------------------------------------------------- */
+    honed_edge: { name: 'Honed Edge', tier: 1, k: 'flatDmg', v: 3, desc: 'Your attacks deal +3 damage.',
+      art: { p: [[-0.8,0.5,0.5,-0.7], [0.5,-0.7,0.8,-0.8], [0.8,-0.8,0.7,-0.5], [-0.6,0.55,-0.35,0.8]] } },
+    armor_weave: { name: 'Armor Weave', tier: 1, k: 'plate', v: 3, desc: 'Gain 3 Shield at the start of each turn.',
+      art: { p: [[0,-0.8,0.7,-0.4,0.7,0.35,0,0.8,-0.7,0.35,-0.7,-0.4,0,-0.8], [-0.45,-0.1,0.45,-0.1], [-0.3,0.25,0.3,0.25]] } },
+    killchain: { name: 'Killchain', tier: 1, k: 'killDraw', v: 1, desc: 'Whenever you kill an enemy, draw a card.',
+      art: { p: [[-0.7,-0.35,-0.1,-0.35,-0.1,0.2,-0.7,0.2,-0.7,-0.35], [0.1,-0.2,0.7,-0.2,0.7,0.4,0.1,0.4,0.1,-0.2], [-0.1,-0.08,0.1,-0.08]] } },
+    reactive_plating: { name: 'Reactive Plating', tier: 1, k: 'reactivePlate', v: 6, desc: 'The first time you take damage each combat, gain 6 Shield.',
+      art: { p: [[-0.7,-0.5,0.7,-0.5,0.7,0.15,0,0.7,-0.7,0.15,-0.7,-0.5], [-0.7,-0.15,0.7,-0.15], [-0.2,-0.5,-0.2,-0.15], [0.2,-0.5,0.2,-0.15]] } },
+    overclock: { name: 'Overclock Servos', tier: 1, k: 'firstCardFree', v: 1, desc: 'The first card you play each turn costs 1 less.',
+      art: { p: [[0.2,-0.85,-0.35,-0.05,0.05,-0.05,-0.25,0.85,0.4,-0.1,0,-0.1,0.35,-0.85,0.2,-0.85]] } },
+    breaching_rounds: { name: 'Breaching Rounds', tier: 1, cls: 'vanguard', k: 'attackVuln', v: 1, desc: 'Your attacks apply 1 Vulnerable.',
+      art: { p: [[-0.85,0,0.5,0], [0.5,0,0.25,-0.25], [0.5,0,0.25,0.25], [-0.5,-0.45,-0.5,0.45], [0,-0.35,0,0.35]] } },
+    targeting_matrix: { name: 'Targeting Matrix', tier: 1, cls: 'technomancer', k: 'critStr', v: 1, desc: 'Whenever you land a critical hit, gain 1 Might.',
+      art: { p: [[-0.6,-0.6,-0.6,-0.25], [-0.6,-0.6,-0.25,-0.6], [0.6,-0.6,0.25,-0.6], [0.6,-0.6,0.6,-0.25], [-0.6,0.6,-0.6,0.25], [-0.6,0.6,-0.25,0.6], [0.6,0.6,0.6,0.25], [0.6,0.6,0.25,0.6], [-0.4,0,0.4,0], [0,-0.4,0,0.4]] } },
+    disruptor_field: { name: 'Disruptor Field', tier: 1, cls: 'technomancer', k: 'shieldWeak', v: 1, desc: 'Whenever you gain Shield, apply 1 Weak to a random enemy.',
+      art: { p: [[0,-0.75,0.62,-0.4,0.62,0.2,0,0.76,-0.62,0.2,-0.62,-0.4,0,-0.75], [-0.35,-0.2,0.1,0.05,-0.15,0.15,0.3,0.4]] } },
+    soul_pyre: { name: 'Soul Pyre', tier: 1, cls: 'voidadept', k: 'attackBurn', v: 1, desc: 'Your attacks also apply 1 Burn.',
+      art: { p: [[0,-0.85,0.34,-0.4,0.18,-0.06,0.46,0.24,0.2,0.62,0,0.8,-0.2,0.62,-0.46,0.24,-0.18,-0.06,-0.34,-0.4,0,-0.85]] } },
+    critical_cascade: { name: 'Critical Cascade', tier: 2, k: 'critVuln', v: 2, desc: 'Your crits also apply 2 Vulnerable.',
+      art: { p: [[0,-0.8,0.2,-0.25,0.78,-0.15,0.32,0.2,0.45,0.75,0,0.45,-0.45,0.75,-0.32,0.2,-0.78,-0.15,-0.2,-0.25,0,-0.8]] } },
+    warlord_doctrine: { name: 'Warlord Doctrine', tier: 2, cls: 'vanguard', k: 'strStart', v: 3, desc: 'Start each combat with 3 Might.',
+      art: { p: [[-0.45,-0.2,-0.5,-0.55,0.3,-0.6,0.45,-0.3,0.45,0.35,-0.3,0.5,-0.5,0.25,-0.45,-0.2], [0.45,-0.1,0.7,-0.1], [0.45,0.12,0.7,0.12]] } },
+    echo_protocol: { name: 'Echo Protocol', tier: 2, cls: 'technomancer', k: 'echoStart', v: 1, desc: 'The first Attack you play each turn is played twice.',
+      art: { p: [[0,-0.75,0.65,0,0,0.75,-0.65,0,0,-0.75], [0,-0.4,0.35,0,0,0.4,-0.35,0,0,-0.4]] } },
+    entropy_doctrine: { name: 'Entropy Doctrine', tier: 2, cls: 'voidadept', hooks: [{ k: 'burnGrow', v: 1 }, { k: 'weakStart', v: 2 }], desc: 'Enemy Burn grows each turn, and all enemies start Weak.',
+      art: { p: [[0,-0.8,0.3,-0.3,0.14,0,0.4,0.3,0.16,0.66,0,0.78,-0.16,0.66,-0.4,0.3,-0.14,0,-0.3,-0.3,0,-0.8], [-0.5,0.3,-0.75,0.55], [0.5,0.3,0.75,0.55]] } },
+    kinetic_overflow: { name: 'Kinetic Overflow', tier: 2, hooks: [{ k: 'flatDmg', v: 2 }, { k: 'firstCardFree', v: 1 }], desc: 'Attacks deal +2, and your first card each turn costs 1 less.',
+      art: { p: [[-0.8,0.4,-0.2,-0.3,0.15,0.15,0.8,-0.55], [0.8,-0.55,0.4,-0.55], [0.8,-0.55,0.8,-0.15]] } },
+    reckless_overdrive: { name: 'Reckless Overdrive', tier: 1, hooks: [{ k: 'energyEveryTurn', v: 1 }, { k: 'maxHpPct', v: -0.12 }], desc: '+1 Energy every turn — but Max HP −12%.',
+      art: { p: [[-0.55,-0.55,0.55,-0.55,0.55,0.55,-0.55,0.55,-0.55,-0.55], [0.15,-0.35,-0.15,0.05,0.05,0.05,-0.1,0.4], [-0.55,0,-0.85,0], [0.55,0,0.85,0]] } },
+    glass_doctrine: { name: 'Glass Doctrine', tier: 2, hooks: [{ k: 'dmgMult', v: 0.5 }, { k: 'vulnStart', v: 2 }], desc: 'Deal +50% damage — but start each combat with 2 Vulnerable.',
+      art: { p: [[0,-0.85,0.5,-0.3,0.35,0.5,-0.35,0.5,-0.5,-0.3,0,-0.85], [0,-0.85,0,0.5], [-0.5,-0.3,0.35,0.5], [0.5,-0.3,-0.35,0.5]] } },
+
+    /* ---- archetype anchors ------------------------------------------
+     * 30 of the 34 relic hooks in this file are used by exactly one relic, and
+     * almost all of them are flat numbers (+1 damage, +22 max HP). That makes a
+     * relic pool of small bonuses rather than one that points at builds — and
+     * constructs, the Exhaust engine, Momentum and the blood engine had nothing
+     * pointing at them at all. These four do, one per orphaned archetype.
+     * -------------------------------------------------------------- */
+    resonance_node: { name: 'Resonance Node',   tier: 1, cls: 'voidadept', k: 'psiPowStart', v: 2, desc: 'Start each combat with 2 Psi Focus.',
+      art: { p: [[0,-0.8, 0.3,-0.26, 0.8,-0.14, 0.42,0.24, 0.48,0.74, 0,0.48, -0.48,0.74, -0.42,0.24, -0.8,-0.14, -0.3,-0.26, 0,-0.8], [-0.2,-0.05, 0.2,-0.05]], e: [[0,0.06]] } },
+    foundry_spine:   { name: 'Foundry Spine',     tier: 1, cls: 'technomancer', k: 'turretStart', v: 3, desc: 'Start each combat with a Turret (3 dmg/turn).',
+      art: { p: [[-0.6,0.7, -0.3,0.1, 0.3,0.1, 0.6,0.7], [-0.3,0.1, 0.3,0.1, 0.24,-0.35, -0.24,-0.35, -0.3,0.1], [0.24,-0.22, 0.8,-0.22], [-0.5,0.7, 0.5,0.7]], e: [[0,-0.14]] } },
+    ash_reliquary:   { name: 'Ash Reliquary',     tier: 1, cls: 'vanguard', k: 'salvoStart', v: 2, desc: 'Start each combat with 2 Salvo — burning a card spits shrapnel at a random enemy.',
+      art: { p: [[-0.45,0.7, -0.3,-0.3, 0.3,-0.3, 0.45,0.7, -0.45,0.7], [-0.35,-0.3, -0.5,-0.55, 0.5,-0.55, 0.35,-0.3], [-0.15,-0.75, 0,-0.95, 0.15,-0.75], [-0.2,0.1, 0.2,0.35], [0.2,0.1, -0.2,0.35]] } },
+    iron_leech:      { name: 'Iron Leech',        tier: 1, cls: 'vanguard', k: 'bloodrageStart', v: 2, desc: 'Start each combat with 2 Blood Rage — your own wounds feed your Might.',
+      art: { p: [[0,-0.85, 0.4,-0.2, 0.26,0.5, -0.26,0.5, -0.4,-0.2, 0,-0.85], [-0.26,0.5, -0.16,0.82], [0.26,0.5, 0.16,0.82], [-0.24,-0.1, 0.24,-0.1], [-0.14,0.16, 0.14,0.16]] } },
+    cycling_breech:  { name: 'Cycling Breech',    tier: 2, cls: 'vanguard', k: 'momentumKeep', v: 1, desc: 'Your Momentum no longer resets at the start of your turn.',
+      art: { p: [[-0.7,-0.25, 0.7,-0.25], [-0.7,0.25, 0.7,0.25], [-0.7,-0.25, -0.7,0.25], [0.7,-0.25, 0.7,0.25], [-0.35,-0.25, -0.35,0.25], [0,-0.25, 0,0.25], [0.35,-0.25, 0.35,0.25], [0.5,-0.55, 0.8,-0.55, 0.8,-0.25], [-0.5,0.55, -0.8,0.55, -0.8,0.25]] } },
     medic_drone:     { name: 'Medic Drone',       tier: 1, k: 'healTurn',        v: 1,    desc: 'Heal 1 HP at the start of each turn.',
       art: { p: [[-0.25,-0.7, 0.25,-0.7, 0.25,-0.25, 0.7,-0.25, 0.7,0.25, 0.25,0.25, 0.25,0.7, -0.25,0.7, -0.25,0.25, -0.7,0.25, -0.7,-0.25, -0.25,-0.25, -0.25,-0.7], [-0.7,-0.6, -0.95,-0.75], [0.7,-0.6, 0.95,-0.75]], e: [] } },
     tactical_uplink: { name: 'Tactical Uplink',   tier: 1, k: 'checkBonus',      v: 3,    desc: '+3 to all event skill checks.',
@@ -3494,23 +3647,23 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       art: { p: [[-0.7,0, -0.5,-0.4, -0.1,-0.4, 0.1,0, -0.1,0.4, -0.5,0.4, -0.7,0, 0.7,0], [0.7,0, 0.5,-0.35, 0.2,-0.35]], e: [[-0.3,0]] } },
 
     /* ============ Class-specific relics (earned via the class quest chain) ============ */
-    recoilless_frame: { name: 'Recoilless Frame', tier: 1, rarity: 'class', cls: 'vanguard', questOnly: true,
+    recoilless_frame: { unlock: { track: 'kills', goal: 8, label: 'Kill 8 enemies' }, name: 'Recoilless Frame', tier: 1, rarity: 'class', cls: 'vanguard', questOnly: true,
       hooks: [{ k: 'flatDmg', v: 5 }, { k: 'maxNonAttack', v: 1 }],
       desc: 'Your attacks deal +5 — but you may play at most 1 non-attack card per turn. Toggle it off on the star chart when you need to set up.',
       art: { p: [[-0.75,0.05, 0.75,0.05], [-0.75,0.05, -0.6,0.4], [0.75,0.05, 0.6,0.4], [-0.4,0.05, -0.4,-0.4, 0.4,-0.4, 0.4,0.05], [0,-0.4, 0,-0.65]], e: [[0,-0.5]] } },
-    execution_protocol: { name: 'Execution Protocol', tier: 1, rarity: 'class', cls: 'vanguard', questOnly: true, k: 'executeBonus', v: 1,
+    execution_protocol: { unlock: { track: 'turnDamage', goal: 60, atOnce: true, label: 'Deal 60 damage in one turn' }, name: 'Execution Protocol', tier: 1, rarity: 'class', cls: 'vanguard', questOnly: true, k: 'executeBonus', v: 1,
       desc: 'Your attacks deal double damage to enemies below 25% HP.',
       art: { p: [[0,-0.7, 0,0.7], [-0.45,-0.45, 0,-0.7, 0.45,-0.45], [-0.3,0.3, 0.3,0.3], [-0.45,0.55, 0.45,0.55]], e: [[0,0]] } },
-    forge_reserve: { name: 'Forge Reserve', tier: 1, rarity: 'class', cls: 'technomancer', questOnly: true, k: 'blockStartTechMul', v: 3,
+    forge_reserve: { unlock: { track: 'shieldGained', goal: 80, label: 'Gain 80 Shield' }, name: 'Forge Reserve', tier: 1, rarity: 'class', cls: 'technomancer', questOnly: true, k: 'blockStartTechMul', v: 3,
       desc: 'Start each combat with Shield equal to 3× your TECH.',
       art: { p: [[0,-0.8, 0.7,-0.4, 0.7,0.4, 0,0.8, -0.7,0.4, -0.7,-0.4, 0,-0.8], [-0.35,-0.2, 0.35,-0.2, 0.35,0.3, -0.35,0.3, -0.35,-0.2], [-0.35,0.05, 0.35,0.05]], e: [[0,-0.5]] } },
-    capacitive_plating: { name: 'Capacitive Plating', tier: 1, rarity: 'class', cls: 'technomancer', questOnly: true, k: 'shieldPingPct', v: 34,
+    capacitive_plating: { unlock: { track: 'shieldAtOnce', goal: 35, atOnce: true, label: 'Hold 35 Shield at once' }, name: 'Capacitive Plating', tier: 1, rarity: 'class', cls: 'technomancer', questOnly: true, k: 'shieldPingPct', v: 34,
       desc: 'Whenever you gain Shield, deal 1 damage per 3 Shield gained to a random enemy.',
       art: { p: [[-0.6,-0.5, 0.6,-0.5, 0.6,0.5, -0.6,0.5, -0.6,-0.5], [-0.6,-0.15, 0.6,-0.15], [-0.6,0.2, 0.6,0.2], [0.15,-0.5, -0.1,-0.1, 0.1,-0.1, -0.15,0.2]], e: [] } },
-    hexweaver: { name: 'Hexweaver', tier: 1, rarity: 'class', cls: 'voidadept', questOnly: true, k: 'hexweaver', v: 2,
+    hexweaver: { unlock: { track: 'burnApplied', goal: 40, label: 'Apply 40 Burn' }, name: 'Hexweaver', tier: 1, rarity: 'class', cls: 'voidadept', questOnly: true, k: 'hexweaver', v: 2,
       desc: 'Whenever you apply Weak or Vulnerable to an enemy, also apply 2 Burn.',
       art: { p: [[0,-0.75, 0.65,-0.38, 0.65,0.38, 0,0.75, -0.65,0.38, -0.65,-0.38, 0,-0.75], [0,-0.4, 0,0.4], [-0.35,-0.2, 0.35,0.2], [0.35,-0.2, -0.35,0.2]], e: [[0,0]] } },
-    void_conduit: { name: 'Void Conduit', tier: 1, rarity: 'class', cls: 'voidadept', questOnly: true, k: 'firstPowerFree', v: 1,
+    void_conduit: { unlock: { track: 'burnAtOnce', goal: 12, atOnce: true, label: 'Stack 12 Burn on one enemy' }, name: 'Void Conduit', tier: 1, rarity: 'class', cls: 'voidadept', questOnly: true, k: 'firstPowerFree', v: 1,
       desc: 'The first Power you play each combat costs 0.',
       art: { p: [[0,-0.85, 0.4,-0.05, 0.18,0.85, -0.18,0.65, -0.4,-0.15, 0,-0.85], [0,-0.55, 0.05,0.5]], e: [[0,-0.15]] } },
     /* ============ Quest relics (complete the task → unlock the reward) ============ */
@@ -3787,6 +3940,32 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       fx: [{ k: 'status', s: 'psiPow', v: 2, who: 'self' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }],
       desc: 'Gain 2 Psi Focus. Apply 2 Vulnerable.',
       art: { p: [[-0.75,0, -0.4,-0.4, 0.1,-0.2, 0.5,-0.6, 0.78,-0.1], [-0.6,0.34, -0.2,0.1, 0.2,0.44, 0.62,0.16]], e: [[0,-0.06]] },
+    },
+
+    /* -- archetypes that had no face at all ----------------------------
+     * The die is the second build, so an archetype with nothing engravable
+     * can only ever be half a plan. These three had no engraving of any kind:
+     * the Vanguard's Exhaust engine and blood engine, and the Technomancer's
+     * Shield stack. Ordinary drops — not startOnly — so they show up in the
+     * bench and in rewards like any other face.
+     * ---------------------------------------------------------------- */
+    salvage_burner: {
+      name: 'Salvage Burner', tier: 2, span: 1,
+      fx: [{ k: 'special', id: 'dieExhaustDraw', v: 2 }],
+      desc: 'Exhaust the top card of your draw pile. Draw 2 cards.',
+      art: { p: [[-0.5,-0.6, 0.5,-0.6, 0.5,0.6, -0.5,0.6, -0.5,-0.6], [-0.5,-0.6, 0.5,0.6], [-0.28,-0.86, 0.28,-0.86], [0.5,-0.2, 0.8,-0.2], [0.5,0.2, 0.8,0.2]] },
+    },
+    haemal_tap: {
+      name: 'Haemal Tap', tier: 2, span: 3,
+      fx: [{ k: 'hploss', v: 2 }, { k: 'draw', v: 1 }, { k: 'energy', v: 1 }],
+      desc: 'Lose 2 HP. Draw 1 card. Gain 1 Energy.',
+      art: { p: [[0,-0.8, 0.34,-0.2, 0.22,0.4, -0.22,0.4, -0.34,-0.2, 0,-0.8], [-0.22,0.4, -0.3,0.75], [0.22,0.4, 0.3,0.75], [0,0.4, 0,0.8]] },
+    },
+    plate_layer: {
+      name: 'Plate Layer', tier: 2, span: 3,
+      fx: [{ k: 'status', s: 'plate', v: 2, who: 'self' }],
+      desc: 'Gain 2 Plating.',
+      art: { p: [[-0.7,-0.4, 0.7,-0.4], [-0.7,-0.05, 0.7,-0.05], [-0.7,0.3, 0.7,0.3], [-0.4,-0.4, -0.4,0.3], [0,-0.4, 0,0.3], [0.4,-0.4, 0.4,0.3], [-0.7,0.3, -0.7,0.6, 0.7,0.6, 0.7,0.3]] },
     },
 
     executioners_mark: {
@@ -4134,94 +4313,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   };
 
   ns.dieFaceNumbers = FACE_NUM;
-
-})(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
-
-</script>
-  <script>
-/* =========================================================================
- * VOIDSPIRE — augments.js
- * "Augment Protocols": the level-up reward pool. After each boss you draft
- * one of 3 random augments (rarity-weighted, class-flavored). Replaces the
- * old fixed +1-stat menu so the choice is interesting and not a no-brainer.
- *
- * kind:
- *   'stat'   — immediate attribute / max-HP gain (stat: 'class'|'might'|...|'maxhp', v)
- *   'heal'   — heal a % of max HP (healPct)
- *   'hook'   — permanent passive via an engine hook (hook:{k,v} or hooks:[...])
- *   'deckop' — a deck operation (deckop: 'remove'|'upgrade2'|'addCard')
- *   'pact'   — a tradeoff: a benefit (hook/hooks or stat) plus a cost (maxhpPct)
- * cls: 'any' or a class id (only offered to that class)
- * ========================================================================= */
-(function (ns) {
-  'use strict';
-
-  ns.AUGMENTS = {
-
-    /* ---------------- Commons (rarity 1) ---------------- */
-    calibrate:    { name: 'Calibration', rarity: 1, cls: 'any', kind: 'stat', stat: 'class', v: 1,
-      desc: '+1 to your core attribute.' },
-    field_repairs:{ name: 'Field Repairs', rarity: 1, cls: 'any', kind: 'heal', healPct: 0.30,
-      desc: 'Patch the hull — heal 30% of Max HP.' },
-    honed_edge:   { name: 'Honed Edge', rarity: 1, cls: 'any', kind: 'hook', hook: { k: 'flatDmg', v: 3 },
-      desc: 'Your attacks deal +3 damage.' },
-    armor_weave:  { name: 'Armor Weave', rarity: 1, cls: 'any', kind: 'hook', hook: { k: 'plate', v: 3 },
-      desc: 'Gain 3 Shield at the start of each turn.' },
-    med_reserves: { name: 'Medical Reserves', rarity: 1, cls: 'any', kind: 'stat', stat: 'maxhp', v: 12,
-      desc: '+12 Max HP (and heal 12).' },
-    purge:        { name: 'Purge Protocol', rarity: 1, cls: 'any', kind: 'deckop', deckop: 'remove',
-      desc: 'Remove a card from your deck.' },
-
-    /* ---------------- Uncommons (rarity 2) ---------------- */
-    killchain:    { name: 'Killchain', rarity: 2, cls: 'any', kind: 'hook', hook: { k: 'killDraw', v: 1 },
-      desc: 'Whenever you kill an enemy, draw a card.' },
-    reactive_plating: { name: 'Reactive Plating', rarity: 2, cls: 'any', kind: 'hook', hook: { k: 'reactivePlate', v: 6 },
-      desc: 'The first time you take damage each combat, gain 6 Shield.' },
-    overclock:    { name: 'Overclock Servos', rarity: 2, cls: 'any', kind: 'hook', hook: { k: 'firstCardFree', v: 1 },
-      desc: 'The first card you play each turn costs 1 less.' },
-    refit:        { name: 'Refit Bay', rarity: 2, cls: 'any', kind: 'deckop', deckop: 'upgrade2',
-      desc: 'Upgrade 2 cards.' },
-    requisition:  { name: 'Requisition', rarity: 2, cls: 'any', kind: 'deckop', deckop: 'addCard',
-      desc: 'Add a card of your choice to your deck.' },
-    breaching_rounds: { name: 'Breaching Rounds', rarity: 2, cls: 'vanguard', kind: 'hook', hook: { k: 'attackVuln', v: 1 },
-      desc: 'Your attacks apply 1 Vulnerable.' },
-    targeting_matrix: { name: 'Targeting Matrix', rarity: 2, cls: 'technomancer', kind: 'hook', hook: { k: 'critStr', v: 1 },
-      desc: 'Whenever you land a critical hit, gain 1 Might.' },
-    disruptor_field: { name: 'Disruptor Field', rarity: 2, cls: 'technomancer', kind: 'hook', hook: { k: 'shieldWeak', v: 1 },
-      desc: 'Whenever you gain Shield, apply 1 Weak to a random enemy.' },
-    soul_pyre:    { name: 'Soul Pyre', rarity: 2, cls: 'voidadept', kind: 'hook', hook: { k: 'attackBurn', v: 1 },
-      desc: 'Your attacks also apply 1 Burn.' },
-
-    /* ---------------- Rares (rarity 3) ---------------- */
-    critical_cascade: { name: 'Critical Cascade', rarity: 3, cls: 'any', kind: 'hook', hook: { k: 'critVuln', v: 2 },
-      desc: 'Your crits also apply 2 Vulnerable.' },
-    warlord_doctrine: { name: 'Warlord Doctrine', rarity: 3, cls: 'vanguard', kind: 'hook', hook: { k: 'strStart', v: 3 },
-      desc: 'Start each combat with 3 Might.' },
-    echo_protocol:{ name: 'Echo Protocol', rarity: 3, cls: 'technomancer', kind: 'hook', hook: { k: 'echoStart', v: 1 },
-      desc: 'The first Attack you play each turn is played twice.' },
-    entropy_doctrine: { name: 'Entropy Doctrine', rarity: 3, cls: 'voidadept', kind: 'hook', hooks: [{ k: 'burnGrow', v: 1 }, { k: 'weakStart', v: 2 }],
-      desc: 'Enemy Burn grows each turn, and all enemies start Weak.' },
-    kinetic_overflow: { name: 'Kinetic Overflow', rarity: 3, cls: 'any', kind: 'hook', hooks: [{ k: 'flatDmg', v: 2 }, { k: 'firstCardFree', v: 1 }],
-      desc: 'Attacks deal +2, and your first card each turn costs 1 less.' },
-
-    /* ---------------- Pacts (tradeoffs) ---------------- */
-    reckless_overdrive: { name: 'Reckless Overdrive', rarity: 2, cls: 'any', kind: 'pact', maxhpPct: 0.12, hook: { k: 'energyEveryTurn', v: 1 },
-      desc: '+1 Energy every turn — but Max HP −12%.' },
-    glass_doctrine: { name: 'Glass Doctrine', rarity: 3, cls: 'any', kind: 'pact', hooks: [{ k: 'dmgMult', v: 0.5 }, { k: 'vulnStart', v: 2 }],
-      desc: 'Deal +50% damage — but start each combat with 2 Vulnerable.' },
-    blood_pact:   { name: 'Blood Pact', rarity: 2, cls: 'any', kind: 'pact', maxhpPct: 0.10, stat: 'class', v: 2,
-      desc: '+2 to your core attribute — but Max HP −10%.' },
-  };
-
-  // Cards offered by the "Requisition" deck-op, by class.
-  ns.augmentAddPool = function (cls) {
-    var out = [];
-    Object.keys(ns.CARDS).forEach(function (id) {
-      var c = ns.CARDS[id];
-      if (c.rarity >= 1 && c.rarity <= 3 && !c.pool && (c.cls === cls || c.cls === 'any')) out.push(id);
-    });
-    return out;
-  };
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
@@ -5993,8 +6084,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       kills: 0, nodesCleared: 0,
       pendingPick: null, pendingAddCard: null,
       quests: {}, questDone: {},
-      classQuest: { step: 0, prog: 0, ready: false, picked: null, locked: null },
-      augments: [], augmentDeckop: null, augmentOffer: null,
+      unlockProg: {},      // progress toward relics that must be earned
       potions: [], won: false,
       loop: 1, echoes: [], loadout: [], echoOffer: null,
       phylacteryUsed: false, salvageKills: 0,
@@ -6107,7 +6197,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // sectors, so depth == sector on the first loop and keeps climbing after.
   E.depth = function () { return (E.run.loop - 1) * B.run.finale + E.run.sector; };
   // Sum of hook k over owned artifacts, including quest "done" hooks once the
-  // artifact's quest has been completed, plus augments and EQUIPPED echoes.
+  // artifact's quest has been completed, plus EQUIPPED echoes.
   function art(k) {
     var t = 0, owned = E.run.artifacts;
     for (var i = 0; i < owned.length; i++) {
@@ -6116,13 +6206,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       if (a.k === k) t += a.v;
       if (a.hooks) for (var hh = 0; hh < a.hooks.length; hh++) if (a.hooks[hh].k === k) t += a.hooks[hh].v;  // multi-effect / tradeoff relics
       if (a.done && a.done.k === k && E.run.questDone && E.run.questDone[owned[i]]) t += a.done.v;
-    }
-    var aug = E.run.augments || [];
-    for (var j = 0; j < aug.length; j++) {
-      var g = ns.AUGMENTS[aug[j]];
-      if (!g) continue;
-      if (g.hook && g.hook.k === k) t += g.hook.v;
-      if (g.hooks) for (var h = 0; h < g.hooks.length; h++) if (g.hooks[h].k === k) t += g.hooks[h].v;
     }
     var ech = E.run.loadout || [];
     for (var e = 0; e < ech.length; e++) {
@@ -6163,44 +6246,60 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   };
 
   /* ---------------- Class quest chains (earn your signature relic) -------- */
-  var CLASS_CHAINS = {
-    vanguard: { name: 'The Warpath', relics: ['recoilless_frame', 'execution_protocol'], steps: [
-      { track: 'kills', goal: 8, label: 'Kill 8 enemies' },
-      { track: 'turnDamage', goal: 45, atOnce: true, label: 'Deal 45 damage in a single turn' },
-      { track: 'turnDamage', goal: 80, atOnce: true, label: 'Deal 80 damage in a single turn' } ] },
-    technomancer: { name: 'Forge Liturgy', relics: ['forge_reserve', 'capacitive_plating'], steps: [
-      { track: 'shieldGained', goal: 80, label: 'Gain 80 Shield' },
-      { track: 'shieldAtOnce', goal: 30, atOnce: true, label: 'Hold 30 Shield at once' },
-      { track: 'shieldGained', goal: 200, label: 'Gain 200 Shield total' } ] },
-    voidadept: { name: 'The Long Hunger', relics: ['hexweaver', 'void_conduit'], steps: [
-      { track: 'burnApplied', goal: 40, label: 'Apply 40 Burn' },
-      { track: 'burnAtOnce', goal: 10, atOnce: true, label: 'Stack 10 Burn on one enemy' },
-      { track: 'burnApplied', goal: 120, label: 'Apply 120 Burn total' } ] },
-
+  /* ---- Relics you have to earn ---------------------------------------
+   * These used to be a bespoke 'class quest': a three-step chain with its own
+   * phase, its own screen and its own progress bar, whose only output was a
+   * relic. It is the relic that is interesting, so the requirement lives on
+   * the relic now (ARTIFACTS[id].unlock) and meeting it simply grants it.
+   * ------------------------------------------------------------------ */
+  function lockedRelics() {
+    var r = E.run, out = [];
+    if (!r) return out;
+    Object.keys(ns.ARTIFACTS).forEach(function (id) {
+      var a = ns.ARTIFACTS[id];
+      if (!a.unlock) return;
+      if (a.cls && a.cls !== r.cls) return;
+      if (r.artifacts.indexOf(id) >= 0) return;
+      out.push(id);
+    });
+    return out;
+  }
+  E.lockedRelics = lockedRelics;
+  E.relicProgress = function (id) {
+    var a = ns.ARTIFACTS[id];
+    if (!a || !a.unlock) return null;
+    var prog = (E.run.unlockProg && E.run.unlockProg[id]) || 0;
+    return { prog: Math.min(prog, a.unlock.goal), goal: a.unlock.goal, label: a.unlock.label };
   };
-  E.classChain = function () { return CLASS_CHAINS[E.run && E.run.cls]; };
+  // Called from wherever a tracked deed happens. `atOnce` requirements take the
+  // best single instance; the rest accumulate over the run.
   function classQuestTick(track, amount) {
-    var r = E.run, q = r.classQuest;
-    if (!q || q.ready || q.picked) return;
-    var chain = CLASS_CHAINS[r.cls]; if (!chain) return;
-    var step = chain.steps[q.step]; if (!step || step.track !== track) return;
-    q.prog = step.atOnce ? Math.max(q.prog, amount) : q.prog + amount;
-    if (q.prog >= step.goal) {
-      q.step++; q.prog = 0;
-      if (q.step >= chain.steps.length) { q.ready = true; emit('classQuestReady', { name: chain.name }); }
-      else emit('classQuestStep', { step: q.step, total: chain.steps.length, label: chain.steps[q.step].label, name: chain.name });
-    }
+    var r = E.run;
+    if (!r) return;
+    if (!r.unlockProg) r.unlockProg = {};
+    lockedRelics().forEach(function (id) {
+      var u = ns.ARTIFACTS[id].unlock;
+      if (u.track !== track) return;
+      r.unlockProg[id] = u.atOnce ? Math.max(r.unlockProg[id] || 0, amount) : (r.unlockProg[id] || 0) + amount;
+      if (r.unlockProg[id] >= u.goal) {
+        addArtifact(id);
+        emit('relicUnlocked', { id: id, name: ns.ARTIFACTS[id].name, label: u.label });
+      }
+    });
   }
   E.classQuestTick = classQuestTick;
-  E.takeClassRelic = function (i) {
-    var r = E.run, q = r.classQuest, chain = CLASS_CHAINS[r.cls];
-    if (!q || !q.ready || q.picked || !chain) return;
-    var id = chain.relics[i]; if (!id) return;
-    addArtifact(id);
-    q.picked = id; q.locked = chain.relics[1 - i]; q.ready = false;
-    E.save();
-  };
 
+  // Offer 3 class cards to add — used by events that grant a card of your choice.
+  // This lived in the augment draft; the draft is gone, the helper is not.
+  E.addCardOptions = function () {
+    var pool = Object.keys(ns.CARDS).filter(function (k) {
+      var c = ns.CARDS[k];
+      return !c.pool && c.type !== 'curse' && c.rarity >= 1 && (c.cls === E.run.cls || c.cls === 'any');
+    });
+    shuffle(pool);
+    return pool.slice(0, Math.min(3, pool.length));
+  };
+  E.addChosenCard = function (cid) { E.run.deck.push(mkCard(cid, false)); };
   E.score = function () {
     var r = E.run;
     return (r.sector - 1) * B.score.perSector + r.nodesCleared * B.score.perNode + r.kills * B.score.perKill +
@@ -6465,7 +6564,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var r = E.run;
     r.nodesCleared++;
     var node = currentNode();
-    var next = (node && node.type === 'boss') ? 'levelup' : 'map';
+    // A boss used to pay out twice in a row: an Augment draft, then a relic.
+    // Augments WERE relics — a second pool of engine hooks with another name —
+    // so the draft is gone and the boss just offers relics.
+    var isBoss = !!(node && node.type === 'boss');
+    if (isBoss) setupBossArtifacts(true);   // stock the offer; phase is set below
+    var next = isBoss ? 'boss-artifact' : 'map';
     // A sector boss buys you the cutscene before the spoils — the story beat
     // lands on the kill, not four menus later.
     if (node && node.type === 'boss' && !r.seenCutscene) r.seenCutscene = {};
@@ -6479,12 +6583,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         return;
       }
     }
-    if (r.classQuest && r.classQuest.ready && !r.classQuest.picked) {
-      r.classQuest.nextPhase = next;     // claim your signature relic before moving on
-      r.phase = 'class-relic';
-    } else {
-      r.phase = next;
-    }
+    r.phase = next;
     E.save();
   }
   E.nodeComplete = nodeComplete;
@@ -6507,95 +6606,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     r.cutscene = null;
     E.save();
   };
-  E.finishClassRelic = function () {
-    var r = E.run;
-    r.phase = (r.classQuest && r.classQuest.nextPhase) || 'map';
-    if (r.classQuest) r.classQuest.nextPhase = null;
-    E.save();
-  };
 
-  /* ---------------- Level up: Augment Protocol draft ------------------- */
   var CLASS_STAT = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
   E.classStat = function () { return CLASS_STAT[E.run.cls] || 'might'; };
 
-  // Draft 3 random augments, rarity-weighted and class-flavored, no repeats
-  // of augments already owned (so variety builds over a run).
-  E.augmentChoices = function () {
-    var r = E.run;
-    if (r.augmentOffer) return r.augmentOffer; // stable across re-renders
-    var W = B.levelUp.rarityWeights || { 1: 100, 2: 52, 3: 20 };
-    var pool = Object.keys(ns.AUGMENTS).filter(function (id) {
-      var g = ns.AUGMENTS[id];
-      if (g.cls !== 'any' && g.cls !== r.cls) return false;
-      // owned single-use passives shouldn't re-offer; stat/heal/deckop can repeat
-      if ((g.kind === 'hook' || g.kind === 'pact') && r.augments.indexOf(id) >= 0) return false;
-      return true;
-    });
-    function rollOne() {
-      var bag = [];
-      pool.forEach(function (id) { var w = W[ns.AUGMENTS[id].rarity] || 1; for (var i = 0; i < w; i++) bag.push(id); });
-      return pick(bag);
-    }
-    var picks = [], guard = 0;
-    while (picks.length < 3 && guard++ < 300 && pool.length) {
-      var id = rollOne();
-      if (picks.indexOf(id) < 0) picks.push(id);
-      if (picks.length >= pool.length) break;
-    }
-    r.augmentOffer = picks;
-    E.save();
-    return picks;
-  };
-
-  // Human-readable label/sub for an augment (resolves 'class' to the real stat).
-  E.augmentInfo = function (id) {
-    var g = ns.AUGMENTS[id];
-    var stat = E.classStat().toUpperCase();
-    var desc = g.desc.replace('core attribute', stat);
-    var tag = g.kind === 'pact' ? 'PACT' : g.kind === 'deckop' ? 'DECK' : g.kind === 'stat' ? 'STAT' : g.kind === 'heal' ? 'REPAIR' : 'MODULE';
-    return { name: g.name, desc: desc, rarity: g.rarity, tag: tag, kind: g.kind };
-  };
-
-  E.chooseAugment = function (id) {
-    var r = E.run, g = ns.AUGMENTS[id];
-    if (!g) return;
-    function applyStat(stat, v) {
-      if (stat === 'maxhp') { r.maxHp += v; heal(v); }
-      else { var a = (stat === 'class') ? E.classStat() : stat; r.attrs[a] += v; }
-    }
-    if (g.kind === 'stat') applyStat(g.stat, g.v);
-    else if (g.kind === 'heal') heal(Math.round(r.maxHp * g.healPct));
-    else if (g.kind === 'hook') r.augments.push(id);
-    else if (g.kind === 'pact') {
-      if (g.maxhpPct) { var lose = Math.round(r.maxHp * g.maxhpPct); r.maxHp -= lose; r.hp = Math.min(r.hp, r.maxHp); }
-      if (g.stat) applyStat(g.stat, g.v);
-      if (g.hook || g.hooks) r.augments.push(id);
-    } else if (g.kind === 'deckop') {
-      r.augmentDeckop = g.deckop;
-      r.augmentOffer = null;
-      if (g.deckop === 'remove') r.pendingPick = 'remove';
-      else if (g.deckop === 'upgrade2') r.pendingPick = 'upgrade';
-      E.save();
-      return; // UI resolves the deck op, then calls finishAugment()
-    }
-    r.augmentOffer = null;
-    setupBossArtifacts();
-  };
-
-  E.finishAugment = function () {
-    E.run.augmentDeckop = null;
-    setupBossArtifacts();
-  };
-
-  // Requisition deck-op: offer 3 class cards to add
-  E.augmentAddOptions = function () {
-    var pool = ns.augmentAddPool(E.run.cls);
-    shuffle(pool);
-    return pool.slice(0, Math.min(3, pool.length));
-  };
-  E.augmentAddCard = function (cid) { E.run.deck.push(mkCard(cid, false)); };
-
-  function setupBossArtifacts() {
+  function setupBossArtifacts(stockOnly) {
     var r = E.run;
     var pool = Object.keys(ns.ARTIFACTS).filter(function (k) {
       return ns.ARTIFACTS[k].tier === 2 && r.artifacts.indexOf(k) < 0;
@@ -6603,8 +6618,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (pool.length === 0) pool = Object.keys(ns.ARTIFACTS).filter(function (k) { return ns.ARTIFACTS[k].tier === 1 && r.artifacts.indexOf(k) < 0; });
     shuffle(pool);
     r.bossArtifacts = pool.slice(0, Math.min(3, pool.length));
-    r.phase = 'boss-artifact';
-    E.save();
+    if (!stockOnly) { r.phase = 'boss-artifact'; E.save(); }
   }
 
   E.takeBossArtifact = function (i) {
@@ -6823,6 +6837,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (vstart > 0) c.player.statuses.vuln = vstart;
     var pa = art('platedArmorStart');
     if (pa > 0) c.player.statuses.platedArmor = pa;
+    // ARCHETYPE ANCHORS: constructs, the Exhaust engine and the blood engine
+    // had no relic pointing at them at all, so those builds were assembled
+    // entirely out of the card pool. These start the engine already running.
+    var pp = art('psiPowStart');
+    if (pp > 0) c.player.statuses.psiPow = pp;
+    var ts = art('turretStart');
+    if (ts > 0) c.player.statuses.turret = ts;
+    var sv = art('salvoStart');
+    if (sv > 0) c.player.statuses.salvo = sv;
+    var br = art('bloodrageStart');
+    if (br > 0) c.player.statuses.bloodrage = br;
     var bs = art('blockStart') + art('blockStartTechMul') * attr('tech');   // Forge Reserve scales with TECH
     if (bs > 0) { c.player.block = bs; } // relic Shield is passive, not "played"
     var ws = art('weakStart');
@@ -6933,7 +6958,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     c.nonAttacksThisTurn = 0;   // Recoilless Frame: per-turn non-attack limit
     c.turnDamage = 0;           // class quest: damage dealt this turn
     c.momentum = 0;   // Momentum Engine resets each turn
-    if (p.statuses.momentum) p.statuses.momentum = 0;   // Fusillade: Momentum is a per-turn combo
+    // Fusillade: Momentum is a per-turn combo — unless a Cycling Breech says
+    // otherwise, which is the whole point of that relic.
+    if (p.statuses.momentum && !art('momentumKeep')) p.statuses.momentum = 0;
     // Cursed Inheritance: a curse is lodged in hand at the start of combat
     if (c.turn === 1 && E.hasEcho('cursed_inheritance')) c.hand.push(mkCard('recurring_curse', false));
     // block expiry (Retain / Barricade keep your Shield). Turn 1 has no prior
@@ -7121,7 +7148,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       attrs: { might: attr('might'), tech: attr('tech'), psi: attr('psi') },
       pri: priAttr(),            // primary attribute name (for 'pri'-scaled cards)
       statuses: E.combat ? E.combat.player.statuses : null,
-      flatDmg: art('flatDmg'),   // so cards show damage incl. relic/augment buffs
+      flatDmg: art('flatDmg'),   // so cards show damage incl. relic buffs
     };
   }
 
@@ -7595,6 +7622,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             E.run.credits += (f.v || 5); emit('credits', { amount: f.v || 5 });
           } else if (f.id === 'dieLoseBlock') {
             p.block = Math.max(0, p.block - (f.v || 3)); emit('block', { who: 'player', amount: 0, blockAfter: p.block });
+          } else if (f.id === 'dieExhaustDraw') {
+            // SALVAGE BURNER: the Vanguard's Exhaust engine had no engravable
+            // face at all. This feeds it — Resolve, Salvo and Quartermaster all
+            // read a card leaving the deck, and you get the draw regardless.
+            if (c.drawPile.length) exhaustCard(c.drawPile.pop());
+            drawCards(f.v || 2);
           } else if (f.id === 'dieEnemyStr') {
             var esPool = aliveEnemies();
             if (esPool.length) { var esE = pick(esPool); addStatus(esE, 'str', f.v || 1); emit('status', { who: 'enemy', idx: c.enemies.indexOf(esE), s: 'str', v: statN(esE, 'str') }); }
@@ -7914,6 +7947,25 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (statN(p, 'regen')) { heal(statN(p, 'regen')); addStatus(p, 'regen', -1); }
     if (statN(p, 'vuln')) addStatus(p, 'vuln', -1);
     if (statN(p, 'weak')) addStatus(p, 'weak', -1);
+
+    // THE COUNT RUNS OUT: past the patience threshold the fight acquires a
+    // clock. Enemies gain Might every turn and your Shield starts failing —
+    // both, because Might alone cannot chew through an unbounded Barricade pool
+    // in any number of turns a player would sit through. See BALANCE.enrage.
+    var ENR = B.enrage || {};
+    if (ENR.turn && c.turn > ENR.turn && !c.over && r.phase !== 'dead') {
+      if (!c.enraged) { c.enraged = true; emit('enrage', { turn: c.turn }); }
+      c.enemies.forEach(function (en, idx) {
+        if (!en.alive) return;
+        addStatus(en, 'str', ENR.str || 1);
+        emit('status', { who: 'enemy', idx: idx, s: 'str', v: statN(en, 'str') });
+      });
+      if (p.block > 0) {
+        var lost = Math.max(ENR.shieldFloor || 5, Math.ceil(p.block * (ENR.shieldDecay || 0.25)));
+        p.block = Math.max(0, p.block - lost);
+        emit('enrageDecay', { lost: lost, block: p.block });
+      }
+    }
 
     // enemies act
     var s = r.sector;
@@ -8255,7 +8307,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (!a || a.tier !== tier) return false;
     if (E.run.artifacts.indexOf(k) >= 0) return false;            // already owned
     if (a.cls && a.cls !== E.run.cls) return false;               // class-locked: only its class
-    if (a.questOnly || a.cornerstone) return false;               // quest/cornerstone relics never drop
+    if (a.questOnly || a.cornerstone) return false;               // cornerstone relics never drop
+    if (a.unlock) return false;                                   // earned, not dropped
     return true;
   }
   function randomArtifact(tier) {
@@ -8331,6 +8384,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (a.uses) { r.relicUses = r.relicUses || {}; r.relicUses[id] = a.uses; }   // durability charge
     if (a.k === 'maxHp') { r.maxHp += a.v; r.hp += a.v; }
     if (a.special === 'glassCannon') { var lose = Math.round(r.maxHp * 0.25); r.maxHp -= lose; r.hp = Math.min(r.hp, r.maxHp); }
+    // Pact relics (absorbed from the old augment 'pact' kind) bill Max HP once,
+    // when taken — not every time art() is read.
+    (a.hooks || []).forEach(function (h) {
+      if (h.k !== 'maxHpPct') return;
+      var cut = Math.round(r.maxHp * Math.abs(h.v));
+      r.maxHp = Math.max(1, r.maxHp - cut); r.hp = Math.min(r.hp, r.maxHp);
+    });
     if (a.quest && !r.questDone[id]) r.quests[id] = r.quests[id] || 0;
     // slot it into the die straight away if the core has room; otherwise it waits
     // in the vault and the player chooses what to swap out.
@@ -8664,8 +8724,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     r.removeCost = B.shop.removeCost;
     r.grindCost = B.dieShop.grindCost;
     r.quests = {}; r.questDone = {};
-    r.augmentDeckop = null; r.augmentOffer = null;
-    if (!heart) { r.augments = []; r.potions = []; }   // keep your augments/belt for the climax
+    r.unlockProg = {};
+    if (!heart) { r.potions = []; }   // keep your belt for the climax
     r.phylacteryUsed = false; r.salvageKills = 0;
     r.reward = null; r.shop = null; r.bossArtifacts = null; r.treasure = null;
     r.pendingPick = null; r.pendingAddCard = null; r.echoOffer = null;
@@ -8826,7 +8886,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       gained.push(removed ? 'Purged ' + removed + ' curse' + (removed > 1 ? 's' : '') : 'No curses to purge');
     }
     if (fx.addCardChoice) {
-      r.pendingAddCard = E.augmentAddOptions();
+      r.pendingAddCard = E.addCardOptions();
       gained.push('Choose a card to add');
     }
     if (fx.tradeCard) {
@@ -12027,8 +12087,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       case 'rest': return showRest();
       case 'forge': return showForge();
       case 'rift': return showRift();
-      case 'levelup': return showLevelUp();
-      case 'class-relic': return showClassRelic();
       case 'boss-artifact': return showBossArtifact();
       case 'first-mark': return showFirstMark();
       case 'cutscene': return showCutscene();
@@ -12164,7 +12222,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // can tap to toggle them on/off; in combat a tap reads its tooltip. Relics
     // with limited uses show a remaining-count badge.
     html += '<div class="artifact-row">';
-    html += '<div class="artifact-chip die-chip" data-die="1" title="Inspect the die">' + dieChipSVG() + '</div>';
+    var waiting = (E.run.die && E.run.die.pending) ? E.run.die.pending.length : 0;
+    html += '<div class="artifact-chip die-chip' + (waiting ? ' has-pending' : '') + '" data-die="1" title="' +
+      (waiting ? waiting + ' engraving' + (waiting > 1 ? 's' : '') + ' waiting to be cut' : 'Inspect the die') + '">' +
+      dieChipSVG() + (waiting ? '<span class="die-pend-badge">' + waiting + '</span>' : '') + '</div>';
     html += '</div>';
     if ((r.pressure || 0) > 0) html += '<span class="hud-press">P' + r.pressure + ' ' + esc(E.pressureName(r.pressure)) + '</span>';
     // Relics live INSIDE the die now — the HUD only shows what is mounted, as a
@@ -12470,11 +12531,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return { label: m.label, crit: false, good: m.mult > 1.02 };
   }
 
-  function dieFaceRowHTML(die, face, reach) {
+  function dieFaceRowHTML(die, face, reach, armedId) {
     var id = ns.dieFaceId(die, face), d = id ? ns.dieEngraving(id) : null;
     var slot = die.faces[face];
     var cont = slot && slot.root !== face;                 // continuation of a band
     var cls = 'df' + (d ? (d.flaw ? ' flaw' : ' aug') : ' bare') + (reach(face) ? '' : ' unreach');
+    // While something is armed, say up-front which faces will take it. A band
+    // that runs off the end of the die, or a face-locked engraving, used to be
+    // discoverable only by tapping and reading a rejection.
+    if (armedId) cls += ns.dieCanEngrave(die, armedId, face) ? ' no-fit' : ' fits';
     var et = dieEndTag(E.run && E.run.cls, face);
     var tag = et ? '<span class="df-tag' + (et.crit || et.good ? ' crit' : '') + '">' + esc(et.label) + '</span>' : '';
     var body = d
@@ -12496,6 +12561,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var bench = !!(opts && opts.bench) && E.benchOpen();
     var back = opts && opts.back;
     var buying = null, moving = null;   // bench: engraving being placed / reseated
+    var armed = null;                   // index into die.pending being placed
     var wasCombat = r.phase === 'combat';
     var sel = 20, pickOpen = false;
     var s = overlayScreen();
@@ -12526,7 +12592,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     function renderAll(spinTo, flair) {
       var a = aim(), rc = reach();
-      var pend = (die.pending && die.pending.length) ? die.pending[0] : null;
+      var queue = die.pending || [];
+      if (armed != null && armed >= queue.length) armed = null;
+      var pend = (armed != null) ? queue[armed] : null;
       var pg = pend ? ns.dieEngraving(pend) : null;
       var buyG = (buying != null && r.shop && r.shop.engravings[buying]) ? ns.dieEngraving(r.shop.engravings[buying].id) : null;
       var moveG = (moving != null && die.faces[moving]) ? ns.dieEngraving(die.faces[moving].id) : null;
@@ -12535,7 +12603,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         : moveG
         ? ('<span class="die-place">MOVING: ' + esc(moveG.name) + ' — TAP A NEW FACE · ¢' + r.credits + '</span>')
         : pg
-        ? ('<span class="die-place">PLACING: ' + esc(pg.name) + ' — TAP A FACE</span>')
+        ? ('<span class="die-place">CUTTING: ' + esc(pg.name) + ' — TAP A FACE IN GREEN</span>')
+        : queue.length
+        ? ('<span class="die-place">' + queue.length + ' ENGRAVING' + (queue.length > 1 ? 'S' : '') + ' WAITING — CHOOSE ONE BELOW</span>')
         : (bench ? '“BRING ME THE DIE.” · ¢' + r.credits + ' — ' : '')
           + (a > 0
           ? ('AIM +' + a + ' — YOU LAND ON ' + Math.min(20, 2 + a) + '–20, PLUS FACE 1 ON A NATURAL 1')
@@ -12545,7 +12615,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       wrap.innerHTML = '';
       [[1, 10], [11, 20]].forEach(function (rng) {
         var col = el('div', 'die-col'), h = '';
-        for (var f = rng[0]; f <= rng[1]; f++) h += dieFaceRowHTML(die, f, rc);
+        for (var f = rng[0]; f <= rng[1]; f++) h += dieFaceRowHTML(die, f, rc, pend);
         col.innerHTML = h;
         wrap.appendChild(col);
       });
@@ -12564,10 +12634,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             if (mw) { toast(mw.toUpperCase(), 1700); return; }
             SFX.coin(); moving = null; sel = f; renderAll(true, true); return;
           }
-          if (pend) {   // placing a freshly-won engraving
+          if (pend) {   // cutting in the engraving the player armed
             var why = ns.dieCanEngrave(die, pend, f);
-            if (why) { toast(why, 1700); return; }
-            ns.dieEngrave(die, pend, f); die.pending.shift(); E.save();
+            if (why) { toast(why.toUpperCase(), 1700); return; }
+            ns.dieEngrave(die, pend, f);
+            die.pending.splice(armed, 1);
+            armed = null;
+            E.save();
             sel = f; renderAll(true, true); return;
           }
           sel = f; renderAll(true, false);
@@ -12587,8 +12660,29 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
       read.innerHTML = dieReadHTML(r.cls, a);
 
-      // ---- the bench (a real shop) ----
+      // ---- engravings in hand -------------------------------------------
+      // These used to be a silent FIFO: the die screen grabbed pending[0] and
+      // you placed that one or nothing. Two engravings meant no choice at all,
+      // and while one was queued every face tap tried to cut rather than
+      // inspect, so you could not even read the die you were changing.
       var h = '';
+      if (queue.length) {
+        h += '<div class="ws-title">IN HAND <span class="ws-note">' + queue.length +
+             ' TO CUT</span></div><div class="pend-tray">';
+        queue.forEach(function (pid, i) {
+          var g = ns.dieEngraving(pid); if (!g) return;
+          var fits = 0;
+          for (var pf = 1; pf <= ns.DIE.faces; pf++) if (!ns.dieCanEngrave(die, pid, pf)) fits++;
+          h += '<button class="pend-it' + (armed === i ? ' arming' : '') + (fits ? '' : ' poor') + '" data-pend="' + i + '">'
+            +  '<span class="bi-icon">' + artSVG(g.art, 'df-icon') + '</span>'
+            +  '<span class="bi-body"><span class="bi-name">' + esc(g.name) + '</span>'
+            +  '<span class="bi-desc">' + esc(g.desc) + '</span></span>'
+            +  '<span class="bi-tier">' + (g.span > 1 ? g.span + ' FACES' : '1 FACE') + ' · '
+            +  (fits ? fits + ' FIT' : 'NO ROOM') + '</span></button>';
+        });
+        h += '</div>';
+        if (armed != null) h += '<div class="ws-hint">TAP A GREEN FACE TO CUT IT IN, OR TAP THE ENGRAVING AGAIN TO PUT IT DOWN.</div>';
+      }
       if (bench) {
         var stock = (r.shop.engravings || []);
         h += '<div class="ws-title">ENGRAVING BENCH <span class="ws-note">¢' + r.credits + '</span></div>';
@@ -12651,13 +12745,22 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         h += '</div>';
       }
       shop.innerHTML = h;
+      shop.querySelectorAll('[data-pend]').forEach(function (b) {
+        b.addEventListener('pointerdown', function (ev) {
+          ev.stopPropagation(); SFX.tap();
+          var i = +b.dataset.pend;
+          armed = (armed === i) ? null : i;   // tapping the armed one puts it down
+          buying = null; moving = null;
+          renderAll(false, false);
+        });
+      });
       shop.querySelectorAll('[data-buy]').forEach(function (b) {
         b.addEventListener('pointerdown', function (ev) {
           ev.stopPropagation(); SFX.tap();
           var i = +b.dataset.buy, it = r.shop.engravings[i];
           if (it.sold) { toast('SOLD OUT', 1400); return; }
           if (r.credits < it.cost) { toast('NOT ENOUGH CREDITS', 1400); return; }
-          buying = (buying === i) ? null : i; moving = null;
+          buying = (buying === i) ? null : i; moving = null; armed = null;
           renderAll(false, false);
         });
       });
@@ -12692,10 +12795,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         });
       });
 
-      // core + frame (tap a mounted module to unmount, or mount from the vault)
+      // core + frame (tap a mounted relic to unmount, or mount one from the vault)
       var slots = die.coreSlots || ns.DIE.coreSlotsStart;
       var mh = '<div class="dm-title">CORE <span class="dm-slots">' + die.core.length + '/' + slots + '</span></div><div class="dm-row">';
-      if (!die.core.length) mh += '<span class="dm-empty">no modules mounted</span>';
+      if (!die.core.length) mh += '<span class="dm-empty">no relics mounted</span>';
       die.core.forEach(function (cid, i) {
         var art = ns.ARTIFACTS[cid]; if (!art) return;
         mh += '<div class="dm-chip" data-unmount="' + i + '" title="' + esc(art.name + ' — ' + art.desc) + '">' + artSVG(art.art, 'art-icon') + '</div>';
@@ -14423,6 +14526,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         case 'block': case 'heal': case 'status': return 60;
         case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120; case 'charge': return 100; case 'jam': return 120; case 'corrupt': return 160; case 'overload': return 120; case 'discipline': return 90;
         case 'revive': return 260; case 'salvage': return 80; case 'win': return 250;
+        case 'relicUnlocked': return 1000;
+        case 'enrage': return 900;        // the announcement gets its own beat
+        case 'enrageDecay': return 120;
         default: return 0;
       }
     }
@@ -14447,6 +14553,38 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     evts.forEach(function (e, _ei) {
       delay = times[_ei];
       switch (e.type) {
+        // A relic you EARNED has to say so at the moment you earn it, or the
+        // requirement may as well not exist.
+        case 'relicUnlocked':
+          (function (e, d) {
+            setTimeout(function () {
+              SFX.win(); R.flash();
+              toast('RELIC UNLOCKED — ' + e.name.toUpperCase() + ' · ' + e.label.toUpperCase(), 3000);
+            }, d);
+          })(e, delay);
+          break;
+        // THE COUNT RUNS OUT — a fight that has gone on too long acquires a
+        // clock. Announce it loudly the once, then narrate each Shield failure,
+        // because losing Shield to an unexplained rule is the worst version of
+        // this mechanic.
+        case 'enrage':
+          (function (d) {
+            setTimeout(function () {
+              SFX.hit();
+              R.flash();
+              toast('THE COUNT RUNS OUT — HOSTILES GROW STRONGER EACH TURN', 2600);
+            }, d);
+          })(delay);
+          break;
+        case 'enrageDecay':
+          // On the turn it starts, the announcement above is the message that
+          // matters — don't let the running total overwrite it 900ms later.
+          if (!evts.some(function (x) { return x.type === 'enrage'; })) {
+            (function (e, d) {
+              setTimeout(function () { toast('YOUR SHIELD FAILS  −' + e.lost, 1200); }, d);
+            })(e, delay);
+          }
+          break;
         case 'enemyMove':
           // EVERY move animates now, not just attack/drain. A turn where three
           // enemies buff, shield and hex used to be completely silent.
@@ -15471,60 +15609,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
 
   /* ====================== LEVEL UP: AUGMENT DRAFT ====================== */
-  function showLevelUp() {
-    updateHUD();
-    var s = overlayScreen(true);
-    s.appendChild(el('h2', 'screen-title', 'Augment Protocol'));
-    s.appendChild(el('div', 'screen-sub', 'BOSS PURGED · INSTALL ONE AUGMENT'));
-    var cbar = makeConfirmBar();
-    var rareClass = { 1: '', 2: 'cyan', 3: 'amber' };
-    E.augmentChoices().forEach(function (id) {
-      var info = E.augmentInfo(id);
-      var pcls = info.kind === 'pact' ? 'panel-btn pact' : 'panel-btn ' + (rareClass[info.rarity] || '');
-      var rarTag = info.rarity === 3 ? 'RARE' : info.rarity === 2 ? 'UNCOMMON' : 'COMMON';
-      var btn = el('div', pcls,
-        '<div class="pb-title">' + esc(info.name) + ' <span class="aug-tag">' + info.tag + '</span></div>' +
-        '<div class="pb-desc">' + esc(info.desc) + '</div>' +
-        '<div class="pb-sub">' + rarTag + (info.kind === 'deckop' ? ' · choose your cards next' : '') + '</div>');
-      s.appendChild(btn);
-      selectConfirm(s, btn, cbar, 'Install <b>' + esc(info.name) + '</b>?<span class="cb-note">' + esc(info.desc) + '</span>',
-        function () {
-          SFX.win();
-          E.chooseAugment(id);
-          if (E.run.augmentDeckop) runDeckop(E.run.augmentDeckop, function () { E.finishAugment(); U.refresh(); });
-          else U.refresh();
-        }, info.kind === 'pact' ? 'red' : '');
-    });
-    s.appendChild(cbar.el);
-  }
-
-  // Resolve a deck-operation augment (remove / upgrade 2 / add a card), then done()
-  function runDeckop(op, done) {
-    if (op === 'remove') {
-      E.run.pendingPick = 'remove';
-      showPickModal('remove', done);
-    } else if (op === 'upgrade2') {
-      E.run.pendingPick = 'upgrade';
-      showPickModal('upgrade', function () {
-        E.run.pendingPick = 'upgrade';
-        showPickModal('upgrade', done);
-      });
-    } else if (op === 'addCard') {
-      showAddCard(done);
-    } else done();
-  }
-
   function showAddCard(done) {
     var s = overlayScreen(true);
     s.appendChild(el('h2', 'screen-title', 'Requisition'));
     s.appendChild(el('div', 'screen-sub', 'TAP A CARD TO PREVIEW · CONFIRM TO ADD'));
     var grid = el('div', 'card-grid');
     var cbar = makeConfirmBar();
-    E.augmentAddOptions().forEach(function (cid) {
+    E.addCardOptions().forEach(function (cid) {
       var d = cardEl(cid, false);
       grid.appendChild(d);
       selectConfirm(grid, d, cbar, 'Add <b>' + esc(ns.CARDS[cid].name) + '</b> to your deck?',
-        function () { E.augmentAddCard(cid); done(); }, 'cyan');
+        function () { E.addChosenCard(cid); done(); }, 'cyan');
     });
     s.appendChild(grid);
     s.appendChild(cbar.el);
@@ -15775,24 +15870,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
     paintMeter();
     paintActions(false);
-  }
-
-  function showClassRelic() {
-    updateHUD();
-    var r = E.run, chain = E.classChain && E.classChain();
-    var s = overlayScreen(true);
-    s.appendChild(el('h2', 'screen-title', chain ? chain.name + ' · Complete' : 'Signature Relic'));
-    s.appendChild(el('div', 'screen-sub', 'CLAIM ONE — THE OTHER IS LOST FOR THIS RUN'));
-    var cbar = makeConfirmBar();
-    (chain ? chain.relics : []).forEach(function (id, i) {
-      var a = ns.ARTIFACTS[id];
-      var btn = el('div', 'panel-btn amber',
-        '<div class="pb-title"><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + '</div><div class="pb-desc">' + esc(a.desc) + '</div>');
-      s.appendChild(btn);
-      selectConfirm(s, btn, cbar, 'Claim <b>' + esc(a.name) + '</b>?<span class="cb-note">' + esc(a.desc) + '</span>',
-        function () { SFX.coin(); E.takeClassRelic(i); E.finishClassRelic(); U.refresh(); }, 'amber');
-    });
-    s.appendChild(cbar.el);
   }
 
   function showBossArtifact() {
@@ -16274,6 +16351,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         E2('The d20', 'Every attack rolls a visible d20. A high enough roll is a CRIT for ' + crit + '× damage. Some relics widen the crit range.'),
         E2('Damage order', 'Damage strips Shield first, then HP. Vulnerable and Weak change the numbers before they land.'),
         E2('Death', 'At 0 HP the run ends — unless a relic or Echo pulls you back.', 'bad'),
+        E2('The count runs out', 'Nothing down here waits forever. After turn ' + (B.enrage ? B.enrage.turn : 20) +
+          ' every enemy gains Might each turn and your Shield begins to fail. Fights almost never reach it — but a turtle that has lost its offence will not be allowed to stand there.', 'bad'),
       ] },
       { cat: 'Attributes', entries: [
         E2('MIGHT', 'Raises Might-scaling weapon damage. The Vanguard’s core stat.', 'off'),
@@ -16336,7 +16415,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         E2('Card rewards', 'After most fights, take 1 of 3 offered cards — or skip to keep your deck lean.'),
         E2('Upgrades', 'Rest sites and some events upgrade a card to stronger numbers.'),
         E2('Relics', 'Passive artifacts that last the whole run; from bosses, elites, treasure and shops.'),
-        E2('Augment draft', 'After each boss you draft an Augment Protocol — a permanent module or stat boost.'),
+        E2('Relics', 'Permanent passives. Elites, events and shops offer them; a boss lets you pick one of three. They only apply while MOUNTED in your die\u2019s core.'),
+        E2('Earned relics', 'A few relics cannot be found at all. Each states a deed \u2014 kill 8 enemies, hold 35 Shield at once \u2014 and is granted the moment you do it.'),
         E2('Credits & Shop', 'Spend credits on cards, relics, healing, and removing weak cards from your deck.'),
       ] },
       { cat: 'Potions', entries: [
@@ -16350,7 +16430,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       ] },
       { cat: 'Recurrence', intro: 'New Game+ : beating THE UNMAKER opens an endless loop of the same spire.', entries: [
         E2('Victory', 'Beat the Unmaker, then claim victory (run recorded) or enter the Recurrence for a fresh descent.', 'sp'),
-        E2('Powers fade', 'Each loop your deck, relics, augments and stats reset to baseline. You start over — almost.'),
+        E2('Powers fade', 'Each loop your deck and relics reset to baseline. You start over — almost.'),
         E2('Void Echoes', 'You keep one permanent Echo per loop — sideways relics (glass-cannon, combo, execute-chains, pacts). Equip up to ' + slots + ' at once.', 'sp'),
         E2('The world strengthens', 'Enemies gain +' + loop + '% HP & damage per loop, on top of normal scaling. Deep loops are a build puzzle, not a treadmill.'),
       ] },
