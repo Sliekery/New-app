@@ -1,0 +1,5 @@
+# Playwright is installed on demand for in-browser verification of the game
+# (rendering, animations, UI screens). It is a throwaway tool dependency, not
+# part of the game, which ships as plain HTML/JS with no build step.
+node_modules/
+package-lock.json
