@@ -153,6 +153,28 @@
                        // Heart node then a build-countering tribute boss.
     },
 
+    /* ---- VOID PRESSURE: the difficulty ladder -------------------------
+     * Each rating is a designed hazard, not a bigger number — the Recurrence
+     * already handles flat scaling. Modifiers are CUMULATIVE: at pressure 5 you
+     * carry 1 through 5. Clear a rating to unlock the next.
+     * ------------------------------------------------------------------ */
+    ladder: [
+      { name: 'DRIFT',         desc: 'Standard descent. Nothing out there but the Spire.', mods: {} },
+      { name: 'COLD VACUUM',   desc: 'Hostiles run 10% harder to kill.',                  mods: { enemyHp: 1.10 } },
+      // more elites alone made the game EASIER (elites pay in relics and
+      // engravings), so this rating makes elites nastier rather than commoner.
+      { name: 'DEBRIS FIELD',  desc: 'Elites never travel alone, and there are more of them.', mods: { eliteWeight: 4, eliteMinion: 1 } },
+      { name: 'SOLAR FLARE',   desc: 'Your die runs hot: a 1 or a 2 misfires, and misfires bite harder.', mods: { misfireOn: 2, misfireMult: 0.7 } },
+      { name: 'GRAVITY WELL',  desc: 'The die frame buckles — one less core slot, now and forever.', mods: { coreSlots: -1, coreSlotsMax: -1 } },
+      { name: 'RADIATION BELT',desc: 'Field repairs take poorly. Rest heals 30% less.',   mods: { restHeal: 0.70 } },
+      { name: 'ION STORM',     desc: 'Hostiles hit 10% harder.',                          mods: { enemyDmg: 1.10 } },
+      { name: 'HULL BREACH',   desc: 'You launch with a Flaw already cut into your die.', mods: { startFlaw: 1 } },
+      { name: 'DEAD RECKONING',desc: 'Salvage is thin — 2 cards offered, not 3.',         mods: { cardChoices: -1 } },
+      { name: 'EVENT HORIZON', desc: 'Hostiles run 10% harder to kill again.',            mods: { enemyHp: 1.10 } },
+      { name: 'SINGULARITY',   desc: 'Markets gouge (+30%) and stims are scarce.',        mods: { shopCost: 1.30, potionDrop: 0.6 } },
+      { name: 'THE LONG DARK', desc: 'Hostiles hit 10% harder, and every boss wakes angry.', mods: { enemyDmg: 1.10, bossStr: 1 } },
+    ],
+
     /* ---- Void Echoes (Recurrence / NG+ special relics) ------------------ */
     echoes: {
       loadoutSlots: 3,  // how many owned Echoes you may equip per loop

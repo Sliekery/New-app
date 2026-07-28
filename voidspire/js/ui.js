@@ -595,6 +595,7 @@
          +  '<svg viewBox="0 0 40 40" class="art-icon"><polygon points="20,3 35,12 35,28 20,37 5,28 5,12" fill="none" stroke="currentColor" stroke-width="2.4"/>'
          +  '<polygon points="20,10 29,25 11,25" fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.6"/></svg></div>';
     html += '</div>';
+    if ((r.pressure || 0) > 0) html += '<span class="hud-press">P' + r.pressure + ' ' + esc(E.pressureName(r.pressure)) + '</span>';
     // Relics live INSIDE the die now — the HUD only shows what is mounted, as a
     // read-only strip beside the die chip. Everything else is in the vault.
     var mounted = (r.die ? r.die.core.concat(r.die.frame) : []);
@@ -1117,6 +1118,45 @@
       });
       s.appendChild(cont);
     }
+
+    // ---- VOID PRESSURE: pick the rating you descend at ----
+    if (E.nextPressure == null) E.nextPressure = E.pressureUnlocked();
+    var maxP = E.pressureMax(), unlocked = E.pressureUnlocked();
+    var pw = el('div', 'press-pick');
+    function drawPressure() {
+      var lv = E.nextPressure, L = B.ladder[lv] || B.ladder[0];
+      var mods = E.pressureMods(lv);
+      var chips = [];
+      if (mods.enemyHp > 1) chips.push('HOSTILE HP +' + Math.round((mods.enemyHp - 1) * 100) + '%');
+      if (mods.enemyDmg > 1) chips.push('HOSTILE DMG +' + Math.round((mods.enemyDmg - 1) * 100) + '%');
+      if (mods.eliteWeight) chips.push('MORE ELITES');
+      if (mods.misfireOn > 1) chips.push('MISFIRE ON 1–' + mods.misfireOn);
+      if (mods.coreSlots) chips.push(mods.coreSlots + ' CORE SLOT');
+      if (mods.restHeal < 1) chips.push('REST −' + Math.round((1 - mods.restHeal) * 100) + '%');
+      if (mods.startFlaw) chips.push('START WITH A FLAW');
+      if (mods.cardChoices) chips.push('CARD PICKS ' + (3 + mods.cardChoices));
+      if (mods.shopCost > 1) chips.push('SHOPS +' + Math.round((mods.shopCost - 1) * 100) + '%');
+      if (mods.potionDrop < 1) chips.push('FEWER STIMS');
+      if (mods.bossStr) chips.push('BOSSES +' + mods.bossStr + ' MIGHT');
+      pw.innerHTML =
+        '<div class="pp-head"><button class="pp-arrow" data-d="-1" aria-label="Lower rating">◀</button>' +
+        '<div class="pp-mid"><div class="pp-lab">VOID PRESSURE ' + lv + ' / ' + maxP + '</div>' +
+        '<div class="pp-name">' + esc(L.name) + '</div></div>' +
+        '<button class="pp-arrow" data-d="1" aria-label="Higher rating">▶</button></div>' +
+        '<div class="pp-desc">' + esc(L.desc) + '</div>' +
+        (chips.length ? '<div class="pp-chips">' + chips.map(function (c) { return '<span>' + esc(c) + '</span>'; }).join('') + '</div>' : '') +
+        '<div class="pp-lock">' + (unlocked >= maxP ? 'ALL RATINGS UNLOCKED' : 'CLEAR A RATING TO UNLOCK THE NEXT · UNLOCKED: ' + unlocked) + '</div>';
+      pw.querySelectorAll('.pp-arrow').forEach(function (b) {
+        b.addEventListener('pointerdown', function (ev) {
+          ev.stopPropagation(); SFX.tap();
+          var next = E.nextPressure + (+b.dataset.d);
+          if (next < 0 || next > unlocked) { if (next > unlocked) toast('CLEAR PRESSURE ' + unlocked + ' TO UNLOCK IT', 1600); return; }
+          E.nextPressure = next; drawPressure();
+        });
+      });
+    }
+    drawPressure();
+    s.appendChild(pw);
 
     Object.keys(CLASS_INFO).forEach(function (cls) {
       var ci = CLASS_INFO[cls], cc = B.classes[cls];

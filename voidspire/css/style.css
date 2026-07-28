@@ -1387,3 +1387,23 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   100% { opacity: 0; transform: translateX(-50%) scale(1) translateY(-14px); }
 }
 #combat-die.settle .die-svg { animation: dieSettle 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.5); }
+
+/* ---- Void Pressure picker (title screen) -------------------------------- */
+.press-pick { width: 100%; max-width: 420px; margin: 4px auto 10px; border: 1px solid var(--green-dim);
+  background: rgba(8,18,13,0.72); padding: 10px 12px; }
+.pp-head { display: flex; align-items: center; gap: 10px; }
+.pp-mid { flex: 1 1 auto; text-align: center; }
+.pp-lab { font: 700 8.5px/1.3 ui-monospace, monospace; letter-spacing: .18em; color: #6f8579; }
+.pp-name { font: 700 15px/1.2 ui-monospace, monospace; letter-spacing: .1em; color: var(--amber);
+  text-shadow: 0 0 8px rgba(255,176,46,.55); }
+.pp-arrow { font: 700 14px/1 ui-monospace, monospace; color: #d6ffe4; background: rgba(6,16,11,.9);
+  border: 1px solid var(--green-dim); padding: 6px 11px; cursor: pointer; }
+.pp-arrow:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.pp-desc { margin-top: 7px; font: 600 9.5px/1.45 ui-monospace, monospace; color: var(--text); text-align: center; }
+.pp-chips { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 8px; }
+.pp-chips span { font: 700 7.5px/1 ui-monospace, monospace; letter-spacing: .08em; color: #ffc98a;
+  border: 1px solid rgba(255,176,46,.42); padding: 3px 5px; }
+.pp-lock { margin-top: 8px; font: 600 7.5px/1.3 ui-monospace, monospace; letter-spacing: .1em;
+  color: #5d7266; text-align: center; }
+.hud-press { font: 700 8.5px/1 ui-monospace, monospace; letter-spacing: .1em; color: var(--amber);
+  border: 1px solid rgba(255,176,46,.45); padding: 2px 5px; margin-left: 8px; }

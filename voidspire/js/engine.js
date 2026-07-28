@@ -56,6 +56,7 @@
       credits: B.player.startCredits,
       deck: deck,
       artifacts: [],
+      pressure: E.nextPressure || 0,   // VOID PRESSURE rating for this run
       die: ns.newDie(),    // THE AUGMENTED DIE: faces / core / frame
       bossOrder: shuffle((ns.BOSSES[fac] || []).slice()),   // no sector boss repeats in a run
       relicOff: {},        // relics switched off (toggled on the star chart)
@@ -66,7 +67,7 @@
       mapRow: -1, mapCol: 0,
       phase: 'none',
       usedEvents: [],
-      removeCost: B.shop.removeCost,
+      removeCost: Math.round(B.shop.removeCost * (E.pressureMods().shopCost || 1)),
       kills: 0, nodesCleared: 0,
       pendingPick: null, pendingAddCard: null,
       quests: {}, questDone: {},
@@ -83,6 +84,24 @@
     }
     E.run.map = generateMap(1);
     E.run.phase = 'map';
+    // VOID PRESSURE: the frame buckles (fewer core slots) and HULL BREACH
+    // launches you with a Flaw already cut into the die.
+    (function () {
+      var pm = E.pressureMods();
+      var d = E.run.die;
+      if (d) {
+        if (pm.coreSlots) d.coreSlots = Math.max(1, d.coreSlots + pm.coreSlots);
+        if (pm.startFlaw) {
+          var fl = Object.keys(ns.DIE_FLAWS || {});
+          for (var q = 0; q < (pm.startFlaw | 0) && fl.length; q++) {
+            var free = [];
+            for (var f = 2; f <= ns.DIE.faces; f++) if (!d.faces[f]) free.push(f);
+            if (!free.length) break;
+            ns.dieEngrave(d, pick(fl), pick(free));
+          }
+        }
+      }
+    })();
     E.save();
   };
 
@@ -343,6 +362,13 @@
       var isFirst = (r === 0), isLast = (r === ROWS - 1);
       // the three acts gate which encounters can appear at each depth
       var base = (r <= M.act1End) ? A.approach : (r <= M.act2End) ? A.push : A.final;
+      // VOID PRESSURE — DEBRIS FIELD: the lanes thicken with elites
+      var _ew = E.pressureMods().eliteWeight || 0;
+      if (_ew > 0 && base.elite != null) {
+        var b2 = {}; Object.keys(base).forEach(function (k) { b2[k] = base[k]; });
+        b2.elite += _ew; b2.fight = Math.max(4, b2.fight - Math.round(_ew * 0.6));
+        base = b2;
+      }
       var laneBiased = (r > M.act1End);   // Approach stays a gentle, lane-neutral on-ramp
       rows[r].forEach(function (node) {
         if (isFirst) { node.type = 'fight'; return; }                 // entry row: all fights
@@ -386,7 +412,8 @@
   };
   E.growDieCore = function () {
     var d = E.run && E.run.die; if (!d) return;
-    d.coreSlots = Math.min(ns.DIE.coreSlotsMax, (d.coreSlots || ns.DIE.coreSlotsStart) + ns.DIE.coreSlotsPerBoss);
+    var cap = Math.max(1, ns.DIE.coreSlotsMax + (E.pressureMods().coreSlotsMax || 0));
+    d.coreSlots = Math.min(cap, (d.coreSlots || ns.DIE.coreSlotsStart) + ns.DIE.coreSlotsPerBoss);
   };
   E.sectorBossName = function () { var d = ns.ENEMIES[E.sectorBossId()]; return d ? d.name : 'SECTOR BOSS'; };
 
@@ -630,6 +657,45 @@
   /* ---------------- Combat: setup --------------------------------------- */
   // Extra enemy power from the Recurrence loop and the Unmaker's Tithe echo,
   // applied on top of normal per-sector scaling.
+  /* ---- VOID PRESSURE: the difficulty ladder ---------------------------
+   * Ratings are cumulative — at pressure 5 you carry 1..5. Multiplicative keys
+   * compound; additive keys sum; flags latch on.
+   * ------------------------------------------------------------------- */
+  var PMUL = { enemyHp: 1, enemyDmg: 1, restHeal: 1, shopCost: 1, potionDrop: 1, misfireMult: 1 };
+  E.pressure = function () { return (E.run && E.run.pressure) || 0; };
+  E.pressureMods = function (lvl) {
+    var L = B.ladder || [], out = {}, top = Math.min(lvl == null ? E.pressure() : lvl, L.length - 1);
+    Object.keys(PMUL).forEach(function (k) { out[k] = 1; });
+    for (var i = 1; i <= top; i++) {
+      var m = L[i] && L[i].mods; if (!m) continue;
+      Object.keys(m).forEach(function (k) {
+        if (PMUL[k] != null) out[k] = (out[k] || 1) * m[k];
+        else out[k] = (out[k] || 0) + m[k];
+      });
+    }
+    return out;
+  };
+  E.pressureName = function (lvl) {
+    var L = B.ladder || [], i = Math.min(lvl == null ? E.pressure() : lvl, L.length - 1);
+    return (L[i] && L[i].name) || 'DRIFT';
+  };
+  E.pressureMax = function () { return (B.ladder || []).length - 1; };
+  // Highest rating you have CLEARED; you may attempt one above it.
+  E.pressureCleared = function () {
+    var st = store(); if (!st) return -1;
+    try { return parseInt(st.getItem('voidspire_pressure'), 10); } catch (e) { return -1; }
+  };
+  E.pressureUnlocked = function () {
+    var c = E.pressureCleared();
+    return Math.max(0, Math.min(E.pressureMax(), (isNaN(c) ? -1 : c) + 1));
+  };
+  function recordPressureClear() {
+    var st = store(); if (!st || !E.run) return;
+    var p = E.run.pressure || 0, best = E.pressureCleared();
+    if (isNaN(best) || p > best) { try { st.setItem('voidspire_pressure', String(p)); } catch (e) {} }
+  }
+  E.recordPressureClear = recordPressureClear;
+
   function worldPowerMult() {
     return (1 + B.run.loopPower * ((E.run.loop || 1) - 1)) * (1 + art('worldPower'));
   }
@@ -690,8 +756,8 @@
     var prog = Math.min(1, Math.max(0, r.mapRow) / Math.max(1, B.map.rows - 1));
     return 1 + prog * (B.scaling.depthBonus || 0);
   }
-  function scaledHp(base, s) { return Math.round(base * B.scaling.hpMul(s) * worldPowerMult() * depthMult()); }
-  function scaledDmg(base, s) { return Math.round(base * B.scaling.dmgMul(s) * worldPowerMult() * depthMult()); }
+  function scaledHp(base, s) { return Math.round(base * B.scaling.hpMul(s) * worldPowerMult() * depthMult() * (E.pressureMods().enemyHp || 1)); }
+  function scaledDmg(base, s) { return Math.round(base * B.scaling.dmgMul(s) * worldPowerMult() * depthMult() * (E.pressureMods().enemyDmg || 1)); }
 
   function mkEnemy(id) {
     var def = ns.ENEMIES[id];
@@ -719,7 +785,7 @@
     } else if (kind === 'elite' || kind === 'beacon') {
       var epool = [].concat(ns.ELITES[r.faction]);
       ids = [pick(epool)];
-      if (r.sector >= 3 && rnd() < B.sector.eliteChance2Enemies) ids.push(ns.ELITE_MINIONS[r.faction]);
+      if (E.pressureMods().eliteMinion || (r.sector >= 3 && rnd() < B.sector.eliteChance2Enemies)) ids.push(ns.ELITE_MINIONS[r.faction]);
     } else {
       var packs = ns.PACKS[r.faction];
       // earlier rows in a sector lean toward easier packs; the harder packs
@@ -765,6 +831,11 @@
       over: false,
       isFinal: isFinal,
     };
+    // VOID PRESSURE — THE LONG DARK: every boss wakes angry.
+    var _bs = E.pressureMods().bossStr || 0;
+    if (_bs > 0 && (kind === 'boss' || kind === 'elite')) {
+      c.enemies.forEach(function (en) { if (en.def.boss || en.def.elite) addStatus(en, 'str', _bs); });
+    }
     // Drop Ship: deploys a random escort of bots the moment it arrives.
     c.enemies.slice().forEach(function (en) {
       if (en.def.dropship) {
@@ -1128,7 +1199,7 @@
       var cv = art('critVuln');
       if (cv > 0 && en.alive) { addStatus(en, 'vuln', cv); emit('status', { who: 'enemy', idx: idx, s: 'vuln', v: cv }); }
     } else if (opts.misfire) {
-      amount = Math.max(1, Math.floor(amount * B.dice.misfireMult));   // natural 1: the shot goes wide
+      amount = Math.max(1, Math.floor(amount * B.dice.misfireMult * (E.pressureMods().misfireMult || 1)));   // natural 1: the shot goes wide
     } else if (opts.bandMult && opts.bandMult !== 1) {
       amount = Math.max(1, Math.round(amount * opts.bandMult));        // graze / solid hit
     }
@@ -1820,8 +1891,8 @@
       roll = d20();
       eff = Math.min(20, roll + statN(p, 'aim'));
       crit = (roll === 20) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus'));
-      misfire = (roll === 1) && marksman;
-      if (roll === 1 && art('critDie1Energy') > 0) c.energy += art('critDie1Energy');   // Misfire Capacitor
+      misfire = (roll <= Math.max(1, E.pressureMods().misfireOn || 1)) && marksman;
+      if (misfire && art('critDie1Energy') > 0) c.energy += art('critDie1Energy');   // Misfire Capacitor
       if (misfire) {   // MISFIRE PROTOCOL turns a jam into fuel
         var mg = statN(p, 'misfireGuard');
         if (mg > 0) { addStatus(p, 'momentum', mg); emit('status', { who: 'player', s: 'momentum', v: statN(p, 'momentum') }); c.energy += 1; }
@@ -1862,7 +1933,7 @@
       // THE AUGMENTED DIE: whatever is engraved on the face you landed on fires.
       // A natural 1 always lands on face 1 — Aim can never carry you off it, which
       // is what makes face 1 the one anchor an Aim build cannot lose.
-      if (roll != null) fireDieFace(roll === 1 ? 1 : eff, tgt);
+      if (roll != null) fireDieFace(roll <= Math.max(1, E.pressureMods().misfireOn || 1) ? 1 : eff, tgt);
       // crit payoffs (Omega Visor / Targeting Matrix + DEADEYE), once per critting card
       if (crit) {
         var cdr = art('critDraw') + statN(p, 'deadeyeDraw'); if (cdr > 0) drawCards(cdr);
@@ -2458,7 +2529,8 @@
     var cards = [], seen = {}, themeCount = {};
     // Salvage Doctrine forgoes card rewards (the deck grows from kills instead)
     if (!E.hasEcho('salvage_doctrine')) {
-      for (var i = 0; i < B.rewards.cardChoices; i++) {
+      var nChoices = Math.max(1, B.rewards.cardChoices + (E.pressureMods().cardChoices || 0));
+      for (var i = 0; i < nChoices; i++) {
         // reject exact dupes, and never let one theme fill more than 2 of the slots
         var cid = rollRewardCard(rareBoost), guard = 0;
         while ((seen[cid] || (themeCount[rewardTheme(cid)] || 0) >= 2) && guard++ < 25) cid = rollRewardCard(rareBoost);
@@ -2493,7 +2565,7 @@
       bonusArtifact = randomArtifact(1);
       if (bonusArtifact) addArtifact(bonusArtifact);
     }
-    var dropP = (kind === 'boss') ? B.potions.bossDropChance : B.potions.dropChance;
+    var dropP = ((kind === 'boss') ? B.potions.bossDropChance : B.potions.dropChance) * (E.pressureMods().potionDrop || 1);
     var potionDrop = (rnd() < dropP) ? rollPotion() : null;
     r.reward = { credits: credits, cards: cards, artifact: artifactDrop, artifactChoices: artifactChoices, engChoices: engChoices, engPicked: false, artifactPicked: false, bonusArtifact: bonusArtifact, potion: potionDrop, potionTaken: false, cardTaken: false, kind: kind };
     r.phase = 'reward';
@@ -3166,7 +3238,7 @@
       var cid = rollRewardCard(0.06), guard = 0;
       while (seen[cid] && guard++ < 20) cid = rollRewardCard(0.06);
       seen[cid] = true;
-      cards.push({ id: cid, cost: B.shop.cardCost[ns.CARDS[cid].rarity] || 35, sold: false });
+      cards.push({ id: cid, cost: Math.round((B.shop.cardCost[ns.CARDS[cid].rarity] || 35) * (E.pressureMods().shopCost || 1)), sold: false });
     }
     for (var k = 0; k < nColorless; k++) {
       var col = rollColorlessCard();
@@ -3235,7 +3307,7 @@
 
   /* ---------------- Rest --------------------------------------------------- */
   E.restHeal = function () {
-    heal(Math.round(E.run.maxHp * B.rewards.restHealPct));
+    heal(Math.round(E.run.maxHp * B.rewards.restHealPct * (E.pressureMods().restHeal || 1)));
     nodeComplete();
   };
   E.restUpgrade = function () {
@@ -3300,6 +3372,7 @@
     if (!s || !E.run) return;
     try {
       var best = JSON.parse(s.getItem('voidspire_best') || '{}');
+      if (E.run.won) recordPressureClear();
       var sc = E.score();
       var wonBefore = !!best.won;
       if (!best.score || sc > best.score || (E.run.won && !wonBefore)) {
