@@ -1373,6 +1373,24 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .ws-btn.bad { opacity: 0.42; }
 .ws-btn.arming { border-color: #ffb02e; color: #ffd48a; box-shadow: 0 0 10px rgba(255,176,46,0.35); }
 
+/* ---- The Die: how YOUR class reads the face ---------------------------- */
+.die-read { width: 100%; max-width: 620px; margin: 2px auto 8px; }
+.dr-title {
+  font: 700 9px/1.4 ui-monospace, monospace; letter-spacing: 0.12em; color: #d6ffe4;
+  border-bottom: 1px solid rgba(94,138,108,0.25); padding-bottom: 4px; margin-bottom: 4px;
+}
+.dr-sub { display: block; font: 600 8.5px/1.4 ui-monospace, monospace; letter-spacing: 0.02em; color: #7f9a8b; text-transform: none; margin-top: 3px; }
+.dr-row { display: flex; align-items: baseline; gap: 8px; font: 700 9px/1.7 ui-monospace, monospace; color: #9bb0a6; }
+.dr-rng { flex: 0 0 44px; color: #6f8579; }
+.dr-lab { flex: 0 0 74px; letter-spacing: 0.08em; }
+.dr-mul { flex: 1 1 auto; }
+.dr-pct { flex: 0 0 34px; text-align: right; color: #6f8579; }
+.dr-row.up .dr-lab, .dr-row.up .dr-mul { color: #5dff88; }
+.dr-row.down .dr-lab, .dr-row.down .dr-mul { color: #ff8a99; }
+.dr-row.crit .dr-lab, .dr-row.crit .dr-mul { color: #ffb02e; }
+.dr-cost { color: #ff4a5e; font-weight: 700; }
+.dr-gain { color: #41d8ff; font-weight: 700; }
+
 /* ---- The Die: the bench (engraving shop) ------------------------------- */
 .bench-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 5px; margin-bottom: 7px; }
 .bench-it {

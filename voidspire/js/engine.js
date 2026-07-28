@@ -815,12 +815,11 @@
       turn: 0,
       energy: 0,
       hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
-      // The Vanguard is the marksman class: he sights in every fight, so he starts
-      // with Aim on the die. It offsets the misfire risk every attacker carries and
-      // makes the d20 matter from turn one, not just for a dedicated dice build.
-      // Everyone rolls, so everyone gets some Aim to steer with; the Vanguard,
-      // as the marksman, sights in further on top of the shared baseline.
-      player: { block: 0, statuses: { aim: (B.dice.baseAim || 0) + (r.cls === 'vanguard' ? B.dice.vanguardAim : 0) } },
+      // Everyone rolls, so everyone gets some Aim to steer with. A class may
+      // sight in further on top of that baseline — the Vanguard does, because he
+      // is the marksman. The Voidadept pointedly does not: climbing the table is
+      // a trade for him, since the bottom of the die is where his power lives.
+      player: { block: 0, statuses: { aim: (B.dice.baseAim || 0) + ((E.dieRead(r.cls) || {}).aim || 0) } },
       pending: null,       // an in-combat choice awaiting a pick (Scry/Tutor/Discover)
       primed: [],          // armed delayed detonations (Primed)
       echoReady: false,
@@ -862,6 +861,35 @@
     r.phase = 'combat';
     c.enemies.forEach(chooseIntent);
     startPlayerTurn();
+  }
+
+  /* HOW EACH CLASS READS THE FACE. A class with no table (the Warpcaller) still
+   * rolls — engravings and onRoll riders fire — but the face does not modulate
+   * the card. Everything below keys off this one lookup. */
+  E.dieRead = function (cls) {
+    var t = (B.dice.classes && B.dice.classes[cls]) || null;
+    return (t && t.DISABLED) ? null : t;
+  };
+  // The Aim you walk into a fight with. One source of truth — the die screen's
+  // reach preview and the sim's face-picking both read it.
+  E.startAim = function (cls) {
+    return (B.dice.baseAim || 0) + ((E.dieRead(cls || (E.run && E.run.cls)) || {}).aim || 0);
+  };
+  function hasBlockFx(fx) {
+    for (var i = 0; i < fx.length; i++) if (fx[i].k === 'block') return true;
+    return false;
+  }
+
+  // Life spent on purpose — a card's cost, or the Voidadept's die billing them.
+  // Routed through one place so the blood engines drink from every source.
+  function spendLife(n) {
+    if (n <= 0) return;
+    var p = E.combat.player;
+    hurtPlayer(n, { pure: true });
+    var bp = statN(p, 'bloodPact');   // BLOOD PACT: spilled HP feeds your Psi
+    if (bp > 0) { addStatus(p, 'psiPow', bp); emit('status', { who: 'player', s: 'psiPow', v: bp }); }
+    var brg = statN(p, 'bloodrage');  // BLOOD RAGE: spending life stokes your Might (Bloodforge)
+    if (brg > 0) { addStatus(p, 'str', brg); emit('status', { who: 'player', s: 'str', v: brg }); }
   }
 
   // All player Shield gains route through here so relics that react to gaining
@@ -1199,10 +1227,11 @@
       amount = Math.floor(amount * B.dice.critMult);
       var cv = art('critVuln');
       if (cv > 0 && en.alive) { addStatus(en, 'vuln', cv); emit('status', { who: 'enemy', idx: idx, s: 'vuln', v: cv }); }
-    } else if (opts.misfire) {
-      amount = Math.max(1, Math.floor(amount * B.dice.misfireMult * (E.pressureMods().misfireMult || 1)));   // natural 1: the shot goes wide
     } else if (opts.bandMult && opts.bandMult !== 1) {
-      amount = Math.max(1, Math.round(amount * opts.bandMult));        // graze / solid hit
+      // The class's read of the face — graze/solid, sag/surge, hunger/ravenous.
+      // The misfire multiplier is folded in by the roll block, because what a
+      // natural 1 costs is exactly the thing that differs between classes.
+      amount = Math.max(1, Math.round(amount * opts.bandMult));
     }
     // Void Drone: each hit is capped at its absorb threshold; a hit that would
     // exceed it spits a Void Swarm curse into your deck (unless the blow lands the kill).
@@ -1610,9 +1639,14 @@
       if (c.over && f.k === 'dmg') return;
       switch (f.k) {
         case 'onRoll': {
-          // Roll-threshold rider: resolves only if the d20 (plus Aim) met the mark.
-          // A natural 20 always qualifies; a natural 1 never does.
-          var ok = (roll === 20) || (roll != null && roll > 1 && (eff != null ? eff : roll) >= (f.min || 0));
+          // Roll-threshold rider against the EFFECTIVE roll. `min` fires high,
+          // `max` fires low — the Technomancer and the Voidadept both live at
+          // the bottom of their tables, so the bottom needs riders too.
+          // The ends are absolute: a natural 20 always counts as high and a
+          // natural 1 always counts as low, whatever Aim says.
+          var rv = (eff != null ? eff : roll), ok;
+          if (f.max != null) ok = (roll != null) && (roll === 1 || (roll < 20 && rv <= f.max));
+          else ok = (roll === 20) || (roll != null && roll > 1 && rv >= (f.min || 0));
           if (ok) totalDealt += applyCardFx(f.fx || [], ctx);
           break;
         }
@@ -1644,18 +1678,14 @@
                     : bsc === 'might' ? attr('might') * B.attrs.mightBlockPerPoint
                     : bsc === 'psi' ? attr('psi') * B.attrs.psiBlockPerPoint
                     : bsc === 'bond' ? attr('bond') * B.attrs.bondBlockPerPoint : 0;
-          gainBlock(f.v + bonus, true);
+          // LOAD BALANCE: for a class whose table scales Shield, the same face
+          // that would have grazed an attack now sags the plating instead.
+          var bmul = (ctx.blockBand && ctx.bandMult) ? ctx.bandMult : 1;
+          gainBlock(bmul === 1 ? f.v + bonus : Math.max(1, Math.round((f.v + bonus) * bmul)), true);
           break;
         }
         case 'heal': heal(f.v); break;
-        case 'hploss': {
-          hurtPlayer(f.v, { pure: true });
-          var bp = statN(p, 'bloodPact');   // BLOOD PACT: spilled HP feeds your Psi
-          if (bp > 0) { addStatus(p, 'psiPow', bp); emit('status', { who: 'player', s: 'psiPow', v: bp }); }
-          var brg = statN(p, 'bloodrage');  // BLOOD RAGE: spending life stokes your Might (Bloodforge)
-          if (brg > 0) { addStatus(p, 'str', brg); emit('status', { who: 'player', s: 'str', v: brg }); }
-          break;
-        }
+        case 'hploss': spendLife(f.v); break;
         case 'draw': drawCards(f.v); break;
         case 'energy': c.energy += f.v; break;
         case 'pet': summonPet(f.id, f.n || 1); break;   // Warpcaller: summon a pet
@@ -1880,34 +1910,54 @@
     // shifts the whole distribution: a natural 20 always crits, a natural 1 always
     // misfires, and everything between is read against the card's roll thresholds.
     var roll = null, crit = false, misfire = false, eff = null, bandMult = 1, bandLabel = null;
-    var marksman = (r.cls === 'vanguard');   // the Vanguard reads the whole die face
+    var rollTone = null, rollCost = 0, rollGain = 0;
+    var dread = E.dieRead(r.cls);            // how THIS class reads the face
+    // A class whose table also scales Shield reads the die on defensive turns
+    // too, so its skills band as well as its attacks.
+    var bandsNow = !!dread && (def.type === 'attack' || (dread.blocks && hasBlockFx(fx)));
     // THE AUGMENTED DIE: every card play rolls, so a skill/power deck still
-    // engages the die. Only attacks read the damage bands.
-    if (def.type !== 'attack') {
-      roll = d20();
-      eff = Math.min(20, roll + statN(p, 'aim'));
+    // engages the die even when its table has nothing to say about the card.
+    roll = d20();
+    eff = Math.min(20, roll + statN(p, 'aim'));
+    if (!bandsNow) {
       emit('roll', { roll: roll, eff: eff, crit: false, misfire: false, band: null });
-    }
-    if (def.type === 'attack') {
-      roll = d20();
-      eff = Math.min(20, roll + statN(p, 'aim'));
+    } else {
       crit = (roll === 20) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus'));
-      misfire = (roll <= Math.max(1, E.pressureMods().misfireOn || 1)) && marksman;
+      misfire = roll <= Math.max(1, E.pressureMods().misfireOn || 1);
       if (misfire && art('critDie1Energy') > 0) c.energy += art('critDie1Energy');   // Misfire Capacitor
       if (misfire) {   // MISFIRE PROTOCOL turns a jam into fuel
         var mg = statN(p, 'misfireGuard');
         if (mg > 0) { addStatus(p, 'momentum', mg); emit('status', { who: 'player', s: 'momentum', v: statN(p, 'momentum') }); c.energy += 1; }
       }
-      bandLabel = crit ? 'CRIT' : misfire ? 'MISFIRE' : null;
-      if (marksman && !crit && !misfire) {
-        for (var bi = 0; bi < B.dice.bands.length; bi++) {
-          if (eff >= B.dice.bands[bi].min) { bandMult = B.dice.bands[bi].mult; bandLabel = B.dice.bands[bi].label; break; }
+      // The bottom of the table is where the classes part ways: a misfire is the
+      // Vanguard's wasted shot, the Technomancer's tripped breaker and the
+      // Voidadept's over-eager void, and each carries its own rider.
+      var slot = null;
+      if (crit) bandLabel = 'CRIT';
+      else if (misfire) { slot = dread.misfire; }
+      else {
+        for (var bi = 0; bi < dread.bands.length; bi++) {
+          if (eff >= dread.bands[bi].min) { slot = dread.bands[bi]; break; }
         }
       }
-      emit('roll', { roll: roll, eff: eff, crit: crit, misfire: misfire, band: bandLabel });
+      if (slot) {
+        bandMult = slot.mult;
+        bandLabel = slot.label;
+        if (misfire) bandMult *= (E.pressureMods().misfireMult || 1);
+        if (slot.energy) c.energy += slot.energy;
+        // The void bills you, and your blood engines drink it — but it never
+        // takes the last point. A roll you did not choose should not kill you.
+        if (slot.hploss) spendLife(Math.min(slot.hploss, Math.max(0, r.hp - 1)));
+      }
+      // Tone, not band name: the HUD must not know that SOLID is good and SAG is
+      // not. It reads the multiplier, so a new class table styles itself.
+      rollTone = crit ? 'crit' : bandMult > 1.02 ? 'up' : bandMult < 0.98 ? 'down' : 'flat';
+      rollCost = slot ? (slot.hploss || 0) : 0;
+      rollGain = slot ? (slot.energy || 0) : 0;
+      emit('roll', { roll: roll, eff: eff, crit: crit, misfire: misfire, band: bandLabel, tone: rollTone, cost: rollCost, gain: rollGain });
     }
 
-    var ctx = { tgt: tgt, crit: crit, roll: roll, eff: eff, misfire: misfire, bandMult: bandMult, bandLabel: bandLabel, flags: flags, xval: xval, appliedBurn: false };
+    var ctx = { tgt: tgt, crit: crit, roll: roll, eff: eff, misfire: misfire, bandMult: bandMult, bandLabel: bandLabel, blockBand: !!(dread && dread.blocks), flags: flags, xval: xval, appliedBurn: false };
     var times = 1;
     if (def.type === 'attack' && c.echoReady) { c.echoReady = false; times = 2; }
     // Doubled Self: on turn 1, every card you play resolves twice
@@ -1979,7 +2029,10 @@
     if (def.type !== 'attack') c.nonAttacksThisTurn = (c.nonAttacksThisTurn || 0) + 1;   // Recoilless Frame
     if (E.hasEcho('momentum_engine')) c.momentum = (c.momentum || 0) + 1; // each card buffs the next
     if (def.type === 'attack') { var fauto = statN(p, 'fullauto'); if (fauto > 0) addStatus(p, 'momentum', fauto); } // Full Auto: each shot builds Momentum
-    emit('cardPlayed', { id: card.id, crit: crit, roll: roll, eff: eff, misfire: misfire, band: bandLabel, aim: statN(p, 'aim') });
+    emit('cardPlayed', {
+      id: card.id, crit: crit, roll: roll, eff: eff, misfire: misfire, band: bandLabel, aim: statN(p, 'aim'),
+      tone: rollTone, cost: rollCost, gain: rollGain,
+    });
     checkWin();
     return true;
   };

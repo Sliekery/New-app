@@ -115,12 +115,44 @@
       desc: 'Gain 1 Aim for the rest of combat.',
       art: { p: [[-0.75,0, 0.75,0], [0,-0.75, 0,0.75], [0.42,0, 0.3,-0.12], [0.42,0, 0.3,0.12]], e: [[0,0]] },
     },
-    // -- face-locked --
+    // -- Technomancer flavour --
+    coolant_bleed: {
+      name: 'Coolant Bleed', tier: 2, span: 1,
+      fx: [{ k: 'status', s: 'reactor', v: 1, who: 'self' }],
+      desc: 'Gain 1 Reactor (+1 max Energy for the fight).',
+      art: { p: [[-0.55,-0.55, 0.55,-0.55, 0.55,0.55, -0.55,0.55, -0.55,-0.55], [-0.3,-0.55, -0.3,0.55], [0.3,-0.55, 0.3,0.55], [-0.55,0, 0.55,0]] },
+    },
+    // -- Voidadept flavour --
+    psi_bloom: {
+      name: 'Psi Bloom', tier: 2, span: 1,
+      fx: [{ k: 'status', s: 'psiPow', v: 2, who: 'self' }],
+      desc: 'Gain 2 Psi Power for the rest of combat.',
+      art: { p: [[0,-0.8, 0.32,-0.28, 0.8,-0.16, 0.44,0.24, 0.5,0.74, 0,0.5, -0.5,0.74, -0.44,0.24, -0.8,-0.16, -0.32,-0.28, 0,-0.8]], e: [[0,0]] },
+    },
+
+    /* -- face-locked: the anchors -------------------------------------
+     * Face 1 is where the three classes disagree most — a wasted shot, a
+     * tripped breaker, a void that bit too deep — so each gets its own way to
+     * make the worst face pay. They are all onlyFace 1 and therefore mutually
+     * exclusive: the anchor you cut is a statement about your die.
+     * ---------------------------------------------------------------- */
     jam_clearance: {
       name: 'Jam Clearance', tier: 2, span: 1, onlyFace: 1,
       fx: [{ k: 'status', s: 'momentum', v: 3, who: 'self' }, { k: 'energy', v: 1 }],
       desc: 'Gain 3 Momentum and 1 Energy. Engraved on face 1 only — the shot that jams still pays.',
       art: { p: [[-0.6,-0.5, 0.6,-0.5, 0.6,0.5, -0.6,0.5, -0.6,-0.5], [-0.6,-0.5, 0.6,0.5], [0.6,-0.5, -0.6,0.5]] },
+    },
+    earth_strap: {
+      name: 'Earthing Strap', tier: 2, span: 1, onlyFace: 1,
+      fx: [{ k: 'block', v: 14 }],
+      desc: 'Gain 14 Shield. Engraved on face 1 only — the breaker trips into the plating.',
+      art: { p: [[0,-0.8, 0,0.1], [-0.5,0.1, 0.5,0.1], [-0.34,0.38, 0.34,0.38], [-0.18,0.64, 0.18,0.64]] },
+    },
+    blood_sigil: {
+      name: 'Blood Sigil', tier: 2, span: 1, onlyFace: 1,
+      fx: [{ k: 'heal', v: 6 }, { k: 'status', s: 'psiPow', v: 2, who: 'self' }],
+      desc: 'Heal 6 HP and gain 2 Psi Power. Engraved on face 1 only — what the void takes, it gives back.',
+      art: { p: [[0,-0.78, 0.42,-0.12, 0.28,0.54, -0.28,0.54, -0.42,-0.12, 0,-0.78], [-0.42,-0.12, 0.42,-0.12], [0,-0.78, 0,0.54]] },
     },
     executioners_mark: {
       name: "Executioner's Mark", tier: 3, span: 1,

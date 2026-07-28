@@ -35,21 +35,70 @@
       eventCheckBonusDiv: 1,    // event check bonus = attr / this (rounded down)
     },
 
-    /* ---- d20 / crits ------------------------------------------------ */
+    /* ---- d20 / crits ------------------------------------------------
+     * One die, read three ways. A 20 always crits and the top of the table is
+     * the same for everyone — what separates the classes is what a BAD roll
+     * MEANS. The Vanguard wastes it, the Technomancer converts it to tempo, the
+     * Voidadept converts it to power and pays in blood. That is the whole
+     * design: three answers to the same question, not three sets of numbers.
+     * ---------------------------------------------------------------- */
     dice: {
       critThreshold: 20,        // roll + Aim >= (threshold - critBonus) crits
       critMult: 2.0,            // crit damage multiplier
-      misfireMult: 0.5,         // natural 1: the shot goes wide
+      misfireMult: 0.5,         // legacy fallback for a class with no table
       baseAim: 1,               // every class steers the die a little — it is a game-wide system
-      vanguardAim: 1,           // the marksman sights in further on top of the base
-      // MARKSMANSHIP BANDS (Vanguard only): the whole d20 face matters, not just
-      // its ends. Effective roll = d20 + Aim. Averages ~1.03x at Aim 0, so this
-      // is a feel change rather than a power change; Aim pushes you up the table.
-      bands: [
-        { min: 15, mult: 1.25, label: 'SOLID' },
-        { min: 8,  mult: 1.0,  label: 'HIT' },
-        { min: 2,  mult: 0.8,  label: 'GRAZE' },
-      ],
+
+      classes: {
+        /* MARKSMANSHIP — accuracy. The shot lands well or it goes wide. */
+        vanguard: {
+          name: 'MARKSMANSHIP',
+          read: 'A low face grazes and a natural 1 goes wide. Aim climbs the table.',
+          aim: 1,               // the marksman sights in further on top of the base
+          misfire: { mult: 0.5, label: 'MISFIRE' },
+          bands: [
+            { min: 15, mult: 1.25, label: 'SOLID' },
+            { min: 8,  mult: 1.0,  label: 'HIT' },
+            { min: 2,  mult: 0.8,  label: 'GRAZE' },
+          ],
+        },
+
+        /* LOAD BALANCE — throughput. A machine does not miss, it sags. The band
+         * scales Shield as well as damage, so the die reads on a defensive turn
+         * too, and a tripped breaker dumps its charge back as Energy. */
+        technomancer: {
+          name: 'LOAD BALANCE',
+          read: 'The band scales Shield as well as damage. A tripped breaker dumps its charge back as Energy.',
+          blocks: true,
+          // A wider spread than the Vanguard's: a reactor swings. The answer is
+          // not to steer (he gets no extra Aim) but to build redundancy, and a
+          // tripped breaker is never dead — it dumps its charge back as Energy.
+          misfire: { mult: 0.6, label: 'BREAKER', energy: 1 },
+          bands: [
+            { min: 15, mult: 1.35, label: 'SURGE' },
+            { min: 8,  mult: 1.0,  label: 'NOMINAL' },
+            { min: 2,  mult: 0.7,  label: 'SAG' },
+          ],
+        },
+
+        /* THE HUNGER — appetite. The void always answers; the only question is
+         * who pays. The bottom of the die is STRONGER than the middle and bills
+         * you in HP, so Aim is a genuine trade for the Voidadept: climb the
+         * table and you starve the blood engines that feed on the bottom. */
+        voidadept: {
+          name: 'THE HUNGER',
+          read: 'The bottom of the die hits HARDER than the middle — and bills you in HP.',
+          // A U, not a ramp. The void answers at either extreme and is bored by
+          // the middle — WHISPER, the most common face, is his WORST outcome.
+          // The bottom pays in blood, and it pays through spendLife, so the
+          // blood engines drink from a bad roll.
+          misfire: { mult: 1.5, label: 'RAVENOUS', hploss: 4 },
+          bands: [
+            { min: 15, mult: 1.2, label: 'ATTUNED' },
+            { min: 8,  mult: 0.9, label: 'WHISPER' },
+            { min: 2,  mult: 1.2, label: 'HUNGER', hploss: 1 },
+          ],
+        },
+      },
     },
 
     /* ---- Status effects ---------------------------------------------- */

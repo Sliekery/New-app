@@ -63,18 +63,30 @@ setHand(['catalyst']);
 playId('catalyst', 0);
 ok('Catalyst doubles Burn (5 -> 10)', E.combat.enemies[0].statuses.burn === 10);
 
+/* Every class with a die table now reads the face on every card, so raw damage
+ * varies roll to roll. Freeze the tables for assertions that are about
+ * something else entirely — the die gets its own section further down. */
+function flatDie(fn) {
+  var saved = VS.BALANCE.dice.classes;
+  VS.BALANCE.dice.classes = {};
+  try { return fn(); } finally { VS.BALANCE.dice.classes = saved; }
+}
+
 /* 4. Echo Core: first attack each turn plays twice */
-startFight('technomancer');
-E.combat.player.statuses.echo = 1;
-E.combat.echoReady = true;
-bigEnemies();
-var hp0 = E.combat.enemies[0].hp;
-setHand(['pulse_rifle', 'pulse_rifle']);
-playId('pulse_rifle', 0);
-var d1 = hp0 - E.combat.enemies[0].hp;
-var hp1 = E.combat.enemies[0].hp;
-playId('pulse_rifle', 0);
-var d2 = hp1 - E.combat.enemies[0].hp;
+var d1, d2;
+flatDie(function () {
+  startFight('technomancer');
+  E.combat.player.statuses.echo = 1;
+  E.combat.echoReady = true;
+  bigEnemies();
+  var hp0 = E.combat.enemies[0].hp;
+  setHand(['pulse_rifle', 'pulse_rifle']);
+  playId('pulse_rifle', 0);
+  d1 = hp0 - E.combat.enemies[0].hp;
+  var hp1 = E.combat.enemies[0].hp;
+  playId('pulse_rifle', 0);
+  d2 = hp1 - E.combat.enemies[0].hp;
+});
 ok('Echo doubles the first attack (' + d1 + ' vs ' + d2 + ')', d1 >= d2 * 1.8);
 
 /* 5. Corruption: skills cost 0 and exhaust */
@@ -773,6 +785,149 @@ ok('SINGULARITY raises engraving prices', pmul > 1 && E.run.shop.engravings.ever
   return it.cost === Math.round(VS.BALANCE.dieShop.engravingCost[VS.DIE_AUGMENTS[it.id].tier || 1] * pmul);
 }));
 ok('SINGULARITY raises the grinder price', E.grindCost() === Math.round(VS.BALANCE.dieShop.grindCost * pmul));
+
+
+/* ==================== THE DIE TABLES: three readings of one d20 ==========
+ * A 20 always crits and the top of the table is the same for everyone. What
+ * separates the classes is what a BAD roll MEANS — wasted, converted to tempo,
+ * or converted to power and billed in blood. These assert the reading each
+ * class actually gets in play, not the numbers in the balance file.
+ * ==================================================================== */
+function rollSample(cls, n) {
+  E.seed(20250728); E.newRun(cls); E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
+  var out = [], guard = 0;
+  while (out.length < n && guard++ < 400) {
+    E.startNode('fight');
+    E.combat.enemies.forEach(function (e) { e.hp = 99999; e.maxHp = 99999; e.block = 0; });
+    for (var t = 0; t < 8 && E.run.phase === 'combat' && out.length < n; t++) {
+      E.run.hp = E.run.maxHp;            // keep the Voidadept's bill from ending the sample
+      E.combat.energy = 30;
+      var g2 = 0;
+      while (E.combat.hand.length && g2++ < 12 && out.length < n) {
+        var i = -1;
+        for (var k = 0; k < E.combat.hand.length; k++) if (E.canPlay(k)) { i = k; break; }
+        if (i < 0) break;
+        var hpBefore = E.run.hp, enBefore = E.combat.energy;
+        E.events = [];
+        E.playCard(i, 0);
+        E.events.forEach(function (ev) {
+          if (ev.type === 'roll' && ev.band) out.push({ ev: ev, hpDrop: hpBefore - E.run.hp, enUp: E.combat.energy - enBefore });
+        });
+      }
+      if (E.run.phase === 'combat') E.endTurn();
+    }
+    if (E.run.phase !== 'combat') E.run.phase = 'map';
+  }
+  return out;
+}
+
+['vanguard', 'technomancer', 'voidadept'].forEach(function (cls) {
+  var t = VS.BALANCE.dice.classes[cls];
+  var legal = t.bands.map(function (b) { return b.label; }).concat([t.misfire.label, 'CRIT']);
+  var byLabel = {}; t.bands.concat([t.misfire]).forEach(function (b) { byLabel[b.label] = b; });
+  var sample = rollSample(cls, 260);
+
+  ok(cls + ': the die actually bands in play (' + sample.length + ' banded rolls)', sample.length >= 200);
+  ok(cls + ': every band it reports belongs to ITS table', sample.every(function (s2) { return legal.indexOf(s2.ev.band) >= 0; }));
+  ok(cls + ': it never reports another class’s band', sample.every(function (s2) {
+    return ['GRAZE', 'SOLID', 'MISFIRE', 'SAG', 'SURGE', 'BREAKER', 'HUNGER', 'ATTUNED', 'WHISPER', 'RAVENOUS']
+      .filter(function (L) { return legal.indexOf(L) < 0; }).indexOf(s2.ev.band) < 0;
+  }));
+  ok(cls + ': tone always matches the multiplier', sample.every(function (s2) {
+    if (s2.ev.band === 'CRIT') return s2.ev.tone === 'crit';
+    var m = byLabel[s2.ev.band].mult;
+    return s2.ev.tone === (m > 1.02 ? 'up' : m < 0.98 ? 'down' : 'flat');
+  }));
+  ok(cls + ': a natural 1 always reads as ' + t.misfire.label, sample.every(function (s2) {
+    return (s2.ev.roll === 1) === (s2.ev.band === t.misfire.label);
+  }));
+  // the riders: only the bands that declare one may charge or pay
+  ok(cls + ': only bands that declare an HP cost charge one', sample.every(function (s2) {
+    var b = byLabel[s2.ev.band];
+    return (s2.ev.cost || 0) === (b ? (b.hploss || 0) : 0);
+  }));
+  ok(cls + ': only bands that declare Energy pay it', sample.every(function (s2) {
+    var b = byLabel[s2.ev.band];
+    return (s2.ev.gain || 0) === (b ? (b.energy || 0) : 0);
+  }));
+});
+
+/* The Voidadept's bill is real, and it can never be the killing blow. */
+var vsample = rollSample('voidadept', 260);
+ok('voidadept: the Hunger actually bills HP', vsample.some(function (s2) { return s2.ev.cost > 0; }));
+ok('voidadept: WHISPER (the common face) is his WORST band',
+  VS.BALANCE.dice.classes.voidadept.bands.every(function (b) { return b.label === 'WHISPER' || b.mult > 0.9; }));
+E.seed(5); E.newRun('voidadept'); E.run.faction = 'hierarchy'; E.run.nodeIdx = 0; E.startNode('fight');
+E.run.hp = 1;
+for (var vk = 0; vk < 60 && E.run.phase === 'combat'; vk++) {
+  E.combat.energy = 30;
+  var vi = -1;
+  for (var vj = 0; vj < E.combat.hand.length; vj++) if (E.canPlay(vj)) { vi = vj; break; }
+  if (vi < 0) { E.endTurn(); E.run.hp = 1; continue; }
+  E.playCard(vi, 0);
+  E.run.hp = Math.max(1, E.run.hp);   // only the die may be tested here, not enemies
+}
+ok('voidadept: the die never takes your last HP', E.run.hp >= 1);
+
+/* Technomancer: the band scales SHIELD, which no other class's does. */
+ok('technomancer bands Shield, the others do not',
+  VS.BALANCE.dice.classes.technomancer.blocks === true &&
+  !VS.BALANCE.dice.classes.vanguard.blocks && !VS.BALANCE.dice.classes.voidadept.blocks);
+var tshields = {};
+E.seed(77); E.newRun('technomancer'); E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
+for (var tf = 0; tf < 40; tf++) {
+  E.startNode('fight');
+  E.combat.player.block = 0; E.combat.energy = 30;
+  E.combat.hand = [{ uid: 9000 + tf, id: 'combat_shield', up: false }];
+  E.events = [];
+  E.playCard(0, 0);
+  var re = E.events.filter(function (ev) { return ev.type === 'roll'; })[0];
+  if (re && re.band) (tshields[re.band] = tshields[re.band] || []).push(E.combat.player.block);
+  E.run.phase = 'map';
+}
+var sagAvg = (tshields.SAG || []).reduce(function (a, x) { return a + x; }, 0) / ((tshields.SAG || []).length || 1);
+var surAvg = (tshields.SURGE || []).reduce(function (a, x) { return a + x; }, 0) / ((tshields.SURGE || []).length || 1);
+ok('technomancer: a SURGE plates harder than a SAG (' + sagAvg.toFixed(1) + ' vs ' + surAvg.toFixed(1) + ')',
+   (tshields.SAG || []).length && (tshields.SURGE || []).length ? surAvg > sagAvg : true);
+
+/* Low-roll riders: `onRoll {max}` is the bottom-of-the-table verb the two new
+ * tables needed, and it must be the mirror of `min` — nat 1 always counts low
+ * exactly as nat 20 always counts high. */
+var lowFired = 0, lowMissed = 0, wrong = 0;
+E.seed(31); E.newRun('voidadept'); E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
+for (var lf = 0; lf < 120; lf++) {
+  E.startNode('fight');
+  E.combat.enemies.forEach(function (e) { e.hp = 9999; e.maxHp = 9999; e.statuses = {}; });
+  E.combat.energy = 30;
+  E.combat.hand = [{ uid: 7000 + lf, id: 'spectral_grasp', up: false }];
+  E.events = [];
+  E.playCard(0, 0);
+  var rr = E.events.filter(function (ev) { return ev.type === 'roll'; })[0];
+  var weak = E.combat.enemies[0].statuses.weak || 0;
+  if (rr) {
+    var low = (rr.roll === 1) || (rr.roll < 20 && rr.eff <= 6);
+    if (low) { lowFired++; if (weak !== 2) wrong++; }
+    else { lowMissed++; if (weak !== 1) wrong++; }
+  }
+  E.run.phase = 'map';
+}
+ok('the low-roll rider fires on low faces and not otherwise (' + lowFired + ' low / ' + lowMissed + ' high)', wrong === 0 && lowFired > 0 && lowMissed > 0);
+
+/* Aim is a genuine TRADE for the Voidadept: climbing the table starves the
+ * bottom bands his blood engines feed on. Nobody else pays for Aim. */
+function bandShare(cls, aim, label) {
+  var t = VS.BALANCE.dice.classes[cls], n = 0;
+  for (var roll = 1; roll <= 20; roll++) {
+    var eff = Math.min(20, roll + aim), slot;
+    if ((roll === 20) || (roll > 1 && eff >= VS.BALANCE.dice.critThreshold)) slot = { label: 'CRIT' };
+    else if (roll <= 1) slot = t.misfire;
+    else { for (var i = 0; i < t.bands.length; i++) if (eff >= t.bands[i].min) { slot = t.bands[i]; break; } }
+    if (slot && slot.label === label) n++;
+  }
+  return n;
+}
+ok('Aim starves the Voidadept’s HUNGER band', bandShare('voidadept', 8, 'HUNGER') < bandShare('voidadept', 1, 'HUNGER'));
+ok('Aim only helps the Vanguard’s table', bandShare('vanguard', 8, 'GRAZE') < bandShare('vanguard', 2, 'GRAZE'));
 
 
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));

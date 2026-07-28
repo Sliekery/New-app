@@ -1384,6 +1384,24 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .ws-btn.bad { opacity: 0.42; }
 .ws-btn.arming { border-color: #ffb02e; color: #ffd48a; box-shadow: 0 0 10px rgba(255,176,46,0.35); }
 
+/* ---- The Die: how YOUR class reads the face ---------------------------- */
+.die-read { width: 100%; max-width: 620px; margin: 2px auto 8px; }
+.dr-title {
+  font: 700 9px/1.4 ui-monospace, monospace; letter-spacing: 0.12em; color: #d6ffe4;
+  border-bottom: 1px solid rgba(94,138,108,0.25); padding-bottom: 4px; margin-bottom: 4px;
+}
+.dr-sub { display: block; font: 600 8.5px/1.4 ui-monospace, monospace; letter-spacing: 0.02em; color: #7f9a8b; text-transform: none; margin-top: 3px; }
+.dr-row { display: flex; align-items: baseline; gap: 8px; font: 700 9px/1.7 ui-monospace, monospace; color: #9bb0a6; }
+.dr-rng { flex: 0 0 44px; color: #6f8579; }
+.dr-lab { flex: 0 0 74px; letter-spacing: 0.08em; }
+.dr-mul { flex: 1 1 auto; }
+.dr-pct { flex: 0 0 34px; text-align: right; color: #6f8579; }
+.dr-row.up .dr-lab, .dr-row.up .dr-mul { color: #5dff88; }
+.dr-row.down .dr-lab, .dr-row.down .dr-mul { color: #ff8a99; }
+.dr-row.crit .dr-lab, .dr-row.crit .dr-mul { color: #ffb02e; }
+.dr-cost { color: #ff4a5e; font-weight: 700; }
+.dr-gain { color: #41d8ff; font-weight: 700; }
+
 /* ---- The Die: the bench (engraving shop) ------------------------------- */
 .bench-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 5px; margin-bottom: 7px; }
 .bench-it {
@@ -1494,21 +1512,70 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       eventCheckBonusDiv: 1,    // event check bonus = attr / this (rounded down)
     },
 
-    /* ---- d20 / crits ------------------------------------------------ */
+    /* ---- d20 / crits ------------------------------------------------
+     * One die, read three ways. A 20 always crits and the top of the table is
+     * the same for everyone — what separates the classes is what a BAD roll
+     * MEANS. The Vanguard wastes it, the Technomancer converts it to tempo, the
+     * Voidadept converts it to power and pays in blood. That is the whole
+     * design: three answers to the same question, not three sets of numbers.
+     * ---------------------------------------------------------------- */
     dice: {
       critThreshold: 20,        // roll + Aim >= (threshold - critBonus) crits
       critMult: 2.0,            // crit damage multiplier
-      misfireMult: 0.5,         // natural 1: the shot goes wide
+      misfireMult: 0.5,         // legacy fallback for a class with no table
       baseAim: 1,               // every class steers the die a little — it is a game-wide system
-      vanguardAim: 1,           // the marksman sights in further on top of the base
-      // MARKSMANSHIP BANDS (Vanguard only): the whole d20 face matters, not just
-      // its ends. Effective roll = d20 + Aim. Averages ~1.03x at Aim 0, so this
-      // is a feel change rather than a power change; Aim pushes you up the table.
-      bands: [
-        { min: 15, mult: 1.25, label: 'SOLID' },
-        { min: 8,  mult: 1.0,  label: 'HIT' },
-        { min: 2,  mult: 0.8,  label: 'GRAZE' },
-      ],
+
+      classes: {
+        /* MARKSMANSHIP — accuracy. The shot lands well or it goes wide. */
+        vanguard: {
+          name: 'MARKSMANSHIP',
+          read: 'A low face grazes and a natural 1 goes wide. Aim climbs the table.',
+          aim: 1,               // the marksman sights in further on top of the base
+          misfire: { mult: 0.5, label: 'MISFIRE' },
+          bands: [
+            { min: 15, mult: 1.25, label: 'SOLID' },
+            { min: 8,  mult: 1.0,  label: 'HIT' },
+            { min: 2,  mult: 0.8,  label: 'GRAZE' },
+          ],
+        },
+
+        /* LOAD BALANCE — throughput. A machine does not miss, it sags. The band
+         * scales Shield as well as damage, so the die reads on a defensive turn
+         * too, and a tripped breaker dumps its charge back as Energy. */
+        technomancer: {
+          name: 'LOAD BALANCE',
+          read: 'The band scales Shield as well as damage. A tripped breaker dumps its charge back as Energy.',
+          blocks: true,
+          // A wider spread than the Vanguard's: a reactor swings. The answer is
+          // not to steer (he gets no extra Aim) but to build redundancy, and a
+          // tripped breaker is never dead — it dumps its charge back as Energy.
+          misfire: { mult: 0.6, label: 'BREAKER', energy: 1 },
+          bands: [
+            { min: 15, mult: 1.35, label: 'SURGE' },
+            { min: 8,  mult: 1.0,  label: 'NOMINAL' },
+            { min: 2,  mult: 0.7,  label: 'SAG' },
+          ],
+        },
+
+        /* THE HUNGER — appetite. The void always answers; the only question is
+         * who pays. The bottom of the die is STRONGER than the middle and bills
+         * you in HP, so Aim is a genuine trade for the Voidadept: climb the
+         * table and you starve the blood engines that feed on the bottom. */
+        voidadept: {
+          name: 'THE HUNGER',
+          read: 'The bottom of the die hits HARDER than the middle — and bills you in HP.',
+          // A U, not a ramp. The void answers at either extreme and is bored by
+          // the middle — WHISPER, the most common face, is his WORST outcome.
+          // The bottom pays in blood, and it pays through spendLife, so the
+          // blood engines drink from a bad roll.
+          misfire: { mult: 1.5, label: 'RAVENOUS', hploss: 4 },
+          bands: [
+            { min: 15, mult: 1.2, label: 'ATTUNED' },
+            { min: 8,  mult: 0.9, label: 'WHISPER' },
+            { min: 2,  mult: 1.2, label: 'HUNGER', hploss: 1 },
+          ],
+        },
+      },
     },
 
     /* ---- Status effects ---------------------------------------------- */
@@ -2457,10 +2524,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       text: 'Deal 3 damage for each other card played this turn.',
       up: { fx: [{ k: 'special', id: 'overdrive', v: 4 }], text: 'Deal 4 damage for each other card played this turn.' },
     },
-    hemorrhage: {
+    hemorrhage: {   // bleed for tempo — and if the die was already hungry, the
+                    // void takes the offering and pays you back in Psi.
       name: 'Hemorrhage', cls: 'voidadept', type: 'skill', rarity: 1, cost: 0, exhaust: true,
-      fx: [{ k: 'hploss', v: 2 }, { k: 'energy', v: 2 }],
-      up: { fx: [{ k: 'hploss', v: 1 }, { k: 'energy', v: 2 }] },
+      fx: [{ k: 'hploss', v: 2 }, { k: 'energy', v: 2 }, { k: 'onRoll', max: 6, fx: [{ k: 'status', s: 'psiPow', v: 2, who: 'self' }] }],
+      up: { fx: [{ k: 'hploss', v: 1 }, { k: 'energy', v: 2 }, { k: 'onRoll', max: 7, fx: [{ k: 'status', s: 'psiPow', v: 2, who: 'self' }] }] },
     },
 
     /* =================== Warpcaller (the ship captain & their crew) ===================
@@ -2718,20 +2786,22 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       fx: [{ k: 'status', s: 'reactor', v: 2, who: 'self' }, { k: 'hploss', v: 5 }],
       up: { fx: [{ k: 'status', s: 'reactor', v: 2, who: 'self' }, { k: 'hploss', v: 3 }] },
     },
-    surge_protocol: {   // dig deep into a power-turn
+    surge_protocol: {   // dig deep into a power-turn — and cash in a real SURGE
       name: 'Surge Protocol', cls: 'technomancer', type: 'skill', rarity: 2, cost: 1,
-      fx: [{ k: 'energy', v: 1 }, { k: 'draw', v: 2 }],
-      up: { fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }] },
+      fx: [{ k: 'energy', v: 1 }, { k: 'draw', v: 2 }, { k: 'onRoll', min: 15, fx: [{ k: 'energy', v: 1 }] }],
+      up: { fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }, { k: 'onRoll', min: 13, fx: [{ k: 'energy', v: 1 }] }] },
     },
     capacitor_discharge: {   // cheap tempo attack that refunds itself
       name: 'Capacitor Discharge', cls: 'technomancer', type: 'attack', rarity: 2, cost: 1,
       fx: [{ k: 'dmg', v: 6, scale: 'tech' }, { k: 'energy', v: 1 }],
       up: { fx: [{ k: 'dmg', v: 9, scale: 'tech' }, { k: 'energy', v: 1 }] },
     },
-    recompile: {   // ⚡0 cantrip — keeps the chain alive
+    recompile: {   // ⚡0 cantrip that RECALIBRATES: the worse the reactor sagged,
+                   // the more the machine steers. The Technomancer's only route
+                   // to Aim, and it self-corrects — a bad face buys the fix.
       name: 'Recompile', cls: 'technomancer', type: 'skill', rarity: 1, cost: 0,
-      fx: [{ k: 'energy', v: 1 }, { k: 'draw', v: 1 }],
-      up: { fx: [{ k: 'energy', v: 1 }, { k: 'draw', v: 2 }] },
+      fx: [{ k: 'energy', v: 1 }, { k: 'draw', v: 1 }, { k: 'onRoll', max: 7, fx: [{ k: 'status', s: 'aim', v: 1, who: 'self' }] }],
+      up: { fx: [{ k: 'energy', v: 1 }, { k: 'draw', v: 2 }, { k: 'onRoll', max: 9, fx: [{ k: 'status', s: 'aim', v: 1, who: 'self' }] }] },
     },
     singularity_drive: {   // BUILD-AROUND — repeat your first Attack and bank Energy
       name: 'Singularity Drive', cls: 'technomancer', type: 'power', rarity: 3, cost: 2,
@@ -2914,10 +2984,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       fx: [{ k: 'dmg', v: 4, all: true, scale: 'psi' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }],
       up: { fx: [{ k: 'dmg', v: 6, all: true, scale: 'psi' }, { k: 'status', s: 'weak', v: 2, who: 'allEnemies' }] },
     },
-    spectral_grasp: {   // tempo control — lock a target down and keep the chain alive
+    spectral_grasp: {   // tempo control that reads BOTH ends of the Hunger: the
+                        // void grips harder when the die is at an extreme, and
+                        // lets go in the middle where it is bored.
       name: 'Spectral Grasp', cls: 'voidadept', type: 'skill', rarity: 1, cost: 0,
-      fx: [{ k: 'status', s: 'weak', v: 1, who: 'target' }, { k: 'status', s: 'vuln', v: 1, who: 'target' }],
-      up: { fx: [{ k: 'status', s: 'weak', v: 2, who: 'target' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }] },
+      fx: [{ k: 'status', s: 'weak', v: 1, who: 'target' }, { k: 'status', s: 'vuln', v: 1, who: 'target' },
+           { k: 'onRoll', min: 15, fx: [{ k: 'status', s: 'vuln', v: 1, who: 'target' }] },
+           { k: 'onRoll', max: 6, fx: [{ k: 'status', s: 'weak', v: 1, who: 'target' }] }],
+      up: { fx: [{ k: 'status', s: 'weak', v: 2, who: 'target' }, { k: 'status', s: 'vuln', v: 2, who: 'target' },
+           { k: 'onRoll', min: 13, fx: [{ k: 'status', s: 'vuln', v: 1, who: 'target' }] },
+           { k: 'onRoll', max: 7, fx: [{ k: 'status', s: 'weak', v: 1, who: 'target' }] }] },
     },
 
     /* ============ VANGUARD — MARKSMAN: the d20 as a resource ============
@@ -3126,7 +3202,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       }
       if (f.k === 'onRoll') {
         var inner = ns.cardDesc({ fx: f.fx || [] }, false, ctx, false);
-        parts.push('Roll ' + f.min + '+: ' + inner);
+        parts.push((f.max != null ? 'Roll ' + f.max + ' or less: ' : 'Roll ' + f.min + '+: ') + inner);
       }
       if (f.k === 'heal') parts.push('Heal ' + f.v + ' HP.');
       if (f.k === 'pet') { var pd = ns.PETS[f.id] || {}, pn = pd.name || f.id, szt = (pd.size || 1) > 1 ? ' [' + pd.size + ' slots]' : ''; parts.push('Summon ' + (f.n > 1 ? f.n + ' ' + pn + 's' : 'a ' + pn) + szt + '.'); }
@@ -3615,12 +3691,44 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       desc: 'Gain 1 Aim for the rest of combat.',
       art: { p: [[-0.75,0, 0.75,0], [0,-0.75, 0,0.75], [0.42,0, 0.3,-0.12], [0.42,0, 0.3,0.12]], e: [[0,0]] },
     },
-    // -- face-locked --
+    // -- Technomancer flavour --
+    coolant_bleed: {
+      name: 'Coolant Bleed', tier: 2, span: 1,
+      fx: [{ k: 'status', s: 'reactor', v: 1, who: 'self' }],
+      desc: 'Gain 1 Reactor (+1 max Energy for the fight).',
+      art: { p: [[-0.55,-0.55, 0.55,-0.55, 0.55,0.55, -0.55,0.55, -0.55,-0.55], [-0.3,-0.55, -0.3,0.55], [0.3,-0.55, 0.3,0.55], [-0.55,0, 0.55,0]] },
+    },
+    // -- Voidadept flavour --
+    psi_bloom: {
+      name: 'Psi Bloom', tier: 2, span: 1,
+      fx: [{ k: 'status', s: 'psiPow', v: 2, who: 'self' }],
+      desc: 'Gain 2 Psi Power for the rest of combat.',
+      art: { p: [[0,-0.8, 0.32,-0.28, 0.8,-0.16, 0.44,0.24, 0.5,0.74, 0,0.5, -0.5,0.74, -0.44,0.24, -0.8,-0.16, -0.32,-0.28, 0,-0.8]], e: [[0,0]] },
+    },
+
+    /* -- face-locked: the anchors -------------------------------------
+     * Face 1 is where the three classes disagree most — a wasted shot, a
+     * tripped breaker, a void that bit too deep — so each gets its own way to
+     * make the worst face pay. They are all onlyFace 1 and therefore mutually
+     * exclusive: the anchor you cut is a statement about your die.
+     * ---------------------------------------------------------------- */
     jam_clearance: {
       name: 'Jam Clearance', tier: 2, span: 1, onlyFace: 1,
       fx: [{ k: 'status', s: 'momentum', v: 3, who: 'self' }, { k: 'energy', v: 1 }],
       desc: 'Gain 3 Momentum and 1 Energy. Engraved on face 1 only — the shot that jams still pays.',
       art: { p: [[-0.6,-0.5, 0.6,-0.5, 0.6,0.5, -0.6,0.5, -0.6,-0.5], [-0.6,-0.5, 0.6,0.5], [0.6,-0.5, -0.6,0.5]] },
+    },
+    earth_strap: {
+      name: 'Earthing Strap', tier: 2, span: 1, onlyFace: 1,
+      fx: [{ k: 'block', v: 14 }],
+      desc: 'Gain 14 Shield. Engraved on face 1 only — the breaker trips into the plating.',
+      art: { p: [[0,-0.8, 0,0.1], [-0.5,0.1, 0.5,0.1], [-0.34,0.38, 0.34,0.38], [-0.18,0.64, 0.18,0.64]] },
+    },
+    blood_sigil: {
+      name: 'Blood Sigil', tier: 2, span: 1, onlyFace: 1,
+      fx: [{ k: 'heal', v: 6 }, { k: 'status', s: 'psiPow', v: 2, who: 'self' }],
+      desc: 'Heal 6 HP and gain 2 Psi Power. Engraved on face 1 only — what the void takes, it gives back.',
+      art: { p: [[0,-0.78, 0.42,-0.12, 0.28,0.54, -0.28,0.54, -0.42,-0.12, 0,-0.78], [-0.42,-0.12, 0.42,-0.12], [0,-0.78, 0,0.54]] },
     },
     executioners_mark: {
       name: "Executioner's Mark", tier: 3, span: 1,
@@ -6176,12 +6284,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       turn: 0,
       energy: 0,
       hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
-      // The Vanguard is the marksman class: he sights in every fight, so he starts
-      // with Aim on the die. It offsets the misfire risk every attacker carries and
-      // makes the d20 matter from turn one, not just for a dedicated dice build.
-      // Everyone rolls, so everyone gets some Aim to steer with; the Vanguard,
-      // as the marksman, sights in further on top of the shared baseline.
-      player: { block: 0, statuses: { aim: (B.dice.baseAim || 0) + (r.cls === 'vanguard' ? B.dice.vanguardAim : 0) } },
+      // Everyone rolls, so everyone gets some Aim to steer with. A class may
+      // sight in further on top of that baseline — the Vanguard does, because he
+      // is the marksman. The Voidadept pointedly does not: climbing the table is
+      // a trade for him, since the bottom of the die is where his power lives.
+      player: { block: 0, statuses: { aim: (B.dice.baseAim || 0) + ((E.dieRead(r.cls) || {}).aim || 0) } },
       pending: null,       // an in-combat choice awaiting a pick (Scry/Tutor/Discover)
       primed: [],          // armed delayed detonations (Primed)
       echoReady: false,
@@ -6223,6 +6330,35 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     r.phase = 'combat';
     c.enemies.forEach(chooseIntent);
     startPlayerTurn();
+  }
+
+  /* HOW EACH CLASS READS THE FACE. A class with no table (the Warpcaller) still
+   * rolls — engravings and onRoll riders fire — but the face does not modulate
+   * the card. Everything below keys off this one lookup. */
+  E.dieRead = function (cls) {
+    var t = (B.dice.classes && B.dice.classes[cls]) || null;
+    return (t && t.DISABLED) ? null : t;
+  };
+  // The Aim you walk into a fight with. One source of truth — the die screen's
+  // reach preview and the sim's face-picking both read it.
+  E.startAim = function (cls) {
+    return (B.dice.baseAim || 0) + ((E.dieRead(cls || (E.run && E.run.cls)) || {}).aim || 0);
+  };
+  function hasBlockFx(fx) {
+    for (var i = 0; i < fx.length; i++) if (fx[i].k === 'block') return true;
+    return false;
+  }
+
+  // Life spent on purpose — a card's cost, or the Voidadept's die billing them.
+  // Routed through one place so the blood engines drink from every source.
+  function spendLife(n) {
+    if (n <= 0) return;
+    var p = E.combat.player;
+    hurtPlayer(n, { pure: true });
+    var bp = statN(p, 'bloodPact');   // BLOOD PACT: spilled HP feeds your Psi
+    if (bp > 0) { addStatus(p, 'psiPow', bp); emit('status', { who: 'player', s: 'psiPow', v: bp }); }
+    var brg = statN(p, 'bloodrage');  // BLOOD RAGE: spending life stokes your Might (Bloodforge)
+    if (brg > 0) { addStatus(p, 'str', brg); emit('status', { who: 'player', s: 'str', v: brg }); }
   }
 
   // All player Shield gains route through here so relics that react to gaining
@@ -6560,10 +6696,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       amount = Math.floor(amount * B.dice.critMult);
       var cv = art('critVuln');
       if (cv > 0 && en.alive) { addStatus(en, 'vuln', cv); emit('status', { who: 'enemy', idx: idx, s: 'vuln', v: cv }); }
-    } else if (opts.misfire) {
-      amount = Math.max(1, Math.floor(amount * B.dice.misfireMult * (E.pressureMods().misfireMult || 1)));   // natural 1: the shot goes wide
     } else if (opts.bandMult && opts.bandMult !== 1) {
-      amount = Math.max(1, Math.round(amount * opts.bandMult));        // graze / solid hit
+      // The class's read of the face — graze/solid, sag/surge, hunger/ravenous.
+      // The misfire multiplier is folded in by the roll block, because what a
+      // natural 1 costs is exactly the thing that differs between classes.
+      amount = Math.max(1, Math.round(amount * opts.bandMult));
     }
     // Void Drone: each hit is capped at its absorb threshold; a hit that would
     // exceed it spits a Void Swarm curse into your deck (unless the blow lands the kill).
@@ -6971,9 +7108,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       if (c.over && f.k === 'dmg') return;
       switch (f.k) {
         case 'onRoll': {
-          // Roll-threshold rider: resolves only if the d20 (plus Aim) met the mark.
-          // A natural 20 always qualifies; a natural 1 never does.
-          var ok = (roll === 20) || (roll != null && roll > 1 && (eff != null ? eff : roll) >= (f.min || 0));
+          // Roll-threshold rider against the EFFECTIVE roll. `min` fires high,
+          // `max` fires low — the Technomancer and the Voidadept both live at
+          // the bottom of their tables, so the bottom needs riders too.
+          // The ends are absolute: a natural 20 always counts as high and a
+          // natural 1 always counts as low, whatever Aim says.
+          var rv = (eff != null ? eff : roll), ok;
+          if (f.max != null) ok = (roll != null) && (roll === 1 || (roll < 20 && rv <= f.max));
+          else ok = (roll === 20) || (roll != null && roll > 1 && rv >= (f.min || 0));
           if (ok) totalDealt += applyCardFx(f.fx || [], ctx);
           break;
         }
@@ -7005,18 +7147,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
                     : bsc === 'might' ? attr('might') * B.attrs.mightBlockPerPoint
                     : bsc === 'psi' ? attr('psi') * B.attrs.psiBlockPerPoint
                     : bsc === 'bond' ? attr('bond') * B.attrs.bondBlockPerPoint : 0;
-          gainBlock(f.v + bonus, true);
+          // LOAD BALANCE: for a class whose table scales Shield, the same face
+          // that would have grazed an attack now sags the plating instead.
+          var bmul = (ctx.blockBand && ctx.bandMult) ? ctx.bandMult : 1;
+          gainBlock(bmul === 1 ? f.v + bonus : Math.max(1, Math.round((f.v + bonus) * bmul)), true);
           break;
         }
         case 'heal': heal(f.v); break;
-        case 'hploss': {
-          hurtPlayer(f.v, { pure: true });
-          var bp = statN(p, 'bloodPact');   // BLOOD PACT: spilled HP feeds your Psi
-          if (bp > 0) { addStatus(p, 'psiPow', bp); emit('status', { who: 'player', s: 'psiPow', v: bp }); }
-          var brg = statN(p, 'bloodrage');  // BLOOD RAGE: spending life stokes your Might (Bloodforge)
-          if (brg > 0) { addStatus(p, 'str', brg); emit('status', { who: 'player', s: 'str', v: brg }); }
-          break;
-        }
+        case 'hploss': spendLife(f.v); break;
         case 'draw': drawCards(f.v); break;
         case 'energy': c.energy += f.v; break;
         case 'pet': summonPet(f.id, f.n || 1); break;   // Warpcaller: summon a pet
@@ -7241,34 +7379,54 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // shifts the whole distribution: a natural 20 always crits, a natural 1 always
     // misfires, and everything between is read against the card's roll thresholds.
     var roll = null, crit = false, misfire = false, eff = null, bandMult = 1, bandLabel = null;
-    var marksman = (r.cls === 'vanguard');   // the Vanguard reads the whole die face
+    var rollTone = null, rollCost = 0, rollGain = 0;
+    var dread = E.dieRead(r.cls);            // how THIS class reads the face
+    // A class whose table also scales Shield reads the die on defensive turns
+    // too, so its skills band as well as its attacks.
+    var bandsNow = !!dread && (def.type === 'attack' || (dread.blocks && hasBlockFx(fx)));
     // THE AUGMENTED DIE: every card play rolls, so a skill/power deck still
-    // engages the die. Only attacks read the damage bands.
-    if (def.type !== 'attack') {
-      roll = d20();
-      eff = Math.min(20, roll + statN(p, 'aim'));
+    // engages the die even when its table has nothing to say about the card.
+    roll = d20();
+    eff = Math.min(20, roll + statN(p, 'aim'));
+    if (!bandsNow) {
       emit('roll', { roll: roll, eff: eff, crit: false, misfire: false, band: null });
-    }
-    if (def.type === 'attack') {
-      roll = d20();
-      eff = Math.min(20, roll + statN(p, 'aim'));
+    } else {
       crit = (roll === 20) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus'));
-      misfire = (roll <= Math.max(1, E.pressureMods().misfireOn || 1)) && marksman;
+      misfire = roll <= Math.max(1, E.pressureMods().misfireOn || 1);
       if (misfire && art('critDie1Energy') > 0) c.energy += art('critDie1Energy');   // Misfire Capacitor
       if (misfire) {   // MISFIRE PROTOCOL turns a jam into fuel
         var mg = statN(p, 'misfireGuard');
         if (mg > 0) { addStatus(p, 'momentum', mg); emit('status', { who: 'player', s: 'momentum', v: statN(p, 'momentum') }); c.energy += 1; }
       }
-      bandLabel = crit ? 'CRIT' : misfire ? 'MISFIRE' : null;
-      if (marksman && !crit && !misfire) {
-        for (var bi = 0; bi < B.dice.bands.length; bi++) {
-          if (eff >= B.dice.bands[bi].min) { bandMult = B.dice.bands[bi].mult; bandLabel = B.dice.bands[bi].label; break; }
+      // The bottom of the table is where the classes part ways: a misfire is the
+      // Vanguard's wasted shot, the Technomancer's tripped breaker and the
+      // Voidadept's over-eager void, and each carries its own rider.
+      var slot = null;
+      if (crit) bandLabel = 'CRIT';
+      else if (misfire) { slot = dread.misfire; }
+      else {
+        for (var bi = 0; bi < dread.bands.length; bi++) {
+          if (eff >= dread.bands[bi].min) { slot = dread.bands[bi]; break; }
         }
       }
-      emit('roll', { roll: roll, eff: eff, crit: crit, misfire: misfire, band: bandLabel });
+      if (slot) {
+        bandMult = slot.mult;
+        bandLabel = slot.label;
+        if (misfire) bandMult *= (E.pressureMods().misfireMult || 1);
+        if (slot.energy) c.energy += slot.energy;
+        // The void bills you, and your blood engines drink it — but it never
+        // takes the last point. A roll you did not choose should not kill you.
+        if (slot.hploss) spendLife(Math.min(slot.hploss, Math.max(0, r.hp - 1)));
+      }
+      // Tone, not band name: the HUD must not know that SOLID is good and SAG is
+      // not. It reads the multiplier, so a new class table styles itself.
+      rollTone = crit ? 'crit' : bandMult > 1.02 ? 'up' : bandMult < 0.98 ? 'down' : 'flat';
+      rollCost = slot ? (slot.hploss || 0) : 0;
+      rollGain = slot ? (slot.energy || 0) : 0;
+      emit('roll', { roll: roll, eff: eff, crit: crit, misfire: misfire, band: bandLabel, tone: rollTone, cost: rollCost, gain: rollGain });
     }
 
-    var ctx = { tgt: tgt, crit: crit, roll: roll, eff: eff, misfire: misfire, bandMult: bandMult, bandLabel: bandLabel, flags: flags, xval: xval, appliedBurn: false };
+    var ctx = { tgt: tgt, crit: crit, roll: roll, eff: eff, misfire: misfire, bandMult: bandMult, bandLabel: bandLabel, blockBand: !!(dread && dread.blocks), flags: flags, xval: xval, appliedBurn: false };
     var times = 1;
     if (def.type === 'attack' && c.echoReady) { c.echoReady = false; times = 2; }
     // Doubled Self: on turn 1, every card you play resolves twice
@@ -7340,7 +7498,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (def.type !== 'attack') c.nonAttacksThisTurn = (c.nonAttacksThisTurn || 0) + 1;   // Recoilless Frame
     if (E.hasEcho('momentum_engine')) c.momentum = (c.momentum || 0) + 1; // each card buffs the next
     if (def.type === 'attack') { var fauto = statN(p, 'fullauto'); if (fauto > 0) addStatus(p, 'momentum', fauto); } // Full Auto: each shot builds Momentum
-    emit('cardPlayed', { id: card.id, crit: crit, roll: roll, eff: eff, misfire: misfire, band: bandLabel, aim: statN(p, 'aim') });
+    emit('cardPlayed', {
+      id: card.id, crit: crit, roll: roll, eff: eff, misfire: misfire, band: bandLabel, aim: statN(p, 'aim'),
+      tone: rollTone, cost: rollCost, gain: rollGain,
+    });
     checkWin();
     return true;
   };
@@ -11362,7 +11523,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (dieTimer) clearInterval(dieTimer);
     dieTimer = setInterval(function () { n.textContent = 1 + Math.floor(Math.random() * 20); }, 60);
   }
-  function settleDie(value, crit, misfire, aim, band) {
+  function settleDie(value, crit, misfire, aim, band, tone) {
     if (!$die) return;
     dieRolling = false;
     if (dieTimer) { clearInterval(dieTimer); dieTimer = null; }
@@ -11377,11 +11538,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var $l = $die.querySelector('.die-band');
     if (!$l) { $l = document.createElement('span'); $l.className = 'die-band'; $die.appendChild($l); }
     $l.textContent = band || '';
-    $die.classList.remove('graze', 'solid');
-    if (band === 'GRAZE') $die.classList.add('graze');
-    else if (band === 'SOLID') $die.classList.add('solid');
-    if (misfire) $die.classList.add('misfire'); else $die.classList.remove('misfire');
-    if (crit) $die.classList.add('crit'); else $die.classList.remove('crit');
+    // Tone, not band name — each class names its own faces, so the HUD colours
+    // by whether the face helped or hurt rather than by a hardcoded label.
+    $die.classList.remove('graze', 'solid', 'misfire', 'crit');
+    if (crit) $die.classList.add('crit');
+    else if (tone === 'up') $die.classList.add('solid');
+    else if (tone === 'down') $die.classList.add(misfire ? 'misfire' : 'graze');
     // Big transient readout — the die is central now, so every roll announces itself.
     var $f = $die.querySelector('.die-flash');
     if (!$f) { $f = document.createElement('span'); $f.className = 'die-flash'; $die.appendChild($f); }
@@ -11740,19 +11902,68 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (c) return (c.player.statuses.aim || 0);
     var d = E.run && E.run.die;
     if (d && d.previewAim != null) return d.previewAim;
-    return (E.run && E.run.cls === 'vanguard') ? (ns.BALANCE.dice.vanguardAim || 0) : 0;
+    return E.run ? E.startAim(E.run.cls) : 0;
   }
   function dieSetAim(n) {
     var c = E.combat, d = E.run && E.run.die;
     n = Math.max(0, Math.min(19, n));
     if (c) c.player.statuses.aim = n; else if (d) d.previewAim = n;
   }
+  /* THE CLASS TABLE. Roll every face through the class's own reading so the
+   * screen shows what the die MEANS for you, and how Aim reshapes it — which is
+   * the Voidadept's whole tension: climb the table and you starve the bottom. */
+  function dieBandRows(cls, aim) {
+    var t = ns.BALANCE.dice.classes[cls]; if (!t) return null;
+    var D = ns.BALANCE.dice, seen = [], byLabel = {};
+    for (var roll = 1; roll <= 20; roll++) {
+      var eff = Math.min(20, roll + aim), slot;
+      if ((roll === 20) || (roll > 1 && eff >= D.critThreshold)) slot = { label: 'CRIT', mult: D.critMult, tone: 'crit' };
+      else if (roll <= 1) slot = t.misfire;
+      else { for (var i = 0; i < t.bands.length; i++) if (eff >= t.bands[i].min) { slot = t.bands[i]; break; } }
+      if (!slot) continue;
+      if (!byLabel[slot.label]) { byLabel[slot.label] = { slot: slot, n: 0, lo: roll, hi: roll }; seen.push(slot.label); }
+      var e = byLabel[slot.label];
+      e.n++; e.lo = Math.min(e.lo, roll); e.hi = Math.max(e.hi, roll);
+    }
+    return seen.map(function (k) { return byLabel[k]; })
+               .sort(function (a, b) { return b.lo - a.lo; });
+  }
+  function dieReadHTML(cls, aim) {
+    var t = ns.BALANCE.dice.classes[cls];
+    if (!t) return '<div class="dr-title">NO TABLE<span class="dr-sub">Your die rolls for engravings, but the face does not modulate your cards.</span></div>';
+    var h = '<div class="dr-title">' + esc(t.name) + '<span class="dr-sub">' + esc(t.read) + '</span></div>';
+    dieBandRows(cls, aim).forEach(function (e) {
+      var m = e.slot.mult, tone = e.slot.label === 'CRIT' ? 'crit' : m > 1.02 ? 'up' : m < 0.98 ? 'down' : 'flat';
+      var rider = (e.slot.hploss ? ' <b class="dr-cost">−' + e.slot.hploss + ' HP</b>' : '')
+                + (e.slot.energy ? ' <b class="dr-gain">+' + e.slot.energy + ' EN</b>' : '');
+      h += '<div class="dr-row ' + tone + '">'
+        +  '<span class="dr-rng">' + (e.lo === e.hi ? e.lo : e.lo + '–' + e.hi) + '</span>'
+        +  '<span class="dr-lab">' + esc(e.slot.label) + '</span>'
+        +  '<span class="dr-mul">×' + m.toFixed(2).replace(/0$/, '') + rider + '</span>'
+        +  '<span class="dr-pct">' + (e.n * 5) + '%</span></div>';
+    });
+    return h;
+  }
+
+  // Face 1 and 20 are labelled in the CLASS's language — a Vanguard's MISFIRE is
+  // a Technomancer's BREAKER and a Voidadept's RAVENOUS, and calling them all
+  // "misfire" would be telling three classes the same lie.
+  function dieEndTag(cls, face) {
+    var t = ns.BALANCE.dice.classes[cls];
+    if (face === 20) return { label: 'CRIT', crit: true };
+    if (face !== 1) return null;
+    if (!t) return null;
+    var m = t.misfire;
+    return { label: m.label, crit: false, good: m.mult > 1.02 };
+  }
+
   function dieFaceRowHTML(die, face, reach) {
     var id = ns.dieFaceId(die, face), d = id ? ns.dieEngraving(id) : null;
     var slot = die.faces[face];
     var cont = slot && slot.root !== face;                 // continuation of a band
     var cls = 'df' + (d ? (d.flaw ? ' flaw' : ' aug') : ' bare') + (reach(face) ? '' : ' unreach');
-    var tag = face === 1 ? '<span class="df-tag">MISFIRE</span>' : face === 20 ? '<span class="df-tag crit">CRIT</span>' : '';
+    var et = dieEndTag(E.run && E.run.cls, face);
+    var tag = et ? '<span class="df-tag' + (et.crit || et.good ? ' crit' : '') + '">' + esc(et.label) + '</span>' : '';
     var body = d
       ? (cont ? '<span class="df-cont">— ' + esc(d.name) + '</span>'
               : artSVG(d.art, 'df-icon') + '<span class="df-name">' + esc(d.name) + '</span>')
@@ -11787,6 +11998,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     var info = el('div', 'die-info');
     s.appendChild(info);
+    var read = el('div', 'die-read');
+    s.appendChild(read);
     var shop = el('div', 'die-shop');
     s.appendChild(shop);
     var wrap = el('div', 'die-cols');
@@ -11850,13 +12063,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
       // selected-face readout
       var id = ns.dieFaceId(die, sel), d = id ? ns.dieEngraving(id) : null;
-      var tag = sel === 1 ? ' <span class="di-tag">MISFIRE</span>' : sel === 20 ? ' <span class="di-tag crit">CRIT</span>' : '';
+      var st = dieEndTag(r.cls, sel);
+      var tag = st ? ' <span class="di-tag' + (st.crit || st.good ? ' crit' : '') + '">' + esc(st.label) + '</span>' : '';
       var head = '<div class="di-head"><span class="di-face">' + sel + '</span>' + tag
                + (rc(sel) ? '' : '<span class="di-un">OUT OF REACH AT AIM +' + a + '</span>') + '</div>';
       info.innerHTML = head + (d
         ? '<div class="di-name' + (d.flaw ? ' flaw' : '') + '">' + (d.flaw ? '✖ ' : '◆ ') + esc(d.name) + '</div><div class="di-desc">' + esc(d.desc) + '</div>'
         : '<div class="di-name bare">bare</div><div class="di-desc">Nothing engraved on this face.</div>');
       wrap.querySelectorAll('.df').forEach(function (row) { row.classList.toggle('sel', +row.dataset.face === sel); });
+
+      read.innerHTML = dieReadHTML(r.cls, a);
 
       // ---- the bench (a real shop) ----
       var h = '';
@@ -13670,13 +13886,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           floater(pp.x + 62, pp.y - 84, (e.flaw ? '\u2716 ' : '\u25c6 ') + e.name, e.flaw ? 'dieflaw' : 'dieaug');
           break;
         case 'cardPlayed':
-          // settle the dock d20 on the roll when an attack lands (only attacks can crit)
-          if (e.roll != null && ns.CARDS[e.id] && ns.CARDS[e.id].type === 'attack') {
-            settleDie(e.roll, e.crit, e.misfire, e.aim || 0, e.band);
+          // Settle the dock d20 whenever the face actually MODULATED the card.
+          // That is not "attacks only" any more: the Technomancer's table scales
+          // Shield, so his defensive turns have to announce themselves too.
+          if (e.roll != null && e.band) {
+            settleDie(e.roll, e.crit, e.misfire, e.aim || 0, e.band, e.tone);
             if (e.crit) floater(pp.x + 60, pp.y - 56, 'CRIT!', 'crit');
-            else if (e.misfire) floater(pp.x + 60, pp.y - 56, 'MISFIRE', 'misfire');
-            else if (e.band === 'SOLID') floater(pp.x + 60, pp.y - 52, 'SOLID', 'solid');
-            else if (e.band === 'GRAZE') floater(pp.x + 60, pp.y - 52, 'GRAZE', 'graze');
+            else if (e.band) floater(pp.x + 60, pp.y - (e.misfire ? 56 : 52), e.band,
+                                     e.tone === 'up' ? 'solid' : e.misfire ? 'misfire' : 'graze');
+            // riders the face charged or paid out, so a bloody roll never lands silently
+            if (e.cost) floater(pp.x - 46, pp.y - 30, '−' + e.cost + ' HP', 'misfire');
+            if (e.gain) floater(pp.x - 46, pp.y - 30, '+' + e.gain + ' EN', 'solid');
           }
           break;
         case 'revive':

@@ -526,7 +526,7 @@
     if (dieTimer) clearInterval(dieTimer);
     dieTimer = setInterval(function () { n.textContent = 1 + Math.floor(Math.random() * 20); }, 60);
   }
-  function settleDie(value, crit, misfire, aim, band) {
+  function settleDie(value, crit, misfire, aim, band, tone) {
     if (!$die) return;
     dieRolling = false;
     if (dieTimer) { clearInterval(dieTimer); dieTimer = null; }
@@ -541,11 +541,12 @@
     var $l = $die.querySelector('.die-band');
     if (!$l) { $l = document.createElement('span'); $l.className = 'die-band'; $die.appendChild($l); }
     $l.textContent = band || '';
-    $die.classList.remove('graze', 'solid');
-    if (band === 'GRAZE') $die.classList.add('graze');
-    else if (band === 'SOLID') $die.classList.add('solid');
-    if (misfire) $die.classList.add('misfire'); else $die.classList.remove('misfire');
-    if (crit) $die.classList.add('crit'); else $die.classList.remove('crit');
+    // Tone, not band name — each class names its own faces, so the HUD colours
+    // by whether the face helped or hurt rather than by a hardcoded label.
+    $die.classList.remove('graze', 'solid', 'misfire', 'crit');
+    if (crit) $die.classList.add('crit');
+    else if (tone === 'up') $die.classList.add('solid');
+    else if (tone === 'down') $die.classList.add(misfire ? 'misfire' : 'graze');
     // Big transient readout — the die is central now, so every roll announces itself.
     var $f = $die.querySelector('.die-flash');
     if (!$f) { $f = document.createElement('span'); $f.className = 'die-flash'; $die.appendChild($f); }
@@ -904,19 +905,68 @@
     if (c) return (c.player.statuses.aim || 0);
     var d = E.run && E.run.die;
     if (d && d.previewAim != null) return d.previewAim;
-    return (E.run && E.run.cls === 'vanguard') ? (ns.BALANCE.dice.vanguardAim || 0) : 0;
+    return E.run ? E.startAim(E.run.cls) : 0;
   }
   function dieSetAim(n) {
     var c = E.combat, d = E.run && E.run.die;
     n = Math.max(0, Math.min(19, n));
     if (c) c.player.statuses.aim = n; else if (d) d.previewAim = n;
   }
+  /* THE CLASS TABLE. Roll every face through the class's own reading so the
+   * screen shows what the die MEANS for you, and how Aim reshapes it — which is
+   * the Voidadept's whole tension: climb the table and you starve the bottom. */
+  function dieBandRows(cls, aim) {
+    var t = ns.BALANCE.dice.classes[cls]; if (!t) return null;
+    var D = ns.BALANCE.dice, seen = [], byLabel = {};
+    for (var roll = 1; roll <= 20; roll++) {
+      var eff = Math.min(20, roll + aim), slot;
+      if ((roll === 20) || (roll > 1 && eff >= D.critThreshold)) slot = { label: 'CRIT', mult: D.critMult, tone: 'crit' };
+      else if (roll <= 1) slot = t.misfire;
+      else { for (var i = 0; i < t.bands.length; i++) if (eff >= t.bands[i].min) { slot = t.bands[i]; break; } }
+      if (!slot) continue;
+      if (!byLabel[slot.label]) { byLabel[slot.label] = { slot: slot, n: 0, lo: roll, hi: roll }; seen.push(slot.label); }
+      var e = byLabel[slot.label];
+      e.n++; e.lo = Math.min(e.lo, roll); e.hi = Math.max(e.hi, roll);
+    }
+    return seen.map(function (k) { return byLabel[k]; })
+               .sort(function (a, b) { return b.lo - a.lo; });
+  }
+  function dieReadHTML(cls, aim) {
+    var t = ns.BALANCE.dice.classes[cls];
+    if (!t) return '<div class="dr-title">NO TABLE<span class="dr-sub">Your die rolls for engravings, but the face does not modulate your cards.</span></div>';
+    var h = '<div class="dr-title">' + esc(t.name) + '<span class="dr-sub">' + esc(t.read) + '</span></div>';
+    dieBandRows(cls, aim).forEach(function (e) {
+      var m = e.slot.mult, tone = e.slot.label === 'CRIT' ? 'crit' : m > 1.02 ? 'up' : m < 0.98 ? 'down' : 'flat';
+      var rider = (e.slot.hploss ? ' <b class="dr-cost">−' + e.slot.hploss + ' HP</b>' : '')
+                + (e.slot.energy ? ' <b class="dr-gain">+' + e.slot.energy + ' EN</b>' : '');
+      h += '<div class="dr-row ' + tone + '">'
+        +  '<span class="dr-rng">' + (e.lo === e.hi ? e.lo : e.lo + '–' + e.hi) + '</span>'
+        +  '<span class="dr-lab">' + esc(e.slot.label) + '</span>'
+        +  '<span class="dr-mul">×' + m.toFixed(2).replace(/0$/, '') + rider + '</span>'
+        +  '<span class="dr-pct">' + (e.n * 5) + '%</span></div>';
+    });
+    return h;
+  }
+
+  // Face 1 and 20 are labelled in the CLASS's language — a Vanguard's MISFIRE is
+  // a Technomancer's BREAKER and a Voidadept's RAVENOUS, and calling them all
+  // "misfire" would be telling three classes the same lie.
+  function dieEndTag(cls, face) {
+    var t = ns.BALANCE.dice.classes[cls];
+    if (face === 20) return { label: 'CRIT', crit: true };
+    if (face !== 1) return null;
+    if (!t) return null;
+    var m = t.misfire;
+    return { label: m.label, crit: false, good: m.mult > 1.02 };
+  }
+
   function dieFaceRowHTML(die, face, reach) {
     var id = ns.dieFaceId(die, face), d = id ? ns.dieEngraving(id) : null;
     var slot = die.faces[face];
     var cont = slot && slot.root !== face;                 // continuation of a band
     var cls = 'df' + (d ? (d.flaw ? ' flaw' : ' aug') : ' bare') + (reach(face) ? '' : ' unreach');
-    var tag = face === 1 ? '<span class="df-tag">MISFIRE</span>' : face === 20 ? '<span class="df-tag crit">CRIT</span>' : '';
+    var et = dieEndTag(E.run && E.run.cls, face);
+    var tag = et ? '<span class="df-tag' + (et.crit || et.good ? ' crit' : '') + '">' + esc(et.label) + '</span>' : '';
     var body = d
       ? (cont ? '<span class="df-cont">— ' + esc(d.name) + '</span>'
               : artSVG(d.art, 'df-icon') + '<span class="df-name">' + esc(d.name) + '</span>')
@@ -951,6 +1001,8 @@
 
     var info = el('div', 'die-info');
     s.appendChild(info);
+    var read = el('div', 'die-read');
+    s.appendChild(read);
     var shop = el('div', 'die-shop');
     s.appendChild(shop);
     var wrap = el('div', 'die-cols');
@@ -1014,13 +1066,16 @@
 
       // selected-face readout
       var id = ns.dieFaceId(die, sel), d = id ? ns.dieEngraving(id) : null;
-      var tag = sel === 1 ? ' <span class="di-tag">MISFIRE</span>' : sel === 20 ? ' <span class="di-tag crit">CRIT</span>' : '';
+      var st = dieEndTag(r.cls, sel);
+      var tag = st ? ' <span class="di-tag' + (st.crit || st.good ? ' crit' : '') + '">' + esc(st.label) + '</span>' : '';
       var head = '<div class="di-head"><span class="di-face">' + sel + '</span>' + tag
                + (rc(sel) ? '' : '<span class="di-un">OUT OF REACH AT AIM +' + a + '</span>') + '</div>';
       info.innerHTML = head + (d
         ? '<div class="di-name' + (d.flaw ? ' flaw' : '') + '">' + (d.flaw ? '✖ ' : '◆ ') + esc(d.name) + '</div><div class="di-desc">' + esc(d.desc) + '</div>'
         : '<div class="di-name bare">bare</div><div class="di-desc">Nothing engraved on this face.</div>');
       wrap.querySelectorAll('.df').forEach(function (row) { row.classList.toggle('sel', +row.dataset.face === sel); });
+
+      read.innerHTML = dieReadHTML(r.cls, a);
 
       // ---- the bench (a real shop) ----
       var h = '';
@@ -2834,13 +2889,17 @@
           floater(pp.x + 62, pp.y - 84, (e.flaw ? '\u2716 ' : '\u25c6 ') + e.name, e.flaw ? 'dieflaw' : 'dieaug');
           break;
         case 'cardPlayed':
-          // settle the dock d20 on the roll when an attack lands (only attacks can crit)
-          if (e.roll != null && ns.CARDS[e.id] && ns.CARDS[e.id].type === 'attack') {
-            settleDie(e.roll, e.crit, e.misfire, e.aim || 0, e.band);
+          // Settle the dock d20 whenever the face actually MODULATED the card.
+          // That is not "attacks only" any more: the Technomancer's table scales
+          // Shield, so his defensive turns have to announce themselves too.
+          if (e.roll != null && e.band) {
+            settleDie(e.roll, e.crit, e.misfire, e.aim || 0, e.band, e.tone);
             if (e.crit) floater(pp.x + 60, pp.y - 56, 'CRIT!', 'crit');
-            else if (e.misfire) floater(pp.x + 60, pp.y - 56, 'MISFIRE', 'misfire');
-            else if (e.band === 'SOLID') floater(pp.x + 60, pp.y - 52, 'SOLID', 'solid');
-            else if (e.band === 'GRAZE') floater(pp.x + 60, pp.y - 52, 'GRAZE', 'graze');
+            else if (e.band) floater(pp.x + 60, pp.y - (e.misfire ? 56 : 52), e.band,
+                                     e.tone === 'up' ? 'solid' : e.misfire ? 'misfire' : 'graze');
+            // riders the face charged or paid out, so a bloody roll never lands silently
+            if (e.cost) floater(pp.x - 46, pp.y - 30, '−' + e.cost + ' HP', 'misfire');
+            if (e.gain) floater(pp.x - 46, pp.y - 30, '+' + e.gain + ' EN', 'solid');
           }
           break;
         case 'revive':

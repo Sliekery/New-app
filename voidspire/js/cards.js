@@ -784,10 +784,11 @@
       text: 'Deal 3 damage for each other card played this turn.',
       up: { fx: [{ k: 'special', id: 'overdrive', v: 4 }], text: 'Deal 4 damage for each other card played this turn.' },
     },
-    hemorrhage: {
+    hemorrhage: {   // bleed for tempo — and if the die was already hungry, the
+                    // void takes the offering and pays you back in Psi.
       name: 'Hemorrhage', cls: 'voidadept', type: 'skill', rarity: 1, cost: 0, exhaust: true,
-      fx: [{ k: 'hploss', v: 2 }, { k: 'energy', v: 2 }],
-      up: { fx: [{ k: 'hploss', v: 1 }, { k: 'energy', v: 2 }] },
+      fx: [{ k: 'hploss', v: 2 }, { k: 'energy', v: 2 }, { k: 'onRoll', max: 6, fx: [{ k: 'status', s: 'psiPow', v: 2, who: 'self' }] }],
+      up: { fx: [{ k: 'hploss', v: 1 }, { k: 'energy', v: 2 }, { k: 'onRoll', max: 7, fx: [{ k: 'status', s: 'psiPow', v: 2, who: 'self' }] }] },
     },
 
     /* =================== Warpcaller (the ship captain & their crew) ===================
@@ -1045,20 +1046,22 @@
       fx: [{ k: 'status', s: 'reactor', v: 2, who: 'self' }, { k: 'hploss', v: 5 }],
       up: { fx: [{ k: 'status', s: 'reactor', v: 2, who: 'self' }, { k: 'hploss', v: 3 }] },
     },
-    surge_protocol: {   // dig deep into a power-turn
+    surge_protocol: {   // dig deep into a power-turn — and cash in a real SURGE
       name: 'Surge Protocol', cls: 'technomancer', type: 'skill', rarity: 2, cost: 1,
-      fx: [{ k: 'energy', v: 1 }, { k: 'draw', v: 2 }],
-      up: { fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }] },
+      fx: [{ k: 'energy', v: 1 }, { k: 'draw', v: 2 }, { k: 'onRoll', min: 15, fx: [{ k: 'energy', v: 1 }] }],
+      up: { fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }, { k: 'onRoll', min: 13, fx: [{ k: 'energy', v: 1 }] }] },
     },
     capacitor_discharge: {   // cheap tempo attack that refunds itself
       name: 'Capacitor Discharge', cls: 'technomancer', type: 'attack', rarity: 2, cost: 1,
       fx: [{ k: 'dmg', v: 6, scale: 'tech' }, { k: 'energy', v: 1 }],
       up: { fx: [{ k: 'dmg', v: 9, scale: 'tech' }, { k: 'energy', v: 1 }] },
     },
-    recompile: {   // ⚡0 cantrip — keeps the chain alive
+    recompile: {   // ⚡0 cantrip that RECALIBRATES: the worse the reactor sagged,
+                   // the more the machine steers. The Technomancer's only route
+                   // to Aim, and it self-corrects — a bad face buys the fix.
       name: 'Recompile', cls: 'technomancer', type: 'skill', rarity: 1, cost: 0,
-      fx: [{ k: 'energy', v: 1 }, { k: 'draw', v: 1 }],
-      up: { fx: [{ k: 'energy', v: 1 }, { k: 'draw', v: 2 }] },
+      fx: [{ k: 'energy', v: 1 }, { k: 'draw', v: 1 }, { k: 'onRoll', max: 7, fx: [{ k: 'status', s: 'aim', v: 1, who: 'self' }] }],
+      up: { fx: [{ k: 'energy', v: 1 }, { k: 'draw', v: 2 }, { k: 'onRoll', max: 9, fx: [{ k: 'status', s: 'aim', v: 1, who: 'self' }] }] },
     },
     singularity_drive: {   // BUILD-AROUND — repeat your first Attack and bank Energy
       name: 'Singularity Drive', cls: 'technomancer', type: 'power', rarity: 3, cost: 2,
@@ -1241,10 +1244,16 @@
       fx: [{ k: 'dmg', v: 4, all: true, scale: 'psi' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }],
       up: { fx: [{ k: 'dmg', v: 6, all: true, scale: 'psi' }, { k: 'status', s: 'weak', v: 2, who: 'allEnemies' }] },
     },
-    spectral_grasp: {   // tempo control — lock a target down and keep the chain alive
+    spectral_grasp: {   // tempo control that reads BOTH ends of the Hunger: the
+                        // void grips harder when the die is at an extreme, and
+                        // lets go in the middle where it is bored.
       name: 'Spectral Grasp', cls: 'voidadept', type: 'skill', rarity: 1, cost: 0,
-      fx: [{ k: 'status', s: 'weak', v: 1, who: 'target' }, { k: 'status', s: 'vuln', v: 1, who: 'target' }],
-      up: { fx: [{ k: 'status', s: 'weak', v: 2, who: 'target' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }] },
+      fx: [{ k: 'status', s: 'weak', v: 1, who: 'target' }, { k: 'status', s: 'vuln', v: 1, who: 'target' },
+           { k: 'onRoll', min: 15, fx: [{ k: 'status', s: 'vuln', v: 1, who: 'target' }] },
+           { k: 'onRoll', max: 6, fx: [{ k: 'status', s: 'weak', v: 1, who: 'target' }] }],
+      up: { fx: [{ k: 'status', s: 'weak', v: 2, who: 'target' }, { k: 'status', s: 'vuln', v: 2, who: 'target' },
+           { k: 'onRoll', min: 13, fx: [{ k: 'status', s: 'vuln', v: 1, who: 'target' }] },
+           { k: 'onRoll', max: 7, fx: [{ k: 'status', s: 'weak', v: 1, who: 'target' }] }] },
     },
 
     /* ============ VANGUARD — MARKSMAN: the d20 as a resource ============
@@ -1453,7 +1462,7 @@
       }
       if (f.k === 'onRoll') {
         var inner = ns.cardDesc({ fx: f.fx || [] }, false, ctx, false);
-        parts.push('Roll ' + f.min + '+: ' + inner);
+        parts.push((f.max != null ? 'Roll ' + f.max + ' or less: ' : 'Roll ' + f.min + '+: ') + inner);
       }
       if (f.k === 'heal') parts.push('Heal ' + f.v + ' HP.');
       if (f.k === 'pet') { var pd = ns.PETS[f.id] || {}, pn = pd.name || f.id, szt = (pd.size || 1) > 1 ? ' [' + pd.size + ' slots]' : ''; parts.push('Summon ' + (f.n > 1 ? f.n + ' ' + pn + 's' : 'a ' + pn) + szt + '.'); }

@@ -298,6 +298,75 @@ Augments replace relic drops 1:1, so run pacing is unchanged.
 
 Choosing the face at install time is the decision that makes this better than relics.
 
+### 7b. Three readings of one d20 — BUILT
+
+The Vanguard shipped first as the testing ground. Copying his damage bands onto
+the other two would have been a restat, not a design, so each class instead gets
+its own answer to the one question the die actually asks:
+
+> **What does a BAD roll mean?**
+
+A 20 always crits and the top of every table is the same. The bottom is where
+they part ways.
+
+| | VANGUARD — *Marksmanship* | TECHNOMANCER — *Load Balance* | VOIDADEPT — *The Hunger* |
+|---|---|---|---|
+| Shape | rising ramp, tight | rising ramp, **wide** | **a U** |
+| 20 | CRIT ×2.0 | CRIT ×2.0 | CRIT ×2.0 |
+| high | SOLID ×1.25 | SURGE ×1.35 | ATTUNED ×1.2 |
+| middle | HIT ×1.0 | NOMINAL ×1.0 | **WHISPER ×0.9** |
+| low | GRAZE ×0.8 | SAG ×0.7 | **HUNGER ×1.2, −1 HP** |
+| natural 1 | MISFIRE ×0.5 | BREAKER ×0.6, **+1 Energy** | RAVENOUS ×1.5, **−4 HP** |
+| scales | damage | **damage AND Shield** | damage |
+| starting Aim | **+2** (base +1, marksman +1) | +1 | +1 |
+| a bad roll is | wasted | **converted to tempo** | **converted to power, billed in blood** |
+
+What each one buys:
+
+- **The Vanguard steers.** He is the only class with extra Aim, and Aim is
+  unambiguously good for him — every step up his table is an improvement.
+- **The Technomancer swings.** The widest spread of the three, and it is the only
+  table that scales *Shield*, so the die decides defensive turns as well as
+  offensive ones — his read of the face fires on most of his deck rather than
+  only on attacks. He gets no extra Aim; his answer to variance is redundancy,
+  and a tripped breaker is never dead because it dumps its charge back as Energy.
+- **The Voidadept is hungry.** His curve is a U: WHISPER, the single most common
+  outcome at 35%, is his *worst*, and both extremes pay. The bottom bills him in
+  HP through the same `spendLife` path his cards use, so **the blood engines
+  drink from a bad roll**. That makes Aim a genuine trade for him alone — climb
+  the table and you starve the band your build feeds on. Nothing else in the game
+  makes a stat you want into a stat you must think about.
+
+The Warpcaller has no table by design; he still rolls, so engravings and roll
+riders fire, but the face does not modulate his cards.
+
+Supporting work:
+
+- `onRoll` gained a **`max`** form (fires on a LOW effective roll) — the bottom of
+  the table needed riders as much as the top. Mirror-symmetric with `min`: a
+  natural 20 always counts as high, a natural 1 always counts as low.
+- Four filler cards were reworked in place to speak to their table: **Recompile**
+  (a sag grants Aim — the machine recalibrates, and it is the Technomancer's only
+  route to Aim), **Surge Protocol** (a high face refunds Energy), **Hemorrhage**
+  (a hungry face pays back Psi), **Spectral Grasp** (grips harder at *both* ends
+  and lets go in the middle).
+- Four engravings joined the pool: **Coolant Bleed**, **Psi Bloom**, and two more
+  face-1 anchors — **Earthing Strap** (Technomancer) and **Blood Sigil**
+  (Voidadept) — alongside the Vanguard's Jam Clearance. All three are `onlyFace: 1`
+  and therefore mutually exclusive: the anchor you cut is a statement about your die.
+- The HUD colours rolls by **tone** (derived from the multiplier), never by band
+  name, so a new class table styles itself. A Voidadept RAVENOUS reads green on
+  the die (it hit hard) with a red −4 HP floater beside it (and it cost you).
+- The die settles on any card the face modulated, not on attacks only, because
+  the Technomancer's shield turns have to announce themselves.
+
+Measured: 1600-run sims put class parity spread at **5.3 pts** (target ≤ 8) with
+aggregate win rate unmoved. Both new tables were A/B'd in isolation against
+themselves disabled — the Hunger came in within noise, Load Balance up ~3 pts on
+a class that sat at the bottom of the ladder.
+
+---
+
 ### 8.1 The bench — BUILT
 
 Every shop carries a bench, opened from the shop screen and presented on the die screen

@@ -168,8 +168,7 @@ function botManageDie() {
 // lands, i.e. inside the Aim band, and keeps face 1 for its own anchor.
 function botFaceOrder(id) {
   var r = VS.engine.run;
-  var aim = (r.cls === 'vanguard') ? (VS.BALANCE.dice.vanguardAim || 0) : 0;
-  var lo = Math.min(20, 2 + aim);
+  var lo = Math.min(20, 2 + VS.engine.startAim(r.cls));
   var g = VS.DIE_AUGMENTS[id];
   if (g && g.onlyFace) return [g.onlyFace];
   var order = [];
@@ -202,8 +201,7 @@ function botBench() {
     var g = VS.dieEngraving(d.faces[f].id); return g && g.flaw;
   }).map(Number).sort(function (a, b) { return b - a; })[0];   // the one highest up the die hurts most
   if (flaw != null) {
-    var aim = (r.cls === 'vanguard') ? (VS.BALANCE.dice.vanguardAim || 0) : 0;
-    var lo = Math.min(20, 2 + aim);
+    var lo = Math.min(20, 2 + E.startAim(r.cls));
     // if a bare face below the Aim floor exists, shunting it there is cheaper
     var dump = -1;
     for (var f2 = 2; f2 < lo && dump < 0; f2++) if (!d.faces[f2]) dump = f2;
@@ -748,7 +746,11 @@ console.log('data integrity: OK');
 
 /* ---- run simulations (only when invoked directly, not when require()d) ----- */
 if (require.main === module) {
-var classes = CLASSES;
+// `node test/sim.js 800 voidadept` narrows the pool, so a table change to one
+// class can be measured without spending 3/4 of the runs on classes it cannot
+// touch. Seeds stay keyed to the run index, so two filtered runs are comparable.
+var only = (process.argv[3] || '').split(',').filter(function (c) { return CLASSES.indexOf(c) >= 0; });
+var classes = only.length ? only : CLASSES;
 var stats = {};
 var stalls = 0;
 var s1mins = [], s1fights = [];   // lowest HP fraction reached in sector 1 (overall / hallway fights)
