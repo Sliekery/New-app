@@ -102,6 +102,8 @@ html, body {
    else that is a diagram rather than prose. */
 #game.landscape .screen > .map-wrap,
 #game.landscape .screen > .map-legend,
+#game.landscape .screen > .chart-head,
+#game.landscape .screen > .chart-legend,
 #game.landscape .screen > .map-lanes { max-width: none; }
 
 /* landscape: the dock goes slim and energy/stims/END ride INLINE beside the
@@ -1569,15 +1571,47 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   clip-path: polygon(0 14px, 14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px));
   background: rgba(3, 8, 10, 0.55);
 }
-.chartv2 .map-wrap.land {
-  max-width: none; overflow: hidden; height: auto; flex: 1 1 auto; min-height: 0;
-  display: block; margin: 8px 0 0;
-}
+/* THE CHART SCROLLS. Fitting a whole sector on one screen shrank every node
+   until the art inside it was mush. Now it fills one axis at a readable size
+   and runs off the other: landscape scrolls left-right along the descent,
+   portrait scrolls up-down. */
 .chartv2 .map-wrap {
   -webkit-mask-image: none; mask-image: none;
-  max-width: none; flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  max-width: none; flex: 1 1 auto; min-height: 0;
+  overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
 }
-.chartv2 .starchart { width: 100%; height: 100%; display: block; }
+.chartv2 .map-wrap.land {
+  overflow-x: auto; overflow-y: hidden; display: block; margin: 8px 0 0;
+  scrollbar-width: none;
+  /* the base rule caps this at 70% of the screen, which shrank the chart back
+     down to something that fit. Take the room that is actually there. */
+  height: auto; flex: 1 1 auto; min-height: 0;
+}
+/* Landscape lays every screen out on a GRID, so `flex: 1 1 auto` above is inert
+   and the chart row sized to its own content — leaving ~100px of the 600 we
+   have empty above and below it. Name the rows and let the chart have the slack:
+   its height is what sets the node size, since the descent scrolls sideways. */
+#game.landscape .map-screen.chartv2 {
+  align-content: stretch;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.chartv2 .map-wrap.land::-webkit-scrollbar { height: 0; width: 0; }
+/* portrait: full width, height runs long */
+.chartv2 .starchart { width: 100%; height: auto; display: block; }
+/* landscape: full height, width runs long. The base .map-wrap.land rule caps
+   the chart at 100% of the panel in BOTH axes, which is what kept forcing it
+   back to fit-on-one-screen no matter what size we asked for. */
+.chartv2 .map-wrap.land .starchart {
+  display: block; max-width: none; max-height: none;
+  height: 100%; width: auto;
+}
+
+/* a hint that there is more chart off the edge */
+.chartv2 .map-wrap.land {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 26px, #000 calc(100% - 26px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 26px, #000 calc(100% - 26px), transparent);
+}
 
 /* the drawn room behind the chart */
 .starchart.v2 .mapbg path { fill: none; stroke: #0f2a22; stroke-width: 2; opacity: 0.55; }

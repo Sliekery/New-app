@@ -1514,17 +1514,24 @@
     }
 
     // geometry: landscape flows left->right with the boss at the far end
-    var lane = land ? 112 : 76, step = land ? 92 : 104;
+    // The lane pitch is what sets the node size: landscape fits COLS lanes into
+    // the panel height, so a tighter pitch means a bigger node. 98 is the floor
+    // that still clears a node's own labels (-39 above, +48 below its centre).
+    var lane = land ? 98 : 78, step = land ? 128 : 118;
     var padA = land ? 86 : 74;                      // room for the boss corona
-    var W = land ? (ROWS + 1) * step + padA : COLS * lane;
-    var H = land ? COLS * lane : (ROWS + 1) * step + padA;
+    // ...and a strip beyond the outer lanes so their labels are not cut off by
+    // the panel edge. The chart fits its cross axis exactly, so there is no
+    // slack out there to borrow.
+    var padL = land ? 26 : 24;
+    var W = land ? (ROWS + 1) * step + padA : COLS * lane + padL;
+    var H = land ? COLS * lane + padL : (ROWS + 1) * step + padA;
     var reach = E.mapReachable(), cur = E.currentNode();
     var revealRow = (r.mapRow < 0 ? -1 : r.mapRow) + 3;
 
     function xy(node) {
       var jx = mapJit(node.row, node.col, 0) * 0.5, jy = mapJit(node.row, node.col, 1) * 0.5;
-      if (land) return { x: (node.row + 0.6) * step + jx, y: (node.col + 0.5) * lane + jy };
-      return { x: (node.col + 0.5) * lane + jx, y: H - padA - (node.row + 0.5) * step + jy };
+      if (land) return { x: (node.row + 0.6) * step + jx, y: padL / 2 + (node.col + 0.5) * lane + jy };
+      return { x: padL / 2 + (node.col + 0.5) * lane + jx, y: H - padA - (node.row + 0.5) * step + jy };
     }
     function targetOf(node, tc) {
       if (tc === 'boss') return m.boss;
@@ -1533,7 +1540,7 @@
       return null;
     }
 
-    var par = land ? 'xMidYMid meet' : 'xMidYMin meet';
+    var par = land ? 'xMinYMid meet' : 'xMidYMin meet';
     var svg = '<svg class="starchart v2" viewBox="0 0 ' + W.toFixed(0) + ' ' + H.toFixed(0) + '" preserveAspectRatio="' + par + '">';
     svg += mapBackdrop(W, H, r.sector + (r.loop || 1) * 7);
 
@@ -1626,14 +1633,28 @@
 
     // keep the frontier in view on whichever axis the chart runs
     setTimeout(function () {
-      var svgEl = wrap.querySelector('svg'); if (!svgEl || !cur) return;
+      var svgEl = wrap.querySelector('svg'); if (!svgEl) return;
+      // Landscape fills the panel's HEIGHT and runs off to the right. CSS gets
+      // this from the viewBox aspect, but intrinsic sizing of an inline <svg>
+      // is not something to trust blind — pin it in pixels off the real box.
+      if (land && wrap.clientHeight > 0) {
+        svgEl.style.height = wrap.clientHeight + 'px';
+        svgEl.style.width = (W * wrap.clientHeight / H).toFixed(0) + 'px';
+      }
+      // Before the first jump there is no current node — the frontier is the
+      // entry row, which is the LEFT edge in landscape and the BOTTOM in
+      // portrait (the chart climbs towards the boss).
+      if (!cur) {
+        wrap.scrollLeft = 0;
+        wrap.scrollTop = land ? 0 : wrap.scrollHeight;
+        return;
+      }
       var rect = svgEl.getBoundingClientRect();
+      var sx = rect.width / W, sy = rect.height / H, p2 = xy(cur);
       if (land) {
-        var sx = rect.width / W, fx = xy(cur).x * sx;
-        wrap.scrollLeft = Math.max(0, fx - wrap.clientWidth * 0.42);
+        wrap.scrollLeft = Math.max(0, p2.x * sx - wrap.clientWidth * 0.38);
       } else {
-        var sy = rect.height / H, fy = xy(cur).y * sy;
-        wrap.scrollTop = Math.max(0, fy - wrap.clientHeight * 0.62);
+        wrap.scrollTop = Math.max(0, p2.y * sy - wrap.clientHeight * 0.62);
       }
     }, 0);
   }
