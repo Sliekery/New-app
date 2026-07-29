@@ -4897,6 +4897,88 @@
     s.appendChild(btn);
   }
 
+  /* ---- COMBAT LOG (testing aid) --------------------------------------
+   * The engine records every event it emits; this turns that into something
+   * readable. It is deliberately verbose about the things that are hard to
+   * reason about from watching the screen — which face fired and whether it
+   * was the roll, a bleed, or a listener; what the band multiplier did; what a
+   * taint took off the top.
+   * ------------------------------------------------------------------- */
+  function enemyName(idx) {
+    var c = E.combat;
+    var e = c && c.enemies && c.enemies[idx];
+    return e ? (ns.ENEMIES[e.id] || {}).name || e.id : 'enemy ' + idx;
+  }
+  function logLine(r) {
+    var who = function (w, idx) { return w === 'player' ? 'YOU' : enemyName(idx); };
+    switch (r.t) {
+      case 'turnStart': return { cls: 'lg-turn', s: '── TURN ' + r.turn + ' ──' };
+      case 'roll': {
+        var bits = 'ROLL ' + r.roll;
+        if (r.eff !== r.roll) bits += ' (+' + (r.eff - r.roll) + ' aim → ' + r.eff + ')';
+        if (r.band) bits += '  ' + r.band;
+        if (r.crit) bits += '  ✦CRIT';
+        if (r.misfire) bits += '  ✖MISFIRE';
+        if (r.cost) bits += '  −' + r.cost + ' HP';
+        if (r.gain) bits += '  +' + r.gain + ' NRG';
+        return { cls: 'lg-roll', s: bits };
+      }
+      case 'dieFace': {
+        var how = r.listen ? 'LISTENER(' + r.listen + ')' : r.why === 'bleed' ? 'BLEED' : r.why === 'opposite' ? 'OPPOSITE' : 'FACE';
+        var t = r.taint ? '  ⟨' + r.taint + '⟩' : '';
+        return { cls: r.listen ? 'lg-listen' : r.why ? 'lg-bleed' : 'lg-face',
+                 s: '  ' + how + ' ' + r.face + ' ▸ ' + r.name + t };
+      }
+      case 'dmg': {
+        if (r.warded) return { cls: 'lg-dim', s: '  ' + r.amount + ' → ' + who(r.who, r.idx) + ' WARDED' };
+        var hp = (r.hpAfter != null) ? '  hp ' + r.hpAfter : '';
+        var blk = r.blockAfter ? '  blk ' + r.blockAfter : '';
+        return { cls: r.who === 'player' ? 'lg-hurt' : 'lg-dmg',
+                 s: '  ' + r.amount + ' dmg → ' + who(r.who, r.idx) + hp + blk };
+      }
+      case 'block': return { cls: 'lg-blk', s: '  +shield → ' + (r.blockAfter != null ? r.blockAfter : r.amount) };
+      case 'heal': return { cls: 'lg-heal', s: '  +' + r.amount + ' HP' };
+      case 'status': return { cls: 'lg-st', s: '  ' + (ns.STATUS_NAMES && ns.STATUS_NAMES[r.s] ? ns.STATUS_NAMES[r.s] : r.s) + ' ' + (r.v > 0 ? '+' : '') + r.v + ' → ' + who(r.who, r.idx) };
+      case 'enemyMove': {
+        // `move` is the intent OBJECT, not a label — describe it from its shape
+        var m = r.move || {}, d = m.t || 'acts';
+        if (m.t === 'attack') d = 'attack ' + (m.d || 0) + (m.hits > 1 ? ' ×' + m.hits : '');
+        else if (m.t === 'block') d = 'block ' + (m.b || 0);
+        else if (m.t === 'buff' || m.t === 'debuff') d = m.t + ' ' + (m.s || '') + ' ' + (m.v || '');
+        else if (m.t === 'summon') d = 'summon ' + (m.id || '') + (m.n > 1 ? ' ×' + m.n : '');
+        return { cls: 'lg-move', s: '  ' + enemyName(r.idx) + ': ' + d };
+      }
+      case 'etch': return { cls: 'lg-scar', s: r.warded ? '  ✦ scar turned aside' : '  ✖ SCAR ' + (r.name || r.taint) + ' on face ' + r.face };
+      case 'relic': return { cls: 'lg-relic', s: '  relic ' + r.id + (r.v != null ? ' (' + r.v + ')' : '') };
+      case 'die': return { cls: 'lg-kill', s: '  ☠ ' + enemyName(r.idx) + ' down' };
+      case 'win': return { cls: 'lg-turn', s: '── CLEARED (' + r.kind + ') ──' };
+      case 'lose': return { cls: 'lg-hurt', s: '── YOU DIED ──' };
+      case 'curse': return { cls: 'lg-scar', s: '  curse: ' + r.card };
+      default: return null;
+    }
+  }
+  function showLog() {
+    var s = overlayScreen();
+    s.appendChild(el('h2', 'screen-title', 'COMBAT LOG'));
+    s.appendChild(el('div', 'screen-sub', E.logging ? 'RECORDING' : 'NOT RECORDING — TURN IT ON IN THE MENU'));
+    var box = el('div', 'log-box');
+    var lines = (E.combatLog || []).map(logLine).filter(Boolean);
+    if (!lines.length) box.innerHTML = '<div class="lg-dim">nothing recorded yet — turn logging on, then fight.</div>';
+    else box.innerHTML = lines.map(function (l) { return '<div class="' + l.cls + '">' + esc(l.s) + '</div>'; }).join('');
+    s.appendChild(box);
+    var copy = el('div', 'panel-btn cyan', '<div class="pb-title">⧉ COPY AS TEXT</div><div class="pb-desc">Paste it into a bug report.</div>');
+    copy.addEventListener('pointerdown', function () {
+      var txt = lines.map(function (l) { return l.s; }).join('\n');
+      if (navigator.clipboard) navigator.clipboard.writeText(txt).then(function () { toast('LOG COPIED'); }, function () { toast('COPY BLOCKED'); });
+      else toast('CLIPBOARD UNAVAILABLE');
+    });
+    s.appendChild(copy);
+    var back = el('div', 'panel-btn', '<div class="pb-title">◀ BACK</div>');
+    back.addEventListener('pointerdown', function () { SFX.tap(); showMenu(); });
+    s.appendChild(back);
+  }
+  U.showLog = showLog;
+
   function showMenu() {
     var r = E.run;
     var wasCombat = r && r.phase === 'combat';
@@ -4907,6 +4989,15 @@
     var resume = el('div', 'panel-btn', '<div class="pb-title">▶ RESUME</div>');
     resume.addEventListener('pointerdown', function () { SFX.tap(); if (wasCombat) showCombat(); else U.refresh(); });
     s.appendChild(resume);
+
+    var logT = el('div', 'panel-btn cyan', '<div class="pb-title">' + (E.logging ? '◆ COMBAT LOG: ON' : '◇ COMBAT LOG: OFF') +
+      '</div><div class="pb-desc">Records every roll, face, bleed, listener and hit.</div>');
+    logT.addEventListener('pointerdown', function () { SFX.tap(); E.logging = !E.logging; if (E.logging) E.clearLog(); showMenu(); });
+    s.appendChild(logT);
+    var logV = el('div', 'panel-btn', '<div class="pb-title">▤ VIEW LOG</div><div class="pb-desc">' +
+      ((E.combatLog || []).length) + ' events recorded.</div>');
+    logV.addEventListener('pointerdown', function () { SFX.tap(); showLog(); });
+    s.appendChild(logV);
 
     var mute = el('div', 'panel-btn cyan', '<div class="pb-title">' + (muted ? '◇ SOUND: OFF' : '◆ SOUND: ON') + '</div>');
     mute.addEventListener('pointerdown', function () {

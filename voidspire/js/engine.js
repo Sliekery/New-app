@@ -32,11 +32,28 @@
 
   /* ---------------- Event queue (UI drains this) ----------------------- */
   E.events = [];
+  /* Every event, stamped and kept — a combat log for working out what actually
+   * happened. It taps emit() rather than the UI's drain because the UI only
+   * animates a subset: a log built from what was ANIMATED would quietly omit
+   * the things that are hardest to reason about, which are exactly the ones
+   * worth logging (bleed, listeners, taints, band multipliers).
+   * Capped, because a long fight emits thousands. */
+  E.combatLog = [];
+  var LOG_CAP = 600;
   function emit(type, data) {
     var e = data || {}; e.type = type;
+    if (E.logging) {
+      var c = E.combat;
+      var rec = { t: type, turn: c ? c.turn : 0 };
+      for (var k in e) if (k !== 'type') rec[k] = e[k];
+      E.combatLog.push(rec);
+      if (E.combatLog.length > LOG_CAP) E.combatLog.shift();
+    }
     E.events.push(e);
     if (E.onEvent) E.onEvent(e);
   }
+  E.logging = false;                       // off by default; it is a testing aid
+  E.clearLog = function () { E.combatLog.length = 0; };
 
   /* ---------------- Run state ------------------------------------------ */
   E.run = null;
@@ -825,6 +842,7 @@
   }
 
   function startCombat(kind) {
+    if (E.logging) E.clearLog();
     var r = E.run;
     var ids, isFinal = false;
     if (kind === 'boss') {

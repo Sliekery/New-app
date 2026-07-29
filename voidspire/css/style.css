@@ -1972,3 +1972,33 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 /* a card held back by a relic cap, not by Energy — it must not look playable */
 .card.capped { opacity: 0.45; }
 .card.capped .cname { color: #ff8a94; }
+
+/* =========================================================================
+ * COMBAT LOG — a testing aid. Dense on purpose: it is meant to be read as a
+ * transcript, not skimmed, so it uses colour to separate the KINDS of thing
+ * that happened rather than to decorate.
+ * ========================================================================= */
+.log-box {
+  width: 100%; max-width: 660px; max-height: 46vh; overflow-y: auto;
+  border: 1px solid rgba(94,138,108,0.5); background: rgba(3,8,10,0.7);
+  padding: 6px 8px; margin: 0 0 10px;
+  font: 500 9.5px/1.45 ui-monospace, monospace; letter-spacing: 0.2px;
+  -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  text-align: left; white-space: pre-wrap;
+}
+.log-box > div { padding: 0.5px 0; }
+.lg-turn  { color: #5dff88; font-weight: 700; margin-top: 5px; letter-spacing: 1px; }
+.lg-roll  { color: #ffe14a; font-weight: 700; margin-top: 3px; }
+.lg-face  { color: #41d8ff; }
+.lg-bleed { color: #7fb8cc; }
+.lg-listen{ color: #7dffa0; }
+.lg-dmg   { color: #ffb02e; }
+.lg-hurt  { color: #ff6a6a; }
+.lg-blk   { color: #6fd0ff; }
+.lg-heal  { color: #7dffb0; }
+.lg-st    { color: #c8b6d0; }
+.lg-move  { color: #9fb6c0; }
+.lg-scar  { color: #ff8a94; font-weight: 700; }
+.lg-relic { color: #ffd24a; }
+.lg-kill  { color: #ff4a5e; font-weight: 700; }
+.lg-dim   { color: #5d7266; }
