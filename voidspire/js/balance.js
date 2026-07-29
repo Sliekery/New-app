@@ -143,42 +143,6 @@
       eliteChance2Enemies: 0.35, // chance an elite brings a minion (sector 3+)
     },
 
-    /* ---- THE DESCENT: rolling your way down --------------------------
-     * You do not pick a room, you roll for one. The same d20 you fight with
-     * decides where you land, so AIM is a route-planning stat as well as a
-     * combat one — and each class reads the route the way it reads a fight.
-     *
-     * Layered on top: the shaft does not wait. `collapse` rises every step,
-     * faster when you reroll or linger, and each tier it crosses reads a
-     * harsher table. Rerolling is the push-your-luck valve AND the thing that
-     * closes the route, so one number drives both halves.
-     * ------------------------------------------------------------------ */
-    descent: {
-      steps: 12,             // rooms per sector before the boss
-      rerollCollapse: 2,     // collapse added by refusing a landing
-      lingerCollapse: 1,     // ...and by stopping at a rest / shop / forge
-      stepCollapse: 1,       // the shaft settles on its own as you go
-      tiers: [
-        { at: 0,  name: 'OPEN',     desc: 'The shaft holds.' },
-        { at: 7,  name: 'SETTLING', desc: 'Structure groans — the quiet rooms are going.' },
-        { at: 13, name: 'CLOSING',  desc: 'Nothing is left but what is coming for you.' },
-      ],
-      // d20 -> room. One table per tier; the roll is read against your class
-      // band, so the same face means different things to different builds.
-      // Bands are [min, type] read high-to-low.
-      tables: {
-        // 20 faces each. Combat holds ~60% throughout — what degrades is the
-        // quiet: treasure and forges go first, then shops, then rest itself.
-        OPEN:     [[20,'treasure'], [18,'rest'], [17,'shop'], [16,'forge'], [13,'event'], [3,'fight'], [1,'elite']],
-        SETTLING: [[20,'shop'],     [18,'rest'], [15,'event'], [4,'fight'], [1,'elite']],
-        CLOSING:  [[20,'rest'],     [17,'event'], [4,'fight'], [2,'elite'], [1,'beacon']],
-      },
-      // rooms that cost you time to use
-      lingerTypes: ['rest', 'shop', 'forge'],
-      visible: 5,            // rings drawn below you — you can SEE what is down there
-      maxRerolls: 2,         // deepest ring you may punch to while the shaft is OPEN
-    },
-
     /* ---- Branching map (Slay-the-Spire-style star chart) ------------- */
     map: {
       rows: 12,            // content rows per sector (the boss sits above them)

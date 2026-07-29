@@ -459,7 +459,6 @@
       case 'forge': return showForge();
       case 'rift': return showRift();
       case 'boss-artifact': return showBossArtifact();
-      case 'descent': return showDescent();
       case 'first-mark': return showFirstMark();
       case 'cutscene': return showCutscene();
       case 'sector-intro': return showSectorIntro();
@@ -4313,113 +4312,6 @@
       btn2.addEventListener('pointerdown', function () { E.takeBossArtifact(-1); U.refresh(); });
       s.appendChild(btn2);
     }
-  }
-
-  /* ====================== THE DESCENT ======================
-   * Navigation by die. You roll, you see the room you would fall into, and
-   * you take it or refuse it and fall further. Refusing costs collapse, and
-   * collapse is also what closes the route — so the push-your-luck valve and
-   * the pressure system are the same number, read twice.
-   * ==================================================================== */
-  var ROOM_LABEL = {
-    fight: 'HOSTILES', elite: 'AN ELITE', beacon: 'A BEACON', event: 'SOMETHING',
-    shop: 'A DEALER', rest: 'QUIET GROUND', forge: 'A FORGE', treasure: 'SALVAGE',
-  };
-  var ROOM_TONE = { fight: 'bad', elite: 'bad', beacon: 'bad', rest: 'good', shop: 'good', forge: 'good', treasure: 'good', event: '' };
-
-  var shaftView = null;
-  function killShaft() { if (shaftView) { shaftView.destroy(); shaftView = null; } }
-
-  function showDescent() {
-    combatChrome(false);
-    updateHUD();
-    var r = E.run, D = B.descent, d = r.descent;
-    if (!d) { r.phase = 'map'; return U.refresh(); }
-    killShaft();
-    var tier = E.descentTier(), reach = E.descentReach();
-    var ahead = E.descentAhead();
-
-    var s = overlayScreen();
-    s.classList.add('shaft-screen');
-
-    var head = el('div', 'shaft-head');
-    head.innerHTML = '<span class="sh-depth">' + Math.min(d.step, D.steps) + ' / ' + D.steps + '</span>' +
-      '<span class="sh-tier t-' + tier.name.toLowerCase() + '">' + tier.name + '</span>' +
-      '<span class="sh-desc">' + esc(tier.desc) + '</span>';
-    s.appendChild(head);
-
-    var stage = el('div', 'shaft-stage');
-    var cv = document.createElement('canvas');
-    cv.className = 'shaft-canvas';
-    stage.appendChild(cv);
-    var label = el('div', 'shaft-label', '');
-    stage.appendChild(label);
-    s.appendChild(stage);
-
-    var hint = el('div', 'shaft-hint', 'FLICK THE DIE DOWN \u00b7 HARDER FALLS FURTHER');
-    s.appendChild(hint);
-
-    shaftView = ns.shaftCreate(cv, {});
-    shaftView.setAim(0);
-    shaftView.setRooms(ahead.map(function (a) { return a.type; }), {
-      collapse: d.collapse, reach: reach, tier: tier.name,
-    });
-
-    // depth read-out under the shaft, so the flick is never a mystery
-    var ROOM_LABEL = {
-      fight: 'HOSTILES', elite: 'AN ELITE', beacon: 'A BEACON', event: 'SOMETHING',
-      shop: 'A DEALER', rest: 'QUIET GROUND', forge: 'A FORGE', treasure: 'SALVAGE',
-    };
-    function showDepth(depth) {
-      var a = ahead[depth];
-      if (!a) { label.textContent = ''; return; }
-      var cost = depth * D.rerollCollapse;
-      label.innerHTML = '<span class="sl-room">' + esc(ROOM_LABEL[a.type] || a.type) + '</span>' +
-        (depth ? '<span class="sl-cost">' + depth + ' FLOOR' + (depth > 1 ? 'S' : '') + ' PAST \u00b7 +' + cost + ' COLLAPSE</span>'
-               : '<span class="sl-cost">THE NEXT FLOOR</span>');
-    }
-    showDepth(0);
-
-    // ---- the flick ------------------------------------------------------
-    // Drag down and release. How far you dragged is how many rings you punch
-    // past — the push-your-luck decision is the gesture itself.
-    var dragging = false, y0 = 0, aimed = 0, locked = false;
-    function depthFor(dy) {
-      var per = Math.max(28, stage.getBoundingClientRect().height / 7);
-      return Math.max(0, Math.min(reach, Math.floor(dy / per)));
-    }
-    function down(ev) {
-      if (locked) return;
-      dragging = true; y0 = (ev.touches ? ev.touches[0].clientY : ev.clientY);
-      stage.classList.add('pulling');
-    }
-    function move(ev) {
-      if (!dragging || locked) return;
-      var y = (ev.touches ? ev.touches[0].clientY : ev.clientY);
-      var dpt = depthFor(y - y0);
-      if (dpt !== aimed) { aimed = dpt; showDepth(aimed); shaftView.setAim(aimed); SFX.tap(); }
-      if (ev.cancelable) ev.preventDefault();
-    }
-    function up() {
-      if (!dragging || locked) return;
-      dragging = false; locked = true;
-      stage.classList.remove('pulling');
-      hint.textContent = '';
-      SFX.play();
-      var face = ahead[aimed] ? ahead[aimed].face : 20;
-      shaftView.fall(aimed, face, function () {
-        E.descentTake(aimed);
-        killShaft();
-        U.refresh();
-      });
-    }
-    stage.addEventListener('pointerdown', down);
-    window.addEventListener('pointermove', move, { passive: false });
-    window.addEventListener('pointerup', up);
-    s._cleanup = function () {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-    };
   }
 
   /* ====================== THE FIRST MARK ======================

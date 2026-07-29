@@ -36,11 +36,6 @@
     requestAnimationFrame(loop);
   }
 
-  // THE DESCENT is opt-in while both navigation modes exist: ?descent=1 rolls
-  // your route instead of walking a chart. A run remembers the mode it began
-  // under, so switching the flag never changes a save mid-run.
-  try { ns.engine.descentEnabled = /[?&]descent=1/.test(location.search); } catch (e) {}
-
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
   else boot();
 
