@@ -701,6 +701,7 @@
         if (d.faces[f] && d.faces[f].taint === 'cold_weld') d.faces[f].taint = 'rust';
       }
     }
+    E.run.wardUsedSector = false;
     E.run.phase = 'map'; E.save();
   };
 
@@ -896,6 +897,8 @@
     if (es > 0) c.player.statuses.echo = es;
     var vstart = art('vulnStart');
     if (vstart > 0) c.player.statuses.vuln = vstart;
+    var aimS = art('aimStart');                       // RANGING WEDGE
+    if (aimS > 0) addStatus(c.player, 'aim', aimS);
     var pa = art('platedArmorStart');
     if (pa > 0) c.player.statuses.platedArmor = pa;
     // ARCHETYPE ANCHORS: constructs, the Exhaust engine and the blood engine
@@ -1613,6 +1616,7 @@
     var r = E.run, c = E.combat;
     if (!r || !r.die || !c || c.over) return;
     var lit = fireOneFace(face, tgt, 1);
+    if (!lit && art('bareRefund') > 0) c.energy += art('bareRefund');   // DRY FIRE
     // The roll has to LAND on something to splash. Bleeding off a bare face
     // paid you for a dead roll, which made the mechanic free rather than a
     // reward for cutting densely — and it was most of why the difficulty
@@ -1686,6 +1690,11 @@
    * the one that takes the choice away, so it should be the exception. */
   E.taintDie = function (n) {
     var r = E.run; if (!r || !r.die) return false;
+    if (art('taintWard') > 0 && !r.wardUsedSector) {                    // VOTIVE SHIM
+      r.wardUsedSector = true;
+      emit('etch', { warded: true });
+      return true;                                                      // it "landed", on the shim
+    }
     var clean = ns.dieCleanRoots(r.die);
     if (!clean.length) return false;
     var ids = Object.keys(ns.DIE_TAINTS).filter(function (t) { return t !== 'cold_weld'; });
@@ -2081,7 +2090,12 @@
         if (art('firstSplash') > 0 && c.rollNo === 1) {
           ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) E.fireDieFace(nf, tgt); });
         }
-        if (crit) fireListeners('crit', { tgt: tgt });
+        if (crit) {
+          fireListeners('crit', { tgt: tgt });
+          if (art('critRelay') > 0) {                                   // HOT BARREL
+            ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) E.fireDieFace(nf, tgt); });
+          }
+        }
       }
       // crit payoffs (Omega Visor / Targeting Matrix + DEADEYE), once per critting card
       if (crit) {
@@ -2556,8 +2570,21 @@
     if (a.unlock) return false;                                   // earned, not dropped
     return true;
   }
+  /* A class relic is worth several colourless ones in the draw. Without this
+   * the Vanguard's whole die-shaping set was 17% of his pool and 0% of tier 1,
+   * so a run could reach sector 3 without the new system ever appearing —
+   * the class identity was outvoted by the shared filler it sits among. */
+  function artifactPool(tier) {
+    var pool = [];
+    Object.keys(ns.ARTIFACTS).forEach(function (k) {
+      if (!artifactDroppable(k, tier)) return;
+      var w = ns.ARTIFACTS[k].cls ? (B.relics.classWeight || 4) : 1;
+      for (var i = 0; i < w; i++) pool.push(k);
+    });
+    return pool;
+  }
   function randomArtifact(tier) {
-    var pool = Object.keys(ns.ARTIFACTS).filter(function (k) { return artifactDroppable(k, tier); });
+    var pool = artifactPool(tier);
     if (pool.length === 0) return null;
     return pick(pool);
   }
@@ -2595,9 +2622,15 @@
   };
 
   function randomArtifactChoices(tier, n) {
-    var pool = Object.keys(ns.ARTIFACTS).filter(function (k) { return artifactDroppable(k, tier); });
-    shuffle(pool);
-    return pool.slice(0, Math.min(n, pool.length));
+    // weighted draw, then de-duplicated — a pick-1-of-2 must not offer the
+    // same relic twice just because it is weighted heavily
+    var bag = artifactPool(tier), out = [], guard = 0;
+    while (out.length < n && bag.length && guard++ < 400) {
+      var c = pick(bag);
+      if (out.indexOf(c) < 0) out.push(c);
+      bag = bag.filter(function (x) { return x !== c; });
+    }
+    return out;
   }
   E.randomArtifactChoices = randomArtifactChoices;
   E.randomArtifact = randomArtifact;

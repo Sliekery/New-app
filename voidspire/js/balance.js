@@ -195,6 +195,20 @@
       restBeforeBoss: true, // the top content row is always a rest (catch your breath)
     },
 
+    /* ---- Relics ------------------------------------------------------ */
+    relics: {
+      // How many times a CLASS relic goes into the bag against a colourless
+      // one. At weight 1 the Vanguard's die-shaping set was 17% of his pool and
+      // none of tier 1 — a run could reach sector 3 without meeting it.
+      //
+      // But weight cuts both ways: it concentrates draws onto a class's OWN
+      // set, and the Vanguard has 15+ relics where the other two have ~5. At
+      // weight 4 that shrank their effective variety and the class spread went
+      // 8 -> 19. 2 is the compromise until the other two classes have sets of
+      // comparable size, at which point this can go back up.
+      classWeight: 2,
+    },
+
     /* ---- Rewards ------------------------------------------------------ */
     rewards: {
       creditsFight: [18, 30],   // [min, max] credits from a normal fight

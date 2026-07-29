@@ -69,6 +69,10 @@ Opening deck: 5× Pulse Rifle, 4× Combat Shield, 1× Bayonet Charge
 - **Warlord Doctrine** — Start each combat with 3 Might.
 - **Ash Reliquary** — Start each combat with 2 Salvo — burning a card spits shrapnel at a random enemy.
 - **Iron Leech** — Start each combat with 2 Blood Rage — your own wounds feed your Might.
+- **Ranging Wedge** — Start each combat with 2 Aim.
+- **Dry Fire** — Rolling a BARE face gives 1 Energy — an empty die still pays.
+- **Hot Barrel** — On a crit, the faces beside the one you rolled fire at FULL.
+- **Votive Shim** — The first scar the void tries to cut each sector is turned aside.
 - **Machined Barrel** — Every band on your die triggers 2 lower — SOLID from 13, HIT from 6.
 - **Counterweight** — A natural 1 is rerolled once. Turns off anything you built on face 1.
 - **Bandolier Rig** — Faces beside the one you roll fire at 75% instead of half.
@@ -181,7 +185,7 @@ Opening deck: 2× Pulse Rifle, 4× Combat Shield, 4× Mind Spike
 
 ## Keywords
 
-_Every status and mechanic the cards below refer to (67)._
+_Every status and mechanic the cards below refer to (59)._
 
 - **Shield** — Absorbs incoming damage. Expires at the start of your next turn unless stated otherwise.
 - **Plated Armor** — At the start of your turn, gain Shield equal to your Plated Armor, then lose 1 of it.
@@ -241,14 +245,6 @@ _Every status and mechanic the cards below refer to (67)._
 - **Scry** — Look at that many cards from the top of your draw pile and discard any number of them.
 - **Discover** — Choose one of 3 random cards and add it to your hand.
 - **Primed** — Counts down at the end of each of your turns, then detonates.
-- **Pack Fury** — Your pets deal extra damage with their actions.
-- **Bloodscent** — Your pets deal extra damage, and +1 more for every pet that dies.
-- **Bulwark** — At the start of each turn, your front pet gains Block.
-- **Savage Feast** — Whenever one of your pets attacks, you heal.
-- **Symbiosis** — Whenever a pet dies, gain Shield and draw a card.
-- **Brood** — At the start of each turn, summon a Spawnling.
-- **Kennel** — Adds formation slots (room for more or bigger pets).
-- **Spawnling** — A fragile pet that bursts for damage when it dies.
 - **Void-Touched** — Lose 3 HP each time this card is played, but its effect is boosted.
 
 

@@ -28,8 +28,6 @@
     aim: 'Aim', aimPerTurn: 'Steady Aim', critFury: 'Killing Rage', deadeyeDraw: 'Deadeye', misfireGuard: 'Misfire Protocol',
     demoCharge: 'Demolition', subroutine: 'Subroutine', aegisLink: 'Swarm Uplink',
     platedArmor: 'Plated Armor', barricade: 'Barricade', bloodPact: 'Blood Pact',
-    pack: 'Pack Fury', symbiosis: 'Symbiosis', brood: 'Brood', slots: 'Kennel',
-    bulwark: 'Bulwark', bloodscent: 'Bloodscent', feast: 'Savage Feast',
   };
 
   ns.STATUS_NAMES = STATUS_NAMES;
@@ -95,14 +93,6 @@
     'Scry': 'Look at that many cards from the top of your draw pile and discard any number of them.',
     'Discover': 'Choose one of 3 random cards and add it to your hand.',
     'Primed': 'Counts down at the end of each of your turns, then detonates.',
-    'Pack Fury': 'Your pets deal extra damage with their actions.',
-    'Bloodscent': "Your pets deal extra damage, and +1 more for every pet that dies.",
-    'Bulwark': 'At the start of each turn, your front pet gains Block.',
-    'Savage Feast': 'Whenever one of your pets attacks, you heal.',
-    'Symbiosis': 'Whenever a pet dies, gain Shield and draw a card.',
-    'Brood': 'At the start of each turn, summon a Spawnling.',
-    'Kennel': 'Adds formation slots (room for more or bigger pets).',
-    'Spawnling': 'A fragile pet that bursts for damage when it dies.',
     'Void-Touched': 'Lose ' + (ns.VTOUCH_HP || 3) + ' HP each time this card is played, but its effect is boosted.',
   };
 

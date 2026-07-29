@@ -2193,6 +2193,20 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       restBeforeBoss: true, // the top content row is always a rest (catch your breath)
     },
 
+    /* ---- Relics ------------------------------------------------------ */
+    relics: {
+      // How many times a CLASS relic goes into the bag against a colourless
+      // one. At weight 1 the Vanguard's die-shaping set was 17% of his pool and
+      // none of tier 1 — a run could reach sector 3 without meeting it.
+      //
+      // But weight cuts both ways: it concentrates draws onto a class's OWN
+      // set, and the Vanguard has 15+ relics where the other two have ~5. At
+      // weight 4 that shrank their effective variety and the class spread went
+      // 8 -> 19. 2 is the compromise until the other two classes have sets of
+      // comparable size, at which point this can go back up.
+      classWeight: 2,
+    },
+
     /* ---- Rewards ------------------------------------------------------ */
     rewards: {
       creditsFight: [18, 30],   // [min, max] credits from a normal fight
@@ -2333,8 +2347,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     aim: 'Aim', aimPerTurn: 'Steady Aim', critFury: 'Killing Rage', deadeyeDraw: 'Deadeye', misfireGuard: 'Misfire Protocol',
     demoCharge: 'Demolition', subroutine: 'Subroutine', aegisLink: 'Swarm Uplink',
     platedArmor: 'Plated Armor', barricade: 'Barricade', bloodPact: 'Blood Pact',
-    pack: 'Pack Fury', symbiosis: 'Symbiosis', brood: 'Brood', slots: 'Kennel',
-    bulwark: 'Bulwark', bloodscent: 'Bloodscent', feast: 'Savage Feast',
   };
 
   ns.STATUS_NAMES = STATUS_NAMES;
@@ -2400,14 +2412,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     'Scry': 'Look at that many cards from the top of your draw pile and discard any number of them.',
     'Discover': 'Choose one of 3 random cards and add it to your hand.',
     'Primed': 'Counts down at the end of each of your turns, then detonates.',
-    'Pack Fury': 'Your pets deal extra damage with their actions.',
-    'Bloodscent': "Your pets deal extra damage, and +1 more for every pet that dies.",
-    'Bulwark': 'At the start of each turn, your front pet gains Block.',
-    'Savage Feast': 'Whenever one of your pets attacks, you heal.',
-    'Symbiosis': 'Whenever a pet dies, gain Shield and draw a card.',
-    'Brood': 'At the start of each turn, summon a Spawnling.',
-    'Kennel': 'Adds formation slots (room for more or bigger pets).',
-    'Spawnling': 'A fragile pet that bursts for damage when it dies.',
     'Void-Touched': 'Lose ' + (ns.VTOUCH_HP || 3) + ' HP each time this card is played, but its effect is boosted.',
   };
 
@@ -6800,15 +6804,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       art: { p: [[-0.75,0.1, 0.75,0.1], [-0.5,0.1, -0.5,-0.32], [0,0.1, 0,-0.4], [0.5,0.1, 0.5,-0.32], [-0.75,0.1, -0.62,0.4], [0.75,0.1, 0.62,0.4]], e: [[0,-0.55]] } },
     servo_skull:     { name: 'Servo Skull',       tier: 1, k: 'drawStart',       v: 2,    desc: 'Draw 2 extra cards on your first turn.',
       art: { p: [[-0.6,-0.1, -0.6,-0.55, -0.25,-0.85, 0.25,-0.85, 0.6,-0.55, 0.6,-0.1, 0.35,0.15, 0.35,0.5, -0.35,0.5, -0.35,0.15, -0.6,-0.1], [-0.2,0.5, -0.2,0.75], [0,0.5, 0,0.8], [0.2,0.5, 0.2,0.75], [0,-0.85, 0,-1.1]], e: [[-0.25,-0.3],[0.25,-0.3]] } },
-    blood_chalice:   { name: 'Blood Chalice',     tier: 1, k: 'healAfterCombat', v: 5,    desc: 'Heal 5 HP after every combat.',
-      art: { p: [[-0.6,-0.8, 0.6,-0.8, 0.45,-0.2, 0,0.05, -0.45,-0.2, -0.6,-0.8], [0,0.05, 0,0.55], [-0.4,0.8, 0.4,0.8], [-0.4,0.8, 0,0.55, 0.4,0.8]], e: [[0,-0.45]] } },
     targeting_visor: { name: 'Targeting Visor',   tier: 1, k: 'critBonus',       v: 2,    desc: 'Crit on a d20 roll of 18 or higher.',
       art: { p: [[0.5,0, 0.35,0.35, 0,0.5, -0.35,0.35, -0.5,0, -0.35,-0.35, 0,-0.5, 0.35,-0.35, 0.5,0], [0.5,0, 0.9,0], [-0.5,0, -0.9,0], [0,-0.5, 0,-0.9], [0,0.5, 0,0.9]], e: [[0,0]] } },
     hexheart:        { name: 'Hexheart',          tier: 1, cornerstone: 'voidadept', cls: 'voidadept', noRemove: true,
       desc: 'Cornerstone. Survives the Recurrence and forges stronger each loop you clear: +PSI, amplifies your first Burn, and at higher tiers steels you with starting Shield.',
       art: { p: [[0,0.9, -0.8,-0.2, -0.45,-0.7, 0,-0.35, 0.45,-0.7, 0.8,-0.2, 0,0.9], [0,-0.35, 0,0.5]], e: [[0,-0.05]] } },
-    salvager_rig:    { name: 'Salvager Rig',      tier: 1, k: 'creditsMul',      v: 0.25, desc: '+25% credits from combat.',
-      art: { p: [[-0.6,-0.1, 0.6,-0.1, 0.6,0.8, -0.6,0.8, -0.6,-0.1], [-0.6,0.35, 0.6,0.35], [0,-0.1, 0,-0.5, 0.3,-0.7, 0.15,-0.95]], e: [] } },
     adrenaline_pump: { name: 'Adrenaline Pump',   tier: 1, k: 'energyTurn1',     v: 1,    desc: '+1 Energy on your first turn.',
       art: { p: [[0,0.8, -0.8,-0.1, -0.45,-0.65, 0,-0.25, 0.45,-0.65, 0.8,-0.1, 0,0.8], [-0.3,-0.05, 0,0.3, 0.3,-0.05]], e: [] } },
     /* ---- absorbed from the old Augment draft --------------------------
@@ -6818,8 +6818,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
      * engine hook, which is the definition of a relic here. The draft is gone
      * and these live in the one pool now.
      * -------------------------------------------------------------- */
-    honed_edge: { name: 'Honed Edge', tier: 1, k: 'flatDmg', v: 3, desc: 'Your attacks deal +3 damage.',
-      art: { p: [[-0.8,0.5,0.5,-0.7], [0.5,-0.7,0.8,-0.8], [0.8,-0.8,0.7,-0.5], [-0.6,0.55,-0.35,0.8]] } },
     armor_weave: { name: 'Armor Weave', tier: 1, k: 'plate', v: 3, desc: 'Gain 3 Shield at the start of each turn.',
       art: { p: [[0,-0.8,0.7,-0.4,0.7,0.35,0,0.8,-0.7,0.35,-0.7,-0.4,0,-0.8], [-0.45,-0.1,0.45,-0.1], [-0.3,0.25,0.3,0.25]] } },
     killchain: { name: 'Killchain', tier: 1, k: 'killDraw', v: 1, desc: 'Whenever you kill an enemy, draw a card.',
@@ -6873,6 +6871,23 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
      * a stat comparison — and makes a relic worth more or less depending on
      * how you have cut your faces.
      * ---------------------------------------------------------------- */
+    /* Tier 1 is where the relic pool is thickest and it had NOTHING that
+     * touched the die — every early relic was a flat hook, so a run could
+     * reach sector 3 without ever meeting the system. These are cheap, early,
+     * and each one gives you a reason to look at your faces. */
+    ranging_wedge: { name: 'Ranging Wedge', tier: 1, cls: 'vanguard', k: 'aimStart', v: 2,
+      desc: 'Start each combat with 2 Aim.',
+      art: { p: [[-0.8,0.3, 0.6,0.3], [-0.8,0.3, 0.2,-0.4], [0.2,-0.4, 0.6,0.3], [-0.3,0.3, 0.1,0.0], [0.1,0.3, 0.35,0.1], [-0.8,0.44, 0.6,0.44]], e: [[0.2,-0.46]] } },
+    dry_fire: { name: 'Dry Fire', tier: 1, cls: 'vanguard', k: 'bareRefund', v: 1,
+      desc: 'Rolling a BARE face gives 1 Energy — an empty die still pays.',
+      art: { p: [[-0.6,-0.4, 0.3,-0.4, 0.3,0.1, -0.6,0.1, -0.6,-0.4], [-0.6,-0.15, 0.3,-0.15], [0.3,-0.28, 0.7,-0.28], [-0.35,0.1, -0.4,0.5], [-0.15,0.1, -0.15,0.5], [0.55,-0.5, 0.7,-0.66], [0.62,-0.1, 0.8,0.0]], e: [[0.8,-0.28]] } },
+    hot_barrel: { name: 'Hot Barrel', tier: 1, cls: 'vanguard', k: 'critRelay', v: 1,
+      desc: 'On a crit, the faces beside the one you rolled fire at FULL.',
+      art: { p: [[-0.7,0.2, 0.5,0.2], [-0.7,0.35, 0.5,0.35], [0.5,0.1, 0.8,0.1, 0.8,0.45, 0.5,0.45], [-0.5,0.1, -0.44,-0.2], [-0.1,0.1, -0.02,-0.3], [0.28,0.1, 0.36,-0.2], [-0.44,-0.4, -0.36,-0.56], [-0.02,-0.5, 0.06,-0.68]], e: [[-0.4,-0.66],[0.1,-0.8],[0.4,-0.36]] } },
+    votive_shim: { name: 'Votive Shim', tier: 1, cls: 'vanguard', k: 'taintWard', v: 1,
+      desc: 'The first scar the void tries to cut each sector is turned aside.',
+      art: { p: [[0,-0.7, 0.55,-0.4, 0.55,0.16, 0,0.66, -0.55,0.16, -0.55,-0.4, 0,-0.7], [0,-0.5, 0.38,-0.28, 0.38,0.1, 0,0.46, -0.38,0.1, -0.38,-0.28, 0,-0.5], [-0.7,-0.6, 0.7,0.5], [-0.3,-0.06, 0.3,-0.06]], e: [[0,-0.02]] } },
+
     machined_barrel: { name: 'Machined Barrel', tier: 2, cls: 'vanguard', k: 'bandShift', v: 2,
       desc: 'Every band on your die triggers 2 lower — SOLID from 13, HIT from 6.',
       art: { p: [[-0.86,-0.2, 0.5,-0.2], [-0.86,0.1, 0.5,0.1], [-0.86,-0.2, -0.86,0.1], [-0.5,-0.2, -0.5,0.1], [-0.1,-0.2, -0.1,0.1], [0.3,-0.2, 0.3,0.1], [0.5,-0.3, 0.86,-0.3, 0.86,0.2, 0.5,0.2], [0.68,-0.3, 0.68,0.2], [-0.7,0.1, -0.7,0.5], [-0.3,0.1, -0.3,0.5], [-0.86,0.5, -0.14,0.5]], e: [[0.9,-0.05]] } },
@@ -6909,10 +6924,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     cycling_breech:  { name: 'Cycling Breech',    tier: 2, cls: 'vanguard', k: 'momentumKeep', v: 1, desc: 'Your Momentum no longer resets at the start of your turn.',
       art: { p: [[-0.7,-0.25, 0.7,-0.25], [-0.7,0.25, 0.7,0.25], [-0.7,-0.25, -0.7,0.25], [0.7,-0.25, 0.7,0.25], [-0.35,-0.25, -0.35,0.25], [0,-0.25, 0,0.25], [0.35,-0.25, 0.35,0.25], [0.5,-0.55, 0.8,-0.55, 0.8,-0.25], [-0.5,0.55, -0.8,0.55, -0.8,0.25]] } },
-    medic_drone:     { name: 'Medic Drone',       tier: 1, k: 'healTurn',        v: 1,    desc: 'Heal 1 HP at the start of each turn.',
-      art: { p: [[-0.25,-0.7, 0.25,-0.7, 0.25,-0.25, 0.7,-0.25, 0.7,0.25, 0.25,0.25, 0.25,0.7, -0.25,0.7, -0.25,0.25, -0.7,0.25, -0.7,-0.25, -0.25,-0.25, -0.25,-0.7], [-0.7,-0.6, -0.95,-0.75], [0.7,-0.6, 0.95,-0.75]], e: [] } },
-    tactical_uplink: { name: 'Tactical Uplink',   tier: 1, k: 'checkBonus',      v: 3,    desc: '+3 to all event skill checks.',
-      art: { p: [[0,0.95, 0,-0.3], [-0.5,-0.35, 0,-0.85, 0.5,-0.35], [-0.27,-0.3, 0,-0.55, 0.27,-0.3], [-0.4,0.95, 0.4,0.95]], e: [[0,-0.95]] } },
     thorn_husk:      { name: 'Thornmail Husk',    tier: 1, k: 'thorns',          v: 2,    desc: 'Attackers take 2 damage.',
       art: { p: [[0,-0.6, 0.6,0, 0,0.6, -0.6,0, 0,-0.6], [0,-0.6, 0,-1], [0.6,0, 1,0], [0,0.6, 0,1], [-0.6,0, -1,0]], e: [] } },
     cryo_capsule:    { name: 'Cryo Capsule',      tier: 1, k: 'sectorHeal',      v: 0.25, desc: 'Heal 25% HP when entering a new sector.',
@@ -6920,8 +6931,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     ancient_sigil:   { name: 'Ancient Sigil',     tier: 2, k: 'energyEveryTurn', v: 1,    desc: '+1 Energy every turn.',
       art: { p: [[0,-0.95, 0.95,0, 0,0.95, -0.95,0, 0,-0.95], [0,-0.5, 0.5,0, 0,0.5, -0.5,0, 0,-0.5]], e: [[0,0]] } },
-    dread_plate:     { name: 'Dreadnought Plate', tier: 2, k: 'maxHp',           v: 22,   desc: '+22 Max HP.',
-      art: { p: [[0,-0.9, 0.7,-0.6, 0.7,0.1, 0,0.9, -0.7,0.1, -0.7,-0.6, 0,-0.9], [-0.35,-0.2, 0,0.1, 0.35,-0.2]], e: [[-0.45,-0.5],[0.45,-0.5]] } },
     singularity:     { name: 'Singularity Engine',tier: 2, k: 'aoeTurnStart',    v: 4,    desc: 'Deal 4 damage to ALL enemies at the start of your turn.',
       art: { p: [[0.7,0, 0.5,0.5, 0,0.7, -0.5,0.5, -0.7,0, -0.45,-0.45, 0,-0.55, 0.35,-0.3, 0.4,0, 0.2,0.25, 0,0.28, -0.18,0.12, -0.15,-0.1, 0,-0.15]], e: [[0,0]] } },
     omega_visor:     { name: 'Omega Visor',       tier: 2, k: 'critDraw',        v: 1,    desc: 'Whenever you land a critical hit, draw a card.',
@@ -10289,6 +10298,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         if (d.faces[f] && d.faces[f].taint === 'cold_weld') d.faces[f].taint = 'rust';
       }
     }
+    E.run.wardUsedSector = false;
     E.run.phase = 'map'; E.save();
   };
 
@@ -10484,6 +10494,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (es > 0) c.player.statuses.echo = es;
     var vstart = art('vulnStart');
     if (vstart > 0) c.player.statuses.vuln = vstart;
+    var aimS = art('aimStart');                       // RANGING WEDGE
+    if (aimS > 0) addStatus(c.player, 'aim', aimS);
     var pa = art('platedArmorStart');
     if (pa > 0) c.player.statuses.platedArmor = pa;
     // ARCHETYPE ANCHORS: constructs, the Exhaust engine and the blood engine
@@ -11201,6 +11213,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var r = E.run, c = E.combat;
     if (!r || !r.die || !c || c.over) return;
     var lit = fireOneFace(face, tgt, 1);
+    if (!lit && art('bareRefund') > 0) c.energy += art('bareRefund');   // DRY FIRE
     // The roll has to LAND on something to splash. Bleeding off a bare face
     // paid you for a dead roll, which made the mechanic free rather than a
     // reward for cutting densely — and it was most of why the difficulty
@@ -11274,6 +11287,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
    * the one that takes the choice away, so it should be the exception. */
   E.taintDie = function (n) {
     var r = E.run; if (!r || !r.die) return false;
+    if (art('taintWard') > 0 && !r.wardUsedSector) {                    // VOTIVE SHIM
+      r.wardUsedSector = true;
+      emit('etch', { warded: true });
+      return true;                                                      // it "landed", on the shim
+    }
     var clean = ns.dieCleanRoots(r.die);
     if (!clean.length) return false;
     var ids = Object.keys(ns.DIE_TAINTS).filter(function (t) { return t !== 'cold_weld'; });
@@ -11669,7 +11687,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         if (art('firstSplash') > 0 && c.rollNo === 1) {
           ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) E.fireDieFace(nf, tgt); });
         }
-        if (crit) fireListeners('crit', { tgt: tgt });
+        if (crit) {
+          fireListeners('crit', { tgt: tgt });
+          if (art('critRelay') > 0) {                                   // HOT BARREL
+            ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) E.fireDieFace(nf, tgt); });
+          }
+        }
       }
       // crit payoffs (Omega Visor / Targeting Matrix + DEADEYE), once per critting card
       if (crit) {
@@ -12144,8 +12167,21 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (a.unlock) return false;                                   // earned, not dropped
     return true;
   }
+  /* A class relic is worth several colourless ones in the draw. Without this
+   * the Vanguard's whole die-shaping set was 17% of his pool and 0% of tier 1,
+   * so a run could reach sector 3 without the new system ever appearing —
+   * the class identity was outvoted by the shared filler it sits among. */
+  function artifactPool(tier) {
+    var pool = [];
+    Object.keys(ns.ARTIFACTS).forEach(function (k) {
+      if (!artifactDroppable(k, tier)) return;
+      var w = ns.ARTIFACTS[k].cls ? (B.relics.classWeight || 4) : 1;
+      for (var i = 0; i < w; i++) pool.push(k);
+    });
+    return pool;
+  }
   function randomArtifact(tier) {
-    var pool = Object.keys(ns.ARTIFACTS).filter(function (k) { return artifactDroppable(k, tier); });
+    var pool = artifactPool(tier);
     if (pool.length === 0) return null;
     return pick(pool);
   }
@@ -12183,9 +12219,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   };
 
   function randomArtifactChoices(tier, n) {
-    var pool = Object.keys(ns.ARTIFACTS).filter(function (k) { return artifactDroppable(k, tier); });
-    shuffle(pool);
-    return pool.slice(0, Math.min(n, pool.length));
+    // weighted draw, then de-duplicated — a pick-1-of-2 must not offer the
+    // same relic twice just because it is weighted heavily
+    var bag = artifactPool(tier), out = [], guard = 0;
+    while (out.length < n && bag.length && guard++ < 400) {
+      var c = pick(bag);
+      if (out.indexOf(c) < 0) out.push(c);
+      bag = bag.filter(function (x) { return x !== c; });
+    }
+    return out;
   }
   E.randomArtifactChoices = randomArtifactChoices;
   E.randomArtifact = randomArtifact;

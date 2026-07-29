@@ -15,15 +15,11 @@
       art: { p: [[-0.75,0.1, 0.75,0.1], [-0.5,0.1, -0.5,-0.32], [0,0.1, 0,-0.4], [0.5,0.1, 0.5,-0.32], [-0.75,0.1, -0.62,0.4], [0.75,0.1, 0.62,0.4]], e: [[0,-0.55]] } },
     servo_skull:     { name: 'Servo Skull',       tier: 1, k: 'drawStart',       v: 2,    desc: 'Draw 2 extra cards on your first turn.',
       art: { p: [[-0.6,-0.1, -0.6,-0.55, -0.25,-0.85, 0.25,-0.85, 0.6,-0.55, 0.6,-0.1, 0.35,0.15, 0.35,0.5, -0.35,0.5, -0.35,0.15, -0.6,-0.1], [-0.2,0.5, -0.2,0.75], [0,0.5, 0,0.8], [0.2,0.5, 0.2,0.75], [0,-0.85, 0,-1.1]], e: [[-0.25,-0.3],[0.25,-0.3]] } },
-    blood_chalice:   { name: 'Blood Chalice',     tier: 1, k: 'healAfterCombat', v: 5,    desc: 'Heal 5 HP after every combat.',
-      art: { p: [[-0.6,-0.8, 0.6,-0.8, 0.45,-0.2, 0,0.05, -0.45,-0.2, -0.6,-0.8], [0,0.05, 0,0.55], [-0.4,0.8, 0.4,0.8], [-0.4,0.8, 0,0.55, 0.4,0.8]], e: [[0,-0.45]] } },
     targeting_visor: { name: 'Targeting Visor',   tier: 1, k: 'critBonus',       v: 2,    desc: 'Crit on a d20 roll of 18 or higher.',
       art: { p: [[0.5,0, 0.35,0.35, 0,0.5, -0.35,0.35, -0.5,0, -0.35,-0.35, 0,-0.5, 0.35,-0.35, 0.5,0], [0.5,0, 0.9,0], [-0.5,0, -0.9,0], [0,-0.5, 0,-0.9], [0,0.5, 0,0.9]], e: [[0,0]] } },
     hexheart:        { name: 'Hexheart',          tier: 1, cornerstone: 'voidadept', cls: 'voidadept', noRemove: true,
       desc: 'Cornerstone. Survives the Recurrence and forges stronger each loop you clear: +PSI, amplifies your first Burn, and at higher tiers steels you with starting Shield.',
       art: { p: [[0,0.9, -0.8,-0.2, -0.45,-0.7, 0,-0.35, 0.45,-0.7, 0.8,-0.2, 0,0.9], [0,-0.35, 0,0.5]], e: [[0,-0.05]] } },
-    salvager_rig:    { name: 'Salvager Rig',      tier: 1, k: 'creditsMul',      v: 0.25, desc: '+25% credits from combat.',
-      art: { p: [[-0.6,-0.1, 0.6,-0.1, 0.6,0.8, -0.6,0.8, -0.6,-0.1], [-0.6,0.35, 0.6,0.35], [0,-0.1, 0,-0.5, 0.3,-0.7, 0.15,-0.95]], e: [] } },
     adrenaline_pump: { name: 'Adrenaline Pump',   tier: 1, k: 'energyTurn1',     v: 1,    desc: '+1 Energy on your first turn.',
       art: { p: [[0,0.8, -0.8,-0.1, -0.45,-0.65, 0,-0.25, 0.45,-0.65, 0.8,-0.1, 0,0.8], [-0.3,-0.05, 0,0.3, 0.3,-0.05]], e: [] } },
     /* ---- absorbed from the old Augment draft --------------------------
@@ -33,8 +29,6 @@
      * engine hook, which is the definition of a relic here. The draft is gone
      * and these live in the one pool now.
      * -------------------------------------------------------------- */
-    honed_edge: { name: 'Honed Edge', tier: 1, k: 'flatDmg', v: 3, desc: 'Your attacks deal +3 damage.',
-      art: { p: [[-0.8,0.5,0.5,-0.7], [0.5,-0.7,0.8,-0.8], [0.8,-0.8,0.7,-0.5], [-0.6,0.55,-0.35,0.8]] } },
     armor_weave: { name: 'Armor Weave', tier: 1, k: 'plate', v: 3, desc: 'Gain 3 Shield at the start of each turn.',
       art: { p: [[0,-0.8,0.7,-0.4,0.7,0.35,0,0.8,-0.7,0.35,-0.7,-0.4,0,-0.8], [-0.45,-0.1,0.45,-0.1], [-0.3,0.25,0.3,0.25]] } },
     killchain: { name: 'Killchain', tier: 1, k: 'killDraw', v: 1, desc: 'Whenever you kill an enemy, draw a card.',
@@ -88,6 +82,23 @@
      * a stat comparison — and makes a relic worth more or less depending on
      * how you have cut your faces.
      * ---------------------------------------------------------------- */
+    /* Tier 1 is where the relic pool is thickest and it had NOTHING that
+     * touched the die — every early relic was a flat hook, so a run could
+     * reach sector 3 without ever meeting the system. These are cheap, early,
+     * and each one gives you a reason to look at your faces. */
+    ranging_wedge: { name: 'Ranging Wedge', tier: 1, cls: 'vanguard', k: 'aimStart', v: 2,
+      desc: 'Start each combat with 2 Aim.',
+      art: { p: [[-0.8,0.3, 0.6,0.3], [-0.8,0.3, 0.2,-0.4], [0.2,-0.4, 0.6,0.3], [-0.3,0.3, 0.1,0.0], [0.1,0.3, 0.35,0.1], [-0.8,0.44, 0.6,0.44]], e: [[0.2,-0.46]] } },
+    dry_fire: { name: 'Dry Fire', tier: 1, cls: 'vanguard', k: 'bareRefund', v: 1,
+      desc: 'Rolling a BARE face gives 1 Energy — an empty die still pays.',
+      art: { p: [[-0.6,-0.4, 0.3,-0.4, 0.3,0.1, -0.6,0.1, -0.6,-0.4], [-0.6,-0.15, 0.3,-0.15], [0.3,-0.28, 0.7,-0.28], [-0.35,0.1, -0.4,0.5], [-0.15,0.1, -0.15,0.5], [0.55,-0.5, 0.7,-0.66], [0.62,-0.1, 0.8,0.0]], e: [[0.8,-0.28]] } },
+    hot_barrel: { name: 'Hot Barrel', tier: 1, cls: 'vanguard', k: 'critRelay', v: 1,
+      desc: 'On a crit, the faces beside the one you rolled fire at FULL.',
+      art: { p: [[-0.7,0.2, 0.5,0.2], [-0.7,0.35, 0.5,0.35], [0.5,0.1, 0.8,0.1, 0.8,0.45, 0.5,0.45], [-0.5,0.1, -0.44,-0.2], [-0.1,0.1, -0.02,-0.3], [0.28,0.1, 0.36,-0.2], [-0.44,-0.4, -0.36,-0.56], [-0.02,-0.5, 0.06,-0.68]], e: [[-0.4,-0.66],[0.1,-0.8],[0.4,-0.36]] } },
+    votive_shim: { name: 'Votive Shim', tier: 1, cls: 'vanguard', k: 'taintWard', v: 1,
+      desc: 'The first scar the void tries to cut each sector is turned aside.',
+      art: { p: [[0,-0.7, 0.55,-0.4, 0.55,0.16, 0,0.66, -0.55,0.16, -0.55,-0.4, 0,-0.7], [0,-0.5, 0.38,-0.28, 0.38,0.1, 0,0.46, -0.38,0.1, -0.38,-0.28, 0,-0.5], [-0.7,-0.6, 0.7,0.5], [-0.3,-0.06, 0.3,-0.06]], e: [[0,-0.02]] } },
+
     machined_barrel: { name: 'Machined Barrel', tier: 2, cls: 'vanguard', k: 'bandShift', v: 2,
       desc: 'Every band on your die triggers 2 lower — SOLID from 13, HIT from 6.',
       art: { p: [[-0.86,-0.2, 0.5,-0.2], [-0.86,0.1, 0.5,0.1], [-0.86,-0.2, -0.86,0.1], [-0.5,-0.2, -0.5,0.1], [-0.1,-0.2, -0.1,0.1], [0.3,-0.2, 0.3,0.1], [0.5,-0.3, 0.86,-0.3, 0.86,0.2, 0.5,0.2], [0.68,-0.3, 0.68,0.2], [-0.7,0.1, -0.7,0.5], [-0.3,0.1, -0.3,0.5], [-0.86,0.5, -0.14,0.5]], e: [[0.9,-0.05]] } },
@@ -124,10 +135,6 @@
 
     cycling_breech:  { name: 'Cycling Breech',    tier: 2, cls: 'vanguard', k: 'momentumKeep', v: 1, desc: 'Your Momentum no longer resets at the start of your turn.',
       art: { p: [[-0.7,-0.25, 0.7,-0.25], [-0.7,0.25, 0.7,0.25], [-0.7,-0.25, -0.7,0.25], [0.7,-0.25, 0.7,0.25], [-0.35,-0.25, -0.35,0.25], [0,-0.25, 0,0.25], [0.35,-0.25, 0.35,0.25], [0.5,-0.55, 0.8,-0.55, 0.8,-0.25], [-0.5,0.55, -0.8,0.55, -0.8,0.25]] } },
-    medic_drone:     { name: 'Medic Drone',       tier: 1, k: 'healTurn',        v: 1,    desc: 'Heal 1 HP at the start of each turn.',
-      art: { p: [[-0.25,-0.7, 0.25,-0.7, 0.25,-0.25, 0.7,-0.25, 0.7,0.25, 0.25,0.25, 0.25,0.7, -0.25,0.7, -0.25,0.25, -0.7,0.25, -0.7,-0.25, -0.25,-0.25, -0.25,-0.7], [-0.7,-0.6, -0.95,-0.75], [0.7,-0.6, 0.95,-0.75]], e: [] } },
-    tactical_uplink: { name: 'Tactical Uplink',   tier: 1, k: 'checkBonus',      v: 3,    desc: '+3 to all event skill checks.',
-      art: { p: [[0,0.95, 0,-0.3], [-0.5,-0.35, 0,-0.85, 0.5,-0.35], [-0.27,-0.3, 0,-0.55, 0.27,-0.3], [-0.4,0.95, 0.4,0.95]], e: [[0,-0.95]] } },
     thorn_husk:      { name: 'Thornmail Husk',    tier: 1, k: 'thorns',          v: 2,    desc: 'Attackers take 2 damage.',
       art: { p: [[0,-0.6, 0.6,0, 0,0.6, -0.6,0, 0,-0.6], [0,-0.6, 0,-1], [0.6,0, 1,0], [0,0.6, 0,1], [-0.6,0, -1,0]], e: [] } },
     cryo_capsule:    { name: 'Cryo Capsule',      tier: 1, k: 'sectorHeal',      v: 0.25, desc: 'Heal 25% HP when entering a new sector.',
@@ -135,8 +142,6 @@
 
     ancient_sigil:   { name: 'Ancient Sigil',     tier: 2, k: 'energyEveryTurn', v: 1,    desc: '+1 Energy every turn.',
       art: { p: [[0,-0.95, 0.95,0, 0,0.95, -0.95,0, 0,-0.95], [0,-0.5, 0.5,0, 0,0.5, -0.5,0, 0,-0.5]], e: [[0,0]] } },
-    dread_plate:     { name: 'Dreadnought Plate', tier: 2, k: 'maxHp',           v: 22,   desc: '+22 Max HP.',
-      art: { p: [[0,-0.9, 0.7,-0.6, 0.7,0.1, 0,0.9, -0.7,0.1, -0.7,-0.6, 0,-0.9], [-0.35,-0.2, 0,0.1, 0.35,-0.2]], e: [[-0.45,-0.5],[0.45,-0.5]] } },
     singularity:     { name: 'Singularity Engine',tier: 2, k: 'aoeTurnStart',    v: 4,    desc: 'Deal 4 damage to ALL enemies at the start of your turn.',
       art: { p: [[0.7,0, 0.5,0.5, 0,0.7, -0.5,0.5, -0.7,0, -0.45,-0.45, 0,-0.55, 0.35,-0.3, 0.4,0, 0.2,0.25, 0,0.28, -0.18,0.12, -0.15,-0.1, 0,-0.15]], e: [[0,0]] } },
     omega_visor:     { name: 'Omega Visor',       tier: 2, k: 'critDraw',        v: 1,    desc: 'Whenever you land a critical hit, draw a card.',
