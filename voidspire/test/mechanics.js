@@ -1282,10 +1282,23 @@ ok('every remaining class has a starter deck whose cards all exist',
     if (!cards) { c.hand = []; c.drawPile = []; c.discard = []; }   // zero offence
     return c;
   }
+  // Advance the stalemate by a turn. Which pack a seed draws depends on every
+  // rnd() call before it, so this fixture has to hold for any of them, and the
+  // premise is a fight with NO way to resolve. Burn is a way to resolve it — it
+  // bypasses Shield — so against a pack that applies it the player simply died
+  // on turn 11 and the clock under test never ran at all. Strip the damage over
+  // time, and the only thing left that can end this fight is the mechanic being
+  // tested.
+  function tick(c) {
+    E.endTurn();
+    delete c.player.statuses.burn;
+    delete c.player.statuses.poison;
+    delete c.player.statuses.bleed;
+  }
 
   // 1. the pathology terminates
   var c = turtle(false), turns = 0;
-  while (!c.over && E.run.phase !== 'dead' && turns < 300) { E.endTurn(); turns++; }
+  while (!c.over && E.run.phase !== 'dead' && turns < 300) { tick(c); turns++; }
   ok('an offenceless turtle no longer stands there forever (' + turns + ' turns)', turns < 120);
   ok('and the fight actually resolves rather than just stopping',
      E.run.phase === 'dead' || c.over);
@@ -1295,7 +1308,7 @@ ok('every remaining class has a starter deck whose cards all exist',
   // the RULE firing, not about Might being zero.
   var c2 = turtle(false);
   E.events.length = 0;
-  for (var t = 0; t < ENR.turn - 1 && !c2.over && E.run.phase !== 'dead'; t++) E.endTurn();
+  for (var t = 0; t < ENR.turn - 1 && !c2.over && E.run.phase !== 'dead'; t++) tick(c2);
   var early = E.events.filter(function (e) { return e.type === 'enrage' || e.type === 'enrageDecay'; });
   ok('nothing escalates before the threshold (' + early.length + ' events)', early.length === 0);
   ok('and Shield only falls to actual damage, not to decay', !c2.enraged);
@@ -1303,7 +1316,7 @@ ok('every remaining class has a starter deck whose cards all exist',
   // 3. it announces itself before it starts costing you anything
   var c3 = turtle(false);
   E.events.length = 0;
-  while (!c3.enraged && !c3.over && E.run.phase !== 'dead') E.endTurn();
+  while (!c3.enraged && !c3.over && E.run.phase !== 'dead') tick(c3);
   var evs = E.events.filter(function (e) { return e.type === 'enrage'; });
   ok('the escalation announces itself exactly once', evs.length === 1);
   ok('and it starts after the threshold, not on it', evs.length === 1 && evs[0].turn > ENR.turn);

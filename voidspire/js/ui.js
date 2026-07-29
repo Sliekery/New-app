@@ -1517,7 +1517,9 @@
     // The lane pitch is what sets the node size: landscape fits COLS lanes into
     // the panel height, so a tighter pitch means a bigger node. 98 is the floor
     // that still clears a node's own label block.
-    var lane = land ? 98 : 78, step = land ? 128 : 118;
+    // Lane pitch is set against the LANE COUNT: with three lanes spanning the
+    // cross axis, a tighter pitch would blow the nodes up to fill the panel.
+    var lane = land ? 145 : 118, step = land ? 128 : 118;
     // Room for the boss corona (ring 62 + spikes 17) at the far end of the run,
     // and for the entry row's label block at the near end. Portrait used to add
     // the corona allowance BELOW row 0 — the opposite end from the boss — so the

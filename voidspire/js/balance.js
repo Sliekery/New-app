@@ -146,7 +146,12 @@
     /* ---- Branching map (Slay-the-Spire-style star chart) ------------- */
     map: {
       rows: 12,            // content rows per sector (the boss sits above them)
-      cols: 5,             // lane budget the rows drift across
+      // Three lanes, because a row is 2-3 nodes and rows SPAN the lanes rather
+      // than sliding across them. Five lanes meant a row covered part of the
+      // width and slid sideways to vary — which swept the chart diagonally. At
+      // three, a lane IS a highway: gauntlet, supply and frontier run the length
+      // of the sector and you can follow one with your eye.
+      cols: 3,
       // ROW SHAPE. The chart is sized directly rather than woven from random
       // walks — see generateMap. Rows of 2-3 across 5 lanes fill 49% of the
       // grid, which is where Slay the Spire's 7x15 sits; the old weave filled

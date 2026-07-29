@@ -316,7 +316,7 @@
     var M = B.map, ROWS = M.rows, COLS = M.cols;
 
     // ---- how many nodes stand at each depth, and in which lanes
-    var widths = [M.entryWidth], offs = [];
+    var widths = [M.entryWidth];
     for (var r = 1; r < ROWS - 1; r++) {
       var w = widths[r - 1] + ri(-1, 1);
       widths.push(Math.max(M.minWidth, Math.min(M.maxWidth, w)));
@@ -327,24 +327,37 @@
     // long steep line across the whole approach.
     if (ROWS > 2) widths[ROWS - 2] = Math.min(widths[ROWS - 2], 2);
     widths.push(1);
-    offs.push(ri(0, COLS - widths[0]));
-    for (r = 1; r < ROWS; r++) {
-      // Pick from the legal one-lane moves rather than drawing one and fixing it
-      // up. Clamping a bad draw made the walk STICK to a wall — once it reached
-      // lane 0 it stayed for nine rows straight and the chart came out as a
-      // diagonal smear — and bouncing it could jump two lanes at once, which is
-      // what drew the long steep connectors.
-      var hi = COLS - widths[r], p0 = offs[r - 1];
-      var lo0 = Math.max(0, p0 - 1), hi0 = Math.min(hi, p0 + 1);
-      if (lo0 > hi0) lo0 = hi0 = Math.max(0, Math.min(hi, p0));
-      offs.push(ri(lo0, hi0));
+
+    // Which lanes a row stands in. Rows used to be a CONTIGUOUS RUN inside a
+    // wider grid, sliding a lane at a time to get variety — which swept the
+    // whole chart sideways across its width and read as a diagonal smear rather
+    // than a route running the length of the sector. Rows now SPAN the lanes
+    // instead of sliding across them, so the chart runs straight, every
+    // connector stays within one lane, and the three highways are literally
+    // three lanes you can follow with your eye.
+    var last = COLS - 1, mid = Math.floor(last / 2);
+    function outer(cs) { return cs.length === 2 && cs[0] === 0 && cs[1] === last; }
+    function colsFor(w, prev) {
+      var a = [], i;
+      if (w >= COLS) { for (i = 0; i < COLS; i++) a.push(i); return a; }
+      if (w <= 1) return [mid];
+      if (w === 2) {
+        // The outer pair keeps a narrow row spanning the full width. Two of them
+        // back to back is the ONLY shape that produces a two-lane connector —
+        // the long diagonal that cut across the chart — so follow one with a
+        // row that touches the middle instead.
+        if (outer(prev)) return ri(0, 1) ? [0, mid] : [mid, last];
+        return ri(0, 3) ? [0, last] : (ri(0, 1) ? [0, mid] : [mid, last]);
+      }
+      for (i = 0; i < w; i++) a.push(Math.round(i * last / (w - 1)));
+      return a;
     }
 
     var rows = [];
     for (r = 0; r < ROWS; r++) {
-      var row = [];
-      for (var k = 0; k < widths[r]; k++) {
-        row.push({ row: r, col: offs[r] + k, type: null, edges: [], parents: [], visited: false });
+      var row = [], cs = colsFor(widths[r], r ? rows[r - 1].map(function (n) { return n.col; }) : null);
+      for (var k = 0; k < cs.length; k++) {
+        row.push({ row: r, col: cs[k], type: null, edges: [], parents: [], visited: false });
       }
       rows.push(row);
     }
