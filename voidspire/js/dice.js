@@ -499,6 +499,76 @@
    * fires on a graze can afford to be much stronger than one that fires
    * anywhere.
    * ------------------------------------------------------------------- */
+  /* ---- TAINTS -------------------------------------------------------- *
+   * A Flaw used to be an engraving in its own right: it took a free face, and
+   * since a late-run die has ~15 of 20 faces cut, it landed in whatever dead
+   * zone was left and cost the player nothing. Exactly backwards — the fuller
+   * your die, the more immune you were.
+   *
+   * A taint instead attaches to an engraving you already have. You keep the
+   * effect and carry the cost, and the cost is paid every time that face fires
+   * — so it scales with how central the face is to your build rather than
+   * with luck. A taint on the listener at the heart of an engine is expensive;
+   * the same taint on a face you rarely roll is nearly free.
+   *
+   * They attack the systems rather than the HP bar, because one taint fires on
+   * roughly 1 roll in 20 and "lose 2 HP" at that rate is noise.
+   * ------------------------------------------------------------------- */
+  ns.DIE_TAINTS = {
+    dead_short: { name: 'Dead Short', desc: 'This face no longer bleeds into its neighbours.' },
+    silence:    { name: 'Silence',    desc: 'If this is a listener, it answers only once per combat.' },
+    rust:       { name: 'Rust',       desc: "This face's effect is halved." },
+    feedback:   { name: 'Feedback',   desc: 'When this face fires, a random enemy gains 1 Might.' },
+    cold_weld:  { name: 'Cold Weld',  desc: 'Cannot be scrubbed or reseated until you clear the sector.' },
+  };
+
+  // A taint rides the ROOT of an engraving, so a three-face band carries one
+  // taint rather than three.
+  ns.dieTaintAt = function (die, face) {
+    if (!die || !die.faces) return null;
+    var slot = die.faces[face];
+    if (!slot) return null;
+    var root = die.faces[slot.root];
+    return (root && root.taint) ? root.taint : null;
+  };
+  ns.dieTaintedRoots = function (die) {
+    var out = [], seen = {};
+    if (!die || !die.faces) return out;
+    for (var f = 1; f <= ns.DIE.faces; f++) {
+      var slot = die.faces[f]; if (!slot || seen[slot.root]) continue;
+      seen[slot.root] = 1;
+      if (die.faces[slot.root] && die.faces[slot.root].taint) out.push(slot.root);
+    }
+    return out;
+  };
+  // Every engraved root that could still take one. A face carries at most ONE:
+  // stacking them concentrates the damage on a single square and the choice
+  // collapses into "obviously grind that one".
+  ns.dieCleanRoots = function (die) {
+    var out = [], seen = {};
+    if (!die || !die.faces) return out;
+    for (var f = 1; f <= ns.DIE.faces; f++) {
+      var slot = die.faces[f]; if (!slot || seen[slot.root]) continue;
+      seen[slot.root] = 1;
+      var rootSlot = die.faces[slot.root];
+      if (rootSlot && !rootSlot.taint && !(ns.dieEngraving(slot.id) || {}).flaw) out.push(slot.root);
+    }
+    return out;
+  };
+  ns.dieAddTaint = function (die, root, tid) {
+    if (!die || !die.faces || !die.faces[root] || die.faces[root].taint) return false;
+    die.faces[root].taint = tid;
+    return true;
+  };
+  ns.dieStripTaint = function (die, face) {
+    var slot = die.faces[face]; if (!slot) return false;
+    var root = die.faces[slot.root];
+    if (!root || !root.taint) return false;
+    if (root.taint === 'cold_weld') return false;
+    delete root.taint;
+    return true;
+  };
+
   ns.DIE_REGION = { low: [2, 7], mid: [8, 14], high: [15, 20] };
   ns.dieRegionOf = function (face) {
     if (face <= 1) return 'misfire';

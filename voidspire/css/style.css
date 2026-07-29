@@ -1960,3 +1960,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .eng-tag.field  { color: #41d8ff; border-color: rgba(65,216,255,0.5); }
 .eng-tag.band   { color: var(--amber); border-color: rgba(255,176,46,0.5); }
 .pend-it .eng-tag { margin: 0 2px 0 0; }
+
+/* a taint rides an engraving you already own — mark it wherever it shows */
+.df.tainted { border-color: rgba(255,106,106,0.55); }
+.df-scar { color: #ff6a6a; font-weight: 700; margin-left: 4px; text-shadow: 0 0 4px rgba(255,80,80,0.7); }
+.di-taint {
+  margin-top: 4px; padding: 4px 6px; border: 1px solid rgba(255,106,106,0.5);
+  background: rgba(40,10,12,0.55); color: #ffb0b6;
+  font: 700 8.5px/1.35 ui-monospace, monospace; letter-spacing: 0.4px;
+}

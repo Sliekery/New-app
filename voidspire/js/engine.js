@@ -692,7 +692,17 @@
     r.phase = 'sector-intro';
     E.save();
   }
-  E.beginSector = function () { E.run.phase = 'map'; E.save(); };
+  E.beginSector = function () {
+    // Cold Weld holds only until you are out of the sector that cut it — it is
+    // the taint that takes the choice away, so it must not be permanent.
+    var d = E.run.die;
+    if (d && d.faces) {
+      for (var f = 1; f <= ns.DIE.faces; f++) {
+        if (d.faces[f] && d.faces[f].taint === 'cold_weld') d.faces[f].taint = 'rust';
+      }
+    }
+    E.run.phase = 'map'; E.save();
+  };
 
   /* ---------------- Combat: setup --------------------------------------- */
   // Extra enemy power from the Recurrence loop and the Unmaker's Tithe echo,
@@ -1576,9 +1586,18 @@
     if (!id) return false;
     var aug = ns.dieEngraving(id);
     if (!aug || !aug.fx || !aug.fx.length) return false;
-    emit('dieFace', { face: face, id: id, name: aug.name, flaw: !!aug.flaw, bleed: k < 1, why: why || null });
+    // The taint riding this face is paid EVERY time it fires, which is what
+    // makes the cost proportional to how central the face is to the build
+    // rather than to luck.
+    var taint = ns.dieTaintAt(r.die, face);
+    if (taint === 'rust') k = k * 0.5;
+    emit('dieFace', { face: face, id: id, name: aug.name, flaw: !!aug.flaw, bleed: k < 1, why: why || null, taint: taint || null });
     applyCardFx(k < 1 ? scaleFx(aug.fx, k) : aug.fx,
       { tgt: tgt, crit: false, roll: null, eff: face, misfire: false, bandMult: 1, flags: {}, xval: 0, appliedBurn: false });
+    if (taint === 'feedback') {
+      var pool = aliveEnemies();
+      if (pool.length) { var fe = pick(pool); addStatus(fe, 'str', 1); emit('status', { who: 'enemy', idx: c.enemies.indexOf(fe), s: 'str', v: 1 }); }
+    }
     return true;
   }
 
@@ -1599,6 +1618,7 @@
     // reward for cutting densely — and it was most of why the difficulty
     // profile moved (median sector 4 -> 7 in simulation).
     if (!lit) return;
+    if (ns.dieTaintAt(r.die, face) === 'dead_short') return;   // the seam is broken
     var bleed = Math.min(1, B.dice.bleed + art('bleedPct'));
     if (bleed <= 0) return;
     ns.dieNeighbours(r.die, face).forEach(function (f) {
@@ -1643,6 +1663,13 @@
     try {
       roots.forEach(function (it) {
         if (c.over) return;
+        // SILENCE rides the face, so it has to be checked where the listener
+        // actually resolves — listeners never pass through fireOneFace.
+        if (ns.dieTaintAt(r.die, it.face) === 'silence') {
+          c.silenced = c.silenced || {};
+          if (c.silenced[it.face]) return;
+          c.silenced[it.face] = 1;
+        }
         var times = 1 + (E.dieFieldCount('listenerEcho') > 0 ? 1 : 0);   // FIRE DISCIPLINE
         for (var t = 0; t < times; t++) {
           emit('dieFace', { face: it.face, id: it.id, name: it.g.name, listen: kind });
@@ -1653,6 +1680,36 @@
     } finally { _listenDepth--; }
   }
   E.fireListeners = fireListeners;
+
+  /* Scar the die. Returns false if there was nothing left to scar, so the
+   * caller can fall back to damage. Cold Weld is dealt last and rarely — it is
+   * the one that takes the choice away, so it should be the exception. */
+  E.taintDie = function (n) {
+    var r = E.run; if (!r || !r.die) return false;
+    var clean = ns.dieCleanRoots(r.die);
+    if (!clean.length) return false;
+    var ids = Object.keys(ns.DIE_TAINTS).filter(function (t) { return t !== 'cold_weld'; });
+    var did = 0;
+    for (var i = 0; i < (n || 1) && clean.length; i++) {
+      var root = pick(clean);
+      clean = clean.filter(function (x) { return x !== root; });
+      var tid = (rnd() < (B.dice.coldWeldChance || 0.12)) ? 'cold_weld' : pick(ids);
+      if (ns.dieAddTaint(r.die, root, tid)) {
+        did++;
+        emit('etch', { face: root, taint: tid, name: (ns.DIE_TAINTS[tid] || {}).name || tid });
+      }
+    }
+    return did > 0;
+  };
+
+  // How hard the void leans on your die at this depth. Sector 1-2 are left
+  // alone: the early game already sits inside its difficulty targets, and the
+  // power that needs answering is all in the back half of a run.
+  E.taintChance = function () {
+    var r = E.run; if (!r) return 0;
+    var curve = B.dice.taintBySector || {};
+    return curve[Math.min(r.sector, 9)] || curve.max || 0;
+  };
 
   // how many engravings on the die carry a given field behaviour
   E.dieFieldCount = function (which) {
@@ -2366,20 +2423,12 @@
         }
         if (stripped === 0) { c.discard.push(mkCard('void_taint', false)); emit('curse', { idx: idx, card: 'void_taint' }); }
       } else if (m.t === 'etch') {
-        // WARP ETCHER: scars your die. A Flaw takes a face — and denies you the slot.
-        var dieR = r.die;
-        if (dieR) {
-          var flawIds = Object.keys(ns.DIE_FLAWS || {});
-          var freeF = [];
-          for (var ef = 1; ef <= (ns.DIE.faces || 20); ef++) if (!dieR.faces[ef]) freeF.push(ef);
-          if (flawIds.length && freeF.length) {
-            var fid = pick(flawIds), ff = pick(freeF);
-            ns.dieEngrave(dieR, fid, ff);
-            emit('etch', { idx: idx, id: fid, face: ff, name: (ns.DIE_FLAWS[fid] || {}).name || fid });
-          } else {   // nowhere left to cut — it just hurts you instead
-            hurtPlayer(scaledDmg(8, s));
-          }
-        }
+        // WARP ETCHER: scars your die. It used to cut a Flaw into a FREE face,
+        // which meant a late-run die with 15 of 20 faces engraved took the hit
+        // in whatever dead zone was left — the fuller your die, the more immune
+        // you were. It now taints an engraving you already have: you keep the
+        // effect and pay for it every time that face fires.
+        if (!E.taintDie(1)) hurtPlayer(scaledDmg(8, s));
       } else if (m.t === 'unmake') {
         // THE UNMAKER's signature: erase your defences, jam your deck, knit itself
         if (p.block > 0) { p.block = 0; emit('block', { who: 'player', amount: 0, blockAfter: 0 }); }
@@ -2697,6 +2746,10 @@
     }
     var dropP = ((kind === 'boss') ? B.potions.bossDropChance : B.potions.dropChance) * (E.pressureMods().potionDrop || 1);
     var potionDrop = (rnd() < dropP) ? rollPotion() : null;
+    // the void takes its cut of your die on the way out of a fight
+    if (r.sector >= (B.dice.taintEliteFrom || 3) && (kind === 'elite' || kind === 'boss')) E.taintDie(1);
+    else if (rnd() < E.taintChance()) E.taintDie(1);
+
     r.reward = { credits: credits, cards: cards, artifact: artifactDrop, artifactChoices: artifactChoices, engChoices: engChoices, engPicked: false, artifactPicked: false, bonusArtifact: bonusArtifact, potion: potionDrop, potionTaken: false, cardTaken: false, kind: kind };
     r.phase = 'reward';
     emit('win', { kind: kind, credits: credits });
@@ -3483,10 +3536,16 @@
     if (r.shop.grindUsed) return 'the grinder is spent';
     var id = r.die && ns.dieFaceId(r.die, face);
     var g = id ? ns.dieEngraving(id) : null;
-    if (!g || !g.flaw) return 'nothing to grind out here';
+    var taint = ns.dieTaintAt(r.die, face);
+    if (!taint && (!g || !g.flaw)) return 'nothing to grind out here';
+    if (taint === 'cold_weld') return 'cold welded — it holds until you clear the sector';
     var cost = E.grindCost();
     if (r.credits < cost) return 'not enough credits';
-    ns.dieScrub(r.die, face);
+    // A taint comes off and leaves the engraving behind; a Flaw engraving is
+    // still scrubbed whole. Stripping the scar is the cheaper, better outcome
+    // and is what makes the bench worth walking to.
+    if (taint) ns.dieStripTaint(r.die, face);
+    else ns.dieScrub(r.die, face);
     r.credits -= cost;
     r.grindCost = cost + B.dieShop.grindCostInc;   // the wheel wears down
     r.shop.grindUsed = true;

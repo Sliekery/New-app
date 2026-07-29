@@ -960,9 +960,13 @@
     if (armedId) cls += ns.dieCanEngrave(die, armedId, face) ? ' no-fit' : ' fits';
     var et = dieEndTag(E.run && E.run.cls, face);
     var tag = et ? '<span class="df-tag' + (et.crit || et.good ? ' crit' : '') + '">' + esc(et.label) + '</span>' : '';
+    // a scarred face has to look scarred in the list, not only when tapped
+    var tt = ns.dieTaintAt(die, face);
+    if (tt) cls += ' tainted';
+    var scar = tt ? '<span class="df-scar" title="' + esc((ns.DIE_TAINTS[tt] || {}).name || tt) + '">✖</span>' : '';
     var body = d
-      ? (cont ? '<span class="df-cont">— ' + esc(d.name) + '</span>'
-              : artSVG(d.art, 'df-icon') + '<span class="df-name">' + esc(d.name) + '</span>')
+      ? (cont ? '<span class="df-cont">— ' + esc(d.name) + '</span>' + scar
+              : artSVG(d.art, 'df-icon') + '<span class="df-name">' + esc(d.name) + '</span>' + scar)
       : '<span class="df-empty">bare</span>';
     return '<div class="' + cls + '" data-face="' + face + '"><span class="df-n">' + face + '</span>' + body + tag + '</div>';
   }
@@ -1091,6 +1095,11 @@
                + (rc(sel) ? '' : '<span class="di-un">OUT OF REACH AT AIM +' + a + '</span>') + '</div>';
       info.innerHTML = head + (d
         ? '<div class="di-name' + (d.flaw ? ' flaw' : '') + '">' + (d.flaw ? '✖ ' : '◆ ') + esc(d.name) + '</div><div class="di-desc">' + engTagHTML(d) + esc(d.desc) + '</div>'
+          + (function () {
+              var tt = ns.dieTaintAt(die, sel); if (!tt) return '';
+              var T = ns.DIE_TAINTS[tt] || {};
+              return '<div class="di-taint">✖ ' + esc(T.name || tt) + ' — ' + esc(T.desc || '') + '</div>';
+            })()
         : '<div class="di-name bare">bare</div><div class="di-desc">Nothing engraved on this face.</div>');
       wrap.querySelectorAll('.df').forEach(function (row) { row.classList.toggle('sel', +row.dataset.face === sel); });
 
@@ -1557,6 +1566,8 @@
       var free = r.die ? Math.max(0, (r.die.coreSlots || 3) - r.die.core.length) : 0;
       var bits = [];
       if (pend) bits.push('<b>' + pend + '</b> ENGRAVING' + (pend > 1 ? 'S' : '') + ' TO CUT');
+      var scars = (r.die ? ns.dieTaintedRoots(r.die).length : 0);
+      if (scars) bits.push('<b>' + scars + '</b> SCARRED FACE' + (scars > 1 ? 'S' : ''));
       // only nag about idle relics when there is somewhere to actually put one
       if (slack && free) bits.push('<b>' + free + '</b> EMPTY CORE SLOT' + (free > 1 ? 'S' : ''));
       if (bits.length) {

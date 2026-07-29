@@ -47,6 +47,18 @@
       // a listener may set off another listener, but only this deep — the
       // shape of "when you apply Burn, attack" is a loop waiting to happen
       chainDepth: 2,
+      /* THE VOID SCARS THE DIE. Chance that clearing a fight taints one of your
+       * engravings, by sector. Sectors 1-2 are untouched — the early game is
+       * already inside its targets and the power that needs answering is all in
+       * the back half. Elites and bosses always scar, from sector 3 on. */
+      // Measured at 300 bot runs. This curve read reach-sector-5 37% and a class
+      // spread of 8.0 (at target); a steeper one (0.14 -> 0.60) traded that for
+      // 33% and a spread of 17. At n=100 per class those spreads overlap inside
+      // their own noise, so the tie goes to the gentler curve — it is the one
+      // with an at-target parity reading, and it punishes less for feel.
+      taintBySector: { 1: 0, 2: 0, 3: 0.10, 4: 0.18, 5: 0.26, 6: 0.32, 7: 0.36, 8: 0.40, 9: 0.44, max: 0.44 },
+      taintEliteFrom: 3,        // an elite or boss scars outright from this sector
+      coldWeldChance: 0.12,     // ...and rarely it welds, which removes the choice
       critThreshold: 20,        // roll + Aim >= (threshold - critBonus) crits
       critMult: 2.0,            // crit damage multiplier
       misfireMult: 0.5,         // legacy fallback for a class with no table
