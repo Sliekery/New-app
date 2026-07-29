@@ -1962,6 +1962,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   border: 1px solid rgba(255,106,106,0.6); padding: 2px 3px; margin-left: 4px; vertical-align: middle;
 }
 
+/* engraving category tags — band, listener, field */
+.eng-tag {
+  display: inline-block; font: 700 8.5px/1 ui-monospace, monospace; letter-spacing: 0.6px;
+  padding: 2px 3px; margin: 0 3px 2px 0; vertical-align: middle; border: 1px solid;
+}
+.eng-tag.listen { color: #7dffa0; border-color: rgba(125,255,160,0.5); }
+.eng-tag.field  { color: #41d8ff; border-color: rgba(65,216,255,0.5); }
+.eng-tag.band   { color: var(--amber); border-color: rgba(255,176,46,0.5); }
+.pend-it .eng-tag { margin: 0 2px 0 0; }
+
 </style>
 </head>
 <body>
@@ -2019,6 +2029,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
      * design: three answers to the same question, not three sets of numbers.
      * ---------------------------------------------------------------- */
     dice: {
+      // THE ROLL BLEEDS: a roll fires its face fully and the faces either side
+      // at this fraction. It is what makes WHERE you cut matter as much as
+      // WHAT, and it turns a filled die from a dead end into the payoff.
+      bleed: 0.25,
+      // a listener may set off another listener, but only this deep — the
+      // shape of "when you apply Burn, attack" is a loop waiting to happen
+      chainDepth: 2,
       critThreshold: 20,        // roll + Aim >= (threshold - critBonus) crits
       critMult: 2.0,            // crit damage multiplier
       misfireMult: 0.5,         // legacy fallback for a class with no table
@@ -6828,6 +6845,47 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       art: { p: [[-0.45,0.7, -0.3,-0.3, 0.3,-0.3, 0.45,0.7, -0.45,0.7], [-0.35,-0.3, -0.5,-0.55, 0.5,-0.55, 0.35,-0.3], [-0.15,-0.75, 0,-0.95, 0.15,-0.75], [-0.2,0.1, 0.2,0.35], [0.2,0.1, -0.2,0.35]] } },
     iron_leech:      { name: 'Iron Leech',        tier: 1, cls: 'vanguard', k: 'bloodrageStart', v: 2, desc: 'Start each combat with 2 Blood Rage — your own wounds feed your Might.',
       art: { p: [[0,-0.85, 0.4,-0.2, 0.26,0.5, -0.26,0.5, -0.4,-0.2, 0,-0.85], [-0.26,0.5, -0.16,0.82], [0.26,0.5, 0.16,0.82], [-0.24,-0.1, 0.24,-0.1], [-0.14,0.16, 0.14,0.16]] } },
+    /* ---- VANGUARD: relics that shape the die -------------------------
+     * 55 of the 62 relics had nothing to do with the die, so "relics live
+     * inside the die" was flavour text over a slot limit. These change the
+     * curve you roll on, which makes taking one a build decision rather than
+     * a stat comparison — and makes a relic worth more or less depending on
+     * how you have cut your faces.
+     * ---------------------------------------------------------------- */
+    machined_barrel: { name: 'Machined Barrel', tier: 2, cls: 'vanguard', k: 'bandShift', v: 2,
+      desc: 'Every band on your die triggers 2 lower — SOLID from 13, HIT from 6.',
+      art: { p: [[-0.86,-0.2, 0.5,-0.2], [-0.86,0.1, 0.5,0.1], [-0.86,-0.2, -0.86,0.1], [-0.5,-0.2, -0.5,0.1], [-0.1,-0.2, -0.1,0.1], [0.3,-0.2, 0.3,0.1], [0.5,-0.3, 0.86,-0.3, 0.86,0.2, 0.5,0.2], [0.68,-0.3, 0.68,0.2], [-0.7,0.1, -0.7,0.5], [-0.3,0.1, -0.3,0.5], [-0.86,0.5, -0.14,0.5]], e: [[0.9,-0.05]] } },
+    counterweight: { name: 'Counterweight', tier: 2, cls: 'vanguard', k: 'rerollOnes', v: 1,
+      desc: 'A natural 1 is rerolled once. Turns off anything you built on face 1.',
+      art: { p: [[0,-0.7, 0.2,-0.3, 0,0.1, -0.2,-0.3, 0,-0.7], [-0.5,0.1, 0.5,0.1, 0.36,0.6, -0.36,0.6, -0.5,0.1], [-0.42,0.35, 0.42,0.35], [0,-0.7, 0,-0.86], [-0.66,0.1, -0.5,0.1], [0.66,0.1, 0.5,0.1]], e: [[0,-0.3],[0,0.48]] } },
+    bandolier_rig: { name: 'Bandolier Rig', tier: 2, cls: 'vanguard', k: 'bleedPct', v: 0.25,
+      desc: 'Faces beside the one you roll fire at 75% instead of half.',
+      art: { p: [[-0.86,-0.5, 0.86,0.3], [-0.86,-0.2, 0.86,0.6], [-0.7,-0.44, -0.66,-0.2], [-0.4,-0.3, -0.36,-0.06], [-0.1,-0.16, -0.06,0.08], [0.2,-0.02, 0.24,0.22], [0.5,0.12, 0.54,0.36]], e: [[-0.68,-0.32],[-0.38,-0.18],[-0.08,-0.04],[0.22,0.1],[0.52,0.24]] } },
+    spent_brass: { name: 'Spent Brass', tier: 2, cls: 'vanguard', k: 'bankRoll', v: 1,
+      desc: 'Every roll banks its number. At end of turn, bank becomes that much Shield.',
+      art: { p: [[-0.5,0.6, -0.4,-0.2, -0.16,-0.5, 0.16,-0.5, 0.4,-0.2, 0.5,0.6, -0.5,0.6], [-0.46,0.2, 0.46,0.2], [-0.44,-0.05, 0.44,-0.05], [-0.16,-0.5, -0.16,-0.66, 0.16,-0.66, 0.16,-0.5], [-0.7,0.6, 0.7,0.6]], e: [[0,0.4],[0,0.08]] } },
+    trench_ledger: { name: 'Trench Ledger', tier: 2, cls: 'vanguard', k: 'lowMight', v: 1,
+      desc: 'Every roll under 6 grants 1 Might for the rest of the combat.',
+      art: { p: [[-0.4,-0.7, 0.4,-0.7, 0.5,-0.5, 0.5,0.6, -0.5,0.6, -0.5,-0.5, -0.4,-0.7], [-0.5,-0.36, 0.5,-0.36], [-0.34,-0.16, -0.34,0.16], [-0.18,-0.16, -0.18,0.16], [-0.02,-0.16, -0.02,0.16], [0.14,-0.16, 0.14,0.16], [-0.42,-0.2, 0.22,0.2], [-0.34,0.38, 0.34,0.38]], e: [[0,-0.82]] } },
+    ranging_tables: { name: 'Ranging Tables', tier: 3, cls: 'vanguard', k: 'everyThird', v: 1,
+      desc: 'Every third roll each combat is automatically a 20.',
+      art: { p: [[-0.6,-0.6, 0.6,-0.6, 0.6,0.6, -0.6,0.6, -0.6,-0.6], [-0.6,-0.3, 0.6,-0.3], [-0.6,0.0, 0.6,0.0], [-0.6,0.3, 0.6,0.3], [-0.2,-0.6, -0.2,0.6], [0.2,-0.6, 0.2,0.6], [-0.86,-0.44, -0.6,-0.44], [0.86,0.44, 0.6,0.44]], e: [[0.4,0.45],[0.4,-0.15]] } },
+    long_shots_debt: { name: "The Long Shot's Debt", tier: 3, cls: 'vanguard',
+      hooks: [{ k: 'rollBonus', v: 4 }, { k: 'misfireWiden', v: 2 }],
+      desc: '+4 to every roll — but a misfire now triggers on 1-3.',
+      art: { p: [[-0.86,0.3, 0.3,-0.4], [0.3,-0.4, 0.1,-0.36], [0.3,-0.4, 0.26,-0.2], [-0.5,-0.5, -0.5,-0.14], [-0.5,-0.5, -0.14,-0.5], [0.66,0.5, 0.66,0.14], [0.66,0.5, 0.3,0.5], [-0.3,0.5, 0.0,0.5]], e: [[0.5,-0.55],[-0.7,0.6]] } },
+    stripped_rifling: { name: 'Stripped Rifling', tier: 2, cls: 'vanguard',
+      hooks: [{ k: 'critWiden', v: 1 }, { k: 'bandShift', v: -1 }],
+      desc: 'Crit on 19 as well as 20 — but every other band triggers 1 higher.',
+      art: { p: [[-0.7,-0.3, 0.7,-0.3], [-0.7,0.2, 0.7,0.2], [-0.7,-0.3, -0.7,0.2], [0.7,-0.3, 0.7,0.2], [-0.5,-0.3, -0.34,0.2], [-0.1,-0.3, 0.06,0.2], [0.3,-0.3, 0.46,0.2], [0.7,-0.05, 0.86,-0.05]], e: [[0.9,-0.05]] } },
+    twinned_pin: { name: 'Twinned Firing Pin', tier: 3, cls: 'vanguard', k: 'firstSplash', v: 1,
+      desc: 'The first roll of each combat fires its face and both neighbours at full.',
+      art: { p: [[-0.24,-0.7, -0.24,0.4], [0.24,-0.7, 0.24,0.4], [-0.24,0.4, -0.16,0.66, 0.16,0.66, 0.24,0.4], [-0.4,-0.7, -0.08,-0.7], [0.08,-0.7, 0.4,-0.7], [-0.66,-0.1, -0.4,-0.1], [0.66,-0.1, 0.4,-0.1]], e: [[0,0.66],[-0.72,-0.1],[0.72,-0.1]] } },
+    deadeye_reticle: { name: 'Deadeye Reticle', tier: 3, cls: 'vanguard',
+      hooks: [{ k: 'rollAdv', v: 1 }, { k: 'maxHpPct', v: 0.15 }],
+      desc: 'Roll twice and take the higher — paid for out of your Max HP.',
+      art: { p: [[0,-0.86, 0,-0.4], [0,0.86, 0,0.4], [-0.86,0, -0.4,0], [0.86,0, 0.4,0], [-0.4,-0.4, 0.4,-0.4, 0.4,0.4, -0.4,0.4, -0.4,-0.4], [-0.16,-0.16, 0.16,-0.16, 0.16,0.16, -0.16,0.16, -0.16,-0.16], [-0.56,-0.56, -0.4,-0.4], [0.56,0.56, 0.4,0.4]], e: [[0,0]] } },
+
     cycling_breech:  { name: 'Cycling Breech',    tier: 2, cls: 'vanguard', k: 'momentumKeep', v: 1, desc: 'Your Momentum no longer resets at the start of your turn.',
       art: { p: [[-0.7,-0.25, 0.7,-0.25], [-0.7,0.25, 0.7,0.25], [-0.7,-0.25, -0.7,0.25], [0.7,-0.25, 0.7,0.25], [-0.35,-0.25, -0.35,0.25], [0,-0.25, 0,0.25], [0.35,-0.25, 0.35,0.25], [0.5,-0.55, 0.8,-0.55, 0.8,-0.25], [-0.5,0.55, -0.8,0.55, -0.8,0.25]] } },
     medic_drone:     { name: 'Medic Drone',       tier: 1, k: 'healTurn',        v: 1,    desc: 'Heal 1 HP at the start of each turn.',
@@ -7213,6 +7271,148 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       art: { p: [[-0.7,-0.4, 0.7,-0.4], [-0.7,-0.05, 0.7,-0.05], [-0.7,0.3, 0.7,0.3], [-0.4,-0.4, -0.4,0.3], [0,-0.4, 0,0.3], [0.4,-0.4, 0.4,0.3], [-0.7,0.3, -0.7,0.6, 0.7,0.6, 0.7,0.3]] },
     },
 
+    /* =================================================================
+     * VANGUARD SET — the first class rebuilt for the new die.
+     *
+     * The old droppable pool was 22 flat, class-agnostic effects ("Gain 2
+     * Energy", "Heal 6 HP") that could be cut anywhere and reacted to nothing.
+     * These are built to three rules instead:
+     *   BAND     most of them live in one region of the table, so an engraving
+     *            can be priced for the part of the die it asks you to build on
+     *   LISTEN   a second kind of engraving that answers something happening,
+     *            which is what lets the die be wired rather than merely filled
+     *   COST     a trade-off pays in Aim or HP — the currencies this class
+     *            already cares about — so it reads as a decision, not a tax
+     * ================================================================= */
+
+    /* ---- standalone: no setup, good on their own ---- */
+    bracket_fire: {
+      name: 'Bracket Fire', tier: 1, span: 1, cls: 'vanguard',
+      fx: [{ k: 'dmg', v: 9, scale: 'might' }],
+      desc: 'Deal 9 damage.',
+      art: { p: [[-0.8,-0.5, -0.3,-0.5], [-0.8,0.0, -0.24,0.0], [-0.8,0.5, -0.3,0.5], [-0.3,-0.62, 0.0,-0.5, -0.3,-0.38], [-0.24,-0.12, 0.06,0.0, -0.24,0.12], [-0.3,0.38, 0.0,0.5, -0.3,0.62], [0.3,-0.3, 0.6,0.0, 0.3,0.3]], e: [[0.76,0]] },
+    },
+    spotters_notch: {
+      name: "Spotter's Notch", tier: 1, span: 1, cls: 'vanguard', band: 'high',
+      fx: [{ k: 'status', s: 'aim', v: 2, who: 'self' }],
+      desc: 'Gain 2 Aim.',
+      art: { p: [[-0.7,-0.7, -0.7,-0.3], [-0.7,-0.7, -0.3,-0.7], [0.7,-0.7, 0.3,-0.7], [0.7,-0.7, 0.7,-0.3], [-0.7,0.7, -0.7,0.3], [-0.7,0.7, -0.3,0.7], [0.7,0.7, 0.7,0.3], [0.7,0.7, 0.3,0.7], [-0.4,0, 0.4,0], [0,-0.4, 0,0.4]], e: [[0,0]] },
+    },
+    field_dressing: {
+      name: 'Field Dressing', tier: 1, span: 1, cls: 'vanguard', band: 'low',
+      fx: [{ k: 'heal', v: 4 }, { k: 'block', v: 5 }],
+      desc: 'Heal 4 HP. Gain 5 Shield.',
+      art: { p: [[-0.28,-0.6, 0.28,-0.6, 0.28,0.5, -0.28,0.5, -0.28,-0.6], [-0.28,-0.36, 0.28,-0.36], [-0.14,-0.1, 0.14,-0.1], [0,-0.24, 0,0.04], [-0.16,-0.6, -0.16,-0.74, 0.16,-0.74, 0.16,-0.6], [-0.5,-0.3, -0.28,-0.3], [0.5,-0.3, 0.28,-0.3]], e: [[0,0.3]] },
+    },
+    firebase: {
+      name: 'Firebase', tier: 2, span: 3, cls: 'vanguard', band: 'mid',
+      fx: [{ k: 'block', v: 5 }, { k: 'status', s: 'thorns', v: 2, who: 'self' }],
+      desc: 'Gain 5 Shield, 2 Thorns.',
+      art: { p: [[-0.8,0.5, 0.8,0.5], [-0.6,0.5, -0.6,0.1, -0.2,0.1, -0.2,0.5], [0.2,0.5, 0.2,0.1, 0.6,0.1, 0.6,0.5], [-0.6,0.3, -0.2,0.3], [0.2,0.3, 0.6,0.3], [-0.4,0.1, -0.4,-0.2], [0.4,0.1, 0.4,-0.2], [-0.5,-0.2, -0.3,-0.44], [0.3,-0.44, 0.5,-0.2]], e: [[-0.4,-0.5],[0.4,-0.5]] },
+    },
+    brass_catcher: {
+      name: 'Brass Catcher', tier: 2, span: 1, cls: 'vanguard',
+      fx: [{ k: 'status', s: 'salvo', v: 2, who: 'self' }],
+      desc: 'Gain 2 Salvo — every card you burn spits shrapnel.',
+      art: { p: [[-0.5,-0.2, 0.5,-0.2, 0.36,0.5, -0.36,0.5, -0.5,-0.2], [-0.44,0.1, 0.44,0.1], [-0.2,-0.5, -0.14,-0.2], [0.2,-0.56, 0.1,-0.2], [-0.44,-0.44, -0.3,-0.2], [-0.24,-0.7, -0.18,-0.56], [0.28,-0.72, 0.22,-0.6]], e: [[-0.26,-0.78],[0.3,-0.8],[-0.5,-0.5]] },
+    },
+
+    /* ---- listeners: they answer, they do not act ---- */
+    follow_up_notch: {
+      name: 'Follow-Up Notch', tier: 2, span: 1, cls: 'vanguard', listen: 'momentum',
+      fx: [{ k: 'dmg', v: 3 }],
+      desc: 'WHEN you gain Momentum: deal 3 damage.',
+      art: { p: [[-0.8,0.3, -0.3,0.3], [-0.3,0.16, 0.0,0.3, -0.3,0.44], [-0.5,-0.1, 0.0,-0.1], [0.0,-0.24, 0.3,-0.1, 0.0,0.04], [-0.2,-0.5, 0.3,-0.5], [0.3,-0.64, 0.6,-0.5, 0.3,-0.36]], e: [[0.76,-0.5]] },
+    },
+    blood_debt: {
+      name: 'Blood Debt', tier: 2, span: 1, cls: 'vanguard', listen: 'selfHp',
+      fx: [{ k: 'status', s: 'str', v: 2, who: 'self' }],
+      desc: 'WHEN one of your own cards costs you HP: gain 2 Might.',
+      art: { p: [[0,-0.6, 0.2,-0.3, 0,0.0, -0.2,-0.3, 0,-0.6], [-0.44,0.16, 0.44,0.16, 0.36,0.6, -0.36,0.6, -0.44,0.16], [-0.4,0.38, 0.4,0.38], [-0.2,0.0, -0.24,0.16], [0.2,0.0, 0.24,0.16]], e: [[-0.2,0.72],[0.2,0.72],[0,0.78]] },
+    },
+    sympathetic_det: {
+      name: 'Sympathetic Det', tier: 2, span: 1, cls: 'vanguard', listen: 'exhaust',
+      fx: [{ k: 'dmg', v: 4 }],
+      desc: 'WHEN a card is Exhausted: deal 4 damage.',
+      art: { p: [[-0.3,-0.34, 0.3,-0.34, 0.3,0.12, -0.3,0.12, -0.3,-0.34], [-0.3,-0.34, -0.4,-0.5, 0.4,-0.5, 0.3,-0.34], [0,-0.5, 0,-0.7], [-0.6,0.34, -0.34,0.16], [0.6,0.34, 0.34,0.16], [-0.5,-0.16, -0.72,-0.24], [0.5,-0.16, 0.72,-0.24]], e: [[0,-0.78],[-0.68,0.42],[0.68,0.42]] },
+    },
+    riposte_notch: {
+      name: 'Riposte Notch', tier: 2, span: 1, cls: 'vanguard', listen: 'parry',
+      fx: [{ k: 'dmg', v: 2, scale: 'might' }],
+      desc: 'WHEN you gain Parry: deal 2 damage plus your Might.',
+      art: { p: [[-0.66,0.6, -0.1,-0.5], [-0.1,-0.5, -0.02,-0.7, 0.06,-0.5], [0.66,0.5, 0.16,-0.44], [-0.34,-0.3, 0.3,-0.24], [-0.44,-0.1, 0.4,-0.04], [-0.4,0.08, -0.56,0.16], [0.4,0.04, 0.56,0.12]], e: [[-0.02,-0.4]] },
+    },
+    called_shot: {
+      name: 'Called Shot', tier: 3, span: 1, cls: 'vanguard', listen: 'crit',
+      fx: [{ k: 'dmg', v: 8 }],
+      desc: 'WHEN an attack crits: deal 8 damage.',
+      art: { p: [[-0.86,-0.7, -0.24,-0.16], [0.86,-0.7, 0.24,-0.16], [-0.86,0.6, -0.24,0.1], [0.86,0.6, 0.24,0.1], [-0.24,-0.16, 0.24,-0.16, 0.24,0.1, -0.24,0.1, -0.24,-0.16], [0,-0.16, 0,-0.4], [0,0.1, 0,0.34]], e: [[0,-0.03]] },
+    },
+
+    /* ---- adjacency: they care who is next to them ---- */
+    relay_mark: {
+      name: 'Relay Mark', tier: 3, span: 1, cls: 'vanguard', field: 'relay',
+      fx: [{ k: 'status', s: 'aim', v: 1, who: 'self' }],
+      desc: 'Gain 1 Aim. Faces either side of this one fire at FULL instead of half.',
+      art: { p: [[-0.7,0, -0.24,0], [0.24,0, 0.7,0], [-0.24,-0.3, 0.24,-0.3, 0.24,0.3, -0.24,0.3, -0.24,-0.3], [-0.7,-0.24, -0.7,0.24], [0.7,-0.24, 0.7,0.24], [-0.5,-0.4, -0.5,0.4], [0.5,-0.4, 0.5,0.4]], e: [[0,0],[-0.7,0],[0.7,0]] },
+    },
+    chain_loader: {
+      name: 'Chain Loader', tier: 2, span: 1, cls: 'vanguard', listen: 'neighbour',
+      fx: [{ k: 'energy', v: 1 }],
+      desc: 'WHEN a face beside this one fires: gain 1 Energy.',
+      art: { p: [[-0.7,-0.3, -0.2,-0.3, -0.2,0.3, -0.7,0.3, -0.7,-0.3], [0.2,-0.3, 0.7,-0.3, 0.7,0.3, 0.2,0.3, 0.2,-0.3], [-0.2,0, 0.2,0], [-0.45,-0.3, -0.45,0.3], [0.45,-0.3, 0.45,0.3], [-0.7,0, -0.86,0], [0.7,0, 0.86,0]], e: [[-0.45,0],[0.45,0]] },
+    },
+    twin_sight: {
+      name: 'Twin Sight', tier: 3, span: 1, cls: 'vanguard', field: 'opposite',
+      fx: [{ k: 'dmg', v: 5, scale: 'might' }],
+      desc: 'Deal 5 damage. Also fires the face OPPOSITE this one on the die.',
+      art: { p: [[-0.66,0, -0.2,0], [0.2,0, 0.66,0], [-0.2,-0.26, 0.2,-0.26, 0.2,0.26, -0.2,0.26, -0.2,-0.26], [-0.66,-0.4, -0.86,-0.2, -0.66,0], [0.66,0.4, 0.86,0.2, 0.66,0], [-0.4,-0.5, 0.4,-0.5], [-0.4,0.5, 0.4,0.5]], e: [[-0.8,-0.2],[0.8,0.2]] },
+    },
+    fire_discipline: {
+      name: 'Fire Discipline', tier: 3, span: 3, cls: 'vanguard', field: 'listenerEcho',
+      fx: [{ k: 'status', s: 'aim', v: 1, who: 'self' }],
+      desc: 'Gain 1 Aim. Every listener on the die fires one extra time.',
+      art: { p: [[-0.8,-0.5, 0.8,-0.5], [-0.8,0, 0.8,0], [-0.8,0.5, 0.8,0.5], [-0.5,-0.66, -0.5,0.66], [0,-0.66, 0,0.66], [0.5,-0.66, 0.5,0.66]], e: [[-0.5,-0.5],[0.5,-0.5],[-0.5,0],[0.5,0],[-0.5,0.5],[0.5,0.5],[0,0]] },
+    },
+
+    /* ---- trade-offs: they cost Aim or blood ---- */
+    open_bolt: {
+      name: 'Open Bolt', tier: 2, span: 1, cls: 'vanguard', band: 'low',
+      fx: [{ k: 'dmg', v: 16, scale: 'might' }, { k: 'hploss', v: 4 }],
+      desc: 'Deal 16 damage. Lose 4 HP. Cuts only into the graze band.',
+      art: { p: [[-0.7,-0.2, 0.3,-0.2, 0.3,0.16, -0.7,0.16, -0.7,-0.2], [-0.7,-0.02, 0.3,-0.02], [0.3,-0.1, 0.72,-0.1], [0.3,0.06, 0.72,0.06], [-0.4,-0.2, -0.4,-0.44, -0.1,-0.44], [0.5,-0.36, 0.62,-0.5], [0.5,0.3, 0.62,0.44]], e: [[0.8,-0.02],[-0.25,-0.52]] },
+    },
+    bore_sight: {
+      name: 'Bore Sight', tier: 3, span: 1, cls: 'vanguard', band: 'high',
+      fx: [{ k: 'status', s: 'aim', v: 4, who: 'self' }, { k: 'hploss', v: 5 }],
+      desc: 'Gain 4 Aim. Lose 5 HP.',
+      art: { p: [[-0.86,0, 0.86,0], [0,-0.86, 0,0.86], [-0.4,-0.4, 0.4,-0.4, 0.4,0.4, -0.4,0.4, -0.4,-0.4], [-0.16,-0.16, 0.16,-0.16, 0.16,0.16, -0.16,0.16, -0.16,-0.16], [-0.6,-0.6, -0.4,-0.4], [0.6,0.6, 0.4,0.4]], e: [[0,0]] },
+    },
+    powder_burn: {
+      name: 'Powder Burn', tier: 2, span: 1, cls: 'vanguard', band: 'low',
+      fx: [{ k: 'status', s: 'str', v: 3, who: 'self' }, { k: 'hploss', v: 3 }],
+      desc: 'Gain 3 Might. Lose 3 HP.',
+      art: { p: [[0,-0.66, 0.24,-0.24, 0.12,0.0, 0.3,0.3, 0.14,0.6, 0,0.7, -0.14,0.6, -0.3,0.3, -0.12,0.0, -0.24,-0.24, 0,-0.66], [0,-0.2, 0.12,0.08, 0,0.36, -0.12,0.08, 0,-0.2], [-0.5,-0.4, -0.6,-0.06], [0.5,-0.4, 0.6,-0.06]], e: [[0,0.06],[-0.64,0.1],[0.64,0.1]] },
+    },
+    overpressure: {
+      name: 'Overpressure', tier: 3, span: 3, cls: 'vanguard', band: 'high',
+      fx: [{ k: 'dmg', v: 12, scale: 'might' }, { k: 'hploss', v: 3 }],
+      desc: 'Deal 12 damage. Lose 3 HP. Takes three faces at the top of the table.',
+      art: { p: [[-0.5,0.4, -0.5,-0.2, -0.2,-0.5, 0.2,-0.5, 0.5,-0.2, 0.5,0.4, -0.5,0.4], [-0.5,0.1, 0.5,0.1], [-0.24,-0.5, -0.24,0.1], [0.24,-0.5, 0.24,0.1], [0,-0.5, 0,-0.76], [-0.7,-0.3, -0.86,-0.44], [0.7,-0.3, 0.86,-0.44]], e: [[0,-0.82],[-0.25,0.25],[0.25,0.25]] },
+    },
+    cauterise: {
+      name: 'Cauterise', tier: 2, span: 1, cls: 'vanguard', field: 'cauterise',
+      fx: [{ k: 'block', v: 6 }],
+      desc: 'Gain 6 Shield. Your own cards can no longer cost you HP — they cost 1 Aim instead.',
+      art: { p: [[-0.5,0.3, 0.5,0.3], [-0.34,0.3, -0.34,-0.16, 0.34,-0.16, 0.34,0.3], [-0.34,0.06, 0.34,0.06], [0,-0.16, 0,-0.5], [-0.2,-0.4, 0,-0.6, 0.2,-0.4], [-0.6,-0.1, -0.5,-0.3], [0.6,-0.1, 0.5,-0.3]], e: [[0,-0.66]] },
+    },
+    deadmans_trigger: {
+      name: "Deadman's Trigger", tier: 3, span: 1, cls: 'vanguard', onlyFace: 1,
+      fx: [{ k: 'dmg', v: 14, scale: 'might' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }],
+      desc: 'Deal 14 damage. Apply 2 Vulnerable. Engraved on face 1 only — the jam still kills.',
+      art: { p: [[-0.6,-0.4, 0.4,-0.4, 0.4,0.0, -0.6,0.0, -0.6,-0.4], [-0.6,-0.2, 0.4,-0.2], [-0.1,0.0, -0.16,0.4, 0.06,0.44, 0.1,0.0], [-0.15,0.24, 0.08,0.26], [0.4,-0.3, 0.7,-0.3], [-0.4,-0.4, -0.4,-0.6, -0.1,-0.6]], e: [[0.8,-0.3],[-0.25,-0.68]] },
+    },
+
     executioners_mark: {
       name: "Executioner's Mark", tier: 3, span: 1,
       fx: [{ k: 'special', id: 'dieExecute', v: 12 }],
@@ -7315,12 +7515,52 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   };
 
   // Can `id` be engraved at `face`? Returns null if fine, else a reason.
+  /* ---- REGIONS ------------------------------------------------------- *
+   * The die already had geography — every class table splits it into bands —
+   * but nothing could be told to live in one. An engraving with a `band` may
+   * only be cut inside its region, which is what lets a card be priced for the
+   * part of the table it is asking you to build around: a thing that only ever
+   * fires on a graze can afford to be much stronger than one that fires
+   * anywhere.
+   * ------------------------------------------------------------------- */
+  ns.DIE_REGION = { low: [2, 7], mid: [8, 14], high: [15, 20] };
+  ns.dieRegionOf = function (face) {
+    if (face <= 1) return 'misfire';
+    for (var k in ns.DIE_REGION) {
+      if (face >= ns.DIE_REGION[k][0] && face <= ns.DIE_REGION[k][1]) return k;
+    }
+    return null;
+  };
+  ns.dieRegionLabel = function (b) {
+    var r = ns.DIE_REGION[b];
+    return r ? (b.toUpperCase() + ' ' + r[0] + '-' + r[1]) : (b || '').toUpperCase();
+  };
+
+  // Faces either side of a root, for adjacency. The die is a RING: 20 is next
+  // to 1, so a chain can close on the seam between the best face and the worst.
+  ns.dieNeighbours = function (die, face) {
+    var n = ns.DIE.faces, out = [];
+    [face - 1, face + 1].forEach(function (f) {
+      if (f < 1) f = n; if (f > n) f = 1;
+      // a span sits on several faces; its own body is not its neighbour
+      var here = die.faces[face], there = die.faces[f];
+      if (there && here && there.root === here.root) return;
+      out.push(f);
+    });
+    return out;
+  };
+
   ns.dieCanEngrave = function (die, id, face) {
     var d = ns.dieEngraving(id);
     if (!d) return 'unknown engraving';
     if (d.onlyFace && d.onlyFace !== face) return 'only fits face ' + d.onlyFace;
     var span = ns.dieSpan(id, face);
     if (span.length < (d.span || 1)) return 'does not fit past face ' + ns.DIE.faces;
+    if (d.band) {
+      for (var s = 0; s < span.length; s++) {
+        if (ns.dieRegionOf(span[s]) !== d.band) return 'only cuts into ' + ns.dieRegionLabel(d.band);
+      }
+    }
     for (var i = 0; i < span.length; i++) if (die.faces[span[i]]) return 'face ' + span[i] + ' is taken';
     return null;
   };
@@ -10189,11 +10429,19 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function spendLife(n) {
     if (n <= 0) return;
     var p = E.combat.player;
+    // CAUTERISE answers before the blood is spent, not after — it is the one
+    // engraving whose whole point is that the cost never lands.
+    if (E.dieFieldCount('cauterise') > 0 && statN(p, 'aim') > 0) {
+      addStatus(p, 'aim', -1);
+      emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') });
+      return;
+    }
     hurtPlayer(n, { pure: true });
     var bp = statN(p, 'bloodPact');   // BLOOD PACT: spilled HP feeds your Psi
     if (bp > 0) { addStatus(p, 'psiPow', bp); emit('status', { who: 'player', s: 'psiPow', v: bp }); }
     var brg = statN(p, 'bloodrage');  // BLOOD RAGE: spending life stokes your Might (Bloodforge)
     if (brg > 0) { addStatus(p, 'str', brg); emit('status', { who: 'player', s: 'str', v: brg }); }
+    fireListeners('selfHp', {});
   }
 
   // All player Shield gains route through here so relics that react to gaining
@@ -10237,10 +10485,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   var _inConduit = false;   // re-entrancy guard for the Disruption conduit hook
   function statN(ent, s) { return ent.statuses[s] || 0; }
+  var _statListen = { momentum: 'momentum', parry: 'parry' };
   function addStatus(ent, s, v) {
     ent.statuses[s] = (ent.statuses[s] || 0) + v;
     if (ent.statuses[s] <= 0) delete ent.statuses[s];
     var isEnemy = E.combat && E.combat.enemies.indexOf(ent) >= 0;
+    // Status listeners hook HERE rather than at each call site: Momentum alone
+    // is granted from six different places, and a listener that only caught
+    // some of them would read as a bug rather than as a rule.
+    if (v > 0 && !isEnemy && _statListen[s] && E.combat && !E.combat.over) {
+      fireListeners(_statListen[s], {});
+    }
     if (v > 0 && isEnemy && (s === 'weak' || s === 'vuln')) {
       var hx = art('hexweaver');                       // Hexweaver: Weak/Vuln also Burns
       if (hx > 0) addStatus(ent, 'burn', hx);
@@ -10705,6 +10960,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (sv > 0 && !c.over) { var spool = aliveEnemies(); if (spool.length) { var sen = pick(spool); dealToEnemy(sen, c.enemies.indexOf(sen), sv, { noCrit: true, noWeak: true }); } }
     var dm = statN(p, 'demoCharge');   // DEMOLITION TRAIN: every spent shell shrapnels the whole pack
     if (dm > 0 && !c.over) { c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, dm, { noCrit: true, noWeak: true }); }); }
+    fireListeners('exhaust', {});
   }
 
   // BANDOLIER: rack a spent shell (a random exhausted Attack) back into the chamber.
@@ -10799,17 +11055,114 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   // Fire the engraving on `face` (if any). Augment fx reuse the card effect
   // vocabulary, so applyCardFx resolves them — no second effect engine.
+  // A copy of an effect list at `k` strength, for the neighbours a roll bleeds
+  // into. Values round down but never to nothing — a half of 1 is still 1, or
+  // adjacency would silently do nothing for every small engraving on the die.
+  function scaleFx(fx, k) {
+    return fx.map(function (f) {
+      var o = {};
+      for (var key in f) o[key] = f[key];
+      if (typeof o.v === 'number') o.v = Math.max(1, Math.round(o.v * k));
+      return o;
+    });
+  }
+
+  function fireOneFace(face, tgt, k, why) {
+    var r = E.run, c = E.combat;
+    var id = ns.dieFaceId(r.die, face);
+    if (!id) return false;
+    var aug = ns.dieEngraving(id);
+    if (!aug || !aug.fx || !aug.fx.length) return false;
+    emit('dieFace', { face: face, id: id, name: aug.name, flaw: !!aug.flaw, bleed: k < 1, why: why || null });
+    applyCardFx(k < 1 ? scaleFx(aug.fx, k) : aug.fx,
+      { tgt: tgt, crit: false, roll: null, eff: face, misfire: false, bandMult: 1, flags: {}, xval: 0, appliedBurn: false });
+    return true;
+  }
+
+  /* THE ROLL BLEEDS. A roll no longer fires one face in isolation — it also
+   * catches the faces either side of it at half strength. Two consequences,
+   * both deliberate:
+   *   - every cut is a three-face decision, so WHERE is as interesting as WHAT
+   *   - a full die stops being a dead end. Before this, a die filled to 75% by
+   *     the end of a run and the last engravings had nowhere useful to go;
+   *     under bleed, density is the thing you are building toward.
+   * `bleedPct` relics widen it; RELAY sets it to full. */
   function fireDieFace(face, tgt) {
     var r = E.run, c = E.combat;
     if (!r || !r.die || !c || c.over) return;
-    var id = ns.dieFaceId(r.die, face);
-    if (!id) return;
-    var aug = ns.dieEngraving(id);
-    if (!aug || !aug.fx || !aug.fx.length) return;
-    emit('dieFace', { face: face, id: id, name: aug.name, flaw: !!aug.flaw });
-    applyCardFx(aug.fx, { tgt: tgt, crit: false, roll: null, eff: face, misfire: false, bandMult: 1, flags: {}, xval: 0, appliedBurn: false });
+    var lit = fireOneFace(face, tgt, 1);
+    // The roll has to LAND on something to splash. Bleeding off a bare face
+    // paid you for a dead roll, which made the mechanic free rather than a
+    // reward for cutting densely — and it was most of why the difficulty
+    // profile moved (median sector 4 -> 7 in simulation).
+    if (!lit) return;
+    var bleed = Math.min(1, B.dice.bleed + art('bleedPct'));
+    if (bleed <= 0) return;
+    ns.dieNeighbours(r.die, face).forEach(function (f) {
+      if (c.over) return;
+      var nid = ns.dieFaceId(r.die, f); if (!nid) return;
+      // RELAY MARK hands its neighbours the full effect instead of the half
+      var relayRoot = ns.dieFaceId(r.die, face);
+      var k = (relayRoot && (ns.dieEngraving(relayRoot) || {}).field === 'relay') ? 1 : bleed;
+      fireOneFace(f, tgt, k, 'bleed');
+      fireListeners('neighbour', { face: f, tgt: tgt });
+    });
+    // TWIN SIGHT: the face opposite on the ring answers too
+    if (lit) {
+      var self = ns.dieEngraving(ns.dieFaceId(r.die, face));
+      if (self && self.field === 'opposite') {
+        var opp = ((face + 9) % ns.DIE.faces) + 1;
+        fireOneFace(opp, tgt, 1, 'opposite');
+      }
+    }
   }
   E.fireDieFace = fireDieFace;
+
+  /* LISTENERS. Every engraving used to be a doer — 31 of 31 were a flat effect
+   * on a face. A listener instead watches for something happening and answers,
+   * which is what lets the die be wired rather than just filled. It fires
+   * wherever it sits, but only ONCE per trigger, and `_listenDepth` stops a
+   * chain that feeds itself (Burn -> attack -> Burn) from running away. */
+  var _listenDepth = 0;
+  function fireListeners(kind, data) {
+    var r = E.run, c = E.combat;
+    if (!r || !r.die || !c || c.over || !kind) return;
+    if (_listenDepth >= (B.dice.chainDepth || 2)) return;
+    var seen = {}, roots = [];
+    for (var f = 1; f <= ns.DIE.faces; f++) {
+      var slot = r.die.faces[f]; if (!slot || seen[slot.root]) continue;
+      var g = ns.dieEngraving(slot.id);
+      if (!g || g.listen !== kind) continue;
+      seen[slot.root] = 1; roots.push({ face: slot.root, g: g, id: slot.id });
+    }
+    if (!roots.length) return;
+    _listenDepth++;
+    try {
+      roots.forEach(function (it) {
+        if (c.over) return;
+        var times = 1 + (E.dieFieldCount('listenerEcho') > 0 ? 1 : 0);   // FIRE DISCIPLINE
+        for (var t = 0; t < times; t++) {
+          emit('dieFace', { face: it.face, id: it.id, name: it.g.name, listen: kind });
+          applyCardFx(it.g.fx, { tgt: (data && data.tgt) || null, crit: false, roll: null, eff: it.face,
+            misfire: false, bandMult: 1, flags: {}, xval: 0, appliedBurn: false });
+        }
+      });
+    } finally { _listenDepth--; }
+  }
+  E.fireListeners = fireListeners;
+
+  // how many engravings on the die carry a given field behaviour
+  E.dieFieldCount = function (which) {
+    var r = E.run; if (!r || !r.die) return 0;
+    var seen = {}, n = 0;
+    for (var f = 1; f <= ns.DIE.faces; f++) {
+      var slot = r.die.faces[f]; if (!slot || seen[slot.root]) continue;
+      seen[slot.root] = 1;
+      var g = ns.dieEngraving(slot.id);
+      if (g && g.field === which) n++;
+    }
+    return n;
+  };
 
   // Resolve a card's effects once. Echo can call this twice. ctx carries the
   // shared roll/crit/target and an appliedBurn flag for Contagion.
@@ -11078,12 +11431,26 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // THE AUGMENTED DIE: every card play rolls, so a skill/power deck still
     // engages the die even when its table has nothing to say about the card.
     roll = d20();
-    eff = Math.min(20, roll + statN(p, 'aim'));
+    // ---- relics that shape the die itself, before anything reads it -------
+    // These are the half of the marriage that was missing: 55 of 62 relics had
+    // nothing to do with the die, so mounting one in it was fiction. A relic
+    // that moves a band or eats a misfire changes your whole curve, which makes
+    // picking it a build decision rather than a stat comparison.
+    if (roll === 1 && art('rerollOnes') > 0) roll = d20();          // COUNTERWEIGHT
+    if (art('rollAdv') > 0) roll = Math.max(roll, d20());           // DEADEYE RETICLE
+    c.rollNo = (c.rollNo || 0) + 1;
+    if (art('everyThird') > 0 && c.rollNo % 3 === 0) roll = 20;     // RANGING TABLES
+    eff = Math.min(20, roll + statN(p, 'aim') + art('rollBonus'));
+    if (art('bankRoll') > 0) c.banked = (c.banked || 0) + roll;     // SPENT BRASS
+    if (art('lowMight') > 0 && roll < 6) {                          // TRENCH LEDGER
+      addStatus(p, 'str', art('lowMight'));
+      emit('status', { who: 'player', s: 'str', v: statN(p, 'str') });
+    }
     if (!bandsNow) {
       emit('roll', { roll: roll, eff: eff, crit: false, misfire: false, band: null });
     } else {
-      crit = (roll === 20) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus'));
-      misfire = roll <= Math.max(1, E.pressureMods().misfireOn || 1);
+      crit = (roll === 20) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus') - art('critWiden'));
+      misfire = roll <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden'));
       if (misfire && art('critDie1Energy') > 0) c.energy += art('critDie1Energy');   // Misfire Capacitor
       if (misfire) {   // MISFIRE PROTOCOL turns a jam into fuel
         var mg = statN(p, 'misfireGuard');
@@ -11096,9 +11463,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       if (crit) bandLabel = 'CRIT';
       else if (misfire) { slot = dread.misfire; }
       else {
+        // MACHINED BARREL / RANGE CARD move where the good bands begin
+        var shift = art('bandShift');
         for (var bi = 0; bi < dread.bands.length; bi++) {
-          if (eff >= dread.bands[bi].min) { slot = dread.bands[bi]; break; }
+          if (eff >= dread.bands[bi].min - shift) { slot = dread.bands[bi]; break; }
         }
+        if (!slot) slot = dread.bands[dread.bands.length - 1];
       }
       if (slot) {
         bandMult = slot.mult;
@@ -11144,7 +11514,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // THE AUGMENTED DIE: whatever is engraved on the face you landed on fires.
       // A natural 1 always lands on face 1 — Aim can never carry you off it, which
       // is what makes face 1 the one anchor an Aim build cannot lose.
-      if (roll != null) fireDieFace(roll <= Math.max(1, E.pressureMods().misfireOn || 1) ? 1 : eff, tgt);
+      if (roll != null) {
+        var lands = roll <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden')) ? 1 : eff;
+        fireDieFace(lands, tgt);
+        // TWINNED FIRING PIN: the opening roll of a combat catches both sides
+        if (art('firstSplash') > 0 && c.rollNo === 1) {
+          ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) E.fireDieFace(nf, tgt); });
+        }
+        if (crit) fireListeners('crit', { tgt: tgt });
+      }
       // crit payoffs (Omega Visor / Targeting Matrix + DEADEYE), once per critting card
       if (crit) {
         var cdr = art('critDraw') + statN(p, 'deadeyeDraw'); if (cdr > 0) drawCards(cdr);
@@ -11201,6 +11579,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   E.endTurn = function () {
     var c = E.combat, r = E.run, p = c.player;
     if (!c || c.over) return;
+
+    // SPENT BRASS cashes the numbers you rolled this turn in as plating
+    if (art('bankRoll') > 0 && (c.banked || 0) > 0) {
+      gainBlock(c.banked);
+      emit('relic', { id: 'spent_brass', v: c.banked });
+      c.banked = 0;
+    }
 
     // end-of-turn: shrapnel curses in hand
     c.hand.forEach(function (card) {
@@ -11633,6 +12018,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // priced as a declaration of intent, not as a drop, so they never appear
       // in a reward or on a bench — including for the class they belong to.
       if (ns.DIE_AUGMENTS[k].startOnly) return;
+      // A class set only drops for its class — the Vanguard's listeners key off
+      // Momentum and Parry, which the other two barely touch.
+      var ec = ns.DIE_AUGMENTS[k].cls;
+      if (ec && E.run && ec !== E.run.cls) return;
       var t = ns.DIE_AUGMENTS[k].tier || 1, w = t === 1 ? 6 : t === 2 ? 3 : 1;
       for (var i = 0; i < w; i++) pool.push(k);
     });
@@ -15909,6 +16298,24 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   var DEV_WORKSHOP = (function () {
     try { return /[?&]workshop=1/.test(location.search); } catch (e) { return false; }
   })();
+  /* A tag strip for an engraving: which region it may be cut into, and whether
+   * it is a listener rather than a doer. Both are new rules, and neither is
+   * guessable from the effect text — a listener that says "WHEN you gain
+   * Momentum" reads as a doer until you know the category exists. */
+  var LISTEN_LABEL = {
+    momentum: 'ON MOMENTUM', selfHp: 'ON SELF-DAMAGE', exhaust: 'ON EXHAUST',
+    parry: 'ON PARRY', crit: 'ON CRIT', neighbour: 'ON NEIGHBOUR',
+  };
+  function engTagHTML(g) {
+    if (!g) return '';
+    var out = '';
+    if (g.listen) out += '<span class="eng-tag listen">' + (LISTEN_LABEL[g.listen] || 'LISTENER') + '</span>';
+    if (g.field) out += '<span class="eng-tag field">FIELD</span>';
+    if (g.band) out += '<span class="eng-tag band">' + esc(ns.dieRegionLabel(g.band)) + '</span>';
+    if (g.onlyFace) out += '<span class="eng-tag band">FACE ' + g.onlyFace + '</span>';
+    return out;
+  }
+
   function showDieScreen(opts) {
     var r = E.run; if (!r) return;
     if (!r.die) r.die = ns.newDie();
@@ -16009,7 +16416,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var head = '<div class="di-head"><span class="di-face">' + sel + '</span>' + tag
                + (rc(sel) ? '' : '<span class="di-un">OUT OF REACH AT AIM +' + a + '</span>') + '</div>';
       info.innerHTML = head + (d
-        ? '<div class="di-name' + (d.flaw ? ' flaw' : '') + '">' + (d.flaw ? '✖ ' : '◆ ') + esc(d.name) + '</div><div class="di-desc">' + esc(d.desc) + '</div>'
+        ? '<div class="di-name' + (d.flaw ? ' flaw' : '') + '">' + (d.flaw ? '✖ ' : '◆ ') + esc(d.name) + '</div><div class="di-desc">' + engTagHTML(d) + esc(d.desc) + '</div>'
         : '<div class="di-name bare">bare</div><div class="di-desc">Nothing engraved on this face.</div>');
       wrap.querySelectorAll('.df').forEach(function (row) { row.classList.toggle('sel', +row.dataset.face === sel); });
 
@@ -16032,7 +16439,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             +  '<span class="bi-icon">' + artSVG(g.art, 'df-icon') + '</span>'
             +  '<span class="bi-body"><span class="bi-name">' + esc(g.name) + '</span>'
             +  '<span class="bi-desc">' + esc(g.desc) + '</span></span>'
-            +  '<span class="bi-tier">' + (g.span > 1 ? g.span + ' FACES' : '1 FACE') + ' · '
+            +  '<span class="bi-tier">' + engTagHTML(g) + (g.span > 1 ? g.span + ' FACES' : '1 FACE') + ' · '
             +  (fits ? fits + ' FIT' : 'NO ROOM') + '</span></button>';
         });
         h += '</div>';
@@ -16051,7 +16458,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             +  '<span class="bi-body"><span class="bi-name">' + esc(g.name) + '</span>'
             +  '<span class="bi-desc">' + esc(g.desc) + '</span></span>'
             +  '<span class="bi-cost">' + (it.sold ? 'SOLD' : '¢' + it.cost) + '</span>'
-            +  '<span class="bi-tier">T' + (g.tier || 1) + (g.span > 1 ? ' · ' + g.span + 'f' : '') + '</span></button>';
+            +  '<span class="bi-tier">' + engTagHTML(g) + 'T' + (g.tier || 1) + (g.span > 1 ? ' · ' + g.span + 'f' : '') + '</span></button>';
         });
         h += '</div>';
 
