@@ -1969,3 +1969,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   background: rgba(40,10,12,0.55); color: #ffb0b6;
   font: 700 8.5px/1.35 ui-monospace, monospace; letter-spacing: 0.4px;
 }
+/* a card held back by a relic cap, not by Energy — it must not look playable */
+.card.capped { opacity: 0.45; }
+.card.capped .cname { color: #ff8a94; }

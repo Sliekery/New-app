@@ -1451,17 +1451,31 @@
   }
   E.swarmDisabled = swarmDisabled;
 
-  E.canPlay = function (handIdx) {
+  /* WHY a card cannot be played, in the player's words, or null if it can.
+   * canPlay had three distinct refusals — a curse gagging the card, a relic
+   * capping non-attacks, and actually being short of Energy — and the UI
+   * reported all three as NOT ENOUGH ENERGY. A correct block that gives the
+   * wrong reason reads as a broken game, which is worse than the block. */
+  E.whyCantPlay = function (handIdx) {
     var c = E.combat;
-    if (!c || c.over) return false;
+    if (!c || c.over) return 'THE FIGHT IS OVER';
     var card = c.hand[handIdx];
-    if (!card) return false;
-    if (swarmDisabled(handIdx)) return false;
+    if (!card) return 'NO CARD THERE';
+    if (swarmDisabled(handIdx)) return 'VOID SWARM — ITS NEIGHBOURS IN HAND ARE GAGGED';
     var info = E.cardInfo(card);
-    // Recoilless Frame: at most N non-attack cards per turn
+    if (info.unplayable) return 'UNPLAYABLE';
     var lim = art('maxNonAttack');
-    if (lim > 0 && info.type !== 'attack' && (c.nonAttacksThisTurn || 0) >= lim) return false;
-    return !info.unplayable && info.cost <= c.energy;
+    if (lim > 0 && info.type !== 'attack' && (c.nonAttacksThisTurn || 0) >= lim) {
+      return 'RECOILLESS FRAME — ' + lim + ' NON-ATTACK CARD' + (lim > 1 ? 'S' : '') + ' PER TURN';
+    }
+    if (info.cost > c.energy) return 'NOT ENOUGH ENERGY';
+    return null;
+  };
+  E.canPlay = function (handIdx) { return !E.whyCantPlay(handIdx); };
+  // is the non-attack cap already spent this turn?
+  E.nonAttackCapped = function () {
+    var c = E.combat, lim = art('maxNonAttack');
+    return !!(c && lim > 0 && (c.nonAttacksThisTurn || 0) >= lim);
   };
 
   // Push a card to the exhaust pile, triggering Exhaust-synergy powers.

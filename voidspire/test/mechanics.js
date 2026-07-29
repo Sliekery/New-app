@@ -535,6 +535,26 @@ giveRelic('recoilless_frame'); // +5 flat damage
 var buffN = parseInt(E.cardInfo({ uid: 2, id: 'pulse_rifle', up: false }).desc.match(/Deal (\d+)/)[1], 10);
 ok('a flat damage relic shows on the card (' + baseN + ' -> ' + buffN + ')', buffN > baseN);
 
+/* A blocked card must say WHY it is blocked. canPlay refused for three
+ * different reasons — a curse gagging the card, a relic capping non-attacks,
+ * and actually being short of Energy — and the UI reported all three as
+ * NOT ENOUGH ENERGY. Reported from play: 2 Energy, a 1-cost Shield in hand,
+ * and the game claiming there was no Energy for it. */
+startFight('vanguard');
+giveRelic('recoilless_frame');
+E.combat.energy = 2;
+E.combat.hand = [{ uid: 7101, id: 'combat_shield', up: false }];
+E.combat.nonAttacksThisTurn = 1;
+var whyBlocked = E.whyCantPlay(0);
+ok('a relic-capped card is blocked', !E.canPlay(0));
+ok('...and does not blame Energy (' + whyBlocked + ')', whyBlocked && whyBlocked.indexOf('ENERGY') < 0);
+ok('...it names the relic doing it', whyBlocked && whyBlocked.indexOf('RECOILLESS') >= 0);
+E.combat.energy = 0; E.combat.nonAttacksThisTurn = 0;
+ok('a real shortfall still reads NOT ENOUGH ENERGY', E.whyCantPlay(0) === 'NOT ENOUGH ENERGY');
+E.combat.energy = 3;
+ok('a playable card reports no reason at all', E.whyCantPlay(0) === null);
+E.run.phase = 'map';
+
 /* 46. Breaching Rounds applies Vulnerable on attack */
 startFight('vanguard'); giveRelic('breaching_rounds'); bigEnemies();
 setHand(['pulse_rifle']); playId('pulse_rifle', 0);

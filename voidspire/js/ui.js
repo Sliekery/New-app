@@ -2088,6 +2088,8 @@
         (info.unplayable ? ' unplayable-curse' : '') +
         (info.corrupt ? ' corrupted' : '') +
         (!info.unplayable && E.swarmDisabled(i) ? ' swarm-disabled' : '') +
+        // a relic capping non-attacks made the card look perfectly playable
+        (!info.unplayable && info.type !== 'attack' && E.nonAttackCapped() ? ' capped' : '') +
         (deal ? ' deal' : '') +
         (i === selected ? ' selected' : ''));
       if (deal) d.style.setProperty('--d', (i * 55) + 'ms');
@@ -2282,7 +2284,8 @@
     var info = d.info;
     if (info.unplayable) { setTargeting(false); cancelDieRoll(); toast('UNPLAYABLE — a curse weighs down your deck'); return; }
     if (E.swarmDisabled(d.idx)) { setTargeting(false); cancelDieRoll(); toast('DISABLED — a Void Swarm grips this card'); return; }
-    if (!E.canPlay(d.idx)) { setTargeting(false); cancelDieRoll(); toast('NOT ENOUGH ENERGY'); return; }
+    var why = E.whyCantPlay(d.idx);
+    if (why) { setTargeting(false); cancelDieRoll(); toast(why, 2600); return; }
 
     // lock-on aim: fire at the locked target (released over empty space cancels)
     if (d.aimed) {
