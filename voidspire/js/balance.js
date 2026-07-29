@@ -146,8 +146,15 @@
     /* ---- Branching map (Slay-the-Spire-style star chart) ------------- */
     map: {
       rows: 12,            // content rows per sector (the boss sits above them)
-      cols: 5,             // max horizontal lanes
-      paths: 7,            // random-walk paths used to weave the chart
+      cols: 5,             // lane budget the rows drift across
+      // ROW SHAPE. The chart is sized directly rather than woven from random
+      // walks — see generateMap. Rows of 2-3 across 5 lanes fill 49% of the
+      // grid, which is where Slay the Spire's 7x15 sits; the old weave filled
+      // 74% and read as a lattice rather than as a route you pick.
+      entryWidth: 3,       // ways into the sector (Slay the Spire opens with 3-4)
+      minWidth: 2,         // at least two places to be at every depth
+      maxWidth: 3,
+      weave: 1,            // how often a row-join branches instead of running straight
       // a sector reads as three acts: a safe Approach, the dangerous Push, and
       // a Final Approach that ends on a guaranteed rest before the boss.
       act1End: 3,          // rows 1..act1End  = Approach (fights/events only)

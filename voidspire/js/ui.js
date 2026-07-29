@@ -1516,22 +1516,22 @@
     // geometry: landscape flows left->right with the boss at the far end
     // The lane pitch is what sets the node size: landscape fits COLS lanes into
     // the panel height, so a tighter pitch means a bigger node. 98 is the floor
-    // that still clears a node's own labels (-39 above, +48 below its centre).
+    // that still clears a node's own label block.
     var lane = land ? 98 : 78, step = land ? 128 : 118;
     var padA = land ? 86 : 74;                      // room for the boss corona
-    // ...and a strip beyond the outer lanes so their labels are not cut off by
-    // the panel edge. The chart fits its cross axis exactly, so there is no
-    // slack out there to borrow.
-    var padL = land ? 26 : 24;
-    var W = land ? (ROWS + 1) * step + padA : COLS * lane + padL;
-    var H = land ? COLS * lane + padL : (ROWS + 1) * step + padA;
+    // Both labels hang BELOW their node (see nodeMarkup), so the outer lanes
+    // need a strip under them and only a sliver above; portrait's cross axis is
+    // horizontal, where the strip is for label WIDTH and so is symmetric.
+    var padT = land ? 10 : 12, padB = land ? 36 : 12;
+    var W = land ? (ROWS + 1) * step + padA : COLS * lane + padT + padB;
+    var H = land ? COLS * lane + padT + padB : (ROWS + 1) * step + padA;
     var reach = E.mapReachable(), cur = E.currentNode();
     var revealRow = (r.mapRow < 0 ? -1 : r.mapRow) + 3;
 
     function xy(node) {
       var jx = mapJit(node.row, node.col, 0) * 0.5, jy = mapJit(node.row, node.col, 1) * 0.5;
-      if (land) return { x: (node.row + 0.6) * step + jx, y: padL / 2 + (node.col + 0.5) * lane + jy };
-      return { x: padL / 2 + (node.col + 0.5) * lane + jx, y: H - padA - (node.row + 0.5) * step + jy };
+      if (land) return { x: (node.row + 0.6) * step + jx, y: padT + (node.col + 0.5) * lane + jy };
+      return { x: padT + (node.col + 0.5) * lane + jx, y: H - padA - (node.row + 0.5) * step + jy };
     }
     function targetOf(node, tc) {
       if (tc === 'boss') return m.boss;
@@ -1594,9 +1594,14 @@
       // you are, and the boss. Everything else reads as shape and colour.
       var named = isBoss || reachable || node === cur;
       if (!fogged && named) {
-        g += '<text class="ncat" x="' + p.x.toFixed(1) + '" y="' + (p.y - rad - 12).toFixed(1) + '">' + esc(NODE_CAT[node.type] || '') + '</text>';
+        // Category over name, both UNDER the node. Splitting them above and
+        // below meant two named nodes one lane apart put one's lower label into
+        // the other's upper one — "DEALER" sitting on top of "ANOMALY". Stacked
+        // beneath, a node's whole label block clears its neighbour's ring.
+        var lo = p.y + rad + (isBoss ? 32 : 15);
+        g += '<text class="ncat" x="' + p.x.toFixed(1) + '" y="' + lo.toFixed(1) + '">' + esc(NODE_CAT[node.type] || '') + '</text>';
         var nm = isBoss ? E.sectorBossName() : (cast ? cast.name.toUpperCase() : (NODE_NAME[node.type] || ''));
-        g += '<text class="nname" x="' + p.x.toFixed(1) + '" y="' + (p.y + rad + 21).toFixed(1) + '">' + esc(nm) + '</text>';
+        g += '<text class="nname" x="' + p.x.toFixed(1) + '" y="' + (lo + 13).toFixed(1) + '">' + esc(nm) + '</text>';
       }
       g += '<circle class="hit" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + (rad + 12) + '"/>';
       return g + '</g>';
@@ -1616,7 +1621,12 @@
       legend.innerHTML += '<span class="leg" style="color:' + ic.color + '"><svg viewBox="0 0 48 48">' +
         mapIconPaths(ic, 24, 24, 16) + '</svg>' + esc(NODE_LABEL[t]) + '</span>';
     });
+    // A sector's rows are narrow enough that the route does not always reach
+    // every highway — only key the ones that are actually out there.
+    var laneSeen = {};
+    m.rows.forEach(function (row) { row.forEach(function (n) { laneSeen[n.lane] = 1; }); });
     (m.lanes || []).forEach(function (ln) {
+      if (!laneSeen[ln]) return;
       legend.innerHTML += '<span class="leg lane" style="color:' + LANE_COLOR[ln] + '"><i></i>' + esc(LANE_LABEL[ln]) + '</span>';
     });
     s.appendChild(legend);

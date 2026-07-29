@@ -30,6 +30,13 @@ function startFight(cls) {
   E.run.faction = 'hierarchy';
   E.run.nodeIdx = 0;
   E.startNode('fight');
+  // Which pack this seed draws depends on every rnd() call before it, map
+  // generation included — so a change to the CHART silently re-rolled the
+  // enemies and broke four combat assertions that had nothing to do with it.
+  // Reactive Plating was the culprit: it eats the first attack of each turn,
+  // so an echoed card spent one hit popping the plate and both cards landed
+  // for the same damage. Pop it up front; no test here is about plating.
+  E.combat.enemies.forEach(function (e) { e.platedReady = false; });
 }
 // Relics only apply while mounted in the die's core, so a test that wants one
 // active has to mount it. (These used to be `run.augments = [...]`, back when

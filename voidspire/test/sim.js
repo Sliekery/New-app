@@ -636,7 +636,15 @@ function playOneRun(cls, seed, markPick) {
     }
     E.events.length = 0; // drain
   }
-  if (steps >= 8000) throw new Error('run loop guard tripped');
+  if (steps >= 8000) {
+    // "guard tripped" on its own tells you nothing — a stall is always the bot
+    // sitting in one phase unable to act, so say which one and what it saw.
+    var rr = E.run, cn = E.currentNode && E.currentNode();
+    throw new Error('run loop guard tripped: phase=' + rr.phase + ' sector=' + rr.sector +
+      ' mapRow=' + rr.mapRow + ' mapCol=' + rr.mapCol + ' nodeType=' + rr.nodeType +
+      ' reachable=' + JSON.stringify((E.mapReachable() || []).map(function (n) { return n.row + ',' + n.col + ':' + n.type; })) +
+      ' at=' + (cn ? cn.row + ',' + cn.col + ' edges=' + JSON.stringify(cn.edges) : 'null'));
+  }
   E.run._s1min = s1min; E.run._s1fight = s1fight;
   // cumulative depth: each cleared loop counts as `finale` sectors
   E.run._depth = (E.run.loop - 1) * VS.BALANCE.run.finale + E.run.sector;

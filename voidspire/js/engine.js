@@ -295,47 +295,90 @@
   };
 
   /* ---------------- Map generation (branching star chart) -------------- */
-  // A planar DAG woven by random walks on a fixed column grid, so paths
-  // branch and merge without edge crossings. Boss sits above the top row.
+  /* The chart used to be woven from seven random walks down a five-lane grid.
+   * Measured over 400 sectors that gave 45 nodes and 60 connectors — 74% of the
+   * grid filled, against Slay the Spire's ~49% — and yet 69% of those nodes had
+   * exactly ONE way out. Half of every run's jumps were not a choice at all.
+   *
+   * The cause was the walk itself: two walks that diverged were straightened
+   * back onto the same column by the anti-crossing rule, so each extra path
+   * added a node without adding a decision. Adding lanes did not help; on Slay
+   * the Spire's own 7x15 grid the walk still produced 1.23 exits per node.
+   *
+   * So the shape is now built directly instead of emerging. Each row is sized,
+   * placed as a contiguous run of lanes that drifts at most one lane per row
+   * (short, near-vertical connectors instead of long crossing diagonals), and
+   * joined to the next by a monotone staircase — planar by construction, so
+   * nothing needs straightening and a branch stays a branch.
+   */
   function generateMap(sector) {
     if (E.run && (E.run.loop || 1) === B.run.heartLoop) return heartMap();
     var M = B.map, ROWS = M.rows, COLS = M.cols;
-    var rowObjs = [];
-    for (var i = 0; i < ROWS; i++) rowObjs.push({});
 
-    function getNode(rr, col) {
-      if (!rowObjs[rr][col]) rowObjs[rr][col] = { row: rr, col: col, type: null, edges: [], parents: [], visited: false };
-      return rowObjs[rr][col];
+    // ---- how many nodes stand at each depth, and in which lanes
+    var widths = [M.entryWidth], offs = [];
+    for (var r = 1; r < ROWS - 1; r++) {
+      var w = widths[r - 1] + ri(-1, 1);
+      widths.push(Math.max(M.minWidth, Math.min(M.maxWidth, w)));
     }
-    var gaps = [];
-    for (i = 0; i < ROWS - 1; i++) gaps.push({});
-    function addEdge(rr, c, c2) {
-      // avoid X-crossings: if the opposing diagonal exists in this gap, straighten
-      var g = gaps[rr];
-      if (c2 === c + 1 && g[(c + 1) + '>' + c]) c2 = c;
-      else if (c2 === c - 1 && g[(c - 1) + '>' + c]) c2 = c;
-      c2 = Math.max(0, Math.min(COLS - 1, c2));
-      var a = getNode(rr, c), b = getNode(rr + 1, c2);
-      if (a.edges.indexOf(c2) < 0) a.edges.push(c2);
-      if (b.parents.indexOf(c) < 0) b.parents.push(c);
-      g[c + '>' + c2] = true;
-      return c2;
+    // One rest before the boss. It used to be a whole row of them — five
+    // identical nodes is the purest form of a path that is not a choice.
+    // Taper into it rather than funnelling three lanes into one, which drew a
+    // long steep line across the whole approach.
+    if (ROWS > 2) widths[ROWS - 2] = Math.min(widths[ROWS - 2], 2);
+    widths.push(1);
+    offs.push(ri(0, COLS - widths[0]));
+    for (r = 1; r < ROWS; r++) {
+      var o = offs[r - 1] + ri(-1, 1);
+      offs.push(Math.max(0, Math.min(COLS - widths[r], o)));
     }
 
-    // weave several paths bottom -> top
-    for (var p = 0; p < M.paths; p++) {
-      var c = ri(0, COLS - 1);
-      getNode(0, c);
-      for (var rr = 0; rr < ROWS - 1; rr++) {
-        var nc = c + ri(-1, 1);
-        c = addEdge(rr, c, nc);
+    var rows = [];
+    for (r = 0; r < ROWS; r++) {
+      var row = [];
+      for (var k = 0; k < widths[r]; k++) {
+        row.push({ row: r, col: offs[r] + k, type: null, edges: [], parents: [], visited: false });
       }
+      rows.push(row);
     }
 
-    // rows as sorted arrays
-    var rows = rowObjs.map(function (obj) {
-      return Object.keys(obj).map(function (k) { return obj[k]; }).sort(function (x, y) { return x.col - y.col; });
-    });
+    // ---- join row -> row with a monotone staircase.
+    // Walking (i,j) from (0,0) to (a-1,b-1): a step in j alone gives node i a
+    // SECOND way forward, a step in i alone gives node j a second parent, and a
+    // diagonal step gives a plain one-to-one link. `weave` is how often we take
+    // a branching/merging step rather than a plain one.
+    for (r = 0; r < ROWS - 1; r++) {
+      var A = rows[r], Bw = rows[r + 1], a = A.length, b = Bw.length;
+      // Handing the branches out as we walk starved the right-hand side — `j`
+      // ran out, so the last node in every row always had exactly one way
+      // forward. Shuffling the moves instead made it lumpy: one node with four
+      // exits beside three with one. So the extra exits are DEALT, evenly, to
+      // randomly chosen nodes — everyone gets a second way out before anyone
+      // gets a third.
+      var diag = 0, opps = Math.min(a - 1, b - 1);
+      for (var q = 0; q < opps; q++) if (rnd() >= M.weave) diag++;
+      var nJ = b - 1 - diag;
+      var extra = [], slots = [];
+      for (q = 0; q < a; q++) { extra.push(Math.floor(nJ / a)); slots.push(q); }
+      slots = shuffle(slots);
+      for (q = 0; q < nJ % a; q++) extra[slots[q]]++;
+      // which of this row's forward moves run straight through rather than merge
+      var adv = [];
+      for (q = 0; q < a - 1 - diag; q++) adv.push(0);
+      for (q = 0; q < diag; q++) adv.push(1);
+      adv = shuffle(adv);
+
+      var i = 0, j = 0;
+      function link(x, y) {
+        if (A[x].edges.indexOf(Bw[y].col) < 0) A[x].edges.push(Bw[y].col);
+        if (Bw[y].parents.indexOf(A[x].col) < 0) Bw[y].parents.push(A[x].col);
+      }
+      for (var sl = 0; sl < a; sl++) {
+        for (q = 0; q < extra[sl]; q++) { link(i, j); j++; }
+        if (sl < a - 1) { link(i, j); if (adv[sl] === 1) j++; i++; }
+      }
+      link(i, j);
+    }
 
     // boss node above the top content row
     var boss = { row: ROWS, col: Math.floor((COLS - 1) / 2), type: 'boss', edges: [], parents: [], visited: false };
