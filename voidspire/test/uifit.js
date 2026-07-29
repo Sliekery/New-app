@@ -58,11 +58,11 @@ var SCREENS = {
     var E = VS.engine; E.descentEnabled = true;
     E.seed(7); E.newRun('vanguard'); E.takeFirstMark(0); VS.ui.refresh();
   },
-  descentland: function () {
+  descentclosed: function () {
     var E = VS.engine; E.descentEnabled = true;
     E.seed(7); E.newRun('vanguard'); E.takeFirstMark(0);
-    E.run.descent.collapse = 14;                 // CLOSING: the harshest table
-    E.descentRoll(); VS.ui.refresh();
+    E.run.descent.collapse = 14;                 // CLOSING: most of the shaft sealed
+    VS.ui.refresh();
   },
   sector: function () { VS.engine.descentEnabled = false; var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.run.sector = 2; E.run.phase = 'sector-intro'; VS.ui.refresh(); },
   // turn zero: three offers, each an engraving beside a full-size card

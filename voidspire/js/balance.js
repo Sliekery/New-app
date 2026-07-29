@@ -175,7 +175,8 @@
       },
       // rooms that cost you time to use
       lingerTypes: ['rest', 'shop', 'forge'],
-      maxRerolls: 2,         // per landing — the shaft only bends so far
+      visible: 5,            // rings drawn below you — you can SEE what is down there
+      maxRerolls: 2,         // deepest ring you may punch to while the shaft is OPEN
     },
 
     /* ---- Branching map (Slay-the-Spire-style star chart) ------------- */

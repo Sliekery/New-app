@@ -1536,7 +1536,33 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .bench-it.arming { border-color: #ffb02e; box-shadow: 0 0 12px rgba(255,176,46,0.35); }
 .bench-row { margin-bottom: 8px; }
 
-/* ---- THE DESCENT ------------------------------------------------------ */
+/* ---- THE FALL: navigation you watch ----------------------------------- */
+.shaft-screen { justify-content: safe center; }
+.shaft-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+.sh-depth { font: 700 12px/1 ui-monospace, monospace; letter-spacing: 2px; color: #cfe8d8; }
+.sh-tier { font: 700 11px/1 ui-monospace, monospace; letter-spacing: 2px; color: #5dff88; }
+.sh-tier.t-settling { color: var(--amber); }
+.sh-tier.t-closing { color: #ff5e6e; }
+.sh-desc { font: 600 9.5px/1.3 ui-monospace, monospace; color: #8fa89a; font-style: italic; }
+.shaft-stage {
+  position: relative; width: 100%; max-width: 340px; aspect-ratio: 3 / 4;
+  touch-action: none; cursor: grab; user-select: none;
+}
+.shaft-stage.pulling { cursor: grabbing; }
+.shaft-canvas { width: 100%; height: 100%; display: block; }
+.shaft-stage::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 44%, transparent 62%, rgba(2,7,9,0.8) 100%);
+}
+.shaft-label {
+  position: absolute; left: 0; right: 0; bottom: 4px; text-align: center; pointer-events: none;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.sl-room { font: 700 14px/1.1 ui-monospace, monospace; letter-spacing: 3px; color: #eafcff; text-shadow: 0 0 10px rgba(65,216,255,0.6); }
+.sl-cost { font: 700 8.6px/1 ui-monospace, monospace; letter-spacing: 1.6px; color: var(--amber); }
+.shaft-hint { font: 700 8.6px/1.4 ui-monospace, monospace; letter-spacing: 1.6px; color: #7d9487; margin-top: 10px; }
+
+/* ---- THE DESCENT (legacy text readout) -------------------------------- */
 .descent-screen { justify-content: safe center; }
 .col-gauge { width: 100%; max-width: 330px; margin: 4px 0 12px; }
 .cg-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }

@@ -4327,84 +4327,99 @@
   };
   var ROOM_TONE = { fight: 'bad', elite: 'bad', beacon: 'bad', rest: 'good', shop: 'good', forge: 'good', treasure: 'good', event: '' };
 
+  var shaftView = null;
+  function killShaft() { if (shaftView) { shaftView.destroy(); shaftView = null; } }
+
   function showDescent() {
     combatChrome(false);
     updateHUD();
     var r = E.run, D = B.descent, d = r.descent;
     if (!d) { r.phase = 'map'; return U.refresh(); }
-    var tier = E.descentTier();
+    killShaft();
+    var tier = E.descentTier(), reach = E.descentReach();
+    var ahead = E.descentAhead();
+
     var s = overlayScreen();
-    s.classList.add('descent-screen');
+    s.classList.add('shaft-screen');
 
-    s.appendChild(el('h2', 'screen-title', 'The Descent'));
-    s.appendChild(el('div', 'screen-sub', 'SECTOR ' + r.sector + ' \u00b7 ' + d.step + ' / ' + D.steps + ' FLOORS FALLEN'));
+    var head = el('div', 'shaft-head');
+    head.innerHTML = '<span class="sh-depth">' + Math.min(d.step, D.steps) + ' / ' + D.steps + '</span>' +
+      '<span class="sh-tier t-' + tier.name.toLowerCase() + '">' + tier.name + '</span>' +
+      '<span class="sh-desc">' + esc(tier.desc) + '</span>';
+    s.appendChild(head);
 
-    // collapse gauge — the shaft settling around you
-    var pct = Math.min(100, Math.round(100 * d.collapse / (D.tiers[D.tiers.length - 1].at + 6)));
-    var gauge = el('div', 'col-gauge');
-    gauge.innerHTML = '<div class="cg-head"><span class="cg-name t-' + tier.name.toLowerCase() + '">' + tier.name +
-      '</span><span class="cg-desc">' + esc(tier.desc) + '</span></div>' +
-      '<div class="cg-bar"><span style="width:' + pct + '%"></span></div>';
-    s.appendChild(gauge);
+    var stage = el('div', 'shaft-stage');
+    var cv = document.createElement('canvas');
+    cv.className = 'shaft-canvas';
+    stage.appendChild(cv);
+    var label = el('div', 'shaft-label', '');
+    stage.appendChild(label);
+    s.appendChild(stage);
 
-    // the route table you are actually reading, so the roll is never opaque
-    var tbl = D.tables[tier.name] || D.tables.OPEN;
-    var inv = (r.cls === 'voidadept');
-    var rt = el('div', 'route-table');
-    var rows = tbl.map(function (b, i) {
-      var hi = (i === 0) ? 20 : tbl[i - 1][0] - 1;
-      var lo = b[0];
-      var a = inv ? (21 - hi) : lo, z = inv ? (21 - lo) : hi;
-      return { lo: Math.min(a, z), hi: Math.max(a, z), t: b[1] };
-    }).sort(function (x, y) { return y.hi - x.hi; });
-    rt.innerHTML = '<div class="rt-head">THE FACES \u2014 ' + (inv ? 'THE HUNGER READS THEM UPSIDE DOWN' : 'AIM CLIMBS THE TABLE') + '</div>' +
-      rows.map(function (x) {
-        return '<div class="rt-row ' + (ROOM_TONE[x.t] || '') + '"><span class="rt-f">' +
-          (x.lo === x.hi ? x.lo : x.lo + '\u2013' + x.hi) + '</span><span class="rt-t">' +
-          esc(ROOM_LABEL[x.t] || x.t) + '</span></div>';
-      }).join('');
-    s.appendChild(rt);
+    var hint = el('div', 'shaft-hint', 'FLICK THE DIE DOWN \u00b7 HARDER FALLS FURTHER');
+    s.appendChild(hint);
 
-    if (!d.landing) {
-      var roll = el('button', 'btn big', 'FALL');
-      roll.addEventListener('pointerdown', function (ev) {
-        ev.stopPropagation(); SFX.tap();
-        E.descentRoll(); R.flash(); U.refresh();
-      });
-      s.appendChild(roll);
-      s.appendChild(el('div', 'ws-hint', 'THE DIE DECIDES WHERE YOU LAND. AIM STEERS IT.'));
-      return;
-    }
-
-    // what you rolled, and what it means
-    var L = d.landing;
-    var land = el('div', 'landing ' + (ROOM_TONE[L.type] || ''));
-    land.innerHTML = '<div class="ld-face">' + L.eff + '</div>' +
-      '<div class="ld-what">' + esc(ROOM_LABEL[L.type] || L.type) + '</div>' +
-      (L.eff !== L.raw ? '<div class="ld-aim">ROLLED ' + L.raw + ' \u00b7 AIM +' + (L.eff - L.raw) + '</div>' : '');
-    s.appendChild(land);
-
-    var take = el('button', 'btn big', 'TAKE IT');
-    take.addEventListener('pointerdown', function (ev) {
-      ev.stopPropagation(); SFX.play();
-      E.descentAccept(); U.refresh();
+    shaftView = ns.shaftCreate(cv, {});
+    shaftView.setAim(0);
+    shaftView.setRooms(ahead.map(function (a) { return a.type; }), {
+      collapse: d.collapse, reach: reach, tier: tier.name,
     });
-    s.appendChild(take);
 
-    var left = (D.maxRerolls || 2) - L.rerolls;
-    if (left > 0) {
-      var again = el('div', 'panel-btn red',
-        '<div class="pb-title">\u2193 FALL FURTHER</div>' +
-        '<div class="pb-desc">Refuse this floor and drop past it. The shaft settles further behind you \u2014 +' +
-        D.rerollCollapse + ' collapse. ' + left + ' left.</div>');
-      again.addEventListener('pointerdown', function (ev) {
-        ev.stopPropagation(); SFX.hit(); R.flash();
-        E.descentReroll(); U.refresh();
-      });
-      s.appendChild(again);
-    } else {
-      s.appendChild(el('div', 'ws-hint', 'THE SHAFT WILL NOT BEND FURTHER. TAKE THE FLOOR.'));
+    // depth read-out under the shaft, so the flick is never a mystery
+    var ROOM_LABEL = {
+      fight: 'HOSTILES', elite: 'AN ELITE', beacon: 'A BEACON', event: 'SOMETHING',
+      shop: 'A DEALER', rest: 'QUIET GROUND', forge: 'A FORGE', treasure: 'SALVAGE',
+    };
+    function showDepth(depth) {
+      var a = ahead[depth];
+      if (!a) { label.textContent = ''; return; }
+      var cost = depth * D.rerollCollapse;
+      label.innerHTML = '<span class="sl-room">' + esc(ROOM_LABEL[a.type] || a.type) + '</span>' +
+        (depth ? '<span class="sl-cost">' + depth + ' FLOOR' + (depth > 1 ? 'S' : '') + ' PAST \u00b7 +' + cost + ' COLLAPSE</span>'
+               : '<span class="sl-cost">THE NEXT FLOOR</span>');
     }
+    showDepth(0);
+
+    // ---- the flick ------------------------------------------------------
+    // Drag down and release. How far you dragged is how many rings you punch
+    // past — the push-your-luck decision is the gesture itself.
+    var dragging = false, y0 = 0, aimed = 0, locked = false;
+    function depthFor(dy) {
+      var per = Math.max(28, stage.getBoundingClientRect().height / 7);
+      return Math.max(0, Math.min(reach, Math.floor(dy / per)));
+    }
+    function down(ev) {
+      if (locked) return;
+      dragging = true; y0 = (ev.touches ? ev.touches[0].clientY : ev.clientY);
+      stage.classList.add('pulling');
+    }
+    function move(ev) {
+      if (!dragging || locked) return;
+      var y = (ev.touches ? ev.touches[0].clientY : ev.clientY);
+      var dpt = depthFor(y - y0);
+      if (dpt !== aimed) { aimed = dpt; showDepth(aimed); shaftView.setAim(aimed); SFX.tap(); }
+      if (ev.cancelable) ev.preventDefault();
+    }
+    function up() {
+      if (!dragging || locked) return;
+      dragging = false; locked = true;
+      stage.classList.remove('pulling');
+      hint.textContent = '';
+      SFX.play();
+      var face = ahead[aimed] ? ahead[aimed].face : 20;
+      shaftView.fall(aimed, face, function () {
+        E.descentTake(aimed);
+        killShaft();
+        U.refresh();
+      });
+    }
+    stage.addEventListener('pointerdown', down);
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', up);
+    s._cleanup = function () {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
   }
 
   /* ====================== THE FIRST MARK ======================

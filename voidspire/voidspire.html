@@ -1547,7 +1547,33 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .bench-it.arming { border-color: #ffb02e; box-shadow: 0 0 12px rgba(255,176,46,0.35); }
 .bench-row { margin-bottom: 8px; }
 
-/* ---- THE DESCENT ------------------------------------------------------ */
+/* ---- THE FALL: navigation you watch ----------------------------------- */
+.shaft-screen { justify-content: safe center; }
+.shaft-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 8px; }
+.sh-depth { font: 700 12px/1 ui-monospace, monospace; letter-spacing: 2px; color: #cfe8d8; }
+.sh-tier { font: 700 11px/1 ui-monospace, monospace; letter-spacing: 2px; color: #5dff88; }
+.sh-tier.t-settling { color: var(--amber); }
+.sh-tier.t-closing { color: #ff5e6e; }
+.sh-desc { font: 600 9.5px/1.3 ui-monospace, monospace; color: #8fa89a; font-style: italic; }
+.shaft-stage {
+  position: relative; width: 100%; max-width: 340px; aspect-ratio: 3 / 4;
+  touch-action: none; cursor: grab; user-select: none;
+}
+.shaft-stage.pulling { cursor: grabbing; }
+.shaft-canvas { width: 100%; height: 100%; display: block; }
+.shaft-stage::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 44%, transparent 62%, rgba(2,7,9,0.8) 100%);
+}
+.shaft-label {
+  position: absolute; left: 0; right: 0; bottom: 4px; text-align: center; pointer-events: none;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.sl-room { font: 700 14px/1.1 ui-monospace, monospace; letter-spacing: 3px; color: #eafcff; text-shadow: 0 0 10px rgba(65,216,255,0.6); }
+.sl-cost { font: 700 8.6px/1 ui-monospace, monospace; letter-spacing: 1.6px; color: var(--amber); }
+.shaft-hint { font: 700 8.6px/1.4 ui-monospace, monospace; letter-spacing: 1.6px; color: #7d9487; margin-top: 10px; }
+
+/* ---- THE DESCENT (legacy text readout) -------------------------------- */
 .descent-screen { justify-content: safe center; }
 .col-gauge { width: 100%; max-width: 330px; margin: 4px 0 12px; }
 .cg-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
@@ -1859,7 +1885,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       },
       // rooms that cost you time to use
       lingerTypes: ['rest', 'shop', 'forge'],
-      maxRerolls: 2,         // per landing — the shaft only bends so far
+      visible: 5,            // rings drawn below you — you can SEE what is down there
+      maxRerolls: 2,         // deepest ring you may punch to while the shaft is OPEN
     },
 
     /* ---- Branching map (Slay-the-Spire-style star chart) ------------- */
@@ -4439,6 +4466,255 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 </script>
   <script>
 /* =========================================================================
+ * VOIDSPIRE — shaft.js
+ * THE FALL: navigation you can watch.
+ *
+ * The first version of the descent was a route table and a button, and it read
+ * like a form. Navigation has to be a PLACE you move through — so this is the
+ * shaft itself: a tunnel of rings receding into the dark, each carrying a room,
+ * with your die tumbling down past them.
+ *
+ * You flick the die in. A soft flick drops it onto the first ring; a hard one
+ * punches it past rings you would rather not stop at, and every ring it blows
+ * through settles the shaft further behind you. So the push-your-luck valve is
+ * a gesture and not a prompt.
+ *
+ * Same vector language as everything else: stroked polylines, glow, no fills.
+ * Self-contained like dieview.js — mount it on a canvas, drive it, destroy it.
+ * ========================================================================= */
+(function (ns) {
+  'use strict';
+
+  // room -> a compact glyph, drawn small and read at speed
+  var ROOM_ART = {
+    fight:    [[-0.6,-0.5, 0.6,0.5], [0.6,-0.5, -0.6,0.5]],
+    elite:    [[-0.6,-0.5, 0.6,0.5], [0.6,-0.5, -0.6,0.5], [0,-0.85, 0,0.85], [-0.85,0, 0.85,0]],
+    beacon:   [[0,-0.8, 0.5,0.5, -0.5,0.5, 0,-0.8], [0,-0.3, 0,0.2]],
+    event:    [[0,-0.7, 0.45,-0.2, 0.15,0.35], [0.15,0.35, 0.15,0.5], [0.15,0.75, 0.15,0.8]],
+    shop:     [[-0.6,-0.2, 0.6,-0.2, 0.45,0.6, -0.45,0.6, -0.6,-0.2], [-0.3,-0.2, -0.3,-0.6], [0.3,-0.2, 0.3,-0.6]],
+    rest:     [[-0.65,0.4, 0.65,0.4], [-0.4,0.4, -0.4,-0.1, 0.4,-0.1, 0.4,0.4], [-0.4,-0.1, -0.15,-0.5, 0.15,-0.5, 0.4,-0.1]],
+    forge:    [[-0.65,0.2, 0.65,0.2, 0.4,0.6, -0.4,0.6, -0.65,0.2], [0,0.2, 0,-0.25], [-0.35,-0.55, 0.35,-0.75]],
+    treasure: [[-0.6,-0.1, 0.6,-0.1, 0.6,0.6, -0.6,0.6, -0.6,-0.1], [-0.6,-0.1, 0,-0.6, 0.6,-0.1], [-0.15,0.15, 0.15,0.15]],
+    sealed:   [[-0.55,-0.55, 0.55,0.55], [0.55,-0.55, -0.55,0.55]],
+  };
+  var ROOM_COL = {
+    fight: '#ff8a94', elite: '#ff5e6e', beacon: '#ff5e6e',
+    event: '#9fb6c0', shop: '#ffb02e', rest: '#5dff88', forge: '#ffb02e', treasure: '#ffe14a',
+    sealed: '#4a5a52',
+  };
+
+  ns.shaftCreate = function (canvas, opts) {
+    opts = opts || {};
+    var ctx = canvas.getContext('2d');
+    var raf = 0, dead = false, last = 0;
+
+    // camera depth. Rings sit at fixed depths; falling moves the camera down
+    // and they swell past it.
+    var camZ = 0, targetZ = 0, vel = 0;
+    var RING_GAP = 1;                // depth between rings
+    var AHEAD = 5;                   // how many rings are drawn below you
+    var rings = [];                  // {z, room, sealed}
+    var dieSpin = 0, dieFace = 20, landedAt = null, settle = 0, aimAt = 0;
+    var state = { collapse: 0, reach: 2, tier: 'OPEN' };
+    var onLand = null;
+
+    function size() {
+      var r = canvas.getBoundingClientRect();
+      var dpr = Math.min(2, window.devicePixelRatio || 1);
+      var w = Math.max(120, r.width), h = Math.max(160, r.height);
+      if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+        canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+      }
+      return { w: w, h: h, dpr: dpr };
+    }
+
+    // Build the rings below the camera. `rooms` is what the engine says is down
+    // there; anything past the collapse line is drawn sealed.
+    function stock(rooms) {
+      rings = [];
+      var n = (rooms && rooms.length) || AHEAD;
+      for (var i = 0; i < n; i++) {
+        rings.push({
+          z: (i + 1) * RING_GAP,
+          room: rooms && rooms[i] ? rooms[i] : 'fight',
+          sealed: i > state.reach,
+        });
+      }
+    }
+
+    function poly(pts, cx, cy, s, alpha, col) {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = col;
+      ctx.lineWidth = Math.max(0.8, s * 0.09);
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.beginPath();
+      for (var i = 0; i < pts.length; i += 2) {
+        var x = cx + pts[i] * s, y = cy + pts[i + 1] * s;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function ellipse(cx, cy, rx, ry, alpha, col, w) {
+      ctx.save();
+      ctx.globalAlpha = alpha; ctx.strokeStyle = col; ctx.lineWidth = w || 1.2;
+      ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+
+    function draw(now) {
+      if (dead) return;
+      var s = size();
+      var dt = last ? Math.min(0.05, (now - last) / 1000) : 0.016;
+      last = now;
+      ctx.setTransform(s.dpr, 0, 0, s.dpr, 0, 0);
+      ctx.clearRect(0, 0, s.w, s.h);
+
+      // Looking DOWN a shaft at a slight angle: the vanishing point sits high,
+      // the next floor is large and low, and deeper floors stack upward toward
+      // it. Concentric rings on one centre read as a target, not a fall.
+      var cx = s.w / 2;
+      var VAN = s.h * 0.17;             // where the shaft disappears
+      var SPREAD = s.h * 0.60;          // how far the near ring hangs below it
+      var F = s.w * 0.52;               // near ring fills the frame
+      var SQUASH = 0.26;
+
+      // ---- fall physics ---------------------------------------------------
+      if (camZ < targetZ - 0.001) {
+        vel += (targetZ - camZ) * 10 * dt;
+        vel *= 0.87;
+        camZ = Math.min(targetZ, camZ + vel * dt * 9);
+        dieSpin += dt * (6 + vel * 6);
+      } else if (targetZ > 0) {
+        camZ = targetZ; vel = 0;
+        if (settle < 1) { settle = Math.min(1, settle + dt * 3); dieSpin += dt * 1.5 * (1 - settle); }
+        else if (onLand) { var fn = onLand; onLand = null; fn(); }
+      } else {
+        dieSpin += dt * 0.7;
+      }
+      var speed = Math.min(1, Math.abs(vel) * 0.8);
+
+      function zOf(i) { return Math.max(0.2, rings[i].z - camZ); }
+      function yOf(z) { return VAN + SPREAD / z; }
+      function kOf(z) { return F / z; }
+
+      // ---- the tube: spokes running the whole visible depth ----------------
+      if (rings.length) {
+        var zn = zOf(0), zf = zOf(rings.length - 1) + 1.6;
+        for (var sp = 0; sp < 8; sp++) {
+          var ang = (sp / 8) * Math.PI * 2 + 0.39;
+          ctx.save(); ctx.globalAlpha = 0.15; ctx.strokeStyle = '#7fd8a8'; ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(ang) * kOf(zn), yOf(zn) + Math.sin(ang) * kOf(zn) * SQUASH);
+          ctx.lineTo(cx + Math.cos(ang) * kOf(zf), yOf(zf) + Math.sin(ang) * kOf(zf) * SQUASH);
+          ctx.stroke(); ctx.restore();
+        }
+      }
+
+      // ---- rings, far first so near ones sit on top ------------------------
+      for (var i = rings.length - 1; i >= 0; i--) {
+        var R = rings[i];
+        var z = zOf(i);
+        if (R.z - camZ <= 0.2) continue;
+        var k = kOf(z), y = yOf(z);
+        if (y > s.h * 1.5) continue;
+        var a = Math.max(0.14, Math.min(1, 1.5 - z * 0.2));
+        var isAim = (aimAt === i && targetZ === 0);
+        var col = R.sealed ? ROOM_COL.sealed : (isAim ? '#eafcff' : 'rgba(130,205,168,0.95)');
+        ellipse(cx, y, k, k * SQUASH, a * (isAim ? 1 : 0.55), col, R.sealed ? 2.2 : (isAim ? 2.8 : 1.3));
+
+        var art = ROOM_ART[R.sealed ? 'sealed' : R.room] || ROOM_ART.fight;
+        var gs = Math.max(6, Math.min(30, k * 0.26));
+        var gy = y - k * SQUASH * 0.30;
+        var gcol = R.sealed ? ROOM_COL.sealed : (ROOM_COL[R.room] || '#9fb6c0');
+        // an aimed room gets brackets, not a blob — the shaft must stay visible
+        if (isAim) {
+          var b = gs * 1.9;
+          ctx.save(); ctx.globalAlpha = 0.95; ctx.strokeStyle = gcol; ctx.lineWidth = 2;
+          [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(function (q) {
+            ctx.beginPath();
+            ctx.moveTo(cx + q[0] * b, gy + q[1] * b - q[1] * b * 0.45);
+            ctx.lineTo(cx + q[0] * b, gy + q[1] * b);
+            ctx.lineTo(cx + q[0] * b - q[0] * b * 0.45, gy + q[1] * b);
+            ctx.stroke();
+          });
+          ctx.restore();
+        }
+        art.forEach(function (pp) { poly(pp, cx, gy, gs, a * (isAim ? 1 : 0.8), gcol); });
+        if (landedAt === i && settle > 0) {
+          ellipse(cx, gy, gs * (3 - settle * 1.7), gs * (3 - settle * 1.7), (1 - settle) * 0.9, gcol, 2.4);
+        }
+      }
+
+      // ---- speed lines, streaming down past you -----------------------------
+      if (speed > 0.05) {
+        for (var sl = 0; sl < 18; sl++) {
+          var sx = cx + (((sl * 37) % 100) / 100 - 0.5) * s.w * 0.95;
+          var sy0 = ((sl * 53) % 100) / 100 * s.h;
+          ctx.save(); ctx.globalAlpha = speed * 0.3; ctx.strokeStyle = '#b6ffd6'; ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.moveTo(sx, sy0); ctx.lineTo(sx, sy0 + speed * s.h * 0.28); ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      // ---- you: the die, riding the top of the shaft ------------------------
+      // You ride just inside the mouth of the shaft, not floating below it.
+      var dk = Math.max(12, s.w * 0.05);
+      var z0 = rings.length ? zOf(0) : 1;
+      var dy = Math.min(s.h * 0.88, yOf(z0) + kOf(z0) * SQUASH * 0.62);
+      ctx.save();
+      ctx.translate(cx, dy);
+      ctx.rotate(Math.sin(dieSpin) * 0.55 * (1 - settle * 0.8));
+      ctx.globalAlpha = 0.98; ctx.strokeStyle = '#7fdcff'; ctx.lineWidth = 2;
+      ctx.shadowColor = 'rgba(65,216,255,0.95)'; ctx.shadowBlur = 14;
+      ctx.beginPath();
+      for (var v = 0; v <= 6; v++) {
+        var va = v / 6 * Math.PI * 2 - Math.PI / 2;
+        if (v === 0) ctx.moveTo(Math.cos(va) * dk, Math.sin(va) * dk);
+        else ctx.lineTo(Math.cos(va) * dk, Math.sin(va) * dk);
+      }
+      ctx.stroke();
+      if (settle > 0.4) {
+        ctx.globalAlpha = (settle - 0.4) / 0.6;
+        ctx.shadowBlur = 9; ctx.fillStyle = '#eafcff';
+        ctx.font = '700 ' + Math.round(dk * 1.05) + 'px ui-monospace, monospace';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(String(dieFace), 0, 1);
+      }
+      ctx.restore();
+
+      raf = requestAnimationFrame(draw);
+    }
+    raf = requestAnimationFrame(draw);
+
+    return {
+      // what is down there right now
+      setRooms: function (rooms, st) {
+        if (st) state = { collapse: st.collapse || 0, reach: st.reach == null ? 2 : st.reach, tier: st.tier || 'OPEN' };
+        stock(rooms);
+        camZ = 0; targetZ = 0; vel = 0; settle = 0; landedAt = null;
+      },
+      // which ring the drag is currently pointing at
+      setAim: function (d) { aimAt = d; },
+      // flick it in: `depth` rings passed (0 = the first one), then it settles
+      fall: function (depth, face, cb) {
+        dieFace = face;
+        landedAt = Math.max(0, Math.min(rings.length - 1, depth));
+        targetZ = rings[landedAt].z - 0.72;
+        settle = 0; vel = 0;
+        onLand = cb || null;
+      },
+      destroy: function () { dead = true; cancelAnimationFrame(raf); },
+    };
+  };
+
+})(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
+
+</script>
+  <script>
+/* =========================================================================
  * VOIDSPIRE — potions.js
  * One-shot consumables carried into combat. Tap a belt slot to use one;
  * targeted potions ask you to tap an enemy.
@@ -6650,41 +6926,48 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
   E.descentRoom = descentRoom;
 
-  E.descentRoll = function () {
+  // What is actually down there. The rooms below are rolled once per floor and
+  // kept, because you SEE them on the rings — the randomness is in what the
+  // shaft offers, and the choice is how far past it you are willing to punch.
+  E.descentAhead = function () {
     var r = E.run, d = r.descent;
-    if (!d || d.landing) return null;
-    var raw = d20();
-    var eff = Math.min(20, raw + statN({ statuses: { aim: 0 } }, 'aim') + E.dieAim());
-    d.landing = { raw: raw, eff: eff, type: descentRoom(eff), rerolls: 0 };
-    emit('descentRoll', { raw: raw, eff: eff, type: d.landing.type });
-    E.save();
-    return d.landing;
+    if (!d) return [];
+    if (!d.ahead || !d.ahead.length) {
+      d.ahead = [];
+      for (var i = 0; i < (B.descent.visible || 5); i++) {
+        var raw = d20();
+        d.ahead.push({ face: raw, type: descentRoom(Math.min(20, raw + E.dieAim())) });
+      }
+      E.save();
+    }
+    return d.ahead;
   };
 
-  E.descentReroll = function () {
-    var r = E.run, d = r.descent;
-    if (!d || !d.landing) return false;
-    if (d.landing.rerolls >= (B.descent.maxRerolls || 2)) return false;
-    var was = d.landing.rerolls + 1;
-    d.collapse += B.descent.rerollCollapse;
-    var raw = d20();
-    var eff = Math.min(20, raw + E.dieAim());
-    d.landing = { raw: raw, eff: eff, type: descentRoom(eff), rerolls: was };
-    emit('descentRoll', { raw: raw, eff: eff, type: d.landing.type, reroll: true });
-    E.save();
-    return true;
+  // How deep the shaft will still let you fall. Collapse seals it from the
+  // bottom up, so the pressure is visible as rings you can no longer reach.
+  E.descentReach = function () {
+    var d = E.run.descent; if (!d) return 0;
+    var tierIdx = B.descent.tiers.indexOf(descentTier());
+    return Math.max(0, (B.descent.maxRerolls || 2) - tierIdx);
   };
 
-  E.descentAccept = function () {
+  // Take the room `depth` rings down. Every ring you blow past settles the
+  // shaft further — that is the push-your-luck cost, and it is the same number
+  // that closes the route.
+  E.descentTake = function (depth) {
     var r = E.run, d = r.descent;
-    if (!d || !d.landing) return false;
-    var t = d.landing.type;
-    d.collapse += B.descent.stepCollapse;
-    if ((B.descent.lingerTypes || []).indexOf(t) >= 0) d.collapse += B.descent.lingerCollapse;
-    d.step++;
-    r.mapRow = d.step;                 // depth scaling still reads this
-    d.landing = null;
-    E.startNode(t);
+    if (!d) return false;
+    var ahead = E.descentAhead();
+    depth = Math.max(0, Math.min(E.descentReach(), depth));
+    var room = ahead[depth]; if (!room) return false;
+    d.collapse += B.descent.stepCollapse + depth * B.descent.rerollCollapse;
+    if ((B.descent.lingerTypes || []).indexOf(room.type) >= 0) d.collapse += B.descent.lingerCollapse;
+    d.step += 1 + depth;                 // you really did fall past those floors
+    d.lastFace = room.face;
+    r.mapRow = Math.min(B.descent.steps, d.step);
+    d.ahead = null;                      // the shaft below you is new now
+    emit('descentLand', { depth: depth, face: room.face, type: room.type });
+    E.startNode(room.type);
     E.save();
     return true;
   };
@@ -16163,84 +16446,99 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   };
   var ROOM_TONE = { fight: 'bad', elite: 'bad', beacon: 'bad', rest: 'good', shop: 'good', forge: 'good', treasure: 'good', event: '' };
 
+  var shaftView = null;
+  function killShaft() { if (shaftView) { shaftView.destroy(); shaftView = null; } }
+
   function showDescent() {
     combatChrome(false);
     updateHUD();
     var r = E.run, D = B.descent, d = r.descent;
     if (!d) { r.phase = 'map'; return U.refresh(); }
-    var tier = E.descentTier();
+    killShaft();
+    var tier = E.descentTier(), reach = E.descentReach();
+    var ahead = E.descentAhead();
+
     var s = overlayScreen();
-    s.classList.add('descent-screen');
+    s.classList.add('shaft-screen');
 
-    s.appendChild(el('h2', 'screen-title', 'The Descent'));
-    s.appendChild(el('div', 'screen-sub', 'SECTOR ' + r.sector + ' \u00b7 ' + d.step + ' / ' + D.steps + ' FLOORS FALLEN'));
+    var head = el('div', 'shaft-head');
+    head.innerHTML = '<span class="sh-depth">' + Math.min(d.step, D.steps) + ' / ' + D.steps + '</span>' +
+      '<span class="sh-tier t-' + tier.name.toLowerCase() + '">' + tier.name + '</span>' +
+      '<span class="sh-desc">' + esc(tier.desc) + '</span>';
+    s.appendChild(head);
 
-    // collapse gauge — the shaft settling around you
-    var pct = Math.min(100, Math.round(100 * d.collapse / (D.tiers[D.tiers.length - 1].at + 6)));
-    var gauge = el('div', 'col-gauge');
-    gauge.innerHTML = '<div class="cg-head"><span class="cg-name t-' + tier.name.toLowerCase() + '">' + tier.name +
-      '</span><span class="cg-desc">' + esc(tier.desc) + '</span></div>' +
-      '<div class="cg-bar"><span style="width:' + pct + '%"></span></div>';
-    s.appendChild(gauge);
+    var stage = el('div', 'shaft-stage');
+    var cv = document.createElement('canvas');
+    cv.className = 'shaft-canvas';
+    stage.appendChild(cv);
+    var label = el('div', 'shaft-label', '');
+    stage.appendChild(label);
+    s.appendChild(stage);
 
-    // the route table you are actually reading, so the roll is never opaque
-    var tbl = D.tables[tier.name] || D.tables.OPEN;
-    var inv = (r.cls === 'voidadept');
-    var rt = el('div', 'route-table');
-    var rows = tbl.map(function (b, i) {
-      var hi = (i === 0) ? 20 : tbl[i - 1][0] - 1;
-      var lo = b[0];
-      var a = inv ? (21 - hi) : lo, z = inv ? (21 - lo) : hi;
-      return { lo: Math.min(a, z), hi: Math.max(a, z), t: b[1] };
-    }).sort(function (x, y) { return y.hi - x.hi; });
-    rt.innerHTML = '<div class="rt-head">THE FACES \u2014 ' + (inv ? 'THE HUNGER READS THEM UPSIDE DOWN' : 'AIM CLIMBS THE TABLE') + '</div>' +
-      rows.map(function (x) {
-        return '<div class="rt-row ' + (ROOM_TONE[x.t] || '') + '"><span class="rt-f">' +
-          (x.lo === x.hi ? x.lo : x.lo + '\u2013' + x.hi) + '</span><span class="rt-t">' +
-          esc(ROOM_LABEL[x.t] || x.t) + '</span></div>';
-      }).join('');
-    s.appendChild(rt);
+    var hint = el('div', 'shaft-hint', 'FLICK THE DIE DOWN \u00b7 HARDER FALLS FURTHER');
+    s.appendChild(hint);
 
-    if (!d.landing) {
-      var roll = el('button', 'btn big', 'FALL');
-      roll.addEventListener('pointerdown', function (ev) {
-        ev.stopPropagation(); SFX.tap();
-        E.descentRoll(); R.flash(); U.refresh();
-      });
-      s.appendChild(roll);
-      s.appendChild(el('div', 'ws-hint', 'THE DIE DECIDES WHERE YOU LAND. AIM STEERS IT.'));
-      return;
-    }
-
-    // what you rolled, and what it means
-    var L = d.landing;
-    var land = el('div', 'landing ' + (ROOM_TONE[L.type] || ''));
-    land.innerHTML = '<div class="ld-face">' + L.eff + '</div>' +
-      '<div class="ld-what">' + esc(ROOM_LABEL[L.type] || L.type) + '</div>' +
-      (L.eff !== L.raw ? '<div class="ld-aim">ROLLED ' + L.raw + ' \u00b7 AIM +' + (L.eff - L.raw) + '</div>' : '');
-    s.appendChild(land);
-
-    var take = el('button', 'btn big', 'TAKE IT');
-    take.addEventListener('pointerdown', function (ev) {
-      ev.stopPropagation(); SFX.play();
-      E.descentAccept(); U.refresh();
+    shaftView = ns.shaftCreate(cv, {});
+    shaftView.setAim(0);
+    shaftView.setRooms(ahead.map(function (a) { return a.type; }), {
+      collapse: d.collapse, reach: reach, tier: tier.name,
     });
-    s.appendChild(take);
 
-    var left = (D.maxRerolls || 2) - L.rerolls;
-    if (left > 0) {
-      var again = el('div', 'panel-btn red',
-        '<div class="pb-title">\u2193 FALL FURTHER</div>' +
-        '<div class="pb-desc">Refuse this floor and drop past it. The shaft settles further behind you \u2014 +' +
-        D.rerollCollapse + ' collapse. ' + left + ' left.</div>');
-      again.addEventListener('pointerdown', function (ev) {
-        ev.stopPropagation(); SFX.hit(); R.flash();
-        E.descentReroll(); U.refresh();
-      });
-      s.appendChild(again);
-    } else {
-      s.appendChild(el('div', 'ws-hint', 'THE SHAFT WILL NOT BEND FURTHER. TAKE THE FLOOR.'));
+    // depth read-out under the shaft, so the flick is never a mystery
+    var ROOM_LABEL = {
+      fight: 'HOSTILES', elite: 'AN ELITE', beacon: 'A BEACON', event: 'SOMETHING',
+      shop: 'A DEALER', rest: 'QUIET GROUND', forge: 'A FORGE', treasure: 'SALVAGE',
+    };
+    function showDepth(depth) {
+      var a = ahead[depth];
+      if (!a) { label.textContent = ''; return; }
+      var cost = depth * D.rerollCollapse;
+      label.innerHTML = '<span class="sl-room">' + esc(ROOM_LABEL[a.type] || a.type) + '</span>' +
+        (depth ? '<span class="sl-cost">' + depth + ' FLOOR' + (depth > 1 ? 'S' : '') + ' PAST \u00b7 +' + cost + ' COLLAPSE</span>'
+               : '<span class="sl-cost">THE NEXT FLOOR</span>');
     }
+    showDepth(0);
+
+    // ---- the flick ------------------------------------------------------
+    // Drag down and release. How far you dragged is how many rings you punch
+    // past — the push-your-luck decision is the gesture itself.
+    var dragging = false, y0 = 0, aimed = 0, locked = false;
+    function depthFor(dy) {
+      var per = Math.max(28, stage.getBoundingClientRect().height / 7);
+      return Math.max(0, Math.min(reach, Math.floor(dy / per)));
+    }
+    function down(ev) {
+      if (locked) return;
+      dragging = true; y0 = (ev.touches ? ev.touches[0].clientY : ev.clientY);
+      stage.classList.add('pulling');
+    }
+    function move(ev) {
+      if (!dragging || locked) return;
+      var y = (ev.touches ? ev.touches[0].clientY : ev.clientY);
+      var dpt = depthFor(y - y0);
+      if (dpt !== aimed) { aimed = dpt; showDepth(aimed); shaftView.setAim(aimed); SFX.tap(); }
+      if (ev.cancelable) ev.preventDefault();
+    }
+    function up() {
+      if (!dragging || locked) return;
+      dragging = false; locked = true;
+      stage.classList.remove('pulling');
+      hint.textContent = '';
+      SFX.play();
+      var face = ahead[aimed] ? ahead[aimed].face : 20;
+      shaftView.fall(aimed, face, function () {
+        E.descentTake(aimed);
+        killShaft();
+        U.refresh();
+      });
+    }
+    stage.addEventListener('pointerdown', down);
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', up);
+    s._cleanup = function () {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
   }
 
   /* ====================== THE FIRST MARK ======================

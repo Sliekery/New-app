@@ -1493,29 +1493,42 @@ ok('every remaining class has a starter deck whose cards all exist',
   var mLow = E.descentRoom(2);
   ok('THE HUNGER reads the route inverted (face 2: ' + mLow + ' vs ' + vLow + ')', vLow !== mLow);
 
-  // refusing a floor costs collapse, and the shaft only bends so far
+  // The rooms below are ROLLED ONCE and shown on the rings, so the choice is
+  // how far past them you punch — and every ring you blow through costs.
   E.descentEnabled = true;
   E.seed(9); E.newRun('vanguard'); E.takeFirstMark(0);
   var d = E.run.descent;
-  E.descentRoll();
-  var c0 = d.collapse;
-  ok('a roll alone costs nothing', c0 === 0 && !!d.landing);
-  E.descentReroll();
-  ok('refusing costs collapse', d.collapse === c0 + D.rerollCollapse);
-  for (var g = 0; g < 6; g++) E.descentReroll();
-  ok('and cannot be refused forever', d.landing.rerolls === D.maxRerolls);
+  var ahead = E.descentAhead();
+  ok('the shaft shows what is below you', ahead.length === D.visible &&
+     ahead.every(function (a) { return a.face >= 1 && a.face <= 20 && !!a.type; }));
+  ok('and it is stable across reads — the rings do not reshuffle under you',
+     JSON.stringify(E.descentAhead()) === JSON.stringify(ahead));
 
-  // taking a quiet room costs MORE than taking a fight — that is the whole clock
-  function stepCost(type) {
+  var reach = E.descentReach();
+  ok('an open shaft lets you punch past ' + reach + ' floors', reach === D.maxRerolls);
+  E.run.descent.collapse = D.tiers[2].at;      // CLOSING
+  ok('a closing shaft lets you fall less far (' + E.descentReach() + ')', E.descentReach() < reach);
+
+  // taking the next floor vs punching deeper
+  function takeAt(depth) {
     E.seed(9); E.newRun('vanguard'); E.takeFirstMark(0);
     var dd = E.run.descent;
-    dd.landing = { raw: 10, eff: 10, type: type, rerolls: 0 };
-    var before = dd.collapse;
-    E.descentAccept();
-    return dd.collapse - before;
+    var a = E.descentAhead();
+    var want = a[depth].type, c0 = dd.collapse, s0 = dd.step;
+    E.descentTake(depth);
+    return { type: want, got: E.run.nodeType, dCol: dd.collapse - c0, dStep: dd.step - s0 };
   }
-  ok('a fight costs one step of collapse', stepCost('fight') === D.stepCollapse);
-  ok('lingering costs more', stepCost('rest') === D.stepCollapse + D.lingerCollapse);
+  var t0 = takeAt(0), t2 = takeAt(2);
+  ok('you land in the room you aimed at', t0.got === t0.type && t2.got === t2.type);
+  ok('falling further really does skip floors (' + t0.dStep + ' vs ' + t2.dStep + ')', t2.dStep === t0.dStep + 2);
+  ok('and costs collapse for every ring blown past', t2.dCol >= t0.dCol + 2 * D.rerollCollapse);
+
+  // the rings below are new after you land
+  E.seed(9); E.newRun('vanguard'); E.takeFirstMark(0);
+  var before = JSON.stringify(E.descentAhead());
+  E.descentTake(0);
+  E.run.phase = 'descent';
+  ok('the shaft below you is new after a landing', JSON.stringify(E.descentAhead()) !== before);
 
   // the floor of the sector is the boss
   E.seed(3); E.newRun('vanguard'); E.takeFirstMark(0);

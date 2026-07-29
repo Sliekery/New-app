@@ -518,41 +518,48 @@
   }
   E.descentRoom = descentRoom;
 
-  E.descentRoll = function () {
+  // What is actually down there. The rooms below are rolled once per floor and
+  // kept, because you SEE them on the rings — the randomness is in what the
+  // shaft offers, and the choice is how far past it you are willing to punch.
+  E.descentAhead = function () {
     var r = E.run, d = r.descent;
-    if (!d || d.landing) return null;
-    var raw = d20();
-    var eff = Math.min(20, raw + statN({ statuses: { aim: 0 } }, 'aim') + E.dieAim());
-    d.landing = { raw: raw, eff: eff, type: descentRoom(eff), rerolls: 0 };
-    emit('descentRoll', { raw: raw, eff: eff, type: d.landing.type });
-    E.save();
-    return d.landing;
+    if (!d) return [];
+    if (!d.ahead || !d.ahead.length) {
+      d.ahead = [];
+      for (var i = 0; i < (B.descent.visible || 5); i++) {
+        var raw = d20();
+        d.ahead.push({ face: raw, type: descentRoom(Math.min(20, raw + E.dieAim())) });
+      }
+      E.save();
+    }
+    return d.ahead;
   };
 
-  E.descentReroll = function () {
-    var r = E.run, d = r.descent;
-    if (!d || !d.landing) return false;
-    if (d.landing.rerolls >= (B.descent.maxRerolls || 2)) return false;
-    var was = d.landing.rerolls + 1;
-    d.collapse += B.descent.rerollCollapse;
-    var raw = d20();
-    var eff = Math.min(20, raw + E.dieAim());
-    d.landing = { raw: raw, eff: eff, type: descentRoom(eff), rerolls: was };
-    emit('descentRoll', { raw: raw, eff: eff, type: d.landing.type, reroll: true });
-    E.save();
-    return true;
+  // How deep the shaft will still let you fall. Collapse seals it from the
+  // bottom up, so the pressure is visible as rings you can no longer reach.
+  E.descentReach = function () {
+    var d = E.run.descent; if (!d) return 0;
+    var tierIdx = B.descent.tiers.indexOf(descentTier());
+    return Math.max(0, (B.descent.maxRerolls || 2) - tierIdx);
   };
 
-  E.descentAccept = function () {
+  // Take the room `depth` rings down. Every ring you blow past settles the
+  // shaft further — that is the push-your-luck cost, and it is the same number
+  // that closes the route.
+  E.descentTake = function (depth) {
     var r = E.run, d = r.descent;
-    if (!d || !d.landing) return false;
-    var t = d.landing.type;
-    d.collapse += B.descent.stepCollapse;
-    if ((B.descent.lingerTypes || []).indexOf(t) >= 0) d.collapse += B.descent.lingerCollapse;
-    d.step++;
-    r.mapRow = d.step;                 // depth scaling still reads this
-    d.landing = null;
-    E.startNode(t);
+    if (!d) return false;
+    var ahead = E.descentAhead();
+    depth = Math.max(0, Math.min(E.descentReach(), depth));
+    var room = ahead[depth]; if (!room) return false;
+    d.collapse += B.descent.stepCollapse + depth * B.descent.rerollCollapse;
+    if ((B.descent.lingerTypes || []).indexOf(room.type) >= 0) d.collapse += B.descent.lingerCollapse;
+    d.step += 1 + depth;                 // you really did fall past those floors
+    d.lastFace = room.face;
+    r.mapRow = Math.min(B.descent.steps, d.step);
+    d.ahead = null;                      // the shaft below you is new now
+    emit('descentLand', { depth: depth, face: room.face, type: room.type });
+    E.startNode(room.type);
     E.save();
     return true;
   };
