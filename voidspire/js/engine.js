@@ -329,8 +329,15 @@
     widths.push(1);
     offs.push(ri(0, COLS - widths[0]));
     for (r = 1; r < ROWS; r++) {
-      var o = offs[r - 1] + ri(-1, 1);
-      offs.push(Math.max(0, Math.min(COLS - widths[r], o)));
+      // Pick from the legal one-lane moves rather than drawing one and fixing it
+      // up. Clamping a bad draw made the walk STICK to a wall — once it reached
+      // lane 0 it stayed for nine rows straight and the chart came out as a
+      // diagonal smear — and bouncing it could jump two lanes at once, which is
+      // what drew the long steep connectors.
+      var hi = COLS - widths[r], p0 = offs[r - 1];
+      var lo0 = Math.max(0, p0 - 1), hi0 = Math.min(hi, p0 + 1);
+      if (lo0 > hi0) lo0 = hi0 = Math.max(0, Math.min(hi, p0));
+      offs.push(ri(lo0, hi0));
     }
 
     var rows = [];

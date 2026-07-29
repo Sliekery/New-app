@@ -1378,19 +1378,23 @@ ok('every remaining class has a starter deck whose cards all exist',
   E.run.phase = 'map';
 
   // The new payoff cards reuse existing specials — check they scale off the
-  // thing they claim to, rather than dealing a flat number.
-  E.seed(8); E.newRun('vanguard'); E.takeFirstMark(0);
-  E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
-  E.startNode('fight');
-  var c = E.combat, en = c.enemies[0];
-  en.hp = 9999; en.maxHp = 9999; c.energy = 30;
-  c.player.statuses.momentum = 0;
-  c.hand = [{ uid: 5001, id: 'follow_through', up: false }];
-  var hp1 = en.hp; E.playCard(0, 0); var dmgNoMo = hp1 - en.hp;
-  c.player.statuses.momentum = 6;
-  c.hand = [{ uid: 5002, id: 'follow_through', up: false }];
-  var hp2 = en.hp; E.playCard(0, 0); var dmgMo = hp2 - en.hp;
-  ok('Follow Through actually spends Momentum (' + dmgNoMo + ' -> ' + dmgMo + ')', dmgMo > dmgNoMo);
+  // thing they claim to, rather than dealing a flat number. This compares two
+  // plays of the same card, so the die has to be frozen: each play rolls it,
+  // and the roll swings damage by more than the Momentum being measured.
+  flatDie(function () {
+    E.seed(8); E.newRun('vanguard'); E.takeFirstMark(0);
+    E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
+    E.startNode('fight');
+    var c = E.combat, en = c.enemies[0];
+    en.hp = 9999; en.maxHp = 9999; c.energy = 30; en.platedReady = false;
+    c.player.statuses.momentum = 0;
+    c.hand = [{ uid: 5001, id: 'follow_through', up: false }];
+    var hp1 = en.hp; E.playCard(0, 0); var dmgNoMo = hp1 - en.hp;
+    c.player.statuses.momentum = 6;
+    c.hand = [{ uid: 5002, id: 'follow_through', up: false }];
+    var hp2 = en.hp; E.playCard(0, 0); var dmgMo = hp2 - en.hp;
+    ok('Follow Through actually spends Momentum (' + dmgNoMo + ' -> ' + dmgMo + ')', dmgMo > dmgNoMo);
+  });
   E.run.phase = 'map';
 
   // Every new card must be reachable as a reward, or it is content nobody sees.

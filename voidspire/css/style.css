@@ -1639,6 +1639,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .starchart.v2 .mapnode .glyph .gdot { fill: #f2fff5; }
 .starchart.v2 .mapnode .ncat { fill: var(--nc); font: 700 9px ui-monospace, monospace; letter-spacing: 1.5px; text-anchor: middle; opacity: 0.95; }
 .starchart.v2 .mapnode .nname { fill: var(--nc); font: 700 10px ui-monospace, monospace; letter-spacing: 1.2px; text-anchor: middle; }
+/* a label sits in the same space a connector runs through — knock the line out
+   from behind the glyphs rather than letting it strike through them */
+.starchart.v2 .mapnode .ncat, .starchart.v2 .mapnode .nname {
+  paint-order: stroke fill; stroke: #03080a; stroke-width: 3.5px; stroke-linejoin: round;
+}
 .starchart.v2 .mapnode .fogq { fill: var(--nc); font: 700 22px ui-monospace, monospace; text-anchor: middle; opacity: 0.75; }
 .starchart.v2 .mapnode .hit { fill: transparent; }
 .starchart.v2 .mapnode.locked { opacity: 0.42; }

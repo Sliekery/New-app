@@ -1518,20 +1518,33 @@
     // the panel height, so a tighter pitch means a bigger node. 98 is the floor
     // that still clears a node's own label block.
     var lane = land ? 98 : 78, step = land ? 128 : 118;
-    var padA = land ? 86 : 74;                      // room for the boss corona
+    // Room for the boss corona (ring 62 + spikes 17) at the far end of the run,
+    // and for the entry row's label block at the near end. Portrait used to add
+    // the corona allowance BELOW row 0 — the opposite end from the boss — so the
+    // boss was cut off 24px by the top of the chart while 133 units sat empty
+    // under the entry row.
+    var padA = land ? 86 : 92, padE = land ? 77 : 92;
+    // The boss is 79 units across where a normal node is 27, and its own name
+    // hangs below it — at one plain step it wrote "THE FORGE TYRANT" straight
+    // through the node in front of it. Stand it further out; it reads as the
+    // destination rather than as one more stop.
+    var bossGap = land ? 186 : 178;
     // Both labels hang BELOW their node (see nodeMarkup), so the outer lanes
     // need a strip under them and only a sliver above; portrait's cross axis is
     // horizontal, where the strip is for label WIDTH and so is symmetric.
     var padT = land ? 10 : 12, padB = land ? 36 : 12;
-    var W = land ? (ROWS + 1) * step + padA : COLS * lane + padT + padB;
-    var H = land ? COLS * lane + padT + padB : (ROWS + 1) * step + padA;
+    // distance along the run, measured from the entry end
+    function axis(row) { return row >= ROWS ? (ROWS - 1) * step + bossGap : row * step; }
+    var runLen = padE + axis(ROWS) + padA;
+    var W = land ? runLen : COLS * lane + padT + padB;
+    var H = land ? COLS * lane + padT + padB : runLen;
     var reach = E.mapReachable(), cur = E.currentNode();
     var revealRow = (r.mapRow < 0 ? -1 : r.mapRow) + 3;
 
     function xy(node) {
       var jx = mapJit(node.row, node.col, 0) * 0.5, jy = mapJit(node.row, node.col, 1) * 0.5;
-      if (land) return { x: (node.row + 0.6) * step + jx, y: padT + (node.col + 0.5) * lane + jy };
-      return { x: padT + (node.col + 0.5) * lane + jx, y: H - padA - (node.row + 0.5) * step + jy };
+      if (land) return { x: padE + axis(node.row) + jx, y: padT + (node.col + 0.5) * lane + jy };
+      return { x: padT + (node.col + 0.5) * lane + jx, y: H - padE - axis(node.row) + jy };
     }
     function targetOf(node, tc) {
       if (tc === 'boss') return m.boss;
@@ -1598,7 +1611,12 @@
         // below meant two named nodes one lane apart put one's lower label into
         // the other's upper one — "DEALER" sitting on top of "ANOMALY". Stacked
         // beneath, a node's whole label block clears its neighbour's ring.
-        var lo = p.y + rad + (isBoss ? 32 : 15);
+        // In portrait, neighbouring lanes sit side by side and a name is wider
+        // than a lane is (RUST CULTIST is 81px across a 73px lane), so they ran
+        // together into "SWARM CORERUST CULTISTFORGE WALKER". Drop every other
+        // lane's block down a line: adjacent names never share a baseline.
+        var stag = (!land && (node.col % 2)) ? 26 : 0;
+        var lo = p.y + rad + (isBoss ? 32 : 15) + stag;
         g += '<text class="ncat" x="' + p.x.toFixed(1) + '" y="' + lo.toFixed(1) + '">' + esc(NODE_CAT[node.type] || '') + '</text>';
         var nm = isBoss ? E.sectorBossName() : (cast ? cast.name.toUpperCase() : (NODE_NAME[node.type] || ''));
         g += '<text class="nname" x="' + p.x.toFixed(1) + '" y="' + (lo + 13).toFixed(1) + '">' + esc(nm) + '</text>';
