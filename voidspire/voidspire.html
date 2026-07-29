@@ -3394,6 +3394,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
   };
 
+  /* ---- Who the three of them are ------------------------------------- *
+   * Lives here rather than in the UI because the codex generator (which has
+   * no DOM) describes the same three classes and must not keep its own copy.
+   * ------------------------------------------------------------------- */
+  ns.CLASS_INFO = {
+    vanguard: { name: 'VANGUARD', tag: 'Shock trooper of the 9th Voidborne', desc: 'High HP. Brutal weapons that scale with MIGHT. Hits first, asks never.' },
+    technomancer: { name: 'TECHNOMANCER', tag: 'Machine-priest of the Forge Choir', desc: 'Shields, turrets and reactors that scale with TECH. Out-build the enemy.' },
+    voidadept: { name: 'VOID ADEPT', tag: 'Sanctioned psyker, mostly stable', desc: 'Burns, hexes and psionic blasts that scale with PSI. The void answers.' },
+  };
+
   /* ---- Starter decks ------------------------------------------------- */
   ns.STARTER_DECKS = {
     vanguard:     ['pulse_rifle', 'pulse_rifle', 'pulse_rifle', 'pulse_rifle', 'pulse_rifle',
@@ -13154,11 +13164,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   U.showDie = showDieScreen;
 
   /* ====================== TITLE ====================== */
-  var CLASS_INFO = {
-    vanguard: { name: 'VANGUARD', tag: 'Shock trooper of the 9th Voidborne', desc: 'High HP. Brutal weapons that scale with MIGHT. Hits first, asks never.' },
-    technomancer: { name: 'TECHNOMANCER', tag: 'Machine-priest of the Forge Choir', desc: 'Shields, turrets and reactors that scale with TECH. Out-build the enemy.' },
-    voidadept: { name: 'VOID ADEPT', tag: 'Sanctioned psyker, mostly stable', desc: 'Burns, hexes and psionic blasts that scale with PSI. The void answers.' },
-  };
+  var CLASS_INFO = ns.CLASS_INFO;
 
   function showTitle() {
     combatChrome(false);

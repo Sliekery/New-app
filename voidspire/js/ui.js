@@ -1260,11 +1260,7 @@
   U.showDie = showDieScreen;
 
   /* ====================== TITLE ====================== */
-  var CLASS_INFO = {
-    vanguard: { name: 'VANGUARD', tag: 'Shock trooper of the 9th Voidborne', desc: 'High HP. Brutal weapons that scale with MIGHT. Hits first, asks never.' },
-    technomancer: { name: 'TECHNOMANCER', tag: 'Machine-priest of the Forge Choir', desc: 'Shields, turrets and reactors that scale with TECH. Out-build the enemy.' },
-    voidadept: { name: 'VOID ADEPT', tag: 'Sanctioned psyker, mostly stable', desc: 'Burns, hexes and psionic blasts that scale with PSI. The void answers.' },
-  };
+  var CLASS_INFO = ns.CLASS_INFO;
 
   function showTitle() {
     combatChrome(false);
