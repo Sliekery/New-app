@@ -1887,3 +1887,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 /* the name band has to clear the type badge in the top-right corner */
 .card .cname { margin-right: 15px; }
 .card-grid .card .cname { margin-right: 18px; }
+
+/* The card art is drawn at roughly the density of the enemy art now (median 46
+   points against 14 before), but it renders at 47px where an enemy renders at
+   three times that. The stroke is non-scaling, so at 1.4px the new interior
+   detail — panel seams, bolt rows, vents — merges into a blob. Thin it here
+   only; everything else in the game keeps the heavier line. */
+.card .cart svg.cart-svg polyline { stroke-width: 1.05; }
+.card .cart svg.cart-svg circle.eye { r: 0.5; }
+.card-grid .card .cart svg.cart-svg polyline { stroke-width: 1.15; }
