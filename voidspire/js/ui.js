@@ -629,10 +629,15 @@
       dieChipSVG() + (waiting ? '<span class="die-pend-badge">' + waiting + '</span>' : '') + '</div>';
     html += '</div>';
     if ((r.pressure || 0) > 0) html += '<span class="hud-press">P' + r.pressure + ' ' + esc(E.pressureName(r.pressure)) + '</span>';
-    // Relics live INSIDE the die now — the HUD only shows what is mounted, as a
-    // read-only strip beside the die chip. Everything else is in the vault.
+    // Relics live INSIDE the die, and a relic only DOES anything while it is
+    // mounted. The HUD used to show the mounted ones and nothing else, so the
+    // ones sitting in the vault were invisible as well as inert: measured over
+    // 300 bot runs, 85% ended holding relics that did nothing, an average of
+    // 5.2 of them. Show the idle ones too, struck through, so the fact that you
+    // own a dead relic is on screen rather than two taps away.
     var mounted = (r.die ? r.die.core.concat(r.die.frame) : []);
-    if (mounted.length) {
+    var idle = (r.artifacts || []).filter(function (x) { return mounted.indexOf(x) < 0; });
+    if (mounted.length || idle.length) {
       html += '<div class="artifact-row">';
       mounted.forEach(function (id) {
         var a = ns.ARTIFACTS[id]; if (!a) return;
@@ -643,6 +648,15 @@
         var badge = (uses != null) ? '<span class="relic-uses">' + uses + '</span>' : '';
         html += '<div class="' + cls + '" data-mounted="' + id + '">' + artSVG(a.art, 'art-icon') + badge + '</div>';
       });
+      if (idle.length) {
+        html += '<div class="relic-idle-sep" data-die="1" title="' + idle.length +
+          ' relic' + (idle.length > 1 ? 's' : '') + ' unmounted — they do nothing until they are in the die">IDLE</div>';
+        idle.forEach(function (id) {
+          var a = ns.ARTIFACTS[id]; if (!a) return;
+          html += '<div class="artifact-chip idle" data-die="1" title="' + esc(a.name) +
+            ' — NOT MOUNTED, does nothing. Tap to open the die.">' + artSVG(a.art, 'art-icon') + '</div>';
+        });
+      }
       html += '</div>';
     }
 
@@ -658,9 +672,12 @@
 
     $hud.innerHTML = html;
 
-    var dieChip = $hud.querySelector('[data-die]');
-    if (dieChip) dieChip.addEventListener('pointerdown', function (ev) {
-      ev.stopPropagation(); if (locked) return; SFX.tap(); showDieScreen();
+    // every idle-relic chip opens the die too, not just the die chip itself —
+    // querySelector bound only the first of them
+    $hud.querySelectorAll('[data-die]').forEach(function (chip) {
+      chip.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation(); if (locked) return; SFX.tap(); showDieScreen();
+      });
     });
     $hud.querySelectorAll('[data-mounted]').forEach(function (chip) {
       chip.addEventListener('pointerdown', function (ev) {
@@ -1507,6 +1524,29 @@
       var back = el('button', 'btn map-back', '◀ RETURN');
       back.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); SFX.tap(); U.refresh(); });
       s.appendChild(back);
+    }
+
+    /* Unfinished business, said out loud. An engraving you picked is not cut
+     * until you choose a face for it, and a relic does nothing until it is
+     * mounted — both of which happen on the die screen, which was reachable
+     * only through a 40px chip with a small badge on it. Neither state is rare:
+     * 85% of measured runs ended holding a relic that was doing nothing. This
+     * is a full-width bar that says which it is and opens the die. */
+    if (!preview) {
+      var pend = (r.die && r.die.pending) ? r.die.pending.length : 0;
+      var mnt = r.die ? r.die.core.concat(r.die.frame) : [];
+      var slack = (r.artifacts || []).filter(function (x) { return mnt.indexOf(x) < 0; }).length;
+      var free = r.die ? Math.max(0, (r.die.coreSlots || 3) - r.die.core.length) : 0;
+      var bits = [];
+      if (pend) bits.push('<b>' + pend + '</b> ENGRAVING' + (pend > 1 ? 'S' : '') + ' TO CUT');
+      // only nag about idle relics when there is somewhere to actually put one
+      if (slack && free) bits.push('<b>' + free + '</b> EMPTY CORE SLOT' + (free > 1 ? 'S' : ''));
+      if (bits.length) {
+        var alert = el('div', 'die-alert', '<span class="da-ic">' + dieChipSVG() + '</span>' +
+          '<span class="da-txt">' + bits.join(' &nbsp;·&nbsp; ') + '</span><span class="da-go">OPEN THE DIE ▸</span>');
+        alert.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); SFX.tap(); showDieScreen(); });
+        s.appendChild(alert);
+      }
     }
 
     // geometry: landscape flows left->right with the boss at the far end
@@ -3380,14 +3420,27 @@
       s.appendChild(el('div', 'gain-list', '<div><span class="pb-icon">' + artSVG(ab.art) + '</span>' + esc(ab.name) + ' — ' + esc(ab.desc) + '</div>'));
     }
     if (rw.artifactChoices && rw.artifactChoices.length && !rw.artifactPicked) {   // elite: pick 1 of 2
+      // A relic only works while it is mounted, and it auto-mounts only if the
+      // core has room. With a full core the reward said nothing and the relic
+      // went quietly into the vault doing nothing — the single biggest source
+      // of the 5.2 dead relics the average run ends holding. Say it here.
+      var dieR = E.run.die;
+      var freeSlots = dieR ? Math.max(0, (dieR.coreSlots || 3) - dieR.core.length) : 1;
       s.appendChild(el('div', 'screen-sub', 'CHOOSE A RELIC'));
+      if (!freeSlots) {
+        s.appendChild(el('div', 'reward-warn',
+          'THE CORE IS FULL (' + (dieR ? dieR.core.length : 0) + '/' + (dieR ? dieR.coreSlots : 0) +
+          ') — a relic you take now sits idle until you swap one out on the die screen.'));
+      }
       var acbar = makeConfirmBar();
       rw.artifactChoices.forEach(function (aid, i) {
         var a = ns.ARTIFACTS[aid];
         var apb = el('div', 'panel-btn amber',
-          '<div class="pb-title"><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) + '</div><div class="pb-desc">' + esc(a.desc) + '</div>');
+          '<div class="pb-title"><span class="pb-icon">' + artSVG(a.art) + '</span>' + esc(a.name) +
+          (freeSlots ? '' : ' <span class="pb-warn">IDLE</span>') + '</div><div class="pb-desc">' + esc(a.desc) + '</div>');
         s.appendChild(apb);
-        selectConfirm(s, apb, acbar, 'Take <b>' + esc(a.name) + '</b>?<span class="cb-note">' + esc(a.desc) + '</span>',
+        selectConfirm(s, apb, acbar, 'Take <b>' + esc(a.name) + '</b>?<span class="cb-note">' + esc(a.desc) +
+          (freeSlots ? '' : ' — the core is full, so this will NOT be active until you mount it.') + '</span>',
           function () { SFX.coin(); E.takeRewardArtifact(i); showReward(); }, 'amber');
       });
       s.appendChild(acbar.el);
