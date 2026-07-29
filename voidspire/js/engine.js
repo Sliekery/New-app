@@ -2120,12 +2120,16 @@
         fireDieFace(lands, tgt);
         // TWINNED FIRING PIN: the opening roll of a combat catches both sides
         if (art('firstSplash') > 0 && c.rollNo === 1) {
-          ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) E.fireDieFace(nf, tgt); });
+          ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) fireOneFace(nf, tgt, 1, 'relay'); });
         }
         if (crit) {
           fireListeners('crit', { tgt: tgt });
           if (art('critRelay') > 0) {                                   // HOT BARREL
-            ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) E.fireDieFace(nf, tgt); });
+            // fireOneFace, NOT fireDieFace: the latter bleeds its own
+            // neighbours in turn, so relaying through it cascaded a crit across
+            // five faces and measured 2.3x. A relay upgrades the bleed to full;
+            // it does not start a second bleed.
+            ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) fireOneFace(nf, tgt, 1, 'relay'); });
           }
         }
       }

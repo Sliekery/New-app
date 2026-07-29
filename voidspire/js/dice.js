@@ -607,6 +607,17 @@
         if (ns.dieRegionOf(span[s]) !== d.band) return 'only cuts into ' + ns.dieRegionLabel(d.band);
       }
     }
+    /* A second copy of a DOER is fine — it just covers more of the table. A
+     * second copy of a listener or a field is a flat multiplier on a trigger
+     * that already fires from anywhere, and nothing else about the die changes
+     * to pay for it: two Called Shots simply doubled every crit. */
+    if (d.listen || d.field) {
+      for (var q = 1; q <= ns.DIE.faces; q++) {
+        if (die.faces[q] && die.faces[q].id === id) {
+          return (d.listen ? 'that listener' : 'that field') + ' is already on the die';
+        }
+      }
+    }
     for (var i = 0; i < span.length; i++) if (die.faces[span[i]]) return 'face ' + span[i] + ' is taken';
     return null;
   };

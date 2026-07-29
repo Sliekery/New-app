@@ -535,6 +535,36 @@ giveRelic('recoilless_frame'); // +5 flat damage
 var buffN = parseInt(E.cardInfo({ uid: 2, id: 'pulse_rifle', up: false }).desc.match(/Deal (\d+)/)[1], 10);
 ok('a flat damage relic shows on the card (' + baseN + ' -> ' + buffN + ')', buffN > baseN);
 
+/* A listener or a field may only be cut ONCE. A second copy of a doer just
+ * covers more of the table, but a second listener is a flat multiplier on a
+ * trigger that already fires from anywhere and nothing pays for it — two
+ * Called Shots simply doubled every crit. Found while chasing a report of
+ * enemies dying instantly. */
+E.seed(1); E.newRun('vanguard'); E.run.die.faces = {};
+ok('a listener cuts in once', !VS.dieEngrave(E.run.die, 'called_shot', 4));
+ok('...and is refused a second time', !!VS.dieCanEngrave(E.run.die, 'called_shot', 8));
+ok('...but a plain doer may repeat', !VS.dieCanEngrave(E.run.die, 'bracket_fire', 10) &&
+   !VS.dieCanEngrave(E.run.die, 'bracket_fire', 12));
+E.seed(1); E.newRun('vanguard'); E.run.die.faces = {};
+VS.dieEngrave(E.run.die, 'relay_mark', 6);
+ok('a field is refused a second time too', !!VS.dieCanEngrave(E.run.die, 'relay_mark', 14));
+
+/* A relay hands its neighbours the FULL effect; it must not start a second
+ * bleed. critRelay and firstSplash both went through fireDieFace, which bleeds
+ * its own neighbours in turn, so one crit cascaded across five faces. */
+startFight('vanguard');
+E.run.die.faces = {};
+VS.dieEngrave(E.run.die, 'bracket_fire', 9);
+VS.dieEngrave(E.run.die, 'bracket_fire', 10);
+VS.dieEngrave(E.run.die, 'bracket_fire', 11);
+bigEnemies();
+var relayHp = E.combat.enemies[0].hp;
+E.fireDieFace(10, E.combat.enemies[0]);
+var oneCluster = relayHp - E.combat.enemies[0].hp;
+// root at full plus two neighbours at 25% must stay well under three-at-full
+ok('a cluster fire stays bounded (' + oneCluster + ')', oneCluster > 0 && oneCluster < 3 * 20);
+E.run.phase = 'map';
+
 /* A blocked card must say WHY it is blocked. canPlay refused for three
  * different reasons — a curse gagging the card, a relic capping non-attacks,
  * and actually being short of Energy — and the UI reported all three as
