@@ -1760,3 +1760,130 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   color: #5d7266; text-align: center; }
 .hud-press { font: 700 8.5px/1 ui-monospace, monospace; letter-spacing: .1em; color: var(--amber);
   border: 1px solid rgba(255,176,46,.45); padding: 2px 5px; margin-left: 8px; }
+
+/* =========================================================================
+ * CARD FRAMES v2 — the art is the subject, and the frame says what the card is
+ *
+ * The old card put a 33px glyph in the middle of a mostly empty box: 201 cards
+ * shared 27 glyphs, four different shields drew the same shield, and the only
+ * marks of TYPE and RARITY were a 13px corner badge and a 2px hairline. Slay
+ * the Spire settles this with frame SHAPE for type and banner colour for
+ * rarity, readable without reading a word. This does the same in our line-art:
+ *
+ *   CLASS  -> colour        (--cc; kept, it already worked)
+ *   TYPE   -> the silhouette of the art panel
+ *   RARITY -> the weight and ornament of its frame
+ * ========================================================================= */
+
+/* ---- the art panel: full width, tall, with a real housing ---- */
+.card .cart {
+  height: 60px; margin: 2px 4px 0; padding: 0;
+  position: relative; display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--ccd);
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(255,255,255,0.05), transparent 62%),
+    linear-gradient(180deg, rgba(6,14,18,0.5), rgba(2,6,9,0.9));
+  overflow: hidden;
+}
+/* the old inset well and reticle ring belonged to a 33px glyph */
+.card .cart::before { content: none; }
+.card .cart::after {
+  /* a floor line the subject stands on, rather than a ring around it */
+  content: ''; position: absolute; left: 8%; right: 8%; bottom: 5px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cc), transparent);
+  opacity: 0.28; border: 0; border-radius: 0; width: auto; transform: none; top: auto;
+}
+.card .cart svg.cart-svg { width: 50px; height: 50px; }
+.card .cmotif svg.cmotif-svg { width: 62px; height: 62px; }
+.card .cart .cmotif::after { width: 100%; opacity: 0.13; }
+.card-grid .card .cart { height: 72px; }
+.card-grid .card .cart svg.cart-svg { width: 62px; height: 62px; }
+.card-grid .card .cmotif svg.cmotif-svg { width: 76px; height: 76px; }
+.card-grid.dense .card .cart { height: 60px; }
+.card-grid.dense .card .cart svg.cart-svg { width: 50px; height: 50px; }
+
+/* ---- TYPE = the silhouette --------------------------------------------
+   Attack cuts to a point, like the tip of the thing it is. Skill is the
+   technical octagon, every corner taken off. Power arches — it stays up for
+   the rest of the fight, so it reads as a monument. A Curse is broken. */
+.card.type-attack .cart {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px), 50% 100%, 0 calc(100% - 14px));
+}
+.card.type-skill .cart {
+  clip-path: polygon(7px 0, calc(100% - 7px) 0, 100% 7px, 100% calc(100% - 7px),
+                     calc(100% - 7px) 100%, 7px 100%, 0 calc(100% - 7px), 0 7px);
+}
+.card.type-power .cart {
+  border-radius: 46% 46% 5px 5px / 34% 34% 5px 5px;
+}
+.card.type-curse .cart {
+  clip-path: polygon(0 6px, 18% 0, 34% 7px, 56% 0, 76% 6px, 100% 0,
+                     100% calc(100% - 5px), 72% 100%, 48% calc(100% - 7px), 22% 100%, 0 calc(100% - 4px));
+  border-color: #6b2530;
+}
+/* the type badge moves onto the panel edge and stops competing with the art */
+.card .ctype { top: 3px; right: 4px; width: 11px; height: 11px; opacity: 0.85; }
+.card-grid .card .ctype { top: 4px; right: 5px; width: 13px; height: 13px; }
+
+/* ---- RARITY = the weight of the housing -------------------------------
+   Escalates: a common card is a plain box, a legendary one is braced at every
+   corner. The old scheme spent this on a 2px line under the art. */
+.card.unc .cart { border-color: color-mix(in srgb, var(--cc) 55%, transparent); }
+.card.unc .cart, .card.rare .cart, .card.legendary .cart { box-shadow: inset 0 0 0 1px rgba(0,0,0,0.55); }
+.card.rare .cart, .card.legendary .cart { border-width: 1.5px; border-color: var(--cc); }
+.card.rare .cart { box-shadow: inset 0 0 10px -2px var(--cc), inset 0 0 0 1px rgba(0,0,0,0.5); }
+.card.legendary .cart { box-shadow: inset 0 0 16px -3px var(--cc), inset 0 0 0 1px rgba(0,0,0,0.5); }
+/* corner braces, drawn on the panel — one pair for rare, all four for legendary */
+.card.rare .cart .cmotif::before, .card.legendary .cart .cmotif::before {
+  content: ''; position: absolute; inset: 3px; pointer-events: none; z-index: 2;
+  background:
+    linear-gradient(var(--cc), var(--cc)), linear-gradient(var(--cc), var(--cc)),
+    linear-gradient(var(--cc), var(--cc)), linear-gradient(var(--cc), var(--cc));
+  background-repeat: no-repeat;
+  background-size: 9px 1.5px, 1.5px 9px, 9px 1.5px, 1.5px 9px;
+  background-position: 0 0, 0 0, 100% 0, 100% 0;
+  opacity: 0.9;
+}
+.card.legendary .cart .cmotif::before {
+  background-size: 9px 1.5px, 1.5px 9px, 9px 1.5px, 1.5px 9px,
+                   9px 1.5px, 1.5px 9px, 9px 1.5px, 1.5px 9px;
+  background-image:
+    linear-gradient(var(--cc), var(--cc)), linear-gradient(var(--cc), var(--cc)),
+    linear-gradient(var(--cc), var(--cc)), linear-gradient(var(--cc), var(--cc)),
+    linear-gradient(var(--cc), var(--cc)), linear-gradient(var(--cc), var(--cc)),
+    linear-gradient(var(--cc), var(--cc)), linear-gradient(var(--cc), var(--cc));
+  background-position: 0 0, 0 0, 100% 0, 100% 0, 0 100%, 0 100%, 100% 100%, 100% 100%;
+}
+/* the rarity hairline is redundant now the housing carries it — keep it as a
+   thin under-rule for the tag only */
+.card .rline { margin: 2px 5px 2px; }
+
+/* The cost pip used to sit in the middle-left of the card because the art was a
+   33px glyph in the middle. Now the art fills a panel, so the pip goes back to
+   the corner and the drawing is never covered. */
+.card .cost { top: 1px; left: 1px; width: 22px; height: 22px; }
+.card .cost .cost-n { font-size: 10.5px; }
+.card .cname { margin-left: 25px; }
+.card-grid .card .cost { top: 2px; left: 2px; width: 26px; height: 26px; }
+.card-grid .card .cost-n { font-size: 12px; }
+.card-grid .card .cname { margin-left: 31px; }
+.card-grid.dense .card .cost { top: 1px; left: 1px; width: 22px; height: 22px; }
+.card-grid.dense .card .cname { margin-left: 25px; }
+
+/* Art vs text. The panel has to be big enough that the drawing reads and small
+   enough that the longest card still fits: at 72px in a reward grid it cut the
+   description to three lines and clipped 77 of the 398 variants. */
+.card .cart { height: 52px; }
+.card .cart svg.cart-svg { width: 44px; height: 44px; }
+.card .cmotif svg.cmotif-svg { width: 54px; height: 54px; }
+.card-grid .card .cart { height: 60px; }
+.card-grid .card .cart svg.cart-svg { width: 52px; height: 52px; }
+.card-grid .card .cmotif svg.cmotif-svg { width: 64px; height: 64px; }
+.card-grid.dense .card .cart { height: 52px; }
+.card-grid.dense .card .cart svg.cart-svg { width: 44px; height: 44px; }
+.card-grid .card .cart { height: 54px; }
+.card-grid .card .cart svg.cart-svg { width: 47px; height: 47px; }
+.card-grid .card .cmotif svg.cmotif-svg { width: 58px; height: 58px; }
+/* the name band has to clear the type badge in the top-right corner */
+.card .cname { margin-right: 15px; }
+.card-grid .card .cname { margin-right: 18px; }

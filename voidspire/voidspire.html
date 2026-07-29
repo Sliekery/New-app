@@ -1772,6 +1772,133 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .hud-press { font: 700 8.5px/1 ui-monospace, monospace; letter-spacing: .1em; color: var(--amber);
   border: 1px solid rgba(255,176,46,.45); padding: 2px 5px; margin-left: 8px; }
 
+/* =========================================================================
+ * CARD FRAMES v2 — the art is the subject, and the frame says what the card is
+ *
+ * The old card put a 33px glyph in the middle of a mostly empty box: 201 cards
+ * shared 27 glyphs, four different shields drew the same shield, and the only
+ * marks of TYPE and RARITY were a 13px corner badge and a 2px hairline. Slay
+ * the Spire settles this with frame SHAPE for type and banner colour for
+ * rarity, readable without reading a word. This does the same in our line-art:
+ *
+ *   CLASS  -> colour        (--cc; kept, it already worked)
+ *   TYPE   -> the silhouette of the art panel
+ *   RARITY -> the weight and ornament of its frame
+ * ========================================================================= */
+
+/* ---- the art panel: full width, tall, with a real housing ---- */
+.card .cart {
+  height: 60px; margin: 2px 4px 0; padding: 0;
+  position: relative; display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--ccd);
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(255,255,255,0.05), transparent 62%),
+    linear-gradient(180deg, rgba(6,14,18,0.5), rgba(2,6,9,0.9));
+  overflow: hidden;
+}
+/* the old inset well and reticle ring belonged to a 33px glyph */
+.card .cart::before { content: none; }
+.card .cart::after {
+  /* a floor line the subject stands on, rather than a ring around it */
+  content: ''; position: absolute; left: 8%; right: 8%; bottom: 5px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cc), transparent);
+  opacity: 0.28; border: 0; border-radius: 0; width: auto; transform: none; top: auto;
+}
+.card .cart svg.cart-svg { width: 50px; height: 50px; }
+.card .cmotif svg.cmotif-svg { width: 62px; height: 62px; }
+.card .cart .cmotif::after { width: 100%; opacity: 0.13; }
+.card-grid .card .cart { height: 72px; }
+.card-grid .card .cart svg.cart-svg { width: 62px; height: 62px; }
+.card-grid .card .cmotif svg.cmotif-svg { width: 76px; height: 76px; }
+.card-grid.dense .card .cart { height: 60px; }
+.card-grid.dense .card .cart svg.cart-svg { width: 50px; height: 50px; }
+
+/* ---- TYPE = the silhouette --------------------------------------------
+   Attack cuts to a point, like the tip of the thing it is. Skill is the
+   technical octagon, every corner taken off. Power arches — it stays up for
+   the rest of the fight, so it reads as a monument. A Curse is broken. */
+.card.type-attack .cart {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 14px), 50% 100%, 0 calc(100% - 14px));
+}
+.card.type-skill .cart {
+  clip-path: polygon(7px 0, calc(100% - 7px) 0, 100% 7px, 100% calc(100% - 7px),
+                     calc(100% - 7px) 100%, 7px 100%, 0 calc(100% - 7px), 0 7px);
+}
+.card.type-power .cart {
+  border-radius: 46% 46% 5px 5px / 34% 34% 5px 5px;
+}
+.card.type-curse .cart {
+  clip-path: polygon(0 6px, 18% 0, 34% 7px, 56% 0, 76% 6px, 100% 0,
+                     100% calc(100% - 5px), 72% 100%, 48% calc(100% - 7px), 22% 100%, 0 calc(100% - 4px));
+  border-color: #6b2530;
+}
+/* the type badge moves onto the panel edge and stops competing with the art */
+.card .ctype { top: 3px; right: 4px; width: 11px; height: 11px; opacity: 0.85; }
+.card-grid .card .ctype { top: 4px; right: 5px; width: 13px; height: 13px; }
+
+/* ---- RARITY = the weight of the housing -------------------------------
+   Escalates: a common card is a plain box, a legendary one is braced at every
+   corner. The old scheme spent this on a 2px line under the art. */
+.card.unc .cart { border-color: color-mix(in srgb, var(--cc) 55%, transparent); }
+.card.unc .cart, .card.rare .cart, .card.legendary .cart { box-shadow: inset 0 0 0 1px rgba(0,0,0,0.55); }
+.card.rare .cart, .card.legendary .cart { border-width: 1.5px; border-color: var(--cc); }
+.card.rare .cart { box-shadow: inset 0 0 10px -2px var(--cc), inset 0 0 0 1px rgba(0,0,0,0.5); }
+.card.legendary .cart { box-shadow: inset 0 0 16px -3px var(--cc), inset 0 0 0 1px rgba(0,0,0,0.5); }
+/* corner braces, drawn on the panel — one pair for rare, all four for legendary */
+.card.rare .cart .cmotif::before, .card.legendary .cart .cmotif::before {
+  content: ''; position: absolute; inset: 3px; pointer-events: none; z-index: 2;
+  background:
+    linear-gradient(var(--cc), var(--cc)), linear-gradient(var(--cc), var(--cc)),
+    linear-gradient(var(--cc), var(--cc)), linear-gradient(var(--cc), var(--cc));
+  background-repeat: no-repeat;
+  background-size: 9px 1.5px, 1.5px 9px, 9px 1.5px, 1.5px 9px;
+  background-position: 0 0, 0 0, 100% 0, 100% 0;
+  opacity: 0.9;
+}
+.card.legendary .cart .cmotif::before {
+  background-size: 9px 1.5px, 1.5px 9px, 9px 1.5px, 1.5px 9px,
+                   9px 1.5px, 1.5px 9px, 9px 1.5px, 1.5px 9px;
+  background-image:
+    linear-gradient(var(--cc), var(--cc)), linear-gradient(var(--cc), var(--cc)),
+    linear-gradient(var(--cc), var(--cc)), linear-gradient(var(--cc), var(--cc)),
+    linear-gradient(var(--cc), var(--cc)), linear-gradient(var(--cc), var(--cc)),
+    linear-gradient(var(--cc), var(--cc)), linear-gradient(var(--cc), var(--cc));
+  background-position: 0 0, 0 0, 100% 0, 100% 0, 0 100%, 0 100%, 100% 100%, 100% 100%;
+}
+/* the rarity hairline is redundant now the housing carries it — keep it as a
+   thin under-rule for the tag only */
+.card .rline { margin: 2px 5px 2px; }
+
+/* The cost pip used to sit in the middle-left of the card because the art was a
+   33px glyph in the middle. Now the art fills a panel, so the pip goes back to
+   the corner and the drawing is never covered. */
+.card .cost { top: 1px; left: 1px; width: 22px; height: 22px; }
+.card .cost .cost-n { font-size: 10.5px; }
+.card .cname { margin-left: 25px; }
+.card-grid .card .cost { top: 2px; left: 2px; width: 26px; height: 26px; }
+.card-grid .card .cost-n { font-size: 12px; }
+.card-grid .card .cname { margin-left: 31px; }
+.card-grid.dense .card .cost { top: 1px; left: 1px; width: 22px; height: 22px; }
+.card-grid.dense .card .cname { margin-left: 25px; }
+
+/* Art vs text. The panel has to be big enough that the drawing reads and small
+   enough that the longest card still fits: at 72px in a reward grid it cut the
+   description to three lines and clipped 77 of the 398 variants. */
+.card .cart { height: 52px; }
+.card .cart svg.cart-svg { width: 44px; height: 44px; }
+.card .cmotif svg.cmotif-svg { width: 54px; height: 54px; }
+.card-grid .card .cart { height: 60px; }
+.card-grid .card .cart svg.cart-svg { width: 52px; height: 52px; }
+.card-grid .card .cmotif svg.cmotif-svg { width: 64px; height: 64px; }
+.card-grid.dense .card .cart { height: 52px; }
+.card-grid.dense .card .cart svg.cart-svg { width: 44px; height: 44px; }
+.card-grid .card .cart { height: 54px; }
+.card-grid .card .cart svg.cart-svg { width: 47px; height: 47px; }
+.card-grid .card .cmotif svg.cmotif-svg { width: 58px; height: 58px; }
+/* the name band has to clear the type badge in the top-right corner */
+.card .cname { margin-right: 15px; }
+.card-grid .card .cname { margin-right: 18px; }
+
 </style>
 </head>
 <body>
@@ -3671,7 +3798,238 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   };
   var TYPE_DEFAULT = { attack: 'rifle', skill: 'shield', power: 'core', curse: 'skull' };
 
+  /* =====================================================================
+   * PER-CARD ART — a drawing of the thing, not a category symbol.
+   *
+   * The shared library above was written when the art sat in a 33px window and
+   * 57 cards had to be covered; at 201 cards it had 25 different cards drawing
+   * the same shield and 16 drawing the same lightning bolt, at a median of 14
+   * points against the enemy art's 49 in the same renderer. Anything in here
+   * overrides it — one composition per card, drawn at the density the rest of
+   * the game is drawn at.
+   * ===================================================================== */
+  ns.CARD_ART = {
+
+    /* ---- starters: seen every single run, so they go first ---- */
+
+    // service rifle, side on: receiver, optic, box mag, braced stock
+    pulse_rifle: { p: [
+      [-0.36,-0.06, 0.14,-0.06, 0.14,0.12, -0.36,0.12, -0.36,-0.06],
+      [0.14,-0.01, 0.72,-0.01], [0.14,0.07, 0.72,0.07],
+      [0.72,-0.07, 0.9,-0.07, 0.9,0.13, 0.72,0.13, 0.72,-0.07],
+      [0.78,-0.07, 0.78,0.13], [0.84,-0.07, 0.84,0.13],
+      [-0.22,-0.06, -0.22,-0.24, 0.1,-0.24, 0.1,-0.06],
+      [-0.3,-0.24, 0.18,-0.24],
+      [-0.36,0.02, -0.86,0.18, -0.86,0.34, -0.52,0.34, -0.36,0.2],
+      [-0.16,0.12, -0.22,0.46, -0.02,0.48, 0.02,0.12],
+      [0.02,0.12, 0.0,0.54, 0.24,0.56, 0.24,0.12],
+      [-0.02,0.3, 0.22,0.32],
+      [-0.34,-0.1, -0.34,-0.2, -0.24,-0.2],
+    ], e: [[-0.06,-0.15]] },
+
+    // riot slab: viewport slit, ribs, centre boss, corner bolts
+    combat_shield: { p: [
+      [0,-0.88, 0.6,-0.6, 0.62,0.1, 0,0.9, -0.62,0.1, -0.6,-0.6, 0,-0.88],
+      [0,-0.72, 0.47,-0.5, 0.48,0.06, 0,0.72, -0.48,0.06, -0.47,-0.5, 0,-0.72],
+      [-0.3,-0.44, 0.3,-0.44, 0.3,-0.28, -0.3,-0.28, -0.3,-0.44],
+      [-0.24,-0.12, -0.24,0.36], [0.24,-0.12, 0.24,0.36],
+      [0,-0.18, 0.17,0.0, 0,0.18, -0.17,0.0, 0,-0.18],
+      [0,0.18, 0,0.52],
+    ], e: [[-0.37,-0.56],[0.37,-0.56],[0,0.6]] },
+
+    // blade socketed onto a barrel, driven forward
+    bayonet_charge: { p: [
+      [0.12,-0.78, 0.28,-0.52, 0.24,0.02, 0.08,0.14, -0.02,0.02, 0.0,-0.52, 0.12,-0.78],
+      [0.12,-0.6, 0.12,0.0],
+      [-0.08,0.14, 0.32,0.14],
+      [-0.04,0.14, -0.04,0.34, 0.28,0.34, 0.28,0.14],
+      [-0.04,0.2, -0.74,0.42], [0.0,0.32, -0.7,0.54],
+      [-0.74,0.42, -0.86,0.5, -0.7,0.54],
+      [-0.52,-0.34, -0.14,-0.46], [-0.64,-0.08, -0.26,-0.2], [-0.76,0.16, -0.46,0.06],
+    ], e: [[0.12,-0.28]] },
+
+    // a spike driven into a mind: skull profile, lance through it, shockwave
+    mind_spike: { p: [
+      [-0.16,0.5, -0.44,0.3, -0.5,-0.14, -0.3,-0.46, 0.06,-0.5, 0.3,-0.28, 0.32,0.08, 0.16,0.36, 0.16,0.54, -0.16,0.54, -0.16,0.5],
+      [-0.3,0.16, -0.02,0.16], [-0.02,0.16, -0.02,0.5],
+      [0.02,-0.86, 0.06,-0.2, 0.02,0.68],
+      [-0.1,-0.6, 0.02,-0.86, 0.14,-0.6],
+      [-0.52,-0.5, -0.34,-0.34], [0.5,-0.5, 0.34,-0.34],
+      [-0.6,0.06, -0.44,0.06], [0.62,0.06, 0.46,0.06],
+    ], e: [[-0.3,-0.12],[0.14,-0.16]] },
+
+    /* ---- the 25 cards that all drew the same shield ---- */
+
+    // stacked emitters throwing a second skin over the first
+    overshield: { p: [
+      [0,-0.72, 0.5,-0.48, 0.5,0.1, 0,0.62, -0.5,0.1, -0.5,-0.48, 0,-0.72],
+      [0,-0.44, 0.28,-0.3, 0.28,0.04, 0,0.32, -0.28,0.04, -0.28,-0.3, 0,-0.44],
+      [-0.72,-0.34, -0.72,0.2, 0,0.86, 0.72,0.2, 0.72,-0.34],
+      [-0.72,-0.34, -0.86,-0.42], [0.72,-0.34, 0.86,-0.42],
+      [-0.5,0.44, -0.34,0.36], [0.5,0.44, 0.34,0.36],
+    ], e: [[0,-0.06],[-0.72,-0.38],[0.72,-0.38]] },
+
+    // a braced wall: plate, buttresses driven into the deck
+    bulwark: { p: [
+      [-0.66,-0.5, 0.66,-0.5, 0.66,0.3, -0.66,0.3, -0.66,-0.5],
+      [-0.66,-0.22, 0.66,-0.22], [-0.66,0.04, 0.66,0.04],
+      [-0.22,-0.5, -0.22,0.3], [0.22,-0.5, 0.22,0.3],
+      [-0.5,0.3, -0.76,0.74], [0.5,0.3, 0.76,0.74],
+      [0,0.3, 0,0.74],
+      [-0.9,0.74, 0.9,0.74],
+      [-0.66,-0.5, -0.52,-0.68, 0.52,-0.68, 0.66,-0.5],
+    ], e: [[-0.44,-0.36],[0.44,-0.36]] },
+
+    // a woven field: lattice under tension between four anchors
+    fortify_matrix: { p: [
+      [-0.72,-0.66, 0.72,-0.66, 0.72,0.66, -0.72,0.66, -0.72,-0.66],
+      [-0.24,-0.66, -0.24,0.66], [0.24,-0.66, 0.24,0.66],
+      [-0.72,-0.22, 0.72,-0.22], [-0.72,0.22, 0.72,0.22],
+      [-0.72,-0.66, 0.72,0.66], [0.72,-0.66, -0.72,0.66],
+      [-0.9,-0.84, -0.56,-0.84, -0.56,-0.5], [0.9,-0.84, 0.56,-0.84, 0.56,-0.5],
+      [-0.9,0.84, -0.56,0.84, -0.56,0.5], [0.9,0.84, 0.56,0.84, 0.56,0.5],
+    ], e: [[0,0]] },
+
+    // the same slab, half of it out of phase — drawn twice, offset
+    phase_bulwark: { p: [
+      [-0.1,-0.76, 0.44,-0.5, 0.44,0.08, -0.1,0.66, -0.64,0.08, -0.64,-0.5, -0.1,-0.76],
+      [-0.1,-0.5, -0.1,0.4],
+      [-0.5,-0.24, 0.3,-0.24],
+      [0.16,-0.7, 0.66,-0.46, 0.66,0.08, 0.16,0.62],
+      [0.3,-0.62, 0.52,-0.5], [0.34,0.44, 0.54,0.3],
+      [0.66,-0.2, 0.44,-0.2],
+      [-0.84,-0.36, -0.72,-0.36], [-0.84,0.16, -0.72,0.16],
+    ], e: [[-0.1,-0.06]] },
+
+    // stakes driven in, wire strung between them, dug in behind
+    entrench_field: { p: [
+      [-0.66,0.62, -0.5,-0.34], [-0.5,-0.34, -0.34,0.62],
+      [-0.58,0.1, -0.42,0.1],
+      [0.34,0.62, 0.5,-0.34], [0.5,-0.34, 0.66,0.62],
+      [0.42,0.1, 0.58,0.1],
+      [-0.5,-0.34, -0.16,-0.06, 0.16,-0.32, 0.5,-0.34],
+      [-0.5,-0.16, -0.16,0.1, 0.16,-0.14, 0.5,-0.16],
+      [-0.86,0.62, 0.86,0.62],
+      [-0.24,0.62, -0.24,0.34, 0.24,0.34, 0.24,0.62],
+    ], e: [[-0.5,-0.42],[0.5,-0.42]] },
+
+    // the slab used as the weapon: shield edge-on, impact burst
+    shield_slam: { p: [
+      [-0.44,-0.72, 0.06,-0.48, 0.06,0.1, -0.44,0.66, -0.94,0.1, -0.94,-0.48, -0.44,-0.72],
+      [-0.44,-0.48, -0.44,0.4],
+      [-0.8,-0.2, -0.08,-0.2],
+      [0.14,-0.5, 0.62,-0.72], [0.18,-0.16, 0.78,-0.24], [0.14,0.18, 0.66,0.36],
+      [0.28,-0.62, 0.42,-0.44, 0.62,-0.5],
+      [0.34,-0.02, 0.52,-0.12, 0.7,-0.02],
+      [0.3,0.24, 0.46,0.16, 0.58,0.34],
+    ], e: [[-0.44,-0.08]] },
+
+    /* ---- the attacks that all drew the same rifle or shell ---- */
+
+    // three rounds away, muzzle still cycling
+    burst_fire: { p: [
+      [-0.94,-0.44, -0.62,-0.44], [-0.94,0.0, -0.62,0.0], [-0.94,0.44, -0.62,0.44],
+      [-0.5,-0.6, -0.14,-0.6, 0.04,-0.44, -0.14,-0.28, -0.5,-0.28, -0.5,-0.6],
+      [-0.5,-0.16, -0.14,-0.16, 0.04,0.0, -0.14,0.16, -0.5,0.16, -0.5,-0.16],
+      [-0.5,0.28, -0.14,0.28, 0.04,0.44, -0.14,0.6, -0.5,0.6, -0.5,0.28],
+      [0.24,-0.6, 0.42,-0.44, 0.24,-0.28], [0.34,-0.16, 0.52,0.0, 0.34,0.16],
+      [0.24,0.28, 0.42,0.44, 0.24,0.6],
+      [0.66,-0.3, 0.84,0.0, 0.66,0.3],
+    ], e: [[-0.32,-0.44],[-0.32,0.0],[-0.32,0.44]] },
+
+    // a platform overhead, the beam, and the ground going up
+    orbital_strike: { p: [
+      [-0.42,-0.86, 0.42,-0.86, 0.5,-0.66, -0.5,-0.66, -0.42,-0.86],
+      [-0.5,-0.76, -0.86,-0.76], [0.5,-0.76, 0.86,-0.76],
+      [-0.86,-0.86, -0.86,-0.66], [0.86,-0.86, 0.86,-0.66],
+      [-0.16,-0.66, -0.44,0.5], [0.16,-0.66, 0.44,0.5],
+      [-0.06,-0.66, -0.1,0.5], [0.06,-0.66, 0.1,0.5],
+      [-0.72,0.62, 0.72,0.62],
+      [-0.62,0.5, -0.46,0.2], [0.62,0.5, 0.46,0.2],
+      [-0.28,0.62, -0.2,0.34], [0.28,0.62, 0.2,0.34],
+    ], e: [[0,-0.76]] },
+
+    /* ---- powers: they stay up for the fight, so they read as installations ---- */
+
+    // a helm, mouth open, the shout drawn as pressure rings
+    war_cry: { p: [
+      [-0.3,0.44, -0.44,0.06, -0.38,-0.34, -0.14,-0.56, 0.14,-0.56, 0.3,-0.34, 0.3,0.44, -0.3,0.44],
+      [-0.38,-0.18, 0.28,-0.18],
+      [-0.2,-0.02, -0.2,0.18], [0.0,-0.02, 0.0,0.18], [0.2,-0.02, 0.2,0.18],
+      [-0.3,0.3, 0.3,0.3],
+      [-0.14,-0.56, -0.06,-0.78, 0.06,-0.78, 0.14,-0.56],
+      [0.44,-0.4, 0.62,-0.16, 0.44,0.1], [0.66,-0.54, 0.9,-0.16, 0.66,0.24],
+      [-0.44,-0.4, -0.62,-0.16, -0.44,0.1],
+    ], e: [[-0.2,-0.34],[0.2,-0.34]] },
+
+    // an injector gun in the arm, dose counting down
+    combat_stims: { p: [
+      [-0.16,-0.72, 0.28,-0.72, 0.28,0.2, -0.16,0.2, -0.16,-0.72],
+      [-0.16,-0.5, 0.28,-0.5],
+      [-0.06,-0.36, 0.18,-0.36], [-0.06,-0.16, 0.18,-0.16], [-0.06,0.04, 0.18,0.04],
+      [0.06,0.2, 0.06,0.5],
+      [-0.06,0.5, 0.18,0.5, 0.18,0.62, -0.06,0.62, -0.06,0.5],
+      [0.28,-0.6, 0.5,-0.6, 0.5,-0.1, 0.28,-0.1],
+      [0.5,-0.36, 0.72,-0.36],
+      [-0.16,-0.62, -0.42,-0.62, -0.42,0.5, -0.16,0.5],
+    ], e: [[0.06,0.74]] },
+
+    // a standard planted: banner, crossbar, the pole driven into the deck
+    warlord_protocol: { p: [
+      [0,-0.86, 0,0.7],
+      [-0.34,-0.8, 0.34,-0.8],
+      [0,-0.68, 0.62,-0.56, 0.5,-0.14, 0.62,0.2, 0,0.08],
+      [0,-0.68, -0.62,-0.56, -0.5,-0.14, -0.62,0.2, 0,0.08],
+      [-0.3,-0.44, 0.3,-0.44], [-0.28,-0.2, 0.28,-0.2],
+      [-0.34,-0.8, -0.34,-0.66], [0.34,-0.8, 0.34,-0.66],
+      [-0.28,0.7, 0.28,0.7],
+    ], e: [[0,-0.9],[0,-0.3]] },
+
+    // a turret bolted down: barrel, servo housing, tripod feet
+    deploy_turret: { p: [
+      [-0.34,-0.08, 0.18,-0.08, 0.3,0.14, 0.3,0.34, -0.46,0.34, -0.46,0.14, -0.34,-0.08],
+      [-0.28,-0.08, -0.24,-0.36, 0.1,-0.36, 0.14,-0.08],
+      [0.14,-0.26, 0.82,-0.26], [0.14,-0.16, 0.82,-0.16],
+      [0.7,-0.34, 0.86,-0.34, 0.86,-0.08, 0.7,-0.08],
+      [-0.46,0.34, -0.72,0.72], [0.3,0.34, 0.56,0.72], [-0.08,0.34, -0.08,0.72],
+      [-0.86,0.72, 0.7,0.72],
+      [-0.34,0.14, 0.18,0.14],
+    ], e: [[-0.07,-0.24],[0.9,-0.21]] },
+
+    /* ---- the void side: 15 cards drew the same flame, 9 the same eye ---- */
+
+    // a figure burning from the inside out
+    soul_burn: { p: [
+      [0,-0.78, 0.26,-0.5, 0.14,-0.2, 0.34,0.14, 0.2,0.54, 0,0.72, -0.2,0.54, -0.34,0.14, -0.14,-0.2, -0.26,-0.5, 0,-0.78],
+      [0,-0.32, 0.14,0.02, 0,0.36, -0.14,0.02, 0,-0.32],
+      [-0.5,-0.36, -0.62,0.06, -0.46,0.42],
+      [0.5,-0.36, 0.62,0.06, 0.46,0.42],
+      [-0.32,-0.66, -0.42,-0.86], [0.32,-0.66, 0.42,-0.86],
+      [-0.24,0.7, 0.24,0.7],
+    ], e: [[0,0.02]] },
+
+    // a lens stack focusing a mind to a point
+    psionic_focus: { p: [
+      [0,-0.82, 0.34,-0.28, 0,0.26, -0.34,-0.28, 0,-0.82],
+      [0,-0.56, 0.16,-0.28, 0,0.0, -0.16,-0.28, 0,-0.56],
+      [-0.56,0.34, 0.56,0.34], [-0.4,0.5, 0.4,0.5], [-0.24,0.66, 0.24,0.66],
+      [-0.34,-0.28, -0.7,-0.28], [0.34,-0.28, 0.7,-0.28],
+      [-0.62,-0.5, -0.5,-0.28, -0.62,-0.06],
+      [0.62,-0.5, 0.5,-0.28, 0.62,-0.06],
+    ], e: [[0,-0.28]] },
+
+    // a storm with a hole in the middle of it
+    eldritch_storm: { p: [
+      [0.06,-0.1, 0.3,-0.32, 0.14,-0.62, -0.28,-0.56, -0.5,-0.14, -0.24,0.36, 0.32,0.44, 0.7,-0.02, 0.5,-0.62, -0.14,-0.86, -0.7,-0.44, -0.78,0.1],
+      [-0.78,0.1, -0.62,0.5],
+      [-0.42,0.62, -0.2,0.86], [0.1,0.7, 0.24,0.9], [0.5,0.5, 0.72,0.66],
+      [-0.86,-0.3, -0.72,-0.6], [0.78,-0.3, 0.9,-0.5],
+    ], e: [[0.06,-0.1],[-0.34,0.7],[0.38,0.72]] },
+
+  };
+
   ns.cardGlyph = function (id, def) {
+    if (ns.CARD_ART[id]) return ns.CARD_ART[id];
     var g = GLYPH_OF[id] || (def && TYPE_DEFAULT[def.type]) || 'core';
     return ns.CARD_GLYPHS[g] || ns.CARD_GLYPHS.core;
   };
