@@ -972,6 +972,24 @@
   var DEV_WORKSHOP = (function () {
     try { return /[?&]workshop=1/.test(location.search); } catch (e) { return false; }
   })();
+  /* A tag strip for an engraving: which region it may be cut into, and whether
+   * it is a listener rather than a doer. Both are new rules, and neither is
+   * guessable from the effect text — a listener that says "WHEN you gain
+   * Momentum" reads as a doer until you know the category exists. */
+  var LISTEN_LABEL = {
+    momentum: 'ON MOMENTUM', selfHp: 'ON SELF-DAMAGE', exhaust: 'ON EXHAUST',
+    parry: 'ON PARRY', crit: 'ON CRIT', neighbour: 'ON NEIGHBOUR',
+  };
+  function engTagHTML(g) {
+    if (!g) return '';
+    var out = '';
+    if (g.listen) out += '<span class="eng-tag listen">' + (LISTEN_LABEL[g.listen] || 'LISTENER') + '</span>';
+    if (g.field) out += '<span class="eng-tag field">FIELD</span>';
+    if (g.band) out += '<span class="eng-tag band">' + esc(ns.dieRegionLabel(g.band)) + '</span>';
+    if (g.onlyFace) out += '<span class="eng-tag band">FACE ' + g.onlyFace + '</span>';
+    return out;
+  }
+
   function showDieScreen(opts) {
     var r = E.run; if (!r) return;
     if (!r.die) r.die = ns.newDie();
@@ -1072,7 +1090,7 @@
       var head = '<div class="di-head"><span class="di-face">' + sel + '</span>' + tag
                + (rc(sel) ? '' : '<span class="di-un">OUT OF REACH AT AIM +' + a + '</span>') + '</div>';
       info.innerHTML = head + (d
-        ? '<div class="di-name' + (d.flaw ? ' flaw' : '') + '">' + (d.flaw ? '✖ ' : '◆ ') + esc(d.name) + '</div><div class="di-desc">' + esc(d.desc) + '</div>'
+        ? '<div class="di-name' + (d.flaw ? ' flaw' : '') + '">' + (d.flaw ? '✖ ' : '◆ ') + esc(d.name) + '</div><div class="di-desc">' + engTagHTML(d) + esc(d.desc) + '</div>'
         : '<div class="di-name bare">bare</div><div class="di-desc">Nothing engraved on this face.</div>');
       wrap.querySelectorAll('.df').forEach(function (row) { row.classList.toggle('sel', +row.dataset.face === sel); });
 
@@ -1095,7 +1113,7 @@
             +  '<span class="bi-icon">' + artSVG(g.art, 'df-icon') + '</span>'
             +  '<span class="bi-body"><span class="bi-name">' + esc(g.name) + '</span>'
             +  '<span class="bi-desc">' + esc(g.desc) + '</span></span>'
-            +  '<span class="bi-tier">' + (g.span > 1 ? g.span + ' FACES' : '1 FACE') + ' · '
+            +  '<span class="bi-tier">' + engTagHTML(g) + (g.span > 1 ? g.span + ' FACES' : '1 FACE') + ' · '
             +  (fits ? fits + ' FIT' : 'NO ROOM') + '</span></button>';
         });
         h += '</div>';
@@ -1114,7 +1132,7 @@
             +  '<span class="bi-body"><span class="bi-name">' + esc(g.name) + '</span>'
             +  '<span class="bi-desc">' + esc(g.desc) + '</span></span>'
             +  '<span class="bi-cost">' + (it.sold ? 'SOLD' : '¢' + it.cost) + '</span>'
-            +  '<span class="bi-tier">T' + (g.tier || 1) + (g.span > 1 ? ' · ' + g.span + 'f' : '') + '</span></button>';
+            +  '<span class="bi-tier">' + engTagHTML(g) + 'T' + (g.tier || 1) + (g.span > 1 ? ' · ' + g.span + 'f' : '') + '</span></button>';
         });
         h += '</div>';
 

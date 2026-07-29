@@ -81,6 +81,47 @@
       art: { p: [[-0.45,0.7, -0.3,-0.3, 0.3,-0.3, 0.45,0.7, -0.45,0.7], [-0.35,-0.3, -0.5,-0.55, 0.5,-0.55, 0.35,-0.3], [-0.15,-0.75, 0,-0.95, 0.15,-0.75], [-0.2,0.1, 0.2,0.35], [0.2,0.1, -0.2,0.35]] } },
     iron_leech:      { name: 'Iron Leech',        tier: 1, cls: 'vanguard', k: 'bloodrageStart', v: 2, desc: 'Start each combat with 2 Blood Rage — your own wounds feed your Might.',
       art: { p: [[0,-0.85, 0.4,-0.2, 0.26,0.5, -0.26,0.5, -0.4,-0.2, 0,-0.85], [-0.26,0.5, -0.16,0.82], [0.26,0.5, 0.16,0.82], [-0.24,-0.1, 0.24,-0.1], [-0.14,0.16, 0.14,0.16]] } },
+    /* ---- VANGUARD: relics that shape the die -------------------------
+     * 55 of the 62 relics had nothing to do with the die, so "relics live
+     * inside the die" was flavour text over a slot limit. These change the
+     * curve you roll on, which makes taking one a build decision rather than
+     * a stat comparison — and makes a relic worth more or less depending on
+     * how you have cut your faces.
+     * ---------------------------------------------------------------- */
+    machined_barrel: { name: 'Machined Barrel', tier: 2, cls: 'vanguard', k: 'bandShift', v: 2,
+      desc: 'Every band on your die triggers 2 lower — SOLID from 13, HIT from 6.',
+      art: { p: [[-0.86,-0.2, 0.5,-0.2], [-0.86,0.1, 0.5,0.1], [-0.86,-0.2, -0.86,0.1], [-0.5,-0.2, -0.5,0.1], [-0.1,-0.2, -0.1,0.1], [0.3,-0.2, 0.3,0.1], [0.5,-0.3, 0.86,-0.3, 0.86,0.2, 0.5,0.2], [0.68,-0.3, 0.68,0.2], [-0.7,0.1, -0.7,0.5], [-0.3,0.1, -0.3,0.5], [-0.86,0.5, -0.14,0.5]], e: [[0.9,-0.05]] } },
+    counterweight: { name: 'Counterweight', tier: 2, cls: 'vanguard', k: 'rerollOnes', v: 1,
+      desc: 'A natural 1 is rerolled once. Turns off anything you built on face 1.',
+      art: { p: [[0,-0.7, 0.2,-0.3, 0,0.1, -0.2,-0.3, 0,-0.7], [-0.5,0.1, 0.5,0.1, 0.36,0.6, -0.36,0.6, -0.5,0.1], [-0.42,0.35, 0.42,0.35], [0,-0.7, 0,-0.86], [-0.66,0.1, -0.5,0.1], [0.66,0.1, 0.5,0.1]], e: [[0,-0.3],[0,0.48]] } },
+    bandolier_rig: { name: 'Bandolier Rig', tier: 2, cls: 'vanguard', k: 'bleedPct', v: 0.25,
+      desc: 'Faces beside the one you roll fire at 75% instead of half.',
+      art: { p: [[-0.86,-0.5, 0.86,0.3], [-0.86,-0.2, 0.86,0.6], [-0.7,-0.44, -0.66,-0.2], [-0.4,-0.3, -0.36,-0.06], [-0.1,-0.16, -0.06,0.08], [0.2,-0.02, 0.24,0.22], [0.5,0.12, 0.54,0.36]], e: [[-0.68,-0.32],[-0.38,-0.18],[-0.08,-0.04],[0.22,0.1],[0.52,0.24]] } },
+    spent_brass: { name: 'Spent Brass', tier: 2, cls: 'vanguard', k: 'bankRoll', v: 1,
+      desc: 'Every roll banks its number. At end of turn, bank becomes that much Shield.',
+      art: { p: [[-0.5,0.6, -0.4,-0.2, -0.16,-0.5, 0.16,-0.5, 0.4,-0.2, 0.5,0.6, -0.5,0.6], [-0.46,0.2, 0.46,0.2], [-0.44,-0.05, 0.44,-0.05], [-0.16,-0.5, -0.16,-0.66, 0.16,-0.66, 0.16,-0.5], [-0.7,0.6, 0.7,0.6]], e: [[0,0.4],[0,0.08]] } },
+    trench_ledger: { name: 'Trench Ledger', tier: 2, cls: 'vanguard', k: 'lowMight', v: 1,
+      desc: 'Every roll under 6 grants 1 Might for the rest of the combat.',
+      art: { p: [[-0.4,-0.7, 0.4,-0.7, 0.5,-0.5, 0.5,0.6, -0.5,0.6, -0.5,-0.5, -0.4,-0.7], [-0.5,-0.36, 0.5,-0.36], [-0.34,-0.16, -0.34,0.16], [-0.18,-0.16, -0.18,0.16], [-0.02,-0.16, -0.02,0.16], [0.14,-0.16, 0.14,0.16], [-0.42,-0.2, 0.22,0.2], [-0.34,0.38, 0.34,0.38]], e: [[0,-0.82]] } },
+    ranging_tables: { name: 'Ranging Tables', tier: 3, cls: 'vanguard', k: 'everyThird', v: 1,
+      desc: 'Every third roll each combat is automatically a 20.',
+      art: { p: [[-0.6,-0.6, 0.6,-0.6, 0.6,0.6, -0.6,0.6, -0.6,-0.6], [-0.6,-0.3, 0.6,-0.3], [-0.6,0.0, 0.6,0.0], [-0.6,0.3, 0.6,0.3], [-0.2,-0.6, -0.2,0.6], [0.2,-0.6, 0.2,0.6], [-0.86,-0.44, -0.6,-0.44], [0.86,0.44, 0.6,0.44]], e: [[0.4,0.45],[0.4,-0.15]] } },
+    long_shots_debt: { name: "The Long Shot's Debt", tier: 3, cls: 'vanguard',
+      hooks: [{ k: 'rollBonus', v: 4 }, { k: 'misfireWiden', v: 2 }],
+      desc: '+4 to every roll — but a misfire now triggers on 1-3.',
+      art: { p: [[-0.86,0.3, 0.3,-0.4], [0.3,-0.4, 0.1,-0.36], [0.3,-0.4, 0.26,-0.2], [-0.5,-0.5, -0.5,-0.14], [-0.5,-0.5, -0.14,-0.5], [0.66,0.5, 0.66,0.14], [0.66,0.5, 0.3,0.5], [-0.3,0.5, 0.0,0.5]], e: [[0.5,-0.55],[-0.7,0.6]] } },
+    stripped_rifling: { name: 'Stripped Rifling', tier: 2, cls: 'vanguard',
+      hooks: [{ k: 'critWiden', v: 1 }, { k: 'bandShift', v: -1 }],
+      desc: 'Crit on 19 as well as 20 — but every other band triggers 1 higher.',
+      art: { p: [[-0.7,-0.3, 0.7,-0.3], [-0.7,0.2, 0.7,0.2], [-0.7,-0.3, -0.7,0.2], [0.7,-0.3, 0.7,0.2], [-0.5,-0.3, -0.34,0.2], [-0.1,-0.3, 0.06,0.2], [0.3,-0.3, 0.46,0.2], [0.7,-0.05, 0.86,-0.05]], e: [[0.9,-0.05]] } },
+    twinned_pin: { name: 'Twinned Firing Pin', tier: 3, cls: 'vanguard', k: 'firstSplash', v: 1,
+      desc: 'The first roll of each combat fires its face and both neighbours at full.',
+      art: { p: [[-0.24,-0.7, -0.24,0.4], [0.24,-0.7, 0.24,0.4], [-0.24,0.4, -0.16,0.66, 0.16,0.66, 0.24,0.4], [-0.4,-0.7, -0.08,-0.7], [0.08,-0.7, 0.4,-0.7], [-0.66,-0.1, -0.4,-0.1], [0.66,-0.1, 0.4,-0.1]], e: [[0,0.66],[-0.72,-0.1],[0.72,-0.1]] } },
+    deadeye_reticle: { name: 'Deadeye Reticle', tier: 3, cls: 'vanguard',
+      hooks: [{ k: 'rollAdv', v: 1 }, { k: 'maxHpPct', v: 0.15 }],
+      desc: 'Roll twice and take the higher — paid for out of your Max HP.',
+      art: { p: [[0,-0.86, 0,-0.4], [0,0.86, 0,0.4], [-0.86,0, -0.4,0], [0.86,0, 0.4,0], [-0.4,-0.4, 0.4,-0.4, 0.4,0.4, -0.4,0.4, -0.4,-0.4], [-0.16,-0.16, 0.16,-0.16, 0.16,0.16, -0.16,0.16, -0.16,-0.16], [-0.56,-0.56, -0.4,-0.4], [0.56,0.56, 0.4,0.4]], e: [[0,0]] } },
+
     cycling_breech:  { name: 'Cycling Breech',    tier: 2, cls: 'vanguard', k: 'momentumKeep', v: 1, desc: 'Your Momentum no longer resets at the start of your turn.',
       art: { p: [[-0.7,-0.25, 0.7,-0.25], [-0.7,0.25, 0.7,0.25], [-0.7,-0.25, -0.7,0.25], [0.7,-0.25, 0.7,0.25], [-0.35,-0.25, -0.35,0.25], [0,-0.25, 0,0.25], [0.35,-0.25, 0.35,0.25], [0.5,-0.55, 0.8,-0.55, 0.8,-0.25], [-0.5,0.55, -0.8,0.55, -0.8,0.25]] } },
     medic_drone:     { name: 'Medic Drone',       tier: 1, k: 'healTurn',        v: 1,    desc: 'Heal 1 HP at the start of each turn.',

@@ -69,6 +69,16 @@ Opening deck: 5× Pulse Rifle, 4× Combat Shield, 1× Bayonet Charge
 - **Warlord Doctrine** — Start each combat with 3 Might.
 - **Ash Reliquary** — Start each combat with 2 Salvo — burning a card spits shrapnel at a random enemy.
 - **Iron Leech** — Start each combat with 2 Blood Rage — your own wounds feed your Might.
+- **Machined Barrel** — Every band on your die triggers 2 lower — SOLID from 13, HIT from 6.
+- **Counterweight** — A natural 1 is rerolled once. Turns off anything you built on face 1.
+- **Bandolier Rig** — Faces beside the one you roll fire at 75% instead of half.
+- **Spent Brass** — Every roll banks its number. At end of turn, bank becomes that much Shield.
+- **Trench Ledger** — Every roll under 6 grants 1 Might for the rest of the combat.
+- **Ranging Tables** — Every third roll each combat is automatically a 20.
+- **The Long Shot's Debt** — +4 to every roll — but a misfire now triggers on 1-3.
+- **Stripped Rifling** — Crit on 19 as well as 20 — but every other band triggers 1 higher.
+- **Twinned Firing Pin** — The first roll of each combat fires its face and both neighbours at full.
+- **Deadeye Reticle** — Roll twice and take the higher — paid for out of your Max HP.
 - **Cycling Breech** — Your Momentum no longer resets at the start of your turn.
 - **Recoilless Frame** — Your attacks deal +5 — but you may play at most 1 non-attack card per turn. Toggle it off on the star chart when you need to set up.
 - **Execution Protocol** — Your attacks deal double damage to enemies below 25% HP.

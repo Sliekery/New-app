@@ -932,11 +932,19 @@
   function spendLife(n) {
     if (n <= 0) return;
     var p = E.combat.player;
+    // CAUTERISE answers before the blood is spent, not after — it is the one
+    // engraving whose whole point is that the cost never lands.
+    if (E.dieFieldCount('cauterise') > 0 && statN(p, 'aim') > 0) {
+      addStatus(p, 'aim', -1);
+      emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') });
+      return;
+    }
     hurtPlayer(n, { pure: true });
     var bp = statN(p, 'bloodPact');   // BLOOD PACT: spilled HP feeds your Psi
     if (bp > 0) { addStatus(p, 'psiPow', bp); emit('status', { who: 'player', s: 'psiPow', v: bp }); }
     var brg = statN(p, 'bloodrage');  // BLOOD RAGE: spending life stokes your Might (Bloodforge)
     if (brg > 0) { addStatus(p, 'str', brg); emit('status', { who: 'player', s: 'str', v: brg }); }
+    fireListeners('selfHp', {});
   }
 
   // All player Shield gains route through here so relics that react to gaining
@@ -980,10 +988,17 @@
 
   var _inConduit = false;   // re-entrancy guard for the Disruption conduit hook
   function statN(ent, s) { return ent.statuses[s] || 0; }
+  var _statListen = { momentum: 'momentum', parry: 'parry' };
   function addStatus(ent, s, v) {
     ent.statuses[s] = (ent.statuses[s] || 0) + v;
     if (ent.statuses[s] <= 0) delete ent.statuses[s];
     var isEnemy = E.combat && E.combat.enemies.indexOf(ent) >= 0;
+    // Status listeners hook HERE rather than at each call site: Momentum alone
+    // is granted from six different places, and a listener that only caught
+    // some of them would read as a bug rather than as a rule.
+    if (v > 0 && !isEnemy && _statListen[s] && E.combat && !E.combat.over) {
+      fireListeners(_statListen[s], {});
+    }
     if (v > 0 && isEnemy && (s === 'weak' || s === 'vuln')) {
       var hx = art('hexweaver');                       // Hexweaver: Weak/Vuln also Burns
       if (hx > 0) addStatus(ent, 'burn', hx);
@@ -1448,6 +1463,7 @@
     if (sv > 0 && !c.over) { var spool = aliveEnemies(); if (spool.length) { var sen = pick(spool); dealToEnemy(sen, c.enemies.indexOf(sen), sv, { noCrit: true, noWeak: true }); } }
     var dm = statN(p, 'demoCharge');   // DEMOLITION TRAIN: every spent shell shrapnels the whole pack
     if (dm > 0 && !c.over) { c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, dm, { noCrit: true, noWeak: true }); }); }
+    fireListeners('exhaust', {});
   }
 
   // BANDOLIER: rack a spent shell (a random exhausted Attack) back into the chamber.
@@ -1542,17 +1558,114 @@
 
   // Fire the engraving on `face` (if any). Augment fx reuse the card effect
   // vocabulary, so applyCardFx resolves them — no second effect engine.
+  // A copy of an effect list at `k` strength, for the neighbours a roll bleeds
+  // into. Values round down but never to nothing — a half of 1 is still 1, or
+  // adjacency would silently do nothing for every small engraving on the die.
+  function scaleFx(fx, k) {
+    return fx.map(function (f) {
+      var o = {};
+      for (var key in f) o[key] = f[key];
+      if (typeof o.v === 'number') o.v = Math.max(1, Math.round(o.v * k));
+      return o;
+    });
+  }
+
+  function fireOneFace(face, tgt, k, why) {
+    var r = E.run, c = E.combat;
+    var id = ns.dieFaceId(r.die, face);
+    if (!id) return false;
+    var aug = ns.dieEngraving(id);
+    if (!aug || !aug.fx || !aug.fx.length) return false;
+    emit('dieFace', { face: face, id: id, name: aug.name, flaw: !!aug.flaw, bleed: k < 1, why: why || null });
+    applyCardFx(k < 1 ? scaleFx(aug.fx, k) : aug.fx,
+      { tgt: tgt, crit: false, roll: null, eff: face, misfire: false, bandMult: 1, flags: {}, xval: 0, appliedBurn: false });
+    return true;
+  }
+
+  /* THE ROLL BLEEDS. A roll no longer fires one face in isolation — it also
+   * catches the faces either side of it at half strength. Two consequences,
+   * both deliberate:
+   *   - every cut is a three-face decision, so WHERE is as interesting as WHAT
+   *   - a full die stops being a dead end. Before this, a die filled to 75% by
+   *     the end of a run and the last engravings had nowhere useful to go;
+   *     under bleed, density is the thing you are building toward.
+   * `bleedPct` relics widen it; RELAY sets it to full. */
   function fireDieFace(face, tgt) {
     var r = E.run, c = E.combat;
     if (!r || !r.die || !c || c.over) return;
-    var id = ns.dieFaceId(r.die, face);
-    if (!id) return;
-    var aug = ns.dieEngraving(id);
-    if (!aug || !aug.fx || !aug.fx.length) return;
-    emit('dieFace', { face: face, id: id, name: aug.name, flaw: !!aug.flaw });
-    applyCardFx(aug.fx, { tgt: tgt, crit: false, roll: null, eff: face, misfire: false, bandMult: 1, flags: {}, xval: 0, appliedBurn: false });
+    var lit = fireOneFace(face, tgt, 1);
+    // The roll has to LAND on something to splash. Bleeding off a bare face
+    // paid you for a dead roll, which made the mechanic free rather than a
+    // reward for cutting densely — and it was most of why the difficulty
+    // profile moved (median sector 4 -> 7 in simulation).
+    if (!lit) return;
+    var bleed = Math.min(1, B.dice.bleed + art('bleedPct'));
+    if (bleed <= 0) return;
+    ns.dieNeighbours(r.die, face).forEach(function (f) {
+      if (c.over) return;
+      var nid = ns.dieFaceId(r.die, f); if (!nid) return;
+      // RELAY MARK hands its neighbours the full effect instead of the half
+      var relayRoot = ns.dieFaceId(r.die, face);
+      var k = (relayRoot && (ns.dieEngraving(relayRoot) || {}).field === 'relay') ? 1 : bleed;
+      fireOneFace(f, tgt, k, 'bleed');
+      fireListeners('neighbour', { face: f, tgt: tgt });
+    });
+    // TWIN SIGHT: the face opposite on the ring answers too
+    if (lit) {
+      var self = ns.dieEngraving(ns.dieFaceId(r.die, face));
+      if (self && self.field === 'opposite') {
+        var opp = ((face + 9) % ns.DIE.faces) + 1;
+        fireOneFace(opp, tgt, 1, 'opposite');
+      }
+    }
   }
   E.fireDieFace = fireDieFace;
+
+  /* LISTENERS. Every engraving used to be a doer — 31 of 31 were a flat effect
+   * on a face. A listener instead watches for something happening and answers,
+   * which is what lets the die be wired rather than just filled. It fires
+   * wherever it sits, but only ONCE per trigger, and `_listenDepth` stops a
+   * chain that feeds itself (Burn -> attack -> Burn) from running away. */
+  var _listenDepth = 0;
+  function fireListeners(kind, data) {
+    var r = E.run, c = E.combat;
+    if (!r || !r.die || !c || c.over || !kind) return;
+    if (_listenDepth >= (B.dice.chainDepth || 2)) return;
+    var seen = {}, roots = [];
+    for (var f = 1; f <= ns.DIE.faces; f++) {
+      var slot = r.die.faces[f]; if (!slot || seen[slot.root]) continue;
+      var g = ns.dieEngraving(slot.id);
+      if (!g || g.listen !== kind) continue;
+      seen[slot.root] = 1; roots.push({ face: slot.root, g: g, id: slot.id });
+    }
+    if (!roots.length) return;
+    _listenDepth++;
+    try {
+      roots.forEach(function (it) {
+        if (c.over) return;
+        var times = 1 + (E.dieFieldCount('listenerEcho') > 0 ? 1 : 0);   // FIRE DISCIPLINE
+        for (var t = 0; t < times; t++) {
+          emit('dieFace', { face: it.face, id: it.id, name: it.g.name, listen: kind });
+          applyCardFx(it.g.fx, { tgt: (data && data.tgt) || null, crit: false, roll: null, eff: it.face,
+            misfire: false, bandMult: 1, flags: {}, xval: 0, appliedBurn: false });
+        }
+      });
+    } finally { _listenDepth--; }
+  }
+  E.fireListeners = fireListeners;
+
+  // how many engravings on the die carry a given field behaviour
+  E.dieFieldCount = function (which) {
+    var r = E.run; if (!r || !r.die) return 0;
+    var seen = {}, n = 0;
+    for (var f = 1; f <= ns.DIE.faces; f++) {
+      var slot = r.die.faces[f]; if (!slot || seen[slot.root]) continue;
+      seen[slot.root] = 1;
+      var g = ns.dieEngraving(slot.id);
+      if (g && g.field === which) n++;
+    }
+    return n;
+  };
 
   // Resolve a card's effects once. Echo can call this twice. ctx carries the
   // shared roll/crit/target and an appliedBurn flag for Contagion.
@@ -1821,12 +1934,26 @@
     // THE AUGMENTED DIE: every card play rolls, so a skill/power deck still
     // engages the die even when its table has nothing to say about the card.
     roll = d20();
-    eff = Math.min(20, roll + statN(p, 'aim'));
+    // ---- relics that shape the die itself, before anything reads it -------
+    // These are the half of the marriage that was missing: 55 of 62 relics had
+    // nothing to do with the die, so mounting one in it was fiction. A relic
+    // that moves a band or eats a misfire changes your whole curve, which makes
+    // picking it a build decision rather than a stat comparison.
+    if (roll === 1 && art('rerollOnes') > 0) roll = d20();          // COUNTERWEIGHT
+    if (art('rollAdv') > 0) roll = Math.max(roll, d20());           // DEADEYE RETICLE
+    c.rollNo = (c.rollNo || 0) + 1;
+    if (art('everyThird') > 0 && c.rollNo % 3 === 0) roll = 20;     // RANGING TABLES
+    eff = Math.min(20, roll + statN(p, 'aim') + art('rollBonus'));
+    if (art('bankRoll') > 0) c.banked = (c.banked || 0) + roll;     // SPENT BRASS
+    if (art('lowMight') > 0 && roll < 6) {                          // TRENCH LEDGER
+      addStatus(p, 'str', art('lowMight'));
+      emit('status', { who: 'player', s: 'str', v: statN(p, 'str') });
+    }
     if (!bandsNow) {
       emit('roll', { roll: roll, eff: eff, crit: false, misfire: false, band: null });
     } else {
-      crit = (roll === 20) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus'));
-      misfire = roll <= Math.max(1, E.pressureMods().misfireOn || 1);
+      crit = (roll === 20) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus') - art('critWiden'));
+      misfire = roll <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden'));
       if (misfire && art('critDie1Energy') > 0) c.energy += art('critDie1Energy');   // Misfire Capacitor
       if (misfire) {   // MISFIRE PROTOCOL turns a jam into fuel
         var mg = statN(p, 'misfireGuard');
@@ -1839,9 +1966,12 @@
       if (crit) bandLabel = 'CRIT';
       else if (misfire) { slot = dread.misfire; }
       else {
+        // MACHINED BARREL / RANGE CARD move where the good bands begin
+        var shift = art('bandShift');
         for (var bi = 0; bi < dread.bands.length; bi++) {
-          if (eff >= dread.bands[bi].min) { slot = dread.bands[bi]; break; }
+          if (eff >= dread.bands[bi].min - shift) { slot = dread.bands[bi]; break; }
         }
+        if (!slot) slot = dread.bands[dread.bands.length - 1];
       }
       if (slot) {
         bandMult = slot.mult;
@@ -1887,7 +2017,15 @@
       // THE AUGMENTED DIE: whatever is engraved on the face you landed on fires.
       // A natural 1 always lands on face 1 — Aim can never carry you off it, which
       // is what makes face 1 the one anchor an Aim build cannot lose.
-      if (roll != null) fireDieFace(roll <= Math.max(1, E.pressureMods().misfireOn || 1) ? 1 : eff, tgt);
+      if (roll != null) {
+        var lands = roll <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden')) ? 1 : eff;
+        fireDieFace(lands, tgt);
+        // TWINNED FIRING PIN: the opening roll of a combat catches both sides
+        if (art('firstSplash') > 0 && c.rollNo === 1) {
+          ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) E.fireDieFace(nf, tgt); });
+        }
+        if (crit) fireListeners('crit', { tgt: tgt });
+      }
       // crit payoffs (Omega Visor / Targeting Matrix + DEADEYE), once per critting card
       if (crit) {
         var cdr = art('critDraw') + statN(p, 'deadeyeDraw'); if (cdr > 0) drawCards(cdr);
@@ -1944,6 +2082,13 @@
   E.endTurn = function () {
     var c = E.combat, r = E.run, p = c.player;
     if (!c || c.over) return;
+
+    // SPENT BRASS cashes the numbers you rolled this turn in as plating
+    if (art('bankRoll') > 0 && (c.banked || 0) > 0) {
+      gainBlock(c.banked);
+      emit('relic', { id: 'spent_brass', v: c.banked });
+      c.banked = 0;
+    }
 
     // end-of-turn: shrapnel curses in hand
     c.hand.forEach(function (card) {
@@ -2376,6 +2521,10 @@
       // priced as a declaration of intent, not as a drop, so they never appear
       // in a reward or on a bench — including for the class they belong to.
       if (ns.DIE_AUGMENTS[k].startOnly) return;
+      // A class set only drops for its class — the Vanguard's listeners key off
+      // Momentum and Parry, which the other two barely touch.
+      var ec = ns.DIE_AUGMENTS[k].cls;
+      if (ec && E.run && ec !== E.run.cls) return;
       var t = ns.DIE_AUGMENTS[k].tier || 1, w = t === 1 ? 6 : t === 2 ? 3 : 1;
       for (var i = 0; i < w; i++) pool.push(k);
     });

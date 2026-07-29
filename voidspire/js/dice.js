@@ -247,6 +247,148 @@
       art: { p: [[-0.7,-0.4, 0.7,-0.4], [-0.7,-0.05, 0.7,-0.05], [-0.7,0.3, 0.7,0.3], [-0.4,-0.4, -0.4,0.3], [0,-0.4, 0,0.3], [0.4,-0.4, 0.4,0.3], [-0.7,0.3, -0.7,0.6, 0.7,0.6, 0.7,0.3]] },
     },
 
+    /* =================================================================
+     * VANGUARD SET — the first class rebuilt for the new die.
+     *
+     * The old droppable pool was 22 flat, class-agnostic effects ("Gain 2
+     * Energy", "Heal 6 HP") that could be cut anywhere and reacted to nothing.
+     * These are built to three rules instead:
+     *   BAND     most of them live in one region of the table, so an engraving
+     *            can be priced for the part of the die it asks you to build on
+     *   LISTEN   a second kind of engraving that answers something happening,
+     *            which is what lets the die be wired rather than merely filled
+     *   COST     a trade-off pays in Aim or HP — the currencies this class
+     *            already cares about — so it reads as a decision, not a tax
+     * ================================================================= */
+
+    /* ---- standalone: no setup, good on their own ---- */
+    bracket_fire: {
+      name: 'Bracket Fire', tier: 1, span: 1, cls: 'vanguard',
+      fx: [{ k: 'dmg', v: 9, scale: 'might' }],
+      desc: 'Deal 9 damage.',
+      art: { p: [[-0.8,-0.5, -0.3,-0.5], [-0.8,0.0, -0.24,0.0], [-0.8,0.5, -0.3,0.5], [-0.3,-0.62, 0.0,-0.5, -0.3,-0.38], [-0.24,-0.12, 0.06,0.0, -0.24,0.12], [-0.3,0.38, 0.0,0.5, -0.3,0.62], [0.3,-0.3, 0.6,0.0, 0.3,0.3]], e: [[0.76,0]] },
+    },
+    spotters_notch: {
+      name: "Spotter's Notch", tier: 1, span: 1, cls: 'vanguard', band: 'high',
+      fx: [{ k: 'status', s: 'aim', v: 2, who: 'self' }],
+      desc: 'Gain 2 Aim.',
+      art: { p: [[-0.7,-0.7, -0.7,-0.3], [-0.7,-0.7, -0.3,-0.7], [0.7,-0.7, 0.3,-0.7], [0.7,-0.7, 0.7,-0.3], [-0.7,0.7, -0.7,0.3], [-0.7,0.7, -0.3,0.7], [0.7,0.7, 0.7,0.3], [0.7,0.7, 0.3,0.7], [-0.4,0, 0.4,0], [0,-0.4, 0,0.4]], e: [[0,0]] },
+    },
+    field_dressing: {
+      name: 'Field Dressing', tier: 1, span: 1, cls: 'vanguard', band: 'low',
+      fx: [{ k: 'heal', v: 4 }, { k: 'block', v: 5 }],
+      desc: 'Heal 4 HP. Gain 5 Shield.',
+      art: { p: [[-0.28,-0.6, 0.28,-0.6, 0.28,0.5, -0.28,0.5, -0.28,-0.6], [-0.28,-0.36, 0.28,-0.36], [-0.14,-0.1, 0.14,-0.1], [0,-0.24, 0,0.04], [-0.16,-0.6, -0.16,-0.74, 0.16,-0.74, 0.16,-0.6], [-0.5,-0.3, -0.28,-0.3], [0.5,-0.3, 0.28,-0.3]], e: [[0,0.3]] },
+    },
+    firebase: {
+      name: 'Firebase', tier: 2, span: 3, cls: 'vanguard', band: 'mid',
+      fx: [{ k: 'block', v: 5 }, { k: 'status', s: 'thorns', v: 2, who: 'self' }],
+      desc: 'Gain 5 Shield, 2 Thorns.',
+      art: { p: [[-0.8,0.5, 0.8,0.5], [-0.6,0.5, -0.6,0.1, -0.2,0.1, -0.2,0.5], [0.2,0.5, 0.2,0.1, 0.6,0.1, 0.6,0.5], [-0.6,0.3, -0.2,0.3], [0.2,0.3, 0.6,0.3], [-0.4,0.1, -0.4,-0.2], [0.4,0.1, 0.4,-0.2], [-0.5,-0.2, -0.3,-0.44], [0.3,-0.44, 0.5,-0.2]], e: [[-0.4,-0.5],[0.4,-0.5]] },
+    },
+    brass_catcher: {
+      name: 'Brass Catcher', tier: 2, span: 1, cls: 'vanguard',
+      fx: [{ k: 'status', s: 'salvo', v: 2, who: 'self' }],
+      desc: 'Gain 2 Salvo — every card you burn spits shrapnel.',
+      art: { p: [[-0.5,-0.2, 0.5,-0.2, 0.36,0.5, -0.36,0.5, -0.5,-0.2], [-0.44,0.1, 0.44,0.1], [-0.2,-0.5, -0.14,-0.2], [0.2,-0.56, 0.1,-0.2], [-0.44,-0.44, -0.3,-0.2], [-0.24,-0.7, -0.18,-0.56], [0.28,-0.72, 0.22,-0.6]], e: [[-0.26,-0.78],[0.3,-0.8],[-0.5,-0.5]] },
+    },
+
+    /* ---- listeners: they answer, they do not act ---- */
+    follow_up_notch: {
+      name: 'Follow-Up Notch', tier: 2, span: 1, cls: 'vanguard', listen: 'momentum',
+      fx: [{ k: 'dmg', v: 3 }],
+      desc: 'WHEN you gain Momentum: deal 3 damage.',
+      art: { p: [[-0.8,0.3, -0.3,0.3], [-0.3,0.16, 0.0,0.3, -0.3,0.44], [-0.5,-0.1, 0.0,-0.1], [0.0,-0.24, 0.3,-0.1, 0.0,0.04], [-0.2,-0.5, 0.3,-0.5], [0.3,-0.64, 0.6,-0.5, 0.3,-0.36]], e: [[0.76,-0.5]] },
+    },
+    blood_debt: {
+      name: 'Blood Debt', tier: 2, span: 1, cls: 'vanguard', listen: 'selfHp',
+      fx: [{ k: 'status', s: 'str', v: 2, who: 'self' }],
+      desc: 'WHEN one of your own cards costs you HP: gain 2 Might.',
+      art: { p: [[0,-0.6, 0.2,-0.3, 0,0.0, -0.2,-0.3, 0,-0.6], [-0.44,0.16, 0.44,0.16, 0.36,0.6, -0.36,0.6, -0.44,0.16], [-0.4,0.38, 0.4,0.38], [-0.2,0.0, -0.24,0.16], [0.2,0.0, 0.24,0.16]], e: [[-0.2,0.72],[0.2,0.72],[0,0.78]] },
+    },
+    sympathetic_det: {
+      name: 'Sympathetic Det', tier: 2, span: 1, cls: 'vanguard', listen: 'exhaust',
+      fx: [{ k: 'dmg', v: 4 }],
+      desc: 'WHEN a card is Exhausted: deal 4 damage.',
+      art: { p: [[-0.3,-0.34, 0.3,-0.34, 0.3,0.12, -0.3,0.12, -0.3,-0.34], [-0.3,-0.34, -0.4,-0.5, 0.4,-0.5, 0.3,-0.34], [0,-0.5, 0,-0.7], [-0.6,0.34, -0.34,0.16], [0.6,0.34, 0.34,0.16], [-0.5,-0.16, -0.72,-0.24], [0.5,-0.16, 0.72,-0.24]], e: [[0,-0.78],[-0.68,0.42],[0.68,0.42]] },
+    },
+    riposte_notch: {
+      name: 'Riposte Notch', tier: 2, span: 1, cls: 'vanguard', listen: 'parry',
+      fx: [{ k: 'dmg', v: 2, scale: 'might' }],
+      desc: 'WHEN you gain Parry: deal 2 damage plus your Might.',
+      art: { p: [[-0.66,0.6, -0.1,-0.5], [-0.1,-0.5, -0.02,-0.7, 0.06,-0.5], [0.66,0.5, 0.16,-0.44], [-0.34,-0.3, 0.3,-0.24], [-0.44,-0.1, 0.4,-0.04], [-0.4,0.08, -0.56,0.16], [0.4,0.04, 0.56,0.12]], e: [[-0.02,-0.4]] },
+    },
+    called_shot: {
+      name: 'Called Shot', tier: 3, span: 1, cls: 'vanguard', listen: 'crit',
+      fx: [{ k: 'dmg', v: 8 }],
+      desc: 'WHEN an attack crits: deal 8 damage.',
+      art: { p: [[-0.86,-0.7, -0.24,-0.16], [0.86,-0.7, 0.24,-0.16], [-0.86,0.6, -0.24,0.1], [0.86,0.6, 0.24,0.1], [-0.24,-0.16, 0.24,-0.16, 0.24,0.1, -0.24,0.1, -0.24,-0.16], [0,-0.16, 0,-0.4], [0,0.1, 0,0.34]], e: [[0,-0.03]] },
+    },
+
+    /* ---- adjacency: they care who is next to them ---- */
+    relay_mark: {
+      name: 'Relay Mark', tier: 3, span: 1, cls: 'vanguard', field: 'relay',
+      fx: [{ k: 'status', s: 'aim', v: 1, who: 'self' }],
+      desc: 'Gain 1 Aim. Faces either side of this one fire at FULL instead of half.',
+      art: { p: [[-0.7,0, -0.24,0], [0.24,0, 0.7,0], [-0.24,-0.3, 0.24,-0.3, 0.24,0.3, -0.24,0.3, -0.24,-0.3], [-0.7,-0.24, -0.7,0.24], [0.7,-0.24, 0.7,0.24], [-0.5,-0.4, -0.5,0.4], [0.5,-0.4, 0.5,0.4]], e: [[0,0],[-0.7,0],[0.7,0]] },
+    },
+    chain_loader: {
+      name: 'Chain Loader', tier: 2, span: 1, cls: 'vanguard', listen: 'neighbour',
+      fx: [{ k: 'energy', v: 1 }],
+      desc: 'WHEN a face beside this one fires: gain 1 Energy.',
+      art: { p: [[-0.7,-0.3, -0.2,-0.3, -0.2,0.3, -0.7,0.3, -0.7,-0.3], [0.2,-0.3, 0.7,-0.3, 0.7,0.3, 0.2,0.3, 0.2,-0.3], [-0.2,0, 0.2,0], [-0.45,-0.3, -0.45,0.3], [0.45,-0.3, 0.45,0.3], [-0.7,0, -0.86,0], [0.7,0, 0.86,0]], e: [[-0.45,0],[0.45,0]] },
+    },
+    twin_sight: {
+      name: 'Twin Sight', tier: 3, span: 1, cls: 'vanguard', field: 'opposite',
+      fx: [{ k: 'dmg', v: 5, scale: 'might' }],
+      desc: 'Deal 5 damage. Also fires the face OPPOSITE this one on the die.',
+      art: { p: [[-0.66,0, -0.2,0], [0.2,0, 0.66,0], [-0.2,-0.26, 0.2,-0.26, 0.2,0.26, -0.2,0.26, -0.2,-0.26], [-0.66,-0.4, -0.86,-0.2, -0.66,0], [0.66,0.4, 0.86,0.2, 0.66,0], [-0.4,-0.5, 0.4,-0.5], [-0.4,0.5, 0.4,0.5]], e: [[-0.8,-0.2],[0.8,0.2]] },
+    },
+    fire_discipline: {
+      name: 'Fire Discipline', tier: 3, span: 3, cls: 'vanguard', field: 'listenerEcho',
+      fx: [{ k: 'status', s: 'aim', v: 1, who: 'self' }],
+      desc: 'Gain 1 Aim. Every listener on the die fires one extra time.',
+      art: { p: [[-0.8,-0.5, 0.8,-0.5], [-0.8,0, 0.8,0], [-0.8,0.5, 0.8,0.5], [-0.5,-0.66, -0.5,0.66], [0,-0.66, 0,0.66], [0.5,-0.66, 0.5,0.66]], e: [[-0.5,-0.5],[0.5,-0.5],[-0.5,0],[0.5,0],[-0.5,0.5],[0.5,0.5],[0,0]] },
+    },
+
+    /* ---- trade-offs: they cost Aim or blood ---- */
+    open_bolt: {
+      name: 'Open Bolt', tier: 2, span: 1, cls: 'vanguard', band: 'low',
+      fx: [{ k: 'dmg', v: 16, scale: 'might' }, { k: 'hploss', v: 4 }],
+      desc: 'Deal 16 damage. Lose 4 HP. Cuts only into the graze band.',
+      art: { p: [[-0.7,-0.2, 0.3,-0.2, 0.3,0.16, -0.7,0.16, -0.7,-0.2], [-0.7,-0.02, 0.3,-0.02], [0.3,-0.1, 0.72,-0.1], [0.3,0.06, 0.72,0.06], [-0.4,-0.2, -0.4,-0.44, -0.1,-0.44], [0.5,-0.36, 0.62,-0.5], [0.5,0.3, 0.62,0.44]], e: [[0.8,-0.02],[-0.25,-0.52]] },
+    },
+    bore_sight: {
+      name: 'Bore Sight', tier: 3, span: 1, cls: 'vanguard', band: 'high',
+      fx: [{ k: 'status', s: 'aim', v: 4, who: 'self' }, { k: 'hploss', v: 5 }],
+      desc: 'Gain 4 Aim. Lose 5 HP.',
+      art: { p: [[-0.86,0, 0.86,0], [0,-0.86, 0,0.86], [-0.4,-0.4, 0.4,-0.4, 0.4,0.4, -0.4,0.4, -0.4,-0.4], [-0.16,-0.16, 0.16,-0.16, 0.16,0.16, -0.16,0.16, -0.16,-0.16], [-0.6,-0.6, -0.4,-0.4], [0.6,0.6, 0.4,0.4]], e: [[0,0]] },
+    },
+    powder_burn: {
+      name: 'Powder Burn', tier: 2, span: 1, cls: 'vanguard', band: 'low',
+      fx: [{ k: 'status', s: 'str', v: 3, who: 'self' }, { k: 'hploss', v: 3 }],
+      desc: 'Gain 3 Might. Lose 3 HP.',
+      art: { p: [[0,-0.66, 0.24,-0.24, 0.12,0.0, 0.3,0.3, 0.14,0.6, 0,0.7, -0.14,0.6, -0.3,0.3, -0.12,0.0, -0.24,-0.24, 0,-0.66], [0,-0.2, 0.12,0.08, 0,0.36, -0.12,0.08, 0,-0.2], [-0.5,-0.4, -0.6,-0.06], [0.5,-0.4, 0.6,-0.06]], e: [[0,0.06],[-0.64,0.1],[0.64,0.1]] },
+    },
+    overpressure: {
+      name: 'Overpressure', tier: 3, span: 3, cls: 'vanguard', band: 'high',
+      fx: [{ k: 'dmg', v: 12, scale: 'might' }, { k: 'hploss', v: 3 }],
+      desc: 'Deal 12 damage. Lose 3 HP. Takes three faces at the top of the table.',
+      art: { p: [[-0.5,0.4, -0.5,-0.2, -0.2,-0.5, 0.2,-0.5, 0.5,-0.2, 0.5,0.4, -0.5,0.4], [-0.5,0.1, 0.5,0.1], [-0.24,-0.5, -0.24,0.1], [0.24,-0.5, 0.24,0.1], [0,-0.5, 0,-0.76], [-0.7,-0.3, -0.86,-0.44], [0.7,-0.3, 0.86,-0.44]], e: [[0,-0.82],[-0.25,0.25],[0.25,0.25]] },
+    },
+    cauterise: {
+      name: 'Cauterise', tier: 2, span: 1, cls: 'vanguard', field: 'cauterise',
+      fx: [{ k: 'block', v: 6 }],
+      desc: 'Gain 6 Shield. Your own cards can no longer cost you HP — they cost 1 Aim instead.',
+      art: { p: [[-0.5,0.3, 0.5,0.3], [-0.34,0.3, -0.34,-0.16, 0.34,-0.16, 0.34,0.3], [-0.34,0.06, 0.34,0.06], [0,-0.16, 0,-0.5], [-0.2,-0.4, 0,-0.6, 0.2,-0.4], [-0.6,-0.1, -0.5,-0.3], [0.6,-0.1, 0.5,-0.3]], e: [[0,-0.66]] },
+    },
+    deadmans_trigger: {
+      name: "Deadman's Trigger", tier: 3, span: 1, cls: 'vanguard', onlyFace: 1,
+      fx: [{ k: 'dmg', v: 14, scale: 'might' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }],
+      desc: 'Deal 14 damage. Apply 2 Vulnerable. Engraved on face 1 only — the jam still kills.',
+      art: { p: [[-0.6,-0.4, 0.4,-0.4, 0.4,0.0, -0.6,0.0, -0.6,-0.4], [-0.6,-0.2, 0.4,-0.2], [-0.1,0.0, -0.16,0.4, 0.06,0.44, 0.1,0.0], [-0.15,0.24, 0.08,0.26], [0.4,-0.3, 0.7,-0.3], [-0.4,-0.4, -0.4,-0.6, -0.1,-0.6]], e: [[0.8,-0.3],[-0.25,-0.68]] },
+    },
+
     executioners_mark: {
       name: "Executioner's Mark", tier: 3, span: 1,
       fx: [{ k: 'special', id: 'dieExecute', v: 12 }],
@@ -349,12 +491,52 @@
   };
 
   // Can `id` be engraved at `face`? Returns null if fine, else a reason.
+  /* ---- REGIONS ------------------------------------------------------- *
+   * The die already had geography — every class table splits it into bands —
+   * but nothing could be told to live in one. An engraving with a `band` may
+   * only be cut inside its region, which is what lets a card be priced for the
+   * part of the table it is asking you to build around: a thing that only ever
+   * fires on a graze can afford to be much stronger than one that fires
+   * anywhere.
+   * ------------------------------------------------------------------- */
+  ns.DIE_REGION = { low: [2, 7], mid: [8, 14], high: [15, 20] };
+  ns.dieRegionOf = function (face) {
+    if (face <= 1) return 'misfire';
+    for (var k in ns.DIE_REGION) {
+      if (face >= ns.DIE_REGION[k][0] && face <= ns.DIE_REGION[k][1]) return k;
+    }
+    return null;
+  };
+  ns.dieRegionLabel = function (b) {
+    var r = ns.DIE_REGION[b];
+    return r ? (b.toUpperCase() + ' ' + r[0] + '-' + r[1]) : (b || '').toUpperCase();
+  };
+
+  // Faces either side of a root, for adjacency. The die is a RING: 20 is next
+  // to 1, so a chain can close on the seam between the best face and the worst.
+  ns.dieNeighbours = function (die, face) {
+    var n = ns.DIE.faces, out = [];
+    [face - 1, face + 1].forEach(function (f) {
+      if (f < 1) f = n; if (f > n) f = 1;
+      // a span sits on several faces; its own body is not its neighbour
+      var here = die.faces[face], there = die.faces[f];
+      if (there && here && there.root === here.root) return;
+      out.push(f);
+    });
+    return out;
+  };
+
   ns.dieCanEngrave = function (die, id, face) {
     var d = ns.dieEngraving(id);
     if (!d) return 'unknown engraving';
     if (d.onlyFace && d.onlyFace !== face) return 'only fits face ' + d.onlyFace;
     var span = ns.dieSpan(id, face);
     if (span.length < (d.span || 1)) return 'does not fit past face ' + ns.DIE.faces;
+    if (d.band) {
+      for (var s = 0; s < span.length; s++) {
+        if (ns.dieRegionOf(span[s]) !== d.band) return 'only cuts into ' + ns.dieRegionLabel(d.band);
+      }
+    }
     for (var i = 0; i < span.length; i++) if (die.faces[span[i]]) return 'face ' + span[i] + ' is taken';
     return null;
   };

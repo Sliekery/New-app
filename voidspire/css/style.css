@@ -1950,3 +1950,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   font: 700 7.5px/1 ui-monospace, monospace; letter-spacing: 1px; color: #ff8a94;
   border: 1px solid rgba(255,106,106,0.6); padding: 2px 3px; margin-left: 4px; vertical-align: middle;
 }
+
+/* engraving category tags — band, listener, field */
+.eng-tag {
+  display: inline-block; font: 700 8.5px/1 ui-monospace, monospace; letter-spacing: 0.6px;
+  padding: 2px 3px; margin: 0 3px 2px 0; vertical-align: middle; border: 1px solid;
+}
+.eng-tag.listen { color: #7dffa0; border-color: rgba(125,255,160,0.5); }
+.eng-tag.field  { color: #41d8ff; border-color: rgba(65,216,255,0.5); }
+.eng-tag.band   { color: var(--amber); border-color: rgba(255,176,46,0.5); }
+.pend-it .eng-tag { margin: 0 2px 0 0; }

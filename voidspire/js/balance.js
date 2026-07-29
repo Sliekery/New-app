@@ -40,6 +40,13 @@
      * design: three answers to the same question, not three sets of numbers.
      * ---------------------------------------------------------------- */
     dice: {
+      // THE ROLL BLEEDS: a roll fires its face fully and the faces either side
+      // at this fraction. It is what makes WHERE you cut matter as much as
+      // WHAT, and it turns a filled die from a dead end into the payoff.
+      bleed: 0.25,
+      // a listener may set off another listener, but only this deep — the
+      // shape of "when you apply Burn, attack" is a loop waiting to happen
+      chainDepth: 2,
       critThreshold: 20,        // roll + Aim >= (threshold - critBonus) crits
       critMult: 2.0,            // crit damage multiplier
       misfireMult: 0.5,         // legacy fallback for a class with no table
