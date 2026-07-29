@@ -69,6 +69,12 @@ function probe(floor) {
   var s = document.querySelector('.screen');
   if (!s) return { none: true };
   var clipped = [], tiny = [];
+  // SVG elements carry an SVGAnimatedString className, which stringifies to
+  // "[object SVGAnimatedString]" and told us nothing about what was clipped.
+  function elName(c) {
+    var cn = (typeof c.className === 'string') ? c.className : (c.getAttribute && c.getAttribute('class')) || '';
+    return (cn ? cn.split(' ')[0] : c.tagName.toLowerCase());
+  }
   var all = s.querySelectorAll('*');
   for (var i = 0; i < all.length; i++) {
     var c = all[i];
@@ -79,12 +85,16 @@ function probe(floor) {
     // that opt into scrolling are doing it on purpose — neither is a defect.
     var cs = getComputedStyle(c);
     var scrollable = /auto|scroll/.test(cs.overflow + cs.overflowX + cs.overflowY);
+    // SVG content has its own layout model: <text> reports clientWidth 0, so the
+    // box comparison below can never pass for it, and computed font-size is in
+    // user units the viewBox then rescales. Neither check means anything here.
+    if (c.ownerSVGElement || c.tagName.toLowerCase() === 'svg') continue;
     if (leaf && !scrollable && (c.scrollWidth - c.clientWidth > 2 || c.scrollHeight - c.clientHeight > 2)) {
-      clipped.push((c.className || c.tagName).toString().split(' ')[0]);
+      clipped.push(elName(c));
     }
     if (leaf) {
       var px = parseFloat(cs.fontSize);
-      if (px > 0 && px < floor) tiny.push((c.className || c.tagName).toString().split(' ')[0] + '@' + px.toFixed(1) + 'px');
+      if (px > 0 && px < floor) tiny.push(elName(c) + '@' + px.toFixed(1) + 'px');
     }
   }
   function uniq(a) { var o = {}; a.forEach(function (x) { o[x] = 1; }); return Object.keys(o); }

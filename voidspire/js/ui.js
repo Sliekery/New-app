@@ -1424,35 +1424,107 @@
     }).join('') + '</g>';
   }
 
+  // NaN guards: some art arrays carry NaN placeholders, which would poison a path
+  function artPaths(A, cx, cy, s) {
+    if (!A) return '';
+    var out = '';
+    (A.p || []).forEach(function (poly) {
+      var pts = [];
+      for (var i = 0; i < poly.length; i += 2) {
+        if (isNaN(poly[i]) || isNaN(poly[i + 1])) continue;
+        pts.push((cx + poly[i] * s).toFixed(1) + ',' + (cy + poly[i + 1] * s).toFixed(1));
+      }
+      if (pts.length > 1) out += '<polyline points="' + pts.join(' ') + '"/>';
+    });
+    (A.e || []).forEach(function (e) {
+      out += '<circle class="gdot" cx="' + (cx + e[0] * s).toFixed(1) + '" cy="' + (cy + e[1] * s).toFixed(1) +
+             '" r="' + Math.max(0.8, s * 0.06).toFixed(1) + '"/>';
+    });
+    return out;
+  }
+
+  // What lives in a node, shown honestly: a representative of the faction's
+  // encounter pool rather than the exact roll, which combat still decides on
+  // entry from row/sector context. Stable per node so it never reshuffles.
+  function nodeCast(node, faction) {
+    var h = (node.row * 31 + node.col * 17) >>> 0;
+    if (node.type === 'boss') return ns.ENEMIES[E.sectorBossId()] || null;
+    if (node.type === 'elite') { var el2 = ns.ELITES[faction] || []; return ns.ENEMIES[el2[h % el2.length]] || null; }
+    if (node.type === 'fight' || node.type === 'beacon') {
+      var pk = ns.PACKS[faction] || []; if (!pk.length) return null;
+      var pack = pk[h % Math.min(pk.length, 6)];
+      return ns.ENEMIES[pack[0]] || null;
+    }
+    return null;
+  }
+  var NODE_NAME = {
+    fight: 'HOSTILES', elite: 'ELITE', beacon: 'BEACON', event: 'SIGNAL', rift: 'RIFT',
+    shop: 'DEALER', market: 'MARKET', forge: 'FORGE', rest: 'CAMP', treasure: 'CACHE', boss: 'BOSS',
+  };
+  var NODE_CAT = {
+    fight: 'HOSTILE', elite: 'MINI-BOSS', beacon: 'DISTRESS', event: 'ANOMALY', rift: 'ANOMALY',
+    shop: 'MARKET', market: 'MARKET', forge: 'WORKSHOP', rest: 'SAFE', treasure: 'SALVAGE', boss: 'SECTOR BOSS',
+  };
+
+  // The room behind the chart. Deterministic from the sector so it is stable
+  // across re-renders, and drawn once as dim line-art the map reads on top of.
+  function mapBackdrop(W, H, seed) {
+    var s0 = (seed * 2654435761) >>> 0;
+    function rr() { s0 = (s0 * 1664525 + 1013904223) & 0x7fffffff; return s0 / 0x7fffffff; }
+    var o = '<g class="mapbg">';
+    for (var d = 0; d < 6; d++) { var y = (d + 0.5) * (H / 6);
+      o += '<path d="M0 ' + y.toFixed(0) + ' L' + W + ' ' + (y - 14).toFixed(0) + '"/>'; }
+    for (var v = 0; v < 12; v++) { var x = (v + 0.5) * (W / 12);
+      o += '<path d="M' + x.toFixed(0) + ' 0 L' + (x - 26).toFixed(0) + ' ' + H + '"/>'; }
+    for (var c2 = 0; c2 < 8; c2++) { var cy2 = rr() * H;
+      o += '<path class="cond" d="M0 ' + cy2.toFixed(0) + ' L' + W + ' ' + (cy2 + (rr() - 0.5) * 50).toFixed(0) + '"/>'; }
+    for (var pn = 0; pn < 18; pn++) {
+      var px = rr() * (W - 120), py = rr() * (H - 80), pw = 40 + rr() * 90, ph = 26 + rr() * 44;
+      o += '<rect class="panel" x="' + px.toFixed(0) + '" y="' + py.toFixed(0) + '" width="' + pw.toFixed(0) + '" height="' + ph.toFixed(0) + '"/>';
+      for (var ln = 0; ln < 3; ln++)
+        o += '<path class="scr" d="M' + (px + 6).toFixed(0) + ' ' + (py + 9 + ln * 9).toFixed(0) +
+             ' L' + (px + 6 + rr() * (pw - 16)).toFixed(0) + ' ' + (py + 9 + ln * 9).toFixed(0) + '"/>';
+    }
+    for (var li = 0; li < 22; li++)
+      o += '<circle class="blip" cx="' + (rr() * W).toFixed(0) + '" cy="' + (rr() * H).toFixed(0) + '" r="1.8"/>';
+    return o + '</g>';
+  }
+
   function showMap(preview) {
     updateHUD();
     var r = E.run, m = r.map;
     var s = overlayScreen(true);
-    s.classList.add('map-screen');
-    s.appendChild(el('h2', 'screen-title', 'Sector ' + r.sector + ' · Star Chart'));
+    s.classList.add('map-screen', 'chartv2');
+    var land = isLandscape();
+    var COLS = m.COLS, ROWS = m.ROWS;
     var started = r.mapRow >= 0;
-    s.appendChild(el('div', 'screen-sub', esc(ns.FACTIONS[r.faction].name.toUpperCase()) + ' TERRITORY · ' + (preview ? 'TACTICAL VIEW' : started ? 'CHOOSE THE NEXT JUMP' : 'CHOOSE YOUR ENTRY POINT')));
+
+    // header strip, notched around the title like a HUD plate
+    var head = el('div', 'chart-head');
+    head.innerHTML =
+      '<span class="ch-l">MAP // SECTOR ' + r.sector + ': ' + esc(ns.FACTIONS[r.faction].name.toUpperCase()) + '</span>' +
+      '<span class="ch-mid"><span class="ch-title">' + (preview ? 'TACTICAL VIEW' : started ? 'CHOOSE THE NEXT JUMP' : 'CHOOSE YOUR ENTRY') + '</span></span>' +
+      '<span class="ch-r"><b class="hp">' + r.hp + '/' + r.maxHp + '</b><b class="cr">¢' + r.credits + '</b></span>';
+    s.appendChild(head);
+
     if (preview) {
       var back = el('button', 'btn map-back', '◀ RETURN');
       back.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); SFX.tap(); U.refresh(); });
       s.appendChild(back);
     }
 
-    var COLS = m.COLS, ROWS = m.ROWS;
-    var land = isLandscape();
-    var lane = 100, step = 106;        // lane = perpendicular spacing, step = progress spacing
-    var W = land ? (ROWS + 1) * step : COLS * lane;
-    var H = land ? COLS * lane : (ROWS + 1) * step;
+    // geometry: landscape flows left->right with the boss at the far end
+    var lane = land ? 112 : 76, step = land ? 92 : 104;
+    var padA = land ? 86 : 74;                      // room for the boss corona
+    var W = land ? (ROWS + 1) * step + padA : COLS * lane;
+    var H = land ? COLS * lane : (ROWS + 1) * step + padA;
     var reach = E.mapReachable(), cur = E.currentNode();
-    // fog of war: you scout ~3 rows ahead; further nodes show only their lane,
-    // not the encounter, and resolve as you advance.
     var revealRow = (r.mapRow < 0 ? -1 : r.mapRow) + 3;
 
-    // portrait flows bottom->top; landscape flows left->right (boss at the far end)
     function xy(node) {
-      var jx = mapJit(node.row, node.col, 0), jy = mapJit(node.row, node.col, 1);
-      if (land) return { x: (node.row + 0.5) * step + jx, y: (node.col + 0.5) * lane + jy };
-      return { x: (node.col + 0.5) * lane + jx, y: H - (node.row + 0.5) * step + jy };
+      var jx = mapJit(node.row, node.col, 0) * 0.5, jy = mapJit(node.row, node.col, 1) * 0.5;
+      if (land) return { x: (node.row + 0.6) * step + jx, y: (node.col + 0.5) * lane + jy };
+      return { x: (node.col + 0.5) * lane + jx, y: H - padA - (node.row + 0.5) * step + jy };
     }
     function targetOf(node, tc) {
       if (tc === 'boss') return m.boss;
@@ -1461,93 +1533,108 @@
       return null;
     }
 
-    var par = land ? 'xMinYMid meet' : 'xMidYMin meet';
-    var svg = '<svg class="starchart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="' + par + '">';
-    // edges (drawn as glowing flight paths with a midpoint waypoint tick)
+    var par = land ? 'xMidYMid meet' : 'xMidYMin meet';
+    var svg = '<svg class="starchart v2" viewBox="0 0 ' + W.toFixed(0) + ' ' + H.toFixed(0) + '" preserveAspectRatio="' + par + '">';
+    svg += mapBackdrop(W, H, r.sector + (r.loop || 1) * 7);
+
+    // ---- connectors: thick, coloured by where they LEAD, junction ring at the bend
     for (var ri = 0; ri < ROWS; ri++) {
       m.rows[ri].forEach(function (node) {
         node.edges.forEach(function (tc) {
           var t = targetOf(node, tc); if (!t) return;
           var a = xy(node), b = xy(t);
-          var cls = (node === cur && reach.indexOf(t) >= 0) ? 'live' : (node.visited && t.visited) ? 'trav' : 'dim';
-          var lc = LANE_COLOR[node.lane] || '#9fb6c0', op = cls === 'dim' ? 0.32 : cls === 'trav' ? 0.7 : 1;
-          svg += '<line class="edge ' + cls + '" style="stroke:' + lc + ';opacity:' + op + '" x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) + '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1) + '"/>';
-          if (cls !== 'dim') {
-            var mx = ((a.x + b.x) / 2).toFixed(1), my = ((a.y + b.y) / 2).toFixed(1);
-            svg += '<circle class="waypt ' + cls + '" cx="' + mx + '" cy="' + my + '" r="1.8"/>';
-          }
+          var live = (node === cur && reach.indexOf(t) >= 0);
+          var trav = node.visited && t.visited;
+          var cls = live ? 'live' : trav ? 'trav' : 'dim';
+          var ic = ns.MAP_ICONS[t.type] || ns.MAP_ICONS.fight;
+          var col = (!t.visited && t.row > revealRow && t.type !== 'boss') ? (LANE_COLOR[t.lane] || '#5e8a6c') : ic.color;
+          var mx = ((a.x + b.x) / 2).toFixed(1), my = ((a.y + b.y) / 2).toFixed(1);
+          var d = 'M' + a.x.toFixed(1) + ' ' + a.y.toFixed(1) + ' Q' + mx + ' ' + my + ' ' + b.x.toFixed(1) + ' ' + b.y.toFixed(1);
+          svg += '<path class="ln glow ' + cls + '" style="stroke:' + col + '" d="' + d + '"/>';
+          svg += '<path class="ln core ' + cls + '" style="stroke:' + col + '" d="' + d + '"/>';
+          svg += '<circle class="jn ' + cls + '" style="stroke:' + col + '" cx="' + mx + '" cy="' + my + '" r="5.5"/>';
         });
       });
     }
-    // nodes (glowing hex frames with reticle brackets on reachable ones)
+
+    // ---- nodes
     function nodeMarkup(node) {
       var isBoss = node.type === 'boss';
       var fogged = !isBoss && !node.visited && node.row > revealRow;
-      var p = xy(node), icon = ns.MAP_ICONS[node.type] || ns.MAP_ICONS.fight;
-      var nc = fogged ? (LANE_COLOR[node.lane] || '#5e8a6c') : icon.color;   // fogged: show only the lane
-      var hexR = isBoss ? 29 : 20, size = isBoss ? 24 : 15;
+      var p = xy(node), ic = ns.MAP_ICONS[node.type] || ns.MAP_ICONS.fight;
+      var col = fogged ? (LANE_COLOR[node.lane] || '#5e8a6c') : ic.color;
+      var rad = isBoss ? 62 : (node.type === 'elite' ? 30 : 27);
       var reachable = reach.indexOf(node) >= 0;
       var state = node === cur ? 'current' : node.visited ? 'visited' : reachable ? 'reachable' : 'locked';
-      var g = '<g class="mapnode ' + state + (fogged ? ' fogged' : '') + ' nt-' + node.type + '" data-row="' + node.row + '" data-col="' + node.col + '" style="--nc:' + nc + '">';
-      if (reachable) {
-        g += '<circle class="pulse" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + hexR + '"/>';
-        g += '<circle class="pulse p2" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + hexR + '"/>';
+      var cast = fogged ? null : nodeCast(node, r.faction);
+      var g = '<g class="mapnode ' + state + (fogged ? ' fogged' : '') + (isBoss ? ' isboss' : '') +
+              ' nt-' + node.type + '" data-row="' + node.row + '" data-col="' + node.col + '" style="--nc:' + col + '">';
+      g += '<circle class="wash" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + rad + '"/>';
+      if (reachable) g += '<circle class="pulse" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + rad + '"/>';
+      g += '<circle class="ring" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + rad + '"/>';
+      if (isBoss) {
+        for (var sp = 0; sp < 10; sp++) {
+          var a2 = sp / 10 * Math.PI * 2 - 0.31;
+          g += '<path class="spike" d="M' + (p.x + Math.cos(a2) * rad).toFixed(1) + ' ' + (p.y + Math.sin(a2) * rad).toFixed(1) +
+               ' L' + (p.x + Math.cos(a2) * (rad + 17)).toFixed(1) + ' ' + (p.y + Math.sin(a2) * (rad + 17)).toFixed(1) + '"/>';
+        }
       }
-      g += '<polygon class="hexfill" points="' + hexPts(p.x, p.y, hexR) + '"/>';
-      if (node.hazard) g += '<circle class="hazring" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + (hexR + 4) + '"/>';
-      g += '<polygon class="hex" points="' + hexPts(p.x, p.y, hexR) + '"/>';
-      if (isBoss) g += '<polygon class="hex2" points="' + hexPts(p.x, p.y, hexR + 5) + '"/>';
-      if (fogged) g += '<text class="fogq" x="' + p.x.toFixed(1) + '" y="' + (p.y + size * 0.42).toFixed(1) + '">?</text>';
-      else g += '<g class="glyph">' + mapIconPaths(icon, p.x, p.y, size) + '</g>';
-      if (reachable) g += cornerTicks(p.x, p.y, hexR + 5);
-      g += '<circle class="hit" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + (hexR + 10) + '"/>';
+      if (fogged) g += '<text class="fogq" x="' + p.x.toFixed(1) + '" y="' + (p.y + 7).toFixed(1) + '">?</text>';
+      else if (cast) g += '<g class="glyph cast">' + artPaths(cast.art, p.x, p.y + rad * 0.06, rad * 0.60) + '</g>';
+      else g += '<g class="glyph">' + mapIconPaths(ic, p.x, p.y, rad * 0.50) + '</g>';
+      // The reference labels every node because it only has thirteen. A sector
+      // has forty, so name only what you can act on — the ones in reach, where
+      // you are, and the boss. Everything else reads as shape and colour.
+      var named = isBoss || reachable || node === cur;
+      if (!fogged && named) {
+        g += '<text class="ncat" x="' + p.x.toFixed(1) + '" y="' + (p.y - rad - 12).toFixed(1) + '">' + esc(NODE_CAT[node.type] || '') + '</text>';
+        var nm = isBoss ? E.sectorBossName() : (cast ? cast.name.toUpperCase() : (NODE_NAME[node.type] || ''));
+        g += '<text class="nname" x="' + p.x.toFixed(1) + '" y="' + (p.y + rad + 21).toFixed(1) + '">' + esc(nm) + '</text>';
+      }
+      g += '<circle class="hit" cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + (rad + 12) + '"/>';
       return g + '</g>';
     }
     m.rows.forEach(function (row) { row.forEach(function (n) { svg += nodeMarkup(n); }); });
     svg += nodeMarkup(m.boss);
-    // boss telegraph: name the sector boss looming at the end of the chart
-    var bxy = xy(m.boss);
-    svg += '<text class="boss-label" x="' + bxy.x.toFixed(1) + '" y="' + (bxy.y + (land ? 50 : 46)).toFixed(1) + '">' + esc(E.sectorBossName()) + '</text>';
     svg += '</svg>';
 
     var wrap = el('div', 'map-wrap' + (land ? ' land' : ''));
     wrap.innerHTML = svg;
     s.appendChild(wrap);
 
-    var legend = el('div', 'map-legend');
-    ['fight', 'elite', 'beacon', 'event', 'rift', 'shop', 'market', 'forge', 'rest', 'treasure', 'boss'].forEach(function (t) {
+    // compact legend + lane key on one strip
+    var legend = el('div', 'chart-legend');
+    ['fight', 'elite', 'event', 'shop', 'forge', 'rest', 'treasure'].forEach(function (t) {
       var ic = ns.MAP_ICONS[t];
-      legend.innerHTML += '<span class="leg"><span class="leg-ic" style="color:' + ic.color + '">' +
-        '<svg viewBox="0 0 48 48">' + mapIconPaths(ic, 24, 24, 17) + '</svg></span>' + esc(NODE_LABEL[t]) + '</span>';
+      legend.innerHTML += '<span class="leg" style="color:' + ic.color + '"><svg viewBox="0 0 48 48">' +
+        mapIconPaths(ic, 24, 24, 16) + '</svg>' + esc(NODE_LABEL[t]) + '</span>';
+    });
+    (m.lanes || []).forEach(function (ln) {
+      legend.innerHTML += '<span class="leg lane" style="color:' + LANE_COLOR[ln] + '"><i></i>' + esc(LANE_LABEL[ln]) + '</span>';
     });
     s.appendChild(legend);
 
-    // lane key — which highway is which this sector
-    var lanebar = el('div', 'map-lanes');
-    (m.lanes || []).forEach(function (ln) {
-      lanebar.innerHTML += '<span class="lane-key" style="--lc:' + LANE_COLOR[ln] + '"><span class="lane-dash"></span>' + esc(LANE_LABEL[ln]) + '</span>';
-    });
-    s.appendChild(lanebar);
-
     wrap.addEventListener('pointerdown', function (ev) {
-      if (preview) return;   // read-only star-chart view (e.g. opened mid-combat)
-      var g = ev.target.closest ? ev.target.closest('.mapnode') : null;
-      if (!g || !g.classList.contains('reachable')) return;
-      var row = +g.getAttribute('data-row'), col = +g.getAttribute('data-col');
+      if (preview) return;
+      var g2 = ev.target.closest ? ev.target.closest('.mapnode') : null;
+      if (!g2 || !g2.classList.contains('reachable')) return;
+      var row = +g2.getAttribute('data-row'), col = +g2.getAttribute('data-col');
       var node = (row >= m.ROWS) ? m.boss : null;
       if (!node) { m.rows[row].forEach(function (n) { if (n.col === col) node = n; }); }
       if (node && E.enterNode(node)) { SFX.play(); U.refresh(); }
     });
 
-    // portrait scrolls vertically to keep the active frontier in view; the
-    // landscape chart is sized to fit, so it needs no scrolling
-    if (!land) setTimeout(function () {
-      var svgEl = wrap.querySelector('svg');
-      if (!svgEl) return;
+    // keep the frontier in view on whichever axis the chart runs
+    setTimeout(function () {
+      var svgEl = wrap.querySelector('svg'); if (!svgEl || !cur) return;
       var rect = svgEl.getBoundingClientRect();
-      var scale = rect.height / H;
-      var focusY = cur ? xy(cur).y * scale : H * scale;
-      wrap.scrollTop = Math.max(0, focusY - wrap.clientHeight * 0.62);
+      if (land) {
+        var sx = rect.width / W, fx = xy(cur).x * sx;
+        wrap.scrollLeft = Math.max(0, fx - wrap.clientWidth * 0.42);
+      } else {
+        var sy = rect.height / H, fy = xy(cur).y * sy;
+        wrap.scrollTop = Math.max(0, fy - wrap.clientHeight * 0.62);
+      }
     }, 0);
   }
 

@@ -1536,6 +1536,104 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .bench-it.arming { border-color: #ffb02e; box-shadow: 0 0 12px rgba(255,176,46,0.35); }
 .bench-row { margin-bottom: 8px; }
 
+/* ================= THE STAR CHART (v2) =================================
+   A framed HUD plate over a dim drawing of the room you are standing in.
+   Nodes are big lit rings that carry the ACTUAL thing waiting in them, with
+   the category above and the name below — the old chart made you decode a
+   small hex against a legend that ate a quarter of the screen. */
+.map-screen.chartv2 { justify-content: flex-start; padding-top: 8px; gap: 0; }
+.chart-head {
+  display: flex; align-items: center; width: 100%; max-width: 1180px; gap: 10px;
+  padding: 0 4px 6px; border-bottom: 1.6px solid #5dff88;
+  box-shadow: 0 1px 10px -2px rgba(93,255,136,0.55);
+}
+.chart-head .ch-l { font: 700 9.5px/1 ui-monospace, monospace; letter-spacing: 1.4px; color: #7fd8a8; white-space: nowrap; }
+.chart-head .ch-mid { flex: 1 1 auto; text-align: center; min-width: 0; }
+.chart-head .ch-l, .chart-head .ch-r b { white-space: nowrap; }
+.chart-head .ch-title {
+  font: 700 11px/1 ui-monospace, monospace; letter-spacing: 3px; color: #5dff88;
+  text-shadow: 0 0 10px rgba(93,255,136,0.7);
+  display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* a phone has no room for the sector strapline as well as the title */
+@media (max-width: 560px) {
+  .chart-head .ch-l { display: none; }
+  .chart-head .ch-title { letter-spacing: 1.6px; font-size: 10px; }
+}
+.chart-head .ch-r { display: flex; gap: 12px; font: 700 9.5px/1 ui-monospace, monospace; letter-spacing: 1.2px; }
+.chart-head .ch-r .hp { color: #ff8a94; } .chart-head .ch-r .cr { color: #ffe14a; }
+
+.chartv2 .map-wrap {
+  width: 100%; max-width: none; margin-top: 8px;
+  border: 1.4px solid rgba(63,122,97,0.7);
+  clip-path: polygon(0 14px, 14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px));
+  background: rgba(3, 8, 10, 0.55);
+}
+.chartv2 .map-wrap.land {
+  max-width: none; overflow: hidden; height: auto; flex: 1 1 auto; min-height: 0;
+  display: block; margin: 8px 0 0;
+}
+.chartv2 .map-wrap {
+  -webkit-mask-image: none; mask-image: none;
+  max-width: none; flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden;
+}
+.chartv2 .starchart { width: 100%; height: 100%; display: block; }
+
+/* the drawn room behind the chart */
+.starchart.v2 .mapbg path { fill: none; stroke: #0f2a22; stroke-width: 2; opacity: 0.55; }
+.starchart.v2 .mapbg path.cond { stroke: #14322a; stroke-width: 2.6; }
+.starchart.v2 .mapbg path.scr { stroke: #1e4a3c; stroke-width: 1.2; opacity: 0.5; }
+.starchart.v2 .mapbg rect.panel { fill: rgba(10,26,21,0.5); stroke: #16362c; stroke-width: 1.3; opacity: 0.5; }
+.starchart.v2 .mapbg circle.blip { fill: #3fd0a8; opacity: 0.35; }
+
+/* connectors: a wide soft pass under a bright core, coloured by destination */
+.starchart.v2 .ln { fill: none; stroke-linecap: round; }
+.starchart.v2 .ln.glow { stroke-width: 7; opacity: 0.16; }
+.starchart.v2 .ln.core { stroke-width: 2.2; opacity: 0.85; }
+.starchart.v2 .ln.dim { opacity: 0.3; }
+.starchart.v2 .ln.glow.dim { opacity: 0.07; }
+.starchart.v2 .ln.live.core { stroke-width: 3; opacity: 1; filter: drop-shadow(0 0 5px currentColor); }
+.starchart.v2 .jn { fill: rgba(3,8,10,0.9); stroke-width: 1.5; opacity: 0.75; }
+.starchart.v2 .jn.dim { opacity: 0.3; }
+
+/* nodes */
+.starchart.v2 .mapnode .wash { fill: var(--nc); opacity: 0.11; }
+.starchart.v2 .mapnode .ring { fill: none; stroke: var(--nc); stroke-width: 3; opacity: 0.95; }
+.starchart.v2 .mapnode .spike { stroke: var(--nc); stroke-width: 3; stroke-linecap: round; opacity: 0.9; }
+.starchart.v2 .mapnode .glyph polyline { fill: none; stroke: var(--nc); stroke-width: 1.9; stroke-linejoin: round; stroke-linecap: round; }
+.starchart.v2 .mapnode .glyph.cast polyline { stroke-width: 1.5; }
+.starchart.v2 .mapnode .glyph .gdot { fill: #f2fff5; }
+.starchart.v2 .mapnode .ncat { fill: var(--nc); font: 700 9px ui-monospace, monospace; letter-spacing: 1.5px; text-anchor: middle; opacity: 0.95; }
+.starchart.v2 .mapnode .nname { fill: var(--nc); font: 700 10px ui-monospace, monospace; letter-spacing: 1.2px; text-anchor: middle; }
+.starchart.v2 .mapnode .fogq { fill: var(--nc); font: 700 22px ui-monospace, monospace; text-anchor: middle; opacity: 0.75; }
+.starchart.v2 .mapnode .hit { fill: transparent; }
+.starchart.v2 .mapnode.locked { opacity: 0.42; }
+.starchart.v2 .mapnode.visited { opacity: 0.55; }
+.starchart.v2 .mapnode.visited .wash { opacity: 0.04; }
+.starchart.v2 .mapnode.reachable { cursor: pointer; }
+.starchart.v2 .mapnode.reachable .ring { stroke-width: 4; filter: drop-shadow(0 0 8px var(--nc)); }
+.starchart.v2 .mapnode.current .ring { stroke: #eafcff; stroke-width: 4; filter: drop-shadow(0 0 12px #eafcff); }
+.starchart.v2 .mapnode .pulse { fill: none; stroke: var(--nc); stroke-width: 1.4; opacity: 0; animation: chartPulse 2.1s ease-out infinite; }
+@keyframes chartPulse {
+  0%   { opacity: 0.7; transform: scale(1); }
+  70%, 100% { opacity: 0; transform: scale(1.38); }
+}
+.starchart.v2 .mapnode .pulse { transform-origin: center; transform-box: fill-box; }
+.starchart.v2 .mapnode.isboss .ring { filter: drop-shadow(0 0 18px var(--nc)); }
+.starchart.v2 .mapnode.isboss .nname { font-size: 12px; letter-spacing: 1.6px; }
+@media (prefers-reduced-motion: reduce) { .starchart.v2 .mapnode .pulse { animation: none; opacity: 0; } }
+
+/* one compact strip instead of a legend block plus a lane block */
+.chart-legend {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px;
+  margin-top: 8px; max-width: 1180px;
+}
+.chart-legend .leg { display: inline-flex; align-items: center; gap: 4px; font: 700 8.6px/1 ui-monospace, monospace; letter-spacing: 1px; }
+.chart-legend .leg svg { width: 12px; height: 12px; }
+.chart-legend .leg svg polyline { fill: none; stroke: currentColor; stroke-width: 3.4; stroke-linejoin: round; stroke-linecap: round; }
+.chart-legend .leg svg .gdot { fill: currentColor; }
+.chart-legend .leg.lane i { width: 14px; height: 2px; background: currentColor; display: inline-block; }
+
 /* ---- engravings in hand ---------------------------------------------
    Same object as a bench item, so it reuses that chrome. Cyan rather than
    amber because these are already yours — nothing is being bought. */
