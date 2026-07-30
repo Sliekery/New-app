@@ -457,15 +457,20 @@ html, body {
 /* combat d20 — rides the bottom dock (left, under the energy pip), tumbles on attack */
 #combat-die {
   /* The die is a core system now, so it sits centre-stage under the HUD rather
-     than tucked in a dock corner. */
+     than tucked in a dock corner. It is also the REAL die: the same icosahedron
+     the engraving screen shows, so the thing you cut faces on is the thing you
+     watch land. Tapping it opens that screen. */
   position: absolute; left: 50%; transform: translateX(-50%);
-  top: calc(env(safe-area-inset-top, 0px) + 86px);
-  z-index: 27; width: 46px; height: 46px; display: none; color: #41d8ff; pointer-events: none;
+  top: calc(env(safe-area-inset-top, 0px) + 74px);
+  z-index: 27; width: 88px; height: 88px; display: none; color: #41d8ff;
+  pointer-events: auto; cursor: pointer; touch-action: manipulation;
 }
-#combat-die .die-svg { width: 46px; height: 46px; display: block; filter: drop-shadow(0 0 5px rgba(65,216,255,0.5)); }
+#combat-die .die3d { width: 88px; height: 88px; display: block; }
+#combat-die .die-svg { display: none; }
 #combat-die .die-n {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font: bold 17px ui-monospace, monospace; color: #eafcff; text-shadow: 0 0 6px rgba(65,216,255,0.7);
+  position: absolute; left: 0; right: 0; top: 100%; display: flex; align-items: center; justify-content: center;
+  font: bold 19px ui-monospace, monospace; color: #eafcff; text-shadow: 0 0 6px rgba(65,216,255,0.7);
+  pointer-events: none;
 }
 #combat-die.rolling .die-svg { animation: dieSpinLoop 0.5s linear infinite; }
 #combat-die.settle .die-svg { animation: dieSettle 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.5); }
@@ -7191,23 +7196,23 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       art: { p: [[-0.7,0, -0.5,-0.4, -0.1,-0.4, 0.1,0, -0.1,0.4, -0.5,0.4, -0.7,0, 0.7,0], [0.7,0, 0.5,-0.35, 0.2,-0.35]], e: [[-0.3,0]] } },
 
     /* ============ Class-specific relics (earned via the class quest chain) ============ */
-    recoilless_frame: { unlock: { track: 'kills', goal: 8, label: 'Kill 8 enemies' }, name: 'Recoilless Frame', tier: 1, rarity: 'class', cls: 'vanguard', questOnly: true,
+    recoilless_frame: { name: 'Recoilless Frame', tier: 1, rarity: 'class', cls: 'vanguard', 
       hooks: [{ k: 'flatDmg', v: 5 }, { k: 'maxNonAttack', v: 1 }],
       desc: 'Your attacks deal +5 — but you may play at most 1 non-attack card per turn. Toggle it off on the star chart when you need to set up.',
       art: { p: [[-0.75,0.05, 0.75,0.05], [-0.75,0.05, -0.6,0.4], [0.75,0.05, 0.6,0.4], [-0.4,0.05, -0.4,-0.4, 0.4,-0.4, 0.4,0.05], [0,-0.4, 0,-0.65]], e: [[0,-0.5]] } },
-    execution_protocol: { unlock: { track: 'turnDamage', goal: 60, atOnce: true, label: 'Deal 60 damage in one turn' }, name: 'Execution Protocol', tier: 1, rarity: 'class', cls: 'vanguard', questOnly: true, k: 'executeBonus', v: 1,
+    execution_protocol: { name: 'Execution Protocol', tier: 1, rarity: 'class', cls: 'vanguard', k: 'executeBonus', v: 1,
       desc: 'Your attacks deal double damage to enemies below 25% HP.',
       art: { p: [[0,-0.7, 0,0.7], [-0.45,-0.45, 0,-0.7, 0.45,-0.45], [-0.3,0.3, 0.3,0.3], [-0.45,0.55, 0.45,0.55]], e: [[0,0]] } },
-    forge_reserve: { unlock: { track: 'shieldGained', goal: 80, label: 'Gain 80 Shield' }, name: 'Forge Reserve', tier: 1, rarity: 'class', cls: 'technomancer', questOnly: true, k: 'blockStartTechMul', v: 3,
+    forge_reserve: { name: 'Forge Reserve', tier: 1, rarity: 'class', cls: 'technomancer', k: 'blockStartTechMul', v: 3,
       desc: 'Start each combat with Shield equal to 3× your TECH.',
       art: { p: [[0,-0.8, 0.7,-0.4, 0.7,0.4, 0,0.8, -0.7,0.4, -0.7,-0.4, 0,-0.8], [-0.35,-0.2, 0.35,-0.2, 0.35,0.3, -0.35,0.3, -0.35,-0.2], [-0.35,0.05, 0.35,0.05]], e: [[0,-0.5]] } },
-    capacitive_plating: { unlock: { track: 'shieldAtOnce', goal: 35, atOnce: true, label: 'Hold 35 Shield at once' }, name: 'Capacitive Plating', tier: 1, rarity: 'class', cls: 'technomancer', questOnly: true, k: 'shieldPingPct', v: 34,
+    capacitive_plating: { name: 'Capacitive Plating', tier: 1, rarity: 'class', cls: 'technomancer', k: 'shieldPingPct', v: 34,
       desc: 'Whenever you gain Shield, deal 1 damage per 3 Shield gained to a random enemy.',
       art: { p: [[-0.6,-0.5, 0.6,-0.5, 0.6,0.5, -0.6,0.5, -0.6,-0.5], [-0.6,-0.15, 0.6,-0.15], [-0.6,0.2, 0.6,0.2], [0.15,-0.5, -0.1,-0.1, 0.1,-0.1, -0.15,0.2]], e: [] } },
-    hexweaver: { unlock: { track: 'burnApplied', goal: 40, label: 'Apply 40 Burn' }, name: 'Hexweaver', tier: 1, rarity: 'class', cls: 'voidadept', questOnly: true, k: 'hexweaver', v: 2,
+    hexweaver: { name: 'Hexweaver', tier: 1, rarity: 'class', cls: 'voidadept', k: 'hexweaver', v: 2,
       desc: 'Whenever you apply Weak or Vulnerable to an enemy, also apply 2 Burn.',
       art: { p: [[0,-0.75, 0.65,-0.38, 0.65,0.38, 0,0.75, -0.65,0.38, -0.65,-0.38, 0,-0.75], [0,-0.4, 0,0.4], [-0.35,-0.2, 0.35,0.2], [0.35,-0.2, -0.35,0.2]], e: [[0,0]] } },
-    void_conduit: { unlock: { track: 'burnAtOnce', goal: 12, atOnce: true, label: 'Stack 12 Burn on one enemy' }, name: 'Void Conduit', tier: 1, rarity: 'class', cls: 'voidadept', questOnly: true, k: 'firstPowerFree', v: 1,
+    void_conduit: { name: 'Void Conduit', tier: 1, rarity: 'class', cls: 'voidadept', k: 'firstPowerFree', v: 1,
       desc: 'The first Power you play each combat costs 0.',
       art: { p: [[0,-0.85, 0.4,-0.05, 0.18,0.85, -0.18,0.65, -0.4,-0.15, 0,-0.85], [0,-0.55, 0.05,0.5]], e: [[0,-0.15]] } },
     /* ============ Quest relics (complete the task → unlock the reward) ============ */
@@ -8212,21 +8217,57 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return { idx: f, n: n, c: ctr };
   });
 
-  // Number the faces like a real d20: opposite faces sum to 21.
+  /* THE NUMBERS FOLLOW A PATH AROUND THE SOLID.
+   *
+   * A real d20 is numbered so opposite faces sum to 21, which is a fairness
+   * convention and nothing else — on a real die, 18 is nowhere near 19.
+   *
+   * Ours is not a fairness device, it is the board the whole game is played on:
+   * a roll fires its face and BLEEDS INTO ITS NEIGHBOURS, and the ring closes so
+   * that 20 touches 1. Under the old numbering none of that was visible — the
+   * die would tumble across itself to reach a "neighbour", which reads as random
+   * rotation rather than as current travelling.
+   *
+   * So the faces are numbered along a Hamiltonian cycle of the face-adjacency
+   * graph: every step from n to n+1 crosses one EDGE, and 20 sits next to 1. The
+   * bleed becomes a hop to the face next door, and the ring is a real loop you
+   * can watch. The solid now encodes the rules.
+   *
+   * This is a rendering change only. Every rule in the game addresses faces by
+   * NUMBER and the number ring is unchanged, so saved dice are unaffected.
+   * -------------------------------------------------------------------- */
   var FACE_NUM = (function () {
-    var num = new Array(20), next = 1;
-    for (var i = 0; i < 20; i++) {
-      if (num[i]) continue;
-      var anti = -1, best = 1;
-      for (var j = 0; j < 20; j++) {
-        if (num[j] || j === i) continue;
-        var d = dot(GEO[i].n, GEO[j].n);
-        if (d < best) { best = d; anti = j; }
+    // two faces are adjacent when they share an edge — exactly 2 vertices
+    var adj = FACES.map(function (f, i) {
+      var out = [];
+      for (var j = 0; j < FACES.length; j++) {
+        if (j === i) continue;
+        var shared = 0;
+        for (var k = 0; k < 3; k++) if (FACES[j].indexOf(f[k]) >= 0) shared++;
+        if (shared === 2) out.push(j);
       }
-      num[i] = next;
-      if (anti >= 0) num[anti] = 21 - next;
-      next++;
-    }
+      return out;
+    });
+    // Deterministic DFS: fixed start, neighbours in ascending index order, so
+    // the numbering is identical in every session and on every machine.
+    var path = [0], seen = new Array(20), found = null;
+    seen[0] = true;
+    (function dfs() {
+      if (found) return;
+      var cur = path[path.length - 1];
+      if (path.length === 20) { if (adj[cur].indexOf(0) >= 0) found = path.slice(); return; }
+      var nb = adj[cur].slice().sort(function (a, b) { return a - b; });
+      for (var k = 0; k < nb.length && !found; k++) {
+        var v = nb[k];
+        if (seen[v]) continue;
+        seen[v] = true; path.push(v);
+        dfs();
+        if (found) return;
+        path.pop(); seen[v] = false;
+      }
+    })();
+    var num = new Array(20);
+    (found || path).forEach(function (faceIdx, i) { num[faceIdx] = i + 1; });
     return num;
   })();
   var NUM_FACE = {};
@@ -8279,6 +8320,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var qFrom = q, qTo = q, spinT = 1, spinDur = 0.72, spinStart = 0;
     var face = opts.face || 20;
     var tint = opts.tint || function () { return null; };   // face number -> {col, flaw} | null
+    // Whose die this is, said in colour. The die screen keeps the house green;
+    // in combat it takes the class palette, because a Technomancer's die being
+    // cyan is the same information his band labels carry.
+    var COL = opts.col || '#5dff88';
+    var COL_HI = opts.colHi || '#7dffa8';
+    var COL_DIM = opts.colDim || '#5e8a6c';
+    var COL_TXT = opts.colTxt || '#d6ffe4';
+    function rgbaOf(hex, a) {
+      var n = parseInt(hex.slice(1), 16);
+      return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+    }
     var idle = 0;
 
     function size() {
@@ -8326,14 +8378,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
         if (front && t) {                              // engraved faces glow in their colour
           ctx.fillStyle = t.flaw ? 'rgba(255,74,94,' + (0.10 + lift * 0.26) + ')'
-                                 : 'rgba(93,255,136,' + (0.09 + lift * 0.24) + ')';
+                                 : rgbaOf(COL, 0.09 + lift * 0.24);
           ctx.fill();
         }
         var isSel = (num === face) && lift > 0.8;
-        ctx.strokeStyle = isSel ? '#ffffff' : front ? (t ? (t.flaw ? '#ff8a99' : '#7dffa8') : '#5e8a6c')
-                                                    : 'rgba(94,138,108,0.22)';
+        ctx.strokeStyle = isSel ? '#ffffff' : front ? (t ? (t.flaw ? '#ff8a99' : COL_HI) : COL_DIM)
+                                                    : rgbaOf(COL_DIM, 0.22);
         ctx.lineWidth = isSel ? 2 : front ? 1.2 : 0.8;
-        ctx.shadowColor = isSel ? '#ffffff' : (t && front ? (t.flaw ? '#ff4a5e' : '#5dff88') : 'transparent');
+        ctx.shadowColor = isSel ? '#ffffff' : (t && front ? (t.flaw ? '#ff4a5e' : COL) : 'transparent');
         ctx.shadowBlur = isSel ? 12 : (t && front ? 8 : 0);
         ctx.stroke();
         ctx.shadowBlur = 0;
@@ -8345,7 +8397,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           ctx.globalAlpha = Math.min(1, (lift - 0.28) / 0.4);
           ctx.font = 'bold ' + fs.toFixed(1) + 'px ui-monospace, monospace';
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillStyle = isSel ? '#ffffff' : t ? (t.flaw ? '#ffc4cc' : '#d6ffe4') : '#8fae9c';
+          ctx.fillStyle = isSel ? '#ffffff' : t ? (t.flaw ? '#ffc4cc' : COL_TXT) : COL_DIM;
           ctx.fillText(String(num), m[0], m[1]);
           ctx.globalAlpha = 1;
         }
@@ -8356,8 +8408,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     raf = requestAnimationFrame(draw);
 
     return {
-      // Spin so `n` faces the camera. `flair` adds a full tumble on the way.
-      setFace: function (n, flair) {
+      /* Spin so `n` faces the camera. `flair` adds a full tumble on the way.
+       * `dur` overrides the settle time, which is what makes a trigger CHAIN
+       * possible: links land 110ms apart, and at the default 600ms the die
+       * would still be turning toward link 2 while the receipt printed link 5.
+       * A chain hop crosses one edge, so it wants ~180ms, not a tumble. */
+      setFace: function (n, flair, dur) {
         if (!NUM_FACE.hasOwnProperty(n)) return;
         face = n;
         qFrom = q;
@@ -8365,7 +8421,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         if (flair) target = qMul(target, qFromAxis([0.2, 1, 0.1], Math.PI * 2));
         qTo = target;
         spinT = 0; spinStart = performance.now();
-        spinDur = flair ? 0.95 : 0.6;
+        spinDur = dur != null ? dur : (flair ? 0.95 : 0.6);
       },
       face: function () { return face; },
       destroy: function () { dead = true; if (raf) cancelAnimationFrame(raf); },
@@ -10161,7 +10217,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       kills: 0, nodesCleared: 0,
       pendingPick: null, pendingAddCard: null,
       quests: {}, questDone: {},
-      unlockProg: {},      // progress toward relics that must be earned
       potions: [], won: false,
       loop: 1, echoes: [], loadout: [], echoOffer: null,
       phylacteryUsed: false, salvageKills: 0,
@@ -10322,49 +10377,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return { goal: a.quest.goal, progress: (E.run.quests && E.run.quests[id]) || 0, done: !!(E.run.questDone && E.run.questDone[id]) };
   };
 
-  /* ---------------- Class quest chains (earn your signature relic) -------- */
-  /* ---- Relics you have to earn ---------------------------------------
-   * These used to be a bespoke 'class quest': a three-step chain with its own
-   * phase, its own screen and its own progress bar, whose only output was a
-   * relic. It is the relic that is interesting, so the requirement lives on
-   * the relic now (ARTIFACTS[id].unlock) and meeting it simply grants it.
-   * ------------------------------------------------------------------ */
-  function lockedRelics() {
-    var r = E.run, out = [];
-    if (!r) return out;
-    Object.keys(ns.ARTIFACTS).forEach(function (id) {
-      var a = ns.ARTIFACTS[id];
-      if (!a.unlock) return;
-      if (a.cls && a.cls !== r.cls) return;
-      if (r.artifacts.indexOf(id) >= 0) return;
-      out.push(id);
-    });
-    return out;
-  }
-  E.lockedRelics = lockedRelics;
-  E.relicProgress = function (id) {
-    var a = ns.ARTIFACTS[id];
-    if (!a || !a.unlock) return null;
-    var prog = (E.run.unlockProg && E.run.unlockProg[id]) || 0;
-    return { prog: Math.min(prog, a.unlock.goal), goal: a.unlock.goal, label: a.unlock.label };
-  };
-  // Called from wherever a tracked deed happens. `atOnce` requirements take the
-  // best single instance; the rest accumulate over the run.
-  function classQuestTick(track, amount) {
-    var r = E.run;
-    if (!r) return;
-    if (!r.unlockProg) r.unlockProg = {};
-    lockedRelics().forEach(function (id) {
-      var u = ns.ARTIFACTS[id].unlock;
-      if (u.track !== track) return;
-      r.unlockProg[id] = u.atOnce ? Math.max(r.unlockProg[id] || 0, amount) : (r.unlockProg[id] || 0) + amount;
-      if (r.unlockProg[id] >= u.goal) {
-        addArtifact(id);
-        emit('relicUnlocked', { id: id, name: ns.ARTIFACTS[id].name, label: u.label });
-      }
-    });
-  }
-  E.classQuestTick = classQuestTick;
+  /* ---- REMOVED: relics you had to EARN --------------------------------
+   * Six relics used to be locked behind an in-run deed ("kill 8 enemies",
+   * "hold 35 Shield at once") and granted the instant you met it. The progress
+   * was never shown anywhere — lockedRelics() and relicProgress() existed and
+   * had exactly three callers, all of them in the test suite — so the relic
+   * simply materialised mid-fight and read as random. The feature is gone; all
+   * six are ordinary class drops now, which is what they always were plus a
+   * requirement nobody could see.
+   * ------------------------------------------------------------------- */
 
   // Offer 3 class cards to add — used by events that grant a card of your choice.
   // This lived in the augment draft; the draft is gone, the helper is not.
@@ -11077,8 +11098,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (n <= 0) return;
     if (art('noShield') > 0) return;   // tradeoff relics that forbid Shield entirely
     p.block += n;
-    classQuestTick('shieldGained', n);
-    classQuestTick('shieldAtOnce', p.block);
     if (played) c.playedShield = true;
     emit('block', { who: 'player', amount: n, blockAfter: p.block });
     var st = art('shieldThorns');
@@ -11143,8 +11162,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       }
     }
     if (v > 0 && isEnemy && s === 'burn') {
-      classQuestTick('burnApplied', v);
-      classQuestTick('burnAtOnce', ent.statuses.burn);
     }
   }
 
@@ -11448,12 +11465,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
     var ls = art('lifestealPct');   // Vampiric Array: attacks heal a % of damage dealt
     if (ls > 0 && hpDmg > 0 && byAttack) heal(Math.floor(hpDmg * ls / 100));
-    if (byAttack && hpDmg > 0) { c.turnDamage = (c.turnDamage || 0) + hpDmg; classQuestTick('turnDamage', c.turnDamage); }
+    if (byAttack && hpDmg > 0) c.turnDamage = (c.turnDamage || 0) + hpDmg;
     if (en.hp <= 0 && en.alive) {
       en.alive = false;
       E.run.kills++;
       questProgress('kills', 1);
-      classQuestTick('kills', 1);
       var hk = art('healOnKill'); if (hk > 0) heal(hk);
       var sk = art('strOnKill'); if (sk > 0) { addStatus(c.player, 'str', sk); emit('status', { who: 'player', s: 'str', v: sk }); }
       var kd = art('killDraw'); if (kd > 0) drawCards(kd);
@@ -12882,7 +12898,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (E.run.artifacts.indexOf(k) >= 0) return false;            // already owned
     if (a.cls && a.cls !== E.run.cls) return false;               // class-locked: only its class
     if (a.questOnly || a.cornerstone) return false;               // cornerstone relics never drop
-    if (a.unlock) return false;                                   // earned, not dropped
     return true;
   }
   /* A class relic is worth several colourless ones in the draw. Without this
@@ -13325,7 +13340,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     r.removeCost = B.shop.removeCost;
     r.grindCost = B.dieShop.grindCost;
     r.quests = {}; r.questDone = {};
-    r.unlockProg = {};
     if (!heart) { r.potions = []; }   // keep your belt for the climax
     r.phylacteryUsed = false; r.salvageKills = 0;
     r.reward = null; r.shop = null; r.bossArtifacts = null; r.treasure = null;
@@ -16604,6 +16618,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $die = el('div', '', '<svg viewBox="0 0 40 40" class="die-svg"><polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="none" stroke="currentColor" stroke-width="2"/><polygon points="20,8 31,26 9,26" fill="none" stroke="currentColor" stroke-width="1" opacity="0.5"/></svg><span class="die-n">—</span>');
     $die.id = 'combat-die';
     $die.style.display = 'none';
+    $die.insertBefore(el('canvas', 'die3d'), $die.firstChild);
+    // Tapping the die opens the engraving screen. It is the same solid, so
+    // "look closer at the thing that just fired" is one gesture rather than a
+    // trip back to the star chart.
+    $die.addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation();
+      if (locked || !E.combat || E.combat.over) return;
+      SFX.tap();
+      showDieScreen();
+    });
     $game.appendChild($die);
 
     $counts = el('div', '', '');
@@ -16931,6 +16955,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     stopped: false,
     batch: 0,         // which action the chain on screen belongs to
   };
+  var CHAIN_HOP_MAX = 5;   // links the die itself walks before it lets the receipt carry it
   /* THE RECEIPT STAYS UP UNTIL YOU ACT AGAIN. It used to fade on a 1.5s timer,
    * which is long enough to watch and far too short to READ — and reading it is
    * the entire point of having it. So it is cleared by the next thing you do
@@ -16965,6 +16990,19 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function chainLink(e, pp) {
     // a chain from a later action replaces whatever is still on screen
     if (CHAIN.batch !== chainBatch) chainWipe();
+    /* THE DIE WALKS THE CHAIN. Each link hops the solid to the face that just
+     * fired — and since a bleed goes to a numeric neighbour, and numeric
+     * neighbours are now EDGE neighbours, that hop is one face next door. You
+     * watch the current travel rather than reading that it did.
+     *
+     * 180ms, not the default 600: links land 110ms apart, so at the settle time
+     * the die screen uses it would still be turning toward link 2 while the
+     * receipt printed link 5. Past CHAIN_HOP_MAX links the die holds and lets
+     * the receipt carry the rest — the receipt is the record, the die is the
+     * theatre, and they do not both have to say everything. */
+    if (combatDie && CHAIN.n > 0 && CHAIN.n < CHAIN_HOP_MAX && e.face) {
+      combatDie.setFace(e.face, false, 0.18);
+    }
     CHAIN.n++;
     var i = CHAIN.n - 1;
     CHAIN.dmg += (e.dealt || 0); CHAIN.blk += (e.blk || 0); CHAIN.en += (e.en || 0);
@@ -17096,6 +17134,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     else if (tone === 'up') $die.classList.add('solid');
     else if (tone === 'down') $die.classList.add(misfire ? 'misfire' : 'graze');
     setDieResult(value, band, tone, crit, misfire);
+    // The solid itself was thrown on the `roll` event; this only settles the
+    // number and band under it. Re-throwing here would cut the chain's walk off
+    // at the knees, since `cardPlayed` lands at delay 0.
     $die.classList.remove('settle'); void $die.offsetWidth; $die.classList.add('settle');   // settle pop
   }
   function cancelDieRoll() {
@@ -18334,9 +18375,34 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
 
   /* ====================== COMBAT ====================== */
+  /* THE REAL DIE, IN THE FIGHT. It used to be a flat SVG hexagon with a number
+   * printed on it — a readout of the die rather than the die. This is the same
+   * icosahedron the engraving screen draws, so the solid you cut faces on is the
+   * solid you watch land, and the chain hops across it face by face. */
+  var combatDie = null;
+  function combatDieMount() {
+    var r = E.run; if (!r || !$die) return;
+    if (combatDie) { combatDie.destroy(); combatDie = null; }
+    var cv = $die.querySelector('.die3d'); if (!cv) return;
+    var col = CLASS_COL[r.cls] || '#5dff88';
+    combatDie = ns.dieViewCreate(cv, {
+      face: 20, col: col, colHi: col, colTxt: '#eafcff', colDim: 'rgba(120,150,165,0.55)',
+      tint: function (n) {
+        var id2 = ns.dieFaceId(r.die, n); if (!id2) return null;
+        var d2 = ns.dieEngraving(id2);
+        return d2 ? { flaw: !!d2.flaw || !!ns.dieTaintAt(r.die, n) } : null;
+      },
+    });
+    $die.style.color = col;
+  }
+  function combatDieUnmount() {
+    if (combatDie) { combatDie.destroy(); combatDie = null; }
+  }
+
   function showCombat() {
     hideOverlay();
     combatChrome(true);
+    if (!combatDie) combatDieMount();
     if (E.combat && E.combat.turn <= 1 && !E.combat._dieShown) { E.combat._dieShown = true; clearDieResult(); }
     R.syncCombat();
     updateHUD();
@@ -19598,6 +19664,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // the chain presentation can be measured as the player sees it rather than
   // by inspecting the event array. (test/chainfeel.js)
   U.probePlay = function (i, targetIdx) { playCardAt(i, targetIdx == null ? 0 : targetIdx); };
+  // which face the combat die is currently showing (test/chainfeel.js)
+  U.probeDieFace = function () { return combatDie ? combatDie.face() : null; };
   U.probeCast = function (cardId) {
     var def = ns.CARDS[cardId]; if (!def || !E.combat) return false;
     var card = { uid: -1, id: cardId, up: false };
@@ -19692,10 +19760,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         case 'block': case 'heal': case 'status': return 60;
         case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120; case 'charge': return 100; case 'jam': return 120; case 'corrupt': return 160; case 'overload': return 120; case 'discipline': return 90;
         case 'revive': return 260; case 'salvage': return 80; case 'win': return 250;
-        case 'relicUnlocked': return 1000;
         // THE CHAIN NEEDS A TIME AXIS. This fell through to 0, so every link of
         // a trigger chain resolved in one frame and the die's whole payoff was
         // drawn as a single illegible smear.
+        // The roll gets a beat to LAND before the card resolves off it. Without
+        // this the die is still turning when the first engraving fires, so the
+        // chain appears to start before the roll finishes.
+        case 'roll': return 300;
         case 'dieFace': return CHAIN.step;
         case 'construct': return 220;     // the turret's shot needs a beat of its own
         case 'enrage': return 900;        // the announcement gets its own beat
@@ -19732,16 +19803,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             setTimeout(function () {
               R.constructFire(e.kind, e.idx, CLASS_COL.technomancer);
               SFX.servoFire();
-            }, d);
-          })(e, delay);
-          break;
-        // A relic you EARNED has to say so at the moment you earn it, or the
-        // requirement may as well not exist.
-        case 'relicUnlocked':
-          (function (e, d) {
-            setTimeout(function () {
-              SFX.win(); R.flash();
-              toast('RELIC UNLOCKED — ' + e.name.toUpperCase() + ' · ' + e.label.toUpperCase(), 3000);
             }, d);
           })(e, delay);
           break;
@@ -19947,6 +20008,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           delay += 90;
           break;
         case 'roll':
+          /* THE SOLID LANDS HERE, not on `cardPlayed`. `cardPlayed` is processed
+           * at delay 0 while the chain links start ~90ms later, so a landing
+           * tumble fired from there was interrupted by the first hop before it
+           * had turned a quarter of the way — the roll never visibly landed.
+           * `roll` is emitted before anything else, so this is the one moment
+           * the die has the stage to itself. */
+          (function (e2, d) {
+            setTimeout(function () { if (combatDie) combatDie.setFace(e2.roll, true, 0.34); }, d);
+          })(e, delay);
           // The class table had nothing to say about this card, so no banded
           // settle is coming. Hold the roll in case an engraving fires off it —
           // `roll` is emitted BEFORE `dieFace`, so this cannot settle yet.
