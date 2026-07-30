@@ -2082,12 +2082,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
        * engravings, by sector. Sectors 1-2 are untouched — the early game is
        * already inside its targets and the power that needs answering is all in
        * the back half. Elites and bosses always scar, from sector 3 on. */
-      // Measured at 300 bot runs. This curve read reach-sector-5 37% and a class
-      // spread of 8.0 (at target); a steeper one (0.14 -> 0.60) traded that for
-      // 33% and a spread of 17. At n=100 per class those spreads overlap inside
-      // their own noise, so the tie goes to the gentler curve — it is the one
-      // with an at-target parity reading, and it punishes less for feel.
-      taintBySector: { 1: 0, 2: 0, 3: 0.10, 4: 0.18, 5: 0.26, 6: 0.32, 7: 0.36, 8: 0.40, 9: 0.44, max: 0.44 },
+      // Raised once engravings started resolving in their face's band, which
+      // made the die meaningfully stronger: reach-sector-5 went 27% -> 34% on
+      // the band change alone, and this curve brings it back to 26%.
+      taintBySector: { 1: 0, 2: 0, 3: 0.12, 4: 0.22, 5: 0.32, 6: 0.38, 7: 0.43, 8: 0.47, 9: 0.50, max: 0.50 },
       taintEliteFrom: 3,        // an elite or boss scars outright from this sector
       coldWeldChance: 0.12,     // ...and rarely it welds, which removes the choice
       critThreshold: 20,        // roll + Aim >= (threshold - critBonus) crits
@@ -2432,7 +2430,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     'Demolition': 'Whenever you Exhaust a card, deal that much damage to ALL enemies.',
     'Subroutine': 'Whenever you play a Power, draw a card.',
     'Swarm Uplink': 'Whenever one of your constructs fires, gain that much Shield.',
-    'Aim': 'Added to the d20 you roll for every attack — it makes crits and roll thresholds far more likely.',
+    'Aim': 'Added to your attack roll. It does not move which face fires — it lifts the BAND every face lands in, so it makes crits likelier AND every engraving on your die hit harder.',
     'Steady Aim': 'Gain that much Aim at the start of each turn.',
     'Killing Rage': 'Whenever an attack crits, gain that much Might.',
     'Deadeye': 'Whenever an attack crits, draw that many cards.',
@@ -7533,13 +7531,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     vanguard: [
       { id: 'the_long_shot', name: 'THE LONG SHOT', eng: 'ranging_mark', card: 'sighting_round',
         want: 'HIGH FACES · 15–20',
-        line: 'You cut it near the top of the table, where the shot is already going.' },
+        line: 'The top of the table pays more for the same cut. You build where the multiplier already is.' },
       { id: 'the_red_debt', name: 'THE RED DEBT', eng: 'whetstone_mark', card: 'red_ledger',
         want: 'LOW FACES · 2–7',
         line: 'A bad face is still a face. You give the bottom of the die something to do.' },
       { id: 'the_set_shield', name: 'THE SET SHIELD', eng: 'anvil_mark', card: 'set_against_it',
         want: 'MIDDLE FACES · 8–14',
-        line: 'You cut it where the die spends most of its time, and stop trying to steer.' },
+        line: 'The widest band on the table, and Aim lifts every face of it at once.' },
     ],
     technomancer: [
       { id: 'the_standing_line', name: 'THE STANDING LINE', eng: 'assembly_mark', card: 'assembly_line',
@@ -11264,6 +11262,32 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     });
   }
 
+  /* The multiplier the FACE itself sits in, at your current Aim.
+   *
+   * Engravings used to resolve flat: the same engraving did identical damage
+   * from face 3, face 10 and face 18. That left band-locking as a restriction
+   * with no payoff — Open Bolt was low-band-only for nothing — and left Aim
+   * doing nothing whatsoever for your die once the firing face was decoupled
+   * from it.
+   *
+   * Reading the band here gives both their meaning back at once. A high face
+   * hits harder, a graze face hits softer, so WHERE you cut is a real trade
+   * again; and because Aim raises the band every face lands in, Aim now makes
+   * your WHOLE die hit harder instead of relocating it. */
+  function faceBandMult(face) {
+    var r = E.run, c = E.combat;
+    var dread = r && E.dieRead(r.cls);
+    if (!dread || !c) return 1;
+    if (face <= 1) return (dread.misfire && dread.misfire.mult) || 1;
+    var eff = Math.min(20, face + statN(c.player, 'aim') + art('rollBonus'));
+    var shift = art('bandShift');
+    for (var i = 0; i < dread.bands.length; i++) {
+      if (eff >= dread.bands[i].min - shift) return dread.bands[i].mult;
+    }
+    return dread.bands[dread.bands.length - 1].mult;
+  }
+  E.faceBandMult = faceBandMult;
+
   function fireOneFace(face, tgt, k, why) {
     var r = E.run, c = E.combat;
     var id = ns.dieFaceId(r.die, face);
@@ -11276,8 +11300,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var taint = ns.dieTaintAt(r.die, face);
     if (taint === 'rust') k = k * 0.5;
     emit('dieFace', { face: face, id: id, name: aug.name, flaw: !!aug.flaw, bleed: k < 1, why: why || null, taint: taint || null });
+    var dread0 = E.dieRead(r.cls);
     applyCardFx(k < 1 ? scaleFx(aug.fx, k) : aug.fx,
-      { tgt: tgt, crit: false, roll: null, eff: face, misfire: false, bandMult: 1, flags: {}, xval: 0, appliedBurn: false });
+      { tgt: tgt, crit: false, roll: null, eff: face, misfire: false,
+        bandMult: faceBandMult(face), blockBand: !!(dread0 && dread0.blocks),
+        flags: {}, xval: 0, appliedBurn: false });
     if (taint === 'feedback') {
       var pool = aliveEnemies();
       if (pool.length) { var fe = pick(pool); addStatus(fe, 'str', 1); emit('status', { who: 'enemy', idx: c.enemies.indexOf(fe), s: 'str', v: 1 }); }
