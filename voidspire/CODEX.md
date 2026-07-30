@@ -46,11 +46,11 @@ Opening deck: 5× Pulse Rifle, 4× Combat Shield, 1× Bayonet Charge
 
 **Openings.** One is cut into the die before the first jump — a statement of which part of the table you are building for.
 
-- **THE LONG SHOT** — _HIGH FACES · 15–20_. You cut it near the top of the table, where the shot is already going.  
+- **THE LONG SHOT** — _HIGH FACES · 15–20_. The top of the table pays more for the same cut. You build where the multiplier already is.  
   Cuts _Ranging Mark_: Gain 1 Aim. Draw 1 card. Adds **Sighting Round** to the deck.
 - **THE RED DEBT** — _LOW FACES · 2–7_. A bad face is still a face. You give the bottom of the die something to do.  
   Cuts _Whetstone Mark_: Deal 3 damage. Gain 3 Might. Adds **Red Ledger** to the deck.
-- **THE SET SHIELD** — _MIDDLE FACES · 8–14_. You cut it where the die spends most of its time, and stop trying to steer.  
+- **THE SET SHIELD** — _MIDDLE FACES · 8–14_. The widest band on the table, and Aim lifts every face of it at once.  
   Cuts _Anvil Mark_: Gain 5 Shield, 1 Thorns. Adds **Set Against It** to the deck.
 
 **Archetypes.**
@@ -224,7 +224,7 @@ _Every status and mechanic the cards below refer to (59)._
 - **Demolition** — Whenever you Exhaust a card, deal that much damage to ALL enemies.
 - **Subroutine** — Whenever you play a Power, draw a card.
 - **Swarm Uplink** — Whenever one of your constructs fires, gain that much Shield.
-- **Aim** — Added to the d20 you roll for every attack — it makes crits and roll thresholds far more likely.
+- **Aim** — Added to your attack roll. It does not move which face fires — it lifts the BAND every face lands in, so it makes crits likelier AND every engraving on your die hit harder.
 - **Steady Aim** — Gain that much Aim at the start of each turn.
 - **Killing Rage** — Whenever an attack crits, gain that much Might.
 - **Deadeye** — Whenever an attack crits, draw that many cards.

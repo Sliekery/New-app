@@ -438,13 +438,13 @@
     vanguard: [
       { id: 'the_long_shot', name: 'THE LONG SHOT', eng: 'ranging_mark', card: 'sighting_round',
         want: 'HIGH FACES · 15–20',
-        line: 'You cut it near the top of the table, where the shot is already going.' },
+        line: 'The top of the table pays more for the same cut. You build where the multiplier already is.' },
       { id: 'the_red_debt', name: 'THE RED DEBT', eng: 'whetstone_mark', card: 'red_ledger',
         want: 'LOW FACES · 2–7',
         line: 'A bad face is still a face. You give the bottom of the die something to do.' },
       { id: 'the_set_shield', name: 'THE SET SHIELD', eng: 'anvil_mark', card: 'set_against_it',
         want: 'MIDDLE FACES · 8–14',
-        line: 'You cut it where the die spends most of its time, and stop trying to steer.' },
+        line: 'The widest band on the table, and Aim lifts every face of it at once.' },
     ],
     technomancer: [
       { id: 'the_standing_line', name: 'THE STANDING LINE', eng: 'assembly_mark', card: 'assembly_line',

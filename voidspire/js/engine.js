@@ -1615,6 +1615,32 @@
     });
   }
 
+  /* The multiplier the FACE itself sits in, at your current Aim.
+   *
+   * Engravings used to resolve flat: the same engraving did identical damage
+   * from face 3, face 10 and face 18. That left band-locking as a restriction
+   * with no payoff — Open Bolt was low-band-only for nothing — and left Aim
+   * doing nothing whatsoever for your die once the firing face was decoupled
+   * from it.
+   *
+   * Reading the band here gives both their meaning back at once. A high face
+   * hits harder, a graze face hits softer, so WHERE you cut is a real trade
+   * again; and because Aim raises the band every face lands in, Aim now makes
+   * your WHOLE die hit harder instead of relocating it. */
+  function faceBandMult(face) {
+    var r = E.run, c = E.combat;
+    var dread = r && E.dieRead(r.cls);
+    if (!dread || !c) return 1;
+    if (face <= 1) return (dread.misfire && dread.misfire.mult) || 1;
+    var eff = Math.min(20, face + statN(c.player, 'aim') + art('rollBonus'));
+    var shift = art('bandShift');
+    for (var i = 0; i < dread.bands.length; i++) {
+      if (eff >= dread.bands[i].min - shift) return dread.bands[i].mult;
+    }
+    return dread.bands[dread.bands.length - 1].mult;
+  }
+  E.faceBandMult = faceBandMult;
+
   function fireOneFace(face, tgt, k, why) {
     var r = E.run, c = E.combat;
     var id = ns.dieFaceId(r.die, face);
@@ -1627,8 +1653,11 @@
     var taint = ns.dieTaintAt(r.die, face);
     if (taint === 'rust') k = k * 0.5;
     emit('dieFace', { face: face, id: id, name: aug.name, flaw: !!aug.flaw, bleed: k < 1, why: why || null, taint: taint || null });
+    var dread0 = E.dieRead(r.cls);
     applyCardFx(k < 1 ? scaleFx(aug.fx, k) : aug.fx,
-      { tgt: tgt, crit: false, roll: null, eff: face, misfire: false, bandMult: 1, flags: {}, xval: 0, appliedBurn: false });
+      { tgt: tgt, crit: false, roll: null, eff: face, misfire: false,
+        bandMult: faceBandMult(face), blockBand: !!(dread0 && dread0.blocks),
+        flags: {}, xval: 0, appliedBurn: false });
     if (taint === 'feedback') {
       var pool = aliveEnemies();
       if (pool.length) { var fe = pick(pool); addStatus(fe, 'str', 1); emit('status', { who: 'enemy', idx: c.enemies.indexOf(fe), s: 'str', v: 1 }); }

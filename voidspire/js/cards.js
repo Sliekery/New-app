@@ -72,7 +72,7 @@
     'Demolition': 'Whenever you Exhaust a card, deal that much damage to ALL enemies.',
     'Subroutine': 'Whenever you play a Power, draw a card.',
     'Swarm Uplink': 'Whenever one of your constructs fires, gain that much Shield.',
-    'Aim': 'Added to the d20 you roll for every attack — it makes crits and roll thresholds far more likely.',
+    'Aim': 'Added to your attack roll. It does not move which face fires — it lifts the BAND every face lands in, so it makes crits likelier AND every engraving on your die hit harder.',
     'Steady Aim': 'Gain that much Aim at the start of each turn.',
     'Killing Rage': 'Whenever an attack crits, gain that much Might.',
     'Deadeye': 'Whenever an attack crits, draw that many cards.',

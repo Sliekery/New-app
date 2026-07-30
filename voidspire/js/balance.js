@@ -51,12 +51,10 @@
        * engravings, by sector. Sectors 1-2 are untouched — the early game is
        * already inside its targets and the power that needs answering is all in
        * the back half. Elites and bosses always scar, from sector 3 on. */
-      // Measured at 300 bot runs. This curve read reach-sector-5 37% and a class
-      // spread of 8.0 (at target); a steeper one (0.14 -> 0.60) traded that for
-      // 33% and a spread of 17. At n=100 per class those spreads overlap inside
-      // their own noise, so the tie goes to the gentler curve — it is the one
-      // with an at-target parity reading, and it punishes less for feel.
-      taintBySector: { 1: 0, 2: 0, 3: 0.10, 4: 0.18, 5: 0.26, 6: 0.32, 7: 0.36, 8: 0.40, 9: 0.44, max: 0.44 },
+      // Raised once engravings started resolving in their face's band, which
+      // made the die meaningfully stronger: reach-sector-5 went 27% -> 34% on
+      // the band change alone, and this curve brings it back to 26%.
+      taintBySector: { 1: 0, 2: 0, 3: 0.12, 4: 0.22, 5: 0.32, 6: 0.38, 7: 0.43, 8: 0.47, 9: 0.50, max: 0.50 },
       taintEliteFrom: 3,        // an elite or boss scars outright from this sector
       coldWeldChance: 0.12,     // ...and rarely it welds, which removes the choice
       critThreshold: 20,        // roll + Aim >= (threshold - critBonus) crits
