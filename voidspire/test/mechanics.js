@@ -1913,5 +1913,62 @@ ok('every remaining class has a starter deck whose cards all exist',
      Object.keys(deployed).length === 3);
 })();
 
+/* ============ THE CHAIN REPORTS ITSELF =================================
+ * A roll fires its face, bleeds into its neighbours, and whatever is listening
+ * answers. The presentation of that chain — staircase, counter, receipt — can
+ * only total what the events carry, and `dieFace` used to carry no numbers at
+ * all: the damage and energy were spread across the dmg/status events between
+ * links with no way to attribute them back.
+ * ==================================================================== */
+(function () {
+  function chainFrom(seedTries) {
+    E.seed(4); E.newRun('vanguard'); E.takeFirstMark(0);
+    var die = E.run.die; die.faces = {};
+    // a densely cut die, which is the state the bleed exists to reward
+    var fill = ['relay_mark', 'chain_loader', 'bracket_fire', 'called_shot',
+                'spotters_notch', 'twin_sight', 'field_dressing', 'firebase'];
+    for (var f = 2; f <= 20; f++) {
+      for (var q = 0; q < fill.length; q++) {
+        if (!VS.dieCanEngrave(die, fill[q], f)) { VS.dieEngrave(die, fill[q], f); break; }
+      }
+    }
+    E.run.faction = 'hierarchy'; E.run.nodeIdx = 0; E.startNode('fight');
+    E.combat.enemies.forEach(function (e) { e.hp = 99999; e.maxHp = 99999; e.platedReady = false; });
+    for (var k = 0; k < (seedTries || 60); k++) {
+      E.combat.energy = 30; E.run.hp = E.run.maxHp;
+      E.combat.hand = [{ uid: 4400 + k, id: 'pulse_rifle', up: false }];
+      E.events = [];
+      E.playCard(0, 0);
+      var links = E.events.filter(function (ev) { return ev.type === 'dieFace'; });
+      if (links.length >= 3) return { links: links, all: E.events.slice() };
+    }
+    return null;
+  }
+  var got = chainFrom();
+  ok('a dense die actually produces a multi-link chain', !!got && got.links.length >= 3);
+  if (got) {
+    ok('every link reports what it did (dealt/blk/en on all ' + got.links.length + ')',
+       got.links.every(function (L) {
+         return typeof L.dealt === 'number' && typeof L.blk === 'number' && typeof L.en === 'number';
+       }));
+    // The receipt's total is the sum of the links, so it must equal the damage
+    // the chain actually dealt — anything else and the ledger is lying.
+    var linkSum = got.links.reduce(function (a, L) { return a + L.dealt; }, 0);
+    var firstIdx = got.all.findIndex(function (ev) { return ev.type === 'dieFace'; });
+    var afterRoot = got.all.slice(firstIdx).filter(function (ev) {
+      return ev.type === 'dmg' && ev.who !== 'player';
+    }).reduce(function (a, ev) { return a + (ev.amount || 0); }, 0);
+    ok('the links total the damage the chain dealt (' + linkSum + ' vs ' + afterRoot + ')',
+       linkSum === afterRoot);
+    // Every link has to say WHY it fired, or the receipt cannot name a cause and
+    // the chain reads as a pile of coincidences.
+    var causeless = got.links.slice(1).filter(function (L) { return !L.why && !L.listen; });
+    ok('every link past the root names its cause' + (causeless.length ? ' — ' + causeless.length + ' did not' : ''),
+       causeless.length === 0);
+    ok('the root is the only link with no cause', !got.links[0].why && !got.links[0].listen);
+  }
+  E.run.phase = 'map';
+})();
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

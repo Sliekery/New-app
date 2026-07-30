@@ -1448,6 +1448,79 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .floater.dieaug { font-size: 14px; color: #5dff88; text-shadow: 0 0 10px rgba(93,255,136,0.85); }
 .floater.dieflaw { font-size: 14px; color: #ff4a5e; text-shadow: 0 0 10px rgba(255,74,94,0.85); }
 
+/* ================= THE TRIGGER CHAIN =================================
+ * A roll fires its face, bleeds into its neighbours, and whatever is listening
+ * answers — a chain of three or four links that all used to resolve in the SAME
+ * FRAME at the SAME PIXEL, so the most interesting thing the die does was drawn
+ * as a single illegible smear. Everything here is about giving that chain a
+ * time axis and a running total.
+ * ================================================================= */
+#chain { position: absolute; inset: 0; z-index: 61; pointer-events: none; overflow: hidden; }
+
+/* --- the climbing counter --- */
+#chain-combo {
+  /* Below the action, not over it. At 34% a five-link chain's counter collided
+   * with the bottom of the ledger, and both of them are things you are trying
+   * to read at the same moment. */
+  position: absolute; left: 50%; top: 58%; transform: translate(-50%, -50%);
+  font: 700 11px/1 ui-monospace, monospace; letter-spacing: 0.2em; text-align: center;
+  color: #ffb02e; opacity: 0; transition: opacity 0.18s;
+}
+#chain-combo.on { opacity: 1; }
+#chain-combo .cn {
+  display: block; font-size: 42px; letter-spacing: 0; margin-top: 2px;
+  text-shadow: 0 0 20px rgba(255,176,46,0.9), 0 2px 3px #000;
+}
+#chain-combo.bump .cn { animation: chainBump 0.19s ease-out; }
+@keyframes chainBump { 0% { transform: scale(1); } 40% { transform: scale(1.4); } 100% { transform: scale(1); } }
+/* the rim deepens with the chain — set inline so it can scale with the count */
+#chain-rim { position: absolute; inset: 0; pointer-events: none; transition: box-shadow 0.18s; }
+
+/* --- the receipt --- */
+#chain-ledger {
+  /* Clear of the die chip, which is centred at the top: at 12% this ran
+   * straight through the roll readout — the two things you most want to read
+   * together were drawn on top of each other. */
+  position: absolute; left: 10px; top: 21%; width: 205px;
+  border-left: 2px solid rgba(65,216,255,0.35); padding: 2px 0 2px 8px;
+  font: 700 10px/1.62 ui-monospace, monospace; opacity: 0; transition: opacity 0.3s;
+}
+#chain-ledger.on { opacity: 1; }
+#chain-ledger .cl-ln { display: flex; gap: 6px; opacity: 0; transform: translateX(-5px); }
+#chain-ledger .cl-ln.on { animation: chainSlide 0.3s ease-out forwards; }
+@keyframes chainSlide { to { opacity: 1; transform: translateX(0); } }
+#chain-ledger .cl-w { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#chain-ledger .cl-v { color: #9bb0a6; white-space: nowrap; }
+#chain-ledger .cl-cause { color: #46564f; }
+#chain-ledger .cl-root { color: #5dff88; }
+#chain-ledger .cl-bleed { color: #41d8ff; }
+#chain-ledger .cl-listen { color: #ffb02e; }
+#chain-ledger .cl-flaw { color: #ff4a5e; }
+#chain-ledger .cl-rule { border-top: 1px solid rgba(65,216,255,0.35); margin: 4px 0 3px; }
+#chain-ledger .cl-tot { color: #5dff88; }
+
+/* --- hitstop: the frame holds and everything but the chain drains --- */
+#game.hitstop #battlefield, #game.hitstop #hand, #game.hitstop #hud, #game.hitstop #combat-controls {
+  filter: grayscale(1) brightness(0.45);
+}
+#game.hitstop #chain, #game.hitstop #floaters { filter: none; }
+#chain-flash { position: absolute; inset: 0; background: #dff6ff; opacity: 0; pointer-events: none; }
+#chain-flash.on { animation: chainFlash 0.26s ease-out forwards; }
+@keyframes chainFlash { 0% { opacity: 0.42; } 100% { opacity: 0; } }
+
+/* Chain floaters climb a staircase instead of stacking on one pixel, and they
+ * live longer than a normal floater so the earlier links are still on screen
+ * when the last one lands — otherwise there is no chain to see. */
+.floater.dielink { animation: chainLink 1.25s cubic-bezier(0.2,0.9,0.3,1) forwards; white-space: nowrap; }
+@keyframes chainLink {
+  0%   { opacity: 0; transform: translate(-50%, -20%) scale(0.82); }
+  12%  { opacity: 1; transform: translate(-50%, -58%) scale(1.08); }
+  26%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  74%  { opacity: 1; transform: translate(-50%, -54%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -105%) scale(1); }
+}
+@media (max-width: 460px) { #chain-ledger { width: 164px; font-size: 9px; left: 8px; } #chain-combo .cn { font-size: 34px; } }
+
 /* ---- The Die: 3D stage -------------------------------------------------- */
 .die-stage { width: 100%; max-width: 620px; margin: 2px auto 0; display: flex; justify-content: center; }
 .die-canvas { width: 210px; height: 210px; display: block; touch-action: none; }

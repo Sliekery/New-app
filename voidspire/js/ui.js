@@ -120,6 +120,17 @@
     // a construct firing: a servo click into a thin report, so it is audibly
     // NOT the player's own weapon
     servoFire: function () { beep(1180, 0.03, 'square', 0.018); setTimeout(function () { beep(300, 0.09, 'sawtooth', 0.035, -120); }, 34); },
+    /* THE LADDER. Each link of a trigger chain steps a whole tone above the
+     * last, and gets slightly louder. This — not the visuals — is what makes a
+     * chain feel like it is still going: the ear anticipates the next rung, so
+     * a four-link chain lands as a phrase rather than four separate noises. */
+    chainStep: function (i) { beep(392 * Math.pow(2, (i * 2) / 12), 0.13, 'square', Math.min(0.075, 0.038 + i * 0.012)); },
+    // ...and the phrase needs an ending, or a long chain just stops.
+    chainBreak: function (n) {
+      var top = 392 * Math.pow(2, Math.min(14, n * 2) / 12);
+      beep(top, 0.1, 'square', 0.05);
+      setTimeout(function () { beep(top * 1.5, 0.26, 'square', 0.055); }, 90);
+    },
   };
 
   /* ====================== vector art -> inline SVG ====================== */
@@ -528,10 +539,137 @@
   // the roll it belongs to. Hold it until the readout is drawn.
   var firedFace = null;
   var pendingRoll = null;   // a roll the class table had nothing to say about
+
+  /* ============ THE TRIGGER CHAIN =====================================
+   * The best thing the die does is the chain: the face you rolled fires, the
+   * bleed catches its neighbours, and whatever is listening answers. Three or
+   * four links, and every one of them used to be drawn in the SAME FRAME at the
+   * SAME PIXEL — `gapFor('dieFace')` fell through to 0 and every floater went to
+   * one fixed spot, so the payoff read as an illegible smear.
+   *
+   * Four things fix it, and they are all about the same thing: giving the chain
+   * a TIME AXIS. Links land 110ms apart on a staircase, each a whole tone higher
+   * than the last (the ear is what tells you it is still going), a counter
+   * climbs beside them, a receipt totals what they did, and a chain long enough
+   * to be remarkable stops the frame for a fifth of a second.
+   * ================================================================= */
+  var CHAIN = {
+    step: 110,        // ms between links. This number simply did not exist.
+    stopAt: 4,        // links needed before the frame holds
+    hold: 210,        // how long it holds
+    n: 0,             // links so far this card
+    dmg: 0, blk: 0, en: 0,
+    stopped: false,
+  };
+  function chainReset() {
+    CHAIN.n = 0; CHAIN.dmg = 0; CHAIN.blk = 0; CHAIN.en = 0; CHAIN.stopped = false;
+    var c = document.getElementById('chain-combo');
+    var l = document.getElementById('chain-ledger');
+    if (c) { c.classList.remove('on', 'bump'); c.innerHTML = ''; }
+    if (l) { l.classList.remove('on'); l.innerHTML = ''; }
+    chainRim(0);
+  }
+  function chainRim(n) {
+    var g = document.getElementById('game'); if (!g) return;
+    var rim = document.getElementById('chain-rim');
+    if (!rim) {
+      rim = el('div'); rim.id = 'chain-rim';
+      var host = document.getElementById('chain'); if (!host) return;
+      host.appendChild(rim);
+    }
+    rim.style.boxShadow = n < 2 ? 'inset 0 0 0 0 transparent'
+      : 'inset 0 0 ' + (14 + n * 20) + 'px ' + (2 + n * 3) + 'px rgba(255,176,46,' + Math.min(0.42, 0.06 + n * 0.08) + ')';
+  }
+  // One link of the chain lands: staircase floater, a rung up the ladder, the
+  // counter, the receipt line, and — if this is the one that crosses the
+  // threshold — the frame holds.
+  function chainLink(e, pp) {
+    CHAIN.n++;
+    var i = CHAIN.n - 1;
+    CHAIN.dmg += (e.dealt || 0); CHAIN.blk += (e.blk || 0); CHAIN.en += (e.en || 0);
+    var kind = e.flaw ? 'flaw' : e.listen ? 'listen' : e.bleed || e.why ? 'bleed' : 'root';
+    // the staircase. Clamped so a six-link chain cannot walk off the frame.
+    var mark = e.flaw ? '✖ ' : (e.listen || e.why) ? '↳ ' : '◆ ';
+    var fx = pp.x + 62 + Math.min(4, i) * 20;
+    var fy = pp.y - 92 + Math.min(5, i) * 21;
+    floater(fx, fy, mark + e.name, 'dielink die' + (e.flaw ? 'flaw' : 'aug'));
+    SFX.chainStep(i);
+    chainCombo(i);
+    chainLedger(e, kind, mark);
+    if (CHAIN.n >= CHAIN.stopAt && !CHAIN.stopped) { CHAIN.stopped = true; chainHitstop(); }
+  }
+  function chainCombo(i) {
+    if (i < 1) return;                       // a lone face is not a chain
+    var c = document.getElementById('chain-combo'); if (!c) return;
+    c.innerHTML = 'CHAIN<span class="cn">×' + (i + 1) + '</span>';
+    c.classList.add('on');
+    c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump');
+    chainRim(i + 1);
+  }
+  function chainLedger(e, kind, mark) {
+    var l = document.getElementById('chain-ledger'); if (!l) return;
+    var bits = [];
+    if (e.dealt) bits.push(e.dealt + ' DMG');
+    if (e.blk) bits.push('+' + e.blk + ' SHD');
+    if (e.en) bits.push('+' + e.en + ' EN');
+    var cause = e.listen ? e.listen : e.why ? e.why : '';
+    var ln = el('div', 'cl-ln');
+    ln.innerHTML = '<span class="cl-w">' + (cause ? '<span class="cl-cause">' + esc(mark + cause) + '</span> ' : esc(mark))
+      + '<span class="cl-' + kind + '">' + esc(e.name.toUpperCase()) + '</span></span>'
+      + '<span class="cl-v">' + esc(bits.join(' · ')) + '</span>';
+    l.appendChild(ln);
+    l.classList.add('on');
+    requestAnimationFrame(function () { ln.classList.add('on'); });
+  }
+  // Printed once the chain is over, so the receipt has a bottom line.
+  function chainTotal() {
+    if (CHAIN.n < 2) { chainFade(); return; }
+    var l = document.getElementById('chain-ledger');
+    if (l) {
+      var bits = [];
+      if (CHAIN.dmg) bits.push(CHAIN.dmg + ' DMG');
+      if (CHAIN.blk) bits.push(CHAIN.blk + ' SHD');
+      if (CHAIN.en) bits.push(CHAIN.en + ' EN');
+      if (bits.length) {
+        var rule = el('div', 'cl-rule'); l.appendChild(rule);
+        var tot = el('div', 'cl-ln');
+        tot.innerHTML = '<span class="cl-w cl-tot">TOTAL</span><span class="cl-v cl-tot">' + esc(bits.join(' · ')) + '</span>';
+        l.appendChild(tot);
+        requestAnimationFrame(function () { tot.classList.add('on'); });
+      }
+    }
+    SFX.chainBreak(CHAIN.n);
+    chainFade();
+  }
+  function chainFade() {
+    var n = CHAIN.n;
+    setTimeout(function () {
+      if (CHAIN.n !== n) return;             // a new chain started; leave it alone
+      var c = document.getElementById('chain-combo');
+      var l = document.getElementById('chain-ledger');
+      if (c) c.classList.remove('on');
+      if (l) l.classList.remove('on');
+      chainRim(0);
+    }, 1500);
+  }
+  /* HITSTOP. Only for a chain worth remarking on, because a stutter on every
+   * roll is a stutter you resent. The chain layer keeps its colour while
+   * everything else drains, so what you look at during the hold is the payoff. */
+  function chainHitstop() {
+    var g = document.getElementById('game'), host = document.getElementById('chain');
+    if (!g || !host) return;
+    var fl = document.getElementById('chain-flash');
+    if (!fl) { fl = el('div'); fl.id = 'chain-flash'; host.appendChild(fl); }
+    fl.classList.remove('on'); void fl.offsetWidth; fl.classList.add('on');
+    g.classList.add('hitstop');
+    R.quake && R.quake(R.playerXY().x, R.playerXY().y, '#ffb02e', 0.5);
+    setTimeout(function () { g.classList.remove('hitstop'); }, CHAIN.hold);
+  }
   // A new fight starts with a clean die — a readout that persists must not
   // outlive the combat it belongs to.
   function clearDieResult() {
     firedFace = null; pendingRoll = null;
+    chainReset();
     if (!$die) return;
     var $f = $die.querySelector('.die-flash');
     if ($f) { $f.innerHTML = ''; $f.classList.remove('go'); }
@@ -3078,6 +3216,10 @@
   // A cast that throws is SILENT in play, by design — which means a broken one
   // can ship unnoticed. This lets a test drive every card's cast with a real
   // combat env and a real target, with the swallow turned off.
+  // Plays a card down the REAL path — engine, then the animation timeline — so
+  // the chain presentation can be measured as the player sees it rather than
+  // by inspecting the event array. (test/chainfeel.js)
+  U.probePlay = function (i, targetIdx) { playCardAt(i, targetIdx == null ? 0 : targetIdx); };
   U.probeCast = function (cardId) {
     var def = ns.CARDS[cardId]; if (!def || !E.combat) return false;
     var card = { uid: -1, id: cardId, up: false };
@@ -3158,6 +3300,8 @@
   function playTimeline(evts, stepDelay, done) {
     var delay = 0;
     var pp = R.playerXY();
+    // one action, one chain: the counter and the receipt belong to THIS play
+    chainReset();
     // timing pre-pass: when one action hits several enemies (AoE), resolve their
     // damage and deaths together; multi-hits on a single enemy still stagger.
     function isHit(e) { return (e.type === 'dmg' || e.type === 'die') && e.who !== 'player'; }
@@ -3169,6 +3313,10 @@
         case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120; case 'charge': return 100; case 'jam': return 120; case 'corrupt': return 160; case 'overload': return 120; case 'discipline': return 90;
         case 'revive': return 260; case 'salvage': return 80; case 'win': return 250;
         case 'relicUnlocked': return 1000;
+        // THE CHAIN NEEDS A TIME AXIS. This fell through to 0, so every link of
+        // a trigger chain resolved in one frame and the die's whole payoff was
+        // drawn as a single illegible smear.
+        case 'dieFace': return CHAIN.step;
         case 'construct': return 220;     // the turret's shot needs a beat of its own
         case 'enrage': return 900;        // the announcement gets its own beat
         case 'enrageDecay': return 120;
@@ -3425,8 +3573,11 @@
           pendingRoll = { v: (e.eff != null ? e.eff : e.roll), crit: !!e.crit, misfire: !!e.misfire, aim: e.aim || 0 };
           break;
         case 'dieFace':
-          // the whole point of the die is that you SEE it fire
-          floater(pp.x + 62, pp.y - 84, (e.flaw ? '\u2716 ' : '\u25c6 ') + e.name, e.flaw ? 'dieflaw' : 'dieaug');
+          // the whole point of the die is that you SEE it fire \u2014 one link at a
+          // time, up a staircase, up the pitch ladder, with the count climbing
+          (function (e, d) {
+            setTimeout(function () { chainLink(e, pp); }, d);
+          })(e, delay);
           firedFace = { name: e.name, flaw: !!e.flaw };   // named under the die too
           // An unbanded roll that fires an engraving used to be completely
           // invisible: the die never settled, so the trigger had no cause on
@@ -3480,6 +3631,11 @@
           break;
       }
     });
+    // The chain closes before the action does: the receipt gets its bottom line
+    // and the phrase gets its ending note while the last link is still up.
+    var lastLink = -1;
+    for (var _c = 0; _c < evts.length; _c++) if (evts[_c].type === 'dieFace') lastLink = times[_c];
+    if (lastLink >= 0) setTimeout(chainTotal, lastLink + 140);
     setTimeout(done, endDelay + 220);
   }
 

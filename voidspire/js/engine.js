@@ -1728,12 +1728,23 @@
     // rather than to luck.
     var taint = ns.dieTaintAt(r.die, face);
     if (taint === 'rust') k = k * 0.5;
-    emit('dieFace', { face: face, id: id, name: aug.name, flaw: !!aug.flaw, bleed: k < 1, why: why || null, taint: taint || null });
+    /* THE LINK REPORTS WHAT IT DID. The event used to say only that a face had
+     * fired, so the chain could be narrated but never totalled — the numbers
+     * were spread across the dmg/block/status events between links and could
+     * not be attributed back. `ev` is pushed by reference and the UI drains
+     * after the whole card resolves, so filling it in below needs no second
+     * event and cannot arrive out of order. */
+    var ev = { face: face, id: id, name: aug.name, flaw: !!aug.flaw, bleed: k < 1,
+               why: why || null, taint: taint || null };
+    emit('dieFace', ev);
     var dread0 = E.dieRead(r.cls);
-    applyCardFx(k < 1 ? scaleFx(aug.fx, k) : aug.fx,
+    var b0 = c.player.block, en0 = c.energy;
+    ev.dealt = applyCardFx(k < 1 ? scaleFx(aug.fx, k) : aug.fx,
       { tgt: tgt, crit: false, roll: null, eff: face, misfire: false,
         bandMult: faceBandMult(face), blockBand: !!(dread0 && dread0.blocks),
         flags: {}, xval: 0, appliedBurn: false });
+    ev.blk = c.player.block - b0;
+    ev.en = c.energy - en0;
     if (taint === 'feedback') {
       var pool = aliveEnemies();
       if (pool.length) { var fe = pick(pool); addStatus(fe, 'str', 1); emit('status', { who: 'enemy', idx: c.enemies.indexOf(fe), s: 'str', v: 1 }); }
@@ -1829,9 +1840,13 @@
         }
         var times = 1 + (E.dieFieldCount('listenerEcho') > 0 ? 1 : 0);   // FIRE DISCIPLINE
         for (var t = 0; t < times; t++) {
-          emit('dieFace', { face: it.face, id: it.id, name: it.g.name, listen: kind });
-          applyCardFx(it.g.fx, { tgt: (data && data.tgt) || null, crit: false, roll: null, eff: it.face,
+          var lev = { face: it.face, id: it.id, name: it.g.name, listen: kind };
+          emit('dieFace', lev);
+          var lb0 = c.player.block, le0 = c.energy;
+          lev.dealt = applyCardFx(it.g.fx, { tgt: (data && data.tgt) || null, crit: false, roll: null, eff: it.face,
             misfire: false, bandMult: 1, flags: {}, xval: 0, appliedBurn: false });
+          lev.blk = c.player.block - lb0;
+          lev.en = c.energy - le0;
         }
       });
     } finally { _listenDepth--; }
