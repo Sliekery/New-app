@@ -1473,46 +1473,54 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
  * ================================================================= */
 #chain { position: absolute; inset: 0; z-index: 61; pointer-events: none; overflow: hidden; }
 
-/* --- the climbing counter --- */
-#chain-combo {
-  /* Below the action, not over it. At 34% a five-link chain's counter collided
-   * with the bottom of the ledger, and both of them are things you are trying
-   * to read at the same moment. */
-  position: absolute; left: 50%; top: 58%; transform: translate(-50%, -50%);
-  font: 700 11px/1 ui-monospace, monospace; letter-spacing: 0.2em; text-align: center;
-  color: #ffb02e; opacity: 0; transition: opacity 0.18s;
-}
-#chain-combo.on { opacity: 1; }
-#chain-combo .cn {
-  display: block; font-size: 42px; letter-spacing: 0; margin-top: 2px;
-  text-shadow: 0 0 20px rgba(255,176,46,0.9), 0 2px 3px #000;
-}
-#chain-combo.bump .cn { animation: chainBump 0.19s ease-out; }
-@keyframes chainBump { 0% { transform: scale(1); } 40% { transform: scale(1.4); } 100% { transform: scale(1); } }
-/* the rim deepens with the chain — set inline so it can scale with the count */
+/* --- the receipt: a framed panel, with the count in its title bar ---------
+ * The count used to float over the middle of the battlefield as a separate
+ * object saying the same number the receipt already knew. One object with a
+ * header to put it in is a better answer, and it stops obstructing the fight. */
 #chain-rim { position: absolute; inset: 0; pointer-events: none; transition: box-shadow 0.18s; }
 
-/* --- the receipt --- */
 #chain-ledger {
-  /* Clear of the die chip, which is centred at the top: at 12% this ran
-   * straight through the roll readout — the two things you most want to read
-   * together were drawn on top of each other. */
-  position: absolute; left: 10px; top: 21%; width: 205px;
-  border-left: 2px solid rgba(65,216,255,0.35); padding: 2px 0 2px 8px;
-  font: 700 10px/1.62 ui-monospace, monospace; opacity: 0; transition: opacity 0.3s;
+  /* Clear of the die, which is centred at the top. */
+  position: absolute; left: 8px; top: 20.5%; width: 232px;
+  border: 1px solid rgba(255,176,46,0.34); border-radius: 3px;
+  background: linear-gradient(180deg, rgba(18,13,4,0.86), rgba(8,10,12,0.82));
+  box-shadow: 0 0 22px rgba(0,0,0,0.55);
+  padding: 0 0 5px; opacity: 0; transition: opacity 0.3s;
+  font: 700 10px/1.5 ui-monospace, monospace;
 }
 #chain-ledger.on { opacity: 1; }
-#chain-ledger .cl-ln { display: flex; gap: 6px; opacity: 0; transform: translateX(-5px); }
+#chain-ledger .cl-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 7px 4px 8px; border-bottom: 1px solid rgba(255,176,46,0.28);
+  background: rgba(255,176,46,0.07);
+  font: 700 9.5px/1.4 ui-monospace, monospace; letter-spacing: 0.14em; color: #ffb02e;
+  opacity: 0; transform: translateX(-5px);
+}
+#chain-ledger .cl-hd.on { animation: chainSlide 0.3s ease-out forwards; }
+#chain-ledger .cl-n {
+  font-size: 17px; letter-spacing: 0; color: #ffb02e;
+  text-shadow: 0 0 12px rgba(255,176,46,0.9); display: inline-block;
+}
+#chain-ledger .cl-n.bump { animation: chainBump 0.19s ease-out; }
+@keyframes chainBump { 0% { transform: scale(1); } 40% { transform: scale(1.45); } 100% { transform: scale(1); } }
+
+#chain-ledger .cl-ln { display: flex; gap: 6px; padding: 2px 7px 0 8px; opacity: 0; transform: translateX(-5px); }
 #chain-ledger .cl-ln.on { animation: chainSlide 0.3s ease-out forwards; }
 @keyframes chainSlide { to { opacity: 1; transform: translateX(0); } }
-#chain-ledger .cl-w { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#chain-ledger .cl-c { flex: 0 0 46px; font-size: 8.5px; letter-spacing: 0.06em; color: #6f8579; text-transform: uppercase; }
+#chain-ledger .cl-w { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #cfe6da; }
 #chain-ledger .cl-v { color: #9bb0a6; white-space: nowrap; }
-#chain-ledger .cl-cause { color: #46564f; }
+/* the WHY line: face, the band it reads in, how the charge reached it */
+#chain-ledger .cl-sub {
+  padding: 0 7px 1px 62px; font: 600 8.5px/1.35 ui-monospace, monospace;
+  color: #55675c; opacity: 0; transform: translateX(-5px);
+}
+#chain-ledger .cl-sub.on { animation: chainSlide 0.34s ease-out forwards; }
 #chain-ledger .cl-root { color: #5dff88; }
 #chain-ledger .cl-bleed { color: #41d8ff; }
 #chain-ledger .cl-listen { color: #ffb02e; }
 #chain-ledger .cl-flaw { color: #ff4a5e; }
-#chain-ledger .cl-rule { border-top: 1px solid rgba(65,216,255,0.35); margin: 4px 0 3px; }
+#chain-ledger .cl-rule { border-top: 1px solid rgba(255,176,46,0.28); margin: 4px 0 3px; }
 #chain-ledger .cl-tot { color: #5dff88; }
 
 /* --- hitstop: the frame holds and everything but the chain drains --- */
@@ -1535,7 +1543,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   74%  { opacity: 1; transform: translate(-50%, -54%) scale(1); }
   100% { opacity: 0; transform: translate(-50%, -105%) scale(1); }
 }
-@media (max-width: 460px) { #chain-ledger { width: 164px; font-size: 9px; left: 8px; } #chain-combo .cn { font-size: 34px; } }
+@media (max-width: 380px) { #chain-ledger { width: 208px; font-size: 9px; } #chain-ledger .cl-c { flex-basis: 40px; } #chain-ledger .cl-sub { padding-left: 54px; } }
 
 /* ---- The Die: 3D stage -------------------------------------------------- */
 .die-stage { width: 100%; max-width: 620px; margin: 2px auto 0; display: flex; justify-content: center; }
@@ -11792,6 +11800,18 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return bandFor(dread, eff, face).mult;
   }
   E.faceBandMult = faceBandMult;
+  /* What a face READS as, in the class's own words. The chain receipt names it
+   * per link, so a bleed landing in SAG and one landing in SURGE stop looking
+   * like the same event with different numbers. */
+  E.faceBand = function (face) {
+    var r = E.run, c = E.combat;
+    var dread = r && E.dieRead(r.cls);
+    if (!dread || !c) return null;
+    if (face <= 1) return { label: dread.misfire.label, mult: dread.misfire.mult || 1 };
+    var eff = Math.min(20, face + statN(c.player, 'aim') + art('rollBonus'));
+    var slot = bandFor(dread, eff, face);
+    return { label: slot.label, mult: slot.mult };
+  };
 
   /* Is this face at one of the two ENDS of the class table? SECOND MOUTH reads
    * it; it is the Voidadept's whole thesis stated as a relic — his U means the
@@ -16966,9 +16986,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function chainWipe() {
     CHAIN.n = 0; CHAIN.dmg = 0; CHAIN.blk = 0; CHAIN.en = 0; CHAIN.stopped = false;
     CHAIN.batch = chainBatch;
-    var c = document.getElementById('chain-combo');
     var l = document.getElementById('chain-ledger');
-    if (c) { c.classList.remove('on', 'bump'); c.innerHTML = ''; }
     if (l) { l.classList.remove('on'); l.innerHTML = ''; }
     chainRim(0);
   }
@@ -17017,28 +17035,52 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     chainLedger(e, kind, mark);
     if (CHAIN.n >= CHAIN.stopAt && !CHAIN.stopped) { CHAIN.stopped = true; chainHitstop(); }
   }
+  /* The count lives in the receipt's header rather than floating over the
+   * battlefield. Two objects saying the same number, one of them parked in the
+   * middle of the fight, was a worse answer than one object that already had a
+   * title bar to put it in. The punch stays — the badge is what bumps now. */
   function chainCombo(i) {
     if (i < 1) return;                       // a lone face is not a chain
-    var c = document.getElementById('chain-combo'); if (!c) return;
-    c.innerHTML = 'CHAIN<span class="cn">×' + (i + 1) + '</span>';
-    c.classList.add('on');
-    c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump');
+    chainHeader();
+    var n = document.querySelector('#chain-ledger .cl-n'); if (!n) return;
+    n.textContent = '×' + (i + 1);
+    n.classList.remove('bump'); void n.offsetWidth; n.classList.add('bump');
     chainRim(i + 1);
   }
+  /* A LINK IS TWO LINES. The first is what fired and what it paid; the second is
+   * WHY it landed as hard as it did — the face, the band that face reads in, and
+   * whether the bleed came through at full or at a quarter. That second line is
+   * roll attribution, folded into the thing you are already reading rather than
+   * given a panel of its own. */
   function chainLedger(e, kind, mark) {
     var l = document.getElementById('chain-ledger'); if (!l) return;
+    chainHeader();
     var bits = [];
     if (e.dealt) bits.push(e.dealt + ' DMG');
     if (e.blk) bits.push('+' + e.blk + ' SHD');
     if (e.en) bits.push('+' + e.en + ' EN');
-    var cause = e.listen ? e.listen : e.why ? e.why : '';
+    var cause = e.listen ? ('LSTN ' + e.listen) : e.why ? e.why.toUpperCase() : 'ROOT';
     var ln = el('div', 'cl-ln');
-    ln.innerHTML = '<span class="cl-w">' + (cause ? '<span class="cl-cause">' + esc(mark + cause) + '</span> ' : esc(mark))
-      + '<span class="cl-' + kind + '">' + esc(e.name.toUpperCase()) + '</span></span>'
+    ln.innerHTML = '<span class="cl-c cl-' + kind + '">' + esc(cause) + '</span>'
+      + '<span class="cl-w">' + esc(e.name.toUpperCase()) + '</span>'
       + '<span class="cl-v">' + esc(bits.join(' · ')) + '</span>';
-    l.appendChild(ln);
+    var band = E.faceBand ? E.faceBand(e.face) : null;
+    var det = ['face ' + e.face];
+    if (band) det.push(band.label + (band.mult !== 1 ? ' ×' + band.mult : ''));
+    if (e.why === 'bleed') det.push(e.bleed ? 'bled' : 'FULL, relayed');
+    else if (e.why) det.push(e.why);
+    if (e.taint) det.push('SCARRED');
+    var sub = el('div', 'cl-sub', esc(det.join(' · ')));
+    l.appendChild(ln); l.appendChild(sub);
     l.classList.add('on');
-    requestAnimationFrame(function () { ln.classList.add('on'); });
+    requestAnimationFrame(function () { ln.classList.add('on'); sub.classList.add('on'); });
+  }
+  // the title bar, written once per chain, with the count living in it
+  function chainHeader() {
+    var l = document.getElementById('chain-ledger'); if (!l || l.querySelector('.cl-hd')) return;
+    var hd = el('div', 'cl-hd', '<span>CHAIN RECEIPT</span><b class="cl-n">×1</b>');
+    l.appendChild(hd);
+    requestAnimationFrame(function () { hd.classList.add('on'); });
   }
   // Printed once the chain is over, so the receipt has a bottom line.
   function chainTotal() {
@@ -17052,7 +17094,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       if (bits.length) {
         var rule = el('div', 'cl-rule'); l.appendChild(rule);
         var tot = el('div', 'cl-ln');
-        tot.innerHTML = '<span class="cl-w cl-tot">TOTAL</span><span class="cl-v cl-tot">' + esc(bits.join(' · ')) + '</span>';
+        tot.innerHTML = '<span class="cl-c cl-tot">CHAIN</span>'
+          + '<span class="cl-w cl-tot">CLOSED</span>'
+          + '<span class="cl-v cl-tot">' + esc(bits.join(' · ')) + '</span>';
         l.appendChild(tot);
         requestAnimationFrame(function () { tot.classList.add('on'); });
       }

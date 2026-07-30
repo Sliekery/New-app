@@ -583,9 +583,7 @@
   function chainWipe() {
     CHAIN.n = 0; CHAIN.dmg = 0; CHAIN.blk = 0; CHAIN.en = 0; CHAIN.stopped = false;
     CHAIN.batch = chainBatch;
-    var c = document.getElementById('chain-combo');
     var l = document.getElementById('chain-ledger');
-    if (c) { c.classList.remove('on', 'bump'); c.innerHTML = ''; }
     if (l) { l.classList.remove('on'); l.innerHTML = ''; }
     chainRim(0);
   }
@@ -634,28 +632,52 @@
     chainLedger(e, kind, mark);
     if (CHAIN.n >= CHAIN.stopAt && !CHAIN.stopped) { CHAIN.stopped = true; chainHitstop(); }
   }
+  /* The count lives in the receipt's header rather than floating over the
+   * battlefield. Two objects saying the same number, one of them parked in the
+   * middle of the fight, was a worse answer than one object that already had a
+   * title bar to put it in. The punch stays — the badge is what bumps now. */
   function chainCombo(i) {
     if (i < 1) return;                       // a lone face is not a chain
-    var c = document.getElementById('chain-combo'); if (!c) return;
-    c.innerHTML = 'CHAIN<span class="cn">×' + (i + 1) + '</span>';
-    c.classList.add('on');
-    c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump');
+    chainHeader();
+    var n = document.querySelector('#chain-ledger .cl-n'); if (!n) return;
+    n.textContent = '×' + (i + 1);
+    n.classList.remove('bump'); void n.offsetWidth; n.classList.add('bump');
     chainRim(i + 1);
   }
+  /* A LINK IS TWO LINES. The first is what fired and what it paid; the second is
+   * WHY it landed as hard as it did — the face, the band that face reads in, and
+   * whether the bleed came through at full or at a quarter. That second line is
+   * roll attribution, folded into the thing you are already reading rather than
+   * given a panel of its own. */
   function chainLedger(e, kind, mark) {
     var l = document.getElementById('chain-ledger'); if (!l) return;
+    chainHeader();
     var bits = [];
     if (e.dealt) bits.push(e.dealt + ' DMG');
     if (e.blk) bits.push('+' + e.blk + ' SHD');
     if (e.en) bits.push('+' + e.en + ' EN');
-    var cause = e.listen ? e.listen : e.why ? e.why : '';
+    var cause = e.listen ? ('LSTN ' + e.listen) : e.why ? e.why.toUpperCase() : 'ROOT';
     var ln = el('div', 'cl-ln');
-    ln.innerHTML = '<span class="cl-w">' + (cause ? '<span class="cl-cause">' + esc(mark + cause) + '</span> ' : esc(mark))
-      + '<span class="cl-' + kind + '">' + esc(e.name.toUpperCase()) + '</span></span>'
+    ln.innerHTML = '<span class="cl-c cl-' + kind + '">' + esc(cause) + '</span>'
+      + '<span class="cl-w">' + esc(e.name.toUpperCase()) + '</span>'
       + '<span class="cl-v">' + esc(bits.join(' · ')) + '</span>';
-    l.appendChild(ln);
+    var band = E.faceBand ? E.faceBand(e.face) : null;
+    var det = ['face ' + e.face];
+    if (band) det.push(band.label + (band.mult !== 1 ? ' ×' + band.mult : ''));
+    if (e.why === 'bleed') det.push(e.bleed ? 'bled' : 'FULL, relayed');
+    else if (e.why) det.push(e.why);
+    if (e.taint) det.push('SCARRED');
+    var sub = el('div', 'cl-sub', esc(det.join(' · ')));
+    l.appendChild(ln); l.appendChild(sub);
     l.classList.add('on');
-    requestAnimationFrame(function () { ln.classList.add('on'); });
+    requestAnimationFrame(function () { ln.classList.add('on'); sub.classList.add('on'); });
+  }
+  // the title bar, written once per chain, with the count living in it
+  function chainHeader() {
+    var l = document.getElementById('chain-ledger'); if (!l || l.querySelector('.cl-hd')) return;
+    var hd = el('div', 'cl-hd', '<span>CHAIN RECEIPT</span><b class="cl-n">×1</b>');
+    l.appendChild(hd);
+    requestAnimationFrame(function () { hd.classList.add('on'); });
   }
   // Printed once the chain is over, so the receipt has a bottom line.
   function chainTotal() {
@@ -669,7 +691,9 @@
       if (bits.length) {
         var rule = el('div', 'cl-rule'); l.appendChild(rule);
         var tot = el('div', 'cl-ln');
-        tot.innerHTML = '<span class="cl-w cl-tot">TOTAL</span><span class="cl-v cl-tot">' + esc(bits.join(' · ')) + '</span>';
+        tot.innerHTML = '<span class="cl-c cl-tot">CHAIN</span>'
+          + '<span class="cl-w cl-tot">CLOSED</span>'
+          + '<span class="cl-v cl-tot">' + esc(bits.join(' · ')) + '</span>';
         l.appendChild(tot);
         requestAnimationFrame(function () { tot.classList.add('on'); });
       }

@@ -1664,6 +1664,18 @@
     return bandFor(dread, eff, face).mult;
   }
   E.faceBandMult = faceBandMult;
+  /* What a face READS as, in the class's own words. The chain receipt names it
+   * per link, so a bleed landing in SAG and one landing in SURGE stop looking
+   * like the same event with different numbers. */
+  E.faceBand = function (face) {
+    var r = E.run, c = E.combat;
+    var dread = r && E.dieRead(r.cls);
+    if (!dread || !c) return null;
+    if (face <= 1) return { label: dread.misfire.label, mult: dread.misfire.mult || 1 };
+    var eff = Math.min(20, face + statN(c.player, 'aim') + art('rollBonus'));
+    var slot = bandFor(dread, eff, face);
+    return { label: slot.label, mult: slot.mult };
+  };
 
   /* Is this face at one of the two ENDS of the class table? SECOND MOUTH reads
    * it; it is the Voidadept's whole thesis stated as a relic — his U means the
