@@ -1676,22 +1676,163 @@
     },
   };
 
-  // small auto-turret drone (Technomancer identity)
-  function drawTurret(x, y, r, col) {
-    ctx.save();
-    ctx.strokeStyle = col; ctx.lineWidth = 1.3; ctx.lineJoin = 'round';
-    ctx.shadowColor = col; ctx.shadowBlur = 5; ctx.globalAlpha = 0.85;
+  /* ====================== CONSTRUCTS ==================================
+   * The Technomancer's whole thesis is that he does not fight you, he builds
+   * the thing that does — and until now the board did not show it. The turret
+   * was one dim hexagon whatever its damage, the DRONE SWARM was drawn NOT AT
+   * ALL (three cards deployed something invisible that hit every enemy every
+   * turn), and neither had any visible connection to the damage they dealt at
+   * end of turn, so their shots read as the game hurting enemies for no reason.
+   *
+   * Everything below fixes that: real silhouettes, a damage readout, and a
+   * shot that visibly leaves the construct.
+   * =================================================================== */
+
+  // Where the constructs are standing this frame, so their shots can start at
+  // them. Written by drawConstructs, read by R.constructFire.
+  R.constructs = { turret: [], drone: [] };
+
+  function conStroke(col, w, blur, a) {
+    ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineJoin = 'round';
+    ctx.shadowColor = col; ctx.shadowBlur = blur; ctx.globalAlpha = a;
+  }
+  function conPoly(pts, close) {
     ctx.beginPath();
-    for (var i = 0; i < 6; i++) {
-      var a = Math.PI / 6 + i * Math.PI / 3;
-      var bx = x + Math.cos(a) * r, by = y + Math.sin(a) * r;
-      if (i === 0) ctx.moveTo(bx, by); else ctx.lineTo(bx, by);
+    for (var i = 0; i < pts.length; i += 2) { if (i === 0) ctx.moveTo(pts[0], pts[1]); else ctx.lineTo(pts[i], pts[i + 1]); }
+    if (close) ctx.closePath();
+    ctx.stroke();
+  }
+  function conDot(x, y, r, col, a) {
+    ctx.save(); ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 8;
+    ctx.globalAlpha = a == null ? 1 : a;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill(); ctx.restore();
+  }
+
+  /* TRIPOD SENTRY — the single-target turret. Legs, because a distinct
+   * silhouette is the only thing that still reads as a gun at 15 pixels: a
+   * hexagon at that size is a dot, and a dot is what it used to be. */
+  function drawTurret(x, y, r, col, fireT) {
+    var kick = fireT != null ? Math.max(0, 1 - (t - fireT) / 0.22) : 0;   // recoil
+    var bx = x - kick * r * 0.5;
+    ctx.save(); conStroke(col, 1.6, 7 + kick * 8, 0.95);
+    // head: a rounded wedge
+    conPoly([bx - r * 0.7, y - r * 0.15, bx - r * 0.45, y - r * 0.7, bx + r * 0.5, y - r * 0.7,
+             bx + r * 0.8, y - r * 0.2, bx + r * 0.8, y + r * 0.25, bx - r * 0.7, y + r * 0.25], true);
+    conPoly([bx - r * 0.4, y - r * 0.42, bx + r * 0.45, y - r * 0.42]);        // visor slit
+    conPoly([bx + r * 0.8, y - r * 0.05, bx + r * 2.1, y - r * 0.05]);         // barrel
+    conPoly([bx + r * 1.6, y - r * 0.28, bx + r * 1.6, y + r * 0.18]);         // muzzle brake
+    conPoly([bx + r * 1.9, y - r * 0.28, bx + r * 1.9, y + r * 0.18]);
+    // three legs — these stay planted while the head recoils
+    conPoly([x - r * 0.35, y + r * 0.25, x - r * 0.85, y + r * 1.35]);
+    conPoly([x + r * 0.05, y + r * 0.25, x + r * 0.05, y + r * 1.5]);
+    conPoly([x + r * 0.45, y + r * 0.25, x + r * 0.9, y + r * 1.3]);
+    conPoly([x - r * 1.0, y + r * 1.38, x - r * 0.7, y + r * 1.38]);
+    conPoly([x - r * 0.15, y + r * 1.52, x + r * 0.25, y + r * 1.52]);
+    conPoly([x + r * 0.75, y + r * 1.33, x + r * 1.05, y + r * 1.33]);
+    ctx.restore();
+    // the eye sweeps while idle and locks forward while firing
+    var sw = kick > 0 ? r * 0.34 : Math.sin(t * 2.2) * r * 0.34;
+    conDot(bx + sw, y - r * 0.42, r * 0.16, col);
+    conDot(bx + r * 2.15, y - r * 0.05, r * (0.1 + kick * 0.24), col, 0.7 + kick * 0.3);
+    return { x: x + r * 2.15, y: y - r * 0.05 };     // where its shot leaves from
+  }
+
+  /* WEDGE FLIGHT — the Drone Swarm. Three delta darts in formation, trailing.
+   * It hits EVERY enemy, so it had to read as a strafing run rather than as
+   * another emplacement, or the two constructs would look like the same thing. */
+  function drawSwarm(x, y, r, col, fireT) {
+    var kick = fireT != null ? Math.max(0, 1 - (t - fireT) / 0.3) : 0;
+    var off = [[0, 0], [-1.05, -0.85], [-1.05, 0.85]];
+    for (var i = 0; i < 3; i++) {
+      var dx = x + off[i][0] * r + kick * r * 0.6, dy = y + off[i][1] * r + Math.sin(t * 3 + i * 2) * r * 0.12;
+      ctx.save(); conStroke(col, 1.5, 6 + kick * 8, 0.92);
+      conPoly([dx + r * 0.78, dy, dx - r * 0.42, dy - r * 0.4, dx - r * 0.2, dy, dx - r * 0.42, dy + r * 0.4], true);
+      ctx.globalAlpha = 0.32 + 0.18 * Math.sin(t * 9 + i) + kick * 0.5;       // thruster trail
+      conPoly([dx - r * 0.3, dy, dx - r * (1.15 + kick * 1.4), dy]);
+      ctx.restore();
+      conDot(dx + r * 0.5, dy, r * (0.1 + kick * 0.14), col, 0.9);
     }
-    ctx.closePath(); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(x + r * 0.6, y); ctx.lineTo(x + r * 1.6, y); ctx.stroke(); // barrel toward enemies
-    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, r * 0.26, 0, 7); ctx.fill();        // eye
+    return { x: x + r * 0.78, y: y };
+  }
+
+  /* The damage readout. A 2-damage Targeting Uplink and an 8-damage Mortar
+   * Array used to draw the identical hexagon, so the board told you a construct
+   * existed and nothing about whether it mattered. */
+  function conLabel(x, y, txt, col, size) {
+    ctx.save();
+    ctx.font = '700 ' + size.toFixed(1) + 'px ui-monospace, monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(3,8,10,0.92)'; ctx.shadowBlur = 0;
+    ctx.strokeText(txt, x, y);
+    ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 6;
+    ctx.fillText(txt, x, y);
     ctx.restore();
   }
+
+  /* Constructs stand in a column just ahead of the Technomancer, between him
+   * and the pack — they used to sit BEHIND him at the screen edge, which is
+   * most of why nobody saw them. One sprite per construct, not one per five
+   * points of damage: the board should say what is actually deployed. */
+  function drawConstructs(st, px, py, scale, col) {
+    R.constructs.turret = []; R.constructs.drone = [];
+    var tv = st.turret || 0, dv = st.drone || 0, hive = st.hive || 0;
+    if (tv <= 0 && dv <= 0) return;
+    // AHEAD of him and clear of his silhouette. The player's art runs to about
+    // +1 scale, so anything closer than this draws inside him — which is what
+    // the old -0.5 offset did on the other side, at the screen edge.
+    var r = scale * 0.3;
+    var slot = 0;
+    function place() {
+      var sx = px + (1.85 + (slot % 2) * 0.42) * scale;
+      var sy = py + (-1.35 + slot * 0.88) * scale + Math.sin(t * 2 + slot) * 2.5;
+      slot++;
+      return { x: sx, y: sy };
+    }
+    var lab = Math.max(9, scale * 0.17);
+    if (tv > 0) {
+      var pT = place();
+      var muzT = drawTurret(pT.x, pT.y, r, col, R.conFire.turret);
+      conLabel(pT.x - r * 1.5, pT.y - r * 0.3, String(tv), col, lab);
+      R.constructs.turret.push(muzT);
+    }
+    if (dv > 0) {
+      var pD = place();
+      var muzD = drawSwarm(pD.x + r * 0.5, pD.y, r, col, R.conFire.drone);
+      conLabel(pD.x - r * 1.5, pD.y - r * 0.15, String(dv) + '×', col, lab);
+      R.constructs.drone.push(muzD);
+    }
+    // HIVE doubles every construct's output and had no representation at all.
+    if (hive > 0) {
+      var hx = px + 1.85 * scale, hy = py + (-1.35 + slot * 0.88) * scale;
+      ctx.save(); conStroke(col, 1.3, 6, 0.55 + 0.25 * Math.sin(t * 3));
+      for (var h = 0; h < 6; h++) {                       // a little comb of cells
+        var cx2 = hx + (h % 3) * r * 0.52, cy2 = hy + Math.floor(h / 3) * r * 0.46;
+        ctx.beginPath();
+        for (var k = 0; k < 6; k++) {
+          var a2 = Math.PI / 6 + k * Math.PI / 3;
+          var vx = cx2 + Math.cos(a2) * r * 0.26, vy = cy2 + Math.sin(a2) * r * 0.26;
+          if (k === 0) ctx.moveTo(vx, vy); else ctx.lineTo(vx, vy);
+        }
+        ctx.closePath(); ctx.stroke();
+      }
+      ctx.restore();
+      conLabel(hx + r * 0.52, hy + r * 1.1, 'HIVE ×' + (hive + 1), col, Math.max(8, scale * 0.12));
+    }
+  }
+
+  // When each construct last fired, so the sprite can recoil with its shot.
+  R.conFire = { turret: -9, drone: -9 };
+  /* A construct's shot has to visibly LEAVE the construct. Before this the
+   * engine called dealToEnemy directly and the damage simply appeared on the
+   * enemy, which reads as the game hurting them for no reason. */
+  R.constructFire = function (kind, idx, col) {
+    R.conFire[kind] = t;
+    var from = (R.constructs[kind] || [])[0];
+    if (!from) return;
+    var to = (idx == null) ? null : R.enemyPos(idx);
+    if (to) R.shot(from.x, from.y, to.x, to.y, col || '#41d8ff');
+    else R.views.forEach(function (v) { if (v.alive) R.shot(from.x, from.y, v.x, v.y, col || '#41d8ff'); });
+  };
 
   // Subtle, state-driven identity flourishes per class.
   function drawPlayerFx(r, px, py, scale, col) {
@@ -1720,16 +1861,8 @@
       }
       ctx.restore();
     } else if (r.cls === 'technomancer') {
-      // deployed turret drones hover beside you when the Turret power is up
-      var tv = st.turret || 0;
-      if (tv > 0) {
-        var n = Math.max(1, Math.min(3, Math.ceil(tv / 5)));
-        for (var i = 0; i < n; i++) {
-          var ox = px + (-0.5 - i * 0.16) * scale;
-          var oy = py + (-0.45 + i * 0.55) * scale + Math.sin(t * 2 + i) * 2.5;
-          drawTurret(ox, oy, scale * 0.26, col);
-        }
-      }
+      // everything he has built, standing between him and the pack
+      drawConstructs(st, px, py, scale, col);
       // idle spark at the staff tip
       ctx.save();
       ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 6;

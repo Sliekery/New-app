@@ -117,6 +117,9 @@
     dice: function () { beep(330 + Math.random() * 300, 0.03, 'square', 0.02); },
     coin: function () { beep(988, 0.06, 'square', 0.03); setTimeout(function () { beep(1319, 0.1, 'square', 0.03); }, 60); },
     talk: function () { beep(700 + Math.random() * 380, 0.025, 'square', 0.012); },
+    // a construct firing: a servo click into a thin report, so it is audibly
+    // NOT the player's own weapon
+    servoFire: function () { beep(1180, 0.03, 'square', 0.018); setTimeout(function () { beep(300, 0.09, 'sawtooth', 0.035, -120); }, 34); },
   };
 
   /* ====================== vector art -> inline SVG ====================== */
@@ -3166,6 +3169,7 @@
         case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120; case 'charge': return 100; case 'jam': return 120; case 'corrupt': return 160; case 'overload': return 120; case 'discipline': return 90;
         case 'revive': return 260; case 'salvage': return 80; case 'win': return 250;
         case 'relicUnlocked': return 1000;
+        case 'construct': return 220;     // the turret's shot needs a beat of its own
         case 'enrage': return 900;        // the announcement gets its own beat
         case 'enrageDecay': return 120;
         default: return 0;
@@ -3192,6 +3196,17 @@
     evts.forEach(function (e, _ei) {
       delay = times[_ei];
       switch (e.type) {
+        // A construct firing has to be visible as the construct firing. The
+        // engine used to deal the damage silently, so at end of turn enemies
+        // simply lost HP and the thing you spent a card building never moved.
+        case 'construct':
+          (function (e, d) {
+            setTimeout(function () {
+              R.constructFire(e.kind, e.idx, CLASS_COL.technomancer);
+              SFX.servoFire();
+            }, d);
+          })(e, delay);
+          break;
         // A relic you EARNED has to say so at the moment you earn it, or the
         // requirement may as well not exist.
         case 'relicUnlocked':

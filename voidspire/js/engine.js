@@ -2405,6 +2405,10 @@
         var pool = aliveEnemies();
         if (pool.length) {
           var en = pick(pool);
+          // Announce the SHOT before the damage. The board draws the tracer
+          // leaving the turret; without it the damage simply appears on the
+          // enemy and the construct may as well not be there.
+          emit('construct', { kind: 'turret', idx: c.enemies.indexOf(en), v: tv + attr('tech') });
           dealToEnemy(en, c.enemies.indexOf(en), tv + attr('tech'), { noCrit: true, noWeak: true });
           fireListeners('construct', { tgt: en });
           if (statN(p, 'aegisLink') > 0) gainBlock(statN(p, 'aegisLink'));   // SWARM UPLINK: constructs shield you as they fire
@@ -2414,6 +2418,7 @@
     var drv = statN(p, 'drone');     // Drone Swarm: an AoE turret — strafes ALL enemies
     if (drv > 0 && !c.over) {
       for (var hvd = 0; hvd <= hive && !c.over; hvd++) {
+        emit('construct', { kind: 'drone', idx: null, v: drv + attr('tech') });   // strafes everything
         c.enemies.forEach(function (e, i) { if (e.alive) dealToEnemy(e, i, drv + attr('tech'), { noCrit: true, noWeak: true }); });
         if (statN(p, 'aegisLink') > 0) gainBlock(statN(p, 'aegisLink'));   // SWARM UPLINK
       }

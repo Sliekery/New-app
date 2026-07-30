@@ -1863,5 +1863,55 @@ ok('every remaining class has a starter deck whose cards all exist',
      hi - lo <= 5);
 })();
 
+/* ============ CONSTRUCTS ARE VISIBLE ===================================
+ * The Drone Swarm shipped for a long time drawing NOTHING: three cards
+ * deployed a construct that hit every enemy every turn and the battlefield
+ * never showed it, because drawPlayerFx only ever checked `st.turret`. The
+ * turret itself dealt its damage through a bare dealToEnemy, so its shot
+ * appeared on the enemy with nothing linking it back.
+ *
+ * Both are silent failures — the game plays correctly and lies about it — so
+ * they get asserted rather than eyeballed.
+ * ==================================================================== */
+(function () {
+  function endTurnWith(st) {
+    E.seed(5); E.newRun('technomancer'); E.takeFirstMark(0);
+    E.run.faction = 'hierarchy'; E.run.nodeIdx = 0; E.startNode('fight');
+    E.combat.enemies.forEach(function (e) { e.hp = 900; e.maxHp = 900; e.platedReady = false; });
+    Object.keys(st).forEach(function (k) { E.combat.player.statuses[k] = st[k]; });
+    E.events = [];
+    E.endTurn();
+    var out = E.events.filter(function (ev) { return ev.type === 'construct'; });
+    E.run.phase = 'map';
+    return out;
+  }
+  var tShots = endTurnWith({ turret: 6 });
+  ok('a turret announces its shot, with a target', tShots.length === 1 &&
+     tShots[0].kind === 'turret' && tShots[0].idx != null && tShots[0].v >= 6);
+  var dShots = endTurnWith({ drone: 4 });
+  ok('a drone swarm announces its strafe, with no single target', dShots.length === 1 &&
+     dShots[0].kind === 'drone' && dShots[0].idx === null && dShots[0].v >= 4);
+  var hShots = endTurnWith({ turret: 3, hive: 1 });
+  ok('Hive fires the turret twice and both shots are announced (' + hShots.length + ')', hShots.length === 2);
+
+  // ...and the renderer has to actually draw every construct a card deploys.
+  var rsrc = require('fs').readFileSync(__dirname + '/../js/render.js', 'utf8');
+  var deployed = {};
+  Object.keys(VS.CARDS).forEach(function (id) {
+    [false, true].forEach(function (up) {
+      if (up && !VS.CARDS[id].up) return;
+      (VS.cardFx(VS.CARDS[id], up) || []).forEach(function (f) {
+        if (f.k === 'status' && f.who === 'self' && /^(turret|drone|hive)$/.test(f.s)) deployed[f.s] = id;
+      });
+    });
+  });
+  var undrawn = Object.keys(deployed).filter(function (s) { return rsrc.indexOf('st.' + s) < 0; });
+  ok('every construct a card deploys is one the battlefield draws' +
+     (undrawn.length ? ' — ' + undrawn.map(function (s) { return s + ' (' + deployed[s] + ')'; }).join(', ') : ''),
+     undrawn.length === 0);
+  ok('all three construct statuses are actually deployable (' + Object.keys(deployed).sort().join(',') + ')',
+     Object.keys(deployed).length === 3);
+})();
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);
