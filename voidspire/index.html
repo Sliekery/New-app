@@ -1459,6 +1459,79 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .floater.dieaug { font-size: 14px; color: #5dff88; text-shadow: 0 0 10px rgba(93,255,136,0.85); }
 .floater.dieflaw { font-size: 14px; color: #ff4a5e; text-shadow: 0 0 10px rgba(255,74,94,0.85); }
 
+/* ================= THE TRIGGER CHAIN =================================
+ * A roll fires its face, bleeds into its neighbours, and whatever is listening
+ * answers — a chain of three or four links that all used to resolve in the SAME
+ * FRAME at the SAME PIXEL, so the most interesting thing the die does was drawn
+ * as a single illegible smear. Everything here is about giving that chain a
+ * time axis and a running total.
+ * ================================================================= */
+#chain { position: absolute; inset: 0; z-index: 61; pointer-events: none; overflow: hidden; }
+
+/* --- the climbing counter --- */
+#chain-combo {
+  /* Below the action, not over it. At 34% a five-link chain's counter collided
+   * with the bottom of the ledger, and both of them are things you are trying
+   * to read at the same moment. */
+  position: absolute; left: 50%; top: 58%; transform: translate(-50%, -50%);
+  font: 700 11px/1 ui-monospace, monospace; letter-spacing: 0.2em; text-align: center;
+  color: #ffb02e; opacity: 0; transition: opacity 0.18s;
+}
+#chain-combo.on { opacity: 1; }
+#chain-combo .cn {
+  display: block; font-size: 42px; letter-spacing: 0; margin-top: 2px;
+  text-shadow: 0 0 20px rgba(255,176,46,0.9), 0 2px 3px #000;
+}
+#chain-combo.bump .cn { animation: chainBump 0.19s ease-out; }
+@keyframes chainBump { 0% { transform: scale(1); } 40% { transform: scale(1.4); } 100% { transform: scale(1); } }
+/* the rim deepens with the chain — set inline so it can scale with the count */
+#chain-rim { position: absolute; inset: 0; pointer-events: none; transition: box-shadow 0.18s; }
+
+/* --- the receipt --- */
+#chain-ledger {
+  /* Clear of the die chip, which is centred at the top: at 12% this ran
+   * straight through the roll readout — the two things you most want to read
+   * together were drawn on top of each other. */
+  position: absolute; left: 10px; top: 21%; width: 205px;
+  border-left: 2px solid rgba(65,216,255,0.35); padding: 2px 0 2px 8px;
+  font: 700 10px/1.62 ui-monospace, monospace; opacity: 0; transition: opacity 0.3s;
+}
+#chain-ledger.on { opacity: 1; }
+#chain-ledger .cl-ln { display: flex; gap: 6px; opacity: 0; transform: translateX(-5px); }
+#chain-ledger .cl-ln.on { animation: chainSlide 0.3s ease-out forwards; }
+@keyframes chainSlide { to { opacity: 1; transform: translateX(0); } }
+#chain-ledger .cl-w { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#chain-ledger .cl-v { color: #9bb0a6; white-space: nowrap; }
+#chain-ledger .cl-cause { color: #46564f; }
+#chain-ledger .cl-root { color: #5dff88; }
+#chain-ledger .cl-bleed { color: #41d8ff; }
+#chain-ledger .cl-listen { color: #ffb02e; }
+#chain-ledger .cl-flaw { color: #ff4a5e; }
+#chain-ledger .cl-rule { border-top: 1px solid rgba(65,216,255,0.35); margin: 4px 0 3px; }
+#chain-ledger .cl-tot { color: #5dff88; }
+
+/* --- hitstop: the frame holds and everything but the chain drains --- */
+#game.hitstop #battlefield, #game.hitstop #hand, #game.hitstop #hud, #game.hitstop #combat-controls {
+  filter: grayscale(1) brightness(0.45);
+}
+#game.hitstop #chain, #game.hitstop #floaters { filter: none; }
+#chain-flash { position: absolute; inset: 0; background: #dff6ff; opacity: 0; pointer-events: none; }
+#chain-flash.on { animation: chainFlash 0.26s ease-out forwards; }
+@keyframes chainFlash { 0% { opacity: 0.42; } 100% { opacity: 0; } }
+
+/* Chain floaters climb a staircase instead of stacking on one pixel, and they
+ * live longer than a normal floater so the earlier links are still on screen
+ * when the last one lands — otherwise there is no chain to see. */
+.floater.dielink { animation: chainLink 1.25s cubic-bezier(0.2,0.9,0.3,1) forwards; white-space: nowrap; }
+@keyframes chainLink {
+  0%   { opacity: 0; transform: translate(-50%, -20%) scale(0.82); }
+  12%  { opacity: 1; transform: translate(-50%, -58%) scale(1.08); }
+  26%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  74%  { opacity: 1; transform: translate(-50%, -54%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -105%) scale(1); }
+}
+@media (max-width: 460px) { #chain-ledger { width: 164px; font-size: 9px; left: 8px; } #chain-combo .cn { font-size: 34px; } }
+
 /* ---- The Die: 3D stage -------------------------------------------------- */
 .die-stage { width: 100%; max-width: 620px; margin: 2px auto 0; display: flex; justify-content: center; }
 .die-canvas { width: 210px; height: 210px; display: block; touch-action: none; }
@@ -2025,6 +2098,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     <div id="combat-controls"></div>
     <div id="overlay"></div>
     <div id="floaters"></div>
+    <div id="chain"><div id="chain-combo"></div><div id="chain-ledger"></div></div>
     <div id="toast"></div>
   </div>
   <div id="crt"></div>
@@ -11726,12 +11800,23 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // rather than to luck.
     var taint = ns.dieTaintAt(r.die, face);
     if (taint === 'rust') k = k * 0.5;
-    emit('dieFace', { face: face, id: id, name: aug.name, flaw: !!aug.flaw, bleed: k < 1, why: why || null, taint: taint || null });
+    /* THE LINK REPORTS WHAT IT DID. The event used to say only that a face had
+     * fired, so the chain could be narrated but never totalled — the numbers
+     * were spread across the dmg/block/status events between links and could
+     * not be attributed back. `ev` is pushed by reference and the UI drains
+     * after the whole card resolves, so filling it in below needs no second
+     * event and cannot arrive out of order. */
+    var ev = { face: face, id: id, name: aug.name, flaw: !!aug.flaw, bleed: k < 1,
+               why: why || null, taint: taint || null };
+    emit('dieFace', ev);
     var dread0 = E.dieRead(r.cls);
-    applyCardFx(k < 1 ? scaleFx(aug.fx, k) : aug.fx,
+    var b0 = c.player.block, en0 = c.energy;
+    ev.dealt = applyCardFx(k < 1 ? scaleFx(aug.fx, k) : aug.fx,
       { tgt: tgt, crit: false, roll: null, eff: face, misfire: false,
         bandMult: faceBandMult(face), blockBand: !!(dread0 && dread0.blocks),
         flags: {}, xval: 0, appliedBurn: false });
+    ev.blk = c.player.block - b0;
+    ev.en = c.energy - en0;
     if (taint === 'feedback') {
       var pool = aliveEnemies();
       if (pool.length) { var fe = pick(pool); addStatus(fe, 'str', 1); emit('status', { who: 'enemy', idx: c.enemies.indexOf(fe), s: 'str', v: 1 }); }
@@ -11827,9 +11912,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         }
         var times = 1 + (E.dieFieldCount('listenerEcho') > 0 ? 1 : 0);   // FIRE DISCIPLINE
         for (var t = 0; t < times; t++) {
-          emit('dieFace', { face: it.face, id: it.id, name: it.g.name, listen: kind });
-          applyCardFx(it.g.fx, { tgt: (data && data.tgt) || null, crit: false, roll: null, eff: it.face,
+          var lev = { face: it.face, id: it.id, name: it.g.name, listen: kind };
+          emit('dieFace', lev);
+          var lb0 = c.player.block, le0 = c.energy;
+          lev.dealt = applyCardFx(it.g.fx, { tgt: (data && data.tgt) || null, crit: false, roll: null, eff: it.face,
             misfire: false, bandMult: 1, flags: {}, xval: 0, appliedBurn: false });
+          lev.blk = c.player.block - lb0;
+          lev.en = c.energy - le0;
         }
       });
     } finally { _listenDepth--; }
@@ -16400,6 +16489,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // a construct firing: a servo click into a thin report, so it is audibly
     // NOT the player's own weapon
     servoFire: function () { beep(1180, 0.03, 'square', 0.018); setTimeout(function () { beep(300, 0.09, 'sawtooth', 0.035, -120); }, 34); },
+    /* THE LADDER. Each link of a trigger chain steps a whole tone above the
+     * last, and gets slightly louder. This — not the visuals — is what makes a
+     * chain feel like it is still going: the ear anticipates the next rung, so
+     * a four-link chain lands as a phrase rather than four separate noises. */
+    chainStep: function (i) { beep(392 * Math.pow(2, (i * 2) / 12), 0.13, 'square', Math.min(0.075, 0.038 + i * 0.012)); },
+    // ...and the phrase needs an ending, or a long chain just stops.
+    chainBreak: function (n) {
+      var top = 392 * Math.pow(2, Math.min(14, n * 2) / 12);
+      beep(top, 0.1, 'square', 0.05);
+      setTimeout(function () { beep(top * 1.5, 0.26, 'square', 0.055); }, 90);
+    },
   };
 
   /* ====================== vector art -> inline SVG ====================== */
@@ -16808,10 +16908,137 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // the roll it belongs to. Hold it until the readout is drawn.
   var firedFace = null;
   var pendingRoll = null;   // a roll the class table had nothing to say about
+
+  /* ============ THE TRIGGER CHAIN =====================================
+   * The best thing the die does is the chain: the face you rolled fires, the
+   * bleed catches its neighbours, and whatever is listening answers. Three or
+   * four links, and every one of them used to be drawn in the SAME FRAME at the
+   * SAME PIXEL — `gapFor('dieFace')` fell through to 0 and every floater went to
+   * one fixed spot, so the payoff read as an illegible smear.
+   *
+   * Four things fix it, and they are all about the same thing: giving the chain
+   * a TIME AXIS. Links land 110ms apart on a staircase, each a whole tone higher
+   * than the last (the ear is what tells you it is still going), a counter
+   * climbs beside them, a receipt totals what they did, and a chain long enough
+   * to be remarkable stops the frame for a fifth of a second.
+   * ================================================================= */
+  var CHAIN = {
+    step: 110,        // ms between links. This number simply did not exist.
+    stopAt: 4,        // links needed before the frame holds
+    hold: 210,        // how long it holds
+    n: 0,             // links so far this card
+    dmg: 0, blk: 0, en: 0,
+    stopped: false,
+  };
+  function chainReset() {
+    CHAIN.n = 0; CHAIN.dmg = 0; CHAIN.blk = 0; CHAIN.en = 0; CHAIN.stopped = false;
+    var c = document.getElementById('chain-combo');
+    var l = document.getElementById('chain-ledger');
+    if (c) { c.classList.remove('on', 'bump'); c.innerHTML = ''; }
+    if (l) { l.classList.remove('on'); l.innerHTML = ''; }
+    chainRim(0);
+  }
+  function chainRim(n) {
+    var g = document.getElementById('game'); if (!g) return;
+    var rim = document.getElementById('chain-rim');
+    if (!rim) {
+      rim = el('div'); rim.id = 'chain-rim';
+      var host = document.getElementById('chain'); if (!host) return;
+      host.appendChild(rim);
+    }
+    rim.style.boxShadow = n < 2 ? 'inset 0 0 0 0 transparent'
+      : 'inset 0 0 ' + (14 + n * 20) + 'px ' + (2 + n * 3) + 'px rgba(255,176,46,' + Math.min(0.42, 0.06 + n * 0.08) + ')';
+  }
+  // One link of the chain lands: staircase floater, a rung up the ladder, the
+  // counter, the receipt line, and — if this is the one that crosses the
+  // threshold — the frame holds.
+  function chainLink(e, pp) {
+    CHAIN.n++;
+    var i = CHAIN.n - 1;
+    CHAIN.dmg += (e.dealt || 0); CHAIN.blk += (e.blk || 0); CHAIN.en += (e.en || 0);
+    var kind = e.flaw ? 'flaw' : e.listen ? 'listen' : e.bleed || e.why ? 'bleed' : 'root';
+    // the staircase. Clamped so a six-link chain cannot walk off the frame.
+    var mark = e.flaw ? '✖ ' : (e.listen || e.why) ? '↳ ' : '◆ ';
+    var fx = pp.x + 62 + Math.min(4, i) * 20;
+    var fy = pp.y - 92 + Math.min(5, i) * 21;
+    floater(fx, fy, mark + e.name, 'dielink die' + (e.flaw ? 'flaw' : 'aug'));
+    SFX.chainStep(i);
+    chainCombo(i);
+    chainLedger(e, kind, mark);
+    if (CHAIN.n >= CHAIN.stopAt && !CHAIN.stopped) { CHAIN.stopped = true; chainHitstop(); }
+  }
+  function chainCombo(i) {
+    if (i < 1) return;                       // a lone face is not a chain
+    var c = document.getElementById('chain-combo'); if (!c) return;
+    c.innerHTML = 'CHAIN<span class="cn">×' + (i + 1) + '</span>';
+    c.classList.add('on');
+    c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump');
+    chainRim(i + 1);
+  }
+  function chainLedger(e, kind, mark) {
+    var l = document.getElementById('chain-ledger'); if (!l) return;
+    var bits = [];
+    if (e.dealt) bits.push(e.dealt + ' DMG');
+    if (e.blk) bits.push('+' + e.blk + ' SHD');
+    if (e.en) bits.push('+' + e.en + ' EN');
+    var cause = e.listen ? e.listen : e.why ? e.why : '';
+    var ln = el('div', 'cl-ln');
+    ln.innerHTML = '<span class="cl-w">' + (cause ? '<span class="cl-cause">' + esc(mark + cause) + '</span> ' : esc(mark))
+      + '<span class="cl-' + kind + '">' + esc(e.name.toUpperCase()) + '</span></span>'
+      + '<span class="cl-v">' + esc(bits.join(' · ')) + '</span>';
+    l.appendChild(ln);
+    l.classList.add('on');
+    requestAnimationFrame(function () { ln.classList.add('on'); });
+  }
+  // Printed once the chain is over, so the receipt has a bottom line.
+  function chainTotal() {
+    if (CHAIN.n < 2) { chainFade(); return; }
+    var l = document.getElementById('chain-ledger');
+    if (l) {
+      var bits = [];
+      if (CHAIN.dmg) bits.push(CHAIN.dmg + ' DMG');
+      if (CHAIN.blk) bits.push(CHAIN.blk + ' SHD');
+      if (CHAIN.en) bits.push(CHAIN.en + ' EN');
+      if (bits.length) {
+        var rule = el('div', 'cl-rule'); l.appendChild(rule);
+        var tot = el('div', 'cl-ln');
+        tot.innerHTML = '<span class="cl-w cl-tot">TOTAL</span><span class="cl-v cl-tot">' + esc(bits.join(' · ')) + '</span>';
+        l.appendChild(tot);
+        requestAnimationFrame(function () { tot.classList.add('on'); });
+      }
+    }
+    SFX.chainBreak(CHAIN.n);
+    chainFade();
+  }
+  function chainFade() {
+    var n = CHAIN.n;
+    setTimeout(function () {
+      if (CHAIN.n !== n) return;             // a new chain started; leave it alone
+      var c = document.getElementById('chain-combo');
+      var l = document.getElementById('chain-ledger');
+      if (c) c.classList.remove('on');
+      if (l) l.classList.remove('on');
+      chainRim(0);
+    }, 1500);
+  }
+  /* HITSTOP. Only for a chain worth remarking on, because a stutter on every
+   * roll is a stutter you resent. The chain layer keeps its colour while
+   * everything else drains, so what you look at during the hold is the payoff. */
+  function chainHitstop() {
+    var g = document.getElementById('game'), host = document.getElementById('chain');
+    if (!g || !host) return;
+    var fl = document.getElementById('chain-flash');
+    if (!fl) { fl = el('div'); fl.id = 'chain-flash'; host.appendChild(fl); }
+    fl.classList.remove('on'); void fl.offsetWidth; fl.classList.add('on');
+    g.classList.add('hitstop');
+    R.quake && R.quake(R.playerXY().x, R.playerXY().y, '#ffb02e', 0.5);
+    setTimeout(function () { g.classList.remove('hitstop'); }, CHAIN.hold);
+  }
   // A new fight starts with a clean die — a readout that persists must not
   // outlive the combat it belongs to.
   function clearDieResult() {
     firedFace = null; pendingRoll = null;
+    chainReset();
     if (!$die) return;
     var $f = $die.querySelector('.die-flash');
     if ($f) { $f.innerHTML = ''; $f.classList.remove('go'); }
@@ -19358,6 +19585,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // A cast that throws is SILENT in play, by design — which means a broken one
   // can ship unnoticed. This lets a test drive every card's cast with a real
   // combat env and a real target, with the swallow turned off.
+  // Plays a card down the REAL path — engine, then the animation timeline — so
+  // the chain presentation can be measured as the player sees it rather than
+  // by inspecting the event array. (test/chainfeel.js)
+  U.probePlay = function (i, targetIdx) { playCardAt(i, targetIdx == null ? 0 : targetIdx); };
   U.probeCast = function (cardId) {
     var def = ns.CARDS[cardId]; if (!def || !E.combat) return false;
     var card = { uid: -1, id: cardId, up: false };
@@ -19438,6 +19669,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function playTimeline(evts, stepDelay, done) {
     var delay = 0;
     var pp = R.playerXY();
+    // one action, one chain: the counter and the receipt belong to THIS play
+    chainReset();
     // timing pre-pass: when one action hits several enemies (AoE), resolve their
     // damage and deaths together; multi-hits on a single enemy still stagger.
     function isHit(e) { return (e.type === 'dmg' || e.type === 'die') && e.who !== 'player'; }
@@ -19449,6 +19682,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120; case 'charge': return 100; case 'jam': return 120; case 'corrupt': return 160; case 'overload': return 120; case 'discipline': return 90;
         case 'revive': return 260; case 'salvage': return 80; case 'win': return 250;
         case 'relicUnlocked': return 1000;
+        // THE CHAIN NEEDS A TIME AXIS. This fell through to 0, so every link of
+        // a trigger chain resolved in one frame and the die's whole payoff was
+        // drawn as a single illegible smear.
+        case 'dieFace': return CHAIN.step;
         case 'construct': return 220;     // the turret's shot needs a beat of its own
         case 'enrage': return 900;        // the announcement gets its own beat
         case 'enrageDecay': return 120;
@@ -19705,8 +19942,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           pendingRoll = { v: (e.eff != null ? e.eff : e.roll), crit: !!e.crit, misfire: !!e.misfire, aim: e.aim || 0 };
           break;
         case 'dieFace':
-          // the whole point of the die is that you SEE it fire
-          floater(pp.x + 62, pp.y - 84, (e.flaw ? '\u2716 ' : '\u25c6 ') + e.name, e.flaw ? 'dieflaw' : 'dieaug');
+          // the whole point of the die is that you SEE it fire \u2014 one link at a
+          // time, up a staircase, up the pitch ladder, with the count climbing
+          (function (e, d) {
+            setTimeout(function () { chainLink(e, pp); }, d);
+          })(e, delay);
           firedFace = { name: e.name, flaw: !!e.flaw };   // named under the die too
           // An unbanded roll that fires an engraving used to be completely
           // invisible: the die never settled, so the trigger had no cause on
@@ -19760,6 +20000,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           break;
       }
     });
+    // The chain closes before the action does: the receipt gets its bottom line
+    // and the phrase gets its ending note while the last link is still up.
+    var lastLink = -1;
+    for (var _c = 0; _c < evts.length; _c++) if (evts[_c].type === 'dieFace') lastLink = times[_c];
+    if (lastLink >= 0) setTimeout(chainTotal, lastLink + 140);
     setTimeout(done, endDelay + 220);
   }
 
