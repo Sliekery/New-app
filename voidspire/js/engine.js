@@ -930,6 +930,18 @@
     if (sv > 0) c.player.statuses.salvo = sv;
     var br = art('bloodrageStart');
     if (br > 0) c.player.statuses.bloodrage = br;
+    // SCARFEEDER turns the pressure system on its head for exactly one class:
+    // the taints the void cuts into his die stop being pure cost and start being
+    // the reason he walks into the fight already angry.
+    var tm = art('taintMight');
+    if (tm > 0 && r.die) {
+      var scars = 0;
+      for (var tf = 1; tf <= ns.DIE.faces; tf++) {
+        var sl = r.die.faces[tf];
+        if (sl && sl.root === tf && sl.taint) scars++;
+      }
+      if (scars > 0) addStatus(c.player, 'str', tm * scars);
+    }
     var bs = art('blockStart') + art('blockStartTechMul') * attr('tech');   // Forge Reserve scales with TECH
     if (bs > 0) { c.player.block = bs; } // relic Shield is passive, not "played"
     var ws = art('weakStart');
@@ -982,7 +994,13 @@
   // Shield (and the "no Shield" quest) see every source.
   // played = the Shield came from a card the player chose to play (so passive
   // relic/plate/trigger Shield does NOT count against the "no Shield" quest).
+  var _inBlockListen = false;
   function gainBlock(n, played) {
+    if (n > 0 && E.combat && !E.combat.over && !_inBlockListen) {
+      // guarded: a shield listener that gains shield would answer itself
+      _inBlockListen = true;
+      try { fireListeners('shield', {}); } finally { _inBlockListen = false; }
+    }
     var c = E.combat, p = c.player;
     if (n <= 0) return;
     if (art('noShield') > 0) return;   // tradeoff relics that forbid Shield entirely
@@ -1019,7 +1037,8 @@
 
   var _inConduit = false;   // re-entrancy guard for the Disruption conduit hook
   function statN(ent, s) { return ent.statuses[s] || 0; }
-  var _statListen = { momentum: 'momentum', parry: 'parry' };
+  var _statListen = { momentum: 'momentum', parry: 'parry', psiPow: 'psi' };
+  var _inEnemyListen = false;
   function addStatus(ent, s, v) {
     ent.statuses[s] = (ent.statuses[s] || 0) + v;
     if (ent.statuses[s] <= 0) delete ent.statuses[s];
@@ -1029,6 +1048,17 @@
     // some of them would read as a bug rather than as a rule.
     if (v > 0 && !isEnemy && _statListen[s] && E.combat && !E.combat.over) {
       fireListeners(_statListen[s], {});
+    }
+    // ...and the enemy-facing ones. Burn and the debuffs are where the Void
+    // Adept and the Technomancer actually live, so their listeners hook here
+    // for the same reason Momentum does: they are applied from many places and
+    // a listener that caught only some would read as a bug.
+    if (v > 0 && isEnemy && E.combat && !E.combat.over && !_inEnemyListen) {
+      var trig = (s === 'burn') ? 'burn' : (s === 'weak' || s === 'vuln') ? 'debuff' : null;
+      if (trig) {
+        _inEnemyListen = true;
+        try { fireListeners(trig, { tgt: ent }); } finally { _inEnemyListen = false; }
+      }
     }
     if (v > 0 && isEnemy && (s === 'weak' || s === 'vuln')) {
       var hx = art('hexweaver');                       // Hexweaver: Weak/Vuln also Burns
@@ -1307,6 +1337,10 @@
       emit('dmg', { who: 'enemy', idx: idx, amount: amount, hpDmg: 0, warded: true, hpAfter: en.hp, blockAfter: en.block });
       return 0;
     }
+    // CRIMSON LEDGER: the HP the die just billed rides on this card's hits. It
+    // is set on the roll and cleared once the card has resolved, so it never
+    // leaks into a turret tick or an engraving fired by a later card.
+    if (c.bloodEdge && !opts.noCrit) amount += c.bloodEdge;
     var dm = art('dmgMult');
     if (dm > 0) amount = Math.round(amount * (1 + dm));
     if (E.hasEcho('cursed_inheritance') && handHasCurse()) amount = Math.round(amount * 1.25); // Cursed Inheritance
@@ -1627,19 +1661,61 @@
    * hits harder, a graze face hits softer, so WHERE you cut is a real trade
    * again; and because Aim raises the band every face lands in, Aim now makes
    * your WHOLE die hit harder instead of relocating it. */
+  /* How far the whole table slides for THIS number. `bandShift` is the flat
+   * relic version; the two class relics below make the slide conditional, which
+   * is what keeps them from being a strictly-better Machined Barrel:
+   *   DUTY CYCLE  — odd numbers climb, even numbers fall (Technomancer)
+   *   HOLLOW CROWN — the closer to death, the better the die reads (Voidadept) */
+  function bandShiftNow(n) {
+    var sh = art('bandShift');
+    var pb = art('parityBand');
+    if (pb > 0) sh += (n % 2 ? pb : -pb);
+    var hb = art('hpBand');
+    if (hb > 0) {
+      var r = E.run;
+      var miss = (r && r.maxHp) ? Math.max(0, 1 - r.hp / r.maxHp) : 0;
+      sh += hb * Math.floor(miss / 0.2);
+    }
+    return sh;
+  }
+
+  /* One reader for the class table, used by both a live roll and an engraving
+   * resolving in its own face's band, so a relic can never move one without the
+   * other. `n` is the number being read — the roll, or the face. */
+  function bandFor(dread, eff, n) {
+    var e = Math.max(eff, art('bandFloor'));            // REGULATOR CLAMP
+    var last = dread.bands.length - 1;
+    var lw = art('lowWiden');                           // WIDENING MAW
+    if (lw > 0 && last > 0 && e < dread.bands[last - 1].min + lw) return dread.bands[last];
+    var shift = bandShiftNow(n);
+    for (var i = 0; i < dread.bands.length; i++) {
+      if (e >= dread.bands[i].min - shift) return dread.bands[i];
+    }
+    return dread.bands[last];
+  }
+  E.bandFor = bandFor;
+
   function faceBandMult(face) {
     var r = E.run, c = E.combat;
     var dread = r && E.dieRead(r.cls);
     if (!dread || !c) return 1;
     if (face <= 1) return (dread.misfire && dread.misfire.mult) || 1;
     var eff = Math.min(20, face + statN(c.player, 'aim') + art('rollBonus'));
-    var shift = art('bandShift');
-    for (var i = 0; i < dread.bands.length; i++) {
-      if (eff >= dread.bands[i].min - shift) return dread.bands[i].mult;
-    }
-    return dread.bands[dread.bands.length - 1].mult;
+    return bandFor(dread, eff, face).mult;
   }
   E.faceBandMult = faceBandMult;
+
+  /* Is this face at one of the two ENDS of the class table? SECOND MOUTH reads
+   * it; it is the Voidadept's whole thesis stated as a relic — his U means the
+   * middle is the bad place, so his bleed is full at either extreme. */
+  function faceAtEnd(face) {
+    var r = E.run, dread = r && E.dieRead(r.cls);
+    if (!dread) return false;
+    if (face <= 1) return true;
+    var eff = Math.min(20, face + statN(E.combat.player, 'aim') + art('rollBonus'));
+    var slot = bandFor(dread, eff, face);
+    return slot === dread.bands[0] || slot === dread.bands[dread.bands.length - 1];
+  }
 
   function fireOneFace(face, tgt, k, why) {
     var r = E.run, c = E.combat;
@@ -1676,7 +1752,10 @@
   function fireDieFace(face, tgt) {
     var r = E.run, c = E.combat;
     if (!r || !r.die || !c || c.over) return;
-    var lit = fireOneFace(face, tgt, 1);
+    // DISTRIBUTION FRAME routes the charge past the face you rolled
+    var lit = fireOneFace(face, tgt, art('rootHalf') > 0 ? 0.5 : 1);
+    // SUBSTATION remembers the first face to fire this turn and re-fires it later
+    if (lit && art('faceEcho') > 0 && c.echoFace == null) c.echoFace = face;
     if (!lit && art('bareRefund') > 0) c.energy += art('bareRefund');   // DRY FIRE
     // The roll has to LAND on something to splash. Bleeding off a bare face
     // paid you for a dead roll, which made the mechanic free rather than a
@@ -1685,6 +1764,8 @@
     if (!lit) return;
     if (ns.dieTaintAt(r.die, face) === 'dead_short') return;   // the seam is broken
     var bleed = Math.min(1, B.dice.bleed + art('bleedPct'));
+    if (art('relayAll') > 0) bleed = 1;                            // DISTRIBUTION FRAME
+    if (art('bleedEnds') > 0 && faceAtEnd(face)) bleed = 1;        // SECOND MOUTH
     if (bleed <= 0) return;
     ns.dieNeighbours(r.die, face).forEach(function (f) {
       if (c.over) return;
@@ -1695,6 +1776,17 @@
       fireOneFace(f, tgt, k, 'bleed');
       fireListeners('neighbour', { face: f, tgt: tgt });
     });
+    // CASCADE COUPLER: the surge carries one ring further out, at half again.
+    // Deliberately NOT a listener trigger — the outer pair is spill, not contact,
+    // and letting it ring `neighbour` would double every adjacency build.
+    if (art('bleedSpan') > 0) {
+      var span = bleed / 2;
+      [-2, 2].forEach(function (d) {
+        if (c.over) return;
+        var f2 = ((face - 1 + d + ns.DIE.faces) % ns.DIE.faces) + 1;
+        fireOneFace(f2, tgt, span, 'bleed');
+      });
+    }
     // TWIN SIGHT: the face opposite on the ring answers too
     if (lit) {
       var self = ns.dieEngraving(ns.dieFaceId(r.die, face));
@@ -1763,7 +1855,9 @@
     for (var i = 0; i < (n || 1) && clean.length; i++) {
       var root = pick(clean);
       clean = clean.filter(function (x) { return x !== root; });
-      var tid = (rnd() < (B.dice.coldWeldChance || 0.12)) ? 'cold_weld' : pick(ids);
+      // ANNEALING JIG: the void still scars you, but nothing it cuts is permanent
+      var welds = art('weldWard') <= 0 && rnd() < (B.dice.coldWeldChance || 0.12);
+      var tid = welds ? 'cold_weld' : pick(ids);
       if (ns.dieAddTaint(r.die, root, tid)) {
         did++;
         emit('etch', { face: root, taint: tid, name: (ns.DIE_TAINTS[tid] || {}).name || tid });
@@ -2068,6 +2162,7 @@
     // picking it a build decision rather than a stat comparison.
     if (roll === 1 && art('rerollOnes') > 0) roll = d20();          // COUNTERWEIGHT
     if (art('rollAdv') > 0) roll = Math.max(roll, d20());           // DEADEYE RETICLE
+    if (roll < 8 && art('rerollSag') > 0) roll = d20();             // HOT SPARE
     c.rollNo = (c.rollNo || 0) + 1;
     if (art('everyThird') > 0 && c.rollNo % 3 === 0) roll = 20;     // RANGING TABLES
     eff = Math.min(20, roll + statN(p, 'aim') + art('rollBonus'));
@@ -2079,12 +2174,18 @@
     if (!bandsNow) {
       emit('roll', { roll: roll, eff: eff, crit: false, misfire: false, band: null });
     } else {
-      crit = (roll === 20) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus') - art('critWiden'));
       misfire = roll <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden'));
+      crit = (roll === 20) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus') - art('critWiden'));
+      // THE DEVOURING: the Adept's table is a U, so his crit is too. The bottom
+      // of the die bites as hard as the top — but only where it has not jammed.
+      if (!misfire && art('lowCrit') > 0 && roll <= art('lowCrit')) crit = true;
       if (misfire && art('critDie1Energy') > 0) c.energy += art('critDie1Energy');   // Misfire Capacitor
       if (misfire) {   // MISFIRE PROTOCOL turns a jam into fuel
         var mg = statN(p, 'misfireGuard');
         if (mg > 0) { addStatus(p, 'momentum', mg); emit('status', { who: 'player', s: 'momentum', v: statN(p, 'momentum') }); c.energy += 1; }
+        // TRIP COIL / SACRIFICIAL FUSE: a tripped breaker is never dead weight
+        if (art('breakerBlock') > 0) gainBlock(art('breakerBlock'));
+        if (art('breakerEnergy') > 0) c.energy += art('breakerEnergy');
       }
       // The bottom of the table is where the classes part ways: a misfire is the
       // Vanguard's wasted shot, the Technomancer's tripped breaker and the
@@ -2092,14 +2193,10 @@
       var slot = null;
       if (crit) bandLabel = 'CRIT';
       else if (misfire) { slot = dread.misfire; }
-      else {
-        // MACHINED BARREL / RANGE CARD move where the good bands begin
-        var shift = art('bandShift');
-        for (var bi = 0; bi < dread.bands.length; bi++) {
-          if (eff >= dread.bands[bi].min - shift) { slot = dread.bands[bi]; break; }
-        }
-        if (!slot) slot = dread.bands[dread.bands.length - 1];
-      }
+      // MACHINED BARREL / DUTY CYCLE / HOLLOW CROWN move where the bands begin,
+      // REGULATOR CLAMP puts a floor under the read and WIDENING MAW pulls the
+      // bottom band up into the middle — all of it in one reader.
+      else slot = bandFor(dread, eff, roll);
       if (slot) {
         bandMult = slot.mult;
         bandLabel = slot.label;
@@ -2107,8 +2204,29 @@
         if (slot.energy) c.energy += slot.energy;
         // The void bills you, and your blood engines drink it — but it never
         // takes the last point. A roll you did not choose should not kill you.
-        if (slot.hploss) spendLife(Math.min(slot.hploss, Math.max(0, r.hp - 1)));
+        if (slot.hploss) {
+          var bill = Math.min(slot.hploss, Math.max(0, r.hp - 1));
+          spendLife(bill);
+          // BLOODLETTER'S NAIL / CRIMSON LEDGER read the bill, not the band: a
+          // relic that pays out on HP lost stays honest when the void is only
+          // able to take one point because you are nearly dead.
+          if (bill > 0 && art('hplossPsi') > 0) {
+            addStatus(p, 'psiPow', art('hplossPsi'));
+            emit('status', { who: 'player', s: 'psiPow', v: statN(p, 'psiPow') });
+          }
+          if (bill > 0 && art('hplossDmg') > 0) c.bloodEdge = bill * art('hplossDmg');
+        }
       }
+      // ASHEN TITHE / BUS PRIMER / HEAT LEDGER / GORGE pay for a BAND rather
+      // than a number, so what they are worth depends on how your table is cut
+      // — and a crit counts as the top of it even though it has no band of its own.
+      var topB = dread.bands[0], botB = dread.bands[dread.bands.length - 1];
+      if (!crit && !misfire && slot === botB) {
+        if (art('sagEnergy') > 0) c.energy += art('sagEnergy');
+        if (art('hungerDraw') > 0) drawCards(art('hungerDraw'));
+      }
+      if (!misfire && (crit || slot === topB) && art('surgeShield') > 0) gainBlock(art('surgeShield'));
+      if ((misfire || slot === botB) && art('lowHeal') > 0) c.gorgeHeal = art('lowHeal');   // GORGE, paid after the card
       // Tone, not band name: the HUD must not know that SOLID is good and SAG is
       // not. It reads the multiplier, so a new class table styles itself.
       rollTone = crit ? 'crit' : bandMult > 1.02 ? 'up' : bandMult < 0.98 ? 'down' : 'flat';
@@ -2122,11 +2240,16 @@
     if (def.type === 'attack' && c.echoReady) { c.echoReady = false; times = 2; }
     // Doubled Self: on turn 1, every card you play resolves twice
     if (c.turn === 1 && E.hasEcho('doubled_self')) times = Math.max(times, 2);
+    // WOUND ECHO: the Adept's jam is his best band (1.5x, 4 HP), so doubling it
+    // is a payoff and not a consolation — and the HP has already been billed.
+    if (misfire && art('ravenousEcho') > 0) times = Math.max(times, 2);
     var totalDealt = 0;
     for (var rep = 0; rep < times; rep++) {
       if (c.over) break;
       totalDealt += applyCardFx(fx, ctx);
     }
+    c.bloodEdge = 0;                                   // CRIMSON LEDGER, spent
+    if (c.gorgeHeal) { heal(c.gorgeHeal); c.gorgeHeal = 0; }   // GORGE pays after
     // VENGEANCE: a connecting Attack, after you took a hit or parried, heals you.
     if (def.type === 'attack' && totalDealt > 0 && c.avengeArmed && statN(p, 'vengeance') > 0) {
       heal(statN(p, 'vengeance'));
@@ -2165,6 +2288,16 @@
         // TWINNED FIRING PIN: the opening roll of a combat catches both sides
         if (art('firstSplash') > 0 && c.rollNo === 1) {
           ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) fireOneFace(nf, tgt, 1, 'relay'); });
+        }
+        // Reaching ACROSS the ring rather than along it. Both of these use
+        // fireOneFace for the same reason Hot Barrel does: a relay upgrades the
+        // charge on one more face, it does not start a second bleed.
+        var across = ((lands + 9) % ns.DIE.faces) + 1;
+        if (art('evenMirror') > 0 && lands % 2 === 0 && !c.over) {          // PARITY PIN
+          fireOneFace(across, tgt, Math.min(1, B.dice.bleed + art('bleedPct')), 'opposite');
+        }
+        if (art('extremeRelay') > 0 && (roll === 20 || misfire) && !c.over) {   // TWIN MAW
+          fireOneFace(across, tgt, 1, 'opposite');
         }
         if (crit) {
           fireListeners('crit', { tgt: tgt });
@@ -2207,6 +2340,7 @@
       c.firstPowerUsed = true;
       var fpd = art('firstPowerDraw'); if (fpd > 0) drawCards(fpd);
     }
+    if (def.type === 'power') fireListeners('power', { tgt: tgt });
     // route the played card: powers are consumed, exhaust cards (and skills
     // under Corruption) exhaust, everything else discards
     if (def.type === 'power') {
@@ -2233,6 +2367,14 @@
   E.endTurn = function () {
     var c = E.combat, r = E.run, p = c.player;
     if (!c || c.over) return;
+
+    // SUBSTATION: the first face that fired this turn fires once more as the
+    // turn closes. It runs before the discard so a face that shields you still
+    // shields you in time for the enemy's swing.
+    if (art('faceEcho') > 0 && c.echoFace != null && !c.over) {
+      fireOneFace(c.echoFace, aliveEnemies()[0] || null, 1, 'echo');
+    }
+    c.echoFace = null;
 
     // SPENT BRASS cashes the numbers you rolled this turn in as plating
     if (art('bankRoll') > 0 && (c.banked || 0) > 0) {
@@ -2264,6 +2406,7 @@
         if (pool.length) {
           var en = pick(pool);
           dealToEnemy(en, c.enemies.indexOf(en), tv + attr('tech'), { noCrit: true, noWeak: true });
+          fireListeners('construct', { tgt: en });
           if (statN(p, 'aegisLink') > 0) gainBlock(statN(p, 'aegisLink'));   // SWARM UPLINK: constructs shield you as they fire
         }
       }

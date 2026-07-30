@@ -248,6 +248,259 @@
     },
 
     /* =================================================================
+     * VOID ADEPT SET — THE HUNGER. His table is a U, not a ramp: ATTUNED x1.2
+     * at the top, HUNGER x1.2 at the bottom, and WHISPER x0.9 through the fat
+     * middle. Measured after engravings began resolving in their face's band,
+     * that cost him 12 points of class parity — because everything sat in the
+     * middle, which is the one place his die is BAD.
+     *
+     * So this set lives at the ENDS. Band-locked pieces are low or high and
+     * nothing is written for the middle, which is his identity anyway: the void
+     * answers at both extremes and is bored in between.
+     * ================================================================= */
+
+    /* ---- standalone ---- */
+    ember_notch: {
+      name: 'Ember Notch', tier: 1, span: 1, cls: 'voidadept',
+      fx: [{ k: 'status', s: 'burn', v: 6, who: 'target' }],
+      desc: 'Apply 6 Burn.',
+      art: { p: [[0,-0.7, 0.26,-0.28, 0.12,0.0, 0.3,0.3, 0.14,0.6, 0,0.72, -0.14,0.6, -0.3,0.3, -0.12,0.0, -0.26,-0.28, 0,-0.7], [0,-0.24, 0.12,0.06, 0,0.36, -0.12,0.06, 0,-0.24], [-0.5,-0.3, -0.6,0.06], [0.5,-0.3, 0.6,0.06]], e: [[0,0.06]] },
+    },
+    hunger_mark: {
+      name: 'Hunger Mark', tier: 2, span: 1, cls: 'voidadept', band: 'low',
+      fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 18, scale: 'psi' }],
+      desc: 'Lose 2 HP. Deal 18 damage. Cuts only into the hunger band — where the void already bites.',
+      art: { p: [[-0.6,-0.5, -0.3,-0.1, -0.5,0.4], [-0.2,-0.66, -0.06,-0.1, -0.2,0.56], [0.2,-0.66, 0.06,-0.1, 0.2,0.56], [0.6,-0.5, 0.3,-0.1, 0.5,0.4], [-0.45,-0.1, 0.45,-0.1], [-0.16,0.66, 0.16,0.66]], e: [[0,0.74],[-0.62,-0.6],[0.62,-0.6]] },
+    },
+    attuned_notch: {
+      name: 'Attuned Notch', tier: 2, span: 1, cls: 'voidadept', band: 'high',
+      fx: [{ k: 'status', s: 'psiPow', v: 3, who: 'self' }],
+      desc: 'Gain 3 Psi Focus. Cuts only into the attuned band.',
+      art: { p: [[0,-0.8, 0.3,-0.26, 0,0.28, -0.3,-0.26, 0,-0.8], [0,-0.5, 0.14,-0.26, 0,-0.02, -0.14,-0.26, 0,-0.5], [-0.5,0.4, 0.5,0.4], [-0.34,0.58, 0.34,0.58], [-0.18,0.76, 0.18,0.76], [-0.3,-0.26, -0.6,-0.26], [0.3,-0.26, 0.6,-0.26]], e: [[0,-0.26]] },
+    },
+    plague_notch: {
+      name: 'Plague Notch', tier: 1, span: 1, cls: 'voidadept',
+      fx: [{ k: 'status', s: 'vuln', v: 2, who: 'allEnemies' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }],
+      desc: 'ALL enemies: 2 Vulnerable, 1 Weak.',
+      art: { p: [[0,-0.34, 0.28,-0.17, 0.28,0.17, 0,0.34, -0.28,0.17, -0.28,-0.17, 0,-0.34], [-0.66,-0.6, -0.44,-0.47, -0.44,-0.21, -0.66,-0.08, -0.88,-0.21, -0.88,-0.47, -0.66,-0.6], [0.66,-0.6, 0.44,-0.47, 0.44,-0.21, 0.66,-0.08, 0.88,-0.21, 0.88,-0.47, 0.66,-0.6], [0,0.58, 0.22,0.71, 0,0.84, -0.22,0.71, 0,0.58], [-0.28,-0.17, -0.46,-0.3], [0.28,-0.17, 0.46,-0.3], [0,0.34, 0,0.58]], e: [[0,0],[-0.66,-0.34],[0.66,-0.34]] },
+    },
+    thin_veil: {
+      name: 'Thin Veil', tier: 1, span: 3, cls: 'voidadept',
+      fx: [{ k: 'block', v: 4 }, { k: 'status', s: 'psiPow', v: 1, who: 'self' }],
+      desc: 'Gain 4 Shield and 1 Psi Focus.',
+      art: { p: [[0,-0.6, 0.48,-0.34, 0.48,0.14, 0,0.6, -0.48,0.14, -0.48,-0.34, 0,-0.6], [0,-0.86, 0.14,-0.5, 0,-0.14, -0.14,-0.5, 0,-0.86], [-0.48,-0.34, 0.48,0.14], [0.48,-0.34, -0.48,0.14]], e: [[0,-0.5]] },
+    },
+
+    /* ---- listeners: the void answers what you feed it ---- */
+    kindling_notch: {
+      name: 'Kindling Notch', tier: 2, span: 1, cls: 'voidadept', listen: 'burn',
+      fx: [{ k: 'dmg', v: 3 }],
+      desc: 'WHEN you apply Burn: deal 3 damage.',
+      art: { p: [[0,-0.6, 0.22,-0.24, 0.1,0.0, 0.26,0.26, 0.12,0.54, 0,0.64, -0.12,0.54, -0.26,0.26, -0.1,0.0, -0.22,-0.24, 0,-0.6], [-0.66,0.2, -0.4,0.34], [0.66,0.2, 0.4,0.34], [-0.5,-0.4, -0.34,-0.24], [0.5,-0.4, 0.34,-0.24]], e: [[0,0.06],[-0.74,0.24],[0.74,0.24]] },
+    },
+    vein_notch: {
+      name: 'Vein Notch', tier: 2, span: 1, cls: 'voidadept', listen: 'selfHp',
+      fx: [{ k: 'status', s: 'psiPow', v: 2, who: 'self' }],
+      desc: 'WHEN one of your own cards costs you HP: gain 2 Psi Focus.',
+      art: { p: [[0,-0.66, 0,0.4], [0,-0.4, -0.36,-0.66], [0,-0.1, 0.4,-0.36], [0,0.16, -0.34,-0.04], [0,0.4, 0.2,0.64], [-0.18,0.54, 0,0.4, 0.18,0.54], [-0.24,0.78, 0.24,0.78]], e: [[0,0.86]] },
+    },
+    ascendant_notch: {
+      name: 'Ascendant Notch', tier: 2, span: 1, cls: 'voidadept', listen: 'psi',
+      fx: [{ k: 'dmg', v: 2, scale: 'psi' }],
+      desc: 'WHEN you gain Psi Focus: deal 2 damage plus your Psi.',
+      art: { p: [[0,-0.8, 0.2,-0.46, 0,-0.12, -0.2,-0.46, 0,-0.8], [0,-0.46, 0.34,-0.12, 0,0.24, -0.34,-0.12, 0,-0.46], [0,-0.12, 0.48,0.24, 0,0.6, -0.48,0.24, 0,-0.12], [-0.26,0.6, 0.26,0.6], [-0.16,0.76, 0.16,0.76]], e: [[0,-0.46]] },
+    },
+    contagion_notch: {
+      name: 'Contagion Notch', tier: 3, span: 1, cls: 'voidadept', listen: 'debuff',
+      fx: [{ k: 'status', s: 'burn', v: 2, who: 'allEnemies' }],
+      desc: 'WHEN you apply Weak or Vulnerable: apply 2 Burn to ALL enemies.',
+      art: { p: [[0,-0.24, 0.2,-0.1, 0.2,0.16, 0,0.3, -0.2,0.16, -0.2,-0.1, 0,-0.24], [-0.7,-0.5, -0.2,-0.14], [0.7,-0.5, 0.2,-0.14], [-0.7,0.5, -0.2,0.2], [0.7,0.5, 0.2,0.2], [-0.78,-0.62, -0.7,-0.5], [0.78,-0.62, 0.7,-0.5]], e: [[0,0.03],[-0.78,-0.62],[0.78,-0.62],[-0.78,0.6],[0.78,0.6]] },
+    },
+    ravenous_notch: {
+      name: 'Ravenous Notch', tier: 3, span: 1, cls: 'voidadept', onlyFace: 1,
+      fx: [{ k: 'dmg', v: 22, scale: 'psi' }, { k: 'status', s: 'psiPow', v: 2, who: 'self' }],
+      desc: 'Deal 22 damage and gain 2 Psi Focus. Face 1 only — the void bites deepest when it slips.',
+      art: { p: [[-0.6,-0.5, -0.24,-0.06, -0.5,0.5], [-0.2,-0.7, -0.04,-0.06, -0.2,0.66], [0.2,-0.7, 0.04,-0.06, 0.2,0.66], [0.6,-0.5, 0.24,-0.06, 0.5,0.5], [-0.5,-0.06, 0.5,-0.06], [-0.86,-0.3, -0.66,-0.4], [0.86,-0.3, 0.66,-0.4]], e: [[0,-0.86],[0,0.8]] },
+    },
+
+    /* ---- adjacency / field ---- */
+    sympathetic_seam: {
+      name: 'Sympathetic Seam', tier: 3, span: 1, cls: 'voidadept', field: 'relay',
+      fx: [{ k: 'status', s: 'burn', v: 3, who: 'target' }],
+      desc: 'Apply 3 Burn. Faces either side of this one fire at FULL instead of the bleed.',
+      art: { p: [[-0.7,0.0, -0.24,0.0], [0.24,0.0, 0.7,0.0], [0,-0.3, 0.22,-0.1, 0.22,0.18, 0,0.36, -0.22,0.18, -0.22,-0.1, 0,-0.3], [-0.7,-0.26, -0.7,0.26], [0.7,-0.26, 0.7,0.26]], e: [[0,0.03],[-0.7,0],[0.7,0]] },
+    },
+    red_thread_notch: {
+      name: 'Red Thread', tier: 3, span: 1, cls: 'voidadept', field: 'opposite',
+      fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 8, scale: 'psi' }],
+      desc: 'Lose 2 HP. Deal 8 damage. Also fires the face OPPOSITE this one — the ends answer each other.',
+      art: { p: [[-0.8,-0.5, -0.34,-0.14, -0.7,0.14, -0.2,0.5, 0.2,0.14, 0.62,0.5, 0.86,0.1], [-0.34,-0.14, -0.02,-0.5], [0.2,0.14, 0.5,-0.2], [-0.2,0.5, -0.16,0.74]], e: [[-0.34,-0.14],[0.2,0.14],[-0.14,0.82]] },
+    },
+    long_whisper_field: {
+      name: 'Long Whisper', tier: 3, span: 3, cls: 'voidadept', field: 'listenerEcho',
+      fx: [{ k: 'status', s: 'psiPow', v: 2, who: 'self' }],
+      desc: 'Gain 2 Psi Focus. Every listener on the die answers one extra time.',
+      art: { p: [[-0.72,0.0, -0.36,-0.34, 0.36,-0.34, 0.72,0.0, 0.36,0.34, -0.36,0.34, -0.72,0.0], [-0.24,0.0, 0.0,-0.24, 0.24,0.0, 0.0,0.24, -0.24,0.0], [-0.86,-0.44, -0.5,-0.44], [0.86,-0.44, 0.5,-0.44], [-0.86,0.44, -0.5,0.44], [0.86,0.44, 0.5,0.44]], e: [[0,0]] },
+    },
+    aching_seam: {
+      name: 'Aching Seam', tier: 2, span: 1, cls: 'voidadept', listen: 'neighbour',
+      fx: [{ k: 'status', s: 'vuln', v: 1, who: 'target' }],
+      desc: 'WHEN a face beside this one fires: apply 1 Vulnerable.',
+      art: { p: [[-0.56,-0.36, -0.34,-0.52, -0.12,-0.36, -0.12,-0.02, -0.34,0.16, -0.56,-0.02, -0.56,-0.36], [0.56,-0.36, 0.34,-0.52, 0.12,-0.36, 0.12,-0.02, 0.34,0.16, 0.56,-0.02, 0.56,-0.36], [-0.34,0.16, -0.34,0.5], [0.34,0.16, 0.34,0.5], [-0.34,0.5, 0.34,0.5]], e: [[-0.34,-0.26],[0.34,-0.26],[0,0.5]] },
+    },
+
+    /* ---- trade-offs: he always pays in blood ---- */
+    blood_price: {
+      name: 'Blood Price', tier: 2, span: 1, cls: 'voidadept', band: 'low',
+      fx: [{ k: 'hploss', v: 3 }, { k: 'status', s: 'bloodPact', v: 2, who: 'self' }],
+      desc: 'Lose 3 HP. Gain 2 Blood Pact — spilt HP feeds your Psi from now on.',
+      art: { p: [[0,-0.6, 0.2,-0.3, 0,0.0, -0.2,-0.3, 0,-0.6], [-0.44,0.14, 0.44,0.14, 0.36,0.58, -0.36,0.58, -0.44,0.14], [-0.4,0.36, 0.4,0.36], [-0.2,0.0, -0.24,0.14], [0.2,0.0, 0.24,0.14]], e: [[-0.2,0.72],[0.2,0.72],[0,0.78]] },
+    },
+    wildfire_seam: {
+      name: 'Wildfire Seam', tier: 3, span: 1, cls: 'voidadept', band: 'high',
+      fx: [{ k: 'status', s: 'wildfire', v: 1, who: 'self' }, { k: 'hploss', v: 3 }],
+      desc: 'Gain 1 Wildfire — Burn grows instead of fading. Lose 3 HP.',
+      art: { p: [[0,-0.4, 0.22,-0.1, 0.1,0.14, 0.28,0.4, 0.12,0.66, 0,0.74, -0.12,0.66, -0.28,0.4, -0.1,0.14, -0.22,-0.1, 0,-0.4], [-0.56,-0.2, -0.42,0.1, -0.5,0.34], [0.56,-0.2, 0.42,0.1, 0.5,0.34], [-0.82,-0.4, -0.7,-0.1, -0.78,0.16], [0.82,-0.4, 0.7,-0.1, 0.78,0.16], [-0.2,-0.56, 0,-0.76, 0.2,-0.56]], e: [[0,0.3],[0,-0.84]] },
+    },
+    hollow_out: {
+      name: 'Hollow Out', tier: 2, span: 1, cls: 'voidadept',
+      fx: [{ k: 'status', s: 'entropy', v: 2, who: 'self' }, { k: 'hploss', v: 2 }],
+      desc: 'Gain 2 Entropy — every turn ends in Burn for all of them. Lose 2 HP.',
+      art: { p: [[0,-0.66, 0.24,-0.24, 0.12,0.0, 0.3,0.3, 0.14,0.6, 0,0.7, -0.14,0.6, -0.3,0.3, -0.12,0.0, -0.24,-0.24, 0,-0.66], [-0.6,-0.4, -0.46,-0.1, -0.54,0.14], [0.6,-0.4, 0.46,-0.1, 0.54,0.14], [-0.5,0.6, 0.5,0.6], [-0.86,-0.14, -0.74,0.1], [0.86,-0.14, 0.74,0.1]], e: [[0,0.14],[-0.5,0.7],[0.5,0.7]] },
+    },
+    open_wound: {
+      name: 'Open Wound', tier: 2, span: 3, cls: 'voidadept',
+      fx: [{ k: 'hploss', v: 1 }, { k: 'status', s: 'burn', v: 4, who: 'target' }],
+      desc: 'Lose 1 HP. Apply 4 Burn.',
+      art: { p: [[-0.4,-0.5, -0.1,-0.16, -0.34,0.14, 0.0,0.5, 0.3,0.14, 0.1,-0.16, 0.4,-0.5], [-0.4,-0.5, -0.56,-0.66], [0.4,-0.5, 0.56,-0.66], [0.0,0.5, 0.0,0.72], [-0.24,0.62, 0.24,0.62]], e: [[0,0.8],[-0.62,-0.72],[0.62,-0.72]] },
+    },
+
+    /* =================================================================
+     * TECHNOMANCER SET — LOAD BALANCE. His table is the widest in the game
+     * (SURGE x1.35 down to SAG x0.7) and it scales SHIELD as well as damage, so
+     * a defensive face reads on the band too. He gets no extra Aim, so he
+     * cannot steer: everything here is about REDUNDANCY — constructs that work
+     * while he does not, a bus that makes a bad roll pay anyway, and listeners
+     * that answer the machine rather than the man.
+     * ================================================================= */
+
+    /* ---- standalone ---- */
+    load_shunt: {
+      name: 'Load Shunt', tier: 1, span: 1, cls: 'technomancer',
+      fx: [{ k: 'block', v: 8 }, { k: 'energy', v: 1 }],
+      desc: 'Gain 8 Shield and 1 Energy.',
+      art: { p: [[-0.7,-0.4, -0.2,-0.4, -0.2,0.4, -0.7,0.4, -0.7,-0.4], [-0.7,0.0, -0.2,0.0], [-0.2,0.0, 0.2,0.0], [0.3,-0.5, 0.1,-0.05, 0.34,-0.05, 0.14,0.5], [0.5,-0.3, 0.7,-0.3], [0.5,0.3, 0.7,0.3]], e: [[-0.45,-0.2],[-0.45,0.2]] },
+    },
+    servo_rack: {
+      name: 'Servo Rack', tier: 2, span: 1, cls: 'technomancer',
+      fx: [{ k: 'status', s: 'turret', v: 3, who: 'self' }],
+      desc: 'Deploy a Turret (3 dmg/turn).',
+      art: { p: [[-0.34,-0.1, 0.2,-0.1, 0.3,0.14, -0.44,0.14, -0.34,-0.1], [-0.44,0.14, -0.4,0.44, 0.26,0.44, 0.3,0.14], [-0.4,0.44, -0.56,0.72], [0.26,0.44, 0.42,0.72], [-0.66,0.72, 0.56,0.72], [0.2,-0.3, 0.74,-0.3], [0.62,-0.42, 0.82,-0.42, 0.82,-0.18, 0.62,-0.18], [-0.34,-0.1, -0.28,-0.34, 0.06,-0.34, 0.2,-0.1]], e: [[-0.08,-0.22],[0.88,-0.3]] },
+    },
+    heat_sink: {
+      name: 'Heat Sink', tier: 1, span: 3, cls: 'technomancer', band: 'mid',
+      fx: [{ k: 'block', v: 5 }, { k: 'status', s: 'plate', v: 1, who: 'self' }],
+      desc: 'Gain 5 Shield, 1 Plating.',
+      art: { p: [[-0.6,-0.5, 0.6,-0.5, 0.6,0.5, -0.6,0.5, -0.6,-0.5], [-0.36,-0.5, -0.36,0.5], [-0.12,-0.5, -0.12,0.5], [0.12,-0.5, 0.12,0.5], [0.36,-0.5, 0.36,0.5], [-0.6,-0.66, 0.6,-0.66], [-0.8,-0.2, -0.6,-0.2], [0.8,-0.2, 0.6,-0.2]], e: [[0,0.66]] },
+    },
+    bus_bar: {
+      name: 'Bus Bar', tier: 2, span: 1, cls: 'technomancer',
+      fx: [{ k: 'status', s: 'reactor', v: 1, who: 'self' }],
+      desc: 'Gain 1 Reactor — +1 max Energy for the fight.',
+      art: { p: [[-0.86,-0.2, 0.86,-0.2], [-0.86,0.2, 0.86,0.2], [-0.5,-0.2, -0.5,0.2], [0.0,-0.2, 0.0,0.2], [0.5,-0.2, 0.5,0.2], [-0.5,-0.2, -0.5,-0.5], [0.5,0.2, 0.5,0.5], [-0.66,-0.5, -0.34,-0.5], [0.34,0.5, 0.66,0.5]], e: [[-0.25,0],[0.25,0]] },
+    },
+    null_rod: {
+      name: 'Null Rod', tier: 1, span: 1, cls: 'technomancer',
+      fx: [{ k: 'status', s: 'weak', v: 2, who: 'allEnemies' }],
+      desc: 'Apply 2 Weak to ALL enemies.',
+      art: { p: [[0,-0.8, 0,0.6], [-0.2,-0.6, 0.2,-0.6], [-0.16,-0.2, 0.16,-0.2], [-0.12,0.2, 0.12,0.2], [-0.34,0.6, 0.34,0.6], [-0.5,-0.4, -0.34,-0.5], [0.5,-0.4, 0.34,-0.5], [-0.5,0.2, -0.3,0.14], [0.5,0.2, 0.3,0.14]], e: [[0,-0.86]] },
+    },
+
+    /* ---- listeners: they answer the machine ---- */
+    feed_tap: {
+      name: 'Feed Tap', tier: 2, span: 1, cls: 'technomancer', listen: 'construct',
+      fx: [{ k: 'block', v: 3 }],
+      desc: 'WHEN one of your constructs fires: gain 3 Shield.',
+      art: { p: [[-0.7,-0.3, -0.3,-0.3, -0.3,0.3, -0.7,0.3, -0.7,-0.3], [-0.3,0.0, 0.1,0.0], [0.1,-0.34, 0.5,-0.34, 0.5,0.34, 0.1,0.34, 0.1,-0.34], [0.5,0.0, 0.8,0.0], [-0.5,-0.3, -0.5,-0.56], [0.3,-0.34, 0.3,-0.56]], e: [[-0.5,0],[0.3,0],[0.86,0]] },
+    },
+    grounding_pin: {
+      name: 'Grounding Pin', tier: 2, span: 1, cls: 'technomancer', listen: 'shield',
+      fx: [{ k: 'dmg', v: 3, random: true }],
+      desc: 'WHEN you gain Shield: deal 3 damage to a random enemy.',
+      art: { p: [[0,-0.7, 0,0.3], [-0.3,0.3, 0.3,0.3], [-0.2,0.46, 0.2,0.46], [-0.1,0.62, 0.1,0.62], [-0.4,-0.5, 0,-0.7, 0.4,-0.5], [0.5,-0.2, 0.34,0.06, 0.56,0.06, 0.4,0.34]], e: [[0,-0.78]] },
+    },
+    subroutine_notch: {
+      name: 'Subroutine Notch', tier: 2, span: 1, cls: 'technomancer', listen: 'power',
+      fx: [{ k: 'draw', v: 1 }, { k: 'energy', v: 1 }],
+      desc: 'WHEN you play a Power: draw 1 card and gain 1 Energy.',
+      art: { p: [[-0.66,-0.5, 0.2,-0.5, 0.2,-0.24, -0.66,-0.24, -0.66,-0.5], [-0.66,-0.1, 0.44,-0.1, 0.44,0.16, -0.66,0.16, -0.66,-0.1], [-0.66,0.3, 0.0,0.3, 0.0,0.56, -0.66,0.56, -0.66,0.3], [-0.5,-0.5, -0.5,-0.24], [-0.5,-0.1, -0.5,0.16], [-0.5,0.3, -0.5,0.56], [0.6,-0.37, 0.86,-0.37], [0.6,0.03, 0.86,0.03]], e: [[-0.58,-0.37],[-0.58,0.03],[-0.58,0.43]] },
+    },
+    arc_relay: {
+      name: 'Arc Relay', tier: 2, span: 1, cls: 'technomancer', listen: 'debuff',
+      fx: [{ k: 'dmg', v: 3 }],
+      desc: 'WHEN you apply Weak or Vulnerable: deal 3 damage.',
+      art: { p: [[-0.8,-0.3, -0.4,-0.3, -0.5,0.0, -0.2,0.0, -0.4,0.4], [0.0,-0.4, 0.4,-0.4, 0.3,-0.1, 0.6,-0.1, 0.4,0.3], [-0.4,-0.3, -0.3,-0.5], [0.4,-0.4, 0.5,-0.6], [0.7,0.2, 0.86,0.4]], e: [[-0.42,0.46],[0.42,0.36]] },
+    },
+    breaker_notch: {
+      name: 'Breaker Notch', tier: 3, span: 1, cls: 'technomancer', onlyFace: 1,
+      fx: [{ k: 'energy', v: 2 }, { k: 'status', s: 'reactor', v: 1, who: 'self' }, { k: 'block', v: 8 }],
+      desc: 'Gain 2 Energy, 1 Reactor and 8 Shield. Face 1 only — the breaker trips into the bus.',
+      art: { p: [[-0.6,-0.5, 0.6,-0.5, 0.6,0.5, -0.6,0.5, -0.6,-0.5], [-0.6,-0.5, 0.6,0.5], [0.2,-0.6, 0.0,-0.16, 0.24,-0.16, 0.04,0.3], [-0.86,0.0, -0.6,0.0], [0.86,0.0, 0.6,0.0]], e: [[-0.4,0.3],[0.4,-0.3]] },
+    },
+
+    /* ---- adjacency / field ---- */
+    parallel_bus: {
+      name: 'Parallel Bus', tier: 3, span: 1, cls: 'technomancer', field: 'relay',
+      fx: [{ k: 'energy', v: 1 }],
+      desc: 'Gain 1 Energy. Faces either side of this one fire at FULL instead of the bleed.',
+      art: { p: [[-0.8,-0.3, 0.8,-0.3], [-0.8,0.3, 0.8,0.3], [-0.24,-0.3, -0.24,0.3], [0.24,-0.3, 0.24,0.3], [-0.24,0.0, 0.24,0.0], [-0.8,-0.5, -0.8,0.5], [0.8,-0.5, 0.8,0.5]], e: [[-0.24,0],[0.24,0],[-0.8,0],[0.8,0]] },
+    },
+    cross_link: {
+      name: 'Cross-Link', tier: 3, span: 1, cls: 'technomancer', field: 'opposite',
+      fx: [{ k: 'block', v: 6 }],
+      desc: 'Gain 6 Shield. Also fires the face OPPOSITE this one on the die.',
+      art: { p: [[-0.7,-0.4, 0.7,0.4], [0.7,-0.4, -0.7,0.4], [-0.2,-0.2, 0.2,-0.2, 0.2,0.2, -0.2,0.2, -0.2,-0.2], [-0.86,-0.5, -0.7,-0.4], [0.86,0.5, 0.7,0.4]], e: [[0,0],[-0.9,-0.54],[0.9,0.54]] },
+    },
+    load_balancer: {
+      name: 'Load Balancer', tier: 3, span: 3, cls: 'technomancer', field: 'listenerEcho',
+      fx: [{ k: 'block', v: 4 }],
+      desc: 'Gain 4 Shield. Every listener on the die fires one extra time.',
+      art: { p: [[-0.8,-0.4, 0.8,-0.4], [-0.8,0.0, 0.8,0.0], [-0.8,0.4, 0.8,0.4], [-0.4,-0.6, -0.4,0.6], [0.0,-0.6, 0.0,0.6], [0.4,-0.6, 0.4,0.6]], e: [[-0.4,-0.4],[0.4,-0.4],[-0.4,0],[0.4,0],[-0.4,0.4],[0.4,0.4],[0,0]] },
+    },
+    sympathetic_coil: {
+      name: 'Sympathetic Coil', tier: 2, span: 1, cls: 'technomancer', listen: 'neighbour',
+      fx: [{ k: 'block', v: 3 }],
+      desc: 'WHEN a face beside this one fires: gain 3 Shield.',
+      art: { p: [[-0.66,-0.34, -0.26,-0.34, -0.26,0.34, -0.66,0.34, -0.66,-0.34], [0.26,-0.34, 0.66,-0.34, 0.66,0.34, 0.26,0.34, 0.26,-0.34], [-0.26,0.0, 0.26,0.0], [-0.46,-0.34, -0.46,0.34], [0.46,-0.34, 0.46,0.34], [-0.86,0.0, -0.66,0.0], [0.86,0.0, 0.66,0.0]], e: [[-0.46,0],[0.46,0]] },
+    },
+
+    /* ---- trade-offs: he pays in Energy and plating, not blood ---- */
+    overdraw: {
+      name: 'Overdraw', tier: 2, span: 1, cls: 'technomancer', band: 'high',
+      fx: [{ k: 'dmg', v: 15, scale: 'tech' }, { k: 'status', s: 'weak', v: 2, who: 'self' }],
+      desc: 'Deal 15 damage. You take 2 Weak. Cuts only into the surge band.',
+      art: { p: [[-0.7,0.2, -0.3,-0.4, 0.0,0.1, 0.4,-0.6, 0.7,0.3], [-0.7,0.44, 0.7,0.54], [0.4,-0.6, 0.2,-0.6], [0.4,-0.6, 0.4,-0.38], [-0.86,0.0, -0.7,0.2]], e: [[0.76,0.36]] },
+    },
+    brownout_notch: {
+      name: 'Brownout Notch', tier: 2, span: 1, cls: 'technomancer', band: 'low',
+      fx: [{ k: 'energy', v: 3 }, { k: 'draw', v: 1 }],
+      desc: 'Gain 3 Energy and draw 1. Cuts only into the sag band — a bad face still pays.',
+      art: { p: [[-0.4,-0.6, 0.4,-0.6, 0.3,-0.1, -0.3,-0.1, -0.4,-0.6], [-0.3,-0.1, -0.24,0.2, 0.24,0.2, 0.3,-0.1], [-0.24,0.2, -0.2,0.44, 0.2,0.44, 0.24,0.2], [-0.26,-0.4, 0.26,-0.4], [0.06,0.44, -0.1,0.66, 0.06,0.66, -0.06,0.86], [-0.6,-0.3, -0.44,-0.3], [0.6,-0.3, 0.44,-0.3]], e: [[0,-0.7]] },
+    },
+    cascade_fault: {
+      name: 'Cascade Fault', tier: 3, span: 1, cls: 'technomancer',
+      fx: [{ k: 'status', s: 'conduit', v: 3, who: 'self' }, { k: 'status', s: 'weak', v: 1, who: 'self' }],
+      desc: 'Gain 3 Conduit. You take 1 Weak.',
+      art: { p: [[-0.7,-0.5, -0.3,-0.5, -0.3,-0.1, -0.7,-0.1, -0.7,-0.5], [-0.5,-0.1, -0.5,0.2], [-0.7,0.2, -0.3,0.2, -0.3,0.6, -0.7,0.6, -0.7,0.2], [0.3,-0.5, 0.7,-0.5, 0.7,-0.1, 0.3,-0.1, 0.3,-0.5], [0.5,-0.1, 0.5,0.2], [0.3,0.2, 0.7,0.2, 0.7,0.6, 0.3,0.6, 0.3,0.2], [-0.3,-0.3, 0.3,-0.3], [-0.3,0.4, 0.3,0.4]], e: [[-0.5,-0.3],[0.5,-0.3],[-0.5,0.4],[0.5,0.4]] },
+    },
+    hive_notch: {
+      name: 'Hive Notch', tier: 3, span: 1, cls: 'technomancer',
+      fx: [{ k: 'status', s: 'hive', v: 1, who: 'self' }, { k: 'status', s: 'turret', v: 2, who: 'self' }],
+      desc: 'Deploy a Turret (2 dmg/turn) and gain 1 Hive.',
+      art: { p: [[0,-0.3, 0.26,-0.15, 0.26,0.15, 0,0.3, -0.26,0.15, -0.26,-0.15, 0,-0.3], [-0.6,-0.62, -0.36,-0.48, -0.36,-0.2, -0.6,-0.06, -0.84,-0.2, -0.84,-0.48, -0.6,-0.62], [0.6,-0.62, 0.36,-0.48, 0.36,-0.2, 0.6,-0.06, 0.84,-0.2, 0.84,-0.48, 0.6,-0.62], [-0.36,0.34, -0.36,0.62], [0.36,0.34, 0.36,0.62], [-0.26,-0.15, -0.5,-0.3], [0.26,-0.15, 0.5,-0.3]], e: [[0,0],[-0.6,-0.34],[0.6,-0.34]] },
+    },
+
+    /* =================================================================
      * VANGUARD SET — the first class rebuilt for the new die.
      *
      * The old droppable pool was 22 flat, class-agnostic effects ("Gain 2

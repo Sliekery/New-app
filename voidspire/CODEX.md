@@ -131,6 +131,18 @@ Opening deck: 4× Pulse Rifle, 5× Combat Shield, 1× Overshield
 - **Disruptor Field** — Whenever you gain Shield, apply 1 Weak to a random enemy.
 - **Echo Protocol** — The first Attack you play each turn is played twice.
 - **Foundry Spine** — Start each combat with a Turret (3 dmg/turn).
+- **Trip Coil** — A tripped BREAKER also plates you for 4 Shield.
+- **Bus Primer** — Every roll that SAGs refunds 1 Energy — a slow bus is not a dead one.
+- **Parity Pin** — An EVEN roll also fires the face opposite it, at the bleed.
+- **Annealing Jig** — Cold Welds never take. Every scar the void cuts can still be ground out.
+- **Cascade Coupler** — The bleed carries two faces further either way, at half again.
+- **Heat Ledger** — Every roll that SURGEs plates you for 3 Shield. Waste heat is armour.
+- **Duty Cycle** — ODD rolls read 3 higher on the table. EVEN rolls read 3 lower.
+- **Sacrificial Fuse** — Breakers now trip on 1-3 — and every one of them dumps 2 extra Energy.
+- **Hot Spare** — A roll under 8 is rerolled once. You keep the second, whatever it is.
+- **Regulator Clamp** — Every roll reads as at least 8 on the table. Your die cannot SAG.
+- **Distribution Frame** — Neighbouring faces fire at FULL — but the face you actually rolled fires at half.
+- **Substation** — The first face you fire each turn fires again at the end of that turn.
 - **Forge Reserve** — Start each combat with Shield equal to 3× your TECH.
 - **Capacitive Plating** — Whenever you gain Shield, deal 1 damage per 3 Shield gained to a random enemy.
 
@@ -177,6 +189,18 @@ Opening deck: 2× Pulse Rifle, 4× Combat Shield, 4× Mind Spike
 - **Soul Pyre** — Your attacks also apply 1 Burn.
 - **Entropy Doctrine** — Enemy Burn grows each turn, and all enemies start Weak.
 - **Resonance Node** — Start each combat with 2 Psi Focus.
+- **Ashen Tithe** — Every roll that lands in HUNGER draws a card. The low road pays.
+- **Bloodletter's Nail** — Whenever the die bills you in HP, gain 1 Psi Focus. The wound focuses.
+- **Twin Maw** — A natural 20 — or a misfire — also fires the face opposite it, at FULL.
+- **Scarfeeder** — Start each combat with 1 Might for every scar cut into your die.
+- **Crimson Ledger** — Every HP the die bills you adds 2 damage to that card.
+- **Widening Maw** — The HUNGER band reaches 3 higher. Your middle shrinks; your blood pays for it.
+- **Second Mouth** — A face in the TOP or BOTTOM band bleeds at FULL instead of a quarter.
+- **The Long Fast** — -4 to every roll — and +15% damage. The void feeds those who fall toward it.
+- **Gorge** — A roll in HUNGER or RAVENOUS heals 2 HP once the card has resolved.
+- **Wound Echo** — A RAVENOUS misfire resolves the card TWICE. It costs what it costs.
+- **The Devouring** — A natural 2, 3 or 4 crits as surely as a 20. Both ends of the die bite.
+- **Hollow Crown** — Every 20% of Max HP you are missing shifts every band 2 lower. Ruin reads well.
 - **Hexweaver** — Whenever you apply Weak or Vulnerable to an enemy, also apply 2 Burn.
 - **Void Conduit** — The first Power you play each combat costs 0.
 

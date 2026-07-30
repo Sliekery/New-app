@@ -904,36 +904,67 @@
   /* THE CLASS TABLE. Roll every face through the class's own reading so the
    * screen shows what the die MEANS for you, and how Aim reshapes it — which is
    * the Voidadept's whole tension: climb the table and you starve the bottom. */
+  /* Read a single roll exactly the way playCard would, relics and all. There is
+   * one reader in the engine and the screen borrows it — the alternative was a
+   * second copy of the band logic here, which is how this table came to be
+   * telling the player about a die that a Machined Barrel had already moved. */
+  function readRoll(t, roll, aim) {
+    var D = ns.BALANCE.dice, live = !!(E.run && E.run.artifacts && E.bandFor);
+    var bonus = live ? E.art('rollBonus') : 0;
+    var eff = Math.min(20, roll + aim + bonus);
+    var wide = live ? Math.max(1, 1 + E.art('misfireWiden')) : 1;
+    var critAt = D.critThreshold - (live ? E.art('critBonus') + E.art('critWiden') : 0);
+    var lowCrit = live ? E.art('lowCrit') : 0;
+    // Same precedence the engine uses: a crit outranks a jam, and only a roll
+    // that did NOT jam can crit off the bottom of the table.
+    var jam = roll <= wide;
+    if (roll === 20 || (roll > 1 && eff >= critAt) || (!jam && lowCrit > 0 && roll <= lowCrit)) {
+      return { label: 'CRIT', mult: D.critMult, tone: 'crit' };
+    }
+    if (jam) return t.misfire;
+    if (live) return E.bandFor(t, eff, roll);
+    for (var i = 0; i < t.bands.length; i++) if (eff >= t.bands[i].min) return t.bands[i];
+    return t.bands[t.bands.length - 1];
+  }
   function dieBandRows(cls, aim) {
     var t = ns.BALANCE.dice.classes[cls]; if (!t) return null;
-    var D = ns.BALANCE.dice, seen = [], byLabel = {};
+    var seen = [], byLabel = {};
     for (var roll = 1; roll <= 20; roll++) {
-      var eff = Math.min(20, roll + aim), slot;
-      if ((roll === 20) || (roll > 1 && eff >= D.critThreshold)) slot = { label: 'CRIT', mult: D.critMult, tone: 'crit' };
-      else if (roll <= 1) slot = t.misfire;
-      else { for (var i = 0; i < t.bands.length; i++) if (eff >= t.bands[i].min) { slot = t.bands[i]; break; } }
+      var slot = readRoll(t, roll, aim);
       if (!slot) continue;
       if (!byLabel[slot.label]) { byLabel[slot.label] = { slot: slot, n: 0, lo: roll, hi: roll }; seen.push(slot.label); }
       var e = byLabel[slot.label];
       e.n++; e.lo = Math.min(e.lo, roll); e.hi = Math.max(e.hi, roll);
     }
-    return seen.map(function (k) { return byLabel[k]; })
-               .sort(function (a, b) { return b.lo - a.lo; });
+    // A band used to be a contiguous run of numbers, so lo–hi told the whole
+    // truth. Duty Cycle interleaves odd and even and The Devouring crits off
+    // the bottom, and both make the set full of holes — the row still shows the
+    // span it covers, but `split` marks the ones that are not solid so the
+    // table cannot claim a range it does not own. Sorted by the TOP of the span
+    // rather than the bottom, or a band that reaches down to 2 lands last.
+    return seen.map(function (k) {
+      var e = byLabel[k];
+      e.split = e.n !== (e.hi - e.lo + 1);
+      return e;
+    }).sort(function (a, b) { return b.hi - a.hi; });
   }
   function dieReadHTML(cls, aim) {
     var t = ns.BALANCE.dice.classes[cls];
     if (!t) return '<div class="dr-title">NO TABLE<span class="dr-sub">Your die rolls for engravings, but the face does not modulate your cards.</span></div>';
     var h = '<div class="dr-title">' + esc(t.name) + '<span class="dr-sub">' + esc(t.read) + '</span></div>';
+    var anySplit = false;
     dieBandRows(cls, aim).forEach(function (e) {
       var m = e.slot.mult, tone = e.slot.label === 'CRIT' ? 'crit' : m > 1.02 ? 'up' : m < 0.98 ? 'down' : 'flat';
       var rider = (e.slot.hploss ? ' <b class="dr-cost">−' + e.slot.hploss + ' HP</b>' : '')
                 + (e.slot.energy ? ' <b class="dr-gain">+' + e.slot.energy + ' EN</b>' : '');
+      if (e.split) anySplit = true;
       h += '<div class="dr-row ' + tone + '">'
-        +  '<span class="dr-rng">' + (e.lo === e.hi ? e.lo : e.lo + '–' + e.hi) + '</span>'
+        +  '<span class="dr-rng">' + (e.lo === e.hi ? e.lo : e.lo + '–' + e.hi) + (e.split ? '*' : '') + '</span>'
         +  '<span class="dr-lab">' + esc(e.slot.label) + '</span>'
         +  '<span class="dr-mul">×' + m.toFixed(2).replace(/0$/, '') + rider + '</span>'
         +  '<span class="dr-pct">' + (e.n * 5) + '%</span></div>';
     });
+    if (anySplit) h += '<div class="dr-note">* a relic has cut holes in this band — the span is what it reaches, the % is what it actually takes.</div>';
     return h;
   }
 
@@ -943,15 +974,10 @@
   function dieEndTag(cls, face, aim) {
     var t = ns.BALANCE.dice.classes[cls];
     if (!t) return null;
-    if (face === 1) { var m = t.misfire; return { label: m.label, crit: false, good: m.mult > 1.02 }; }
-    var eff = Math.min(20, face + (aim || 0));
-    if (eff >= (ns.BALANCE.dice.critThreshold || 20)) return { label: 'CRIT', crit: true };
-    for (var i = 0; i < t.bands.length; i++) {
-      if (eff >= t.bands[i].min) {
-        return { label: t.bands[i].label, crit: false, good: t.bands[i].mult > 1.02 };
-      }
-    }
-    return null;
+    var slot = readRoll(t, face, aim || 0);
+    if (!slot) return null;
+    if (slot.label === 'CRIT') return { label: 'CRIT', crit: true };
+    return { label: slot.label, crit: false, good: slot.mult > 1.02 };
   }
 
   function dieFaceRowHTML(die, face, reach, armedId, aimNow) {

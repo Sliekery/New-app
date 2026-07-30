@@ -133,6 +133,103 @@
       desc: 'Roll twice and take the higher — paid for out of your Max HP.',
       art: { p: [[0,-0.86, 0,-0.4], [0,0.86, 0,0.4], [-0.86,0, -0.4,0], [0.86,0, 0.4,0], [-0.4,-0.4, 0.4,-0.4, 0.4,0.4, -0.4,0.4, -0.4,-0.4], [-0.16,-0.16, 0.16,-0.16, 0.16,0.16, -0.16,0.16, -0.16,-0.16], [-0.56,-0.56, -0.4,-0.4], [0.56,0.56, 0.4,0.4]], e: [[0,0]] } },
 
+    /* ---- TECHNOMANCER: relics that shape the die ---------------------
+     * His table is LOAD BALANCE — the widest spread of the three, it scales
+     * Shield as well as damage, and he gets no Aim to steer with. So his die
+     * relics are not accuracy: they are REDUNDANCY. Every one of them either
+     * pays him for the sag he cannot avoid, widens what a single roll touches,
+     * or turns a tripped BREAKER from a loss into a resource. A machine does
+     * not aim better; it routes around the fault.
+     * ---------------------------------------------------------------- */
+    trip_coil: { name: 'Trip Coil', tier: 1, cls: 'technomancer', k: 'breakerBlock', v: 4,
+      desc: 'A tripped BREAKER also plates you for 4 Shield.',
+      art: { p: [[-0.8,-0.3, -0.3,-0.3], [-0.3,-0.3, -0.1,-0.6, 0.1,0.0, 0.3,-0.3], [0.3,-0.3, 0.8,-0.3], [-0.5,0.2, 0,0.4, 0.5,0.2, 0.5,0.5, 0,0.75, -0.5,0.5, -0.5,0.2], [-0.5,0.2, 0.5,0.2]], e: [[0,0.44]] } },
+    bus_primer: { name: 'Bus Primer', tier: 1, cls: 'technomancer', k: 'sagEnergy', v: 1,
+      desc: 'Every roll that SAGs refunds 1 Energy — a slow bus is not a dead one.',
+      art: { p: [[-0.8,0.4, -0.4,0.4, -0.2,0.1, 0.1,0.5, 0.3,0.2, 0.8,0.2], [-0.6,-0.6, -0.6,-0.15], [-0.2,-0.6, -0.2,-0.15], [0.2,-0.6, 0.2,-0.15], [0.6,-0.6, 0.6,-0.15], [-0.8,-0.15, 0.8,-0.15]], e: [[-0.6,-0.72],[0.2,-0.72]] } },
+    parity_pin: { name: 'Parity Pin', tier: 1, cls: 'technomancer', k: 'evenMirror', v: 1,
+      desc: 'An EVEN roll also fires the face opposite it, at the bleed.',
+      art: { p: [[0,-0.85, 0,0.85], [-0.5,-0.6, 0.5,-0.6], [-0.5,0.6, 0.5,0.6], [-0.5,-0.6, -0.75,0], [-0.5,0.6, -0.75,0], [0.5,-0.6, 0.75,0], [0.5,0.6, 0.75,0], [-0.3,0, 0.3,0]], e: [[-0.75,0],[0.75,0]] } },
+    annealing_jig: { name: 'Annealing Jig', tier: 1, cls: 'technomancer', k: 'weldWard', v: 1,
+      desc: 'Cold Welds never take. Every scar the void cuts can still be ground out.',
+      art: { p: [[-0.7,0.55, 0.7,0.55], [-0.5,0.55, -0.5,0.1, 0.5,0.1, 0.5,0.55], [-0.25,0.1, -0.25,-0.35, 0.25,-0.35, 0.25,0.1], [0,-0.35, 0,-0.7], [-0.35,-0.7, 0.35,-0.7], [-0.2,-0.86, 0.2,-0.86]], e: [[0,-0.12]] } },
+
+    cascade_coupler: { name: 'Cascade Coupler', tier: 2, cls: 'technomancer', k: 'bleedSpan', v: 1,
+      desc: 'The bleed carries two faces further either way, at half again.',
+      art: { p: [[-0.86,0.5, -0.5,0.5, -0.5,0.1], [-0.5,0.1, -0.15,0.1, -0.15,-0.3], [-0.15,-0.3, 0.2,-0.3, 0.2,0.1], [0.2,0.1, 0.55,0.1, 0.55,0.5], [0.55,0.5, 0.86,0.5], [-0.15,-0.3, -0.15,-0.7], [-0.4,-0.7, 0.1,-0.7]], e: [[-0.5,0.1],[0.2,0.1]] } },
+    heat_ledger: { name: 'Heat Ledger', tier: 2, cls: 'technomancer', k: 'surgeShield', v: 3,
+      desc: 'Every roll that SURGEs plates you for 3 Shield. Waste heat is armour.',
+      art: { p: [[-0.55,0.7, -0.4,-0.3, 0.4,-0.3, 0.55,0.7, -0.55,0.7], [-0.46,0.25, 0.46,0.25], [-0.3,-0.3, -0.3,-0.55, 0.3,-0.55, 0.3,-0.3], [-0.2,-0.7, -0.12,-0.86], [0.05,-0.7, 0.13,-0.86], [-0.24,0.5, 0.24,0.5]], e: [[0,-0.05]] } },
+    duty_cycle: { name: 'Duty Cycle', tier: 2, cls: 'technomancer', k: 'parityBand', v: 3,
+      desc: 'ODD rolls read 3 higher on the table. EVEN rolls read 3 lower.',
+      art: { p: [[-0.86,0.3, -0.6,0.3, -0.6,-0.3, -0.2,-0.3, -0.2,0.3, 0.2,0.3, 0.2,-0.3, 0.6,-0.3, 0.6,0.3, 0.86,0.3], [-0.86,0.6, 0.86,0.6], [-0.6,0.6, -0.6,0.72], [0.2,0.6, 0.2,0.72]], e: [[-0.4,-0.42],[0.4,-0.42]] } },
+    sacrificial_fuse: { name: 'Sacrificial Fuse', tier: 2, cls: 'technomancer',
+      hooks: [{ k: 'misfireWiden', v: 2 }, { k: 'breakerEnergy', v: 2 }],
+      desc: 'Breakers now trip on 1-3 — and every one of them dumps 2 extra Energy.',
+      art: { p: [[-0.8,0, -0.5,0], [-0.5,-0.3, 0.5,-0.3, 0.5,0.3, -0.5,0.3, -0.5,-0.3], [0.5,0, 0.8,0], [-0.35,0.15, -0.1,-0.15, 0.1,0.15, 0.35,-0.15], [-0.5,-0.45, 0.5,-0.45]], e: [[-0.8,0],[0.8,0]] } },
+    hot_spare: { name: 'Hot Spare', tier: 2, cls: 'technomancer', k: 'rerollSag', v: 1,
+      desc: 'A roll under 8 is rerolled once. You keep the second, whatever it is.',
+      art: { p: [[-0.45,-0.55, 0.15,-0.55, 0.15,0.05, -0.45,0.05, -0.45,-0.55], [-0.15,-0.25, 0.45,-0.25, 0.45,0.35, -0.15,0.35], [-0.15,0.35, -0.15,0.05], [0.15,-0.25, 0.15,0.05], [-0.6,0.6, 0.6,0.6], [-0.3,-0.7, -0.3,-0.86], [0.3,0.5, 0.3,0.7]], e: [[-0.3,-0.86]] } },
+
+    regulator_clamp: { name: 'Regulator Clamp', tier: 3, cls: 'technomancer', k: 'bandFloor', v: 8,
+      desc: 'Every roll reads as at least 8 on the table. Your die cannot SAG.',
+      art: { p: [[-0.7,-0.6, -0.7,0.2, 0.7,0.2, 0.7,-0.6], [-0.7,0.2, -0.86,0.5], [0.7,0.2, 0.86,0.5], [-0.86,0.5, 0.86,0.5], [-0.35,-0.6, -0.35,-0.2], [0,-0.6, 0,-0.2], [0.35,-0.6, 0.35,-0.2], [-0.5,-0.75, 0.5,-0.75]], e: [[0,0.36]] } },
+    distribution_frame: { name: 'Distribution Frame', tier: 3, cls: 'technomancer',
+      hooks: [{ k: 'relayAll', v: 1 }, { k: 'rootHalf', v: 1 }],
+      desc: 'Neighbouring faces fire at FULL — but the face you actually rolled fires at half.',
+      art: { p: [[0,-0.15, -0.7,-0.15, -0.7,0.6], [0,-0.15, 0.7,-0.15, 0.7,0.6], [0,-0.15, 0,-0.75], [-0.86,0.6, -0.54,0.6], [0.54,0.6, 0.86,0.6], [-0.3,-0.75, 0.3,-0.75], [-0.2,0.15, 0.2,0.15]], e: [[-0.7,0.6],[0.7,0.6],[0,-0.15]] } },
+    substation: { name: 'Substation', tier: 3, cls: 'technomancer', k: 'faceEcho', v: 1,
+      desc: 'The first face you fire each turn fires again at the end of that turn.',
+      art: { p: [[-0.6,0.7, -0.6,-0.5, -0.2,-0.75, -0.2,0.7], [0.2,0.7, 0.2,-0.75, 0.6,-0.5, 0.6,0.7], [-0.75,0.7, 0.75,0.7], [-0.4,-0.62, -0.4,0.7], [0.4,-0.62, 0.4,0.7], [-0.2,-0.3, 0.2,-0.3], [-0.2,0.1, 0.2,0.1]], e: [[-0.4,-0.86],[0.4,-0.86]] } },
+
+    /* ---- VOID ADEPT: relics that shape the die -----------------------
+     * His table is THE HUNGER, and it is a U: the BOTTOM hits harder than the
+     * middle and bills him in HP, so WHISPER — the most common face — is his
+     * worst outcome. Every relic here is written for one of the two ENDS and
+     * none for the middle, because the middle is the thing he is supposed to be
+     * escaping. Where the Vanguard buys accuracy and the Technomancer buys
+     * redundancy, the Adept buys DEPTH: he pays in blood to fall further.
+     * ---------------------------------------------------------------- */
+    ashen_tithe: { name: 'Ashen Tithe', tier: 1, cls: 'voidadept', k: 'hungerDraw', v: 1,
+      desc: 'Every roll that lands in HUNGER draws a card. The low road pays.',
+      art: { p: [[-0.5,-0.5, 0.1,-0.5, 0.1,0.35, -0.5,0.35, -0.5,-0.5], [-0.25,-0.7, 0.35,-0.7, 0.35,0.15], [-0.35,-0.2, -0.05,-0.2], [-0.35,0.0, -0.05,0.0], [-0.3,0.55, 0.3,0.75], [-0.3,0.75, 0.3,0.55]], e: [[0,0.65]] } },
+    bloodletters_nail: { name: "Bloodletter's Nail", tier: 1, cls: 'voidadept', k: 'hplossPsi', v: 1,
+      desc: 'Whenever the die bills you in HP, gain 1 Psi Focus. The wound focuses.',
+      art: { p: [[0,-0.8, 0.1,-0.5, 0.1,0.35, 0,0.75, -0.1,0.35, -0.1,-0.5, 0,-0.8], [-0.28,-0.5, 0.28,-0.5], [-0.5,0.1, -0.34,-0.1], [0.5,0.1, 0.34,-0.1], [-0.42,0.5, -0.34,0.32], [0.42,0.5, 0.34,0.32]], e: [[-0.5,0.16],[0.5,0.16]] } },
+    twin_maw: { name: 'Twin Maw', tier: 1, cls: 'voidadept', k: 'extremeRelay', v: 1,
+      desc: 'A natural 20 — or a misfire — also fires the face opposite it, at FULL.',
+      art: { p: [[-0.85,-0.4, -0.35,0, -0.85,0.4], [-0.85,-0.4, -0.5,-0.15, -0.85,0.05], [0.85,-0.4, 0.35,0, 0.85,0.4], [0.85,-0.4, 0.5,-0.15, 0.85,0.05], [-0.35,0, 0.35,0], [-0.1,-0.3, 0.1,-0.3], [-0.1,0.3, 0.1,0.3]], e: [[0,0]] } },
+    scarfeeder: { name: 'Scarfeeder', tier: 1, cls: 'voidadept', k: 'taintMight', v: 1,
+      desc: 'Start each combat with 1 Might for every scar cut into your die.',
+      art: { p: [[0,-0.8, 0.55,-0.45, 0.55,0.35, 0,0.75, -0.55,0.35, -0.55,-0.45, 0,-0.8], [-0.4,-0.5, 0.35,0.3], [-0.35,0.35, 0.3,-0.45], [-0.45,0.05, 0.15,0.55], [-0.15,-0.65, 0.45,-0.05]], e: [[0,-0.05]] } },
+
+    crimson_ledger: { name: 'Crimson Ledger', tier: 2, cls: 'voidadept', k: 'hplossDmg', v: 2,
+      desc: 'Every HP the die bills you adds 2 damage to that card.',
+      art: { p: [[-0.4,-0.7, 0.4,-0.7, 0.5,-0.5, 0.5,0.6, -0.5,0.6, -0.5,-0.5, -0.4,-0.7], [-0.5,-0.36, 0.5,-0.36], [-0.32,-0.1, 0.32,-0.1], [-0.32,0.12, 0.32,0.12], [-0.32,0.34, 0.05,0.34], [0,-0.86, 0,-0.7], [-0.16,-0.78, 0.16,-0.78]], e: [[0.3,0.34]] } },
+    widening_maw: { name: 'Widening Maw', tier: 2, cls: 'voidadept', k: 'lowWiden', v: 3,
+      desc: 'The HUNGER band reaches 3 higher. Your middle shrinks; your blood pays for it.',
+      art: { p: [[-0.86,-0.55, -0.2,-0.05, -0.86,0.45], [0.86,-0.55, 0.2,-0.05, 0.86,0.45], [-0.2,-0.05, 0.2,-0.05], [-0.5,0.6, 0.5,0.6], [-0.5,0.6, -0.62,0.42], [0.5,0.6, 0.62,0.42], [-0.35,-0.7, 0.35,-0.7]], e: [[0,-0.05]] } },
+    second_mouth: { name: 'Second Mouth', tier: 2, cls: 'voidadept', k: 'bleedEnds', v: 1,
+      desc: 'A face in the TOP or BOTTOM band bleeds at FULL instead of a quarter.',
+      art: { p: [[-0.75,-0.35, 0,-0.6, 0.75,-0.35], [-0.75,-0.35, 0,-0.1, 0.75,-0.35], [-0.55,0.35, 0,0.15, 0.55,0.35], [-0.55,0.35, 0,0.6, 0.55,0.35], [-0.4,-0.35, 0.4,-0.35], [-0.3,0.35, 0.3,0.35]], e: [[0,-0.35],[0,0.35]] } },
+    the_long_fast: { name: 'The Long Fast', tier: 2, cls: 'voidadept',
+      hooks: [{ k: 'rollBonus', v: -4 }, { k: 'dmgMult', v: 0.15 }],
+      desc: '-4 to every roll — and +15% damage. The void feeds those who fall toward it.',
+      art: { p: [[-0.5,-0.75, 0.5,-0.75], [0,-0.75, 0,0.5], [-0.3,0.5, 0.3,0.5, 0.2,0.8, -0.2,0.8, -0.3,0.5], [-0.35,-0.4, 0,-0.15], [0.35,-0.4, 0,-0.15], [-0.35,0.0, 0,0.25], [0.35,0.0, 0,0.25]], e: [[0,0.66]] } },
+    gorge: { name: 'Gorge', tier: 2, cls: 'voidadept', k: 'lowHeal', v: 2,
+      desc: 'A roll in HUNGER or RAVENOUS heals 2 HP once the card has resolved.',
+      art: { p: [[0,0.75, -0.7,-0.15, -0.4,-0.6, 0,-0.25, 0.4,-0.6, 0.7,-0.15, 0,0.75], [-0.4,-0.15, 0.4,-0.15], [-0.25,0.1, 0.25,0.1], [-0.86,-0.5, -0.7,-0.35], [0.86,-0.5, 0.7,-0.35]], e: [[0,0.35]] } },
+
+    wound_echo: { name: 'Wound Echo', tier: 3, cls: 'voidadept', k: 'ravenousEcho', v: 1,
+      desc: 'A RAVENOUS misfire resolves the card TWICE. It costs what it costs.',
+      art: { p: [[-0.7,-0.6, -0.15,0, -0.7,0.6], [-0.35,-0.6, 0.2,0, -0.35,0.6], [0,-0.6, 0.55,0, 0,0.6], [0.35,-0.6, 0.9,0, 0.35,0.6], [-0.86,-0.3, -0.7,-0.3], [-0.86,0.3, -0.7,0.3]], e: [[-0.86,0]] } },
+    the_devouring: { name: 'The Devouring', tier: 3, cls: 'voidadept', k: 'lowCrit', v: 4,
+      desc: 'A natural 2, 3 or 4 crits as surely as a 20. Both ends of the die bite.',
+      art: { p: [[0,-0.85, 0.25,-0.3, 0.85,-0.25, 0.4,0.15, 0.55,0.75, 0,0.45, -0.55,0.75, -0.4,0.15, -0.85,-0.25, -0.25,-0.3, 0,-0.85], [-0.25,-0.3, 0.25,-0.3], [-0.4,0.15, 0.4,0.15], [-0.15,-0.05, 0.15,-0.05]], e: [[0,-0.05]] } },
+    hollow_crown: { name: 'Hollow Crown', tier: 3, cls: 'voidadept', k: 'hpBand', v: 2,
+      desc: 'Every 20% of Max HP you are missing shifts every band 2 lower. Ruin reads well.',
+      art: { p: [[-0.7,0.45, -0.7,-0.5, -0.4,-0.15, -0.15,-0.6, 0.15,-0.15, 0.4,-0.6, 0.7,-0.15, 0.7,0.45, -0.7,0.45], [-0.7,0.2, 0.7,0.2], [-0.7,0.6, 0.7,0.6], [-0.35,0.3, -0.35,0.45], [0.35,0.3, 0.35,0.45]], e: [[0,0.34]] } },
+
     cycling_breech:  { name: 'Cycling Breech',    tier: 2, cls: 'vanguard', k: 'momentumKeep', v: 1, desc: 'Your Momentum no longer resets at the start of your turn.',
       art: { p: [[-0.7,-0.25, 0.7,-0.25], [-0.7,0.25, 0.7,0.25], [-0.7,-0.25, -0.7,0.25], [0.7,-0.25, 0.7,0.25], [-0.35,-0.25, -0.35,0.25], [0,-0.25, 0,0.25], [0.35,-0.25, 0.35,0.25], [0.5,-0.55, 0.8,-0.55, 0.8,-0.25], [-0.5,0.55, -0.8,0.55, -0.8,0.25]] } },
     thorn_husk:      { name: 'Thornmail Husk',    tier: 1, k: 'thorns',          v: 2,    desc: 'Attackers take 2 damage.',

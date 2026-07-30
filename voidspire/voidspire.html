@@ -1526,6 +1526,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .dr-row.up .dr-lab, .dr-row.up .dr-mul { color: #5dff88; }
 .dr-row.down .dr-lab, .dr-row.down .dr-mul { color: #ff8a99; }
 .dr-row.crit .dr-lab, .dr-row.crit .dr-mul { color: #ffb02e; }
+.dr-note { font: 600 8.5px/1.45 ui-monospace, monospace; color: #7f9a8b; text-transform: none; margin-top: 5px; }
 .dr-cost { color: #ff4a5e; font-weight: 700; }
 .dr-gain { color: #41d8ff; font-weight: 700; }
 
@@ -6961,6 +6962,103 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       desc: 'Roll twice and take the higher — paid for out of your Max HP.',
       art: { p: [[0,-0.86, 0,-0.4], [0,0.86, 0,0.4], [-0.86,0, -0.4,0], [0.86,0, 0.4,0], [-0.4,-0.4, 0.4,-0.4, 0.4,0.4, -0.4,0.4, -0.4,-0.4], [-0.16,-0.16, 0.16,-0.16, 0.16,0.16, -0.16,0.16, -0.16,-0.16], [-0.56,-0.56, -0.4,-0.4], [0.56,0.56, 0.4,0.4]], e: [[0,0]] } },
 
+    /* ---- TECHNOMANCER: relics that shape the die ---------------------
+     * His table is LOAD BALANCE — the widest spread of the three, it scales
+     * Shield as well as damage, and he gets no Aim to steer with. So his die
+     * relics are not accuracy: they are REDUNDANCY. Every one of them either
+     * pays him for the sag he cannot avoid, widens what a single roll touches,
+     * or turns a tripped BREAKER from a loss into a resource. A machine does
+     * not aim better; it routes around the fault.
+     * ---------------------------------------------------------------- */
+    trip_coil: { name: 'Trip Coil', tier: 1, cls: 'technomancer', k: 'breakerBlock', v: 4,
+      desc: 'A tripped BREAKER also plates you for 4 Shield.',
+      art: { p: [[-0.8,-0.3, -0.3,-0.3], [-0.3,-0.3, -0.1,-0.6, 0.1,0.0, 0.3,-0.3], [0.3,-0.3, 0.8,-0.3], [-0.5,0.2, 0,0.4, 0.5,0.2, 0.5,0.5, 0,0.75, -0.5,0.5, -0.5,0.2], [-0.5,0.2, 0.5,0.2]], e: [[0,0.44]] } },
+    bus_primer: { name: 'Bus Primer', tier: 1, cls: 'technomancer', k: 'sagEnergy', v: 1,
+      desc: 'Every roll that SAGs refunds 1 Energy — a slow bus is not a dead one.',
+      art: { p: [[-0.8,0.4, -0.4,0.4, -0.2,0.1, 0.1,0.5, 0.3,0.2, 0.8,0.2], [-0.6,-0.6, -0.6,-0.15], [-0.2,-0.6, -0.2,-0.15], [0.2,-0.6, 0.2,-0.15], [0.6,-0.6, 0.6,-0.15], [-0.8,-0.15, 0.8,-0.15]], e: [[-0.6,-0.72],[0.2,-0.72]] } },
+    parity_pin: { name: 'Parity Pin', tier: 1, cls: 'technomancer', k: 'evenMirror', v: 1,
+      desc: 'An EVEN roll also fires the face opposite it, at the bleed.',
+      art: { p: [[0,-0.85, 0,0.85], [-0.5,-0.6, 0.5,-0.6], [-0.5,0.6, 0.5,0.6], [-0.5,-0.6, -0.75,0], [-0.5,0.6, -0.75,0], [0.5,-0.6, 0.75,0], [0.5,0.6, 0.75,0], [-0.3,0, 0.3,0]], e: [[-0.75,0],[0.75,0]] } },
+    annealing_jig: { name: 'Annealing Jig', tier: 1, cls: 'technomancer', k: 'weldWard', v: 1,
+      desc: 'Cold Welds never take. Every scar the void cuts can still be ground out.',
+      art: { p: [[-0.7,0.55, 0.7,0.55], [-0.5,0.55, -0.5,0.1, 0.5,0.1, 0.5,0.55], [-0.25,0.1, -0.25,-0.35, 0.25,-0.35, 0.25,0.1], [0,-0.35, 0,-0.7], [-0.35,-0.7, 0.35,-0.7], [-0.2,-0.86, 0.2,-0.86]], e: [[0,-0.12]] } },
+
+    cascade_coupler: { name: 'Cascade Coupler', tier: 2, cls: 'technomancer', k: 'bleedSpan', v: 1,
+      desc: 'The bleed carries two faces further either way, at half again.',
+      art: { p: [[-0.86,0.5, -0.5,0.5, -0.5,0.1], [-0.5,0.1, -0.15,0.1, -0.15,-0.3], [-0.15,-0.3, 0.2,-0.3, 0.2,0.1], [0.2,0.1, 0.55,0.1, 0.55,0.5], [0.55,0.5, 0.86,0.5], [-0.15,-0.3, -0.15,-0.7], [-0.4,-0.7, 0.1,-0.7]], e: [[-0.5,0.1],[0.2,0.1]] } },
+    heat_ledger: { name: 'Heat Ledger', tier: 2, cls: 'technomancer', k: 'surgeShield', v: 3,
+      desc: 'Every roll that SURGEs plates you for 3 Shield. Waste heat is armour.',
+      art: { p: [[-0.55,0.7, -0.4,-0.3, 0.4,-0.3, 0.55,0.7, -0.55,0.7], [-0.46,0.25, 0.46,0.25], [-0.3,-0.3, -0.3,-0.55, 0.3,-0.55, 0.3,-0.3], [-0.2,-0.7, -0.12,-0.86], [0.05,-0.7, 0.13,-0.86], [-0.24,0.5, 0.24,0.5]], e: [[0,-0.05]] } },
+    duty_cycle: { name: 'Duty Cycle', tier: 2, cls: 'technomancer', k: 'parityBand', v: 3,
+      desc: 'ODD rolls read 3 higher on the table. EVEN rolls read 3 lower.',
+      art: { p: [[-0.86,0.3, -0.6,0.3, -0.6,-0.3, -0.2,-0.3, -0.2,0.3, 0.2,0.3, 0.2,-0.3, 0.6,-0.3, 0.6,0.3, 0.86,0.3], [-0.86,0.6, 0.86,0.6], [-0.6,0.6, -0.6,0.72], [0.2,0.6, 0.2,0.72]], e: [[-0.4,-0.42],[0.4,-0.42]] } },
+    sacrificial_fuse: { name: 'Sacrificial Fuse', tier: 2, cls: 'technomancer',
+      hooks: [{ k: 'misfireWiden', v: 2 }, { k: 'breakerEnergy', v: 2 }],
+      desc: 'Breakers now trip on 1-3 — and every one of them dumps 2 extra Energy.',
+      art: { p: [[-0.8,0, -0.5,0], [-0.5,-0.3, 0.5,-0.3, 0.5,0.3, -0.5,0.3, -0.5,-0.3], [0.5,0, 0.8,0], [-0.35,0.15, -0.1,-0.15, 0.1,0.15, 0.35,-0.15], [-0.5,-0.45, 0.5,-0.45]], e: [[-0.8,0],[0.8,0]] } },
+    hot_spare: { name: 'Hot Spare', tier: 2, cls: 'technomancer', k: 'rerollSag', v: 1,
+      desc: 'A roll under 8 is rerolled once. You keep the second, whatever it is.',
+      art: { p: [[-0.45,-0.55, 0.15,-0.55, 0.15,0.05, -0.45,0.05, -0.45,-0.55], [-0.15,-0.25, 0.45,-0.25, 0.45,0.35, -0.15,0.35], [-0.15,0.35, -0.15,0.05], [0.15,-0.25, 0.15,0.05], [-0.6,0.6, 0.6,0.6], [-0.3,-0.7, -0.3,-0.86], [0.3,0.5, 0.3,0.7]], e: [[-0.3,-0.86]] } },
+
+    regulator_clamp: { name: 'Regulator Clamp', tier: 3, cls: 'technomancer', k: 'bandFloor', v: 8,
+      desc: 'Every roll reads as at least 8 on the table. Your die cannot SAG.',
+      art: { p: [[-0.7,-0.6, -0.7,0.2, 0.7,0.2, 0.7,-0.6], [-0.7,0.2, -0.86,0.5], [0.7,0.2, 0.86,0.5], [-0.86,0.5, 0.86,0.5], [-0.35,-0.6, -0.35,-0.2], [0,-0.6, 0,-0.2], [0.35,-0.6, 0.35,-0.2], [-0.5,-0.75, 0.5,-0.75]], e: [[0,0.36]] } },
+    distribution_frame: { name: 'Distribution Frame', tier: 3, cls: 'technomancer',
+      hooks: [{ k: 'relayAll', v: 1 }, { k: 'rootHalf', v: 1 }],
+      desc: 'Neighbouring faces fire at FULL — but the face you actually rolled fires at half.',
+      art: { p: [[0,-0.15, -0.7,-0.15, -0.7,0.6], [0,-0.15, 0.7,-0.15, 0.7,0.6], [0,-0.15, 0,-0.75], [-0.86,0.6, -0.54,0.6], [0.54,0.6, 0.86,0.6], [-0.3,-0.75, 0.3,-0.75], [-0.2,0.15, 0.2,0.15]], e: [[-0.7,0.6],[0.7,0.6],[0,-0.15]] } },
+    substation: { name: 'Substation', tier: 3, cls: 'technomancer', k: 'faceEcho', v: 1,
+      desc: 'The first face you fire each turn fires again at the end of that turn.',
+      art: { p: [[-0.6,0.7, -0.6,-0.5, -0.2,-0.75, -0.2,0.7], [0.2,0.7, 0.2,-0.75, 0.6,-0.5, 0.6,0.7], [-0.75,0.7, 0.75,0.7], [-0.4,-0.62, -0.4,0.7], [0.4,-0.62, 0.4,0.7], [-0.2,-0.3, 0.2,-0.3], [-0.2,0.1, 0.2,0.1]], e: [[-0.4,-0.86],[0.4,-0.86]] } },
+
+    /* ---- VOID ADEPT: relics that shape the die -----------------------
+     * His table is THE HUNGER, and it is a U: the BOTTOM hits harder than the
+     * middle and bills him in HP, so WHISPER — the most common face — is his
+     * worst outcome. Every relic here is written for one of the two ENDS and
+     * none for the middle, because the middle is the thing he is supposed to be
+     * escaping. Where the Vanguard buys accuracy and the Technomancer buys
+     * redundancy, the Adept buys DEPTH: he pays in blood to fall further.
+     * ---------------------------------------------------------------- */
+    ashen_tithe: { name: 'Ashen Tithe', tier: 1, cls: 'voidadept', k: 'hungerDraw', v: 1,
+      desc: 'Every roll that lands in HUNGER draws a card. The low road pays.',
+      art: { p: [[-0.5,-0.5, 0.1,-0.5, 0.1,0.35, -0.5,0.35, -0.5,-0.5], [-0.25,-0.7, 0.35,-0.7, 0.35,0.15], [-0.35,-0.2, -0.05,-0.2], [-0.35,0.0, -0.05,0.0], [-0.3,0.55, 0.3,0.75], [-0.3,0.75, 0.3,0.55]], e: [[0,0.65]] } },
+    bloodletters_nail: { name: "Bloodletter's Nail", tier: 1, cls: 'voidadept', k: 'hplossPsi', v: 1,
+      desc: 'Whenever the die bills you in HP, gain 1 Psi Focus. The wound focuses.',
+      art: { p: [[0,-0.8, 0.1,-0.5, 0.1,0.35, 0,0.75, -0.1,0.35, -0.1,-0.5, 0,-0.8], [-0.28,-0.5, 0.28,-0.5], [-0.5,0.1, -0.34,-0.1], [0.5,0.1, 0.34,-0.1], [-0.42,0.5, -0.34,0.32], [0.42,0.5, 0.34,0.32]], e: [[-0.5,0.16],[0.5,0.16]] } },
+    twin_maw: { name: 'Twin Maw', tier: 1, cls: 'voidadept', k: 'extremeRelay', v: 1,
+      desc: 'A natural 20 — or a misfire — also fires the face opposite it, at FULL.',
+      art: { p: [[-0.85,-0.4, -0.35,0, -0.85,0.4], [-0.85,-0.4, -0.5,-0.15, -0.85,0.05], [0.85,-0.4, 0.35,0, 0.85,0.4], [0.85,-0.4, 0.5,-0.15, 0.85,0.05], [-0.35,0, 0.35,0], [-0.1,-0.3, 0.1,-0.3], [-0.1,0.3, 0.1,0.3]], e: [[0,0]] } },
+    scarfeeder: { name: 'Scarfeeder', tier: 1, cls: 'voidadept', k: 'taintMight', v: 1,
+      desc: 'Start each combat with 1 Might for every scar cut into your die.',
+      art: { p: [[0,-0.8, 0.55,-0.45, 0.55,0.35, 0,0.75, -0.55,0.35, -0.55,-0.45, 0,-0.8], [-0.4,-0.5, 0.35,0.3], [-0.35,0.35, 0.3,-0.45], [-0.45,0.05, 0.15,0.55], [-0.15,-0.65, 0.45,-0.05]], e: [[0,-0.05]] } },
+
+    crimson_ledger: { name: 'Crimson Ledger', tier: 2, cls: 'voidadept', k: 'hplossDmg', v: 2,
+      desc: 'Every HP the die bills you adds 2 damage to that card.',
+      art: { p: [[-0.4,-0.7, 0.4,-0.7, 0.5,-0.5, 0.5,0.6, -0.5,0.6, -0.5,-0.5, -0.4,-0.7], [-0.5,-0.36, 0.5,-0.36], [-0.32,-0.1, 0.32,-0.1], [-0.32,0.12, 0.32,0.12], [-0.32,0.34, 0.05,0.34], [0,-0.86, 0,-0.7], [-0.16,-0.78, 0.16,-0.78]], e: [[0.3,0.34]] } },
+    widening_maw: { name: 'Widening Maw', tier: 2, cls: 'voidadept', k: 'lowWiden', v: 3,
+      desc: 'The HUNGER band reaches 3 higher. Your middle shrinks; your blood pays for it.',
+      art: { p: [[-0.86,-0.55, -0.2,-0.05, -0.86,0.45], [0.86,-0.55, 0.2,-0.05, 0.86,0.45], [-0.2,-0.05, 0.2,-0.05], [-0.5,0.6, 0.5,0.6], [-0.5,0.6, -0.62,0.42], [0.5,0.6, 0.62,0.42], [-0.35,-0.7, 0.35,-0.7]], e: [[0,-0.05]] } },
+    second_mouth: { name: 'Second Mouth', tier: 2, cls: 'voidadept', k: 'bleedEnds', v: 1,
+      desc: 'A face in the TOP or BOTTOM band bleeds at FULL instead of a quarter.',
+      art: { p: [[-0.75,-0.35, 0,-0.6, 0.75,-0.35], [-0.75,-0.35, 0,-0.1, 0.75,-0.35], [-0.55,0.35, 0,0.15, 0.55,0.35], [-0.55,0.35, 0,0.6, 0.55,0.35], [-0.4,-0.35, 0.4,-0.35], [-0.3,0.35, 0.3,0.35]], e: [[0,-0.35],[0,0.35]] } },
+    the_long_fast: { name: 'The Long Fast', tier: 2, cls: 'voidadept',
+      hooks: [{ k: 'rollBonus', v: -4 }, { k: 'dmgMult', v: 0.15 }],
+      desc: '-4 to every roll — and +15% damage. The void feeds those who fall toward it.',
+      art: { p: [[-0.5,-0.75, 0.5,-0.75], [0,-0.75, 0,0.5], [-0.3,0.5, 0.3,0.5, 0.2,0.8, -0.2,0.8, -0.3,0.5], [-0.35,-0.4, 0,-0.15], [0.35,-0.4, 0,-0.15], [-0.35,0.0, 0,0.25], [0.35,0.0, 0,0.25]], e: [[0,0.66]] } },
+    gorge: { name: 'Gorge', tier: 2, cls: 'voidadept', k: 'lowHeal', v: 2,
+      desc: 'A roll in HUNGER or RAVENOUS heals 2 HP once the card has resolved.',
+      art: { p: [[0,0.75, -0.7,-0.15, -0.4,-0.6, 0,-0.25, 0.4,-0.6, 0.7,-0.15, 0,0.75], [-0.4,-0.15, 0.4,-0.15], [-0.25,0.1, 0.25,0.1], [-0.86,-0.5, -0.7,-0.35], [0.86,-0.5, 0.7,-0.35]], e: [[0,0.35]] } },
+
+    wound_echo: { name: 'Wound Echo', tier: 3, cls: 'voidadept', k: 'ravenousEcho', v: 1,
+      desc: 'A RAVENOUS misfire resolves the card TWICE. It costs what it costs.',
+      art: { p: [[-0.7,-0.6, -0.15,0, -0.7,0.6], [-0.35,-0.6, 0.2,0, -0.35,0.6], [0,-0.6, 0.55,0, 0,0.6], [0.35,-0.6, 0.9,0, 0.35,0.6], [-0.86,-0.3, -0.7,-0.3], [-0.86,0.3, -0.7,0.3]], e: [[-0.86,0]] } },
+    the_devouring: { name: 'The Devouring', tier: 3, cls: 'voidadept', k: 'lowCrit', v: 4,
+      desc: 'A natural 2, 3 or 4 crits as surely as a 20. Both ends of the die bite.',
+      art: { p: [[0,-0.85, 0.25,-0.3, 0.85,-0.25, 0.4,0.15, 0.55,0.75, 0,0.45, -0.55,0.75, -0.4,0.15, -0.85,-0.25, -0.25,-0.3, 0,-0.85], [-0.25,-0.3, 0.25,-0.3], [-0.4,0.15, 0.4,0.15], [-0.15,-0.05, 0.15,-0.05]], e: [[0,-0.05]] } },
+    hollow_crown: { name: 'Hollow Crown', tier: 3, cls: 'voidadept', k: 'hpBand', v: 2,
+      desc: 'Every 20% of Max HP you are missing shifts every band 2 lower. Ruin reads well.',
+      art: { p: [[-0.7,0.45, -0.7,-0.5, -0.4,-0.15, -0.15,-0.6, 0.15,-0.15, 0.4,-0.6, 0.7,-0.15, 0.7,0.45, -0.7,0.45], [-0.7,0.2, 0.7,0.2], [-0.7,0.6, 0.7,0.6], [-0.35,0.3, -0.35,0.45], [0.35,0.3, 0.35,0.45]], e: [[0,0.34]] } },
+
     cycling_breech:  { name: 'Cycling Breech',    tier: 2, cls: 'vanguard', k: 'momentumKeep', v: 1, desc: 'Your Momentum no longer resets at the start of your turn.',
       art: { p: [[-0.7,-0.25, 0.7,-0.25], [-0.7,0.25, 0.7,0.25], [-0.7,-0.25, -0.7,0.25], [0.7,-0.25, 0.7,0.25], [-0.35,-0.25, -0.35,0.25], [0,-0.25, 0,0.25], [0.35,-0.25, 0.35,0.25], [0.5,-0.55, 0.8,-0.55, 0.8,-0.25], [-0.5,0.55, -0.8,0.55, -0.8,0.25]] } },
     thorn_husk:      { name: 'Thornmail Husk',    tier: 1, k: 'thorns',          v: 2,    desc: 'Attackers take 2 damage.',
@@ -7338,6 +7436,259 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       fx: [{ k: 'status', s: 'plate', v: 2, who: 'self' }],
       desc: 'Gain 2 Plating.',
       art: { p: [[-0.7,-0.4, 0.7,-0.4], [-0.7,-0.05, 0.7,-0.05], [-0.7,0.3, 0.7,0.3], [-0.4,-0.4, -0.4,0.3], [0,-0.4, 0,0.3], [0.4,-0.4, 0.4,0.3], [-0.7,0.3, -0.7,0.6, 0.7,0.6, 0.7,0.3]] },
+    },
+
+    /* =================================================================
+     * VOID ADEPT SET — THE HUNGER. His table is a U, not a ramp: ATTUNED x1.2
+     * at the top, HUNGER x1.2 at the bottom, and WHISPER x0.9 through the fat
+     * middle. Measured after engravings began resolving in their face's band,
+     * that cost him 12 points of class parity — because everything sat in the
+     * middle, which is the one place his die is BAD.
+     *
+     * So this set lives at the ENDS. Band-locked pieces are low or high and
+     * nothing is written for the middle, which is his identity anyway: the void
+     * answers at both extremes and is bored in between.
+     * ================================================================= */
+
+    /* ---- standalone ---- */
+    ember_notch: {
+      name: 'Ember Notch', tier: 1, span: 1, cls: 'voidadept',
+      fx: [{ k: 'status', s: 'burn', v: 6, who: 'target' }],
+      desc: 'Apply 6 Burn.',
+      art: { p: [[0,-0.7, 0.26,-0.28, 0.12,0.0, 0.3,0.3, 0.14,0.6, 0,0.72, -0.14,0.6, -0.3,0.3, -0.12,0.0, -0.26,-0.28, 0,-0.7], [0,-0.24, 0.12,0.06, 0,0.36, -0.12,0.06, 0,-0.24], [-0.5,-0.3, -0.6,0.06], [0.5,-0.3, 0.6,0.06]], e: [[0,0.06]] },
+    },
+    hunger_mark: {
+      name: 'Hunger Mark', tier: 2, span: 1, cls: 'voidadept', band: 'low',
+      fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 18, scale: 'psi' }],
+      desc: 'Lose 2 HP. Deal 18 damage. Cuts only into the hunger band — where the void already bites.',
+      art: { p: [[-0.6,-0.5, -0.3,-0.1, -0.5,0.4], [-0.2,-0.66, -0.06,-0.1, -0.2,0.56], [0.2,-0.66, 0.06,-0.1, 0.2,0.56], [0.6,-0.5, 0.3,-0.1, 0.5,0.4], [-0.45,-0.1, 0.45,-0.1], [-0.16,0.66, 0.16,0.66]], e: [[0,0.74],[-0.62,-0.6],[0.62,-0.6]] },
+    },
+    attuned_notch: {
+      name: 'Attuned Notch', tier: 2, span: 1, cls: 'voidadept', band: 'high',
+      fx: [{ k: 'status', s: 'psiPow', v: 3, who: 'self' }],
+      desc: 'Gain 3 Psi Focus. Cuts only into the attuned band.',
+      art: { p: [[0,-0.8, 0.3,-0.26, 0,0.28, -0.3,-0.26, 0,-0.8], [0,-0.5, 0.14,-0.26, 0,-0.02, -0.14,-0.26, 0,-0.5], [-0.5,0.4, 0.5,0.4], [-0.34,0.58, 0.34,0.58], [-0.18,0.76, 0.18,0.76], [-0.3,-0.26, -0.6,-0.26], [0.3,-0.26, 0.6,-0.26]], e: [[0,-0.26]] },
+    },
+    plague_notch: {
+      name: 'Plague Notch', tier: 1, span: 1, cls: 'voidadept',
+      fx: [{ k: 'status', s: 'vuln', v: 2, who: 'allEnemies' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }],
+      desc: 'ALL enemies: 2 Vulnerable, 1 Weak.',
+      art: { p: [[0,-0.34, 0.28,-0.17, 0.28,0.17, 0,0.34, -0.28,0.17, -0.28,-0.17, 0,-0.34], [-0.66,-0.6, -0.44,-0.47, -0.44,-0.21, -0.66,-0.08, -0.88,-0.21, -0.88,-0.47, -0.66,-0.6], [0.66,-0.6, 0.44,-0.47, 0.44,-0.21, 0.66,-0.08, 0.88,-0.21, 0.88,-0.47, 0.66,-0.6], [0,0.58, 0.22,0.71, 0,0.84, -0.22,0.71, 0,0.58], [-0.28,-0.17, -0.46,-0.3], [0.28,-0.17, 0.46,-0.3], [0,0.34, 0,0.58]], e: [[0,0],[-0.66,-0.34],[0.66,-0.34]] },
+    },
+    thin_veil: {
+      name: 'Thin Veil', tier: 1, span: 3, cls: 'voidadept',
+      fx: [{ k: 'block', v: 4 }, { k: 'status', s: 'psiPow', v: 1, who: 'self' }],
+      desc: 'Gain 4 Shield and 1 Psi Focus.',
+      art: { p: [[0,-0.6, 0.48,-0.34, 0.48,0.14, 0,0.6, -0.48,0.14, -0.48,-0.34, 0,-0.6], [0,-0.86, 0.14,-0.5, 0,-0.14, -0.14,-0.5, 0,-0.86], [-0.48,-0.34, 0.48,0.14], [0.48,-0.34, -0.48,0.14]], e: [[0,-0.5]] },
+    },
+
+    /* ---- listeners: the void answers what you feed it ---- */
+    kindling_notch: {
+      name: 'Kindling Notch', tier: 2, span: 1, cls: 'voidadept', listen: 'burn',
+      fx: [{ k: 'dmg', v: 3 }],
+      desc: 'WHEN you apply Burn: deal 3 damage.',
+      art: { p: [[0,-0.6, 0.22,-0.24, 0.1,0.0, 0.26,0.26, 0.12,0.54, 0,0.64, -0.12,0.54, -0.26,0.26, -0.1,0.0, -0.22,-0.24, 0,-0.6], [-0.66,0.2, -0.4,0.34], [0.66,0.2, 0.4,0.34], [-0.5,-0.4, -0.34,-0.24], [0.5,-0.4, 0.34,-0.24]], e: [[0,0.06],[-0.74,0.24],[0.74,0.24]] },
+    },
+    vein_notch: {
+      name: 'Vein Notch', tier: 2, span: 1, cls: 'voidadept', listen: 'selfHp',
+      fx: [{ k: 'status', s: 'psiPow', v: 2, who: 'self' }],
+      desc: 'WHEN one of your own cards costs you HP: gain 2 Psi Focus.',
+      art: { p: [[0,-0.66, 0,0.4], [0,-0.4, -0.36,-0.66], [0,-0.1, 0.4,-0.36], [0,0.16, -0.34,-0.04], [0,0.4, 0.2,0.64], [-0.18,0.54, 0,0.4, 0.18,0.54], [-0.24,0.78, 0.24,0.78]], e: [[0,0.86]] },
+    },
+    ascendant_notch: {
+      name: 'Ascendant Notch', tier: 2, span: 1, cls: 'voidadept', listen: 'psi',
+      fx: [{ k: 'dmg', v: 2, scale: 'psi' }],
+      desc: 'WHEN you gain Psi Focus: deal 2 damage plus your Psi.',
+      art: { p: [[0,-0.8, 0.2,-0.46, 0,-0.12, -0.2,-0.46, 0,-0.8], [0,-0.46, 0.34,-0.12, 0,0.24, -0.34,-0.12, 0,-0.46], [0,-0.12, 0.48,0.24, 0,0.6, -0.48,0.24, 0,-0.12], [-0.26,0.6, 0.26,0.6], [-0.16,0.76, 0.16,0.76]], e: [[0,-0.46]] },
+    },
+    contagion_notch: {
+      name: 'Contagion Notch', tier: 3, span: 1, cls: 'voidadept', listen: 'debuff',
+      fx: [{ k: 'status', s: 'burn', v: 2, who: 'allEnemies' }],
+      desc: 'WHEN you apply Weak or Vulnerable: apply 2 Burn to ALL enemies.',
+      art: { p: [[0,-0.24, 0.2,-0.1, 0.2,0.16, 0,0.3, -0.2,0.16, -0.2,-0.1, 0,-0.24], [-0.7,-0.5, -0.2,-0.14], [0.7,-0.5, 0.2,-0.14], [-0.7,0.5, -0.2,0.2], [0.7,0.5, 0.2,0.2], [-0.78,-0.62, -0.7,-0.5], [0.78,-0.62, 0.7,-0.5]], e: [[0,0.03],[-0.78,-0.62],[0.78,-0.62],[-0.78,0.6],[0.78,0.6]] },
+    },
+    ravenous_notch: {
+      name: 'Ravenous Notch', tier: 3, span: 1, cls: 'voidadept', onlyFace: 1,
+      fx: [{ k: 'dmg', v: 22, scale: 'psi' }, { k: 'status', s: 'psiPow', v: 2, who: 'self' }],
+      desc: 'Deal 22 damage and gain 2 Psi Focus. Face 1 only — the void bites deepest when it slips.',
+      art: { p: [[-0.6,-0.5, -0.24,-0.06, -0.5,0.5], [-0.2,-0.7, -0.04,-0.06, -0.2,0.66], [0.2,-0.7, 0.04,-0.06, 0.2,0.66], [0.6,-0.5, 0.24,-0.06, 0.5,0.5], [-0.5,-0.06, 0.5,-0.06], [-0.86,-0.3, -0.66,-0.4], [0.86,-0.3, 0.66,-0.4]], e: [[0,-0.86],[0,0.8]] },
+    },
+
+    /* ---- adjacency / field ---- */
+    sympathetic_seam: {
+      name: 'Sympathetic Seam', tier: 3, span: 1, cls: 'voidadept', field: 'relay',
+      fx: [{ k: 'status', s: 'burn', v: 3, who: 'target' }],
+      desc: 'Apply 3 Burn. Faces either side of this one fire at FULL instead of the bleed.',
+      art: { p: [[-0.7,0.0, -0.24,0.0], [0.24,0.0, 0.7,0.0], [0,-0.3, 0.22,-0.1, 0.22,0.18, 0,0.36, -0.22,0.18, -0.22,-0.1, 0,-0.3], [-0.7,-0.26, -0.7,0.26], [0.7,-0.26, 0.7,0.26]], e: [[0,0.03],[-0.7,0],[0.7,0]] },
+    },
+    red_thread_notch: {
+      name: 'Red Thread', tier: 3, span: 1, cls: 'voidadept', field: 'opposite',
+      fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 8, scale: 'psi' }],
+      desc: 'Lose 2 HP. Deal 8 damage. Also fires the face OPPOSITE this one — the ends answer each other.',
+      art: { p: [[-0.8,-0.5, -0.34,-0.14, -0.7,0.14, -0.2,0.5, 0.2,0.14, 0.62,0.5, 0.86,0.1], [-0.34,-0.14, -0.02,-0.5], [0.2,0.14, 0.5,-0.2], [-0.2,0.5, -0.16,0.74]], e: [[-0.34,-0.14],[0.2,0.14],[-0.14,0.82]] },
+    },
+    long_whisper_field: {
+      name: 'Long Whisper', tier: 3, span: 3, cls: 'voidadept', field: 'listenerEcho',
+      fx: [{ k: 'status', s: 'psiPow', v: 2, who: 'self' }],
+      desc: 'Gain 2 Psi Focus. Every listener on the die answers one extra time.',
+      art: { p: [[-0.72,0.0, -0.36,-0.34, 0.36,-0.34, 0.72,0.0, 0.36,0.34, -0.36,0.34, -0.72,0.0], [-0.24,0.0, 0.0,-0.24, 0.24,0.0, 0.0,0.24, -0.24,0.0], [-0.86,-0.44, -0.5,-0.44], [0.86,-0.44, 0.5,-0.44], [-0.86,0.44, -0.5,0.44], [0.86,0.44, 0.5,0.44]], e: [[0,0]] },
+    },
+    aching_seam: {
+      name: 'Aching Seam', tier: 2, span: 1, cls: 'voidadept', listen: 'neighbour',
+      fx: [{ k: 'status', s: 'vuln', v: 1, who: 'target' }],
+      desc: 'WHEN a face beside this one fires: apply 1 Vulnerable.',
+      art: { p: [[-0.56,-0.36, -0.34,-0.52, -0.12,-0.36, -0.12,-0.02, -0.34,0.16, -0.56,-0.02, -0.56,-0.36], [0.56,-0.36, 0.34,-0.52, 0.12,-0.36, 0.12,-0.02, 0.34,0.16, 0.56,-0.02, 0.56,-0.36], [-0.34,0.16, -0.34,0.5], [0.34,0.16, 0.34,0.5], [-0.34,0.5, 0.34,0.5]], e: [[-0.34,-0.26],[0.34,-0.26],[0,0.5]] },
+    },
+
+    /* ---- trade-offs: he always pays in blood ---- */
+    blood_price: {
+      name: 'Blood Price', tier: 2, span: 1, cls: 'voidadept', band: 'low',
+      fx: [{ k: 'hploss', v: 3 }, { k: 'status', s: 'bloodPact', v: 2, who: 'self' }],
+      desc: 'Lose 3 HP. Gain 2 Blood Pact — spilt HP feeds your Psi from now on.',
+      art: { p: [[0,-0.6, 0.2,-0.3, 0,0.0, -0.2,-0.3, 0,-0.6], [-0.44,0.14, 0.44,0.14, 0.36,0.58, -0.36,0.58, -0.44,0.14], [-0.4,0.36, 0.4,0.36], [-0.2,0.0, -0.24,0.14], [0.2,0.0, 0.24,0.14]], e: [[-0.2,0.72],[0.2,0.72],[0,0.78]] },
+    },
+    wildfire_seam: {
+      name: 'Wildfire Seam', tier: 3, span: 1, cls: 'voidadept', band: 'high',
+      fx: [{ k: 'status', s: 'wildfire', v: 1, who: 'self' }, { k: 'hploss', v: 3 }],
+      desc: 'Gain 1 Wildfire — Burn grows instead of fading. Lose 3 HP.',
+      art: { p: [[0,-0.4, 0.22,-0.1, 0.1,0.14, 0.28,0.4, 0.12,0.66, 0,0.74, -0.12,0.66, -0.28,0.4, -0.1,0.14, -0.22,-0.1, 0,-0.4], [-0.56,-0.2, -0.42,0.1, -0.5,0.34], [0.56,-0.2, 0.42,0.1, 0.5,0.34], [-0.82,-0.4, -0.7,-0.1, -0.78,0.16], [0.82,-0.4, 0.7,-0.1, 0.78,0.16], [-0.2,-0.56, 0,-0.76, 0.2,-0.56]], e: [[0,0.3],[0,-0.84]] },
+    },
+    hollow_out: {
+      name: 'Hollow Out', tier: 2, span: 1, cls: 'voidadept',
+      fx: [{ k: 'status', s: 'entropy', v: 2, who: 'self' }, { k: 'hploss', v: 2 }],
+      desc: 'Gain 2 Entropy — every turn ends in Burn for all of them. Lose 2 HP.',
+      art: { p: [[0,-0.66, 0.24,-0.24, 0.12,0.0, 0.3,0.3, 0.14,0.6, 0,0.7, -0.14,0.6, -0.3,0.3, -0.12,0.0, -0.24,-0.24, 0,-0.66], [-0.6,-0.4, -0.46,-0.1, -0.54,0.14], [0.6,-0.4, 0.46,-0.1, 0.54,0.14], [-0.5,0.6, 0.5,0.6], [-0.86,-0.14, -0.74,0.1], [0.86,-0.14, 0.74,0.1]], e: [[0,0.14],[-0.5,0.7],[0.5,0.7]] },
+    },
+    open_wound: {
+      name: 'Open Wound', tier: 2, span: 3, cls: 'voidadept',
+      fx: [{ k: 'hploss', v: 1 }, { k: 'status', s: 'burn', v: 4, who: 'target' }],
+      desc: 'Lose 1 HP. Apply 4 Burn.',
+      art: { p: [[-0.4,-0.5, -0.1,-0.16, -0.34,0.14, 0.0,0.5, 0.3,0.14, 0.1,-0.16, 0.4,-0.5], [-0.4,-0.5, -0.56,-0.66], [0.4,-0.5, 0.56,-0.66], [0.0,0.5, 0.0,0.72], [-0.24,0.62, 0.24,0.62]], e: [[0,0.8],[-0.62,-0.72],[0.62,-0.72]] },
+    },
+
+    /* =================================================================
+     * TECHNOMANCER SET — LOAD BALANCE. His table is the widest in the game
+     * (SURGE x1.35 down to SAG x0.7) and it scales SHIELD as well as damage, so
+     * a defensive face reads on the band too. He gets no extra Aim, so he
+     * cannot steer: everything here is about REDUNDANCY — constructs that work
+     * while he does not, a bus that makes a bad roll pay anyway, and listeners
+     * that answer the machine rather than the man.
+     * ================================================================= */
+
+    /* ---- standalone ---- */
+    load_shunt: {
+      name: 'Load Shunt', tier: 1, span: 1, cls: 'technomancer',
+      fx: [{ k: 'block', v: 8 }, { k: 'energy', v: 1 }],
+      desc: 'Gain 8 Shield and 1 Energy.',
+      art: { p: [[-0.7,-0.4, -0.2,-0.4, -0.2,0.4, -0.7,0.4, -0.7,-0.4], [-0.7,0.0, -0.2,0.0], [-0.2,0.0, 0.2,0.0], [0.3,-0.5, 0.1,-0.05, 0.34,-0.05, 0.14,0.5], [0.5,-0.3, 0.7,-0.3], [0.5,0.3, 0.7,0.3]], e: [[-0.45,-0.2],[-0.45,0.2]] },
+    },
+    servo_rack: {
+      name: 'Servo Rack', tier: 2, span: 1, cls: 'technomancer',
+      fx: [{ k: 'status', s: 'turret', v: 3, who: 'self' }],
+      desc: 'Deploy a Turret (3 dmg/turn).',
+      art: { p: [[-0.34,-0.1, 0.2,-0.1, 0.3,0.14, -0.44,0.14, -0.34,-0.1], [-0.44,0.14, -0.4,0.44, 0.26,0.44, 0.3,0.14], [-0.4,0.44, -0.56,0.72], [0.26,0.44, 0.42,0.72], [-0.66,0.72, 0.56,0.72], [0.2,-0.3, 0.74,-0.3], [0.62,-0.42, 0.82,-0.42, 0.82,-0.18, 0.62,-0.18], [-0.34,-0.1, -0.28,-0.34, 0.06,-0.34, 0.2,-0.1]], e: [[-0.08,-0.22],[0.88,-0.3]] },
+    },
+    heat_sink: {
+      name: 'Heat Sink', tier: 1, span: 3, cls: 'technomancer', band: 'mid',
+      fx: [{ k: 'block', v: 5 }, { k: 'status', s: 'plate', v: 1, who: 'self' }],
+      desc: 'Gain 5 Shield, 1 Plating.',
+      art: { p: [[-0.6,-0.5, 0.6,-0.5, 0.6,0.5, -0.6,0.5, -0.6,-0.5], [-0.36,-0.5, -0.36,0.5], [-0.12,-0.5, -0.12,0.5], [0.12,-0.5, 0.12,0.5], [0.36,-0.5, 0.36,0.5], [-0.6,-0.66, 0.6,-0.66], [-0.8,-0.2, -0.6,-0.2], [0.8,-0.2, 0.6,-0.2]], e: [[0,0.66]] },
+    },
+    bus_bar: {
+      name: 'Bus Bar', tier: 2, span: 1, cls: 'technomancer',
+      fx: [{ k: 'status', s: 'reactor', v: 1, who: 'self' }],
+      desc: 'Gain 1 Reactor — +1 max Energy for the fight.',
+      art: { p: [[-0.86,-0.2, 0.86,-0.2], [-0.86,0.2, 0.86,0.2], [-0.5,-0.2, -0.5,0.2], [0.0,-0.2, 0.0,0.2], [0.5,-0.2, 0.5,0.2], [-0.5,-0.2, -0.5,-0.5], [0.5,0.2, 0.5,0.5], [-0.66,-0.5, -0.34,-0.5], [0.34,0.5, 0.66,0.5]], e: [[-0.25,0],[0.25,0]] },
+    },
+    null_rod: {
+      name: 'Null Rod', tier: 1, span: 1, cls: 'technomancer',
+      fx: [{ k: 'status', s: 'weak', v: 2, who: 'allEnemies' }],
+      desc: 'Apply 2 Weak to ALL enemies.',
+      art: { p: [[0,-0.8, 0,0.6], [-0.2,-0.6, 0.2,-0.6], [-0.16,-0.2, 0.16,-0.2], [-0.12,0.2, 0.12,0.2], [-0.34,0.6, 0.34,0.6], [-0.5,-0.4, -0.34,-0.5], [0.5,-0.4, 0.34,-0.5], [-0.5,0.2, -0.3,0.14], [0.5,0.2, 0.3,0.14]], e: [[0,-0.86]] },
+    },
+
+    /* ---- listeners: they answer the machine ---- */
+    feed_tap: {
+      name: 'Feed Tap', tier: 2, span: 1, cls: 'technomancer', listen: 'construct',
+      fx: [{ k: 'block', v: 3 }],
+      desc: 'WHEN one of your constructs fires: gain 3 Shield.',
+      art: { p: [[-0.7,-0.3, -0.3,-0.3, -0.3,0.3, -0.7,0.3, -0.7,-0.3], [-0.3,0.0, 0.1,0.0], [0.1,-0.34, 0.5,-0.34, 0.5,0.34, 0.1,0.34, 0.1,-0.34], [0.5,0.0, 0.8,0.0], [-0.5,-0.3, -0.5,-0.56], [0.3,-0.34, 0.3,-0.56]], e: [[-0.5,0],[0.3,0],[0.86,0]] },
+    },
+    grounding_pin: {
+      name: 'Grounding Pin', tier: 2, span: 1, cls: 'technomancer', listen: 'shield',
+      fx: [{ k: 'dmg', v: 3, random: true }],
+      desc: 'WHEN you gain Shield: deal 3 damage to a random enemy.',
+      art: { p: [[0,-0.7, 0,0.3], [-0.3,0.3, 0.3,0.3], [-0.2,0.46, 0.2,0.46], [-0.1,0.62, 0.1,0.62], [-0.4,-0.5, 0,-0.7, 0.4,-0.5], [0.5,-0.2, 0.34,0.06, 0.56,0.06, 0.4,0.34]], e: [[0,-0.78]] },
+    },
+    subroutine_notch: {
+      name: 'Subroutine Notch', tier: 2, span: 1, cls: 'technomancer', listen: 'power',
+      fx: [{ k: 'draw', v: 1 }, { k: 'energy', v: 1 }],
+      desc: 'WHEN you play a Power: draw 1 card and gain 1 Energy.',
+      art: { p: [[-0.66,-0.5, 0.2,-0.5, 0.2,-0.24, -0.66,-0.24, -0.66,-0.5], [-0.66,-0.1, 0.44,-0.1, 0.44,0.16, -0.66,0.16, -0.66,-0.1], [-0.66,0.3, 0.0,0.3, 0.0,0.56, -0.66,0.56, -0.66,0.3], [-0.5,-0.5, -0.5,-0.24], [-0.5,-0.1, -0.5,0.16], [-0.5,0.3, -0.5,0.56], [0.6,-0.37, 0.86,-0.37], [0.6,0.03, 0.86,0.03]], e: [[-0.58,-0.37],[-0.58,0.03],[-0.58,0.43]] },
+    },
+    arc_relay: {
+      name: 'Arc Relay', tier: 2, span: 1, cls: 'technomancer', listen: 'debuff',
+      fx: [{ k: 'dmg', v: 3 }],
+      desc: 'WHEN you apply Weak or Vulnerable: deal 3 damage.',
+      art: { p: [[-0.8,-0.3, -0.4,-0.3, -0.5,0.0, -0.2,0.0, -0.4,0.4], [0.0,-0.4, 0.4,-0.4, 0.3,-0.1, 0.6,-0.1, 0.4,0.3], [-0.4,-0.3, -0.3,-0.5], [0.4,-0.4, 0.5,-0.6], [0.7,0.2, 0.86,0.4]], e: [[-0.42,0.46],[0.42,0.36]] },
+    },
+    breaker_notch: {
+      name: 'Breaker Notch', tier: 3, span: 1, cls: 'technomancer', onlyFace: 1,
+      fx: [{ k: 'energy', v: 2 }, { k: 'status', s: 'reactor', v: 1, who: 'self' }, { k: 'block', v: 8 }],
+      desc: 'Gain 2 Energy, 1 Reactor and 8 Shield. Face 1 only — the breaker trips into the bus.',
+      art: { p: [[-0.6,-0.5, 0.6,-0.5, 0.6,0.5, -0.6,0.5, -0.6,-0.5], [-0.6,-0.5, 0.6,0.5], [0.2,-0.6, 0.0,-0.16, 0.24,-0.16, 0.04,0.3], [-0.86,0.0, -0.6,0.0], [0.86,0.0, 0.6,0.0]], e: [[-0.4,0.3],[0.4,-0.3]] },
+    },
+
+    /* ---- adjacency / field ---- */
+    parallel_bus: {
+      name: 'Parallel Bus', tier: 3, span: 1, cls: 'technomancer', field: 'relay',
+      fx: [{ k: 'energy', v: 1 }],
+      desc: 'Gain 1 Energy. Faces either side of this one fire at FULL instead of the bleed.',
+      art: { p: [[-0.8,-0.3, 0.8,-0.3], [-0.8,0.3, 0.8,0.3], [-0.24,-0.3, -0.24,0.3], [0.24,-0.3, 0.24,0.3], [-0.24,0.0, 0.24,0.0], [-0.8,-0.5, -0.8,0.5], [0.8,-0.5, 0.8,0.5]], e: [[-0.24,0],[0.24,0],[-0.8,0],[0.8,0]] },
+    },
+    cross_link: {
+      name: 'Cross-Link', tier: 3, span: 1, cls: 'technomancer', field: 'opposite',
+      fx: [{ k: 'block', v: 6 }],
+      desc: 'Gain 6 Shield. Also fires the face OPPOSITE this one on the die.',
+      art: { p: [[-0.7,-0.4, 0.7,0.4], [0.7,-0.4, -0.7,0.4], [-0.2,-0.2, 0.2,-0.2, 0.2,0.2, -0.2,0.2, -0.2,-0.2], [-0.86,-0.5, -0.7,-0.4], [0.86,0.5, 0.7,0.4]], e: [[0,0],[-0.9,-0.54],[0.9,0.54]] },
+    },
+    load_balancer: {
+      name: 'Load Balancer', tier: 3, span: 3, cls: 'technomancer', field: 'listenerEcho',
+      fx: [{ k: 'block', v: 4 }],
+      desc: 'Gain 4 Shield. Every listener on the die fires one extra time.',
+      art: { p: [[-0.8,-0.4, 0.8,-0.4], [-0.8,0.0, 0.8,0.0], [-0.8,0.4, 0.8,0.4], [-0.4,-0.6, -0.4,0.6], [0.0,-0.6, 0.0,0.6], [0.4,-0.6, 0.4,0.6]], e: [[-0.4,-0.4],[0.4,-0.4],[-0.4,0],[0.4,0],[-0.4,0.4],[0.4,0.4],[0,0]] },
+    },
+    sympathetic_coil: {
+      name: 'Sympathetic Coil', tier: 2, span: 1, cls: 'technomancer', listen: 'neighbour',
+      fx: [{ k: 'block', v: 3 }],
+      desc: 'WHEN a face beside this one fires: gain 3 Shield.',
+      art: { p: [[-0.66,-0.34, -0.26,-0.34, -0.26,0.34, -0.66,0.34, -0.66,-0.34], [0.26,-0.34, 0.66,-0.34, 0.66,0.34, 0.26,0.34, 0.26,-0.34], [-0.26,0.0, 0.26,0.0], [-0.46,-0.34, -0.46,0.34], [0.46,-0.34, 0.46,0.34], [-0.86,0.0, -0.66,0.0], [0.86,0.0, 0.66,0.0]], e: [[-0.46,0],[0.46,0]] },
+    },
+
+    /* ---- trade-offs: he pays in Energy and plating, not blood ---- */
+    overdraw: {
+      name: 'Overdraw', tier: 2, span: 1, cls: 'technomancer', band: 'high',
+      fx: [{ k: 'dmg', v: 15, scale: 'tech' }, { k: 'status', s: 'weak', v: 2, who: 'self' }],
+      desc: 'Deal 15 damage. You take 2 Weak. Cuts only into the surge band.',
+      art: { p: [[-0.7,0.2, -0.3,-0.4, 0.0,0.1, 0.4,-0.6, 0.7,0.3], [-0.7,0.44, 0.7,0.54], [0.4,-0.6, 0.2,-0.6], [0.4,-0.6, 0.4,-0.38], [-0.86,0.0, -0.7,0.2]], e: [[0.76,0.36]] },
+    },
+    brownout_notch: {
+      name: 'Brownout Notch', tier: 2, span: 1, cls: 'technomancer', band: 'low',
+      fx: [{ k: 'energy', v: 3 }, { k: 'draw', v: 1 }],
+      desc: 'Gain 3 Energy and draw 1. Cuts only into the sag band — a bad face still pays.',
+      art: { p: [[-0.4,-0.6, 0.4,-0.6, 0.3,-0.1, -0.3,-0.1, -0.4,-0.6], [-0.3,-0.1, -0.24,0.2, 0.24,0.2, 0.3,-0.1], [-0.24,0.2, -0.2,0.44, 0.2,0.44, 0.24,0.2], [-0.26,-0.4, 0.26,-0.4], [0.06,0.44, -0.1,0.66, 0.06,0.66, -0.06,0.86], [-0.6,-0.3, -0.44,-0.3], [0.6,-0.3, 0.44,-0.3]], e: [[0,-0.7]] },
+    },
+    cascade_fault: {
+      name: 'Cascade Fault', tier: 3, span: 1, cls: 'technomancer',
+      fx: [{ k: 'status', s: 'conduit', v: 3, who: 'self' }, { k: 'status', s: 'weak', v: 1, who: 'self' }],
+      desc: 'Gain 3 Conduit. You take 1 Weak.',
+      art: { p: [[-0.7,-0.5, -0.3,-0.5, -0.3,-0.1, -0.7,-0.1, -0.7,-0.5], [-0.5,-0.1, -0.5,0.2], [-0.7,0.2, -0.3,0.2, -0.3,0.6, -0.7,0.6, -0.7,0.2], [0.3,-0.5, 0.7,-0.5, 0.7,-0.1, 0.3,-0.1, 0.3,-0.5], [0.5,-0.1, 0.5,0.2], [0.3,0.2, 0.7,0.2, 0.7,0.6, 0.3,0.6, 0.3,0.2], [-0.3,-0.3, 0.3,-0.3], [-0.3,0.4, 0.3,0.4]], e: [[-0.5,-0.3],[0.5,-0.3],[-0.5,0.4],[0.5,0.4]] },
+    },
+    hive_notch: {
+      name: 'Hive Notch', tier: 3, span: 1, cls: 'technomancer',
+      fx: [{ k: 'status', s: 'hive', v: 1, who: 'self' }, { k: 'status', s: 'turret', v: 2, who: 'self' }],
+      desc: 'Deploy a Turret (2 dmg/turn) and gain 1 Hive.',
+      art: { p: [[0,-0.3, 0.26,-0.15, 0.26,0.15, 0,0.3, -0.26,0.15, -0.26,-0.15, 0,-0.3], [-0.6,-0.62, -0.36,-0.48, -0.36,-0.2, -0.6,-0.06, -0.84,-0.2, -0.84,-0.48, -0.6,-0.62], [0.6,-0.62, 0.36,-0.48, 0.36,-0.2, 0.6,-0.06, 0.84,-0.2, 0.84,-0.48, 0.6,-0.62], [-0.36,0.34, -0.36,0.62], [0.36,0.34, 0.36,0.62], [-0.26,-0.15, -0.5,-0.3], [0.26,-0.15, 0.5,-0.3]], e: [[0,0],[-0.6,-0.34],[0.6,-0.34]] },
     },
 
     /* =================================================================
@@ -10577,6 +10928,18 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (sv > 0) c.player.statuses.salvo = sv;
     var br = art('bloodrageStart');
     if (br > 0) c.player.statuses.bloodrage = br;
+    // SCARFEEDER turns the pressure system on its head for exactly one class:
+    // the taints the void cuts into his die stop being pure cost and start being
+    // the reason he walks into the fight already angry.
+    var tm = art('taintMight');
+    if (tm > 0 && r.die) {
+      var scars = 0;
+      for (var tf = 1; tf <= ns.DIE.faces; tf++) {
+        var sl = r.die.faces[tf];
+        if (sl && sl.root === tf && sl.taint) scars++;
+      }
+      if (scars > 0) addStatus(c.player, 'str', tm * scars);
+    }
     var bs = art('blockStart') + art('blockStartTechMul') * attr('tech');   // Forge Reserve scales with TECH
     if (bs > 0) { c.player.block = bs; } // relic Shield is passive, not "played"
     var ws = art('weakStart');
@@ -10629,7 +10992,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // Shield (and the "no Shield" quest) see every source.
   // played = the Shield came from a card the player chose to play (so passive
   // relic/plate/trigger Shield does NOT count against the "no Shield" quest).
+  var _inBlockListen = false;
   function gainBlock(n, played) {
+    if (n > 0 && E.combat && !E.combat.over && !_inBlockListen) {
+      // guarded: a shield listener that gains shield would answer itself
+      _inBlockListen = true;
+      try { fireListeners('shield', {}); } finally { _inBlockListen = false; }
+    }
     var c = E.combat, p = c.player;
     if (n <= 0) return;
     if (art('noShield') > 0) return;   // tradeoff relics that forbid Shield entirely
@@ -10666,7 +11035,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   var _inConduit = false;   // re-entrancy guard for the Disruption conduit hook
   function statN(ent, s) { return ent.statuses[s] || 0; }
-  var _statListen = { momentum: 'momentum', parry: 'parry' };
+  var _statListen = { momentum: 'momentum', parry: 'parry', psiPow: 'psi' };
+  var _inEnemyListen = false;
   function addStatus(ent, s, v) {
     ent.statuses[s] = (ent.statuses[s] || 0) + v;
     if (ent.statuses[s] <= 0) delete ent.statuses[s];
@@ -10676,6 +11046,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // some of them would read as a bug rather than as a rule.
     if (v > 0 && !isEnemy && _statListen[s] && E.combat && !E.combat.over) {
       fireListeners(_statListen[s], {});
+    }
+    // ...and the enemy-facing ones. Burn and the debuffs are where the Void
+    // Adept and the Technomancer actually live, so their listeners hook here
+    // for the same reason Momentum does: they are applied from many places and
+    // a listener that caught only some would read as a bug.
+    if (v > 0 && isEnemy && E.combat && !E.combat.over && !_inEnemyListen) {
+      var trig = (s === 'burn') ? 'burn' : (s === 'weak' || s === 'vuln') ? 'debuff' : null;
+      if (trig) {
+        _inEnemyListen = true;
+        try { fireListeners(trig, { tgt: ent }); } finally { _inEnemyListen = false; }
+      }
     }
     if (v > 0 && isEnemy && (s === 'weak' || s === 'vuln')) {
       var hx = art('hexweaver');                       // Hexweaver: Weak/Vuln also Burns
@@ -10954,6 +11335,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       emit('dmg', { who: 'enemy', idx: idx, amount: amount, hpDmg: 0, warded: true, hpAfter: en.hp, blockAfter: en.block });
       return 0;
     }
+    // CRIMSON LEDGER: the HP the die just billed rides on this card's hits. It
+    // is set on the roll and cleared once the card has resolved, so it never
+    // leaks into a turret tick or an engraving fired by a later card.
+    if (c.bloodEdge && !opts.noCrit) amount += c.bloodEdge;
     var dm = art('dmgMult');
     if (dm > 0) amount = Math.round(amount * (1 + dm));
     if (E.hasEcho('cursed_inheritance') && handHasCurse()) amount = Math.round(amount * 1.25); // Cursed Inheritance
@@ -11274,19 +11659,61 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
    * hits harder, a graze face hits softer, so WHERE you cut is a real trade
    * again; and because Aim raises the band every face lands in, Aim now makes
    * your WHOLE die hit harder instead of relocating it. */
+  /* How far the whole table slides for THIS number. `bandShift` is the flat
+   * relic version; the two class relics below make the slide conditional, which
+   * is what keeps them from being a strictly-better Machined Barrel:
+   *   DUTY CYCLE  — odd numbers climb, even numbers fall (Technomancer)
+   *   HOLLOW CROWN — the closer to death, the better the die reads (Voidadept) */
+  function bandShiftNow(n) {
+    var sh = art('bandShift');
+    var pb = art('parityBand');
+    if (pb > 0) sh += (n % 2 ? pb : -pb);
+    var hb = art('hpBand');
+    if (hb > 0) {
+      var r = E.run;
+      var miss = (r && r.maxHp) ? Math.max(0, 1 - r.hp / r.maxHp) : 0;
+      sh += hb * Math.floor(miss / 0.2);
+    }
+    return sh;
+  }
+
+  /* One reader for the class table, used by both a live roll and an engraving
+   * resolving in its own face's band, so a relic can never move one without the
+   * other. `n` is the number being read — the roll, or the face. */
+  function bandFor(dread, eff, n) {
+    var e = Math.max(eff, art('bandFloor'));            // REGULATOR CLAMP
+    var last = dread.bands.length - 1;
+    var lw = art('lowWiden');                           // WIDENING MAW
+    if (lw > 0 && last > 0 && e < dread.bands[last - 1].min + lw) return dread.bands[last];
+    var shift = bandShiftNow(n);
+    for (var i = 0; i < dread.bands.length; i++) {
+      if (e >= dread.bands[i].min - shift) return dread.bands[i];
+    }
+    return dread.bands[last];
+  }
+  E.bandFor = bandFor;
+
   function faceBandMult(face) {
     var r = E.run, c = E.combat;
     var dread = r && E.dieRead(r.cls);
     if (!dread || !c) return 1;
     if (face <= 1) return (dread.misfire && dread.misfire.mult) || 1;
     var eff = Math.min(20, face + statN(c.player, 'aim') + art('rollBonus'));
-    var shift = art('bandShift');
-    for (var i = 0; i < dread.bands.length; i++) {
-      if (eff >= dread.bands[i].min - shift) return dread.bands[i].mult;
-    }
-    return dread.bands[dread.bands.length - 1].mult;
+    return bandFor(dread, eff, face).mult;
   }
   E.faceBandMult = faceBandMult;
+
+  /* Is this face at one of the two ENDS of the class table? SECOND MOUTH reads
+   * it; it is the Voidadept's whole thesis stated as a relic — his U means the
+   * middle is the bad place, so his bleed is full at either extreme. */
+  function faceAtEnd(face) {
+    var r = E.run, dread = r && E.dieRead(r.cls);
+    if (!dread) return false;
+    if (face <= 1) return true;
+    var eff = Math.min(20, face + statN(E.combat.player, 'aim') + art('rollBonus'));
+    var slot = bandFor(dread, eff, face);
+    return slot === dread.bands[0] || slot === dread.bands[dread.bands.length - 1];
+  }
 
   function fireOneFace(face, tgt, k, why) {
     var r = E.run, c = E.combat;
@@ -11323,7 +11750,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function fireDieFace(face, tgt) {
     var r = E.run, c = E.combat;
     if (!r || !r.die || !c || c.over) return;
-    var lit = fireOneFace(face, tgt, 1);
+    // DISTRIBUTION FRAME routes the charge past the face you rolled
+    var lit = fireOneFace(face, tgt, art('rootHalf') > 0 ? 0.5 : 1);
+    // SUBSTATION remembers the first face to fire this turn and re-fires it later
+    if (lit && art('faceEcho') > 0 && c.echoFace == null) c.echoFace = face;
     if (!lit && art('bareRefund') > 0) c.energy += art('bareRefund');   // DRY FIRE
     // The roll has to LAND on something to splash. Bleeding off a bare face
     // paid you for a dead roll, which made the mechanic free rather than a
@@ -11332,6 +11762,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (!lit) return;
     if (ns.dieTaintAt(r.die, face) === 'dead_short') return;   // the seam is broken
     var bleed = Math.min(1, B.dice.bleed + art('bleedPct'));
+    if (art('relayAll') > 0) bleed = 1;                            // DISTRIBUTION FRAME
+    if (art('bleedEnds') > 0 && faceAtEnd(face)) bleed = 1;        // SECOND MOUTH
     if (bleed <= 0) return;
     ns.dieNeighbours(r.die, face).forEach(function (f) {
       if (c.over) return;
@@ -11342,6 +11774,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       fireOneFace(f, tgt, k, 'bleed');
       fireListeners('neighbour', { face: f, tgt: tgt });
     });
+    // CASCADE COUPLER: the surge carries one ring further out, at half again.
+    // Deliberately NOT a listener trigger — the outer pair is spill, not contact,
+    // and letting it ring `neighbour` would double every adjacency build.
+    if (art('bleedSpan') > 0) {
+      var span = bleed / 2;
+      [-2, 2].forEach(function (d) {
+        if (c.over) return;
+        var f2 = ((face - 1 + d + ns.DIE.faces) % ns.DIE.faces) + 1;
+        fireOneFace(f2, tgt, span, 'bleed');
+      });
+    }
     // TWIN SIGHT: the face opposite on the ring answers too
     if (lit) {
       var self = ns.dieEngraving(ns.dieFaceId(r.die, face));
@@ -11410,7 +11853,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     for (var i = 0; i < (n || 1) && clean.length; i++) {
       var root = pick(clean);
       clean = clean.filter(function (x) { return x !== root; });
-      var tid = (rnd() < (B.dice.coldWeldChance || 0.12)) ? 'cold_weld' : pick(ids);
+      // ANNEALING JIG: the void still scars you, but nothing it cuts is permanent
+      var welds = art('weldWard') <= 0 && rnd() < (B.dice.coldWeldChance || 0.12);
+      var tid = welds ? 'cold_weld' : pick(ids);
       if (ns.dieAddTaint(r.die, root, tid)) {
         did++;
         emit('etch', { face: root, taint: tid, name: (ns.DIE_TAINTS[tid] || {}).name || tid });
@@ -11715,6 +12160,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // picking it a build decision rather than a stat comparison.
     if (roll === 1 && art('rerollOnes') > 0) roll = d20();          // COUNTERWEIGHT
     if (art('rollAdv') > 0) roll = Math.max(roll, d20());           // DEADEYE RETICLE
+    if (roll < 8 && art('rerollSag') > 0) roll = d20();             // HOT SPARE
     c.rollNo = (c.rollNo || 0) + 1;
     if (art('everyThird') > 0 && c.rollNo % 3 === 0) roll = 20;     // RANGING TABLES
     eff = Math.min(20, roll + statN(p, 'aim') + art('rollBonus'));
@@ -11726,12 +12172,18 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (!bandsNow) {
       emit('roll', { roll: roll, eff: eff, crit: false, misfire: false, band: null });
     } else {
-      crit = (roll === 20) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus') - art('critWiden'));
       misfire = roll <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden'));
+      crit = (roll === 20) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus') - art('critWiden'));
+      // THE DEVOURING: the Adept's table is a U, so his crit is too. The bottom
+      // of the die bites as hard as the top — but only where it has not jammed.
+      if (!misfire && art('lowCrit') > 0 && roll <= art('lowCrit')) crit = true;
       if (misfire && art('critDie1Energy') > 0) c.energy += art('critDie1Energy');   // Misfire Capacitor
       if (misfire) {   // MISFIRE PROTOCOL turns a jam into fuel
         var mg = statN(p, 'misfireGuard');
         if (mg > 0) { addStatus(p, 'momentum', mg); emit('status', { who: 'player', s: 'momentum', v: statN(p, 'momentum') }); c.energy += 1; }
+        // TRIP COIL / SACRIFICIAL FUSE: a tripped breaker is never dead weight
+        if (art('breakerBlock') > 0) gainBlock(art('breakerBlock'));
+        if (art('breakerEnergy') > 0) c.energy += art('breakerEnergy');
       }
       // The bottom of the table is where the classes part ways: a misfire is the
       // Vanguard's wasted shot, the Technomancer's tripped breaker and the
@@ -11739,14 +12191,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var slot = null;
       if (crit) bandLabel = 'CRIT';
       else if (misfire) { slot = dread.misfire; }
-      else {
-        // MACHINED BARREL / RANGE CARD move where the good bands begin
-        var shift = art('bandShift');
-        for (var bi = 0; bi < dread.bands.length; bi++) {
-          if (eff >= dread.bands[bi].min - shift) { slot = dread.bands[bi]; break; }
-        }
-        if (!slot) slot = dread.bands[dread.bands.length - 1];
-      }
+      // MACHINED BARREL / DUTY CYCLE / HOLLOW CROWN move where the bands begin,
+      // REGULATOR CLAMP puts a floor under the read and WIDENING MAW pulls the
+      // bottom band up into the middle — all of it in one reader.
+      else slot = bandFor(dread, eff, roll);
       if (slot) {
         bandMult = slot.mult;
         bandLabel = slot.label;
@@ -11754,8 +12202,29 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         if (slot.energy) c.energy += slot.energy;
         // The void bills you, and your blood engines drink it — but it never
         // takes the last point. A roll you did not choose should not kill you.
-        if (slot.hploss) spendLife(Math.min(slot.hploss, Math.max(0, r.hp - 1)));
+        if (slot.hploss) {
+          var bill = Math.min(slot.hploss, Math.max(0, r.hp - 1));
+          spendLife(bill);
+          // BLOODLETTER'S NAIL / CRIMSON LEDGER read the bill, not the band: a
+          // relic that pays out on HP lost stays honest when the void is only
+          // able to take one point because you are nearly dead.
+          if (bill > 0 && art('hplossPsi') > 0) {
+            addStatus(p, 'psiPow', art('hplossPsi'));
+            emit('status', { who: 'player', s: 'psiPow', v: statN(p, 'psiPow') });
+          }
+          if (bill > 0 && art('hplossDmg') > 0) c.bloodEdge = bill * art('hplossDmg');
+        }
       }
+      // ASHEN TITHE / BUS PRIMER / HEAT LEDGER / GORGE pay for a BAND rather
+      // than a number, so what they are worth depends on how your table is cut
+      // — and a crit counts as the top of it even though it has no band of its own.
+      var topB = dread.bands[0], botB = dread.bands[dread.bands.length - 1];
+      if (!crit && !misfire && slot === botB) {
+        if (art('sagEnergy') > 0) c.energy += art('sagEnergy');
+        if (art('hungerDraw') > 0) drawCards(art('hungerDraw'));
+      }
+      if (!misfire && (crit || slot === topB) && art('surgeShield') > 0) gainBlock(art('surgeShield'));
+      if ((misfire || slot === botB) && art('lowHeal') > 0) c.gorgeHeal = art('lowHeal');   // GORGE, paid after the card
       // Tone, not band name: the HUD must not know that SOLID is good and SAG is
       // not. It reads the multiplier, so a new class table styles itself.
       rollTone = crit ? 'crit' : bandMult > 1.02 ? 'up' : bandMult < 0.98 ? 'down' : 'flat';
@@ -11769,11 +12238,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (def.type === 'attack' && c.echoReady) { c.echoReady = false; times = 2; }
     // Doubled Self: on turn 1, every card you play resolves twice
     if (c.turn === 1 && E.hasEcho('doubled_self')) times = Math.max(times, 2);
+    // WOUND ECHO: the Adept's jam is his best band (1.5x, 4 HP), so doubling it
+    // is a payoff and not a consolation — and the HP has already been billed.
+    if (misfire && art('ravenousEcho') > 0) times = Math.max(times, 2);
     var totalDealt = 0;
     for (var rep = 0; rep < times; rep++) {
       if (c.over) break;
       totalDealt += applyCardFx(fx, ctx);
     }
+    c.bloodEdge = 0;                                   // CRIMSON LEDGER, spent
+    if (c.gorgeHeal) { heal(c.gorgeHeal); c.gorgeHeal = 0; }   // GORGE pays after
     // VENGEANCE: a connecting Attack, after you took a hit or parried, heals you.
     if (def.type === 'attack' && totalDealt > 0 && c.avengeArmed && statN(p, 'vengeance') > 0) {
       heal(statN(p, 'vengeance'));
@@ -11812,6 +12286,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         // TWINNED FIRING PIN: the opening roll of a combat catches both sides
         if (art('firstSplash') > 0 && c.rollNo === 1) {
           ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) fireOneFace(nf, tgt, 1, 'relay'); });
+        }
+        // Reaching ACROSS the ring rather than along it. Both of these use
+        // fireOneFace for the same reason Hot Barrel does: a relay upgrades the
+        // charge on one more face, it does not start a second bleed.
+        var across = ((lands + 9) % ns.DIE.faces) + 1;
+        if (art('evenMirror') > 0 && lands % 2 === 0 && !c.over) {          // PARITY PIN
+          fireOneFace(across, tgt, Math.min(1, B.dice.bleed + art('bleedPct')), 'opposite');
+        }
+        if (art('extremeRelay') > 0 && (roll === 20 || misfire) && !c.over) {   // TWIN MAW
+          fireOneFace(across, tgt, 1, 'opposite');
         }
         if (crit) {
           fireListeners('crit', { tgt: tgt });
@@ -11854,6 +12338,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       c.firstPowerUsed = true;
       var fpd = art('firstPowerDraw'); if (fpd > 0) drawCards(fpd);
     }
+    if (def.type === 'power') fireListeners('power', { tgt: tgt });
     // route the played card: powers are consumed, exhaust cards (and skills
     // under Corruption) exhaust, everything else discards
     if (def.type === 'power') {
@@ -11880,6 +12365,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   E.endTurn = function () {
     var c = E.combat, r = E.run, p = c.player;
     if (!c || c.over) return;
+
+    // SUBSTATION: the first face that fired this turn fires once more as the
+    // turn closes. It runs before the discard so a face that shields you still
+    // shields you in time for the enemy's swing.
+    if (art('faceEcho') > 0 && c.echoFace != null && !c.over) {
+      fireOneFace(c.echoFace, aliveEnemies()[0] || null, 1, 'echo');
+    }
+    c.echoFace = null;
 
     // SPENT BRASS cashes the numbers you rolled this turn in as plating
     if (art('bankRoll') > 0 && (c.banked || 0) > 0) {
@@ -11911,6 +12404,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         if (pool.length) {
           var en = pick(pool);
           dealToEnemy(en, c.enemies.indexOf(en), tv + attr('tech'), { noCrit: true, noWeak: true });
+          fireListeners('construct', { tgt: en });
           if (statN(p, 'aegisLink') > 0) gainBlock(statN(p, 'aegisLink'));   // SWARM UPLINK: constructs shield you as they fire
         }
       }
@@ -16552,36 +17046,67 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   /* THE CLASS TABLE. Roll every face through the class's own reading so the
    * screen shows what the die MEANS for you, and how Aim reshapes it — which is
    * the Voidadept's whole tension: climb the table and you starve the bottom. */
+  /* Read a single roll exactly the way playCard would, relics and all. There is
+   * one reader in the engine and the screen borrows it — the alternative was a
+   * second copy of the band logic here, which is how this table came to be
+   * telling the player about a die that a Machined Barrel had already moved. */
+  function readRoll(t, roll, aim) {
+    var D = ns.BALANCE.dice, live = !!(E.run && E.run.artifacts && E.bandFor);
+    var bonus = live ? E.art('rollBonus') : 0;
+    var eff = Math.min(20, roll + aim + bonus);
+    var wide = live ? Math.max(1, 1 + E.art('misfireWiden')) : 1;
+    var critAt = D.critThreshold - (live ? E.art('critBonus') + E.art('critWiden') : 0);
+    var lowCrit = live ? E.art('lowCrit') : 0;
+    // Same precedence the engine uses: a crit outranks a jam, and only a roll
+    // that did NOT jam can crit off the bottom of the table.
+    var jam = roll <= wide;
+    if (roll === 20 || (roll > 1 && eff >= critAt) || (!jam && lowCrit > 0 && roll <= lowCrit)) {
+      return { label: 'CRIT', mult: D.critMult, tone: 'crit' };
+    }
+    if (jam) return t.misfire;
+    if (live) return E.bandFor(t, eff, roll);
+    for (var i = 0; i < t.bands.length; i++) if (eff >= t.bands[i].min) return t.bands[i];
+    return t.bands[t.bands.length - 1];
+  }
   function dieBandRows(cls, aim) {
     var t = ns.BALANCE.dice.classes[cls]; if (!t) return null;
-    var D = ns.BALANCE.dice, seen = [], byLabel = {};
+    var seen = [], byLabel = {};
     for (var roll = 1; roll <= 20; roll++) {
-      var eff = Math.min(20, roll + aim), slot;
-      if ((roll === 20) || (roll > 1 && eff >= D.critThreshold)) slot = { label: 'CRIT', mult: D.critMult, tone: 'crit' };
-      else if (roll <= 1) slot = t.misfire;
-      else { for (var i = 0; i < t.bands.length; i++) if (eff >= t.bands[i].min) { slot = t.bands[i]; break; } }
+      var slot = readRoll(t, roll, aim);
       if (!slot) continue;
       if (!byLabel[slot.label]) { byLabel[slot.label] = { slot: slot, n: 0, lo: roll, hi: roll }; seen.push(slot.label); }
       var e = byLabel[slot.label];
       e.n++; e.lo = Math.min(e.lo, roll); e.hi = Math.max(e.hi, roll);
     }
-    return seen.map(function (k) { return byLabel[k]; })
-               .sort(function (a, b) { return b.lo - a.lo; });
+    // A band used to be a contiguous run of numbers, so lo–hi told the whole
+    // truth. Duty Cycle interleaves odd and even and The Devouring crits off
+    // the bottom, and both make the set full of holes — the row still shows the
+    // span it covers, but `split` marks the ones that are not solid so the
+    // table cannot claim a range it does not own. Sorted by the TOP of the span
+    // rather than the bottom, or a band that reaches down to 2 lands last.
+    return seen.map(function (k) {
+      var e = byLabel[k];
+      e.split = e.n !== (e.hi - e.lo + 1);
+      return e;
+    }).sort(function (a, b) { return b.hi - a.hi; });
   }
   function dieReadHTML(cls, aim) {
     var t = ns.BALANCE.dice.classes[cls];
     if (!t) return '<div class="dr-title">NO TABLE<span class="dr-sub">Your die rolls for engravings, but the face does not modulate your cards.</span></div>';
     var h = '<div class="dr-title">' + esc(t.name) + '<span class="dr-sub">' + esc(t.read) + '</span></div>';
+    var anySplit = false;
     dieBandRows(cls, aim).forEach(function (e) {
       var m = e.slot.mult, tone = e.slot.label === 'CRIT' ? 'crit' : m > 1.02 ? 'up' : m < 0.98 ? 'down' : 'flat';
       var rider = (e.slot.hploss ? ' <b class="dr-cost">−' + e.slot.hploss + ' HP</b>' : '')
                 + (e.slot.energy ? ' <b class="dr-gain">+' + e.slot.energy + ' EN</b>' : '');
+      if (e.split) anySplit = true;
       h += '<div class="dr-row ' + tone + '">'
-        +  '<span class="dr-rng">' + (e.lo === e.hi ? e.lo : e.lo + '–' + e.hi) + '</span>'
+        +  '<span class="dr-rng">' + (e.lo === e.hi ? e.lo : e.lo + '–' + e.hi) + (e.split ? '*' : '') + '</span>'
         +  '<span class="dr-lab">' + esc(e.slot.label) + '</span>'
         +  '<span class="dr-mul">×' + m.toFixed(2).replace(/0$/, '') + rider + '</span>'
         +  '<span class="dr-pct">' + (e.n * 5) + '%</span></div>';
     });
+    if (anySplit) h += '<div class="dr-note">* a relic has cut holes in this band — the span is what it reaches, the % is what it actually takes.</div>';
     return h;
   }
 
@@ -16591,15 +17116,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function dieEndTag(cls, face, aim) {
     var t = ns.BALANCE.dice.classes[cls];
     if (!t) return null;
-    if (face === 1) { var m = t.misfire; return { label: m.label, crit: false, good: m.mult > 1.02 }; }
-    var eff = Math.min(20, face + (aim || 0));
-    if (eff >= (ns.BALANCE.dice.critThreshold || 20)) return { label: 'CRIT', crit: true };
-    for (var i = 0; i < t.bands.length; i++) {
-      if (eff >= t.bands[i].min) {
-        return { label: t.bands[i].label, crit: false, good: t.bands[i].mult > 1.02 };
-      }
-    }
-    return null;
+    var slot = readRoll(t, face, aim || 0);
+    if (!slot) return null;
+    if (slot.label === 'CRIT') return { label: 'CRIT', crit: true };
+    return { label: slot.label, crit: false, good: slot.mult > 1.02 };
   }
 
   function dieFaceRowHTML(die, face, reach, armedId, aimNow) {

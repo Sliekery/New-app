@@ -1515,6 +1515,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .dr-row.up .dr-lab, .dr-row.up .dr-mul { color: #5dff88; }
 .dr-row.down .dr-lab, .dr-row.down .dr-mul { color: #ff8a99; }
 .dr-row.crit .dr-lab, .dr-row.crit .dr-mul { color: #ffb02e; }
+.dr-note { font: 600 8.5px/1.45 ui-monospace, monospace; color: #7f9a8b; text-transform: none; margin-top: 5px; }
 .dr-cost { color: #ff4a5e; font-weight: 700; }
 .dr-gain { color: #41d8ff; font-weight: 700; }
 

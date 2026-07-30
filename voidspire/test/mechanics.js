@@ -1539,5 +1539,329 @@ ok('every remaining class has a starter deck whose cards all exist',
   ok('a full die leaves an engraving with no room, and says so', room === 0);
 })();
 
+/* ============ DIE RELICS, ALL THREE CLASSES ============================
+ * Every one of these is a declarative hook, which means the failure mode is
+ * silence: a relic whose `k` nobody reads sits in your die doing nothing and
+ * says nothing about it. Each assertion below is "the hook is actually wired",
+ * pinned by forcing the class table so the band is not left to the d20.
+ *
+ * The tables are swapped rather than the RNG, because what these relics key
+ * off is the BAND, and a fake band with a real roll exercises the same code a
+ * real band does — the alternative (playing until the roll you want turns up)
+ * measures the sampler as much as the relic.
+ * ==================================================================== */
+(function () {
+  // A one-band table: every non-misfire roll lands in `label`, so a band-keyed
+  // relic either fires on the very first card or it is not wired at all.
+  function forceBand(cls, band, fn) {
+    var saved = VS.BALANCE.dice.classes[cls];
+    var t = { name: saved.name, read: saved.read, aim: saved.aim, blocks: saved.blocks,
+              misfire: saved.misfire, bands: band };
+    VS.BALANCE.dice.classes[cls] = t;
+    try { return fn(); } finally { VS.BALANCE.dice.classes[cls] = saved; }
+  }
+  var TOP = [{ min: 2, mult: 1.35, label: 'TOP' }, { min: 99, mult: 0.7, label: 'BOT' }];
+  var BOT = [{ min: 99, mult: 1.35, label: 'TOP' }, { min: 0, mult: 0.7, label: 'BOT' }];
+
+  // Set up a fight for `cls`, optionally holding a relic, and hand back combat.
+  function fight(cls, relic, seed) {
+    E.seed(seed || 31); E.newRun(cls); E.takeFirstMark(0);
+    if (relic) { E.addArtifact(relic); if (E.run.die.core.indexOf(relic) < 0) E.run.die.core.push(relic); }
+    E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
+    E.startNode('fight');
+    E.combat.enemies.forEach(function (e) { e.hp = 9999; e.maxHp = 9999; e.block = 0; e.platedReady = false; });
+    E.combat.energy = 30;
+    return E.combat;
+  }
+  function playAttack(c) {
+    c.hand = [{ uid: 7700 + (c.turn || 0) * 7 + c.discard.length, id: 'pulse_rifle', up: false }];
+    E.events = [];
+    E.playCard(0, 0);
+  }
+
+  /* ---- TECHNOMANCER ------------------------------------------------- */
+  // TRIP COIL / SACRIFICIAL FUSE: the breaker is his most common bad outcome,
+  // so what it pays back is the whole point of both relics.
+  (function () {
+    var c = fight('technomancer', 'trip_coil');
+    c.player.block = 0;
+    var b0 = c.player.block;
+    // drive a misfire by widening it to the whole die for one card
+    E.run.artifacts.push('sacrificial_fuse'); E.run.die.core.push('sacrificial_fuse');
+    var saved = VS.ARTIFACTS.sacrificial_fuse.hooks[0].v;
+    VS.ARTIFACTS.sacrificial_fuse.hooks[0].v = 19;   // everything misfires
+    var e0 = c.energy;
+    playAttack(c);
+    VS.ARTIFACTS.sacrificial_fuse.hooks[0].v = saved;
+    var re = E.events.filter(function (ev) { return ev.type === 'roll'; })[0];
+    ok('Trip Coil plates you on a tripped BREAKER (' + b0 + ' -> ' + c.player.block + ')',
+       re && re.misfire && c.player.block >= 4);
+    ok('Sacrificial Fuse dumps the breaker charge back as Energy',
+       c.energy >= e0 - 1 + 2);   // card cost 1, breaker 1 (table) + 2 (fuse)
+    E.run.phase = 'map';
+  })();
+
+  ok('Bus Primer refunds Energy on a SAG', forceBand('technomancer', BOT, function () {
+    var c = fight('technomancer', 'bus_primer');
+    var e0 = c.energy; playAttack(c);
+    return c.energy > e0 - 1;   // pulse_rifle costs 1, so break-even means +1 landed
+  }));
+  ok('Heat Ledger plates you on a SURGE', forceBand('technomancer', TOP, function () {
+    var c = fight('technomancer', 'heat_ledger');
+    c.player.block = 0; playAttack(c);
+    return c.player.block >= 3;
+  }));
+
+  // REGULATOR CLAMP: the floor is under the READ, so it has to hold for a die
+  // face resolving in its own band as well as for a live roll.
+  ok('Regulator Clamp puts a floor under the read', (function () {
+    fight('technomancer', null);
+    var bare = E.faceBandMult(3);
+    fight('technomancer', 'regulator_clamp');
+    return E.faceBandMult(3) > bare;
+  })());
+  ok('Duty Cycle splits the table by parity', (function () {
+    fight('technomancer', 'duty_cycle');
+    return E.faceBandMult(9) > E.faceBandMult(8);   // 9 climbs 3, 8 falls 3
+  })());
+
+  // CASCADE COUPLER / DISTRIBUTION FRAME reroute the charge itself.
+  ok('Cascade Coupler carries the bleed two faces further', (function () {
+    var c = fight('technomancer', 'cascade_coupler');
+    [8, 9, 10, 11, 12].forEach(function (f) { VS.dieEngrave(E.run.die, 'overcharge_cell', f); });
+    E.events = [];
+    E.fireDieFace(10, 0);
+    var faces = E.events.filter(function (ev) { return ev.type === 'dieFace'; }).map(function (ev) { return ev.face; });
+    E.run.phase = 'map';
+    return faces.indexOf(8) >= 0 && faces.indexOf(12) >= 0;
+  })());
+  ok('Distribution Frame trades the root for the neighbours', (function () {
+    var c = fight('technomancer', 'distribution_frame');
+    [9, 10, 11].forEach(function (f) { VS.dieEngrave(E.run.die, 'overcharge_cell', f); });
+    E.events = [];
+    E.fireDieFace(10, 0);
+    var ev = E.events.filter(function (e2) { return e2.type === 'dieFace'; });
+    E.run.phase = 'map';
+    var root = ev.filter(function (e2) { return e2.face === 10; })[0];
+    var side = ev.filter(function (e2) { return e2.face === 9; })[0];
+    return root && side && root.bleed === true && side.bleed === false;   // root halved, sides full
+  })());
+  ok('Substation re-fires the turn’s first face at end of turn', (function () {
+    var c = fight('technomancer', 'substation');
+    VS.dieEngrave(E.run.die, 'overcharge_cell', 14);
+    E.fireDieFace(14, 0);
+    E.events = [];
+    E.endTurn();
+    var again = E.events.some(function (ev) { return ev.type === 'dieFace' && ev.face === 14; });
+    E.run.phase = 'map';
+    return again;
+  })());
+  ok('Parity Pin reaches across the ring on an even roll', (function () {
+    var c = fight('technomancer', 'parity_pin');
+    VS.dieEngrave(E.run.die, 'overcharge_cell', 20);
+    var hit = 0;
+    for (var i = 0; i < 40 && E.run.phase === 'combat'; i++) {
+      c.energy = 30; playAttack(c);
+      if (E.events.some(function (ev) { return ev.type === 'dieFace' && ev.face === 20 && ev.why === 'opposite'; })) hit++;
+    }
+    E.run.phase = 'map';
+    return hit > 0;   // face 10 is even; its opposite is 20
+  })());
+  ok('Annealing Jig means no scar is ever permanent', (function () {
+    E.seed(3); E.newRun('technomancer'); E.takeFirstMark(0);
+    E.addArtifact('annealing_jig'); E.run.die.core.push('annealing_jig');
+    for (var f = 1; f <= 20; f++) if (!E.run.die.faces[f]) VS.dieEngrave(E.run.die, 'overcharge_cell', f);
+    for (var i = 0; i < 200; i++) E.taintDie(1);
+    var welded = 0;
+    for (var g = 1; g <= 20; g++) { var s2 = E.run.die.faces[g]; if (s2 && s2.taint === 'cold_weld') welded++; }
+    return welded === 0;
+  })());
+
+  /* ---- VOID ADEPT ---------------------------------------------------- */
+  // His relics all key off one of the two ENDS, because his table is a U and
+  // the middle is the thing he is escaping.
+  ok('Ashen Tithe draws on a HUNGER roll', forceBand('voidadept', BOT, function () {
+    // playAttack replaces the hand with the one card, so the hand is empty
+    // after the play unless the tithe drew.
+    var c = fight('voidadept', 'ashen_tithe');
+    playAttack(c);
+    var out = c.hand.length; E.run.phase = 'map';
+    return out === 1;
+  }));
+  ok('Gorge heals off the bottom of the table', forceBand('voidadept', BOT, function () {
+    var c = fight('voidadept', 'gorge');
+    E.run.hp = E.run.maxHp - 10;
+    var hp0 = E.run.hp; playAttack(c);
+    var out = E.run.hp > hp0; E.run.phase = 'map'; return out;
+  }));
+  ok("Bloodletter's Nail focuses the wound", forceBand('voidadept', [{ min: 0, mult: 1.2, label: 'HUNGER', hploss: 2 }], function () {
+    var c = fight('voidadept', 'bloodletters_nail');
+    var p0 = c.player.statuses.psiPow || 0; playAttack(c);
+    var out = (c.player.statuses.psiPow || 0) > p0; E.run.phase = 'map'; return out;
+  }));
+  ok('Crimson Ledger turns the bill into damage', (function () {
+    var band = [{ min: 0, mult: 1, label: 'HUNGER', hploss: 2 }];
+    var d0 = forceBand('voidadept', band, function () {
+      var c = fight('voidadept', null, 44); var hp = c.enemies[0].hp; playAttack(c);
+      var out = hp - c.enemies[0].hp; E.run.phase = 'map'; return out;
+    });
+    var d1 = forceBand('voidadept', band, function () {
+      var c = fight('voidadept', 'crimson_ledger', 44); var hp = c.enemies[0].hp; playAttack(c);
+      var out = hp - c.enemies[0].hp; E.run.phase = 'map'; return out;
+    });
+    return d1 === d0 + 4;   // 2 HP billed x 2 damage each
+  })());
+  ok('The Devouring crits at the bottom as well as the top', (function () {
+    var c = fight('voidadept', 'the_devouring');
+    var crits = 0, low = 0;
+    for (var i = 0; i < 120 && E.run.phase === 'combat'; i++) {
+      c.energy = 30; E.run.hp = E.run.maxHp; playAttack(c);
+      var re = E.events.filter(function (ev) { return ev.type === 'roll'; })[0];
+      if (re && re.roll >= 2 && re.roll <= 4) { low++; if (re.crit) crits++; }
+    }
+    E.run.phase = 'map';
+    return low > 0 && crits === low;
+  })());
+  ok('Wound Echo resolves the card twice on a RAVENOUS', (function () {
+    var band = [{ min: 99, mult: 1, label: 'X' }];
+    function dmg(relic) {
+      var saved = VS.BALANCE.dice.classes.voidadept;
+      VS.BALANCE.dice.classes.voidadept = { name: saved.name, read: saved.read,
+        misfire: { mult: 1, label: 'RAVENOUS' }, bands: band };
+      var out;
+      try {
+        var c = fight('voidadept', relic, 12);
+        // widen the misfire to the whole die so the next card is certainly one
+        E.run.artifacts.push('long_shots_debt');
+        var lv = VS.ARTIFACTS.long_shots_debt.hooks[1].v;
+        VS.ARTIFACTS.long_shots_debt.hooks[1].v = 19;
+        E.run.die.core.push('long_shots_debt');
+        var hp = c.enemies[0].hp; playAttack(c);
+        VS.ARTIFACTS.long_shots_debt.hooks[1].v = lv;
+        out = hp - c.enemies[0].hp;
+      } finally { VS.BALANCE.dice.classes.voidadept = saved; E.run.phase = 'map'; }
+      return out;
+    }
+    var one = dmg(null), two = dmg('wound_echo');
+    return two === one * 2;
+  })());
+  ok('Hollow Crown reads better the closer you are to death', (function () {
+    fight('voidadept', 'hollow_crown');
+    E.run.hp = E.run.maxHp;
+    var full = E.faceBandMult(12);
+    E.run.hp = Math.ceil(E.run.maxHp * 0.2);
+    var hurt = E.faceBandMult(12);
+    E.run.phase = 'map';
+    return hurt !== full;
+  })());
+  ok('Widening Maw pulls the bottom band up into the middle', (function () {
+    fight('voidadept', null);
+    var mid0 = E.faceBandMult(9);
+    fight('voidadept', 'widening_maw');
+    return E.faceBandMult(9) > mid0;   // WHISPER 0.9 -> HUNGER 1.2
+  })());
+  ok('Second Mouth bleeds at full from an end face', (function () {
+    var c = fight('voidadept', 'second_mouth');
+    [17, 18, 19].forEach(function (f) { VS.dieEngrave(E.run.die, 'overcharge_cell', f); });
+    E.events = [];
+    E.fireDieFace(18, 0);     // 18 is ATTUNED, the top of his table
+    var side = E.events.filter(function (ev) { return ev.type === 'dieFace' && ev.face === 17; })[0];
+    E.run.phase = 'map';
+    return side && side.bleed === false;
+  })());
+  ok('Twin Maw reaches across the ring on a 20', (function () {
+    var c = fight('voidadept', 'twin_maw');
+    VS.dieEngrave(E.run.die, 'overcharge_cell', 10);
+    var hit = 0;
+    for (var i = 0; i < 120 && E.run.phase === 'combat'; i++) {
+      c.energy = 30; E.run.hp = E.run.maxHp; playAttack(c);
+      if (E.events.some(function (ev) { return ev.type === 'dieFace' && ev.face === 10 && ev.why === 'opposite'; })) hit++;
+    }
+    E.run.phase = 'map';
+    return hit > 0;   // face 20's opposite is 10
+  })());
+  ok('Scarfeeder turns the void’s scars into Might', (function () {
+    E.seed(9); E.newRun('voidadept'); E.takeFirstMark(0);
+    E.addArtifact('scarfeeder'); E.run.die.core.push('scarfeeder');
+    for (var f = 1; f <= 6; f++) if (!E.run.die.faces[f]) VS.dieEngrave(E.run.die, 'overcharge_cell', f);
+    E.taintDie(3);
+    var scars = 0;
+    for (var g = 1; g <= 20; g++) { var s2 = E.run.die.faces[g]; if (s2 && s2.root === g && s2.taint) scars++; }
+    E.run.faction = 'hierarchy'; E.run.nodeIdx = 0; E.startNode('fight');
+    var str = E.combat.player.statuses.str || 0;
+    E.run.phase = 'map';
+    return scars > 0 && str === scars;
+  })());
+
+  /* A listener whose trigger nothing emits is the quietest bug in the game: it
+   * sits on your die looking like an engraving forever. Three of the six kinds
+   * the two new class sets needed (shield, power, construct, burn, debuff, psi)
+   * did not exist before them, so this asserts every kind any engraving listens
+   * for is a kind the engine actually raises. */
+  (function () {
+    var src = require('fs').readFileSync(__dirname + '/../js/engine.js', 'utf8');
+    var kinds = {}, dead = [];
+    Object.keys(VS.DIE_AUGMENTS).forEach(function (id) {
+      var k = VS.DIE_AUGMENTS[id].listen; if (k) kinds[k] = id;
+    });
+    // Some kinds are raised by name at the call site and some come out of a
+    // lookup (`_statListen`, the enemy-status `trig`), so collect the literals
+    // from the call sites AND from the lines that feed them.
+    var raised = {};
+    src.split('\n').forEach(function (line) {
+      if (!/fireListeners\(|_statListen|var trig =/.test(line)) return;
+      (line.match(/'[a-zA-Z]+'/g) || []).forEach(function (q) { raised[q.slice(1, -1)] = 1; });
+    });
+    Object.keys(kinds).forEach(function (k) { if (!raised[k]) dead.push(k + ' (' + kinds[k] + ')'); });
+    ok('every listener trigger is one the engine actually raises' + (dead.length ? ' — ' + dead.join(', ') : ''),
+       dead.length === 0);
+    ok('the die uses more than a handful of triggers (' + Object.keys(kinds).length + ')',
+       Object.keys(kinds).length >= 10);
+  })();
+
+  /* Relic art is hand-authored coordinate soup, and the failure is silent: a
+   * polyline with an odd coordinate count drops its last point, and anything
+   * past |1.2| is simply cropped away by the 24x24 icon box. */
+  (function () {
+    var noArt = [], odd = [], outside = [], blank = [];
+    Object.keys(VS.ARTIFACTS).forEach(function (id) {
+      var a = VS.ARTIFACTS[id];
+      if (!a.art || !a.art.p) { noArt.push(id); return; }
+      if (!a.art.p.length) { blank.push(id); return; }
+      a.art.p.forEach(function (poly) {
+        if (poly.length % 2 !== 0 || poly.length < 4) odd.push(id);
+        for (var i = 0; i < poly.length; i += 2) {
+          if (Math.abs(poly[i]) > 1.2 || Math.abs(poly[i + 1]) > 1.2) { outside.push(id); return; }
+        }
+      });
+      (a.art.e || []).forEach(function (e) {
+        if (Math.abs(e[0]) > 1.2 || Math.abs(e[1]) > 1.2) outside.push(id);
+      });
+    });
+    ok('every relic has art' + (noArt.length ? ' — ' + noArt.join(', ') : ''), noArt.length === 0);
+    ok('no relic draws nothing' + (blank.length ? ' — ' + blank.join(', ') : ''), blank.length === 0);
+    ok('every relic polyline is whole' + (odd.length ? ' — ' + odd.join(', ') : ''), odd.length === 0);
+    ok('no relic art is cropped by the icon box' + (outside.length ? ' — ' + outside.join(', ') : ''), outside.length === 0);
+  })();
+
+  // Every die relic must belong to a class that can actually read a band, or
+  // it is a relic that does nothing for whoever draws it.
+  var orphan = Object.keys(VS.ARTIFACTS).filter(function (id) {
+    var a = VS.ARTIFACTS[id];
+    return a.cls && !VS.BALANCE.dice.classes[a.cls];
+  });
+  ok('no relic is keyed to a class with no die table' + (orphan.length ? ' — ' + orphan.join(', ') : ''),
+     orphan.length === 0);
+
+  // The three sets should be comparable in size — one class with twice the die
+  // relics of another is a parity problem before it is a design one.
+  var per = { vanguard: 0, technomancer: 0, voidadept: 0 };
+  Object.keys(VS.ARTIFACTS).forEach(function (id) { if (per[VS.ARTIFACTS[id].cls] != null) per[VS.ARTIFACTS[id].cls]++; });
+  var lo = Math.min(per.vanguard, per.technomancer, per.voidadept);
+  var hi = Math.max(per.vanguard, per.technomancer, per.voidadept);
+  ok('the three class relic pools are comparable (' + per.vanguard + '/' + per.technomancer + '/' + per.voidadept + ')',
+     hi - lo <= 5);
+})();
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

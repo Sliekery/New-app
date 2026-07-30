@@ -23,7 +23,7 @@ var PAGE = 'file://' + path.resolve(__dirname, '..', 'voidspire.html');
 
 var TEXT_FLOOR = 8.4;      // below this a condensed mono face stops being readable on a phone
 var SCROLL_SLACK = 520;    // default allowance
-var SLACK = { die: 900, dietray: 900 };   // the face index is a long list on purpose
+var SLACK = { die: 900, dietray: 900, dierelic: 900 };   // the face index is a long list on purpose
 
 var VIEWPORTS = [
   ['phone',   390, 844],
@@ -51,6 +51,17 @@ var SCREENS = {
   dietray: function () {
     var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.run.phase = 'map';
     E.run.die.pending = ['ranging_mark', 'jam_clearance', 'executioners_mark'];
+    VS.ui.refresh(); VS.ui.showDie();
+  },
+  // The band table is read through the engine, relics and all, so a relic that
+  // deletes a band (Regulator Clamp) or splits one (Duty Cycle) changes how
+  // many rows this screen draws — check the shortest and longest tables it can
+  // produce rather than only the default three.
+  dierelic: function () {
+    var E = VS.engine; E.seed(5); E.newRun('technomancer'); E.run.phase = 'map';
+    ['regulator_clamp', 'duty_cycle', 'sacrificial_fuse'].forEach(function (id) {
+      E.addArtifact(id); E.run.die.core.push(id);
+    });
     VS.ui.refresh(); VS.ui.showDie();
   },
   sector: function () { var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.run.sector = 2; E.run.phase = 'sector-intro'; VS.ui.refresh(); },
