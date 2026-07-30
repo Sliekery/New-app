@@ -1533,6 +1533,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   100% { opacity: 0; transform: translate(-50%, -105%) scale(1); }
 }
 @media (max-width: 380px) { #chain-ledger { width: 208px; font-size: 9px; } #chain-ledger .cl-c { flex-basis: 40px; } #chain-ledger .cl-sub { padding-left: 54px; } }
+/* On a short screen the WHY line is the first thing to go: it is the detail, and
+   detail is what you give up when there is no room, not the ledger itself. */
+@media (max-height: 520px) {
+  #chain-ledger { top: 15%; width: 210px; }
+  #chain-ledger .cl-sub { display: none; }
+  #chain-ledger .cl-ln { padding-top: 1px; }
+}
 
 /* ---- The Die: 3D stage -------------------------------------------------- */
 .die-stage { width: 100%; max-width: 620px; margin: 2px auto 0; display: flex; justify-content: center; }

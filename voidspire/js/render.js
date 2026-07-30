@@ -81,10 +81,31 @@
     layout();
   };
 
-  /* ---- battlefield layout ---------------------------------------------- */
-  function fieldTop() { return 96; }
-  function fieldBottom() { return H - 170; }
-  function baseY() { return fieldTop() + (fieldBottom() - fieldTop()) * 0.52; }
+  /* ---- battlefield layout ----------------------------------------------
+   * FIGURE SIZE IS TIED TO THE BAND THE FIGURES HAVE TO FIT IN, not to
+   * min(W, H). That old basis picked WIDTH in portrait and HEIGHT in landscape,
+   * so the same character was drawn at 45px on a phone and 67.5px turned
+   * sideways — 50% bigger, for no reason anyone chose. Measured, both ways.
+   *
+   * Taking the smaller of "a fraction of the width" and "a fraction of the
+   * usable vertical band" means the figures shrink when either axis is tight and
+   * never overrun the ground they stand on.
+   * -------------------------------------------------------------------- */
+  /* The reserves are PROPORTIONAL with a cap, not flat pixels. 96 above and 170
+   * below are the HUD and the hand on a tall phone — but held flat they eat
+   * 266px of a 390px landscape screen, 68% of it, leaving the fight a 124px
+   * band to stand in. That was true before any of this and the old figure scale
+   * simply overflowed it rather than fitting. */
+  function fieldTop() { return Math.min(96, H * 0.14); }
+  function fieldBottom() { return H - Math.min(170, H * 0.28); }
+  function fieldBand() { return fieldBottom() - fieldTop(); }
+  function figScale(k) { return Math.min(W * k, fieldBand() * k * 1.5); }
+  /* The line the fight stands on sits LOW, at 0.72 of the band rather than 0.52.
+   * At 0.52 everything piled into the upper half and 42% of the battlefield
+   * below the figures was empty grid — measured on three viewports. That dead
+   * space was the reason the chain receipt had nowhere to live except on top of
+   * the fight. Dropping the line fills it and frees the top for the readouts. */
+  function baseY() { return fieldTop() + fieldBand() * 0.72; }
 
   // where summoned minions fan out relative to their spawner (mult of spawner
   // radius): leads with straight up / straight down, then around — so adds feel
@@ -114,7 +135,7 @@
       else fx = 0.34 + (0.93 - 0.34) * (b / (bn - 1));
       bv.x = W * fx;
       bv.y = y;
-      bv.r = Math.min(W, H) * 0.105 * (bv.def.size || 1) * bshrink;
+      bv.r = figScale(0.092) * (bv.def.size || 1) * bshrink;
     }
     // minions: fan around their spawner with vertical offset, clamped on-field
     var per = {};
@@ -122,7 +143,7 @@
       var mv = minions[mi], sp = R.views[mv.anchorFrom];
       var k = per[mv.anchorFrom] || 0; per[mv.anchorFrom] = k + 1;
       var slot = MINION_SLOTS[k % MINION_SLOTS.length];
-      var rr = Math.min(W, H) * 0.105 * (mv.def.size || 1) * 0.7;
+      var rr = figScale(0.092) * (mv.def.size || 1) * 0.7;
       mv.r = rr;
       mv.x = Math.max(rr + 4, Math.min(W - rr - 4, sp.x + sp.r * slot[0] + rr * 0.3));
       mv.y = Math.max(fieldTop() + rr, Math.min(fieldBottom() - rr, sp.y + sp.r * slot[1]));
@@ -204,7 +225,7 @@
   // Short card-play animation, keyed by card type: 'attack' | 'defend' | 'utility'.
   R.playerAnim = function (type, targetIdx) {
     R.player.animT = t; R.player.animType = type;
-    var p = R.playerXY(), sc = Math.min(W, H) * 0.1125;
+    var p = R.playerXY(), sc = figScale(0.098);
     var run = ns.engine.run, cls = run && run.cls;
     var col = ((run && CLASS_ART[cls]) || CLASS_ART.vanguard).color;
     if (type === 'attack') {
@@ -1920,7 +1941,7 @@
     var r = ns.engine.run;
     if (!r) return;
     var p = R.playerXY();
-    var scale = Math.min(W, H) * 0.1125;
+    var scale = figScale(0.098);
     // breathing at two rates so the idle never ticks like a metronome, plus a slow
     // weight shift boot-to-boot — the trooper is holding a stance, not standing still.
     var bob = Math.sin(t * 1.6) * 1.4 + Math.sin(t * 0.83) * 0.7;
