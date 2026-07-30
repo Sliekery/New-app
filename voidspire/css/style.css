@@ -1511,6 +1511,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 #chain-ledger .cl-flaw { color: #ff4a5e; }
 #chain-ledger .cl-rule { border-top: 1px solid rgba(255,176,46,0.28); margin: 4px 0 3px; }
 #chain-ledger .cl-tot { color: #5dff88; }
+#chain-ledger .cl-more { padding: 1px 8px 1px 62px; font: 600 8.5px/1.5 ui-monospace, monospace; color: #55675c; letter-spacing: 0.08em; }
+/* On a WIDE screen the die sits far to the right of the panel and cannot be hit,
+   so the receipt lifts to clear the figures — which are correspondingly large
+   there, putting the player's head higher than on a phone. No height condition:
+   1366x640 is wide AND short, and with one it fell between this rule and the
+   landscape block below and kept its phone placement. */
+@media (min-width: 1000px) { #chain-ledger { top: 8%; } }
 
 /* --- hitstop: the frame holds and everything but the chain drains --- */
 #game.hitstop #battlefield, #game.hitstop #hand, #game.hitstop #hud, #game.hitstop #combat-controls {
@@ -1533,12 +1540,26 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   100% { opacity: 0; transform: translate(-50%, -105%) scale(1); }
 }
 @media (max-width: 380px) { #chain-ledger { width: 208px; font-size: 9px; } #chain-ledger .cl-c { flex-basis: 40px; } #chain-ledger .cl-sub { padding-left: 54px; } }
-/* On a short screen the WHY line is the first thing to go: it is the detail, and
-   detail is what you give up when there is no room, not the ledger itself. */
+/* LANDSCAPE IS THE ORIENTATION THIS IS PLAYED IN, and in landscape the whole
+ * frame is CSS-scaled to fit — 0.65 on an 844x390 phone, 0.60 at 740x360. Every
+ * DOM size set here is multiplied by that before it reaches the screen, so the
+ * die and the receipt were landing at about two thirds of their intended size:
+ * 57px of die, 6.5px of receipt text. Measured, not guessed.
+ *
+ * These sizes are pre-divided by that scale so the RESULT matches what portrait
+ * gets. The WHY line still goes — the vertical band is genuinely short here, and
+ * detail is what you give up when there is no room, not the ledger itself. */
 @media (max-height: 520px) {
-  #chain-ledger { top: 15%; width: 210px; }
+  #chain-ledger { top: 11.5%; width: 330px; font-size: 14px; border-radius: 4px; }
+  #chain-ledger .cl-hd { font-size: 13px; padding: 5px 10px; }
+  #chain-ledger .cl-n { font-size: 23px; }
+  #chain-ledger .cl-ln { padding: 2px 10px 0 11px; gap: 8px; }
+  #chain-ledger .cl-c { flex-basis: 64px; font-size: 12px; }
   #chain-ledger .cl-sub { display: none; }
-  #chain-ledger .cl-ln { padding-top: 1px; }
+  #chain-ledger .cl-more { padding: 1px 10px 1px 75px; font-size: 12px; color: #6f8579; letter-spacing: 0.08em; }
+  #combat-die, #combat-die .die3d { width: 132px; height: 132px; }
+  #combat-die { top: calc(env(safe-area-inset-top, 0px) + 52px); }
+  #combat-die .die-n { font-size: 26px; }
 }
 
 /* ---- The Die: 3D stage -------------------------------------------------- */

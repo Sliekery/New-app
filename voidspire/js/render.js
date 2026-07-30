@@ -99,7 +99,10 @@
   function fieldTop() { return Math.min(96, H * 0.14); }
   function fieldBottom() { return H - Math.min(170, H * 0.28); }
   function fieldBand() { return fieldBottom() - fieldTop(); }
-  function figScale(k) { return Math.min(W * k, fieldBand() * k * 1.5); }
+  // 1.8, not 1.5: landscape is the orientation this is played in, and at 1.5 the
+  // band term bound so hard there that the figures used a quarter of the ground
+  // they had. Portrait and desktop are width-bound and unaffected.
+  function figScale(k) { return Math.min(W * k, fieldBand() * k * 1.8); }
   /* The line the fight stands on sits LOW, at 0.72 of the band rather than 0.52.
    * At 0.52 everything piled into the upper half and 42% of the battlefield
    * below the figures was empty grid — measured on three viewports. That dead

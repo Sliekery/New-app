@@ -120,7 +120,7 @@ node test/mechanics.js      # unit tests for the build-defining keywords
 ```
 
 Layout is the one thing these cannot check — jsdom computes no geometry — so
-two tools drive real headless Chromium instead. Install `playwright-core`
+three tools drive real headless Chromium instead. Install `playwright-core`
 first, and remove `node_modules` before committing:
 
 ```sh
@@ -130,8 +130,21 @@ node test/uifit.js          # every overlay screen at phone / small / desktop:
 node test/cardfit.js        # every card variant in a real reward grid: fails if
                             # any description still clips at the auto-shrink floor
 node test/cardfit.js --all  # …and lists the ones that only fit by shrinking
+node test/combatfit.js      # the combat HUD against the FIGHT, on ten viewports
 rm -rf node_modules
 ```
+
+`combatfit.js` exists because `uifit.js` structurally cannot catch its class of
+bug: the player and the enemies are drawn on a canvas and have no DOM boxes, so
+a DOM-only overlap check passes cleanly while the chain receipt sits on the
+player's head. It measures the readouts against the figures' real drawn extents
+— staff tip included — at every chain length.
+
+It leads with landscape, because that is the orientation the game is played in
+and it is the one that breaks. In landscape the whole frame is CSS-scaled to fit
+(0.65 on an 844x390 phone), so every DOM size is multiplied by that before it
+reaches the screen: a panel tuned while looking at portrait arrives a third
+smaller, and one that clears the figures in portrait can cover them here.
 
 The bot plays like a competent-but-not-expert human (blocks lethal damage,
 finishes kills, picks sensible rewards). The difficulty curve is calibrated

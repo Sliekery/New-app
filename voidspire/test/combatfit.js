@@ -1,0 +1,122 @@
+/* =========================================================================
+ * VOIDSPIRE — test/combatfit.js
+ * Does the combat HUD stay out of the fight's way?
+ *
+ * This game is played in LANDSCAPE, where the whole frame is CSS-scaled to fit
+ * (0.65 on an 844x390 phone, 0.60 at 740x360) — so every DOM size is multiplied
+ * by that before it reaches the screen, and a panel that clears the figures on a
+ * portrait phone can sit squarely on the player's head turned sideways.
+ *
+ * uifit.js checks the overlay SCREENS. It cannot catch any of this, because the
+ * player and the enemies are drawn on a CANVAS and have no DOM boxes to compare
+ * against — so a DOM-only overlap check reports a clean bill of health while the
+ * receipt covers the fight. This measures the readouts against the figures'
+ * real drawn extents, at every chain length, on ten viewports.
+ * ========================================================================= */
+'use strict';
+
+var path = require('path');
+
+// The ones that matter first: landscape phones and tablets, the way it is
+// played. Portrait and desktop follow, so neither can regress unnoticed.
+var VIEWPORTS = [
+  ['land-844',    844, 390], ['land-740',   740, 360], ['land-932',  932, 430],
+  ['land-1024',  1024, 480], ['land-1194', 1194, 560], ['land-1366', 1366, 640],
+  ['tablet-1180', 1180, 820], ['desktop',  1440, 900],
+  ['portrait',    390, 844], ['small-360',  360, 640],
+];
+
+// 3 is the longest chain 3600 played cards ever produced (the engine's chain
+// depth cap is 2). 5 and 12 are there to prove the receipt stays bounded well
+// past anything the engine can actually generate.
+var CHAIN_LENGTHS = [1, 3, 5, 12];
+
+var pc;
+try { pc = require('playwright-core'); } catch (e) {
+  console.log('SKIP: playwright-core not installed'); process.exit(0);
+}
+
+pc.chromium.launch({
+  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  args: ['--no-sandbox'],
+}).then(async function (browser) {
+  var fails = 0, checks = 0;
+
+  for (var i = 0; i < VIEWPORTS.length; i++) {
+    var name = VIEWPORTS[i][0];
+    var page = await browser.newPage({ viewport: { width: VIEWPORTS[i][1], height: VIEWPORTS[i][2] } });
+    var errs = [];
+    page.on('pageerror', function (e) { errs.push(e.message); });
+    await page.goto('file://' + path.resolve(__dirname, '..', 'voidspire.html'));
+    await page.waitForTimeout(700);
+    await page.evaluate(function () {
+      var E = VS.engine;
+      E.seed(4); E.newRun('technomancer'); E.takeFirstMark(0);
+      E.run.faction = 'hierarchy'; E.run.nodeIdx = 0; E.startNode('fight');
+      VS.ui.refresh();
+    });
+    await page.waitForTimeout(500);
+
+    for (var c = 0; c < CHAIN_LENGTHS.length; c++) {
+      var r = await page.evaluate(function (n) {
+        VS.ui.probeChainWipe();
+        for (var k = 0; k < n; k++) VS.ui.probeChainLink(k);
+
+        var l = document.getElementById('chain-ledger');
+        var b = l.getBoundingClientRect();
+        var cvE = document.querySelector('canvas'), cv = cvE.getBoundingClientRect();
+        var R = VS.render, dpr = Math.min(2, window.devicePixelRatio || 1);
+        var RW = cvE.width / dpr, RH = cvE.height / dpr;
+        var sy = cv.height / RH, sx = cv.width / RW;
+
+        // mirror render.js's own layout maths so the test measures the figures
+        // where they are actually drawn, not where a guess puts them
+        var band = (RH - Math.min(170, RH * 0.28)) - Math.min(96, RH * 0.14);
+        var sc = Math.min(RW * 0.098, band * 0.098 * 1.8);
+        var pl = R.playerXY(), worst = 0, who = '';
+
+        // the player's drawn top is the staff tip, ~1.9x scale above centre
+        var pTop = cv.top + (pl.y - sc * 1.9) * sy;
+        var pRight = cv.left + (pl.x + sc * 1.2) * sx;
+        if (b.bottom > pTop && b.left < pRight) { worst = Math.round(b.bottom - pTop); who = 'player'; }
+
+        // enemies: radius plus the intent badge that floats above them
+        R.views.forEach(function (v, vi) {
+          var top = cv.top + (v.y - v.r - 34) * sy, left = cv.left + (v.x - v.r) * sx;
+          if (b.bottom > top && b.right > left) {
+            var o = Math.round(b.bottom - top);
+            if (o > worst) { worst = o; who = 'enemy' + vi; }
+          }
+        });
+
+        var d = document.getElementById('combat-die').getBoundingClientRect();
+        var g = document.getElementById('game').getBoundingClientRect();
+        return {
+          clash: worst, who: who,
+          dieHit: (b.right > d.left && b.left < d.right && b.bottom > d.top && b.top < d.bottom),
+          off: b.bottom > g.bottom + 1 || b.right > g.right + 1 || b.top < g.top - 1 || b.left < g.left - 1,
+          rows: l.querySelectorAll('.cl-ln').length,
+        };
+      }, CHAIN_LENGTHS[c]);
+
+      checks++;
+      var bad = [];
+      if (r.clash > 0) bad.push('covers ' + r.who + ' by ' + r.clash + 'px');
+      if (r.dieHit) bad.push('covers the die');
+      if (r.off) bad.push('off-frame');
+      if (r.rows > 4) bad.push('receipt grew to ' + r.rows + ' rows (cap 4)');
+      if (bad.length) { fails++; console.log(' FAIL ' + name + ' @' + CHAIN_LENGTHS[c] + ' links: ' + bad.join(' · ')); }
+      else console.log('  ok  ' + name + ' @' + CHAIN_LENGTHS[c] + ' links');
+    }
+
+    if (errs.length) { fails++; console.log(' FAIL ' + name + ': page errors — ' + errs.slice(0, 2).join(' | ')); }
+    await page.close();
+  }
+
+  await browser.close();
+  console.log('\n' + checks + ' combat-fit checks, ' + (fails === 0 ? 'ALL COMBAT FIT CHECKS PASSED' : fails + ' FAILED'));
+  process.exit(fails === 0 ? 0 : 1);
+}).catch(function (e) {
+  console.log('SKIP: could not launch Chromium (' + e.message.split('\n')[0] + ')');
+  process.exit(0);
+});

@@ -573,6 +573,11 @@
     batch: 0,         // which action the chain on screen belongs to
   };
   var CHAIN_HOP_MAX = 5;   // links the die itself walks before it lets the receipt carry it
+  /* Four link rows, on every screen. The engine's chain depth cap is 2, and a
+   * sweep of 3600 played cards never produced more than 3 links — so four shows
+   * every chain that actually happens, and anything beyond it is exceptional
+   * enough to elide. A cap that varies by viewport just moves where it breaks. */
+  var CHAIN_ROWS_MAX = 4;
   /* THE RECEIPT STAYS UP UNTIL YOU ACT AGAIN. It used to fade on a 1.5s timer,
    * which is long enough to watch and far too short to READ — and reading it is
    * the entire point of having it. So it is cleared by the next thing you do
@@ -669,8 +674,39 @@
     if (e.taint) det.push('SCARRED');
     var sub = el('div', 'cl-sub', esc(det.join(' · ')));
     l.appendChild(ln); l.appendChild(sub);
+    chainElide(l);
     l.classList.add('on');
     requestAnimationFrame(function () { ln.classList.add('on'); sub.classList.add('on'); });
+  }
+
+  /* IN LANDSCAPE THE RECEIPT HAS A CEILING, because landscape is the orientation
+   * this is played in and there the sky above the player is only so tall. A
+   * five-link chain overhung the player's head by 23px and a longer one by more
+   * — measured against the drawn figure, staff included, not against a guess.
+   *
+   * It elides rather than growing: keep the ROOT, keep the most recent links,
+   * and collapse the middle into a marker. Growing upward from a fixed bottom
+   * was the other option and it reads worse — every new link would shove the
+   * lines you were already reading. */
+  function chainElide(l) {
+    var rows = l.querySelectorAll('.cl-ln');
+    if (rows.length <= CHAIN_ROWS_MAX) return;
+    var mark = l.querySelector('.cl-more');
+    if (!mark) {
+      mark = el('div', 'cl-more', '');
+      l.insertBefore(mark, rows[1]);                      // directly under the root
+    }
+    // drop the oldest link that is not the root, and its detail line
+    var victim = null;
+    for (var i = 1; i < rows.length; i++) {
+      if (rows[i].compareDocumentPosition(mark) & Node.DOCUMENT_POSITION_PRECEDING) { victim = rows[i]; break; }
+    }
+    if (!victim) return;
+    var nx = victim.nextElementSibling;
+    if (nx && nx.classList.contains('cl-sub')) nx.remove();
+    victim.remove();
+    mark.dataset.n = String((+mark.dataset.n || 0) + 1);
+    mark.textContent = '⋯ ' + mark.dataset.n + ' more';
   }
   // the title bar, written once per chain, with the count living in it
   function chainHeader() {
@@ -3307,6 +3343,15 @@
   U.probePlay = function (i, targetIdx) { playCardAt(i, targetIdx == null ? 0 : targetIdx); };
   // which face the combat die is currently showing (test/chainfeel.js)
   U.probeDieFace = function () { return combatDie ? combatDie.face() : null; };
+  // drive the receipt directly so its height and elision can be measured at any
+  // chain length, including ones the engine only reaches rarely (test/uifit.js)
+  U.probeChainWipe = function () { chainWipe(); };
+  U.probeChainLink = function (i) {
+    CHAIN.batch = chainBatch; CHAIN.n = i;
+    chainLedger({ name: 'Sympathetic Coil', face: 13 - (i % 5), dealt: 9,
+                  why: i === 0 ? '' : 'bleed', bleed: i > 0 },
+                i === 0 ? 'root' : 'bleed', i === 0 ? '' : '↳ ');
+  };
   U.probeCast = function (cardId) {
     var def = ns.CARDS[cardId]; if (!def || !E.combat) return false;
     var card = { uid: -1, id: cardId, up: false };
