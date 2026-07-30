@@ -16929,15 +16929,25 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     n: 0,             // links so far this card
     dmg: 0, blk: 0, en: 0,
     stopped: false,
+    batch: 0,         // which action the chain on screen belongs to
   };
-  function chainReset() {
+  /* THE RECEIPT STAYS UP UNTIL YOU ACT AGAIN. It used to fade on a 1.5s timer,
+   * which is long enough to watch and far too short to READ — and reading it is
+   * the entire point of having it. So it is cleared by the next thing you do
+   * rather than by a clock: playing a card wipes it outright, and a chain that
+   * happens on someone else's turn (a construct setting off a listener, say)
+   * replaces it lazily when its first link lands. */
+  var chainBatch = 0;
+  function chainWipe() {
     CHAIN.n = 0; CHAIN.dmg = 0; CHAIN.blk = 0; CHAIN.en = 0; CHAIN.stopped = false;
+    CHAIN.batch = chainBatch;
     var c = document.getElementById('chain-combo');
     var l = document.getElementById('chain-ledger');
     if (c) { c.classList.remove('on', 'bump'); c.innerHTML = ''; }
     if (l) { l.classList.remove('on'); l.innerHTML = ''; }
     chainRim(0);
   }
+  function chainReset() { chainWipe(); }
   function chainRim(n) {
     var g = document.getElementById('game'); if (!g) return;
     var rim = document.getElementById('chain-rim');
@@ -16953,6 +16963,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // counter, the receipt line, and — if this is the one that crosses the
   // threshold — the frame holds.
   function chainLink(e, pp) {
+    // a chain from a later action replaces whatever is still on screen
+    if (CHAIN.batch !== chainBatch) chainWipe();
     CHAIN.n++;
     var i = CHAIN.n - 1;
     CHAIN.dmg += (e.dealt || 0); CHAIN.blk += (e.blk || 0); CHAIN.en += (e.en || 0);
@@ -16992,7 +17004,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
   // Printed once the chain is over, so the receipt has a bottom line.
   function chainTotal() {
-    if (CHAIN.n < 2) { chainFade(); return; }
+    if (CHAIN.n < 2) { chainCool(); return; }
     var l = document.getElementById('chain-ledger');
     if (l) {
       var bits = [];
@@ -17008,18 +17020,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       }
     }
     SFX.chainBreak(CHAIN.n);
-    chainFade();
+    chainCool();
   }
-  function chainFade() {
-    var n = CHAIN.n;
-    setTimeout(function () {
-      if (CHAIN.n !== n) return;             // a new chain started; leave it alone
-      var c = document.getElementById('chain-combo');
-      var l = document.getElementById('chain-ledger');
-      if (c) c.classList.remove('on');
-      if (l) l.classList.remove('on');
-      chainRim(0);
-    }, 1500);
+  /* The numbers stay; the FLASH does not. The rim glow is a hit effect, and
+   * leaving a heavy orange vignette over the hand while you pick your next card
+   * would tint every decision you make. It eases out on its own; the receipt and
+   * the count sit there until you act. */
+  function chainCool() {
+    var b = CHAIN.batch;
+    setTimeout(function () { if (CHAIN.batch === b) chainRim(0); }, 700);
   }
   /* HITSTOP. Only for a chain worth remarking on, because a stutter on every
    * roll is a stutter you resent. The chain layer keeps its colour while
@@ -19605,6 +19614,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var srcEl = $hand.children[i];
     var srcRect = srcEl ? srcEl.getBoundingClientRect() : null;
     var clone = srcEl ? srcEl.cloneNode(true) : null;
+    chainBatch++; chainWipe();      // playing a card is what clears the last receipt
     E.events.length = 0;
     var ok = E.playCard(i, targetIdx);
     if (!ok) { renderHand(); return; }
@@ -19669,8 +19679,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function playTimeline(evts, stepDelay, done) {
     var delay = 0;
     var pp = R.playerXY();
-    // one action, one chain: the counter and the receipt belong to THIS play
-    chainReset();
+    // A new action, but do NOT clear yet: a receipt is worth reading through
+    // the enemy turn. The next chain that actually fires replaces it.
+    chainBatch++;
     // timing pre-pass: when one action hits several enemies (AoE), resolve their
     // damage and deaths together; multi-hits on a single enemy still stagger.
     function isHit(e) { return (e.type === 'dmg' || e.type === 'die') && e.who !== 'player'; }
