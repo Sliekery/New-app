@@ -216,31 +216,32 @@ setHand(['combat_shield']); // a shield CARD
 playId('combat_shield');
 ok('playing a Shield card DOES set playedShield', E.combat.playedShield === true);
 
-/* ---- relics you have to earn (was: the class-quest chain) ---- */
-
-/* 16. Unlockable relics are earned, never dropped */
-E.seed(5); E.newRun('vanguard');
-var locked = E.lockedRelics();
-ok('a class starts with its unlockable relics locked', locked.length === 2);
-ok('and they carry a stated requirement',
-   locked.every(function (id) { var u = VS.ARTIFACTS[id].unlock; return u && u.goal > 0 && !!u.label; }));
-var dropped = [];
-for (var dz = 0; dz < 300; dz++) { E.seed(dz); E.newRun('vanguard'); var got = E.randomArtifact(1); if (got && VS.ARTIFACTS[got].unlock) dropped.push(got); }
-ok('an unlockable relic never turns up as a drop' + (dropped.length ? ' — ' + dropped[0] : ''), dropped.length === 0);
-
-/* 17. Meeting the requirement grants it, on the spot */
-E.seed(5); E.newRun('vanguard');
-var target = E.lockedRelics().filter(function (id) { return VS.ARTIFACTS[id].unlock.track === 'kills'; })[0];
-var goal = VS.ARTIFACTS[target].unlock.goal;
-E.events = [];
-for (var qk = 0; qk < goal; qk++) E.classQuestTick('kills', 1);
-ok('meeting the requirement grants the relic (' + VS.ARTIFACTS[target].name + ')', E.run.artifacts.indexOf(target) >= 0);
-ok('and announces it, so the deed reads as the cause',
-   E.events.some(function (e) { return e.type === 'relicUnlocked' && e.id === target; }));
-ok('it is no longer listed as locked', E.lockedRelics().indexOf(target) < 0);
-var before = E.run.artifacts.length;
-E.classQuestTick('kills', goal);
-ok('and cannot be granted twice', E.run.artifacts.length === before);
+/* ---- the earned-relic system is GONE -----------------------------------
+ * Six relics used to be locked behind an in-run deed and granted the moment you
+ * met it, with the progress shown nowhere at all — so they materialised
+ * mid-fight and read as random. The feature was cut; these assert it stayed cut
+ * and that the six became ordinary drops rather than becoming unreachable.
+ * -------------------------------------------------------------------- */
+ok('no relic is locked behind a hidden deed any more',
+   !Object.keys(VS.ARTIFACTS).some(function (id) { return !!VS.ARTIFACTS[id].unlock; }));
+ok('the engine no longer exposes the earned-relic API',
+   !E.lockedRelics && !E.relicProgress && !E.classQuestTick);
+(function () {
+  // the six that were locked must actually be reachable as drops now
+  var WAS_LOCKED = ['recoilless_frame', 'execution_protocol', 'forge_reserve',
+                    'capacitive_plating', 'hexweaver', 'void_conduit'];
+  var seen = {};
+  ['vanguard', 'technomancer', 'voidadept'].forEach(function (cls) {
+    for (var dz = 0; dz < 400; dz++) {
+      E.seed(dz); E.newRun(cls);
+      var got = E.randomArtifact(1);
+      if (got) seen[got] = 1;
+    }
+  });
+  var unreachable = WAS_LOCKED.filter(function (id) { return !seen[id]; });
+  ok('every formerly-locked relic now drops normally' + (unreachable.length ? ' — ' + unreachable.join(', ') : ''),
+     unreachable.length === 0);
+})();
 
 /* 18. The absorbed augments still work as relics */
 startFight('vanguard');

@@ -235,6 +235,16 @@
     $die = el('div', '', '<svg viewBox="0 0 40 40" class="die-svg"><polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="none" stroke="currentColor" stroke-width="2"/><polygon points="20,8 31,26 9,26" fill="none" stroke="currentColor" stroke-width="1" opacity="0.5"/></svg><span class="die-n">—</span>');
     $die.id = 'combat-die';
     $die.style.display = 'none';
+    $die.insertBefore(el('canvas', 'die3d'), $die.firstChild);
+    // Tapping the die opens the engraving screen. It is the same solid, so
+    // "look closer at the thing that just fired" is one gesture rather than a
+    // trip back to the star chart.
+    $die.addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation();
+      if (locked || !E.combat || E.combat.over) return;
+      SFX.tap();
+      showDieScreen();
+    });
     $game.appendChild($die);
 
     $counts = el('div', '', '');
@@ -562,6 +572,7 @@
     stopped: false,
     batch: 0,         // which action the chain on screen belongs to
   };
+  var CHAIN_HOP_MAX = 5;   // links the die itself walks before it lets the receipt carry it
   /* THE RECEIPT STAYS UP UNTIL YOU ACT AGAIN. It used to fade on a 1.5s timer,
    * which is long enough to watch and far too short to READ — and reading it is
    * the entire point of having it. So it is cleared by the next thing you do
@@ -596,6 +607,19 @@
   function chainLink(e, pp) {
     // a chain from a later action replaces whatever is still on screen
     if (CHAIN.batch !== chainBatch) chainWipe();
+    /* THE DIE WALKS THE CHAIN. Each link hops the solid to the face that just
+     * fired — and since a bleed goes to a numeric neighbour, and numeric
+     * neighbours are now EDGE neighbours, that hop is one face next door. You
+     * watch the current travel rather than reading that it did.
+     *
+     * 180ms, not the default 600: links land 110ms apart, so at the settle time
+     * the die screen uses it would still be turning toward link 2 while the
+     * receipt printed link 5. Past CHAIN_HOP_MAX links the die holds and lets
+     * the receipt carry the rest — the receipt is the record, the die is the
+     * theatre, and they do not both have to say everything. */
+    if (combatDie && CHAIN.n > 0 && CHAIN.n < CHAIN_HOP_MAX && e.face) {
+      combatDie.setFace(e.face, false, 0.18);
+    }
     CHAIN.n++;
     var i = CHAIN.n - 1;
     CHAIN.dmg += (e.dealt || 0); CHAIN.blk += (e.blk || 0); CHAIN.en += (e.en || 0);
@@ -727,6 +751,9 @@
     else if (tone === 'up') $die.classList.add('solid');
     else if (tone === 'down') $die.classList.add(misfire ? 'misfire' : 'graze');
     setDieResult(value, band, tone, crit, misfire);
+    // The solid itself was thrown on the `roll` event; this only settles the
+    // number and band under it. Re-throwing here would cut the chain's walk off
+    // at the knees, since `cardPlayed` lands at delay 0.
     $die.classList.remove('settle'); void $die.offsetWidth; $die.classList.add('settle');   // settle pop
   }
   function cancelDieRoll() {
@@ -1965,9 +1992,34 @@
   }
 
   /* ====================== COMBAT ====================== */
+  /* THE REAL DIE, IN THE FIGHT. It used to be a flat SVG hexagon with a number
+   * printed on it — a readout of the die rather than the die. This is the same
+   * icosahedron the engraving screen draws, so the solid you cut faces on is the
+   * solid you watch land, and the chain hops across it face by face. */
+  var combatDie = null;
+  function combatDieMount() {
+    var r = E.run; if (!r || !$die) return;
+    if (combatDie) { combatDie.destroy(); combatDie = null; }
+    var cv = $die.querySelector('.die3d'); if (!cv) return;
+    var col = CLASS_COL[r.cls] || '#5dff88';
+    combatDie = ns.dieViewCreate(cv, {
+      face: 20, col: col, colHi: col, colTxt: '#eafcff', colDim: 'rgba(120,150,165,0.55)',
+      tint: function (n) {
+        var id2 = ns.dieFaceId(r.die, n); if (!id2) return null;
+        var d2 = ns.dieEngraving(id2);
+        return d2 ? { flaw: !!d2.flaw || !!ns.dieTaintAt(r.die, n) } : null;
+      },
+    });
+    $die.style.color = col;
+  }
+  function combatDieUnmount() {
+    if (combatDie) { combatDie.destroy(); combatDie = null; }
+  }
+
   function showCombat() {
     hideOverlay();
     combatChrome(true);
+    if (!combatDie) combatDieMount();
     if (E.combat && E.combat.turn <= 1 && !E.combat._dieShown) { E.combat._dieShown = true; clearDieResult(); }
     R.syncCombat();
     updateHUD();
@@ -3229,6 +3281,8 @@
   // the chain presentation can be measured as the player sees it rather than
   // by inspecting the event array. (test/chainfeel.js)
   U.probePlay = function (i, targetIdx) { playCardAt(i, targetIdx == null ? 0 : targetIdx); };
+  // which face the combat die is currently showing (test/chainfeel.js)
+  U.probeDieFace = function () { return combatDie ? combatDie.face() : null; };
   U.probeCast = function (cardId) {
     var def = ns.CARDS[cardId]; if (!def || !E.combat) return false;
     var card = { uid: -1, id: cardId, up: false };
@@ -3323,10 +3377,13 @@
         case 'block': case 'heal': case 'status': return 60;
         case 'curse': return 100; case 'summon': return 160; case 'infect': return 120; case 'absorb': return 120; case 'charge': return 100; case 'jam': return 120; case 'corrupt': return 160; case 'overload': return 120; case 'discipline': return 90;
         case 'revive': return 260; case 'salvage': return 80; case 'win': return 250;
-        case 'relicUnlocked': return 1000;
         // THE CHAIN NEEDS A TIME AXIS. This fell through to 0, so every link of
         // a trigger chain resolved in one frame and the die's whole payoff was
         // drawn as a single illegible smear.
+        // The roll gets a beat to LAND before the card resolves off it. Without
+        // this the die is still turning when the first engraving fires, so the
+        // chain appears to start before the roll finishes.
+        case 'roll': return 300;
         case 'dieFace': return CHAIN.step;
         case 'construct': return 220;     // the turret's shot needs a beat of its own
         case 'enrage': return 900;        // the announcement gets its own beat
@@ -3363,16 +3420,6 @@
             setTimeout(function () {
               R.constructFire(e.kind, e.idx, CLASS_COL.technomancer);
               SFX.servoFire();
-            }, d);
-          })(e, delay);
-          break;
-        // A relic you EARNED has to say so at the moment you earn it, or the
-        // requirement may as well not exist.
-        case 'relicUnlocked':
-          (function (e, d) {
-            setTimeout(function () {
-              SFX.win(); R.flash();
-              toast('RELIC UNLOCKED — ' + e.name.toUpperCase() + ' · ' + e.label.toUpperCase(), 3000);
             }, d);
           })(e, delay);
           break;
@@ -3578,6 +3625,15 @@
           delay += 90;
           break;
         case 'roll':
+          /* THE SOLID LANDS HERE, not on `cardPlayed`. `cardPlayed` is processed
+           * at delay 0 while the chain links start ~90ms later, so a landing
+           * tumble fired from there was interrupted by the first hop before it
+           * had turned a quarter of the way — the roll never visibly landed.
+           * `roll` is emitted before anything else, so this is the one moment
+           * the die has the stage to itself. */
+          (function (e2, d) {
+            setTimeout(function () { if (combatDie) combatDie.setFace(e2.roll, true, 0.34); }, d);
+          })(e, delay);
           // The class table had nothing to say about this card, so no banded
           // settle is coming. Hold the roll in case an engraving fires off it —
           // `roll` is emitted BEFORE `dieFace`, so this cannot settle yet.

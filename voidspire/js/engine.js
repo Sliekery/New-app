@@ -89,7 +89,6 @@
       kills: 0, nodesCleared: 0,
       pendingPick: null, pendingAddCard: null,
       quests: {}, questDone: {},
-      unlockProg: {},      // progress toward relics that must be earned
       potions: [], won: false,
       loop: 1, echoes: [], loadout: [], echoOffer: null,
       phylacteryUsed: false, salvageKills: 0,
@@ -250,49 +249,15 @@
     return { goal: a.quest.goal, progress: (E.run.quests && E.run.quests[id]) || 0, done: !!(E.run.questDone && E.run.questDone[id]) };
   };
 
-  /* ---------------- Class quest chains (earn your signature relic) -------- */
-  /* ---- Relics you have to earn ---------------------------------------
-   * These used to be a bespoke 'class quest': a three-step chain with its own
-   * phase, its own screen and its own progress bar, whose only output was a
-   * relic. It is the relic that is interesting, so the requirement lives on
-   * the relic now (ARTIFACTS[id].unlock) and meeting it simply grants it.
-   * ------------------------------------------------------------------ */
-  function lockedRelics() {
-    var r = E.run, out = [];
-    if (!r) return out;
-    Object.keys(ns.ARTIFACTS).forEach(function (id) {
-      var a = ns.ARTIFACTS[id];
-      if (!a.unlock) return;
-      if (a.cls && a.cls !== r.cls) return;
-      if (r.artifacts.indexOf(id) >= 0) return;
-      out.push(id);
-    });
-    return out;
-  }
-  E.lockedRelics = lockedRelics;
-  E.relicProgress = function (id) {
-    var a = ns.ARTIFACTS[id];
-    if (!a || !a.unlock) return null;
-    var prog = (E.run.unlockProg && E.run.unlockProg[id]) || 0;
-    return { prog: Math.min(prog, a.unlock.goal), goal: a.unlock.goal, label: a.unlock.label };
-  };
-  // Called from wherever a tracked deed happens. `atOnce` requirements take the
-  // best single instance; the rest accumulate over the run.
-  function classQuestTick(track, amount) {
-    var r = E.run;
-    if (!r) return;
-    if (!r.unlockProg) r.unlockProg = {};
-    lockedRelics().forEach(function (id) {
-      var u = ns.ARTIFACTS[id].unlock;
-      if (u.track !== track) return;
-      r.unlockProg[id] = u.atOnce ? Math.max(r.unlockProg[id] || 0, amount) : (r.unlockProg[id] || 0) + amount;
-      if (r.unlockProg[id] >= u.goal) {
-        addArtifact(id);
-        emit('relicUnlocked', { id: id, name: ns.ARTIFACTS[id].name, label: u.label });
-      }
-    });
-  }
-  E.classQuestTick = classQuestTick;
+  /* ---- REMOVED: relics you had to EARN --------------------------------
+   * Six relics used to be locked behind an in-run deed ("kill 8 enemies",
+   * "hold 35 Shield at once") and granted the instant you met it. The progress
+   * was never shown anywhere — lockedRelics() and relicProgress() existed and
+   * had exactly three callers, all of them in the test suite — so the relic
+   * simply materialised mid-fight and read as random. The feature is gone; all
+   * six are ordinary class drops now, which is what they always were plus a
+   * requirement nobody could see.
+   * ------------------------------------------------------------------- */
 
   // Offer 3 class cards to add — used by events that grant a card of your choice.
   // This lived in the augment draft; the draft is gone, the helper is not.
@@ -1005,8 +970,6 @@
     if (n <= 0) return;
     if (art('noShield') > 0) return;   // tradeoff relics that forbid Shield entirely
     p.block += n;
-    classQuestTick('shieldGained', n);
-    classQuestTick('shieldAtOnce', p.block);
     if (played) c.playedShield = true;
     emit('block', { who: 'player', amount: n, blockAfter: p.block });
     var st = art('shieldThorns');
@@ -1071,8 +1034,6 @@
       }
     }
     if (v > 0 && isEnemy && s === 'burn') {
-      classQuestTick('burnApplied', v);
-      classQuestTick('burnAtOnce', ent.statuses.burn);
     }
   }
 
@@ -1376,12 +1337,11 @@
     }
     var ls = art('lifestealPct');   // Vampiric Array: attacks heal a % of damage dealt
     if (ls > 0 && hpDmg > 0 && byAttack) heal(Math.floor(hpDmg * ls / 100));
-    if (byAttack && hpDmg > 0) { c.turnDamage = (c.turnDamage || 0) + hpDmg; classQuestTick('turnDamage', c.turnDamage); }
+    if (byAttack && hpDmg > 0) c.turnDamage = (c.turnDamage || 0) + hpDmg;
     if (en.hp <= 0 && en.alive) {
       en.alive = false;
       E.run.kills++;
       questProgress('kills', 1);
-      classQuestTick('kills', 1);
       var hk = art('healOnKill'); if (hk > 0) heal(hk);
       var sk = art('strOnKill'); if (sk > 0) { addStatus(c.player, 'str', sk); emit('status', { who: 'player', s: 'str', v: sk }); }
       var kd = art('killDraw'); if (kd > 0) drawCards(kd);
@@ -2810,7 +2770,6 @@
     if (E.run.artifacts.indexOf(k) >= 0) return false;            // already owned
     if (a.cls && a.cls !== E.run.cls) return false;               // class-locked: only its class
     if (a.questOnly || a.cornerstone) return false;               // cornerstone relics never drop
-    if (a.unlock) return false;                                   // earned, not dropped
     return true;
   }
   /* A class relic is worth several colourless ones in the draw. Without this
@@ -3253,7 +3212,6 @@
     r.removeCost = B.shop.removeCost;
     r.grindCost = B.dieShop.grindCost;
     r.quests = {}; r.questDone = {};
-    r.unlockProg = {};
     if (!heart) { r.potions = []; }   // keep your belt for the climax
     r.phylacteryUsed = false; r.salvageKills = 0;
     r.reward = null; r.shop = null; r.bossArtifacts = null; r.treasure = null;

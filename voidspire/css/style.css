@@ -446,15 +446,20 @@ html, body {
 /* combat d20 — rides the bottom dock (left, under the energy pip), tumbles on attack */
 #combat-die {
   /* The die is a core system now, so it sits centre-stage under the HUD rather
-     than tucked in a dock corner. */
+     than tucked in a dock corner. It is also the REAL die: the same icosahedron
+     the engraving screen shows, so the thing you cut faces on is the thing you
+     watch land. Tapping it opens that screen. */
   position: absolute; left: 50%; transform: translateX(-50%);
-  top: calc(env(safe-area-inset-top, 0px) + 86px);
-  z-index: 27; width: 46px; height: 46px; display: none; color: #41d8ff; pointer-events: none;
+  top: calc(env(safe-area-inset-top, 0px) + 74px);
+  z-index: 27; width: 88px; height: 88px; display: none; color: #41d8ff;
+  pointer-events: auto; cursor: pointer; touch-action: manipulation;
 }
-#combat-die .die-svg { width: 46px; height: 46px; display: block; filter: drop-shadow(0 0 5px rgba(65,216,255,0.5)); }
+#combat-die .die3d { width: 88px; height: 88px; display: block; }
+#combat-die .die-svg { display: none; }
 #combat-die .die-n {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font: bold 17px ui-monospace, monospace; color: #eafcff; text-shadow: 0 0 6px rgba(65,216,255,0.7);
+  position: absolute; left: 0; right: 0; top: 100%; display: flex; align-items: center; justify-content: center;
+  font: bold 19px ui-monospace, monospace; color: #eafcff; text-shadow: 0 0 6px rgba(65,216,255,0.7);
+  pointer-events: none;
 }
 #combat-die.rolling .die-svg { animation: dieSpinLoop 0.5s linear infinite; }
 #combat-die.settle .die-svg { animation: dieSettle 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.5); }

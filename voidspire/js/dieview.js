@@ -40,21 +40,57 @@
     return { idx: f, n: n, c: ctr };
   });
 
-  // Number the faces like a real d20: opposite faces sum to 21.
+  /* THE NUMBERS FOLLOW A PATH AROUND THE SOLID.
+   *
+   * A real d20 is numbered so opposite faces sum to 21, which is a fairness
+   * convention and nothing else — on a real die, 18 is nowhere near 19.
+   *
+   * Ours is not a fairness device, it is the board the whole game is played on:
+   * a roll fires its face and BLEEDS INTO ITS NEIGHBOURS, and the ring closes so
+   * that 20 touches 1. Under the old numbering none of that was visible — the
+   * die would tumble across itself to reach a "neighbour", which reads as random
+   * rotation rather than as current travelling.
+   *
+   * So the faces are numbered along a Hamiltonian cycle of the face-adjacency
+   * graph: every step from n to n+1 crosses one EDGE, and 20 sits next to 1. The
+   * bleed becomes a hop to the face next door, and the ring is a real loop you
+   * can watch. The solid now encodes the rules.
+   *
+   * This is a rendering change only. Every rule in the game addresses faces by
+   * NUMBER and the number ring is unchanged, so saved dice are unaffected.
+   * -------------------------------------------------------------------- */
   var FACE_NUM = (function () {
-    var num = new Array(20), next = 1;
-    for (var i = 0; i < 20; i++) {
-      if (num[i]) continue;
-      var anti = -1, best = 1;
-      for (var j = 0; j < 20; j++) {
-        if (num[j] || j === i) continue;
-        var d = dot(GEO[i].n, GEO[j].n);
-        if (d < best) { best = d; anti = j; }
+    // two faces are adjacent when they share an edge — exactly 2 vertices
+    var adj = FACES.map(function (f, i) {
+      var out = [];
+      for (var j = 0; j < FACES.length; j++) {
+        if (j === i) continue;
+        var shared = 0;
+        for (var k = 0; k < 3; k++) if (FACES[j].indexOf(f[k]) >= 0) shared++;
+        if (shared === 2) out.push(j);
       }
-      num[i] = next;
-      if (anti >= 0) num[anti] = 21 - next;
-      next++;
-    }
+      return out;
+    });
+    // Deterministic DFS: fixed start, neighbours in ascending index order, so
+    // the numbering is identical in every session and on every machine.
+    var path = [0], seen = new Array(20), found = null;
+    seen[0] = true;
+    (function dfs() {
+      if (found) return;
+      var cur = path[path.length - 1];
+      if (path.length === 20) { if (adj[cur].indexOf(0) >= 0) found = path.slice(); return; }
+      var nb = adj[cur].slice().sort(function (a, b) { return a - b; });
+      for (var k = 0; k < nb.length && !found; k++) {
+        var v = nb[k];
+        if (seen[v]) continue;
+        seen[v] = true; path.push(v);
+        dfs();
+        if (found) return;
+        path.pop(); seen[v] = false;
+      }
+    })();
+    var num = new Array(20);
+    (found || path).forEach(function (faceIdx, i) { num[faceIdx] = i + 1; });
     return num;
   })();
   var NUM_FACE = {};
@@ -107,6 +143,17 @@
     var qFrom = q, qTo = q, spinT = 1, spinDur = 0.72, spinStart = 0;
     var face = opts.face || 20;
     var tint = opts.tint || function () { return null; };   // face number -> {col, flaw} | null
+    // Whose die this is, said in colour. The die screen keeps the house green;
+    // in combat it takes the class palette, because a Technomancer's die being
+    // cyan is the same information his band labels carry.
+    var COL = opts.col || '#5dff88';
+    var COL_HI = opts.colHi || '#7dffa8';
+    var COL_DIM = opts.colDim || '#5e8a6c';
+    var COL_TXT = opts.colTxt || '#d6ffe4';
+    function rgbaOf(hex, a) {
+      var n = parseInt(hex.slice(1), 16);
+      return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+    }
     var idle = 0;
 
     function size() {
@@ -154,14 +201,14 @@
 
         if (front && t) {                              // engraved faces glow in their colour
           ctx.fillStyle = t.flaw ? 'rgba(255,74,94,' + (0.10 + lift * 0.26) + ')'
-                                 : 'rgba(93,255,136,' + (0.09 + lift * 0.24) + ')';
+                                 : rgbaOf(COL, 0.09 + lift * 0.24);
           ctx.fill();
         }
         var isSel = (num === face) && lift > 0.8;
-        ctx.strokeStyle = isSel ? '#ffffff' : front ? (t ? (t.flaw ? '#ff8a99' : '#7dffa8') : '#5e8a6c')
-                                                    : 'rgba(94,138,108,0.22)';
+        ctx.strokeStyle = isSel ? '#ffffff' : front ? (t ? (t.flaw ? '#ff8a99' : COL_HI) : COL_DIM)
+                                                    : rgbaOf(COL_DIM, 0.22);
         ctx.lineWidth = isSel ? 2 : front ? 1.2 : 0.8;
-        ctx.shadowColor = isSel ? '#ffffff' : (t && front ? (t.flaw ? '#ff4a5e' : '#5dff88') : 'transparent');
+        ctx.shadowColor = isSel ? '#ffffff' : (t && front ? (t.flaw ? '#ff4a5e' : COL) : 'transparent');
         ctx.shadowBlur = isSel ? 12 : (t && front ? 8 : 0);
         ctx.stroke();
         ctx.shadowBlur = 0;
@@ -173,7 +220,7 @@
           ctx.globalAlpha = Math.min(1, (lift - 0.28) / 0.4);
           ctx.font = 'bold ' + fs.toFixed(1) + 'px ui-monospace, monospace';
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          ctx.fillStyle = isSel ? '#ffffff' : t ? (t.flaw ? '#ffc4cc' : '#d6ffe4') : '#8fae9c';
+          ctx.fillStyle = isSel ? '#ffffff' : t ? (t.flaw ? '#ffc4cc' : COL_TXT) : COL_DIM;
           ctx.fillText(String(num), m[0], m[1]);
           ctx.globalAlpha = 1;
         }
@@ -184,8 +231,12 @@
     raf = requestAnimationFrame(draw);
 
     return {
-      // Spin so `n` faces the camera. `flair` adds a full tumble on the way.
-      setFace: function (n, flair) {
+      /* Spin so `n` faces the camera. `flair` adds a full tumble on the way.
+       * `dur` overrides the settle time, which is what makes a trigger CHAIN
+       * possible: links land 110ms apart, and at the default 600ms the die
+       * would still be turning toward link 2 while the receipt printed link 5.
+       * A chain hop crosses one edge, so it wants ~180ms, not a tumble. */
+      setFace: function (n, flair, dur) {
         if (!NUM_FACE.hasOwnProperty(n)) return;
         face = n;
         qFrom = q;
@@ -193,7 +244,7 @@
         if (flair) target = qMul(target, qFromAxis([0.2, 1, 0.1], Math.PI * 2));
         qTo = target;
         spinT = 0; spinStart = performance.now();
-        spinDur = flair ? 0.95 : 0.6;
+        spinDur = dur != null ? dur : (flair ? 0.95 : 0.6);
       },
       face: function () { return face; },
       destroy: function () { dead = true; if (raf) cancelAnimationFrame(raf); },
