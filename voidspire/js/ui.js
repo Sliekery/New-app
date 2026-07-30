@@ -885,10 +885,10 @@
   /* ====================== THE DIE ====================== */
   // Which faces you can actually land on, given Aim. eff = min(20, natural+Aim),
   // and a natural 1 always lands on face 1 — so raising Aim strands the low faces.
-  function dieReach(aim) {
-    var lo = Math.min(20, 2 + (aim || 0));
-    return function (face) { return face === 1 || face >= lo; };
-  }
+  // Aim no longer decides WHICH face fires — only which band it lands in — so
+  // nothing is ever out of reach. Kept as a function because every caller
+  // threads it through; it now simply never dims anything.
+  function dieReach() { return function () { return true; }; }
   function dieAimNow() {
     var c = E.combat;
     if (c) return (c.player.statuses.aim || 0);
@@ -940,16 +940,21 @@
   // Face 1 and 20 are labelled in the CLASS's language — a Vanguard's MISFIRE is
   // a Technomancer's BREAKER and a Voidadept's RAVENOUS, and calling them all
   // "misfire" would be telling three classes the same lie.
-  function dieEndTag(cls, face) {
+  function dieEndTag(cls, face, aim) {
     var t = ns.BALANCE.dice.classes[cls];
-    if (face === 20) return { label: 'CRIT', crit: true };
-    if (face !== 1) return null;
     if (!t) return null;
-    var m = t.misfire;
-    return { label: m.label, crit: false, good: m.mult > 1.02 };
+    if (face === 1) { var m = t.misfire; return { label: m.label, crit: false, good: m.mult > 1.02 }; }
+    var eff = Math.min(20, face + (aim || 0));
+    if (eff >= (ns.BALANCE.dice.critThreshold || 20)) return { label: 'CRIT', crit: true };
+    for (var i = 0; i < t.bands.length; i++) {
+      if (eff >= t.bands[i].min) {
+        return { label: t.bands[i].label, crit: false, good: t.bands[i].mult > 1.02 };
+      }
+    }
+    return null;
   }
 
-  function dieFaceRowHTML(die, face, reach, armedId) {
+  function dieFaceRowHTML(die, face, reach, armedId, aimNow) {
     var id = ns.dieFaceId(die, face), d = id ? ns.dieEngraving(id) : null;
     var slot = die.faces[face];
     var cont = slot && slot.root !== face;                 // continuation of a band
@@ -958,7 +963,7 @@
     // that runs off the end of the die, or a face-locked engraving, used to be
     // discoverable only by tapping and reading a rejection.
     if (armedId) cls += ns.dieCanEngrave(die, armedId, face) ? ' no-fit' : ' fits';
-    var et = dieEndTag(E.run && E.run.cls, face);
+    var et = dieEndTag(E.run && E.run.cls, face, aimNow);
     var tag = et ? '<span class="df-tag' + (et.crit || et.good ? ' crit' : '') + '">' + esc(et.label) + '</span>' : '';
     // a scarred face has to look scarred in the list, not only when tapped
     var tt = ns.dieTaintAt(die, face);
@@ -1023,7 +1028,7 @@
     s.appendChild(shop);
     var wrap = el('div', 'die-cols');
     s.appendChild(wrap);
-    s.appendChild(el('div', 'die-legend', 'TAP A FACE TO SPIN THE DIE TO IT · DIMMED = OUT OF REACH'));
+    s.appendChild(el('div', 'die-legend', 'TAP A FACE TO SPIN THE DIE TO IT · THE TAG IS THE BAND IT LANDS IN'));
     var mods = el('div', 'die-mods');
     s.appendChild(mods);
 
@@ -1055,7 +1060,7 @@
       wrap.innerHTML = '';
       [[1, 10], [11, 20]].forEach(function (rng) {
         var col = el('div', 'die-col'), h = '';
-        for (var f = rng[0]; f <= rng[1]; f++) h += dieFaceRowHTML(die, f, rc, pend);
+        for (var f = rng[0]; f <= rng[1]; f++) h += dieFaceRowHTML(die, f, rc, pend, a);
         col.innerHTML = h;
         wrap.appendChild(col);
       });
@@ -1089,10 +1094,10 @@
 
       // selected-face readout
       var id = ns.dieFaceId(die, sel), d = id ? ns.dieEngraving(id) : null;
-      var st = dieEndTag(r.cls, sel);
+      var st = dieEndTag(r.cls, sel, a);
       var tag = st ? ' <span class="di-tag' + (st.crit || st.good ? ' crit' : '') + '">' + esc(st.label) + '</span>' : '';
       var head = '<div class="di-head"><span class="di-face">' + sel + '</span>' + tag
-               + (rc(sel) ? '' : '<span class="di-un">OUT OF REACH AT AIM +' + a + '</span>') + '</div>';
+               + '</div>';
       info.innerHTML = head + (d
         ? '<div class="di-name' + (d.flaw ? ' flaw' : '') + '">' + (d.flaw ? '✖ ' : '◆ ') + esc(d.name) + '</div><div class="di-desc">' + engTagHTML(d) + esc(d.desc) + '</div>'
           + (function () {
@@ -1168,7 +1173,7 @@
       // ---- inspection / dev workshop ----
       h += '<div class="ws-row"><span class="ws-lab">AIM</span>'
         +  '<button class="ws-btn" data-aim="-1">−</button><span class="ws-val">+' + a + '</span><button class="ws-btn" data-aim="1">+</button>'
-        +  '<span class="ws-note">preview what stays in reach</span>'
+        +  '<span class="ws-note">preview the bands it puts each face in</span>'
         + (DEV_WORKSHOP
           ? ('<span class="ws-gap"></span>'
             + '<button class="ws-btn wide" data-pick="1">' + (pickOpen ? 'CANCEL' : 'ENGRAVE FACE ' + sel) + '</button>'

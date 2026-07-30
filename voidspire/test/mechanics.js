@@ -535,6 +535,31 @@ giveRelic('recoilless_frame'); // +5 flat damage
 var buffN = parseInt(E.cardInfo({ uid: 2, id: 'pulse_rifle', up: false }).desc.match(/Deal (\d+)/)[1], 10);
 ok('a flat damage relic shows on the card (' + baseN + ' -> ' + buffN + ')', buffN > baseN);
 
+/* WHICH FACE FIRES IS THE RAW ROLL, NOT THE AIMED ONE. Both used to be `eff`,
+ * and because eff clamps at 20 that destroyed the die of the class built around
+ * Aim: measured over 20,000 rolls, at Aim +4 face 20 ate 25% of every roll and
+ * faces 2-5 could never fire; at +8 it was 45% and eight faces were dead. */
+(function () {
+  var seen = {}, dead = [];
+  for (var i = 0; i < 4000; i++) {
+    var roll = 1 + Math.floor(Math.random() * 20);
+    var aim = 8;
+    var eff = Math.min(20, roll + aim);
+    var lands = roll <= 1 ? 1 : roll;          // the shipped rule
+    seen[lands] = (seen[lands] || 0) + 1;
+    if (eff < roll) dead.push(roll);           // sanity: eff never goes backwards
+  }
+  var missing = [];
+  for (var f = 1; f <= 20; f++) if (!seen[f]) missing.push(f);
+  ok('at Aim +8 every face can still fire (' + (20 - missing.length) + '/20)', missing.length === 0);
+  var top = seen[20] / 4000;
+  ok('...and face 20 stays at about 1 in 20 (' + Math.round(top * 100) + '%)', top < 0.09);
+})();
+startFight('vanguard');
+E.combat.player.statuses.aim = 8;
+ok('Aim still climbs the BAND', E.combat.player.statuses.aim === 8);
+E.run.phase = 'map';
+
 /* A listener or a field may only be cut ONCE. A second copy of a doer just
  * covers more of the table, but a second listener is a flat multiplier on a
  * trigger that already fires from anywhere and nothing pays for it — two

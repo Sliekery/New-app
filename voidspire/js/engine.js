@@ -2116,7 +2116,22 @@
       // A natural 1 always lands on face 1 — Aim can never carry you off it, which
       // is what makes face 1 the one anchor an Aim build cannot lose.
       if (roll != null) {
-        var lands = roll <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden')) ? 1 : eff;
+        /* WHICH FACE FIRES IS THE RAW ROLL, NOT THE AIMED ONE.
+         *
+         * Both used to be `eff`, and because eff clamps at 20 that quietly
+         * destroyed the die of the one class built around Aim. Measured over
+         * 20,000 rolls: at Aim +4 face 20 eats 25% of every roll and faces 2-5
+         * can never fire at all; at +8 it is 45% and eight faces are dead. Half
+         * the die stops existing, and the band-locked engravings written for
+         * the low table are unreachable for the build that wants them.
+         *
+         * Aim is described as making "crits and roll thresholds far more
+         * likely" — that is about the QUALITY of the outcome, so it still
+         * decides the band. It was never meant to relocate your engravings.
+         * Both stated intents survive: Aim still climbs the table, and the
+         * Voidadept still starves his bottom-band blood engines by climbing,
+         * because the BAND is what he is climbing out of. */
+        var lands = roll <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden')) ? 1 : roll;
         fireDieFace(lands, tgt);
         // TWINNED FIRING PIN: the opening roll of a combat catches both sides
         if (art('firstSplash') > 0 && c.rollNo === 1) {
