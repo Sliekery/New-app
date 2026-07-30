@@ -1522,6 +1522,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 #chain-ledger .cl-flaw { color: #ff4a5e; }
 #chain-ledger .cl-rule { border-top: 1px solid rgba(255,176,46,0.28); margin: 4px 0 3px; }
 #chain-ledger .cl-tot { color: #5dff88; }
+#chain-ledger .cl-more { padding: 1px 8px 1px 62px; font: 600 8.5px/1.5 ui-monospace, monospace; color: #55675c; letter-spacing: 0.08em; }
+/* On a WIDE screen the die sits far to the right of the panel and cannot be hit,
+   so the receipt lifts to clear the figures — which are correspondingly large
+   there, putting the player's head higher than on a phone. No height condition:
+   1366x640 is wide AND short, and with one it fell between this rule and the
+   landscape block below and kept its phone placement. */
+@media (min-width: 1000px) { #chain-ledger { top: 8%; } }
 
 /* --- hitstop: the frame holds and everything but the chain drains --- */
 #game.hitstop #battlefield, #game.hitstop #hand, #game.hitstop #hud, #game.hitstop #combat-controls {
@@ -1544,12 +1551,26 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   100% { opacity: 0; transform: translate(-50%, -105%) scale(1); }
 }
 @media (max-width: 380px) { #chain-ledger { width: 208px; font-size: 9px; } #chain-ledger .cl-c { flex-basis: 40px; } #chain-ledger .cl-sub { padding-left: 54px; } }
-/* On a short screen the WHY line is the first thing to go: it is the detail, and
-   detail is what you give up when there is no room, not the ledger itself. */
+/* LANDSCAPE IS THE ORIENTATION THIS IS PLAYED IN, and in landscape the whole
+ * frame is CSS-scaled to fit — 0.65 on an 844x390 phone, 0.60 at 740x360. Every
+ * DOM size set here is multiplied by that before it reaches the screen, so the
+ * die and the receipt were landing at about two thirds of their intended size:
+ * 57px of die, 6.5px of receipt text. Measured, not guessed.
+ *
+ * These sizes are pre-divided by that scale so the RESULT matches what portrait
+ * gets. The WHY line still goes — the vertical band is genuinely short here, and
+ * detail is what you give up when there is no room, not the ledger itself. */
 @media (max-height: 520px) {
-  #chain-ledger { top: 15%; width: 210px; }
+  #chain-ledger { top: 11.5%; width: 330px; font-size: 14px; border-radius: 4px; }
+  #chain-ledger .cl-hd { font-size: 13px; padding: 5px 10px; }
+  #chain-ledger .cl-n { font-size: 23px; }
+  #chain-ledger .cl-ln { padding: 2px 10px 0 11px; gap: 8px; }
+  #chain-ledger .cl-c { flex-basis: 64px; font-size: 12px; }
   #chain-ledger .cl-sub { display: none; }
-  #chain-ledger .cl-ln { padding-top: 1px; }
+  #chain-ledger .cl-more { padding: 1px 10px 1px 75px; font-size: 12px; color: #6f8579; letter-spacing: 0.08em; }
+  #combat-die, #combat-die .die3d { width: 132px; height: 132px; }
+  #combat-die { top: calc(env(safe-area-inset-top, 0px) + 52px); }
+  #combat-die .die-n { font-size: 26px; }
 }
 
 /* ---- The Die: 3D stage -------------------------------------------------- */
@@ -14167,7 +14188,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function fieldTop() { return Math.min(96, H * 0.14); }
   function fieldBottom() { return H - Math.min(170, H * 0.28); }
   function fieldBand() { return fieldBottom() - fieldTop(); }
-  function figScale(k) { return Math.min(W * k, fieldBand() * k * 1.5); }
+  // 1.8, not 1.5: landscape is the orientation this is played in, and at 1.5 the
+  // band term bound so hard there that the figures used a quarter of the ground
+  // they had. Portrait and desktop are width-bound and unaffected.
+  function figScale(k) { return Math.min(W * k, fieldBand() * k * 1.8); }
   /* The line the fight stands on sits LOW, at 0.72 of the band rather than 0.52.
    * At 0.52 everything piled into the upper half and 42% of the battlefield
    * below the figures was empty grid — measured on three viewports. That dead
@@ -17004,6 +17028,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     batch: 0,         // which action the chain on screen belongs to
   };
   var CHAIN_HOP_MAX = 5;   // links the die itself walks before it lets the receipt carry it
+  /* Four link rows, on every screen. The engine's chain depth cap is 2, and a
+   * sweep of 3600 played cards never produced more than 3 links — so four shows
+   * every chain that actually happens, and anything beyond it is exceptional
+   * enough to elide. A cap that varies by viewport just moves where it breaks. */
+  var CHAIN_ROWS_MAX = 4;
   /* THE RECEIPT STAYS UP UNTIL YOU ACT AGAIN. It used to fade on a 1.5s timer,
    * which is long enough to watch and far too short to READ — and reading it is
    * the entire point of having it. So it is cleared by the next thing you do
@@ -17100,8 +17129,39 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (e.taint) det.push('SCARRED');
     var sub = el('div', 'cl-sub', esc(det.join(' · ')));
     l.appendChild(ln); l.appendChild(sub);
+    chainElide(l);
     l.classList.add('on');
     requestAnimationFrame(function () { ln.classList.add('on'); sub.classList.add('on'); });
+  }
+
+  /* IN LANDSCAPE THE RECEIPT HAS A CEILING, because landscape is the orientation
+   * this is played in and there the sky above the player is only so tall. A
+   * five-link chain overhung the player's head by 23px and a longer one by more
+   * — measured against the drawn figure, staff included, not against a guess.
+   *
+   * It elides rather than growing: keep the ROOT, keep the most recent links,
+   * and collapse the middle into a marker. Growing upward from a fixed bottom
+   * was the other option and it reads worse — every new link would shove the
+   * lines you were already reading. */
+  function chainElide(l) {
+    var rows = l.querySelectorAll('.cl-ln');
+    if (rows.length <= CHAIN_ROWS_MAX) return;
+    var mark = l.querySelector('.cl-more');
+    if (!mark) {
+      mark = el('div', 'cl-more', '');
+      l.insertBefore(mark, rows[1]);                      // directly under the root
+    }
+    // drop the oldest link that is not the root, and its detail line
+    var victim = null;
+    for (var i = 1; i < rows.length; i++) {
+      if (rows[i].compareDocumentPosition(mark) & Node.DOCUMENT_POSITION_PRECEDING) { victim = rows[i]; break; }
+    }
+    if (!victim) return;
+    var nx = victim.nextElementSibling;
+    if (nx && nx.classList.contains('cl-sub')) nx.remove();
+    victim.remove();
+    mark.dataset.n = String((+mark.dataset.n || 0) + 1);
+    mark.textContent = '⋯ ' + mark.dataset.n + ' more';
   }
   // the title bar, written once per chain, with the count living in it
   function chainHeader() {
@@ -19738,6 +19798,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   U.probePlay = function (i, targetIdx) { playCardAt(i, targetIdx == null ? 0 : targetIdx); };
   // which face the combat die is currently showing (test/chainfeel.js)
   U.probeDieFace = function () { return combatDie ? combatDie.face() : null; };
+  // drive the receipt directly so its height and elision can be measured at any
+  // chain length, including ones the engine only reaches rarely (test/uifit.js)
+  U.probeChainWipe = function () { chainWipe(); };
+  U.probeChainLink = function (i) {
+    CHAIN.batch = chainBatch; CHAIN.n = i;
+    chainLedger({ name: 'Sympathetic Coil', face: 13 - (i % 5), dealt: 9,
+                  why: i === 0 ? '' : 'bleed', bleed: i > 0 },
+                i === 0 ? 'root' : 'bleed', i === 0 ? '' : '↳ ');
+  };
   U.probeCast = function (cardId) {
     var def = ns.CARDS[cardId]; if (!def || !E.combat) return false;
     var card = { uid: -1, id: cardId, up: false };
