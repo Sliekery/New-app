@@ -10,6 +10,7 @@ require('../js/balance.js');
 require('../js/cards.js');
 require('../js/artifacts.js');
 require('../js/dice.js');
+require('../js/reforge.js');
 require('../js/potions.js');
 require('../js/echoes.js');
 require('../js/enemies.js');
@@ -282,55 +283,142 @@ ok('Reckless Overdrive grants +1 Energy/turn', E.art('energyEveryTurn') === 1);
 
 /* ---- events ---- */
 
-function openEvent(id) {
-  E.seed(9); E.newRun('vanguard');
+function openEvent(id, cls) {
+  E.seed(9); E.newRun(cls || 'vanguard');
   E.run.currentEvent = id; E.run.phase = 'event'; E.run.eventResult = null;
 }
 function evt(id) { return VS.EVENTS.filter(function (e) { return e.id === id; })[0]; }
 
+/* ============ THE DIE EVENTS ==========================================
+ * The old set resolved on a flat 1-20 plus an attribute that never moved, and
+ * never once touched run.die. These assert the replacement actually reads the
+ * player's own die — and that the floor protecting it holds.
+ * ------------------------------------------------------------------- */
+// Seat n single-face engravings directly. Going through dieEngrave() would be
+// more faithful but it refuses on a run that has not taken its first mark, and
+// these tests care about what the die HAS, not how it got there.
+function cutFaces(cls, n) {
+  if (!E.run.die) E.run.die = VS.newDie();
+  var die = E.run.die; die.faces = {};
+  var pool = Object.keys(VS.DIE_AUGMENTS).filter(function (k) {
+    var a = VS.DIE_AUGMENTS[k];
+    return (!a.cls || a.cls === cls) && (a.span || 1) === 1 && !a.onlyFace && !a.startOnly && !a.band;
+  });
+  for (var f = 1; f <= 20 && f <= n; f++) die.faces[f] = { id: pool[(f - 1) % pool.length], root: f };
+}
+
 /* 22. cost is charged exactly once (no double-deduct via fx) */
-openEvent('rogue_trader');
+openEvent('pattern_shop');
 E.run.credits = 100;
-var ix = evt('rogue_trader').choices.findIndex(function (c) { return c.cost === 30; });
+var ix = evt('pattern_shop').choices.findIndex(function (c) { return c.cost === 45; });
 E.eventChoose(ix);
-ok('event cost charged once (100 - 30 = 70)', E.run.credits === 70);
+ok('event cost charged once (100 - 45 = 55)', E.run.credits === 55);
 
-/* 23. conditional "blue" option hidden without the requirement, shown with it */
-openEvent('mind_cleanser');
-ok('curse-gated option locked with no curse', !E.eventChoiceAvailable(evt('mind_cleanser').choices[0]));
-E.run.deck.push({ uid: 1, id: 'void_taint', up: false });
-ok('curse-gated option unlocked with a curse', E.eventChoiceAvailable(evt('mind_cleanser').choices[0]));
+/* 23. THE ODDS ARE THE BUILD — a die check reads how much of the die is cut */
+E.seed(4); E.newRun('vanguard'); E.takeFirstMark(0);
+cutFaces('vanguard', 13);
+ok('dieOdds reports cut faces out of twenty', E.dieOdds('cut').hits === 13 && E.dieOdds('cut').pct === 65);
+cutFaces('vanguard', 4);
+ok('and moves when the die does', E.dieOdds('cut').hits === 4 && E.dieOdds('cut').pct === 20);
+ok('the seam is always 2 in 20', E.dieOdds('seam').pct === 10);
 
-/* 24. removeCurse purges curses from the deck */
-openEvent('mind_cleanser');
-E.run.credits = 50;
-E.run.deck.push({ uid: 2, id: 'void_taint', up: false });
-E.run.deck.push({ uid: 3, id: 'shrapnel', up: false });
-var curseBefore = E.run.deck.filter(function (c) { return VS.CARDS[c.id].type === 'curse'; }).length;
-E.eventChoose(0); // submit to the purge (removeCurse: true)
-var curseAfter = E.run.deck.filter(function (c) { return VS.CARDS[c.id].type === 'curse'; }).length;
-ok('removeCurse cleared all curses (' + curseBefore + ' -> ' + curseAfter + ')', curseBefore >= 2 && curseAfter === 0);
+/* 24. a cut read branches on whether the landed face carries work */
+openEvent('honest_gambler'); cutFaces('vanguard', 20); E.run.credits = 100;
+var gRes = E.eventChoose(0);
+ok('a fully cut die always lands on work', !!gRes && gRes.cut === true && gRes.dieRead === 'cut');
+ok('and the roll it reports is a real face', gRes.roll >= 1 && gRes.roll <= 20);
+openEvent('honest_gambler'); E.run.die.faces = {}; E.run.credits = 100;
+ok('a blank die always lands on nothing', E.eventChoose(0).cut === false);
 
-/* 25. gamble resolves to one of its outcomes */
-openEvent('cryopod');
-E.run.credits = 100;
-var res = E.eventChoose(0); // force the seal -> commit-blind gamble
-ok('gamble produced a result', !!res && typeof res.text === 'string');
+/* 25. THE FLOOR. Nine events can take a face and only four give one back, so
+ *     without this a run can grind its own die to nothing. */
+E.seed(4); E.newRun('technomancer'); E.takeFirstMark(0);
+cutFaces('technomancer', 8);
+ok('at the floor, nothing may be blanked', E.dieFloorBlocked(1));
+cutFaces('technomancer', 12);
+ok('above it, giving one up is allowed', !E.dieFloorBlocked(1));
+openEvent('face_market', 'technomancer');
+cutFaces('technomancer', 12);   // openEvent starts a fresh run, so cut AFTER it
+E.eventChoose(0);
+ok('a face-taking event parks a picker rather than acting blind', !!E.run.pendingFace && E.run.pendingFace.mode === 'sell');
+var cands = E.faceCandidates();
+ok('and it only offers faces that exist', cands.length > 0 && cands.every(function (f) { return !!E.run.die.faces[f]; }));
 
-/* 26. addCardChoice queues a card chooser */
-openEvent('stranded_drifter');
-E.run.credits = 100;
-E.eventChoose(0); // share supplies -> addCardChoice
-ok('addCardChoice offers cards to add', Array.isArray(E.run.pendingAddCard) && E.run.pendingAddCard.length > 0);
-ok('finishEvent blocks until a card is chosen', (E.finishEvent(), E.run.phase === 'event-result'));
-var deckN = E.run.deck.length;
-E.eventAddCard(E.run.pendingAddCard[0]);
-ok('eventAddCard adds the card and clears the pending state', E.run.deck.length === deckN + 1 && !E.run.pendingAddCard);
+/* 26. THE REFORGE — three rewrites, on this die's own class table */
+E.seed(4); E.newRun('technomancer'); E.takeFirstMark(0);
+cutFaces('technomancer', 12);
+var rf = E.dieCutFaces()[0];
+var opts = E.reforgeOptionsAt(rf);
+ok('a cut face offers exactly three rewrites', opts.length === 3);
+ok('and no two of them are the same', opts[0].desc !== opts[1].desc && opts[1].desc !== opts[2].desc);
+var beforeId = E.run.die.faces[rf].id;
+var applied = E.reforgeApply(rf, 1);
+ok('applying one replaces the engraving', !!applied && E.run.die.faces[rf].id !== beforeId);
+ok('and the replacement resolves like any other engraving', !!VS.dieEngraving(E.run.die.faces[rf].id));
+ok('a forged engraving survives the registry being dropped (the load path)', (function () {
+  var id = E.run.die.faces[rf].id;
+  VS.forgedClear();                       // as a page reload would
+  var goneFirst = !VS.dieEngraving(id);   // ...and it IS gone until rehydrated
+  E.forgedRehydrate();
+  return goneFirst && !!VS.dieEngraving(id);
+})());
 
-/* 27. check odds are computed sensibly */
-E.seed(9); E.newRun('voidadept'); // psi 2
-var od = E.checkOdds({ attr: 'psi', dc: 12 });
-ok('check odds within 0-100 and reflect the bonus', od.pct >= 0 && od.pct <= 100 && od.bonus === E.attr('psi'));
+/* the class tables are genuinely different, not reskins */
+(function () {
+  var demo = { name: 'Test Anvil', tier: 2, span: 1, fx: [{ k: 'block', v: 10 }] };
+  var seen = {};
+  ['vanguard', 'technomancer', 'voidadept'].forEach(function (c) {
+    seen[c] = VS.reforgeOptions(demo, c).map(function (o) { return o.desc; }).join('|');
+  });
+  ok('each class rewrites the same engraving differently',
+     seen.vanguard !== seen.technomancer && seen.technomancer !== seen.voidadept);
+})();
+
+/* 26b. no engraving anywhere generates a duplicate, empty or worse option */
+(function () {
+  var bad = 0, n = 0;
+  Object.keys(VS.DIE_AUGMENTS).forEach(function (id) {
+    var def = VS.DIE_AUGMENTS[id], base = VS.engravingSp(def);
+    var baseDesc = VS.reforgeDescribe(def.fx, { trigger: def.listen });
+    ['common', 'vanguard', 'technomancer', 'voidadept'].forEach(function (c) {
+      var os = VS.reforgeOptions(def, c), seen = {};
+      if (os.length !== 3) bad++;
+      os.forEach(function (o) {
+        n++;
+        if (seen[o.desc] || o.desc === baseDesc) bad++;
+        seen[o.desc] = 1;
+        if (o.fx && o.lens !== 'feeder' && o.sp < base * 0.9) bad++;
+      });
+    });
+  });
+  ok('every engraving x every table x every lens is distinct and in budget (' + n + ' options)', bad === 0);
+})();
+
+/* 27. the fusion pot reads what went into it */
+E.seed(4); E.newRun('vanguard'); E.takeFirstMark(0);
+cutFaces('vanguard', 12);
+(function () {
+  var fs = E.dieCutFaces();
+  var fused = E.dieFuse(fs[0], fs[1]);
+  ok('two engravings fuse into one', !!fused && !!E.run.die.faces[fs[0]] && !E.run.die.faces[fs[1]]);
+  ok('and the result is named for the pairing',
+     ['THE WALL', 'THE LONGER BLADE', 'THE HYBRID'].indexOf(fused.name) >= 0);
+})();
+
+/* 28. the old check/gamble API is gone, but the attributes it read are NOT —
+ *     they scale damage, Shield and turrets in eighteen places in combat. */
+ok('checkOdds is gone', !E.checkOdds);
+ok('run.attrs survives, because combat needs it', !!E.run.attrs && typeof E.run.attrs.might === 'number');
+ok('no event carries a skill check any more',
+   !VS.EVENTS.some(function (ev) { return (ev.choices || []).some(function (c) { return !!c.check || !!c.gamble; }); }));
+ok('and at least half of them read the die',
+   VS.EVENTS.filter(function (ev) {
+     return (ev.choices || []).some(function (c) {
+       return !!c.die || (c.outcome && c.outcome.fx && Object.keys(c.outcome.fx).some(function (k) {
+         return /reforge|Face|Faces|scar|Scar|band|Band|core|Core|seam|Seam|listen|Blank|blank|teach|mirror|swap|fuse|migrate/.test(k);
+       }));
+     });
+   }).length >= VS.EVENTS.length / 2);
 
 /* 28. Potions: damage potion hurts the target */
 startFight('vanguard');
@@ -653,38 +741,41 @@ function fxChoiceIdx(id, fxKey) {
   for (var i = 0; i < ev.choices.length; i++) { var o = ev.choices[i].outcome; if (o && o.fx && o.fx[fxKey]) return i; }
   return -1;
 }
-openEvent('asteroid_exchange');
-E.run.deck = [{ uid: 1, id: 'pulse_rifle', up: false }, { uid: 2, id: 'combat_shield', up: false }];
-E.eventChoose(fxChoiceIdx('asteroid_exchange', 'tradeCard'));
-ok('tradeCard sets pendingTrade(card)', !!E.run.pendingTrade && E.run.pendingTrade.kind === 'card');
-var giveRar = VS.CARDS['pulse_rifle'].rarity || 1, beforeN = E.run.deck.length;
-var tr = E.tradeCardPick(0);
-ok('tradeCard removed one and added a higher-tier card', !!tr && E.run.deck.length === beforeN && !E.run.pendingTrade);
-ok('tradeCard forged a card a tier up', (VS.CARDS[E.run.deck[E.run.deck.length - 1].id].rarity || 1) >= Math.min(3, giveRar + 1));
-
-/* sell: liquidate a card for credits */
-E.newRun('vanguard'); E.run.credits = 0;
+/* tradeCard / sell still exist as verbs even though no event calls tradeCard
+ * any more — the shop and the bench use the same machinery. */
+E.seed(9); E.newRun('vanguard'); E.run.credits = 0;
 E.run.deck = [{ uid: 1, id: 'pulse_rifle', up: false }, { uid: 2, id: 'combat_shield', up: false }];
 E.run.pendingSell = { kind: 'card' };
-var opts = E.sellOptions();
-ok('sellOptions lists non-curse cards with values', opts.length === 2 && opts[0].value > 0);
+var opts2 = E.sellOptions();
+ok('sellOptions lists non-curse cards with values', opts2.length === 2 && opts2[0].value > 0);
 var sold = E.sellPick(0);
 ok('sellPick grants credits and removes the card', E.run.credits === sold && E.run.deck.length === 1 && !E.run.pendingSell);
 
-/* pressLuck: push accrues, bank applies the pot */
-openEvent('asteroid_mine');
-var plIdx = firstChoiceIdx('asteroid_mine', 'pressLuck');
-ok('asteroid_mine has a pressLuck choice', plIdx >= 0);
-E.eventChoose(plIdx);
-ok('pressLuck enters its own phase', E.run.phase === 'press-luck' && !!E.run.pressLuck);
-var info0 = E.pressLuckInfo();
-ok('pressLuckInfo reports level 0 and a next reward', info0.level === 0 && !!info0.nextReward);
-// force a guaranteed-safe push by zeroing the bust chance is awkward; just push and accept either result
-var beforeCr = E.run.credits;
-var push = E.pressLuckPush();
-ok('pressLuckPush returns a roll vs threshold', !!push && typeof push.roll === 'number' && typeof push.busted === 'boolean');
-E.pressLuckBank();
-ok('pressLuckBank clears state and produces a result', !E.run.pressLuck && E.run.phase === 'event-result' && !!E.run.eventResult);
+/* ---- the die verbs each do what they say ---- */
+E.seed(4); E.newRun('vanguard'); cutFaces('vanguard', 12);
+(function () {
+  var a = 3, b = 9;
+  var idA = E.run.die.faces[a].id, idB = E.run.die.faces[b].id;
+  E.dieSwapRoots(a, b);
+  ok('swap exchanges two engravings', E.run.die.faces[a].id === idB && E.run.die.faces[b].id === idA);
+})();
+E.seed(4); E.newRun('vanguard'); cutFaces('vanguard', 12);
+(function () {
+  var before = VS.dieEngraving(E.run.die.faces[2].id);
+  var lifted = E.dieTierUp(2);
+  var after = VS.dieEngraving(E.run.die.faces[2].id);
+  ok('tierUp raises the tier and the numbers with it',
+     lifted && after.tier === (before.tier || 1) + 1 && VS.engravingSp(after) > VS.engravingSp(before));
+})();
+E.seed(4); E.newRun('voidadept'); cutFaces('voidadept', 14);
+(function () {
+  E.run.currentEvent = 'the_quarantine'; E.run.phase = 'event';
+  VS.dieAddTaint(E.run.die, 5, 'rust');
+  var qi = evt('the_quarantine').choices.findIndex(function (c) { return c.outcome && c.outcome.fx.scarSpread; });
+  E.eventChoose(qi);
+  var tainted = VS.dieTaintedRoots(E.run.die);
+  ok('the rot spreads to neighbours and hardens what it touched', tainted.length > 1);
+})();
 
 /* Drone Swarm: the core's barrage fires once per living drone (hitsPer) */
 startFight();

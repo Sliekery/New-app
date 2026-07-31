@@ -725,7 +725,12 @@
   ns.firstMarks = function (cls) { return ns.FIRST_MARKS[cls] || []; };
 
   // Every engraving, chosen or not.
-  ns.dieEngraving = function (id) { return ns.DIE_AUGMENTS[id] || ns.DIE_FLAWS[id] || null; };
+  /* Reforged engravings are made at runtime by the events and stored on the run
+   * rather than in this file, so they have to resolve by id like anything else
+   * or every rewritten face reads as a blank. */
+  ns.dieEngraving = function (id) {
+    return ns.DIE_AUGMENTS[id] || ns.DIE_FLAWS[id] || (ns.FORGED && ns.FORGED[id]) || null;
+  };
 
   /* ---- Run-state helpers --------------------------------------------- */
   ns.newDie = function () {

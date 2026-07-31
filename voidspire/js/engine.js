@@ -63,6 +63,7 @@
   function mkCard(id, up) { return { uid: uidCounter++, id: id, up: !!up }; }
 
   E.newRun = function (clsId) {
+    ns.forgedClear();   // forged ids are per-run; a stale registry would resolve into the new one
     var c = B.classes[clsId];
     var deck = ns.STARTER_DECKS[clsId].map(function (id) { return mkCard(id, false); });
     var fac = pick(Object.keys(ns.FACTIONS));
@@ -88,6 +89,8 @@
       grindCost: Math.round(B.dieShop.grindCost * (E.pressureMods().shopCost || 1)),
       kills: 0, nodesCleared: 0,
       pendingPick: null, pendingAddCard: null,
+      pendingFace: null, pendingReforge: null, pendingOp: null, pendingOffer: null,
+      forged: {}, forgeSeq: 0, faceFired: {}, eventRolled: 0,
       quests: {}, questDone: {},
       potions: [], won: false,
       loop: 1, echoes: [], loadout: [], echoOffer: null,
@@ -3228,6 +3231,7 @@
     r.phylacteryUsed = false; r.salvageKills = 0;
     r.reward = null; r.shop = null; r.bossArtifacts = null; r.treasure = null;
     r.pendingPick = null; r.pendingAddCard = null; r.echoOffer = null;
+    r.pendingFace = null; r.pendingReforge = null; r.pendingOp = null; r.pendingOffer = null;
     // the Cornerstone survives the Recurrence even though the rest of the relics reset
     if (r.cornerstone && r.artifacts.indexOf(r.cornerstone.id) < 0) r.artifacts.push(r.cornerstone.id);
     r.phase = 'sector-intro';
@@ -3265,7 +3269,6 @@
     var r = E.run, c = ch.cond;
     if (!c) return true;
     if (c.credits && r.credits < c.credits) return false;
-    if (c.attr) { for (var k in c.attr) if (attr(k) < c.attr[k]) return false; }
     if (c.hasArtifact && r.artifacts.indexOf(c.hasArtifact) < 0) return false;
     if (c.hasRelic && E.tradeableRelics().length === 0) return false;
     if (c.minCards && r.deck.filter(function (cd) { return ns.CARDS[cd.id].type !== 'curse'; }).length < c.minCards) return false;
@@ -3273,16 +3276,390 @@
     return true;
   };
 
-  // Odds + modifier for a skill check (for the choice preview).
-  E.checkOdds = function (check) {
-    var bonus = Math.floor(attr(check.attr) / B.attrs.eventCheckBonusDiv) + art('checkBonus');
-    var passCount = 0;
-    for (var roll = 1; roll <= 20; roll++) {
-      var pass = (roll + bonus >= check.dc) || roll === 20;
-      if (roll === 1) pass = false;
-      if (pass) passCount++;
+  /* THE OLD SKILL CHECK IS GONE.
+   * It rolled a flat 1-20 plus floor(attribute / divisor) against a DC. Two
+   * things were wrong with it. The die it rolled was not the player's die —
+   * twenty engraved faces sat in the pack and never came up. And the attributes
+   * it read are written once at class creation and moved only by relics, so
+   * "TECH check, DC 13" mostly resolved to "did you pick Technomancer".
+   *
+   * run.attrs itself STAYS: it scales damage, Shield and turrets in eighteen
+   * places in combat. It was only ever useless as event material.
+   *
+   * What replaces it is E.dieOdds / the `die` block on a choice — see below.
+   */
+
+  /* ====================== THE DIE CHECK ==================================
+   * The event rolls the die in your pocket. The FACE is uniform 1-20 — the
+   * game is not rigging your luck — but what the face MEANS is entirely your
+   * build, so the odds are legible and you made them. Three ways to read it:
+   *
+   *   'cut'    is there work on the face that landed? Your hit rate is exactly
+   *            how much of your die you have finished.
+   *   'region' LOW 2-7, MID 8-14, HIGH 15-20 — the bands the class tables use.
+   *   'face'   the face FIRES. Out here, with nothing to fight, what it does is
+   *            weighed rather than applied.
+   *   'seam'   did it land on 20 or 1, the join where the ring closes.
+   * =================================================================== */
+  function faceCut(f) { var d = E.run.die; return !!(d && d.faces && d.faces[f]); }
+
+  E.dieCutCount = function () {
+    var d = E.run && E.run.die, n = 0;
+    if (!d || !d.faces) return 0;
+    for (var f = 1; f <= 20; f++) if (d.faces[f]) n++;
+    return n;
+  };
+  E.dieBlankFaces = function () {
+    var d = E.run && E.run.die, out = [];
+    if (!d) return out;
+    for (var f = 1; f <= 20; f++) if (!d.faces[f] && !(d.sealed && d.sealed[f])) out.push(f);
+    return out;
+  };
+  E.dieCutFaces = function () {
+    var d = E.run && E.run.die, out = [];
+    if (!d || !d.faces) return out;
+    for (var f = 1; f <= 20; f++) if (d.faces[f]) out.push(f);
+    return out;
+  };
+  // The odds, printed before you commit, because you are the one who made them.
+  E.dieOdds = function (read) {
+    var cut = E.dieCutCount();
+    if (read === 'seam') return { hits: 2, pct: 10 };
+    return { hits: cut, pct: Math.round(cut / 20 * 100) };
+  };
+
+  /* THE FLOOR. Nine of the twenty events can take a face away and only four
+   * give one back, so without a floor a run can grind its own die down to
+   * nothing and never recover. No event may leave you under eight cut faces. */
+  E.DIE_FLOOR = 8;
+  function canBlank(n) { return E.dieCutCount() - (n || 1) >= E.DIE_FLOOR; }
+  E.dieFloorBlocked = function (n) { return !canBlank(n); };
+
+  function resolveDieCheck(cfg, res) {
+    var r = E.run;
+    res.dieRead = cfg.read;
+    if (cfg.read === 'face') {
+      // THE PROVING GROUND: roll n times, and every cut face that comes up
+      // fires at the target. What your die is worth, measured.
+      var n = cfg.rolls || 3, total = 0, list = [];
+      for (var i = 0; i < n; i++) {
+        var f = d20();
+        var slot = r.die.faces[f];
+        var def = slot ? ns.dieEngraving(slot.id) : null;
+        var sp = def ? ns.engravingSp(def) : 0;
+        total += sp;
+        list.push({ face: f, cut: !!slot, name: def ? def.name : null, sp: Math.round(sp * 10) / 10 });
+      }
+      var target = 10 + (r.sector || 1) * 5;
+      res.rolls = list; res.total = Math.round(total * 10) / 10; res.target = target;
+      res.pass = total >= target;
+      return res.pass ? cfg.onWin : cfg.onLose;
     }
-    return { bonus: bonus, pct: Math.round(passCount / 20 * 100) };
+    var roll = d20();
+    E.run.eventRolled = roll;
+    res.roll = roll;
+    res.cut = faceCut(roll);
+    var slot2 = r.die.faces[roll];
+    res.faceName = slot2 ? (ns.dieEngraving(slot2.id) || {}).name : null;
+    if (cfg.read === 'seam') { res.pass = (roll === 20 || roll === 1); return res.pass ? cfg.onWin : cfg.onLose; }
+    if (cfg.read === 'region') {
+      var reg = ns.dieRegionOf(roll);
+      res.region = reg;
+      return cfg[reg] || cfg.onBlank || cfg.onLose;
+    }
+    res.pass = res.cut;
+    return res.cut ? cfg.onCut : cfg.onBlank;
+  }
+
+  /* ---- die verbs -------------------------------------------------------
+   * Everything an event can do TO the die. The ones needing a second input
+   * park a pendingFace and the UI collects it; the rest resolve here. */
+  function forgeId() {
+    var r = E.run;
+    r.forgeSeq = (r.forgeSeq || 0) + 1;
+    return 'forged_' + r.forgeSeq;
+  }
+  // Forged engravings live on the run so they survive a save, and are pushed
+  // back into the shared registry whenever one is made or a save is loaded.
+  E.forgedInstall = function (def) {
+    var r = E.run, id = forgeId();
+    r.forged = r.forged || {};
+    r.forged[id] = def;
+    ns.forgedRegister(id, def);
+    return id;
+  };
+  E.forgedRehydrate = function () {
+    var r = E.run;
+    if (!r || !r.forged) return;
+    for (var k in r.forged) ns.forgedRegister(k, r.forged[k]);
+  };
+
+  // Put an engraving on a face, replacing whatever is there, span included.
+  function seatAt(face, id, def) {
+    var r = E.run, span = (def && def.span) || 1;
+    for (var i = 0; i < span; i++) {
+      var f = face + i;
+      if (f > 20) break;
+      r.die.faces[f] = { id: id, root: face };
+    }
+  }
+  function clearRootAt(face) {
+    var r = E.run, slot = r.die.faces[face];
+    if (!slot) return null;
+    var root = slot.root, id = r.die.faces[root] ? r.die.faces[root].id : slot.id;
+    for (var f = 1; f <= 20; f++) if (r.die.faces[f] && r.die.faces[f].root === root) delete r.die.faces[f];
+    return id;
+  }
+  E.dieClearRootAt = clearRootAt;
+  E.dieSeatAt = seatAt;
+
+  // The three rewrites of the engraving on `face`, on this die's own table.
+  E.reforgeOptionsAt = function (face) {
+    var r = E.run, slot = r.die.faces[face];
+    if (!slot) return [];
+    var def = ns.dieEngraving(r.die.faces[slot.root].id);
+    if (!def) return [];
+    return ns.reforgeOptions(def, r.cls);
+  };
+  // Commit one of them.
+  E.reforgeApply = function (face, optIdx) {
+    var r = E.run, slot = r.die.faces[face];
+    if (!slot) return null;
+    var root = slot.root;
+    var opts = E.reforgeOptionsAt(root);
+    var opt = opts[optIdx];
+    if (!opt) return null;
+    var baseDef = ns.dieEngraving(r.die.faces[root].id);
+    if (opt.recast) {
+      // scrapped and cut again — a different engraving of the same tier
+      var pool = Object.keys(ns.DIE_AUGMENTS).filter(function (k) {
+        var a = ns.DIE_AUGMENTS[k];
+        return a.tier === (baseDef.tier || 1) && k !== r.die.faces[root].id &&
+               (!a.cls || a.cls === r.cls) && (a.span || 1) === (baseDef.span || 1);
+      });
+      if (!pool.length) return null;
+      var nid = pick(pool);
+      clearRootAt(root);
+      seatAt(root, nid, ns.DIE_AUGMENTS[nid]);
+      r.pendingReforge = null;
+      E.save();
+      return { name: ns.DIE_AUGMENTS[nid].name, desc: ns.DIE_AUGMENTS[nid].desc };
+    }
+    var def = {
+      name: opt.name, tier: opt.tier, span: opt.span, fx: opt.fx,
+      cls: opt.cls, band: opt.band, listen: opt.listen || undefined,
+      desc: opt.desc, forgedFrom: opt.from,
+      art: (baseDef && baseDef.art) || undefined,
+    };
+    var id = E.forgedInstall(def);
+    clearRootAt(root);
+    seatAt(root, id, def);
+    r.pendingReforge = null;
+    E.save();
+    return { name: def.name, desc: def.desc };
+  };
+
+  /* ---- collecting the second input ------------------------------------
+   * A verb that needs the player to point at something parks a pendingFace and
+   * the UI calls back here once per pick. Everything routes through one entry
+   * so the die floor and the save are enforced in exactly one place. */
+  E.faceCandidates = function () {
+    var r = E.run, p = r.pendingFace, d = r.die;
+    if (!p) return [];
+    var cuts = E.dieCutFaces().map(function (f) { return d.faces[f].root; })
+                .filter(function (v, i, a) { return a.indexOf(v) === i; });
+    if (p.mode === 'blank' || p.mode === 'sell' || p.mode === 'give' || p.mode === 'teach') {
+      return canBlank(1) ? cuts.filter(function (f) { return p.picked.indexOf(f) < 0; }) : [];
+    }
+    if (p.mode === 'sellScar') return ns.dieTaintedRoots(d);
+    if (p.mode === 'grant') return E.dieBlankFaces();
+    if (p.mode === 'migrate') return p.picked.length ? E.dieBlankFaces() : cuts;
+    if (p.mode === 'mirror') return cuts.filter(function (f) { var o = f > 10 ? f - 10 : f + 10; return !d.faces[o]; });
+    if (p.mode === 'steal') return cuts.concat(E.dieBlankFaces());
+    if (p.mode === 'unlisten') return cuts.filter(function (f) { return !!(ns.dieEngraving(d.faces[f].id) || {}).listen; });
+    if (p.only === 'band') return cuts.filter(function (f) { return ((ns.dieEngraving(d.faces[f].id) || {}).span || 1) > 1; });
+    if (p.mode === 'swap' && p.cross && p.picked.length === 1) {
+      var r1 = ns.dieRegionOf(p.picked[0]);
+      return cuts.filter(function (f) { return ns.dieRegionOf(f) !== r1 && f !== p.picked[0]; });
+    }
+    return cuts.filter(function (f) { return p.picked.indexOf(f) < 0; });
+  };
+
+  E.facePick = function (face) {
+    var r = E.run, p = r.pendingFace, d = r.die;
+    if (!p || E.faceCandidates().indexOf(face) < 0) return null;
+    p.picked.push(face);
+    if (p.picked.length < p.n) { E.save(); return { more: p.n - p.picked.length }; }
+
+    var msg = '', a = p.picked[0], b = p.picked[1];
+    switch (p.mode) {
+      case 'reforge':
+        r.pendingReforge = { face: a, forceLens: p.forceLens || null };
+        r.pendingFace = null; E.save();
+        return { reforge: a };
+      case 'collapse': {
+        var idc = d.faces[a].id, defc = ns.dieEngraving(idc);
+        var solo = JSON.parse(JSON.stringify(defc));
+        solo.span = 1;
+        var fct = 1 / ns.SPAN_MULT;
+        solo.fx = (solo.fx || []).map(function (q) { var z = JSON.parse(JSON.stringify(q)); if (z.k !== 'hploss') z.v = Math.max(1, Math.round((z.v || 1) * fct)); return z; });
+        solo.desc = ns.reforgeDescribe(solo.fx, { trigger: solo.listen });
+        var nidc = E.forgedInstall(solo);
+        clearRootAt(a); seatAt(a, nidc, solo);
+        msg = solo.name + ' poured into face ' + a + ': ' + solo.desc;
+        break;
+      }
+      case 'unlisten': {
+        var idu = d.faces[a].id, defu = ns.dieEngraving(idu);
+        var plain = JSON.parse(JSON.stringify(defu));
+        delete plain.listen;
+        plain.fx = (plain.fx || []).map(function (q) { var z = JSON.parse(JSON.stringify(q)); if (z.k !== 'hploss') z.v = Math.max(1, Math.round((z.v || 1) * 1.6)); return z; });
+        plain.desc = ns.reforgeDescribe(plain.fx);
+        var nidu = E.forgedInstall(plain);
+        clearRootAt(a); seatAt(a, nidu, plain);
+        msg = plain.name + ' stopped waiting: ' + plain.desc;
+        break;
+      }
+      case 'swap':
+        E.dieSwapRoots(a, b);
+        msg = 'Faces ' + a + ' and ' + b + ' changed places';
+        break;
+      case 'fuse': {
+        var fused = E.dieFuse(a, b);
+        msg = fused ? fused.name + ' on face ' + a + ': ' + fused.desc : 'They would not take';
+        break;
+      }
+      case 'migrate': {
+        var idm = d.faces[a].id, defm = ns.dieEngraving(idm);
+        clearRootAt(a); seatAt(b, idm, defm);
+        msg = defm.name + ' moved to face ' + b;
+        break;
+      }
+      case 'mirror': {
+        var opp = a > 10 ? a - 10 : a + 10;
+        var idr = d.faces[a].id, defr = ns.dieEngraving(idr);
+        var thin = JSON.parse(JSON.stringify(defr));
+        thin.tier = Math.max(1, (thin.tier || 1) - 1);
+        thin.fx = (thin.fx || []).map(function (q) { var z = JSON.parse(JSON.stringify(q)); if (z.k !== 'hploss') z.v = Math.max(1, Math.round((z.v || 1) * 0.7)); return z; });
+        thin.desc = ns.reforgeDescribe(thin.fx, { trigger: thin.listen });
+        var nidr = E.forgedInstall(thin);
+        clearRootAt(a); seatAt(a, nidr, thin); seatAt(opp, nidr, thin);
+        msg = thin.name + ' now stands on ' + a + ' and ' + opp;
+        break;
+      }
+      case 'blank': {
+        var nb = clearRootAt(a);
+        if (p.returnUpgraded) { r.dieDebt = { face: a, id: nb, tiers: p.returnUpgraded, sector: r.sector }; }
+        msg = 'Face ' + a + ' went blank';
+        break;
+      }
+      case 'sell': {
+        var defs = ns.dieEngraving(d.faces[a].id);
+        var price = { 1: 40, 2: 85, 3: 150 }[defs.tier || 1] || 40;
+        r.credits += price; clearRootAt(a);
+        msg = defs.name + ' sold for ' + price;
+        break;
+      }
+      case 'sellScar': {
+        var defsc = ns.dieEngraving(d.faces[a].id);
+        var pr2 = Math.round(({ 1: 40, 2: 85, 3: 150 }[defsc.tier || 1] || 40) / 2);
+        r.credits += pr2; clearRootAt(a);
+        msg = defsc.name + ' sold for ' + pr2 + ' — the scar went with it';
+        break;
+      }
+      case 'give':
+        r.credits += p.pay || 0; clearRootAt(a);
+        msg = 'Handed over for ' + (p.pay || 0) + ' credits';
+        break;
+      case 'teach': {
+        var deft = ns.dieEngraving(d.faces[a].id);
+        var kind = (deft.fx && deft.fx[0]) ? (deft.fx[0].k === 'status' ? deft.fx[0].s : deft.fx[0].k) : null;
+        clearRootAt(a);
+        var lifted = 0;
+        E.dieCutFaces().map(function (f) { return d.faces[f].root; })
+          .filter(function (v, i, ar) { return ar.indexOf(v) === i; })
+          .forEach(function (f) {
+            var dd = ns.dieEngraving(d.faces[f].id);
+            var k2 = (dd.fx && dd.fx[0]) ? (dd.fx[0].k === 'status' ? dd.fx[0].s : dd.fx[0].k) : null;
+            if (k2 === kind && E.dieTierUp(f)) lifted++;
+          });
+        msg = deft.name + ' taught away — ' + lifted + ' of its kind grew';
+        break;
+      }
+      case 'grant': {
+        var poolg = Object.keys(ns.DIE_AUGMENTS).filter(function (k) {
+          var q = ns.DIE_AUGMENTS[k];
+          return q.tier === (p.tier || 1) && (q.span || 1) === 1 && (!q.cls || q.cls === r.cls);
+        });
+        if (poolg.length) { var gid2 = pick(poolg); seatAt(a, gid2, ns.DIE_AUGMENTS[gid2]); msg = ns.DIE_AUGMENTS[gid2].name + ' cut into face ' + a; }
+        break;
+      }
+      case 'steal': {
+        // the understudy's die: a real engraving you did not choose
+        var pools = Object.keys(ns.DIE_AUGMENTS).filter(function (k) {
+          var q = ns.DIE_AUGMENTS[k];
+          return (q.span || 1) === 1 && (!q.cls || q.cls === r.cls) && (q.tier || 1) >= 2;
+        });
+        if (pools.length) { var sid2 = pick(pools); clearRootAt(a); seatAt(a, sid2, ns.DIE_AUGMENTS[sid2]); msg = 'It gave up ' + ns.DIE_AUGMENTS[sid2].name + ', onto face ' + a; }
+        break;
+      }
+    }
+    r.pendingFace = null;
+    if (msg && r.eventResult) r.eventResult.gained.push(msg);
+    E.save();
+    return { done: true, text: msg };
+  };
+
+  /* THE CRUCIBLE. Two in, one out, and what comes out is decided by what went
+   * in — two defensive make a wall, two offensive make a longer blade, one of
+   * each makes a hybrid drawn from the die's own class table. */
+  E.dieFuse = function (a, b) {
+    var r = E.run, d = r.die;
+    if (!d.faces[a] || !d.faces[b]) return null;
+    var da = ns.dieEngraving(d.faces[a].id), db = ns.dieEngraving(d.faces[b].id);
+    if (!da || !db) return null;
+    function off(def) { return (def.fx || []).some(function (q) { return q.k === 'dmg' || (q.k === 'status' && q.who !== 'self'); }); }
+    var oa = off(da), ob = off(db);
+    var budget = ns.engravingSp(da) + ns.engravingSp(db);
+    var fx, nm;
+    if (oa && ob) { nm = 'THE LONGER BLADE'; fx = [{ k: 'dmg', v: Math.max(1, Math.round(budget / 0.6)) }]; }
+    else if (!oa && !ob) { nm = 'THE WALL'; fx = [{ k: 'block', v: Math.max(1, Math.round(budget)) }]; }
+    else {
+      nm = 'THE HYBRID';
+      var half = budget / 2;
+      fx = [{ k: 'block', v: Math.max(1, Math.round(half)) }, { k: 'dmg', v: Math.max(1, Math.round(half / 0.6)) }];
+      var tbl = ns.reforgeTableFor(r.cls);
+      var tl = tbl.lenses.filter(function (l) { return l.rider; })[0];
+      if (tl) { var rf2 = { k: tl.rider.k, v: 1 }; if (tl.rider.s) rf2.s = tl.rider.s; if (tl.rider.who) rf2.who = tl.rider.who; fx.push(rf2); }
+    }
+    var def = { name: nm, tier: Math.min(3, Math.max(da.tier || 1, db.tier || 1) + 1), span: 1, fx: fx, cls: r.cls,
+                desc: ns.reforgeDescribe(fx), art: da.art };
+    var id = E.forgedInstall(def);
+    clearRootAt(a); clearRootAt(b);
+    seatAt(a, id, def);
+    return def;
+  };
+
+  /* THE LONG ODDS. Deliberately NOT your die: a flat 1-20 with nothing of your
+   * build in it. Not every event should reward the engraver — sometimes you
+   * just want the lottery, and the pool is better for having one. */
+  E.betResolve = function (callValue) {
+    var r = E.run, op = r.pendingOp;
+    if (!op) return null;
+    var roll = d20(), won = false;
+    if (op.k === 'betRegion') won = ns.dieRegionOf(roll) === callValue;
+    else won = (roll === callValue);
+    var payout = won ? (op.stake || 0) * op.pay : 0;
+    if (payout) r.credits += payout;
+    r.eventResult = {
+      roll: roll, pass: won, dieRead: 'bet', gained: payout ? ['+' + payout + ' credits'] : ['The stake is gone'],
+      text: won ? 'The board pays out without comment. It is scrupulously fair, in both directions.'
+                : 'The house does not look up. It has seen this a great many times.',
+    };
+    r.pendingOp = null;
+    r.phase = 'event-result';
+    E.save();
+    return r.eventResult;
   };
 
   E.eventChoose = function (ci) {
@@ -3299,24 +3676,13 @@
     // Sell: pick one of your own cards/relics to liquidate for credits.
     if (ch.sell) { r.pendingSell = { kind: ch.sell.kind || 'card' }; r.eventResult = { text: ch.sell.text || 'What will you part with?', gained: [], roll: null }; r.phase = 'event-result'; E.save(); return { sell: true }; }
 
-    var res = { roll: null, pass: null, dc: null, bonus: 0 };
+    // A bet needs a second input (which region, which number) before it rolls.
+    if (ch.op) { r.pendingOp = { k: ch.op.k, pay: ch.op.pay, stake: ch.op.stake, ci: ci }; r.phase = 'event-op'; E.save(); return { op: ch.op.k }; }
+
+    var res = { roll: null, pass: null, dieRead: null, rolls: null };
     var out;
-    if (ch.check) {
-      var roll = d20();
-      var bonus = Math.floor(attr(ch.check.attr) / B.attrs.eventCheckBonusDiv) + art('checkBonus');
-      var pass = (roll + bonus >= ch.check.dc) || roll === 20;
-      if (roll === 1) pass = false;
-      res.roll = roll; res.bonus = bonus; res.dc = ch.check.dc; res.pass = pass;
-      res.attr = ch.check.attr;
-      out = pass ? ch.success : ch.fail;
-    } else if (ch.gamble) {
-      var bag = [];
-      ch.gamble.forEach(function (g, i) { for (var w = 0; w < (g.w || 1); w++) bag.push(i); });
-      out = ch.gamble[bag[Math.floor(rnd() * bag.length)]];
-      res.gamble = true;
-    } else {
-      out = ch.outcome;
-    }
+    if (ch.die) { out = resolveDieCheck(ch.die, res); }
+    else { out = ch.outcome; }
     res.text = out.text;
     res.gained = applyOutcome(out.fx || {});
     r.eventResult = res;
@@ -3325,8 +3691,232 @@
     return res;
   };
 
+  /* Every die verb an event can name. The ones that need the player to point
+   * at something park a pendingFace and the UI collects it — same shape the
+   * card-picker and the relic-trade already use. */
+  function applyDieFx(fx, gained) {
+    var r = E.run, d = r.die;
+    if (!d) return;
+
+    function need(mode, n, meta) {
+      r.pendingFace = Object.assign({ mode: mode, n: n || 1, picked: [] }, meta || {});
+      gained.push(PENDING_LABEL[mode] || 'Choose a face');
+    }
+
+    if (fx.reforge) {
+      if (fx.reforge === 'rolled' && r.eventRolled && d.faces[r.eventRolled]) {
+        r.pendingReforge = { face: d.faces[r.eventRolled].root };
+        gained.push('Rewrite the face that landed');
+      } else if (fx.reforge === 'band') need('reforge', 1, { only: 'band' });
+      else if (fx.reforge === 'listen') need('reforge', 1, { forceLens: 'listen' });
+      else need('reforge', 1);
+    }
+    if (fx.bandCollapse) need('collapse', 1, { only: 'band' });
+    if (fx.unlisten) need('unlisten', 1, { only: 'listen' });
+    if (fx.swapFaces) need('swap', 2, { cross: fx.swapFaces === 'cross' });
+    if (fx.fuseFaces) need('fuse', 2);
+    if (fx.migrateFace) need('migrate', 1);
+    if (fx.mirrorFace) need('mirror', 1);
+    if (fx.stealFace) need('steal', 1);
+    if (fx.blankPick) need('blank', fx.blankPick, { returnUpgraded: fx.returnUpgraded || 0 });
+    if (fx.sellFaces) need('sell', fx.sellFaces);
+    if (fx.sellScarred) need('sellScar', fx.sellScarred);
+    if (fx.giveFace) need('give', 1, { pay: fx.giveFace });
+    if (fx.teachAway) need('teach', 1);
+    if (fx.grantEngraving) need('grant', 1, { tier: fx.grantEngraving });
+
+    if (fx.swapRandom) {
+      var cuts = E.dieCutFaces().map(function (f) { return d.faces[f].root; })
+                  .filter(function (v, i, a) { return a.indexOf(v) === i; });
+      if (cuts.length >= 2) {
+        var a1 = pick(cuts), rest = cuts.filter(function (x) { return x !== a1; });
+        var b1 = pick(rest);
+        E.dieSwapRoots(a1, b1);
+        gained.push('Faces ' + a1 + ' and ' + b1 + ' changed places');
+      } else gained.push('Not enough work on the die to swap');
+    }
+    if (fx.scarRandom) {
+      var clean = ns.dieCleanRoots(d);
+      if (clean.length) { ns.dieAddTaint(d, pick(clean), fx.scarRandom); gained.push('A face took ' + ns.DIE_TAINTS[fx.scarRandom].name); }
+      else gained.push('Nothing left to spoil');
+    }
+    if (fx.scarBest || fx.scarMostFired) {
+      var tid = fx.scarBest || fx.scarMostFired;
+      var roots = ns.dieCleanRoots(d), best = null, bestV = -1;
+      roots.forEach(function (f) {
+        var def = ns.dieEngraving(d.faces[f].id);
+        var v = fx.scarMostFired ? ((r.faceFired && r.faceFired[f]) || 0) : ns.engravingSp(def);
+        if (v > bestV) { bestV = v; best = f; }
+      });
+      if (best != null) { ns.dieAddTaint(d, best, tid); gained.push('Face ' + best + ' took ' + ns.DIE_TAINTS[tid].name); }
+    }
+    if (fx.blankBest) {
+      var rts = [], seen0 = {};
+      for (var f0 = 1; f0 <= 20; f0++) { var sl = d.faces[f0]; if (sl && !seen0[sl.root]) { seen0[sl.root] = 1; rts.push(sl.root); } }
+      var bf = null, bt = -1;
+      rts.forEach(function (f) { var def = ns.dieEngraving(d.faces[f].id); var t = (def && def.tier) || 0; if (t > bt) { bt = t; bf = f; } });
+      if (bf != null && canBlank(1)) { clearRootAt(bf); gained.push('Face ' + bf + ' went blank'); }
+      else gained.push('The die is too bare to give anything up');
+    }
+    if (fx.scarSpread) {
+      var tainted = ns.dieTaintedRoots(d), spread = 0;
+      tainted.forEach(function (root) {
+        var tid2 = d.faces[root].taint;
+        ns.dieNeighbours(d, root).forEach(function (nf) {
+          var ns2 = d.faces[nf];
+          if (ns2 && !d.faces[ns2.root].taint) { ns.dieAddTaint(d, ns2.root, tid2); spread++; }
+        });
+      });
+      gained.push(spread ? 'The rot reached ' + spread + ' more face' + (spread > 1 ? 's' : '') : 'The rot had nowhere to go');
+    }
+    if (fx.tierUpScarred) {
+      var up = 0;
+      ns.dieTaintedRoots(d).forEach(function (root) { if (E.dieTierUp(root)) up++; });
+      gained.push(up ? up + ' scarred face' + (up > 1 ? 's' : '') + ' came back harder' : 'Nothing scarred to harden');
+    }
+    if (fx.weldSeam) {
+      d.weld = true;
+      [20, 1].forEach(function (f) { if (d.faces[f]) ns.dieAddTaint(d, d.faces[f].root, 'feedback'); });
+      gained.push('Twenty and one are one face now');
+    }
+    if (fx.seamCopy) {
+      var src = d.faces[20] || d.faces[1];
+      if (src) {
+        var sid = d.faces[src.root].id, sdef = ns.dieEngraving(sid);
+        [20, 1].forEach(function (f) { if (!d.faces[f]) seatAt(f, sid, sdef); });
+        gained.push('The work stands on both sides of the join');
+      } else gained.push('Nothing at the seam to copy');
+    }
+    if (fx.coreSlots) {
+      d.coreSlots = Math.max(1, Math.min(ns.DIE.coreSlotsMax, (d.coreSlots || 3) + fx.coreSlots));
+      gained.push((fx.coreSlots > 0 ? '+' : '') + fx.coreSlots + ' Core slot');
+    }
+    if (fx.creditsPerBlank) {
+      var nb = E.dieBlankFaces().length, pay = nb * fx.creditsPerBlank;
+      r.credits += pay;
+      gained.push('+' + pay + ' credits — ' + nb + ' still asking');
+    }
+    if (fx.cutPerBlanks) {
+      var nb2 = E.dieBlankFaces().length, cuts2 = Math.floor(nb2 / fx.cutPerBlanks);
+      for (var ci3 = 0; ci3 < cuts2; ci3++) {
+        var blanks = E.dieBlankFaces();
+        if (!blanks.length) break;
+        var poolT1 = Object.keys(ns.DIE_AUGMENTS).filter(function (k) {
+          var a = ns.DIE_AUGMENTS[k];
+          return a.tier === 1 && (a.span || 1) === 1 && (!a.cls || a.cls === r.cls);
+        });
+        if (!poolT1.length) break;
+        var gid = pick(poolT1), gf = pick(blanks);
+        seatAt(gf, gid, ns.DIE_AUGMENTS[gid]);
+      }
+      gained.push(cuts2 ? cuts2 + ' face' + (cuts2 > 1 ? 's' : '') + ' cut, free' : 'Not enough blanks to earn one');
+    }
+    if (fx.fireFace && r.eventRolled) {
+      var fs = d.faces[r.eventRolled];
+      if (fs) {
+        var fd = ns.dieEngraving(d.faces[fs.root].id);
+        var worth = Math.round(ns.engravingSp(fd) * 4);
+        r.credits += worth;
+        gained.push(fd.name + ' fired — +' + worth + ' credits');
+      }
+    }
+    if (fx.countBlanks) gained.push(E.dieCutCount() + ' faces cut, ' + E.dieBlankFaces().length + ' blank');
+    if (fx.offerCut) { r.pendingOffer = { kind: 'cut', cost: fx.offerCut }; gained.push('A cut offered for ' + fx.offerCut); }
+    if (fx.reportWeakRegion) {
+      var byReg = { low: 0, mid: 0, high: 0 };
+      E.dieCutFaces().forEach(function (f) { byReg[ns.dieRegionOf(f)]++; });
+      var worst = Object.keys(byReg).sort(function (a, b) { return byReg[a] - byReg[b]; })[0];
+      gained.push('Weakest region: ' + ns.dieRegionLabel(worst).toUpperCase() + ' (' + byReg[worst] + ' cut)');
+    }
+    if (fx.reportPairs) {
+      var bestP = 1, bestN = 9;
+      for (var p = 1; p <= 10; p++) {
+        var n2 = (d.faces[p] ? 1 : 0) + (d.faces[p + 10] ? 1 : 0);
+        if (n2 < bestN) { bestN = n2; bestP = p; }
+      }
+      gained.push('Emptiest pair: ' + bestP + ' and ' + (bestP + 10));
+    }
+    if (fx.reportProving) {
+      var tg = 10 + (r.sector || 1) * 5;
+      var avg = 0;
+      E.dieCutFaces().forEach(function (f) { avg += ns.engravingSp(ns.dieEngraving(d.faces[f].id)); });
+      avg = avg / 20 * 3;
+      gained.push('Target ' + tg + ' — your die averages ' + (Math.round(avg * 10) / 10) + ' over three rolls');
+    }
+    if (fx.fusePreview) gained.push('Two defensive make a wall · two offensive make a longer blade · one of each makes a hybrid');
+  }
+  var PENDING_LABEL = {
+    reforge: 'Choose a face to rewrite', collapse: 'Choose a band to collapse',
+    unlisten: 'Choose a listener to silence', swap: 'Choose two faces to swap',
+    fuse: 'Choose two engravings to fuse', migrate: 'Choose an engraving to move',
+    mirror: 'Choose a face to mirror', steal: 'Choose a face to overwrite',
+    blank: 'Choose a face to give up', sell: 'Choose faces to sell',
+    sellScar: 'Choose a scarred face to sell', give: 'Choose a face to hand over',
+    teach: 'Choose an engraving to teach away', grant: 'Choose where to cut',
+  };
+
+  // Raise the engraving at `root` one tier, keeping its shape.
+  E.dieTierUp = function (root) {
+    var r = E.run, slot = r.die.faces[root];
+    if (!slot) return false;
+    var def = ns.dieEngraving(slot.id);
+    if (!def || (def.tier || 1) >= 3) return false;
+    var up = JSON.parse(JSON.stringify(def));
+    up.tier = (def.tier || 1) + 1;
+    var factor = ns.TIER_BUDGET[up.tier] / ns.TIER_BUDGET[def.tier || 1];
+    up.fx = (up.fx || []).map(function (fq) {
+      if (fq.k === 'hploss') return fq;                   // costs do not inflate
+      var q = JSON.parse(JSON.stringify(fq));
+      q.v = Math.max(1, Math.round((q.v || 1) * factor));
+      return q;
+    });
+    up.desc = ns.reforgeDescribe(up.fx, { trigger: up.listen });
+    up.name = def.name;
+    /* Keep the scar. Reseating the face was quietly curing it, which made THE
+     * QUARANTINE's third option — come out stronger AND sicker — pay out the
+     * strength and forgive the sickness. The two are supposed to be inseparable. */
+    var taint = r.die.faces[root] && r.die.faces[root].taint;
+    var id = E.forgedInstall(up);
+    clearRootAt(root);
+    seatAt(root, id, up);
+    if (taint) r.die.faces[root].taint = taint;
+    return true;
+  };
+
+  E.dieSwapRoots = function (a, b) {
+    var r = E.run, d = r.die;
+    var sa = d.faces[a], sb = d.faces[b];
+    if (!sa || !sb || sa.root === sb.root) return false;
+    var ida = d.faces[sa.root].id, idb = d.faces[sb.root].id;
+    var da = ns.dieEngraving(ida), db = ns.dieEngraving(idb);
+    var ra = sa.root, rb = sb.root;
+    clearRootAt(ra); clearRootAt(rb);
+    seatAt(ra, idb, db); seatAt(rb, ida, da);
+    E.save();
+    return true;
+  };
+
   function applyOutcome(fx) {
     var r = E.run, gained = [];
+    applyDieFx(fx, gained);
+    if (fx.hpPct) {
+      var lost = Math.max(1, Math.round(r.hp * Math.abs(fx.hpPct)));
+      r.hp -= lost; gained.push('-' + lost + ' HP');
+      if (r.hp <= 0) { playerDied(); return gained; }
+    }
+    if (fx.creditsAll) { gained.push('-' + r.credits + ' credits'); r.credits = 0; }
+    if (fx.curse2) { r.deck.push(mkCard(fx.curse2, false)); gained.push('CURSE: ' + ns.CARDS[fx.curse2].name); }
+    if (fx.skipRewards) { r.skipRewards = (r.skipRewards || 0) + fx.skipRewards; gained.push('The next reward passes you by'); }
+    if (fx.doubleNextReward) { r.doubleReward = true; gained.push('The one after is doubled'); }
+    if (fx.skipEvents) { r.skipEvents = (r.skipEvents || 0) + fx.skipEvents; gained.push('Two events will not happen'); }
+    if (fx.sectorMaxHpPct) {
+      var cut2 = Math.max(1, Math.round(r.maxHp * Math.abs(fx.sectorMaxHpPct)));
+      r.sectorDebt = { maxHp: cut2, sector: r.sector };
+      r.maxHp -= cut2; r.hp = Math.min(r.hp, r.maxHp);
+      gained.push('-' + cut2 + ' Max HP until you clear the sector');
+    }
+    if (fx.sectorEnergy) { r.sectorEnergy = { v: fx.sectorEnergy, sector: r.sector }; gained.push('+' + fx.sectorEnergy + ' Energy every combat this sector'); }
+    if (fx.fightElite) { r.forcedFight = 'elite'; gained.push('It is already moving'); }
     if (fx.credits) {
       r.credits = Math.max(0, r.credits + fx.credits);
       if (fx.credits > 0) questProgress('creditsAtOnce', r.credits);
@@ -3866,6 +4456,11 @@
       // fight. Discard it and send the player to the title screen instead.
       if (!B.classes[data.run.cls]) { try { s.removeItem('voidspire_save'); } catch (e2) {} return false; }
       E.run = data.run;
+      /* Reforged engravings are made at runtime and stored on the run, not in
+       * DIE_AUGMENTS — so without this every rewritten face loads as a blank
+       * and the player silently loses the work. */
+      ns.forgedClear();
+      E.forgedRehydrate();
       rngState = data.rng >>> 0;
       uidCounter = data.uid || 1000;
       E.combat = null;

@@ -18,6 +18,7 @@ require('../js/cards.js');
 require('../js/cardart.js');
 require('../js/artifacts.js');
 require('../js/dice.js');
+require('../js/reforge.js');
 
 var fs = require('fs');
 var path = require('path');

@@ -2117,3 +2117,44 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .lg-relic { color: #ffd24a; }
 .lg-kill  { color: #ff4a5e; font-weight: 700; }
 .lg-dim   { color: #5d7266; }
+
+
+/* ====================== THE DIE EVENTS ==================================
+ * The reforge picker, the face picker and the betting table. Landscape is the
+ * orientation this is played in and the frame is CSS-scaled to fit there, so
+ * these are sized against that rather than against a portrait phone. */
+.reforge-base {
+  display: grid; gap: 3px; padding: 10px 12px; margin: 0 0 4px;
+  border: 1px solid rgba(120,150,165,0.28); border-radius: 3px;
+  background: rgba(10,14,18,0.6);
+}
+.rb-lbl { font: 700 9.5px/1.4 ui-monospace, monospace; letter-spacing: .2em; color: #61776c; }
+.rb-name { font: 700 14px/1.3 ui-monospace, monospace; color: #cfe6da; }
+.rb-desc { font-size: 12.5px; line-height: 1.45; color: #8fa79a; }
+
+.panel-btn.reforge-opt { align-items: stretch; }
+.ro-desc { font-size: 13px; line-height: 1.5; color: #cfe6da; margin-top: 3px; }
+.ro-note { font: 600 11px/1.4 ui-monospace, monospace; color: #61776c; margin-top: 3px; }
+
+.face-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin: 6px 0 4px;
+}
+@media (min-width: 620px) { .face-grid { grid-template-columns: repeat(5, 1fr); } }
+.fc {
+  border: 1px solid rgba(120,150,165,0.18); border-radius: 3px; padding: 6px 5px;
+  display: grid; gap: 2px; min-height: 52px; align-content: start;
+  background: rgba(10,14,18,0.5); opacity: 0.4; text-align: center;
+}
+.fc.can { opacity: 1; cursor: pointer; }
+.fc.can:hover { background: rgba(93,255,136,0.07); }
+.fc.chosen { background: rgba(93,255,136,0.16); border-color: #5dff88; }
+.fc-n { font: 700 15px/1.1 ui-monospace, monospace; color: #eafcff; font-variant-numeric: tabular-nums; }
+.fc-name {
+  font: 600 8.5px/1.25 ui-monospace, monospace; color: #8fa79a;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fc.blank .fc-name { color: #3f5049; }
+.fc-scar { font: 700 8px/1.2 ui-monospace, monospace; color: #ff4a5e; letter-spacing: .05em; }
+.fc.scarred { border-color: rgba(255,74,94,0.45); }
+.bet-grid .fc { min-height: 40px; }
+.pv-row.dim-row { color: #61776c; font-style: italic; }

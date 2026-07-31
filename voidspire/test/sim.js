@@ -11,6 +11,7 @@ require('../js/balance.js');
 require('../js/cards.js');
 require('../js/artifacts.js');
 require('../js/dice.js');
+require('../js/reforge.js');
 require('../js/potions.js');
 require('../js/echoes.js');
 require('../js/enemies.js');
@@ -408,6 +409,43 @@ function scoreFx(fx, low) {
   if (fx.healPct) s += low ? 10 : 2;
   if (fx.hp < 0) s += low ? -12 : fx.hp / 4;
   if (fx.curse) s -= 8;
+  if (fx.curse2) s -= 8;
+
+  /* THE DIE VERBS. Without these every reforge, swap and blanking scored zero
+   * and the bot took a quarter of its own health for nothing — which read as a
+   * class-balance regression when it was really the model not knowing the new
+   * currency existed. */
+  if (fx.reforge || fx.bandCollapse || fx.unlisten) s += 6;
+  if (fx.grantEngraving) s += 7;
+  if (fx.cutPerBlanks) s += 5;
+  if (fx.creditsPerBlank) s += 5;
+  if (fx.stealFace) s += 5;
+  if (fx.fuseFaces || fx.mirrorFace) s += 4;
+  if (fx.teachAway) s += 3;
+  if (fx.swapFaces || fx.migrateFace) s += 2;
+  if (fx.swapRandom) s -= 1;
+  if (fx.weldSeam || fx.seamCopy) s += 2;
+  if (fx.fireFace) s += 2;
+  if (fx.tierUpScarred) s += 6;
+  if (fx.returnUpgraded) s += 5;
+  if (fx.coreSlots) s += fx.coreSlots > 0 ? 6 : -4;
+  if (fx.blankPick) s -= 6 * fx.blankPick;
+  if (fx.blankBest) s -= 10;
+  if (fx.sellFaces || fx.giveFace) s += (VS.engine.run.credits < 60 ? 3 : -2);
+  if (fx.sellScarred) s += 3;
+  if (fx.scarRandom) s -= 5;
+  if (fx.scarBest || fx.scarMostFired) s -= 7;
+  if (fx.scarSpread) s -= 8;
+
+  // the costs the evil events are actually priced in
+  if (fx.hpPct) s += low ? -14 : -6;
+  if (fx.creditsAll) s -= VS.engine.run.credits / 12;
+  if (fx.skipRewards) s -= 5;
+  if (fx.doubleNextReward) s += 5;
+  if (fx.skipEvents) s -= 4 * fx.skipEvents;
+  if (fx.sectorMaxHpPct) s += low ? -12 : -5;
+  if (fx.sectorEnergy) s += 7;
+  if (fx.fightElite) s += low ? -12 : -3;
   return s;
 }
 
@@ -443,14 +481,17 @@ function eventChoiceIdx(ev) {
     var fx = (out && out.fx) || {};
     s = scoreFx(fx, low);
     if (fx.pick === 'remove' || fx.pick === 'upgrade') s += 5;
-    if (ch.check) {
-      var bonus = VS.engine.attr(ch.check.attr);
-      var p = Math.max(0.05, Math.min(0.95, (21 - (ch.check.dc - bonus)) / 20));
-      var failFx = (ch.fail && ch.fail.fx) || {};
-      var failPenalty = (failFx.hp ? -failFx.hp / 3 : 0) + (failFx.curse ? 8 : 0);
-      s = s * p - failPenalty * (1 - p);
-      if (low && failFx.hp) s -= 4;
+    if (ch.die) {
+      // weigh both branches by the odds — which for a die check are the build
+      var d = ch.die;
+      var p = d.read === 'seam' ? 0.1
+            : d.read === 'face' ? 0.5
+            : VS.engine.dieOdds('cut').pct / 100;
+      var goodFx = (d.onCut || d.onWin || {}).fx || {};
+      var badFx = (d.onBlank || d.onLose || {}).fx || {};
+      s = scoreFx(goodFx, low) * p + scoreFx(badFx, low) * (1 - p) - (ch.cost ? ch.cost / 12 : 0);
     }
+    if (ch.op) s = -0.5;   // the lottery is break-even by design; the bot does not chase it
     if (s > bestS) { bestS = s; bestI = i; }
   });
   return bestI;
@@ -516,6 +557,8 @@ function step() {
       }
       var res = E.eventChoose(eventChoiceIdx(ev));
       if (!res) throw new Error('eventChoose returned null');
+      // A betting table parks a second input before it will roll.
+      if (res.op) E.betResolve(r.pendingOp.k === 'betRegion' ? 'mid' : 11);
       break;
     }
     case 'press-luck': {
@@ -530,6 +573,27 @@ function step() {
       break;
     }
     case 'event-result':
+      /* The die verbs come first — a face pick can cascade into a reforge pick,
+       * and the node will not close until both have landed. The bot plays them
+       * straight: first legal face, first rewrite. */
+      var dieGuard = 0;
+      while ((r.pendingFace || r.pendingReforge) && dieGuard++ < 10) {
+        if (r.pendingFace) {
+          var fc = E.faceCandidates();
+          if (!fc.length) { r.pendingFace = null; break; }
+          E.facePick(fc[0]);
+        } else {
+          var ro = E.reforgeOptionsAt(r.pendingReforge.face);
+          if (!ro.length) { r.pendingReforge = null; break; }
+          // avoid the blood-priced rewrites when already hurt
+          var hurt = r.hp < r.maxHp * 0.5, bestRo = 0;
+          for (var roi = 0; roi < ro.length; roi++) {
+            var costsHp = (ro[roi].fx || []).some(function (q) { return q.k === 'hploss'; });
+            if (!(hurt && costsHp)) { bestRo = roi; break; }
+          }
+          E.reforgeApply(r.pendingReforge.face, bestRo);
+        }
+      }
       if (r.pendingRelic) E.takeEventRelic();   // a competent player takes the free relic
       if (r.pendingAddCard) E.eventAddCard(r.pendingAddCard[0]);
       if (r.pendingPick) {
@@ -680,8 +744,14 @@ VS.EVENTS.forEach(function (ev) {
   if (!ev.art) throw new Error('event ' + ev.id + ' has no portrait art');
   if (ev.gambleDen) return;   // custom gamble screen, no text choices
   ev.choices.forEach(function (ch) {
-    if (ch.pressLuck || ch.sell) return; // interactive loops resolve their own outcomes
+    if (ch.pressLuck || ch.sell || ch.op) return; // interactive loops resolve their own outcomes
+    // A die check branches instead of resolving: every branch is an outcome.
     var outs = [ch.outcome, ch.success, ch.fail].filter(Boolean).concat(ch.gamble || []);
+    if (ch.die) {
+      ['onCut', 'onBlank', 'onWin', 'onLose', 'low', 'mid', 'high'].forEach(function (k) {
+        if (ch.die[k]) outs.push(ch.die[k]);
+      });
+    }
     if (outs.length === 0) throw new Error('event ' + ev.id + ' choice with no outcome');
     outs.forEach(function (o) {
       if (o.fx && o.fx.card && o.fx.card !== 'random' && o.fx.card !== 'rare' && o.fx.card !== 'colorless' && !VS.CARDS[o.fx.card])

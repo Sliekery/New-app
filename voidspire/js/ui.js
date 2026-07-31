@@ -4016,7 +4016,14 @@
   function rollDie(box, res, onSettle) {
     box.innerHTML = '<div class="d20-wrap">' + d20SVG('?', 'rolling') + '</div><div class="d20-readout"></div>';
     var svg = box.querySelector('.d20'), numEl = svg.querySelector('.d20-num'), read = box.querySelector('.d20-readout');
-    var pre = (res.attr ? res.attr.toUpperCase() + ' · ' : '') + 'DC ' + res.dc + (res.bonus ? ' · you +' + res.bonus : '');
+    /* THE READOUT NAMES WHAT IS BEING READ, not a DC. There is no hidden number
+     * to beat any more — the die lands on a face and the face either has your
+     * work on it or it does not. */
+    var pre = res.dieRead === 'cut'  ? 'YOUR DIE · ' + E.dieOdds('cut').hits + ' OF 20 CUT'
+            : res.dieRead === 'seam' ? 'YOUR DIE · THE SEAM · 20 OR 1'
+            : res.dieRead === 'face' ? 'YOUR DIE · ' + (res.rolls ? res.rolls.length : 3) + ' ROLLS AT THE TARGET'
+            : res.dieRead === 'bet'  ? 'A FLAT TWENTY · NOT YOUR DIE'
+            : 'YOUR DIE';
     read.innerHTML = '<span class="d20-dc">' + pre + '</span>';
     var ticks = 0, max = 18, timer = null, settled = false;
     function settle() {
@@ -4025,9 +4032,23 @@
       numEl.textContent = res.roll;
       svg.classList.remove('rolling');
       svg.classList.add(res.pass ? 'pass' : 'fail');
-      var total = res.roll + (res.bonus || 0);
-      read.innerHTML = '<span class="d20-eq">' + res.roll + (res.bonus ? ' +' + res.bonus + ' = ' + total : '') + ' vs ' + res.dc + '</span>' +
-        '<span class="d20-res ' + (res.pass ? 'ok' : 'no') + '">' + (res.pass ? 'SUCCESS' : 'FAILURE') + '</span>';
+      var eq, verdict;
+      if (res.dieRead === 'face') {
+        numEl.textContent = res.total;
+        eq = (res.rolls || []).map(function (x) { return x.cut ? x.face : '·' + x.face; }).join('  ');
+        verdict = res.total + ' vs ' + res.target;
+      } else if (res.dieRead === 'cut') {
+        eq = 'FACE ' + res.roll + (res.faceName ? ' · ' + res.faceName.toUpperCase() : '');
+        verdict = res.cut ? 'CUT' : 'BLANK';
+      } else if (res.dieRead === 'seam') {
+        eq = 'FACE ' + res.roll;
+        verdict = res.pass ? 'THE SEAM' : 'ELSEWHERE';
+      } else {
+        eq = 'FACE ' + res.roll;
+        verdict = res.pass ? 'PAID' : 'THE HOUSE';
+      }
+      read.innerHTML = '<span class="d20-eq">' + esc(eq) + '</span>' +
+        '<span class="d20-res ' + (res.pass ? 'ok' : 'no') + '">' + esc(verdict) + '</span>';
       if (SFX) { if (res.pass) SFX.win(); else SFX.lose(); }
       if (onSettle) onSettle();
     }
@@ -4217,6 +4238,7 @@
         var res = E.eventChoose(i);
         if (!res) return;
         if (E.run.phase === 'dead') { U.refresh(); return; }
+        if (res.op) { showBet(function () { showEventResult(true); }); return; }
         showEventResult(true);
       });
       s.appendChild(btn);
@@ -4253,6 +4275,42 @@
     if (fx.tradeCard) chip('Trade up a card', true);
     if (fx.tradeRelic) chip('Trade a relic', true);
     if (fx.curse) chip('Curse', false);
+    // the die verbs — the currency nothing else in the game trades in
+    if (fx.reforge) chip('Rewrite a face', true);
+    if (fx.bandCollapse) chip('Collapse a band', true);
+    if (fx.unlisten) chip('Silence a listener', true);
+    if (fx.swapFaces) chip('Swap two faces', true);
+    if (fx.swapRandom) chip('Two swap at random', false);
+    if (fx.fuseFaces) chip('Fuse two → one', true);
+    if (fx.migrateFace) chip('Move an engraving', true);
+    if (fx.mirrorFace) chip('Mirror to n+10', true);
+    if (fx.stealFace) chip('Take its face', true);
+    if (fx.blankPick) chip('−' + fx.blankPick + ' face' + (fx.blankPick > 1 ? 's' : ''), false);
+    if (fx.blankBest) chip('−best face', false);
+    if (fx.returnUpgraded) chip('back at +' + fx.returnUpgraded + ' tiers', true);
+    if (fx.sellFaces) chip('Sell up to ' + fx.sellFaces, true);
+    if (fx.sellScarred) chip('Sell a scarred face', true);
+    if (fx.giveFace) chip('+' + fx.giveFace + '¢ for a face', true);
+    if (fx.teachAway) chip('Teach one away', true);
+    if (fx.grantEngraving) chip('Tier ' + fx.grantEngraving + ' cut', true);
+    if (fx.coreSlots) chip((fx.coreSlots > 0 ? '+' : '') + fx.coreSlots + ' Core slot', fx.coreSlots > 0);
+    if (fx.scarRandom) chip('A face takes ' + (ns.DIE_TAINTS[fx.scarRandom] || {}).name, false);
+    if (fx.scarBest || fx.scarMostFired) chip((ns.DIE_TAINTS[fx.scarBest || fx.scarMostFired] || {}).name, false);
+    if (fx.scarSpread) chip('Scars spread', false);
+    if (fx.tierUpScarred) chip('Scarred faces +1 tier', true);
+    if (fx.weldSeam) chip('Weld 20 to 1', true);
+    if (fx.seamCopy) chip('Copy across the seam', true);
+    if (fx.creditsPerBlank) chip(fx.creditsPerBlank + '¢ per blank', true);
+    if (fx.cutPerBlanks) chip('A cut per ' + fx.cutPerBlanks + ' blanks', true);
+    if (fx.fireFace) chip('The face fires', true);
+    if (fx.hpPct) chip('−' + Math.round(Math.abs(fx.hpPct) * 100) + '% HP', false);
+    if (fx.creditsAll) chip('All credits', false);
+    if (fx.skipRewards) chip('Skip a reward', false);
+    if (fx.doubleNextReward) chip('Next but one doubled', true);
+    if (fx.skipEvents) chip('Skip ' + fx.skipEvents + ' events', false);
+    if (fx.sectorMaxHpPct) chip(Math.round(fx.sectorMaxHpPct * 100) + '% Max HP / sector', false);
+    if (fx.sectorEnergy) chip('+' + fx.sectorEnergy + ' Energy / combat', true);
+    if (fx.fightElite) chip('Fight an elite now', false);
     return out.join('');
   }
 
@@ -4271,26 +4329,164 @@
       pre += '<span class="fx-chip good">Sell ' + (ch.sell.kind === 'relic' ? 'a relic' : 'a card') + ' → ¢</span>';
       return '<div class="pv">' + pre + '</div>';
     }
-    if (ch.check) {
-      var od = E.checkOdds(ch.check);
-      pre += '<span class="fx-chip check">' + ch.check.attr.toUpperCase() + ' DC ' + ch.check.dc +
-        ' · you +' + od.bonus + ' · ' + od.pct + '%</span>';
-      var win = fxChips(ch.success && ch.success.fx), lose = fxChips(ch.fail && ch.fail.fx);
-      if (win) pre += '<span class="pv-row">✓ ' + win + '</span>';
-      if (lose) pre += '<span class="pv-row">✗ ' + lose + '</span>';
-    } else if (ch.gamble) {
-      pre += '<span class="fx-chip check">⚄ GAMBLE</span>';
-      var seen = {}, gc = '';
-      ch.gamble.forEach(function (g) {
-        var c = fxChips(g.fx);
-        if (c && !seen[c]) { seen[c] = 1; gc += c; }
-      });
-      if (gc) pre += '<span class="pv-row">? ' + gc + '</span>';
+    if (ch.die) {
+      /* THE ODDS ARE PRINTED, AND THEY ARE THE BUILD. The old preview showed a
+       * hidden DC against an attribute the player could not move. This shows
+       * how many of their own twenty faces are cut, which they can verify by
+       * looking at the die. Nothing here is secret. */
+      var d = ch.die, od = E.dieOdds(d.read);
+      if (d.read === 'cut') {
+        pre += '<span class="fx-chip check">◈ ROLL YOUR DIE · ' + od.hits + '/20 CUT · ' + od.pct + '%</span>';
+        var wc = fxChips(d.onCut && d.onCut.fx), bc = fxChips(d.onBlank && d.onBlank.fx);
+        if (wc) pre += '<span class="pv-row">◆ cut · ' + wc + '</span>';
+        if (bc) pre += '<span class="pv-row">◇ blank · ' + bc + '</span>';
+      } else if (d.read === 'seam') {
+        pre += '<span class="fx-chip check">◈ ROLL YOUR DIE · 20 OR 1 · 10%</span>';
+        var ws = fxChips(d.onWin && d.onWin.fx), ls = fxChips(d.onLose && d.onLose.fx);
+        if (ws) pre += '<span class="pv-row">✓ ' + ws + '</span>';
+        if (ls) pre += '<span class="pv-row">✗ ' + ls + '</span>';
+      } else if (d.read === 'face') {
+        pre += '<span class="fx-chip check">◈ ' + (d.rolls || 3) + ' ROLLS · YOUR FACES FIRE</span>';
+        var wf = fxChips(d.onWin && d.onWin.fx), lf = fxChips(d.onLose && d.onLose.fx);
+        if (wf) pre += '<span class="pv-row">✓ ' + wf + '</span>';
+        if (lf) pre += '<span class="pv-row">✗ ' + lf + '</span>';
+      }
+    } else if (ch.op) {
+      pre += '<span class="fx-chip check">⚄ ' + (ch.op.k === 'betRegion' ? 'CALL A REGION · 3:1' : 'CALL A FACE · 20:1') + '</span>';
+      pre += '<span class="pv-row dim-row">not your die — a flat twenty</span>';
     } else if (ch.outcome) {
       var oc = fxChips(ch.outcome.fx);
       if (oc) pre += '<span class="pv-row">' + oc + '</span>';
     }
     return pre ? '<div class="pv">' + pre + '</div>' : '';
+  }
+
+  /* ====================== THE REFORGE PICKER ==========================
+   * Three rewrites of one engraving, at the same budget, drawn from the die's
+   * own class table. The base is shown above them so the trade is legible —
+   * you are always looking at what you are giving up. */
+  function showReforge(done) {
+    var r = E.run, pr = r.pendingReforge;
+    if (!pr) { done(); return; }
+    var face = pr.face;
+    var opts = E.reforgeOptionsAt(face);
+    if (!opts.length) { r.pendingReforge = null; done(); return; }
+    var slot = r.die.faces[face];
+    var base = slot ? ns.dieEngraving(slot.id) : null;
+    var col = CLASS_COL[r.cls] || '#5dff88';
+    var table = ns.reforgeTableFor(r.cls);
+
+    var s = overlayScreen();
+    s.appendChild(el('h2', 'screen-title', 'THE REWRITE'));
+    s.appendChild(el('div', 'screen-sub', table.name + ' · FACE ' + face));
+
+    if (base) {
+      var was = el('div', 'reforge-base');
+      was.innerHTML = '<span class="rb-lbl">WAS</span><span class="rb-name">' + esc(base.name) + '</span>' +
+                      '<span class="rb-desc">' + esc(base.desc || '') + '</span>';
+      s.appendChild(was);
+    }
+
+    opts.forEach(function (o, i) {
+      var b = el('div', 'panel-btn reforge-opt');
+      b.style.borderColor = col + '55';
+      b.innerHTML = '<div class="pb-title" style="color:' + col + '">' + esc(o.name) + '</div>'
+        + '<div class="ro-desc">' + esc(o.desc) + '</div>'
+        + (o.note ? '<div class="ro-note">' + esc(o.note) + '</div>' : '');
+      b.addEventListener('pointerdown', function () {
+        SFX.tap();
+        var res = E.reforgeApply(face, i);
+        if (res) toast(res.name.toUpperCase() + ' — ' + res.desc, 2600);
+        done();
+      });
+      s.appendChild(b);
+    });
+  }
+
+  /* ====================== THE FACE PICKER =============================
+   * Everything that needs the player to point at a face. One screen, because
+   * every one of these is the same gesture: here are your twenty, these are
+   * the ones this can touch. */
+  var FACE_PROMPT = {
+    reforge: 'Which face should she rewrite?', collapse: 'Which band collapses?',
+    unlisten: 'Which listener stops waiting?', swap: 'Which two change places?',
+    fuse: 'Which two go in the pot?', migrate: 'Move which engraving — then where?',
+    mirror: 'Which face crosses to its opposite?', steal: 'Which face does it overwrite?',
+    blank: 'Which face do you give up?', sell: 'Which faces go to the floor?',
+    sellScar: 'Which scarred face do they take?', give: 'Which face does it buy?',
+    teach: 'Which one do you teach away?', grant: 'Where should the cut land?',
+  };
+  function showFacePick(done) {
+    var r = E.run, p = r.pendingFace;
+    if (!p) { done(); return; }
+    var cands = E.faceCandidates();
+    if (!cands.length) { r.pendingFace = null; toast('Nothing on the die can answer that', 2200); done(); return; }
+    var col = CLASS_COL[r.cls] || '#5dff88';
+
+    var s = overlayScreen();
+    s.appendChild(el('h2', 'screen-title', 'THE DIE'));
+    s.appendChild(el('div', 'screen-sub',
+      esc(FACE_PROMPT[p.mode] || 'Choose a face') + (p.n > 1 ? ' · ' + (p.n - p.picked.length) + ' TO GO' : '')));
+
+    var grid = el('div', 'face-grid');
+    for (var f = 1; f <= 20; f++) {
+      (function (face) {
+        var slot = r.die.faces[face];
+        var def = slot ? ns.dieEngraving(r.die.faces[slot.root].id) : null;
+        var can = cands.indexOf(face) >= 0;
+        var chosen = p.picked.indexOf(face) >= 0;
+        var taint = slot ? ns.dieTaintAt(r.die, face) : null;
+        var cell = el('div', 'fc' + (can ? ' can' : '') + (chosen ? ' chosen' : '') + (def ? ' cut' : ' blank') + (taint ? ' scarred' : ''));
+        cell.innerHTML = '<span class="fc-n">' + face + '</span>'
+          + '<span class="fc-name">' + esc(def ? def.name : '—') + '</span>'
+          + (taint ? '<span class="fc-scar">' + esc((ns.DIE_TAINTS[taint] || {}).name || '') + '</span>' : '');
+        if (can) {
+          cell.style.borderColor = col + '77';
+          cell.addEventListener('pointerdown', function () {
+            SFX.tap();
+            var res = E.facePick(face);
+            if (!res) return;
+            if (res.reforge != null) { showReforge(done); return; }
+            if (res.more) { showFacePick(done); return; }
+            if (res.text) toast(res.text, 2400);
+            done();
+          });
+        }
+        grid.appendChild(cell);
+      })(f);
+    }
+    s.appendChild(grid);
+  }
+
+  /* THE LONG ODDS. Deliberately not your die — a flat twenty, no build in it. */
+  function showBet(done) {
+    var r = E.run, op = r.pendingOp;
+    if (!op) { done(); return; }
+    var s = overlayScreen();
+    s.appendChild(el('h2', 'screen-title', 'THE LONG ODDS'));
+    s.appendChild(el('div', 'screen-sub', 'STAKE ¢' + op.stake + ' · PAYS ' + op.pay + ':1 · NOT YOUR DIE'));
+
+    var opts = op.k === 'betRegion'
+      ? [{ v: 'low', t: 'LOW · 2–7', o: '6 in 20' }, { v: 'mid', t: 'MID · 8–14', o: '7 in 20' }, { v: 'high', t: 'HIGH · 15–20', o: '6 in 20' }]
+      : null;
+    if (opts) {
+      opts.forEach(function (o) {
+        var b = el('div', 'panel-btn', '<div class="pb-title">' + o.t + '</div><div class="pb-sub">' + o.o + '</div>');
+        b.addEventListener('pointerdown', function () { SFX.tap(); E.betResolve(o.v); done(); });
+        s.appendChild(b);
+      });
+    } else {
+      var grid = el('div', 'face-grid bet-grid');
+      for (var f = 1; f <= 20; f++) {
+        (function (face) {
+          var cell = el('div', 'fc can');
+          cell.innerHTML = '<span class="fc-n">' + face + '</span>';
+          cell.addEventListener('pointerdown', function () { SFX.tap(); E.betResolve(face); done(); });
+          grid.appendChild(cell);
+        })(f);
+      }
+      s.appendChild(grid);
+    }
   }
 
   function showEventResult(animate) {
@@ -4326,7 +4522,15 @@
     var btn = el('button', 'btn', 'CONTINUE');
     btn.addEventListener('pointerdown', function () {
       SFX.tap();
-      if (r.pendingRelic) {
+      /* The die verbs come first: a face pick can cascade into a reforge pick,
+       * and both have to land before the node is allowed to close. */
+      if (r.pendingFace) {
+        showFacePick(function () { showEventResult(false); });
+      } else if (r.pendingReforge) {
+        showReforge(function () { showEventResult(false); });
+      } else if (r.pendingOp) {
+        showBet(function () { showEventResult(true); });
+      } else if (r.pendingRelic) {
         showEventRelic(function () { E.finishEvent(); U.refresh(); });
       } else if (r.pendingAddCard) {
         showEventAddCard(function () { E.finishEvent(); U.refresh(); });
