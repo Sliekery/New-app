@@ -3413,6 +3413,24 @@
   E.dieClearRootAt = clearRootAt;
   E.dieSeatAt = seatAt;
 
+  /* THE ONE DIE INVARIANT: every face points at a root that still exists.
+   * Seating a band over another band's tail can orphan the tail — the head gets
+   * overwritten with a new root while the leftover faces still point at the old
+   * one — and every reader that does faces[slot.root].id then throws. Rather
+   * than guard eighteen call sites, the shape is repaired in one place after
+   * anything mutates it. */
+  function dieRepair() {
+    var d = E.run && E.run.die;
+    if (!d || !d.faces) return 0;
+    var fixed = 0;
+    for (var f = 1; f <= 20; f++) {
+      var slot = d.faces[f];
+      if (slot && !d.faces[slot.root]) { delete d.faces[f]; fixed++; }
+    }
+    return fixed;
+  }
+  E.dieRepair = dieRepair;
+
   // The three rewrites of the engraving on `face`, on this die's own table.
   E.reforgeOptionsAt = function (face) {
     var r = E.run, slot = r.die.faces[face];
@@ -3455,6 +3473,7 @@
     clearRootAt(root);
     seatAt(root, id, def);
     r.pendingReforge = null;
+    dieRepair();
     E.save();
     return { name: def.name, desc: def.desc };
   };
@@ -3467,7 +3486,7 @@
     var r = E.run, p = r.pendingFace, d = r.die;
     if (!p) return [];
     var cuts = E.dieCutFaces().map(function (f) { return d.faces[f].root; })
-                .filter(function (v, i, a) { return a.indexOf(v) === i; });
+                .filter(function (v, i, a) { return a.indexOf(v) === i && !!d.faces[v]; });
     if (p.mode === 'blank' || p.mode === 'sell' || p.mode === 'give' || p.mode === 'teach') {
       return canBlank(1) ? cuts.filter(function (f) { return p.picked.indexOf(f) < 0; }) : [];
     }
@@ -3605,6 +3624,7 @@
       }
     }
     r.pendingFace = null;
+    dieRepair();
     if (msg && r.eventResult) r.eventResult.gained.push(msg);
     E.save();
     return { done: true, text: msg };
@@ -3637,6 +3657,7 @@
     var id = E.forgedInstall(def);
     clearRootAt(a); clearRootAt(b);
     seatAt(a, id, def);
+    dieRepair();
     return def;
   };
 
@@ -3727,7 +3748,7 @@
 
     if (fx.swapRandom) {
       var cuts = E.dieCutFaces().map(function (f) { return d.faces[f].root; })
-                  .filter(function (v, i, a) { return a.indexOf(v) === i; });
+                  .filter(function (v, i, a) { return a.indexOf(v) === i && !!d.faces[v]; });
       if (cuts.length >= 2) {
         var a1 = pick(cuts), rest = cuts.filter(function (x) { return x !== a1; });
         var b1 = pick(rest);
@@ -3758,20 +3779,42 @@
       if (bf != null && canBlank(1)) { clearRootAt(bf); gained.push('Face ' + bf + ' went blank'); }
       else gained.push('The die is too bare to give anything up');
     }
+    /* Snapshot BEFORE the rot moves. Hardening every scarred face after the
+     * spread meant you scarred two more and upgraded all three — measured, the
+     * option came out ahead of a normal event pool, which is not what an evil
+     * choice is for. "Everything it has ALREADY touched comes back harder"
+     * means already: the neighbours it reaches today get the scar, not the
+     * tier. */
+    var preSpread = fx.tierUpScarred ? ns.dieTaintedRoots(d).slice() : null;
     if (fx.scarSpread) {
       var tainted = ns.dieTaintedRoots(d), spread = 0;
-      tainted.forEach(function (root) {
-        var tid2 = d.faces[root].taint;
-        ns.dieNeighbours(d, root).forEach(function (nf) {
-          var ns2 = d.faces[nf];
-          if (ns2 && !d.faces[ns2.root].taint) { ns.dieAddTaint(d, ns2.root, tid2); spread++; }
+      /* A CLEAN DIE STILL BURNS. With nothing already scarred there was nothing
+       * to spread and nothing to harden, so "burn the die" cost nothing and gave
+       * nothing — a free skip wearing a sacrifice's clothes, and measurably the
+       * best of the three options because it was the only one that was not a
+       * cost at all. If the rot has no foothold it makes one. */
+      if (!tainted.length) {
+        var clean = ns.dieCleanRoots(d);
+        for (var si = 0; si < 3 && clean.length; si++) {
+          var vic = pick(clean);
+          clean = clean.filter(function (x) { return x !== vic; });
+          if (ns.dieAddTaint(d, vic, pick(['rust', 'dead_short', 'silence']))) spread++;
+        }
+        gained.push(spread ? 'It found nothing rotten, so it started some — ' + spread + ' faces' : 'Nothing on the die to spoil');
+      } else {
+        tainted.forEach(function (root) {
+          var tid2 = d.faces[root].taint;
+          ns.dieNeighbours(d, root).forEach(function (nf) {
+            var ns2 = d.faces[nf];
+            if (ns2 && !d.faces[ns2.root].taint) { ns.dieAddTaint(d, ns2.root, tid2); spread++; }
+          });
         });
-      });
-      gained.push(spread ? 'The rot reached ' + spread + ' more face' + (spread > 1 ? 's' : '') : 'The rot had nowhere to go');
+        gained.push(spread ? 'The rot reached ' + spread + ' more face' + (spread > 1 ? 's' : '') : 'The rot had nowhere to go');
+      }
     }
     if (fx.tierUpScarred) {
       var up = 0;
-      ns.dieTaintedRoots(d).forEach(function (root) { if (E.dieTierUp(root)) up++; });
+      (preSpread || ns.dieTaintedRoots(d)).forEach(function (root) { if (d.faces[root] && E.dieTierUp(root)) up++; });
       gained.push(up ? up + ' scarred face' + (up > 1 ? 's' : '') + ' came back harder' : 'Nothing scarred to harden');
     }
     if (fx.weldSeam) {
@@ -3880,6 +3923,7 @@
     clearRootAt(root);
     seatAt(root, id, up);
     if (taint) r.die.faces[root].taint = taint;
+    dieRepair();
     return true;
   };
 
@@ -3892,6 +3936,7 @@
     var ra = sa.root, rb = sb.root;
     clearRootAt(ra); clearRootAt(rb);
     seatAt(ra, idb, db); seatAt(rb, ida, da);
+    dieRepair();
     E.save();
     return true;
   };

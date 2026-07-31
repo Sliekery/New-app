@@ -394,6 +394,31 @@ ok('a forged engraving survives the registry being dropped (the load path)', (fu
   ok('every engraving x every table x every lens is distinct and in budget (' + n + ' options)', bad === 0);
 })();
 
+/* 26c. THE DIE INVARIANT: no face may point at a root that is gone.
+ * Seating a band over another band's tail orphans the tail, and every reader
+ * that does faces[slot.root].id then throws — which is how the sim crashed. */
+(function () {
+  E.seed(4); E.newRun('technomancer');
+  if (!E.run.die) E.run.die = VS.newDie();
+  var d = E.run.die;
+  d.faces = {};
+  // a 3-face band at 5, then a single seated over its head
+  d.faces[5] = { id: 'heat_sink', root: 5 };
+  d.faces[6] = { id: 'heat_sink', root: 5 };
+  d.faces[7] = { id: 'heat_sink', root: 5 };
+  d.faces[5] = { id: 'overcharge_cell', root: 5 };   // head replaced, 6 and 7 still point at 5
+  ok('a healthy shape needs no repair', E.dieRepair() === 0);
+  delete d.faces[5];                                  // now 6 and 7 are orphans
+  ok('orphaned faces are swept', E.dieRepair() === 2 && !d.faces[6] && !d.faces[7]);
+  ok('and the candidate list never reads a missing root', (function () {
+    E.run.pendingFace = { mode: 'sell', n: 1, picked: [] };
+    cutFaces('technomancer', 12);
+    d = E.run.die;
+    d.faces[9] = { id: 'heat_sink', root: 17 };       // deliberately dangling
+    try { E.faceCandidates(); return true; } catch (e) { return false; }
+  })());
+})();
+
 /* 27. the fusion pot reads what went into it */
 E.seed(4); E.newRun('vanguard'); E.takeFirstMark(0);
 cutFaces('vanguard', 12);

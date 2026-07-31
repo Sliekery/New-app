@@ -547,6 +547,15 @@ function step() {
       break;
     }
     case 'event': {
+      /* BALANCE PROBE. VS_FORCE_EVENT pins every event node to one event and
+       * VS_FORCE_CHOICE pins the branch, so a single event's cost to a run can
+       * be measured against a control instead of argued about. The events that
+       * need this are the ones that change your die WITHOUT you choosing how —
+       * a random swap, a scar landing where it likes. */
+      if (process.env.VS_FORCE_EVENT) {
+        r.currentEvent = process.env.VS_FORCE_EVENT;
+        r.eventResult = null;
+      }
       var ev = E.getEvent();
       if (!ev) throw new Error('no current event');
       if (ev.gambleDen) {   // bet 25% when flush, else walk
@@ -555,7 +564,11 @@ function step() {
         E.gambleFinish();
         break;
       }
-      var res = E.eventChoose(eventChoiceIdx(ev));
+      var forcedCi = process.env.VS_FORCE_CHOICE != null ? parseInt(process.env.VS_FORCE_CHOICE, 10) : null;
+      var ci = (forcedCi != null && ev.choices[forcedCi] && E.eventChoiceAvailable(ev.choices[forcedCi]) &&
+                !(ev.choices[forcedCi].cost && r.credits < ev.choices[forcedCi].cost))
+             ? forcedCi : eventChoiceIdx(ev);
+      var res = E.eventChoose(ci);
       if (!res) throw new Error('eventChoose returned null');
       // A betting table parks a second input before it will roll.
       if (res.op) E.betResolve(r.pendingOp.k === 'betRegion' ? 'mid' : 11);
