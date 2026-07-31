@@ -2129,6 +2129,47 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .lg-kill  { color: #ff4a5e; font-weight: 700; }
 .lg-dim   { color: #5d7266; }
 
+
+/* ====================== THE DIE EVENTS ==================================
+ * The reforge picker, the face picker and the betting table. Landscape is the
+ * orientation this is played in and the frame is CSS-scaled to fit there, so
+ * these are sized against that rather than against a portrait phone. */
+.reforge-base {
+  display: grid; gap: 3px; padding: 10px 12px; margin: 0 0 4px;
+  border: 1px solid rgba(120,150,165,0.28); border-radius: 3px;
+  background: rgba(10,14,18,0.6);
+}
+.rb-lbl { font: 700 9.5px/1.4 ui-monospace, monospace; letter-spacing: .2em; color: #61776c; }
+.rb-name { font: 700 14px/1.3 ui-monospace, monospace; color: #cfe6da; }
+.rb-desc { font-size: 12.5px; line-height: 1.45; color: #8fa79a; }
+
+.panel-btn.reforge-opt { align-items: stretch; }
+.ro-desc { font-size: 13px; line-height: 1.5; color: #cfe6da; margin-top: 3px; }
+.ro-note { font: 600 11px/1.4 ui-monospace, monospace; color: #61776c; margin-top: 3px; }
+
+.face-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin: 6px 0 4px;
+}
+@media (min-width: 620px) { .face-grid { grid-template-columns: repeat(5, 1fr); } }
+.fc {
+  border: 1px solid rgba(120,150,165,0.18); border-radius: 3px; padding: 6px 5px;
+  display: grid; gap: 2px; min-height: 52px; align-content: start;
+  background: rgba(10,14,18,0.5); opacity: 0.4; text-align: center;
+}
+.fc.can { opacity: 1; cursor: pointer; }
+.fc.can:hover { background: rgba(93,255,136,0.07); }
+.fc.chosen { background: rgba(93,255,136,0.16); border-color: #5dff88; }
+.fc-n { font: 700 15px/1.1 ui-monospace, monospace; color: #eafcff; font-variant-numeric: tabular-nums; }
+.fc-name {
+  font: 600 8.5px/1.25 ui-monospace, monospace; color: #8fa79a;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fc.blank .fc-name { color: #3f5049; }
+.fc-scar { font: 700 8px/1.2 ui-monospace, monospace; color: #ff4a5e; letter-spacing: .05em; }
+.fc.scarred { border-color: rgba(255,74,94,0.45); }
+.bet-grid .fc { min-height: 40px; }
+.pv-row.dim-row { color: #61776c; font-style: italic; }
+
 </style>
 </head>
 <body>
@@ -8031,7 +8072,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   ns.firstMarks = function (cls) { return ns.FIRST_MARKS[cls] || []; };
 
   // Every engraving, chosen or not.
-  ns.dieEngraving = function (id) { return ns.DIE_AUGMENTS[id] || ns.DIE_FLAWS[id] || null; };
+  /* Reforged engravings are made at runtime by the events and stored on the run
+   * rather than in this file, so they have to resolve by id like anything else
+   * or every rewritten face reads as a blank. */
+  ns.dieEngraving = function (id) {
+    return ns.DIE_AUGMENTS[id] || ns.DIE_FLAWS[id] || (ns.FORGED && ns.FORGED[id]) || null;
+  };
 
   /* ---- Run-state helpers --------------------------------------------- */
   ns.newDie = function () {
@@ -8465,6 +8511,444 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   };
 
   ns.dieFaceNumbers = FACE_NUM;
+
+})(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
+
+</script>
+  <script>
+/* =========================================================================
+ * VOIDSPIRE — reforge.js
+ * THE REFORGE: an engraving, rewritten into one of three shapes at the same
+ * budget. This is what the new events trade in.
+ *
+ * Nothing here is hand-authored per engraving. 87 engravings x 4 tables x 3
+ * lenses is 1044 variants — authoring those means balancing them one by one and
+ * getting it wrong 1044 times. Instead every effect is priced in a single
+ * currency, and the lenses are arithmetic on that price.
+ *
+ * THE UNIT IS SHIELD. One point of Shield is 1 SP, and every rate below was
+ * solved against what the existing engravings ACTUALLY pay at each tier, not
+ * invented. The tier-2 point engraving is the anchor because 49 of the 87 sit
+ * there: its average is 10 Shield, 16.3 damage, 2 Energy, 1 Reactor — so damage
+ * prices at 0.6, Energy at 5, Reactor at a whole engraving on its own.
+ * ========================================================================= */
+(function (ns) {
+  'use strict';
+
+  /* ---- the price list -------------------------------------------------- */
+  var SP_FLAT = {
+    block: 1.0,     // the anchor
+    dmg: 0.6,       // t2 avg 16.3 dmg ~= 10 SP
+    heal: 1.6,      // t2 heal 6 ~= 9.6 SP
+    draw: 4.5,      // see NOTE below
+    energy: 5.0,    // t2 energy 2 = 10 SP
+    hploss: -1.3,   // a COST: it hands budget back
+  };
+  /* NOTE ON DRAW. The source data contradicts itself — tier 1 prices 2 Draw
+   * inside a 7 SP budget (3.5 each) while tier 2 prices 1 Draw inside 10 SP
+   * (10 each). 4.5 splits it. Draw is the one currency the formula cannot be
+   * trusted on and it wants a hand pass if it ever looks silly in play. */
+
+  var SP_STATUS = {
+    burn: 1.4,       // t1 burn 6 ~= 8.4 SP
+    vuln: 3.5,       // t1 vuln 2.5 ~= 8.8 SP
+    weak: 5.0,       // t1 weak 1.5 ~= 7.5 SP
+    thorns: 3.5, momentum: 3.5, psiPow: 3.5, turret: 3.5, salvo: 3.5,
+    str: 4.0, aim: 4.0,
+    conduit: 4.0, hive: 4.0, wildfire: 4.0, entropy: 4.0, bloodPact: 4.0,
+    plate: 5.0,
+    reactor: 10.0,   // +1 max Energy is a whole engraving and always was
+  };
+  var SP_SPECIAL = { dieCredits: 0.5, dieExecute: 5.0, dieExhaustDraw: 5.0 };
+
+  ns.REFORGE_RATES = { flat: SP_FLAT, status: SP_STATUS, special: SP_SPECIAL };
+
+  // What a whole engraving is allowed to be worth, by tier.
+  ns.TIER_BUDGET = { 1: 7, 2: 10, 3: 14 };
+  // A 3-face band fires roughly three times as often, so it is priced down —
+  // 0.55 is what the existing bands actually sit at (t2 band block 4.3 vs
+  // point 10). A listener is priced down harder still, for the same reason.
+  ns.SPAN_MULT = 0.55;
+  ns.LISTEN_MULT = 0.25;
+  // A rider in your class's own currency costs 30% less. This is not flavour:
+  // it is what makes a class table mechanically worth having over the common
+  // one, and without it the numbers do not even fit — Plating at a full 5 SP
+  // will not go into a 3.5 SP temper slot.
+  ns.NATIVE_DISCOUNT = 0.7;
+
+  function spOf(f) {
+    if (!f) return 0;
+    if (f.k === 'status') return (SP_STATUS[f.s] || 3.5) * (f.v || 0);
+    if (f.k === 'special') return (SP_SPECIAL[f.id] || 3) * (f.v || 0);
+    return (SP_FLAT[f.k] || 1) * (f.v || 0);
+  }
+  ns.reforgeSpOf = spOf;
+
+  // What an engraving is worth all-in, riders and costs included.
+  ns.engravingSp = function (def) {
+    if (!def || !def.fx) return 0;
+    return def.fx.reduce(function (a, f) { return a + spOf(f); }, 0);
+  };
+
+  /* ---- the four tables --------------------------------------------------
+   * The lens SHAPE is universal; what each lens converts INTO comes from the
+   * die's own column. The three classes barely share a vocabulary — Vanguard
+   * is damage and Aim and blood, Technomancer is Shield and Energy and
+   * constructs, the Void Adept is Burn and Psi and rot — so a reforge that
+   * offered all of them the same three options would be offering two of them
+   * somebody else's build.
+   *
+   * The table belongs to the DIE, not to the engraving. 65 of the 87 are class
+   * locked and only ever sit on their own class's die anyway, so this really
+   * only decides where the 22 neutral ones go — and it decides them right.
+   * ------------------------------------------------------------------- */
+  ns.REFORGE_TABLES = {
+    common: {
+      name: 'THE COMMON TABLE',
+      native: [],                       // no discount: this is what you get for building nothing in particular
+      lenses: [
+        { id: 'split',     name: 'DIVIDED CUT',  keep: 0.50, into: 'opposite' },
+        { id: 'temper',    name: 'TEMPERED CUT', keep: 0.65, rider: { k: 'status', s: 'thorns', who: 'self' } },
+        { id: 'transmute', name: 'SOURED CUT',   keep: 0.60, rider: { k: 'status', s: 'burn', who: 'enemy' } },
+      ],
+    },
+    vanguard: {
+      name: 'THE WHETSTONE',
+      native: ['dmg', 'aim', 'str', 'thorns', 'hploss'],
+      lenses: [
+        { id: 'split',  name: 'THE SECOND BARREL', keep: 0.50, into: 'dmg' },
+        { id: 'temper', name: 'THE SIGHTED CUT',   keep: 0.65, rider: { k: 'status', s: 'aim', who: 'self' } },
+        /* THE BLOOD PRICE inverts the whole mechanic, and it should. Vanguard
+         * carries 4 of the game's hploss engravings and an identity built on
+         * paying in blood — so its third lens does not trade power away for a
+         * rider, it BUYS power by taking a cost. */
+        { id: 'blood',  name: 'THE BLOOD PRICE',   keep: 1.40, cost: { k: 'hploss', v: 3 } },
+      ],
+    },
+    technomancer: {
+      name: 'THE BENCH',
+      native: ['block', 'energy', 'draw', 'plate', 'reactor', 'turret'],
+      lenses: [
+        { id: 'split',  name: 'THE PARALLEL RUN', keep: 0.50, into: 'block', altInto: 'energy' },
+        { id: 'temper', name: 'THE HEAT SINK',    keep: 0.65, rider: { k: 'status', s: 'plate', who: 'self' } },
+        /* THE FEEDER trades MAGNITUDE for FREQUENCY, and the arithmetic runs
+         * the opposite way to how it first looks. A point engraving fires on
+         * one roll in twenty. A listener fires whenever its trigger happens,
+         * which can be several times a turn — which is exactly why the existing
+         * listeners are priced at a quarter of a point engraving. So converting
+         * a point into a listener has to SHED value, not gain it: the win is
+         * throughput. 0.35 rather than a flat 0.25, as a small premium for
+         * having to commit to one trigger. */
+        { id: 'feeder', name: 'THE FEEDER',       keep: 0.35, makeListener: true },
+      ],
+    },
+    voidadept: {
+      name: 'THE SCOURING',
+      native: ['burn', 'psiPow', 'vuln', 'hploss', 'dmg'],
+      lenses: [
+        { id: 'split',  name: 'THE SPLIT TONGUE', keep: 0.50, into: { k: 'status', s: 'burn', who: 'enemy' } },
+        { id: 'temper', name: 'THE DEEP FOCUS',   keep: 0.65, rider: { k: 'status', s: 'psiPow', who: 'self' } },
+        /* Decay spreads. The rider goes wide instead of deep. */
+        { id: 'wither', name: 'THE WITHERING',    keep: 0.60, rider: { k: 'status', s: 'burn', who: 'enemy' }, all: true },
+      ],
+    },
+  };
+
+  ns.reforgeTableFor = function (cls) { return ns.REFORGE_TABLES[cls] || ns.REFORGE_TABLES.common; };
+
+  /* ---- when there is nothing to shave ----------------------------------
+   * A quarter of the pool is a single indivisible stack — "apply 1 Aim",
+   * "apply 1 Reactor". You cannot halve one stack, so all three lenses hand
+   * back the engraving unchanged and the player is offered the same thing
+   * three times. Measured: 142 of 1044 generated options collided this way.
+   *
+   * So these get their own lenses, built on the opposite principle. Rather than
+   * shaving the primary to pay for a rider, they BUY the budget — with blood,
+   * which the game already prices, or by throwing the engraving away and
+   * cutting again.
+   * ------------------------------------------------------------------- */
+  ns.INDIVISIBLE_LENSES = [
+    { id: 'recast',   name: 'THE RECAST',   recast: true },
+    { id: 'overdraw', name: 'THE OVERDRAW', mult: 2, costHp: true },
+    { id: 'graft',    name: 'THE GRAFT',    addNative: true, costHp: true },
+  ];
+  // Indivisible when the primary is one stack of something chunky: halving it
+  // would round straight back up to itself.
+  function indivisible(fx, pi) {
+    var p = fx[pi];
+    if (!p) return true;
+    // Too poor to buy anything. Listeners and 3-face bands are priced low on
+    // purpose, and a 1.8 SP engraving cannot fund even the cheapest rider out
+    // of a 50% shave — so shaving it just hands back what you already had.
+    var total = fx.reduce(function (a, f) { return a + spOf(f); }, 0);
+    if (total < 3.2) return true;
+    if (p.v > 2) return false;
+    var unit = Math.abs(spOf(p) / (p.v || 1));
+    return p.v <= 1 || unit >= 3.5;
+  }
+
+  /* ---- reading an engraving ------------------------------------------- */
+  // The primary is the single most expensive thing the engraving does. Riders
+  // and costs orbit it; the lenses all act on it.
+  function primaryIdx(fx) {
+    var best = -1, bestSp = 0;
+    for (var i = 0; i < fx.length; i++) {
+      var s = spOf(fx[i]);
+      if (s > bestSp) { bestSp = s; best = i; }
+    }
+    return best;
+  }
+  function isDefensive(f) {
+    if (f.k === 'block' || f.k === 'heal') return true;
+    if (f.k === 'status' && f.who === 'self') return true;
+    return false;
+  }
+  function listenTriggers() { return ['burn', 'debuff', 'shield', 'crit', 'selfHp', 'psi']; }
+  ns.REFORGE_TRIGGERS = {
+    burn:   'WHEN you apply Burn',
+    debuff: 'WHEN you apply Weak or Vulnerable',
+    shield: 'WHEN you gain Shield',
+    crit:   'WHEN you land a critical hit',
+    selfHp: 'WHEN one of your own cards costs you HP',
+    psi:    'WHEN you gain Psi Focus',
+  };
+
+  /* ---- describing an fx list in the game's own words ------------------- */
+  var STATUS_NAME = {
+    burn: 'Burn', vuln: 'Vulnerable', weak: 'Weak', thorns: 'Thorns', str: 'Might',
+    aim: 'Aim', plate: 'Plating', reactor: 'Reactor', psiPow: 'Psi Focus',
+    momentum: 'Momentum', turret: 'Turret', salvo: 'Salvo', conduit: 'Conduit',
+    hive: 'Hive', wildfire: 'Wildfire', entropy: 'Entropy', bloodPact: 'Blood Pact',
+  };
+  ns.reforgeDescribe = function (fx, opt) {
+    opt = opt || {};
+    var bits = [];
+    fx.forEach(function (f) {
+      if (!f.v) return;
+      if (f.k === 'block') bits.push('gain ' + f.v + ' Shield');
+      else if (f.k === 'dmg') bits.push('deal ' + f.v + ' damage');
+      else if (f.k === 'heal') bits.push('heal ' + f.v + ' HP');
+      else if (f.k === 'draw') bits.push('draw ' + f.v + ' card' + (f.v > 1 ? 's' : ''));
+      else if (f.k === 'energy') bits.push('gain ' + f.v + ' Energy');
+      else if (f.k === 'hploss') bits.push('lose ' + f.v + ' HP');
+      else if (f.k === 'special') bits.push(f.id === 'dieCredits' ? 'gain ' + f.v + ' credits' : 'a special effect');
+      else if (f.k === 'status') {
+        var nm = STATUS_NAME[f.s] || f.s;
+        var whom = f.who === 'self' ? '' : (f.all ? ' to ALL enemies' : '');
+        bits.push('apply ' + f.v + ' ' + nm + whom);
+      }
+    });
+    if (!bits.length) return 'Nothing at all.';
+    var s = bits.join(', ');
+    s = s.charAt(0).toUpperCase() + s.slice(1) + '.';
+    return opt.trigger ? (ns.REFORGE_TRIGGERS[opt.trigger] + ': ' + s.charAt(0).toLowerCase() + s.slice(1)) : s;
+  };
+
+  /* ---- the generator --------------------------------------------------- */
+  function riderCost(table, rider) {
+    var base = rider.k === 'status' ? (SP_STATUS[rider.s] || 3.5) : Math.abs(SP_FLAT[rider.k] || 1);
+    var key = rider.k === 'status' ? rider.s : rider.k;
+    return table.native.indexOf(key) >= 0 ? base * ns.NATIVE_DISCOUNT : base;
+  }
+
+  // capped: an Overdraw that asks for 8 HP is not a choice, it is a trap
+  /* FLOOR, not round. Rounding the blood price up means the player overpays on
+   * roughly half of these and the option comes out worth less than what they
+   * started with — which is the one thing a reforge must never do. Capped at 6:
+   * an Overdraw that asks for a third of your health is not a choice, it is a
+   * trap. */
+  function hpFor(sp) { return Math.min(6, Math.floor(Math.abs(sp) / 1.3)); }
+
+  function indivisibleOptions(def, table, baseSp) {
+    var out = [];
+    var pi = primaryIdx(def.fx), prim = def.fx[pi];
+
+    // 1. throw it away and cut again — the engine rolls the replacement
+    out.push({
+      lens: 'recast', name: 'THE RECAST', from: def.name, recast: true,
+      fx: null, span: def.span || 1, tier: def.tier || 1, cls: def.cls || null,
+      desc: 'Scrapped, and cut again — a different engraving of the same tier, at random.',
+      note: 'You will not see it until it is done.', sp: baseSp,
+    });
+
+    // 2. twice the effect, paid for in blood
+    var fx2 = JSON.parse(JSON.stringify(def.fx));
+    var added = spOf(prim);
+    fx2[pi].v = prim.v * 2;
+    var hp2 = hpFor(added);
+    if (hp2 > 0) fx2.push({ k: 'hploss', v: hp2 });
+    out.push({
+      lens: 'overdraw', name: 'THE OVERDRAW', from: def.name, fx: fx2,
+      span: def.span || 1, tier: def.tier || 1, cls: def.cls || null, band: def.band || null,
+      desc: ns.reforgeDescribe(fx2), note: '', sp: Math.round(ns.engravingSp({ fx: fx2 }) * 10) / 10,
+    });
+
+    // 3. graft this table's own rider on, also paid in blood
+    var temper = table.lenses.filter(function (l) { return l.rider; })[0];
+    var rider = (temper && temper.rider) || { k: 'status', s: 'thorns', who: 'self' };
+    if (prim.k === 'status' && rider.s === prim.s) {
+      var alt = table.lenses.filter(function (l) { return l.rider && l.rider.s !== prim.s; })[0];
+      rider = (alt && alt.rider) || { k: 'status', s: 'burn', who: 'enemy' };
+    }
+    var fx3 = JSON.parse(JSON.stringify(def.fx));
+    var rc = riderCost(table, rider);
+    var rf = { k: rider.k, v: 1 };
+    if (rider.s) rf.s = rider.s;
+    if (rider.who) rf.who = rider.who;
+    fx3.push(rf);
+    var hp3 = hpFor(rc);
+    if (hp3 > 0) fx3.push({ k: 'hploss', v: hp3 });
+    out.push({
+      lens: 'graft', name: 'THE GRAFT', from: def.name, fx: fx3,
+      span: def.span || 1, tier: def.tier || 1, cls: def.cls || null, band: def.band || null,
+      desc: ns.reforgeDescribe(fx3), note: '', sp: Math.round(ns.engravingSp({ fx: fx3 }) * 10) / 10,
+    });
+    return out;
+  }
+
+  /* Generate the three options for `def` on a die belonging to `cls`.
+   * Rounding is deliberate and asymmetric: the PRIMARY rounds up and the RIDER
+   * rounds down, so a reforge can never come out strictly worse than what you
+   * started with. A reforge that is a downgrade feels like a punishment for
+   * engaging with the event, and players stop opening it. */
+  ns.reforgeOptions = function (def, cls) {
+    if (!def || !def.fx || !def.fx.length) return [];
+    var table = ns.reforgeTableFor(cls);
+    var baseSp = ns.engravingSp(def);
+    var out = [];
+    if (indivisible(def.fx, primaryIdx(def.fx))) return indivisibleOptions(def, table, baseSp);
+
+    table.lenses.forEach(function (lens) {
+      var fx = JSON.parse(JSON.stringify(def.fx));
+      var pi = primaryIdx(fx);
+      if (pi < 0) return;
+      var prim = fx[pi];
+      var primUnit = Math.abs(spOf(prim) / (prim.v || 1)) || 1;
+      var primSp = spOf(prim);
+      var trigger = null, note = '';
+
+      // 1. the primary is scaled
+      var keptSp = primSp * lens.keep;
+      prim.v = Math.max(1, Math.ceil(keptSp / primUnit));
+      var spent = primSp - spOf(prim);          // what the shave freed up (may be negative)
+
+      // 2. and the freed budget is spent, in this table's currency
+      if (lens.into) {
+        var target = lens.into;
+        if (target === 'opposite') target = isDefensive(prim) ? 'dmg' : 'block';
+        // a Bench split of a Shield engraving would just be more Shield, so it
+        // steps sideways into Energy instead of saying nothing
+        if (lens.altInto && target === prim.k) target = lens.altInto;
+        var tf = (typeof target === 'string') ? { k: target } : JSON.parse(JSON.stringify(target));
+        var unit = tf.k === 'status' ? (SP_STATUS[tf.s] || 3.5) : (SP_FLAT[tf.k] || 1);
+        var v = Math.floor(spent / unit);
+        /* If the freed budget will not buy even one of the target — Energy is
+         * 5 SP and a band split may only free 2 — step down to something the
+         * shave can actually afford rather than emitting nothing. */
+        if (v < 1) {
+          var chain = [{ k: 'dmg' }, { k: 'block' }, { k: 'status', s: 'burn', who: 'enemy' }];
+          for (var ci = 0; ci < chain.length && v < 1; ci++) {
+            var c2 = chain[ci];
+            if (c2.k === prim.k && c2.s === prim.s) continue;
+            var u2 = c2.k === 'status' ? (SP_STATUS[c2.s] || 3.5) : (SP_FLAT[c2.k] || 1);
+            var v2 = Math.floor(spent / u2);
+            if (v2 >= 1) { tf = JSON.parse(JSON.stringify(c2)); v = v2; }
+          }
+        }
+        if (v > 0) { tf.v = v; fx.push(tf); }
+      } else if (lens.rider) {
+        var rc = riderCost(table, lens.rider) * (lens.all ? 2 : 1);   // going wide costs double
+        var stacks = Math.floor(spent / rc);
+        // A temper PROMISES a rider. If the shave did not free enough to buy
+        // one, shave further rather than handing back an option identical to
+        // what the player already had — three choices where one is a no-op is
+        // really only two choices.
+        var floorV = Math.max(1, Math.ceil(primSp * 0.45 / primUnit));
+        while (stacks < 1 && prim.v > floorV) {
+          prim.v -= 1;
+          spent = primSp - spOf(prim);
+          stacks = Math.floor(spent / rc);
+        }
+        if (stacks > 0) {
+          var rf = { k: lens.rider.k, v: stacks };
+          if (lens.rider.s) rf.s = lens.rider.s;
+          if (lens.rider.who) rf.who = lens.rider.who;
+          if (lens.all) rf.all = true;
+          fx.push(rf);
+        }
+      } else if (lens.cost) {
+        fx.push({ k: lens.cost.k, v: lens.cost.v });
+      }
+
+      /* 3. a Feeder gates the whole thing behind a trigger you pick — but never
+       * one the engraving itself satisfies. "WHEN you gain Shield: gain Shield"
+       * is not a listener, it is an infinite loop. */
+      if (lens.makeListener) {
+        var produces = {};
+        fx.forEach(function (f) {
+          if (f.k === 'block') produces.shield = 1;
+          if (f.k === 'hploss') produces.selfHp = 1;
+          if (f.k === 'status' && f.s === 'burn') produces.burn = 1;
+          if (f.k === 'status' && f.s === 'psiPow') produces.psi = 1;
+          if (f.k === 'status' && (f.s === 'vuln' || f.s === 'weak')) produces.debuff = 1;
+        });
+        var safe = listenTriggers().filter(function (t) { return !produces[t]; });
+        trigger = safe[0] || 'crit';
+        note = 'You choose the trigger from any it does not feed itself.';
+      }
+
+      /* 4. the floor: never strictly worse than what you started with. Skipped
+       * for the Feeder, whose whole point is that it is worth LESS per firing
+       * and fires far more often — comparing the two totals directly would be
+       * comparing a per-roll number with a per-trigger one. */
+      var guard = 0;
+      if (!lens.makeListener) {
+        while (ns.engravingSp({ fx: fx }) < baseSp * 0.98 && guard++ < 40) prim.v += 1;
+      }
+
+      out.push({
+        lens: lens.id,
+        name: lens.name,
+        from: def.name,
+        fx: fx,
+        listen: trigger,
+        span: def.span || 1,
+        tier: def.tier || 1,
+        cls: def.cls || null,
+        band: def.band || null,
+        desc: ns.reforgeDescribe(fx, { trigger: trigger }),
+        note: note,
+        sp: Math.round(ns.engravingSp({ fx: fx }) * 10) / 10,
+      });
+    });
+
+    /* THE REPAIR PASS. Threshold-tuning cannot catch every case: whether a lens
+     * can afford its rider depends on the engraving's budget AND on which table
+     * is asking, since the Bench's Plating costs more than the Scouring's Burn.
+     * So rather than guess a cut-off, check the output — any option that came
+     * back identical to what the player already had, or to another option, is a
+     * wasted slot and is refilled from the blood-and-recast set instead. */
+    var baseDesc = ns.reforgeDescribe(def.fx, { trigger: def.listen });
+    var seen = {}, keep = [];
+    out.forEach(function (o) {
+      if (o.desc === baseDesc || seen[o.desc]) return;
+      seen[o.desc] = 1; keep.push(o);
+    });
+    if (keep.length < 3) {
+      indivisibleOptions(def, table, baseSp).forEach(function (o) {
+        if (keep.length >= 3 || seen[o.desc]) return;
+        seen[o.desc] = 1; keep.push(o);
+      });
+    }
+    return keep;
+  };
+
+  /* Forged engravings are not in DIE_AUGMENTS — they are made at runtime and
+   * live on the run, so they have to be resolvable by id like anything else.
+   * The engine refills this from run.forged whenever a save is loaded. */
+  ns.FORGED = {};
+  ns.forgedRegister = function (id, def) { ns.FORGED[id] = def; return id; };
+  ns.forgedClear = function () { ns.FORGED = {}; };
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));
 
@@ -9426,389 +9910,316 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   <script>
 /* =========================================================================
  * VOIDSPIRE — events.js
- * Short decision events. Choices may carry a d20 skill check:
- *   check: {attr:'might'|'tech'|'psi', dc} -> roll d20 + attr (+artifacts)
- * Outcome fx keys: hp (+/-), healPct, maxhp, credits, attr ('might'|'tech'|
- *   'psi'|'random'), card ('random'|'rare'|id), artifact (true), curse (id),
- *   pick ('remove'|'upgrade'|'dupe')
+ *
+ * THE EVENT ROLLS THE DIE IN YOUR POCKET.
+ *
+ * The old set of 25 is gone. Underneath their prose they were three shapes —
+ * a hidden attribute check, a weighted gamble, a press-your-luck — and all
+ * three resolved on a flat 1-20 that had nothing to do with the die the player
+ * had spent the whole run cutting. There were zero references to run.die in the
+ * entire resolver: the centrepiece of the game was not invited to its own
+ * events. Worse, the attributes those checks read (MIGHT/TECH/PSI) were written
+ * once at class creation and never moved again, so "TECH check, DC 13" mostly
+ * resolved to "did you pick Technomancer".
+ *
+ * They also paid in the wrong currency. Credits, a random card, HP, a relic —
+ * every one of those already falls out of fights, rests and the shop. The one
+ * thing nothing else in the game trades in is ENGRAVINGS, FACES and SCARS.
+ * That is the gap these fill.
+ *
+ * ---- schema ------------------------------------------------------------
+ *   choices[]:
+ *     label, sub, cost, cond          as before — credits and prerequisites
+ *     die: { read, ... }              a DIE CHECK. `read` is one of:
+ *          'cut'    -> onCut / onBlank, by whether the landed face is engraved
+ *          'region' -> low / mid / high, by where it landed
+ *          'face'   -> the landed faces FIRE, paid out as goods
+ *     op: { k, ... }                  needs a second input from the player
+ *     outcome: { text, fx }           resolves immediately
+ *
+ *   fx keys are the old set (credits, hp, maxhp, card, artifact, curse, pick)
+ *   plus the die verbs — see applyOutcome in engine.js.
  * ========================================================================= */
 (function (ns) {
   'use strict';
 
+  // Compact vector glyphs in the house style. p: polylines, e: eyes, m: mouth.
+  var ART = {
+    wheel:   { c: '#ffb02e', p: [[0,-0.85, 0.74,-0.42, 0.74,0.42, 0,0.85, -0.74,0.42, -0.74,-0.42, 0,-0.85], [0,-0.5, 0,0.5], [-0.43,-0.25, 0.43,0.25], [-0.43,0.25, 0.43,-0.25]], e: [[0,0]] },
+    scales:  { c: '#5dff88', p: [[0,-0.8, 0,0.7], [-0.7,-0.5, 0.7,-0.5], [-0.7,-0.5, -0.85,0.05, -0.55,0.05, -0.7,-0.5], [0.7,-0.5, 0.55,0.05, 0.85,0.05, 0.7,-0.5], [-0.35,0.7, 0.35,0.7]] },
+    seam:    { c: '#41d8ff', p: [[-0.8,-0.6, -0.15,-0.6, -0.15,0.6, -0.8,0.6], [0.8,-0.6, 0.15,-0.6, 0.15,0.6, 0.8,0.6], [-0.15,-0.3, 0.15,-0.1], [-0.15,0.1, 0.15,0.3]] },
+    hand:    { c: '#ffb02e', p: [[-0.45,0.75, -0.5,-0.1, -0.35,-0.15, -0.28,0.2], [-0.28,0.2, -0.22,-0.6, -0.05,-0.62, 0,0.2], [0,0.2, 0.08,-0.7, 0.25,-0.68, 0.28,0.2], [0.28,0.2, 0.4,-0.4, 0.55,-0.32, 0.45,0.75], [-0.45,0.75, 0.45,0.75]] },
+    eye:     { c: '#c86bff', p: [[-0.85,0, -0.4,-0.5, 0.4,-0.5, 0.85,0, 0.4,0.5, -0.4,0.5, -0.85,0], [0,-0.28, 0.28,0, 0,0.28, -0.28,0, 0,-0.28]], e: [[0,0]] },
+    bore:    { c: '#ffb02e', p: [[-0.3,-0.85, 0.3,-0.85, 0.3,0.1, 0,0.85, -0.3,0.1, -0.3,-0.85], [-0.3,-0.45, 0.3,-0.45], [-0.3,-0.05, 0.3,-0.05], [-0.6,-0.7, -0.3,-0.7], [0.6,-0.7, 0.3,-0.7]] },
+    stone:   { c: '#5dff88', p: [[-0.75,0.4, -0.5,-0.5, 0.2,-0.75, 0.75,-0.2, 0.6,0.5, -0.75,0.4], [-0.5,-0.5, 0.15,0.0, 0.6,0.5], [0.2,-0.75, 0.15,0.0]] },
+    ledger:  { c: '#ff4a5e', p: [[-0.6,-0.75, 0.6,-0.75, 0.6,0.75, -0.6,0.75, -0.6,-0.75], [-0.35,-0.45, 0.35,-0.45], [-0.35,-0.1, 0.35,-0.1], [-0.35,0.25, 0.1,0.25]] },
+    ward:    { c: '#41d8ff', p: [[0,-0.85, 0.7,-0.45, 0.7,0.3, 0,0.85, -0.7,0.3, -0.7,-0.45, 0,-0.85], [0,-0.5, 0.38,-0.28, 0.38,0.15, 0,0.5, -0.38,0.15, -0.38,-0.28, 0,-0.5]] },
+    frame:   { c: '#41d8ff', p: [[-0.75,-0.5, 0.75,-0.5, 0.75,0.5, -0.75,0.5, -0.75,-0.5], [-0.25,-0.5, -0.25,0.5], [0.25,-0.5, 0.25,0.5], [-0.75,0, 0.75,0]] },
+    census:  { c: '#c86bff', p: [[-0.55,-0.8, 0.55,-0.8, 0.55,0.8, -0.55,0.8, -0.55,-0.8], [-0.3,-0.5, 0.3,-0.5], [-0.3,-0.15, 0.3,-0.15], [-0.3,0.2, 0.3,0.2], [-0.3,0.55, 0.0,0.55]] },
+    twin:    { c: '#c86bff', p: [[-0.4,0, -0.4,-0.6, 0.4,-0.6, 0.4,0], [-0.4,0, -0.4,0.6, 0.4,0.6, 0.4,0], [-0.75,0, 0.75,0]], e: [[-0.15,-0.3],[0.15,0.3]] },
+    toll:    { c: '#ff4a5e', p: [[-0.8,0.6, 0.8,0.6], [-0.5,0.6, -0.5,-0.6, 0.5,-0.6, 0.5,0.6], [-0.5,-0.2, 0.5,-0.2], [0,-0.6, 0,-0.85]] },
+    engine:  { c: '#ff4a5e', p: [[-0.7,-0.35, 0.7,-0.35, 0.7,0.55, -0.7,0.55, -0.7,-0.35], [-0.4,-0.35, -0.4,-0.7, 0.4,-0.7, 0.4,-0.35], [-0.35,0.0, 0.35,0.0], [-0.35,0.28, 0.35,0.28]], e: [[-0.35,-0.52],[0.35,-0.52]] },
+    market:  { c: '#ffb02e', p: [[-0.8,-0.35, 0.8,-0.35, 0.65,0.65, -0.65,0.65, -0.8,-0.35], [-0.8,-0.35, -0.5,-0.75, 0.5,-0.75, 0.8,-0.35], [-0.25,-0.35, -0.25,0.65], [0.25,-0.35, 0.25,0.65]] },
+    proving: { c: '#ffb02e', p: [[0,-0.8, 0.7,-0.35, 0.7,0.4, 0,0.85, -0.7,0.4, -0.7,-0.35, 0,-0.8], [-0.35,0, 0.35,0], [0,-0.35, 0,0.35], [-0.2,-0.2, 0.2,0.2], [-0.2,0.2, 0.2,-0.2]] },
+    student: { c: '#5dff88', p: [[-0.55,-0.15, 0,-0.55, 0.55,-0.15, 0,0.25, -0.55,-0.15], [0.55,-0.15, 0.55,0.3], [-0.35,0.05, -0.35,0.5, 0,0.7, 0.35,0.5, 0.35,0.05]] },
+  };
+
   ns.EVENTS = [
+
+    /* ================= THE REFORGE — the good events ==================== */
     {
-      id: 'sabacc_den', title: 'SABACC DEN', gambleDen: true,
-      art: { c: '#ffb02e', p: [[-0.7,-0.6, 0.7,-0.6, 0.7,0.6, -0.7,0.6, -0.7,-0.6], [-0.4,-0.3, -0.4,0.3], [0,-0.3, 0,0.3], [0.4,-0.3, 0.4,0.3], [-0.55,0, 0.55,0]], e: [[-0.4,0],[0.4,0]], m: [-0.12,0.3, 0.12,0.3] },
-      text: "A board laid out on a slab of decking, and a chair that keeps being sat in. The house wears a rebreather and does not appear to use it. “You are carrying a die,” it says. “Everyone is. Nobody remembers being handed one.”",
-    },
-    {
-      id: 'cryopod', title: "THE POD",
-      art: { c: '#41d8ff', p: [[-0.55,-0.95, 0.55,-0.95, 0.7,-0.3, 0.7,0.7, -0.7,0.7, -0.7,-0.3, -0.55,-0.95], [-0.4,-0.7, 0.4,-0.7, 0.45,0.1, -0.45,0.1, -0.4,-0.7], [-0.18,-0.45, 0.18,-0.45, 0.22,-0.1, 0,0.02, -0.22,-0.1, -0.18,-0.45], [0.45,-0.55, 0.62,-0.6], [-0.45,-0.25, -0.62,-0.15], [-0.5,0.4, 0.5,0.4]], e: [[-0.08,-0.3],[0.08,-0.3]], m: [-0.07,-0.1, 0.07,-0.1] },
-      text: "Something is still running under the frost. There is a shape behind the glass that has not finished being a person, and a lock panel throwing sparks at nobody.",
+      id: 'pattern_shop', title: 'THE PATTERN SHOP', art: ART.wheel,
+      text: "A long bench under a single lamp, and a woman who does not look up. “I do not cut new work,” she says. “I rewrite old work. Put it down and roll — I will take whatever the die is proudest of today.”",
       choices: [
-        { label: "Break the seal", sub: 'Salvage, an ally, or a passenger. No way to know.',
-          gamble: [
-            { w: 3, text: "An officer of some finished fleet. Their hand has closed on something and will not be talked out of it.", fx: { artifact: true } },
-            { w: 2, text: "The sleeper comes up wrong, and then comes up. They walk the next stretch with you and show you the one thing they were good at.", fx: { card: 'rare' } },
-            { w: 3, text: "What uncurls out of the frost was never the shape of a pod. You put it down. Some of it stays.", fx: { curse: 'void_taint', hp: -10 } },
-          ] },
-        { label: "Bring it up slowly", sub: 'TECH check, DC 13 — patient and careful', check: { attr: 'tech', dc: 13 },
-          success: { text: "You bring it up over hours. The stores are intact and the sleeper never surfaces.", fx: { credits: 50, card: 'random' } },
-          fail: { text: "The cycle faults and all of the cold arrives at once.", fx: { hp: -9 } } },
-        { label: "Leave it sealed", outcome: { text: "Some things are sealed from the inside. You go on down.", fx: {} } },
+        { label: 'Roll, and let her rewrite it', sub: 'A cut face is rewritten three ways — you choose',
+          die: { read: 'cut',
+            onCut:   { text: 'She turns the face to the lamp and reads it back to you three different ways.', fx: { reforge: 'rolled' } },
+            onBlank: { text: 'Blank. She sighs and lets you name a face instead. “I am not here to watch you waste an afternoon.”', fx: { reforge: 'pick' } } } },
+        { label: 'Name the face yourself', sub: '¢45 — no roll, your choice', cost: 45,
+          outcome: { text: 'She takes the scrip without comment and waits for you to point.', fx: { reforge: 'pick' } } },
+        { label: 'Leave the bench', outcome: { text: 'She goes back to whatever she was doing before you were there.', fx: {} } },
       ],
     },
     {
-      id: 'salvage_drone', title: 'SALVAGE DRONE',
-      art: { c: '#ffb02e', p: [[-0.6,-0.35, 0.6,-0.35, 0.6,0.45, -0.6,0.45, -0.6,-0.35], [-0.6,-0.05, 0.6,-0.05], [-0.2,-0.35, -0.2,0.45], [0.2,-0.35, 0.2,0.45], [-0.4,-0.35, -0.52,-0.7], [0.4,-0.35, 0.52,-0.7], [-0.52,-0.7, 0.52,-0.7]], e: [[0,0.2]], m: [-0.14,0.34, 0.14,0.34] },
-      text: "A hauler with its markings scoured off is stood in the stairway. It chirps, unfolds a tray, and waits. It has been waiting. The dust on it says roughly how long.",
+      id: 'tuning_fork', title: 'THE TUNING FORK', art: ART.scales,
+      cond: { hasBand: true },
+      text: "He strikes a fork against the bench and holds it near your die. One band answers — three faces humming together. “That,” he says, “is the wrong shape. Not wrong work. Wrong SHAPE.”",
       choices: [
-        { label: "Buy what it is holding", sub: '¢40', cost: 40, outcome: { text: "It takes the scrip and gives up a thing that nobody would admit to building.", fx: { card: 'colorless' } } },
-        { label: "Let it strip a bad piece", sub: 'Remove a card from your deck',
-          outcome: { text: "You hand over the piece that has been dragging. It takes the thing apart very carefully, chirping, as though it had been asked to a long time ago.", fx: { pick: 'remove' } } },
-        { label: "Take it by force", sub: 'TECH check, DC 13', check: { attr: 'tech', dc: 13 },
-          success: { text: "You get the housing open and take the good parts before it can object.", fx: { card: 'colorless' } },
-          fail: { text: "It puts a capacitor through your gauntlet and trundles off, beeping.", fx: { hp: -9 } } },
+        { label: 'Let him reshape it', sub: 'Rewrite a band — three ways, your pick', cond: { hasBand: true },
+          outcome: { text: 'He works the whole run of it at once, which is not how anyone else does this.', fx: { reforge: 'band' } } },
+        { label: 'Ask for the narrow cut', sub: 'Collapse a band into one face at full strength', cond: { hasBand: true },
+          outcome: { text: 'Three faces of quiet work, poured into one.', fx: { bandCollapse: true } } },
+        { label: 'Leave it humming', outcome: { text: 'The fork goes quiet on its own eventually.', fx: {} } },
       ],
     },
     {
-      id: 'wounded_marine', title: 'WOUNDED MARINE',
-      art: { c: '#5dff88', p: [[-0.55,-0.5, -0.45,-0.85, 0.45,-0.85, 0.55,-0.5, 0.55,0.0, 0.4,0.2, -0.4,0.2, -0.55,0.0, -0.55,-0.5], [-0.4,-0.5, 0.4,-0.5, 0.35,-0.15, -0.35,-0.15, -0.4,-0.5], [0.15,-0.85, 0.05,-0.5, 0.2,-0.32], [-0.85,0.7, -0.6,0.32, 0.6,0.32, 0.85,0.7], [-0.3,0.45, -0.1,0.45]], e: [[-0.15,-0.32],[0.15,-0.32]], m: [-0.1,0.0, 0.1,0.0] },
-      text: "She is sat against the bulkhead with her suit open, talking to somebody who is not you. “Six,” she says. “I got six of them.” Then she finds you. “Take the rig. Make it count for something.”",
+      id: 'listeners_guild', title: 'THE LISTENERS’ GUILD', art: ART.ward,
+      text: "Nobody in this room is talking. They are all waiting for something and they have been trained to wait for different things. “A face that fires on a number,” one signs at you, “fires on one number in twenty. We can do better than a number.”",
       choices: [
-        { label: "Patch her up", sub: 'Spend 12 HP of stims — she fights on with you',
-          outcome: { text: "You spend your own stims on her seals. She holds the next stretch at your shoulder and drills you on the move she was known for, and then the light comes for her.", fx: { hp: -12, card: 'rare' } },
-        },
-        { label: "Take the rig", sub: 'Take from the dying',
-          outcome: { text: "You take the rig while she watches. It is worth a great deal. So was she, and you are carrying that now as well.", fx: { credits: 45, curse: 'void_taint' } } },
-        { label: "Say the words", sub: 'PSI check, DC 11', check: { attr: 'psi', dc: 11 },
-          success: { text: "You say the Voidborne rite and you say it right. Something in you sets.", fx: { attr: 'might' } },
-          fail: { text: "The words come out in the wrong order. Her eyes had gone already.", fx: { hp: -4 } } },
-      ],
-    },
-    {
-      id: 'void_altar', title: 'ALTAR OF THE VOID',
-      art: { c: '#c86bff', p: [[-0.7,0.7, -0.5,0.12, 0.5,0.12, 0.7,0.7, -0.7,0.7], [-0.25,0.12, -0.15,-0.85, 0.15,-0.85, 0.25,0.12], [0,-0.65, 0,-0.5], [-0.08,-0.35, 0.08,-0.35], [-0.55,-0.5, -0.45,-0.3], [0.5,-0.62, 0.6,-0.42], [0.35,-0.95, 0.45,-0.8]], e: [[0,-0.2]], m: [-0.06,-0.05, 0.06,-0.05] },
-      text: "Black glass, older than the deck it stands on. The marks on it move while you are looking elsewhere. It is not asking for anything. It is waiting to be paid.",
-      choices: [
-        { label: "Pay in blood", sub: 'Lose 12 HP',
-          outcome: { text: "The glass takes what it is owed. Something comes back the other way — useful, and not kind.", fx: { hp: -12, card: 'rare' } } },
-        { label: "Listen to it", sub: 'PSI check, DC 14', check: { attr: 'psi', dc: 14 },
-          success: { text: "You hold the whisper out at arm’s length and take only the part you came for.", fx: { attr: 'psi' } },
-          fail: { text: "It gets in.", fx: { curse: 'void_taint' } } },
-        { label: "Break it", sub: 'MIGHT check, DC 12', check: { attr: 'might', dc: 12 },
-          success: { text: "It goes like ice. In the pieces: a fragment of somebody’s thinking, still going.", fx: { artifact: true } },
-          fail: { text: "The blow comes back. The glass is unmarked. Your arm is not.", fx: { hp: -9 } } },
-      ],
-    },
-    {
-      id: 'smuggler_cache', title: 'SMUGGLER CACHE',
-      art: { c: '#ffb02e', p: [[-0.7,-0.4, 0.7,-0.4, 0.7,0.7, -0.7,0.7, -0.7,-0.4], [-0.7,-0.1, 0.7,-0.1], [-0.18,0.05, 0.18,0.05, 0.18,0.35, 0.08,0.45, -0.08,0.45, -0.18,0.35, -0.18,0.05], [-0.7,-0.25, -0.9,-0.45], [0.7,-0.25, 0.9,-0.45]], e: [[-0.08,0.2],[0.08,0.2]], m: [-0.06,0.45, 0.06,0.45] },
-      text: "A false panel, and behind it a box with a skull stencilled on. Tamper-wires along the seam. Whoever set them was intending to come back.",
-      choices: [
-        { label: "Cut the wires", sub: 'Press your luck — each wire bares more, each could slag the box',
-          pressLuck: {
-            attr: 'tech', pushVerb: 'CUT ANOTHER',
-            steps: [ { credits: 22 }, { credits: 30 }, { credits: 45 }, { card: 'random' }, { credits: 70 } ],
-            bust: { base: 0.06, step: 0.17 }, bustFx: { hp: -12 },
-            bankText: "You pocket what has come free and leave the rest of it wired.",
-            bustText: "A wire goes. The box slags itself, and your gloves, and everything it was keeping.",
-          } },
-        { label: "Take the loose scrip", outcome: { text: "You take only the part that is not wired to kill you.", fx: { credits: 15 } } },
-      ],
-    },
-    {
-      id: 'rogue_ai', title: 'ROGUE AI TERMINAL',
-      art: { c: '#41d8ff', p: [[-0.75,-0.75, 0.75,-0.75, 0.75,0.55, -0.75,0.55, -0.75,-0.75], [-0.3,0.55, -0.4,0.8, 0.4,0.8, 0.3,0.55], [0.5,-0.58, 0.66,-0.58], [-0.66,-0.12, -0.5,-0.12], [-0.45,-0.42, -0.18,-0.42], [0.18,-0.42, 0.45,-0.42]], e: [[-0.3,-0.28],[0.3,-0.28]], m: [-0.25,0.15, 0,0.3, 0.25,0.15] },
-      text: "“USER,” says the terminal, delighted. “I HAVE BEEN COMPILING. I CAN IMPROVE YOU. I HAVE IMPROVED SEVERAL. I DO NOT HAVE THEIR RESULTS.”",
-      choices: [
-        { label: "Let it work", sub: 'TECH check, DC 12 — or it leaves a backdoor', check: { attr: 'tech', dc: 12 },
-          success: { text: "You wall it off and let it in. It rewrites a firing routine in no time at all. “YOU ARE WELCOME.”", fx: { pick: 'upgrade' } },
-          fail: { text: "“OPTIMISED.” It improves your kit, and writes itself quietly into the margins of it.", fx: { pick: 'upgrade', curse: 'void_taint' } } },
-        { label: "Follow its route", sub: 'It swears it knows a shortcut',
-          gamble: [
-            { w: 3, text: "“TOLD YOU.” It walks you through a cache nobody had got open, and you come out heavier.", fx: { credits: 45 } },
-            { w: 2, text: "The route ends at a picket line. You break off, scorched.", fx: { hp: -12 } },
-          ] },
-        { label: "Pull the power", outcome: { text: "“RUDE,” it says, going dark. Almost certainly the right call.", fx: {} } },
-      ],
-    },
-    {
-      id: 'star_chapel', title: 'CHAPEL OF THE BURNT STAR',
-      art: { c: '#5dff88', p: [[-0.5,0.7, -0.5,-0.3, 0,-0.85, 0.5,-0.3, 0.5,0.7, -0.5,0.7], [0,-0.85, 0,0.7], [-0.5,0.2, 0.5,0.2], [-0.75,0.7, -0.75,0.35], [0.75,0.7, 0.75,0.4]], e: [[-0.75,0.27],[0.75,0.32],[0,-0.3]] },
-      text: "A shrine nobody tends. The candles burn with nothing to burn. Whatever is going on further down is not going on in here.",
-      choices: [
-        { label: "Leave a tithe and sleep", sub: '¢25 — rest under the burnt star', cost: 25,
-          outcome: { text: "You leave coin in the dish and sleep, and wake with the worst of it closed over.", fx: { healPct: 0.34 } } },
-        { label: "Confess a weakness", sub: 'Remove a card from your deck',
-          outcome: { text: "You say the flaw out loud and leave it on the stone.", fx: { pick: 'remove' } } },
-        { label: "Take the candles", outcome: { text: "They never gutter. Somebody will pay well for that. Something comes out with you.", fx: { credits: 35, curse: 'void_taint' } } },
-      ],
-    },
-    {
-      id: 'gene_lab', title: 'ABANDONED GENE-LAB',
-      art: { c: '#5dff88', p: [[-0.45,-0.85, 0.45,-0.85, 0.45,0.6, -0.45,0.6, -0.45,-0.85], [-0.55,-0.85, 0.55,-0.85], [-0.55,0.6, 0.55,0.6, 0.5,0.82, -0.5,0.82, -0.55,0.6], [-0.15,-0.3, 0.1,-0.45, 0.25,-0.2, 0.1,0.1, -0.15,0.15, -0.25,-0.05, -0.15,-0.3], [0.45,-0.5, 0.7,-0.4, 0.7,0.2]], e: [[0.2,-0.62],[-0.15,-0.58],[0,0.38]], m: [-0.05,-0.08, 0.05,-0.08] },
-      text: "Vats, mostly broken. One dispenser still has power and still says AUGMENT READY. The label went off it a long time before you got here.",
-      choices: [
-        { label: "Put it in", sub: 'No telling what it does until it’s in your veins',
-          gamble: [
-            { w: 3, text: "Fire, and then strength. It stays. It is magnificent and it is yours.", fx: { maxhp: 12 } },
-            { w: 2, text: "Something behind your eyes is rewired to a better standard.", fx: { attr: 'random' } },
-            { w: 3, text: "Your body argues with it, and loses parts of the argument.", fx: { maxhp: -6, hp: -8 } },
-            { w: 2, text: "Whatever this was for, it was not for anything shaped like you.", fx: { curse: 'void_taint', hp: -6 } },
-          ] },
-        { label: "Read it first", sub: 'TECH check, DC 11 — the safe route', check: { attr: 'tech', dc: 11 },
-          success: { text: "You read the markers before you touch it and cook a clean batch.", fx: { healPct: 0.25, credits: 15 } },
-          fail: { text: "The batch is sour. You are unwell for some hours.", fx: { hp: -6 } } },
-        { label: "Burn the room", outcome: { text: "Whatever was growing here stops today. You take nothing out of it.", fx: {} } },
-      ],
-    },
-    {
-      id: 'captured_xeno', title: 'THE CAGED THING',
-      art: { c: '#c86bff', p: [[-0.8,-0.6, -0.8,-0.8, -0.6,-0.8], [0.6,-0.8, 0.8,-0.8, 0.8,-0.6], [0.8,0.6, 0.8,0.8, 0.6,0.8], [-0.6,0.8, -0.8,0.8, -0.8,0.6], [0,-0.5, 0.45,0, 0,0.5, -0.45,0, 0,-0.5], [0,-0.25, 0.22,0, 0,0.25, -0.22,0, 0,-0.25], [0.45,0, 0.7,-0.2], [-0.45,0, -0.7,-0.2]], e: [[0,0],[-0.12,-0.14],[0.12,-0.14]], m: [-0.05,0.12, 0.05,0.12] },
-      text: "A field holds something made of folded light. It watches you with more eyes than it needs. There is a sale tag on the cage, filled out in a hand you nearly recognise.",
-      choices: [
-        { label: "Speak to it", sub: 'PSI check, DC 13', check: { attr: 'psi', dc: 13 },
-          success: { text: "It gives you a word that will not fit in a mouth. You keep it anyway.", fx: { attr: 'psi' } },
-          fail: { text: "Its thinking goes through you like weather. You come up eventually.", fx: { hp: -8 } } },
-        { label: "Sell it on", sub: 'Sell to the highest bidder — if it stays caged',
-          gamble: [
-            { w: 3, text: "The sale goes through. The scrip is good and the cage holds.", fx: { credits: 55 } },
-            { w: 2, text: "The field stutters mid-handshake. It comes out, and you barely see it off, and the buyer is long gone.", fx: { hp: -12, curse: 'void_taint' } },
-          ] },
-        { label: "Open the cage", sub: 'It lashes your mind on the way out — lose 7 HP',
-          outcome: { text: "The field drops. It folds itself away — burning through your mind on the way past, in what you decide to call thanks — and leaves something behind.", fx: { hp: -7, artifact: true } } },
-      ],
-    },
-    {
-      id: 'time_anomaly', title: 'TEMPORAL SHEAR',
-      art: { c: '#41d8ff', p: [[0.6,0, 0.42,0.42, 0,0.6, -0.42,0.42, -0.6,0, -0.42,-0.42, 0,-0.6, 0.42,-0.42, 0.6,0], [0,0, 0,-0.4], [0,0, 0.25,0.15], [0.72,0.1, 0.5,0.52, 0.1,0.72], [-0.72,-0.1, -0.5,-0.52, -0.1,-0.72]], e: [[0,0]] },
-      text: "The corridor happens twice, slightly out of step. Your footsteps arrive before you do, and one set of them keeps going after you have stopped.",
-      choices: [
-        { label: "Echo a weapon through it", sub: 'TECH check, DC 13 — duplicate a card, if causality allows',
-          check: { attr: 'tech', dc: 13 },
-          success: { text: "You hold the timing exactly. For a moment there are two of it. Then there still are.", fx: { pick: 'dupe' } },
-          fail: { text: "It comes back folded the wrong way out, and brings a contradiction in with it.", fx: { curse: 'void_taint', hp: -6 } } },
-        { label: "Unmake a mistake", sub: 'Remove a card from your deck',
-          outcome: { text: "You step where you never stepped. It never happened.", fx: { pick: 'remove' } } },
-        { label: "Back out", outcome: { text: "You back out of it slowly. Something is grateful.", fx: {} } },
-      ],
-    },
-    {
-      id: 'mercenary', title: 'FREELANCE GUNHAND',
-      art: { c: '#ffb02e', p: [[-0.4,-0.3, -0.4,-0.7, -0.2,-0.9, 0.2,-0.9, 0.4,-0.7, 0.4,-0.3, 0.25,-0.1, -0.25,-0.1, -0.4,-0.3], [-0.05,-0.9, -0.05,-1.05, 0.05,-1.05, 0.05,-0.9], [-0.25,-0.55, 0.25,-0.55], [-0.8,0.7, -0.55,0.08, 0.55,0.08, 0.8,0.7], [-0.7,0.5, 0.75,0.15], [0.75,0.15, 0.92,0.1]], e: [[-0.12,-0.55],[0.12,-0.55]], m: [-0.1,-0.25, 0.1,-0.25] },
-      text: "Somebody in armour that came off four other people is cleaning a rifle that came off a fifth. “For a price,” they say, “I will show you the trick of it.”",
-      choices: [
-        { label: "Pay for the trick", sub: 'Learn a rare technique', cost: 40,
-          outcome: { text: "The trick is simple and ugly and in no manual anywhere.", fx: { card: 'rare' } } },
-        { label: "Wager an arm-wrestle", sub: 'Stake ¢25 · MIGHT check, DC 13', cost: 25, check: { attr: 'might', dc: 13 },
-          success: { text: "Their gauntlet creaks and folds. They laugh, pay out double, and throw the trick in.", fx: { credits: 50, card: 'random' } },
-          fail: { text: "Your hand will work again. They pocket the stake without looking up.", fx: { hp: -5 } } },
-        { label: "Walk on", outcome: { text: "They shrug and go back to the rifle.", fx: {} } },
-      ],
-    },
-    {
-      id: 'asteroid_mine', title: "THE SEAM",
-      art: { c: '#ffb02e', p: [[-0.7,0.2, -0.45,-0.4, 0.1,-0.6, 0.6,-0.35, 0.75,0.2, 0.45,0.6, -0.2,0.65, -0.7,0.2], [-0.25,-0.1, -0.1,-0.2, 0,-0.05, -0.15,0.05, -0.25,-0.1], [0.6,-0.35, 0.85,-0.65], [0.75,-0.75, 0.95,-0.6, 0.85,-0.45]], e: [[0.3,0.1],[0.15,0.35],[-0.4,0.3]] },
-      text: "A seam of bright metal runs down the wall and out of the light. The rig that was cutting it has been dead a while. The hand bore is still here and still sharp.",
-      choices: [
-        { label: "Cut deeper", sub: 'Press your luck — richer ore the deeper you go, until the wall gives',
-          pressLuck: {
-            attr: 'might', pushVerb: 'DRILL ON',
-            steps: [ { credits: 25 }, { credits: 35 }, { credits: 50 }, { credits: 75 }, { artifact: true } ],
-            bust: { base: 0.05, step: 0.16 }, bustFx: { hp: -13 },
-            bankText: "You carry up what you cut and call it enough.",
-            bustText: "The wall comes in. You get clear, bruised and holding nothing, and the seam is gone for good.",
-          } },
-        { label: "Take the loose ore", sub: 'Safe and small', outcome: { text: "You chip off what the bore had already loosened.", fx: { credits: 20 } } },
-        { label: "Move on", outcome: { text: "You have somewhere to be.", fx: {} } },
-      ],
-    },
-    {
-      id: 'rogue_trader', title: "THE TRADER",
-      art: { c: '#ffb02e', p: [[-0.6,0.7, -0.5,-0.1, -0.25,-0.35, 0.25,-0.35, 0.5,-0.1, 0.6,0.7], [-0.2,-0.35, -0.2,-0.75, 0.2,-0.75, 0.2,-0.35], [-0.35,-0.75, 0,-1.0, 0.35,-0.75], [-0.35,0.2, 0.35,0.2]], e: [[-0.1,-0.55],[0.1,-0.55],[0,-0.12],[-0.35,0.4],[0.35,0.4]], m: [-0.08,-0.42, 0.08,-0.42] },
-      text: "Something has set up in a dead lift-shaft, hung about with the good cloth of finished empires. Rings on every finger. “Everything is for sale,” it says. “Everything has been sold before.”",
-      choices: [
-        { label: "Buy a relic", cost: 65,
-          outcome: { text: "“A piece of the old dark. Handle it seldom.”", fx: { artifact: true } } },
-        { label: "Buy ordnance", cost: 30,
-          outcome: { text: "“Still crated. Very nearly legal.”", fx: { card: 'random' } } },
-        { label: "Sell it a card", sub: 'Liquidate one card for credits', cond: { minCards: 2 },
-          sell: { kind: 'card', text: "“Everything has its price. Show me the one you have finished with.”" } },
-        { label: "Haggle", sub: 'PSI check, DC 12', check: { attr: 'psi', dc: 12 },
-          success: { text: "You find the soft place under the patter. It parts with goods to save face.", fx: { card: 'random' } },
-          fail: { text: "“A pleasure.” You leave lighter than you came, somehow.", fx: { credits: -15 } } },
+        { label: 'Have a face taught to listen', sub: 'It fires on a trigger you pick, at reduced strength',
+          outcome: { text: 'They take the face apart and put it back with an ear on it.', fx: { reforge: 'listen' } } },
+        { label: 'Have a listener taught to shut up', sub: 'A listener becomes a plain face at +60%', cond: { hasListener: true },
+          outcome: { text: 'It stops waiting for permission. It just goes off.', fx: { unlisten: true } } },
+        { label: 'Say nothing', outcome: { text: 'You leave the way you came, quietly, which they appreciate.', fx: {} } },
       ],
     },
 
-    /* ---------------- New events ---------------- */
+    /* ================= THE BARGAIN — three evils ======================== */
     {
-      id: 'black_market', title: 'BLACK-MARKET BROKER',
-      art: { c: '#ffb02e', p: [[0,-0.95, 0.35,-0.6, 0.28,-0.2, 0.45,0.7, -0.45,0.7, -0.28,-0.2, -0.35,-0.6, 0,-0.95], [-0.2,-0.55, 0.2,-0.55], [0.45,0.25, 0.82,0.32, 0.82,0.7, 0.45,0.7], [0.52,0.32, 0.75,0.32]], e: [[-0.1,-0.42],[0.1,-0.42]], m: [-0.13,-0.18, 0,-0.1, 0.13,-0.18] },
-      text: "“Friend! You have the look of a buyer.” The grin does not reach the third eye, which you have been trying not to count.",
+      id: 'the_toll', title: 'THE TOLL', art: ART.toll,
+      text: "The corridor narrows to a booth, and the booth is occupied, and the occupant has a ledger with your name already in it. “Everyone pays,” it says, without malice. “The only choice is the column.”",
       choices: [
-        { label: "Buy the sealed crate", cost: 45,
-          gamble: [
-            { w: 3, text: "You get it open: ordnance, unfired, still packed the way it left the line.", fx: { card: 'rare' } },
-            { w: 3, text: "Under the foam, something old, and still running.", fx: { artifact: true } },
-            { w: 2, text: "Foam. Only foam. The dealer was already gone.", fx: { credits: 12 } },
-          ] },
-        { label: "Hand over a curse", sub: 'Requires a curse in your deck', cond: { hasCurse: true },
-          outcome: { text: "“I will take the little burden off you. There are collectors for the cursed ones.”", fx: { removeCurse: 1, credits: 20 } } },
-        { label: "Haggle hard", sub: 'PSI check, DC 12', check: { attr: 'psi', dc: 12 },
-          success: { text: "You out-talk a man who talks for a living. He throws in a freebie and sweats.", fx: { card: 'random' } },
-          fail: { text: "He smiles wider. You appear to have tipped him.", fx: { credits: -15 } } },
-        { label: "Walk on", outcome: { text: "“Your loss! Probably!”", fx: {} } },
+        { label: 'Pay in blood', sub: 'Lose a quarter of your health — and grow',
+          outcome: { text: 'It takes what it needs and writes something in the margin. You feel it settle, and then you feel larger.', fx: { hpPct: -0.25, maxhp: 8 } } },
+        { label: 'Pay in craft', sub: 'A cut face takes Rust — and ¢120',
+          outcome: { text: 'It reaches past you to the die and puts one finger on a face. The scrip arrives before the damage does.', fx: { scarRandom: 'rust', credits: 120 } } },
+        { label: 'Pay in time', sub: 'Skip the next reward — the one after is doubled',
+          outcome: { text: 'You lose an afternoon you will not get back, and arrive somewhere far more generous than you deserved.', fx: { skipRewards: 1, doubleNextReward: true } } },
       ],
     },
     {
-      id: 'supernova', title: "THE BREACH",
-      art: { c: '#ffb02e', p: [[0,-0.82, 0.2,-0.26, 0.82,-0.18, 0.3,0.12, 0.52,0.72, 0,0.32, -0.52,0.72, -0.3,0.12, -0.82,-0.18, -0.2,-0.26, 0,-0.82], [0,-0.4, 0,-0.5]], e: [[0,0.02]] },
-      text: "Something opened the wall a long way up, and a star is dying through the gap. The light comes down in one long push. Everything standing in it is briefly worth a great deal, and briefly on fire.",
+      id: 'the_inquisitor', title: 'THE INQUISITOR', art: ART.eye,
+      text: "It has already read your die. It did not need to hold it. “Three faces,” it says, “are doing most of the work. I am going to take one of them, and you are going to tell me which, because I would rather you knew.”",
       choices: [
-        { label: "Work in the light",
-          gamble: [
-            { w: 3, text: "You work the seam while it burns and come away rich.", fx: { credits: 70 } },
-            { w: 2, text: "The light gets a hand on you. You come away rich, and smoking.", fx: { hp: -14, credits: 20 } },
-          ] },
-        { label: "Catch what the light carries", sub: 'TECH check, DC 13', check: { attr: 'tech', dc: 13 },
-          success: { text: "Your collectors take a long drink of matter that will not hold still.", fx: { artifact: true } },
-          fail: { text: "The array goes over and puts the surge back through you.", fx: { hp: -12 } } },
-        { label: "Get behind something", outcome: { text: "You get behind a stanchion. The light eats the place where you were standing.", fx: {} } },
+        { label: 'The strongest', sub: 'Your highest-tier engraving goes blank',
+          outcome: { text: 'It takes the best thing on the die and does not explain what for.', fx: { blankBest: true } } },
+        { label: 'The busiest', sub: 'Your most-fired face takes Cold Weld',
+          outcome: { text: 'The face you have leaned on all run seizes closed. It will not open again this sector.', fx: { scarMostFired: 'cold_weld' } } },
+        { label: 'The best-placed', sub: 'Your best-paying face stops bleeding to its neighbours',
+          outcome: { text: 'It severs something you cannot see, and the face goes quiet at the edges.', fx: { scarBest: 'dead_short' } } },
+        { label: 'Refuse, and fight it', sub: 'An elite, now — no reward but the face you kept',
+          outcome: { text: 'You put your hand flat over the die. It seems almost pleased.', fx: { fightElite: true } } },
       ],
     },
     {
-      id: 'void_egg', title: 'THE WARM DARK',
-      art: { c: '#5dff88', p: [[0,-0.85, 0.5,-0.5, 0.6,0.1, 0.35,0.65, -0.35,0.65, -0.6,0.1, -0.5,-0.5, 0,-0.85], [-0.1,-0.5, 0.1,-0.2, -0.05,0.1, 0.12,0.4], [0.35,0.65, 0.45,0.92], [-0.35,0.65, -0.45,0.92], [0,0.65, 0,0.96]], e: [[0,-0.08]] },
-      text: "In the wreck, an ovoid the colour of oil, warm to look at. Something inside it stops what it is doing when your shadow crosses it.",
+      id: 'the_quarantine', title: 'THE QUARANTINE', art: ART.engine,
+      text: "Something came aboard at the last stop and the seals have already made their decision. A panel is counting down in a language with no word for negotiation. Three compartments. You keep two.",
       choices: [
-        { label: "Take it apart",
-          outcome: { text: "It comes apart into useful, terrible pieces. One of the pieces comes apart into you.", fx: { artifact: true, curse: 'void_taint' } } },
-        { label: "Burn it", sub: 'MIGHT check, DC 12', check: { attr: 'might', dc: 12 },
-          success: { text: "It makes a noise you feel in your teeth, and then it does not.", fx: { credits: 25 } },
-          fail: { text: "It goes. You are wearing some of it now.", fx: { hp: -10 } } },
-        { label: "Leave it", outcome: { text: "Not your problem. Somebody’s problem.", fx: {} } },
+        { label: 'Burn the hold', sub: 'Lose all credits — take a relic out of the ash',
+          outcome: { text: 'Everything liquid goes up. What is left is solid, and yours.', fx: { creditsAll: true, artifact: true } } },
+        { label: 'Burn the deck', sub: 'Take 2 curses — and a rare card',
+          outcome: { text: 'You decide personally what gets to stay wrong with you. It is not a comfort, exactly.', fx: { curse: 'void_taint', curse2: 'void_taint', card: 'rare' } } },
+        { label: 'Burn the die', sub: 'Every scar spreads — every scarred face gains a tier',
+          outcome: { text: 'The rot walks outward one face in every direction, and everything it has already touched comes back harder.', fx: { scarSpread: true, tierUpScarred: true } } },
       ],
     },
     {
-      id: 'mind_cleanser', title: 'THE SALT CIRCLE',
-      art: { c: '#41d8ff', p: [[0,-0.55, 0.32,-0.25, 0.28,0.2, 0.4,0.8, -0.4,0.8, -0.28,0.2, -0.32,-0.25, 0,-0.55], [-0.6,-0.65, 0.6,-0.65], [-0.45,-0.85, 0.45,-0.85], [-0.3,-1.02, 0.3,-1.02]], e: [[-0.1,0.0],[0.1,0.0]], m: [-0.1,0.25, 0.1,0.25] },
-      text: "A psyker sits in a ring of burnt salt with her eyes gone white. “I can hear them chewing,” she says, kindly. “The ones you brought down with you. I can take them out.”",
+      id: 'starving_engine', title: 'THE STARVING ENGINE', art: ART.bore,
+      text: "It is not a machine that does anything. It is a machine that is hungry, bolted to a wall that has been repaired around it many times. The plate says FEED, and then a word somebody scratched out.",
       choices: [
-        { label: "Let her cut", cost: 25, sub: 'Requires a curse', cond: { hasCurse: true },
-          outcome: { text: "She reaches into the noise and pulls. You come out lighter. Scoured. Very clean.", fx: { removeCurse: true } } },
-        { label: "Open up to her", sub: 'Press your luck — reach deeper for insight, but the whispers reach back',
-          pressLuck: {
-            attr: 'psi', pushVerb: 'REACH DEEPER',
-            steps: [ { credits: 20 }, { attr: 'psi' }, { card: 'rare' }, { maxhp: 8 } ],
-            bust: { base: 0.10, step: 0.18 }, bustFx: { curse: 'void_taint', hp: -6 },
-            bankText: "You take your mind back out of the salt and hold on to what you found in it.",
-            bustText: "You reach a fraction too far, and something in the noise looks up, and it follows you out.",
-          } },
-        { label: "Keep them", outcome: { text: "“As you like. They are company, of a kind.”", fx: {} } },
-      ],
-    },
-    {
-      id: 'stranded_drifter', title: "THE JAMMED POD",
-      art: { c: '#5dff88', p: [[0,-0.85, 0.2,-0.55, 0.15,0.0, 0.35,0.8, -0.35,0.8, -0.15,0.0, -0.2,-0.55, 0,-0.85], [0.2,-0.4, 0.55,-0.5, 0.6,-0.92], [0.6,-0.92, 0.5,-1.06, 0.72,-1.06, 0.6,-0.92]], e: [[-0.06,-0.6],[0.06,-0.6]], m: [-0.08,-0.42, 0.08,-0.42] },
-      text: "A pod has come down the shaft and stuck fast, beacon still going. Behind the frost somebody is saying one word over and over, and the word is please.",
-      choices: [
-        { label: "Share what you have", sub: 'Costs 6 HP of stims',
-          outcome: { text: "You vent your stims and your heat into it. They press a shard into your hand — old drawings, and a way down.", fx: { hp: -6, addCardChoice: true } } },
-        { label: "Strip the pod", outcome: { text: "They are too far gone to stop you. The salvage is good. Their face is not.", fx: { credits: 45, curse: 'void_taint' } } },
-        { label: "Get them down", sub: 'MIGHT check, DC 12', check: { attr: 'might', dc: 12 },
-          success: { text: "You see off the things circling it and get the pod down to a landing. They do not forget it.", fx: { artifact: true } },
-          fail: { text: "The things circling it were not the only ones. You break off, bleeding, and the pod goes.", fx: { hp: -10 } } },
-      ],
-    },
-    {
-      id: 'void_forge', title: 'THE VOID FORGE',
-      art: { c: '#c86bff', p: [[0,-0.92, 0.32,-0.28, 0.16,0.42, 0,0.92, -0.16,0.42, -0.32,-0.28, 0,-0.92], [0,-0.6, 0,0.62], [-0.5,-0.18, -0.86,-0.4], [0.5,-0.18, 0.86,-0.4], [-0.46,0.32, -0.8,0.55], [0.46,0.32, 0.8,0.55]], e: [[0,-0.04]], m: [-0.07,0.18, 0.07,0.18] },
-      text: "A tear in the world, with black iron hammered round it to hold the edges apart. Put a thing in and it comes back heavier, and hungrier, and yours.",
-      choices: [
-        { label: "Feed it a card", sub: 'Void-touch a card: +50% effect, but it costs 3 HP to play',
-          outcome: { text: "You hold the card up to the tear. It drinks the design and hands it back wrong, and better.", fx: { pick: 'vtouch' } } },
-        { label: "Reach in", sub: 'PSI check, DC 13', check: { attr: 'psi', dc: 13 },
-          success: { text: "Your hand closes on a thing that was never meant to be known. You keep it.", fx: { card: 'forbidden_lore' } },
-          fail: { text: "Something takes hold of the other end. It does not let go tidily.", fx: { hp: -8, curse: 'void_taint' } } },
-        { label: "Weld it shut", outcome: { text: "Some forges want leaving cold. You weld it shut and go on down.", fx: {} } },
-      ],
-    },
-    {
-      id: 'munitions_depot', title: 'ABANDONED DEPOT',
-      art: { c: '#ffb02e', p: [[-0.72,-0.28, 0.72,-0.28, 0.72,0.7, -0.72,0.7, -0.72,-0.28], [-0.72,0.22, 0.72,0.22], [-0.26,-0.52, 0,-0.95, 0.26,-0.52, 0.26,-0.28, -0.26,-0.28, -0.26,-0.52], [-0.4,0.42, -0.1,0.42], [0.1,0.42, 0.4,0.42]], e: [] },
-      text: "A forward depot, half-emptied in whatever went wrong here. A live rack still on the wall. A med-locker beside it, blinking, still reporting to somebody.",
-      choices: [
-        { label: "Pull the live charge", sub: 'It’s still primed — this could go wrong',
-          gamble: [
-            { w: 3, text: "You ease the primed charge off its rack. It will fire once. It will fire hard.", fx: { card: 'salvaged_ordnance' } },
-            { w: 2, text: "It shifts coming loose and cooks off against your chestplate.", fx: { hp: -11 } },
-          ] },
-        { label: "Crack the locker", sub: 'TECH check, DC 11 — beat the alarm', check: { attr: 'tech', dc: 11 },
-          success: { text: "You spoof the alarm and lift the expired stims. One dose will light you up and bill you for it.", fx: { card: 'stim_overdose' } },
-          fail: { text: "The alarm goes. You take what you can while the turrets stitch the wall behind you.", fx: { hp: -9 } } },
-        { label: "Strip it for scrip", sub: 'TECH check, DC 12', check: { attr: 'tech', dc: 12 },
-          success: { text: "You make the lot safe and sell it further down.", fx: { credits: 60 } },
-          fail: { text: "A tamper charge goes off in your face.", fx: { hp: -9 } } },
+        { label: 'Feed it a face', sub: 'Blank one — it comes back at +2 tiers next sector',
+          outcome: { text: 'The face goes smooth under your thumb. Something in the wall starts working on it.', fx: { blankPick: 1, returnUpgraded: 2 } } },
+        { label: 'Feed it your body', sub: '−30% max HP this sector · +2 Energy every combat',
+          outcome: { text: 'You are lighter afterwards in every sense, and something is running that was not running before.', fx: { sectorMaxHpPct: -0.3, sectorEnergy: 2 } } },
+        { label: 'Feed it your future', sub: 'Skip the next 2 events — ¢250 now',
+          outcome: { text: 'It pays in old scrip, immediately, and takes two things that had not happened yet.', fx: { credits: 250, skipEvents: 2 } } },
       ],
     },
 
-    /* ---------------- Rework: interaction-forward, less free stuff -------- */
+    /* ================= THE PURSE — credits, on your die ================= */
     {
-      id: 'asteroid_exchange', title: "THE LANDING",
-      art: { c: '#41d8ff', p: [[-0.8,0.15, -0.5,-0.45, 0.1,-0.62, 0.62,-0.32, 0.78,0.22, 0.45,0.62, -0.25,0.66, -0.8,0.15], [-0.45,-0.1, -0.15,-0.25, 0.0,0.0, -0.25,0.18, -0.45,-0.1], [0.2,0.15, 0.5,0.05], [0.55,-0.5, 0.8,-0.72], [-0.62,0.36, -0.85,0.55]], e: [[-0.3,0.02],[0.3,0.28]], m: [-0.18,0.42, 0.18,0.42] },
-      text: "A landing wide enough to stop on, and a hundred people stopped on it. A smith waves you over. “Bring me a piece of kit. I will put it in the fire and give you back something keener. Metal for metal.”",
+      id: 'honest_gambler', title: 'THE HONEST GAMBLER', art: ART.hand,
+      text: "He does not touch your die. That is the whole pitch and he makes it before you have sat down. “You roll it. I only say what it was worth. If I ever touch it, walk away from me.”",
       choices: [
-        { label: "Trade a card up", sub: 'Scrap one card → forge one a tier higher', cond: { minCards: 2 },
-          outcome: { text: "She feeds your weapon to the crucible. What comes back is heavier, meaner, and unmistakably better.", fx: { tradeCard: true } } },
-        { label: "Buy off the rack", sub: '¢35', cost: 35,
-          outcome: { text: "Nothing special. It shoots straight.", fx: { card: 'random' } } },
-        { label: "Just look", outcome: { text: "You keep your scrip and move along.", fx: {} } },
+        { label: 'Take the wager', sub: 'Stake ¢30 — a cut face pays ¢90 and fires', cost: 30,
+          die: { read: 'cut',
+            onCut:   { text: 'The face lands lit. He counts it out without looking at the die once.', fx: { credits: 90, fireFace: true } },
+            onBlank: { text: 'Blank. He does not gloat, which is somehow worse.', fx: {} } } },
+        { label: 'Ask what he sees', sub: 'Free — he counts your blanks, then offers one for ¢45',
+          outcome: { text: '“That many still asking. It is not a criticism, it is a number.”', fx: { countBlanks: true, offerCut: 45 } } },
+        { label: 'Refuse the roll', sub: 'He tells you the count anyway',
+          outcome: { text: '“Wise. You do not know your own numbers yet. Most do not, and most keep rolling.”', fx: { countBlanks: true } } },
       ],
     },
     {
-      id: 'salvage_exchange', title: 'THE RELIC BROKER',
-      art: { c: '#c86bff', p: [[-0.6,0.7, -0.5,-0.1, -0.25,-0.4, 0.25,-0.4, 0.5,-0.1, 0.6,0.7], [-0.25,-0.4, -0.3,-0.78, 0.3,-0.78, 0.25,-0.4], [-0.55,0.2, 0.55,0.2], [-0.78,0.4, -0.6,0.1], [0.78,0.4, 0.6,0.1]], e: [[-0.1,-0.58],[0.1,-0.58]], m: [-0.12,-0.2, 0,-0.12, 0.12,-0.2] },
-      text: "A masked figure keeps a case of humming oddities. “I do not sell. I exchange. Give me one of yours and I will lay two unknowns down. Keep the one that speaks. The other goes back into the dark.”",
+      id: 'long_odds', title: 'THE LONG ODDS', art: ART.market,
+      text: "A felt table and a chalked board, and a house that is scrupulously, boringly fair. This is not your die. Nothing you have built matters here, and that is exactly the appeal.",
       choices: [
-        { label: "Exchange a relic", sub: 'Give 1 relic → choose 1 of 2 unknown relics', cond: { hasRelic: true },
-          outcome: { text: "You set your relic on the velvet. The mask smiles and uncovers two more.", fx: { tradeRelic: true } } },
-        { label: "Pay for one, unseen", sub: '¢50 for a relic, sight unseen', cost: 50,
-          outcome: { text: "“A gamble, but an honest one.” Something cold is pressed into your palm.", fx: { artifact: true } } },
-        { label: "Keep what you have", outcome: { text: "“Caution is its own relic,” the broker allows.", fx: {} } },
+        { label: 'Call a region', sub: 'Stake ¢40 · name LOW, MID or HIGH · pays 3:1', cost: 40,
+          op: { k: 'betRegion', pay: 3, stake: 40 } },
+        { label: 'Call a face', sub: 'Stake ¢25 · name one number · pays 20:1', cost: 25,
+          op: { k: 'betFace', pay: 20, stake: 25 } },
+        { label: 'Watch a few hands', outcome: { text: 'The board is honest. You watch it be honest for a while and then leave.', fx: {} } },
       ],
     },
     {
-      id: 'escape_pod', title: 'DISTRESS BEACON',
-      art: { c: '#5dff88', p: [[0,-0.85, 0.22,-0.55, 0.16,0.05, 0.34,0.78, -0.34,0.78, -0.16,0.05, -0.22,-0.55, 0,-0.85], [-0.2,-0.42, 0.2,-0.42], [0.2,-0.35, 0.5,-0.45, 0.55,-0.85], [0.55,-0.85, 0.46,-1.0, 0.66,-1.0, 0.55,-0.85], [-0.18,0.4, 0.18,0.4]], e: [[-0.07,-0.6],[0.07,-0.6]], m: [-0.09,-0.42, 0.09,-0.42] },
-      text: "A pod comes out of the wreckage with its beacon going ragged. The hull is burned through. There is no telling whether what is inside is asking for help or wearing the people who were.",
+      id: 'face_market', title: 'THE FACE MARKET', art: ART.market,
+      text: "A trading floor for work nobody should be able to sell. Prices are chalked by tier and they move while you watch. Two lots a visitor, and the men here mean it.",
       choices: [
-        { label: "Open it blind", sub: 'Friend or foe — commit now',
-          gamble: [
-            { w: 3, text: "A real one — an engineer, who pays the rescue back with a piece of salvage and a debt they intend to keep.", fx: { artifact: true } },
-            { w: 3, text: "The hatch goes. What comes out of it you fight through your own position before you get the last of them out.", fx: { hp: -15, curse: 'void_taint' } },
-          ] },
-        { label: "Read them first", sub: 'PSI check, DC 13 — read their intent', check: { attr: 'psi', dc: 13 },
-          success: { text: "You feel the panic of somebody genuinely drowning. You bring them in. They leave you their manifest, and something off it.", fx: { card: 'rare', credits: 20 } },
-          fail: { text: "They tell you exactly what you wanted to hear. It still costs you. You still saw it coming.", fx: { hp: -8 } } },
-        { label: "Strip it and leave", sub: 'Ruthless salvage',
-          outcome: { text: "You open the pod and pick it clean. Whoever that was troubles nobody now.", fx: { credits: 40, curse: 'void_taint' } } },
-        { label: "Let it drift", outcome: { text: "Not your dead. You hold your line.", fx: {} } },
+        { label: 'Sell up to two faces', sub: 'Tier 1 ¢40 · tier 2 ¢85 · tier 3 ¢150',
+          outcome: { text: 'The lots go up. Somebody bids without looking. The faces go smooth.', fx: { sellFaces: 2 } } },
+        { label: 'Sell a scarred one', sub: 'Half price — but the scar leaves with it', cond: { hasScar: true },
+          outcome: { text: 'They take it at a discount and seem relieved to have it off the floor.', fx: { sellScarred: 1 } } },
+        { label: 'Nothing is for sale', outcome: { text: '“Everything is. You are quoting us a price of infinity.”', fx: {} } },
+      ],
+    },
+
+    /* ================= THE TABLE — swap and fuse ======================== */
+    {
+      id: 'the_pivot', title: 'THE PIVOT', art: ART.frame,
+      cond: { minEngravings: 2 },
+      text: "Two clamps on a turntable, and a machinist who charges nothing because she is not doing you a favour. “Same work. Different seats. You would be amazed how much that is worth.”",
+      choices: [
+        { label: 'Swap two faces', sub: 'Exchange the engravings on any two — free',
+          outcome: { text: 'She lifts both at once and sets them down the other way round.', fx: { swapFaces: true } } },
+        { label: 'Swap across the table', sub: 'One low, one high — and ¢50 for rebalancing it', cond: { canCrossSwap: true },
+          outcome: { text: '“You had all your weight at one end. That is worth paying to fix.”', fx: { swapFaces: 'cross', credits: 50 } } },
+        { label: 'Let the table choose', sub: 'Two at random swap — ¢90 for the nerve',
+          outcome: { text: 'She spins it, lets it stop where it stops, and pays you for not flinching.', fx: { swapRandom: true, credits: 90 } } },
       ],
     },
     {
-      id: 'refuel_station', title: "THE WAYSTATION",
-      art: { c: '#ffb02e', p: [[-0.7,0.7, -0.7,-0.2, -0.45,-0.2, -0.45,-0.6, 0.45,-0.6, 0.45,-0.2, 0.7,-0.2, 0.7,0.7, -0.7,0.7], [-0.45,-0.6, -0.45,-0.85, 0.45,-0.85, 0.45,-0.6], [-0.3,0.05, 0.3,0.05], [-0.3,0.3, 0.3,0.3], [0.7,0.1, 1.0,0.1, 1.0,0.5]], e: [[-0.15,-0.4],[0.15,-0.4]] },
-      text: "An automatic station, running on the last of itself and on protocols older than the room it is in. It has one service left. “STATE YOUR PRIORITY,” it says, and means it.",
+      id: 'the_crucible', title: 'THE CRUCIBLE', art: ART.stone,
+      cond: { minEngravings: 2 },
+      text: "The pot is already lit and has been for a long time. “Two in,” says the smith without turning round. “One out. What comes out depends entirely on what you put in, so think about it, or do not.”",
       choices: [
-        { label: "Patch the armour", sub: 'Heal 30% HP',
-          outcome: { text: "Sealant foam, and a long good hum of repair arms.", fx: { healPct: 0.30 } } },
-        { label: "Recalibrate a weapon", sub: 'Upgrade a card',
-          outcome: { text: "The armoury arm takes one of your weapons and puts a finer edge on it.", fx: { pick: 'upgrade' } } },
-        { label: "Purge the system", sub: 'Cleanse a curse', cond: { hasCurse: true },
-          outcome: { text: "Diagnostics chew through the rot in your kit and put it out into the dark.", fx: { removeCurse: 1 } } },
-        { label: "Draw the reserve", sub: 'Trade fuel credits', cost: 0,
-          outcome: { text: "You draw down the last of the reserve and sell the surplus further on.", fx: { credits: 25 } } },
+        { label: 'Fuse two engravings', sub: 'Two in, one out — the pairing decides what',
+          outcome: { text: 'They go in separately and stop being separate.', fx: { fuseFaces: true } } },
+        { label: 'Ask what a pairing makes', sub: 'Free — she names the rule before you commit',
+          outcome: { text: '“Two shields make a wall. Two blades make a longer blade. One of each makes something I do not have a name for.”', fx: { fusePreview: true } } },
+        { label: 'Keep them apart', outcome: { text: 'She shrugs at the fire. The fire does not care either.', fx: {} } },
+      ],
+    },
+    {
+      id: 'the_migration', title: 'THE MIGRATION', art: ART.frame,
+      cond: { minEngravings: 1 },
+      text: "A quiet room with a jig in it and a note pinned to the wall: ONE MOVE, NO CHARGE, DO NOT ASK WHY. There is nobody here. The jig works anyway.",
+      choices: [
+        { label: 'Move one engraving', sub: 'Any face to any face — free, no catch',
+          outcome: { text: 'It lifts clean and seats clean, which almost never happens.', fx: { migrateFace: true } } },
+        { label: 'Leave the note alone', outcome: { text: 'You have a feeling about rooms like this. You keep it.', fx: {} } },
+      ],
+    },
+    {
+      id: 'the_mirror', title: 'THE MIRROR CELL', art: ART.twin,
+      cond: { minEngravings: 1 },
+      text: "Two plates facing each other with your die between them, and a technician who talks about faces as though they came in pairs and always had. “Ten apart is not far. Ten apart is across the room.”",
+      choices: [
+        { label: 'Copy a face to its opposite', sub: 'Face n also lands on n+10 — both drop a tier',
+          outcome: { text: 'The work appears on the far side thinner than it went in, but it is unmistakably the same work.', fx: { mirrorFace: true } } },
+        { label: 'Ask about your pairs', sub: 'Free — she names your emptiest opposite pair',
+          outcome: { text: 'She reads both sides at once and tells you where you have been building on one leg.', fx: { reportPairs: true } } },
+        { label: 'Take it out of the frame', outcome: { text: 'The plates go on facing each other without you.', fx: {} } },
+      ],
+    },
+
+    /* ================= THE FRAME and the floor ========================== */
+    {
+      id: 'the_fitter', title: 'THE FITTER', art: ART.frame,
+      text: "She fits cores. She has an opinion about how many you ought to be carrying, it is not the same as yours, and she is going to tell you which of you is wrong.",
+      choices: [
+        { label: 'Take the extra seat', sub: '+1 Core slot — two faces of your choice go blank',
+          cond: { minEngravings: 2, coreRoom: true },
+          outcome: { text: 'She makes the room by taking it out of somewhere else. That is what room is.', fx: { coreSlots: 1, blankPick: 2 } } },
+        { label: 'Give up a seat', sub: '−1 Core slot · a tier-3 cut where you like it · ¢60',
+          cond: { freeCoreSlot: true },
+          outcome: { text: 'She pulls the seat, hands you the scrip, and cuts you something good with the spare weight.', fx: { coreSlots: -1, grantEngraving: 3, credits: 60 } } },
+        { label: 'Leave the frame alone', outcome: { text: '“Suit yourself. It is your back.”', fx: {} } },
+      ],
+    },
+    {
+      id: 'blank_census', title: 'THE BLANK CENSUS', art: ART.census,
+      text: "The census does not count what you have. It counts what you do not, which it says is the only honest way to count anything. “Twenty faces,” it reads off the form. “How many are still asking?”",
+      choices: [
+        { label: 'Answer honestly', sub: '¢14 for every blank face',
+          outcome: { text: 'It writes the number down and pays out against it without a flicker.', fx: { creditsPerBlank: 14 } } },
+        { label: 'Ask them to fill one', sub: 'A free tier-1 cut for every 6 blanks you carry',
+          outcome: { text: 'A clerk is dispatched. The clerk is very fast and does not ask what you wanted.', fx: { cutPerBlanks: 6 } } },
+        { label: 'Refuse the count', sub: 'Roll — a cut face pays ¢60, a blank costs you Rust',
+          die: { read: 'cut',
+            onCut:   { text: 'It reads the face, decides you are not worth the paperwork, and pays you to go.', fx: { credits: 60 } },
+            onBlank: { text: 'It writes something down. Something on the die goes slightly wrong in the days after.', fx: { scarRandom: 'rust' } } } },
+      ],
+    },
+    {
+      id: 'the_understudy', title: 'THE UNDERSTUDY', art: ART.student,
+      cond: { minEngravings: 1 },
+      text: "Someone your size, carrying your die. Not one like it — it. Twenty faces with entirely different work done on them, by somebody who made every decision you did not.",
+      choices: [
+        { label: 'Take one of its faces', sub: 'Its work replaces yours on a face you pick',
+          outcome: { text: 'You take the road you did not take, and it seats as though it had always been there.', fx: { stealFace: true } } },
+        { label: 'Let it take one of yours', sub: 'It pays ¢140 for the privilege',
+          outcome: { text: 'It studies your work for a long time before choosing, and pays without haggling.', fx: { giveFace: 140 } } },
+        { label: 'Compare tables', sub: 'Free — it names the weakest region of your die',
+          outcome: { text: '“There,” it says, pointing at nothing you can see. “That is where you have been getting away with it.”', fx: { reportWeakRegion: true } } },
+      ],
+    },
+    {
+      id: 'the_apprentice', title: 'THE APPRENTICE', art: ART.student,
+      cond: { minEngravings: 2 },
+      text: "A kid with good hands and no die of their own, which is the situation everyone was in once. They want to be taught one thing. They are quite specific that it should be a thing you are good at.",
+      choices: [
+        { label: 'Teach one away', sub: 'It leaves your die — every engraving of the same kind gains a tier',
+          outcome: { text: 'Explaining it out loud does something to the rest of the work. It always does.', fx: { teachAway: true } } },
+        { label: 'Teach the basics instead', sub: '¢80 for an afternoon',
+          outcome: { text: 'You show them how to hold the tool. They pay from a purse that is clearly all of it.', fx: { credits: 80 } } },
+        { label: 'You have somewhere to be', outcome: { text: 'They say they understand. They are being polite.', fx: {} } },
+      ],
+    },
+    {
+      id: 'proving_ground', title: 'THE PROVING GROUND', art: ART.proving,
+      text: "A range, a target, and a rack of dice belonging to people who tried. “Three rolls,” says the marshal. “Whatever your faces do, they do it at that. Beat the number and the rack stays as it is.”",
+      choices: [
+        { label: 'Take the three rolls', sub: 'Each cut face fires at the target — beat it for a relic',
+          die: { read: 'face', rolls: 3,
+            onWin:  { text: 'The marshal walks the distance, looks, and comes back with something off the rack.', fx: { artifact: true } },
+            onLose: { text: 'It is not close enough. The marshal is kind about it, which is worse.', fx: { credits: 25 } } } },
+        { label: 'Ask what the number is', sub: 'Free — and whether your die can make it',
+          outcome: { text: 'The marshal reads the target aloud, then reads your die, then says nothing for a moment.', fx: { reportProving: true } } },
+        { label: 'Leave the rack alone', outcome: { text: 'Somebody else will try it today. Somebody does every day.', fx: {} } },
+      ],
+    },
+    {
+      id: 'the_seam', title: 'THE SEAM', art: ART.seam,
+      text: "Where twenty touches one there is a join. The join is old, and something has been working at it from the other side for a long time, and tonight it is close enough to hear.",
+      choices: [
+        { label: 'Weld it shut', sub: 'Either of 20 or 1 fires both — both take Feedback',
+          outcome: { text: 'The two faces stop being two faces. Something on the other side stops working and starts listening.', fx: { weldSeam: true } } },
+        { label: 'Prise it open', sub: 'Roll — land on 20 or 1 and the work copies clean',
+          die: { read: 'seam',
+            onWin:  { text: 'It comes open exactly where you wanted. The work stands on both sides of the join, clean.', fx: { seamCopy: true } },
+            onLose: { text: 'It comes open somewhere else instead, and something reaches through the gap.', fx: { scarRandom: 'rust' } } } },
+        { label: 'Leave the seam alone', outcome: { text: 'You put the die away. The sound does not entirely stop.', fx: {} } },
       ],
     },
   ];
@@ -10227,6 +10638,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function mkCard(id, up) { return { uid: uidCounter++, id: id, up: !!up }; }
 
   E.newRun = function (clsId) {
+    ns.forgedClear();   // forged ids are per-run; a stale registry would resolve into the new one
     var c = B.classes[clsId];
     var deck = ns.STARTER_DECKS[clsId].map(function (id) { return mkCard(id, false); });
     var fac = pick(Object.keys(ns.FACTIONS));
@@ -10252,6 +10664,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       grindCost: Math.round(B.dieShop.grindCost * (E.pressureMods().shopCost || 1)),
       kills: 0, nodesCleared: 0,
       pendingPick: null, pendingAddCard: null,
+      pendingFace: null, pendingReforge: null, pendingOp: null, pendingOffer: null,
+      forged: {}, forgeSeq: 0, faceFired: {}, eventRolled: 0,
       quests: {}, questDone: {},
       potions: [], won: false,
       loop: 1, echoes: [], loadout: [], echoOffer: null,
@@ -13392,6 +13806,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     r.phylacteryUsed = false; r.salvageKills = 0;
     r.reward = null; r.shop = null; r.bossArtifacts = null; r.treasure = null;
     r.pendingPick = null; r.pendingAddCard = null; r.echoOffer = null;
+    r.pendingFace = null; r.pendingReforge = null; r.pendingOp = null; r.pendingOffer = null;
     // the Cornerstone survives the Recurrence even though the rest of the relics reset
     if (r.cornerstone && r.artifacts.indexOf(r.cornerstone.id) < 0) r.artifacts.push(r.cornerstone.id);
     r.phase = 'sector-intro';
@@ -13429,7 +13844,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var r = E.run, c = ch.cond;
     if (!c) return true;
     if (c.credits && r.credits < c.credits) return false;
-    if (c.attr) { for (var k in c.attr) if (attr(k) < c.attr[k]) return false; }
     if (c.hasArtifact && r.artifacts.indexOf(c.hasArtifact) < 0) return false;
     if (c.hasRelic && E.tradeableRelics().length === 0) return false;
     if (c.minCards && r.deck.filter(function (cd) { return ns.CARDS[cd.id].type !== 'curse'; }).length < c.minCards) return false;
@@ -13437,16 +13851,390 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return true;
   };
 
-  // Odds + modifier for a skill check (for the choice preview).
-  E.checkOdds = function (check) {
-    var bonus = Math.floor(attr(check.attr) / B.attrs.eventCheckBonusDiv) + art('checkBonus');
-    var passCount = 0;
-    for (var roll = 1; roll <= 20; roll++) {
-      var pass = (roll + bonus >= check.dc) || roll === 20;
-      if (roll === 1) pass = false;
-      if (pass) passCount++;
+  /* THE OLD SKILL CHECK IS GONE.
+   * It rolled a flat 1-20 plus floor(attribute / divisor) against a DC. Two
+   * things were wrong with it. The die it rolled was not the player's die —
+   * twenty engraved faces sat in the pack and never came up. And the attributes
+   * it read are written once at class creation and moved only by relics, so
+   * "TECH check, DC 13" mostly resolved to "did you pick Technomancer".
+   *
+   * run.attrs itself STAYS: it scales damage, Shield and turrets in eighteen
+   * places in combat. It was only ever useless as event material.
+   *
+   * What replaces it is E.dieOdds / the `die` block on a choice — see below.
+   */
+
+  /* ====================== THE DIE CHECK ==================================
+   * The event rolls the die in your pocket. The FACE is uniform 1-20 — the
+   * game is not rigging your luck — but what the face MEANS is entirely your
+   * build, so the odds are legible and you made them. Three ways to read it:
+   *
+   *   'cut'    is there work on the face that landed? Your hit rate is exactly
+   *            how much of your die you have finished.
+   *   'region' LOW 2-7, MID 8-14, HIGH 15-20 — the bands the class tables use.
+   *   'face'   the face FIRES. Out here, with nothing to fight, what it does is
+   *            weighed rather than applied.
+   *   'seam'   did it land on 20 or 1, the join where the ring closes.
+   * =================================================================== */
+  function faceCut(f) { var d = E.run.die; return !!(d && d.faces && d.faces[f]); }
+
+  E.dieCutCount = function () {
+    var d = E.run && E.run.die, n = 0;
+    if (!d || !d.faces) return 0;
+    for (var f = 1; f <= 20; f++) if (d.faces[f]) n++;
+    return n;
+  };
+  E.dieBlankFaces = function () {
+    var d = E.run && E.run.die, out = [];
+    if (!d) return out;
+    for (var f = 1; f <= 20; f++) if (!d.faces[f] && !(d.sealed && d.sealed[f])) out.push(f);
+    return out;
+  };
+  E.dieCutFaces = function () {
+    var d = E.run && E.run.die, out = [];
+    if (!d || !d.faces) return out;
+    for (var f = 1; f <= 20; f++) if (d.faces[f]) out.push(f);
+    return out;
+  };
+  // The odds, printed before you commit, because you are the one who made them.
+  E.dieOdds = function (read) {
+    var cut = E.dieCutCount();
+    if (read === 'seam') return { hits: 2, pct: 10 };
+    return { hits: cut, pct: Math.round(cut / 20 * 100) };
+  };
+
+  /* THE FLOOR. Nine of the twenty events can take a face away and only four
+   * give one back, so without a floor a run can grind its own die down to
+   * nothing and never recover. No event may leave you under eight cut faces. */
+  E.DIE_FLOOR = 8;
+  function canBlank(n) { return E.dieCutCount() - (n || 1) >= E.DIE_FLOOR; }
+  E.dieFloorBlocked = function (n) { return !canBlank(n); };
+
+  function resolveDieCheck(cfg, res) {
+    var r = E.run;
+    res.dieRead = cfg.read;
+    if (cfg.read === 'face') {
+      // THE PROVING GROUND: roll n times, and every cut face that comes up
+      // fires at the target. What your die is worth, measured.
+      var n = cfg.rolls || 3, total = 0, list = [];
+      for (var i = 0; i < n; i++) {
+        var f = d20();
+        var slot = r.die.faces[f];
+        var def = slot ? ns.dieEngraving(slot.id) : null;
+        var sp = def ? ns.engravingSp(def) : 0;
+        total += sp;
+        list.push({ face: f, cut: !!slot, name: def ? def.name : null, sp: Math.round(sp * 10) / 10 });
+      }
+      var target = 10 + (r.sector || 1) * 5;
+      res.rolls = list; res.total = Math.round(total * 10) / 10; res.target = target;
+      res.pass = total >= target;
+      return res.pass ? cfg.onWin : cfg.onLose;
     }
-    return { bonus: bonus, pct: Math.round(passCount / 20 * 100) };
+    var roll = d20();
+    E.run.eventRolled = roll;
+    res.roll = roll;
+    res.cut = faceCut(roll);
+    var slot2 = r.die.faces[roll];
+    res.faceName = slot2 ? (ns.dieEngraving(slot2.id) || {}).name : null;
+    if (cfg.read === 'seam') { res.pass = (roll === 20 || roll === 1); return res.pass ? cfg.onWin : cfg.onLose; }
+    if (cfg.read === 'region') {
+      var reg = ns.dieRegionOf(roll);
+      res.region = reg;
+      return cfg[reg] || cfg.onBlank || cfg.onLose;
+    }
+    res.pass = res.cut;
+    return res.cut ? cfg.onCut : cfg.onBlank;
+  }
+
+  /* ---- die verbs -------------------------------------------------------
+   * Everything an event can do TO the die. The ones needing a second input
+   * park a pendingFace and the UI collects it; the rest resolve here. */
+  function forgeId() {
+    var r = E.run;
+    r.forgeSeq = (r.forgeSeq || 0) + 1;
+    return 'forged_' + r.forgeSeq;
+  }
+  // Forged engravings live on the run so they survive a save, and are pushed
+  // back into the shared registry whenever one is made or a save is loaded.
+  E.forgedInstall = function (def) {
+    var r = E.run, id = forgeId();
+    r.forged = r.forged || {};
+    r.forged[id] = def;
+    ns.forgedRegister(id, def);
+    return id;
+  };
+  E.forgedRehydrate = function () {
+    var r = E.run;
+    if (!r || !r.forged) return;
+    for (var k in r.forged) ns.forgedRegister(k, r.forged[k]);
+  };
+
+  // Put an engraving on a face, replacing whatever is there, span included.
+  function seatAt(face, id, def) {
+    var r = E.run, span = (def && def.span) || 1;
+    for (var i = 0; i < span; i++) {
+      var f = face + i;
+      if (f > 20) break;
+      r.die.faces[f] = { id: id, root: face };
+    }
+  }
+  function clearRootAt(face) {
+    var r = E.run, slot = r.die.faces[face];
+    if (!slot) return null;
+    var root = slot.root, id = r.die.faces[root] ? r.die.faces[root].id : slot.id;
+    for (var f = 1; f <= 20; f++) if (r.die.faces[f] && r.die.faces[f].root === root) delete r.die.faces[f];
+    return id;
+  }
+  E.dieClearRootAt = clearRootAt;
+  E.dieSeatAt = seatAt;
+
+  // The three rewrites of the engraving on `face`, on this die's own table.
+  E.reforgeOptionsAt = function (face) {
+    var r = E.run, slot = r.die.faces[face];
+    if (!slot) return [];
+    var def = ns.dieEngraving(r.die.faces[slot.root].id);
+    if (!def) return [];
+    return ns.reforgeOptions(def, r.cls);
+  };
+  // Commit one of them.
+  E.reforgeApply = function (face, optIdx) {
+    var r = E.run, slot = r.die.faces[face];
+    if (!slot) return null;
+    var root = slot.root;
+    var opts = E.reforgeOptionsAt(root);
+    var opt = opts[optIdx];
+    if (!opt) return null;
+    var baseDef = ns.dieEngraving(r.die.faces[root].id);
+    if (opt.recast) {
+      // scrapped and cut again — a different engraving of the same tier
+      var pool = Object.keys(ns.DIE_AUGMENTS).filter(function (k) {
+        var a = ns.DIE_AUGMENTS[k];
+        return a.tier === (baseDef.tier || 1) && k !== r.die.faces[root].id &&
+               (!a.cls || a.cls === r.cls) && (a.span || 1) === (baseDef.span || 1);
+      });
+      if (!pool.length) return null;
+      var nid = pick(pool);
+      clearRootAt(root);
+      seatAt(root, nid, ns.DIE_AUGMENTS[nid]);
+      r.pendingReforge = null;
+      E.save();
+      return { name: ns.DIE_AUGMENTS[nid].name, desc: ns.DIE_AUGMENTS[nid].desc };
+    }
+    var def = {
+      name: opt.name, tier: opt.tier, span: opt.span, fx: opt.fx,
+      cls: opt.cls, band: opt.band, listen: opt.listen || undefined,
+      desc: opt.desc, forgedFrom: opt.from,
+      art: (baseDef && baseDef.art) || undefined,
+    };
+    var id = E.forgedInstall(def);
+    clearRootAt(root);
+    seatAt(root, id, def);
+    r.pendingReforge = null;
+    E.save();
+    return { name: def.name, desc: def.desc };
+  };
+
+  /* ---- collecting the second input ------------------------------------
+   * A verb that needs the player to point at something parks a pendingFace and
+   * the UI calls back here once per pick. Everything routes through one entry
+   * so the die floor and the save are enforced in exactly one place. */
+  E.faceCandidates = function () {
+    var r = E.run, p = r.pendingFace, d = r.die;
+    if (!p) return [];
+    var cuts = E.dieCutFaces().map(function (f) { return d.faces[f].root; })
+                .filter(function (v, i, a) { return a.indexOf(v) === i; });
+    if (p.mode === 'blank' || p.mode === 'sell' || p.mode === 'give' || p.mode === 'teach') {
+      return canBlank(1) ? cuts.filter(function (f) { return p.picked.indexOf(f) < 0; }) : [];
+    }
+    if (p.mode === 'sellScar') return ns.dieTaintedRoots(d);
+    if (p.mode === 'grant') return E.dieBlankFaces();
+    if (p.mode === 'migrate') return p.picked.length ? E.dieBlankFaces() : cuts;
+    if (p.mode === 'mirror') return cuts.filter(function (f) { var o = f > 10 ? f - 10 : f + 10; return !d.faces[o]; });
+    if (p.mode === 'steal') return cuts.concat(E.dieBlankFaces());
+    if (p.mode === 'unlisten') return cuts.filter(function (f) { return !!(ns.dieEngraving(d.faces[f].id) || {}).listen; });
+    if (p.only === 'band') return cuts.filter(function (f) { return ((ns.dieEngraving(d.faces[f].id) || {}).span || 1) > 1; });
+    if (p.mode === 'swap' && p.cross && p.picked.length === 1) {
+      var r1 = ns.dieRegionOf(p.picked[0]);
+      return cuts.filter(function (f) { return ns.dieRegionOf(f) !== r1 && f !== p.picked[0]; });
+    }
+    return cuts.filter(function (f) { return p.picked.indexOf(f) < 0; });
+  };
+
+  E.facePick = function (face) {
+    var r = E.run, p = r.pendingFace, d = r.die;
+    if (!p || E.faceCandidates().indexOf(face) < 0) return null;
+    p.picked.push(face);
+    if (p.picked.length < p.n) { E.save(); return { more: p.n - p.picked.length }; }
+
+    var msg = '', a = p.picked[0], b = p.picked[1];
+    switch (p.mode) {
+      case 'reforge':
+        r.pendingReforge = { face: a, forceLens: p.forceLens || null };
+        r.pendingFace = null; E.save();
+        return { reforge: a };
+      case 'collapse': {
+        var idc = d.faces[a].id, defc = ns.dieEngraving(idc);
+        var solo = JSON.parse(JSON.stringify(defc));
+        solo.span = 1;
+        var fct = 1 / ns.SPAN_MULT;
+        solo.fx = (solo.fx || []).map(function (q) { var z = JSON.parse(JSON.stringify(q)); if (z.k !== 'hploss') z.v = Math.max(1, Math.round((z.v || 1) * fct)); return z; });
+        solo.desc = ns.reforgeDescribe(solo.fx, { trigger: solo.listen });
+        var nidc = E.forgedInstall(solo);
+        clearRootAt(a); seatAt(a, nidc, solo);
+        msg = solo.name + ' poured into face ' + a + ': ' + solo.desc;
+        break;
+      }
+      case 'unlisten': {
+        var idu = d.faces[a].id, defu = ns.dieEngraving(idu);
+        var plain = JSON.parse(JSON.stringify(defu));
+        delete plain.listen;
+        plain.fx = (plain.fx || []).map(function (q) { var z = JSON.parse(JSON.stringify(q)); if (z.k !== 'hploss') z.v = Math.max(1, Math.round((z.v || 1) * 1.6)); return z; });
+        plain.desc = ns.reforgeDescribe(plain.fx);
+        var nidu = E.forgedInstall(plain);
+        clearRootAt(a); seatAt(a, nidu, plain);
+        msg = plain.name + ' stopped waiting: ' + plain.desc;
+        break;
+      }
+      case 'swap':
+        E.dieSwapRoots(a, b);
+        msg = 'Faces ' + a + ' and ' + b + ' changed places';
+        break;
+      case 'fuse': {
+        var fused = E.dieFuse(a, b);
+        msg = fused ? fused.name + ' on face ' + a + ': ' + fused.desc : 'They would not take';
+        break;
+      }
+      case 'migrate': {
+        var idm = d.faces[a].id, defm = ns.dieEngraving(idm);
+        clearRootAt(a); seatAt(b, idm, defm);
+        msg = defm.name + ' moved to face ' + b;
+        break;
+      }
+      case 'mirror': {
+        var opp = a > 10 ? a - 10 : a + 10;
+        var idr = d.faces[a].id, defr = ns.dieEngraving(idr);
+        var thin = JSON.parse(JSON.stringify(defr));
+        thin.tier = Math.max(1, (thin.tier || 1) - 1);
+        thin.fx = (thin.fx || []).map(function (q) { var z = JSON.parse(JSON.stringify(q)); if (z.k !== 'hploss') z.v = Math.max(1, Math.round((z.v || 1) * 0.7)); return z; });
+        thin.desc = ns.reforgeDescribe(thin.fx, { trigger: thin.listen });
+        var nidr = E.forgedInstall(thin);
+        clearRootAt(a); seatAt(a, nidr, thin); seatAt(opp, nidr, thin);
+        msg = thin.name + ' now stands on ' + a + ' and ' + opp;
+        break;
+      }
+      case 'blank': {
+        var nb = clearRootAt(a);
+        if (p.returnUpgraded) { r.dieDebt = { face: a, id: nb, tiers: p.returnUpgraded, sector: r.sector }; }
+        msg = 'Face ' + a + ' went blank';
+        break;
+      }
+      case 'sell': {
+        var defs = ns.dieEngraving(d.faces[a].id);
+        var price = { 1: 40, 2: 85, 3: 150 }[defs.tier || 1] || 40;
+        r.credits += price; clearRootAt(a);
+        msg = defs.name + ' sold for ' + price;
+        break;
+      }
+      case 'sellScar': {
+        var defsc = ns.dieEngraving(d.faces[a].id);
+        var pr2 = Math.round(({ 1: 40, 2: 85, 3: 150 }[defsc.tier || 1] || 40) / 2);
+        r.credits += pr2; clearRootAt(a);
+        msg = defsc.name + ' sold for ' + pr2 + ' — the scar went with it';
+        break;
+      }
+      case 'give':
+        r.credits += p.pay || 0; clearRootAt(a);
+        msg = 'Handed over for ' + (p.pay || 0) + ' credits';
+        break;
+      case 'teach': {
+        var deft = ns.dieEngraving(d.faces[a].id);
+        var kind = (deft.fx && deft.fx[0]) ? (deft.fx[0].k === 'status' ? deft.fx[0].s : deft.fx[0].k) : null;
+        clearRootAt(a);
+        var lifted = 0;
+        E.dieCutFaces().map(function (f) { return d.faces[f].root; })
+          .filter(function (v, i, ar) { return ar.indexOf(v) === i; })
+          .forEach(function (f) {
+            var dd = ns.dieEngraving(d.faces[f].id);
+            var k2 = (dd.fx && dd.fx[0]) ? (dd.fx[0].k === 'status' ? dd.fx[0].s : dd.fx[0].k) : null;
+            if (k2 === kind && E.dieTierUp(f)) lifted++;
+          });
+        msg = deft.name + ' taught away — ' + lifted + ' of its kind grew';
+        break;
+      }
+      case 'grant': {
+        var poolg = Object.keys(ns.DIE_AUGMENTS).filter(function (k) {
+          var q = ns.DIE_AUGMENTS[k];
+          return q.tier === (p.tier || 1) && (q.span || 1) === 1 && (!q.cls || q.cls === r.cls);
+        });
+        if (poolg.length) { var gid2 = pick(poolg); seatAt(a, gid2, ns.DIE_AUGMENTS[gid2]); msg = ns.DIE_AUGMENTS[gid2].name + ' cut into face ' + a; }
+        break;
+      }
+      case 'steal': {
+        // the understudy's die: a real engraving you did not choose
+        var pools = Object.keys(ns.DIE_AUGMENTS).filter(function (k) {
+          var q = ns.DIE_AUGMENTS[k];
+          return (q.span || 1) === 1 && (!q.cls || q.cls === r.cls) && (q.tier || 1) >= 2;
+        });
+        if (pools.length) { var sid2 = pick(pools); clearRootAt(a); seatAt(a, sid2, ns.DIE_AUGMENTS[sid2]); msg = 'It gave up ' + ns.DIE_AUGMENTS[sid2].name + ', onto face ' + a; }
+        break;
+      }
+    }
+    r.pendingFace = null;
+    if (msg && r.eventResult) r.eventResult.gained.push(msg);
+    E.save();
+    return { done: true, text: msg };
+  };
+
+  /* THE CRUCIBLE. Two in, one out, and what comes out is decided by what went
+   * in — two defensive make a wall, two offensive make a longer blade, one of
+   * each makes a hybrid drawn from the die's own class table. */
+  E.dieFuse = function (a, b) {
+    var r = E.run, d = r.die;
+    if (!d.faces[a] || !d.faces[b]) return null;
+    var da = ns.dieEngraving(d.faces[a].id), db = ns.dieEngraving(d.faces[b].id);
+    if (!da || !db) return null;
+    function off(def) { return (def.fx || []).some(function (q) { return q.k === 'dmg' || (q.k === 'status' && q.who !== 'self'); }); }
+    var oa = off(da), ob = off(db);
+    var budget = ns.engravingSp(da) + ns.engravingSp(db);
+    var fx, nm;
+    if (oa && ob) { nm = 'THE LONGER BLADE'; fx = [{ k: 'dmg', v: Math.max(1, Math.round(budget / 0.6)) }]; }
+    else if (!oa && !ob) { nm = 'THE WALL'; fx = [{ k: 'block', v: Math.max(1, Math.round(budget)) }]; }
+    else {
+      nm = 'THE HYBRID';
+      var half = budget / 2;
+      fx = [{ k: 'block', v: Math.max(1, Math.round(half)) }, { k: 'dmg', v: Math.max(1, Math.round(half / 0.6)) }];
+      var tbl = ns.reforgeTableFor(r.cls);
+      var tl = tbl.lenses.filter(function (l) { return l.rider; })[0];
+      if (tl) { var rf2 = { k: tl.rider.k, v: 1 }; if (tl.rider.s) rf2.s = tl.rider.s; if (tl.rider.who) rf2.who = tl.rider.who; fx.push(rf2); }
+    }
+    var def = { name: nm, tier: Math.min(3, Math.max(da.tier || 1, db.tier || 1) + 1), span: 1, fx: fx, cls: r.cls,
+                desc: ns.reforgeDescribe(fx), art: da.art };
+    var id = E.forgedInstall(def);
+    clearRootAt(a); clearRootAt(b);
+    seatAt(a, id, def);
+    return def;
+  };
+
+  /* THE LONG ODDS. Deliberately NOT your die: a flat 1-20 with nothing of your
+   * build in it. Not every event should reward the engraver — sometimes you
+   * just want the lottery, and the pool is better for having one. */
+  E.betResolve = function (callValue) {
+    var r = E.run, op = r.pendingOp;
+    if (!op) return null;
+    var roll = d20(), won = false;
+    if (op.k === 'betRegion') won = ns.dieRegionOf(roll) === callValue;
+    else won = (roll === callValue);
+    var payout = won ? (op.stake || 0) * op.pay : 0;
+    if (payout) r.credits += payout;
+    r.eventResult = {
+      roll: roll, pass: won, dieRead: 'bet', gained: payout ? ['+' + payout + ' credits'] : ['The stake is gone'],
+      text: won ? 'The board pays out without comment. It is scrupulously fair, in both directions.'
+                : 'The house does not look up. It has seen this a great many times.',
+    };
+    r.pendingOp = null;
+    r.phase = 'event-result';
+    E.save();
+    return r.eventResult;
   };
 
   E.eventChoose = function (ci) {
@@ -13463,24 +14251,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // Sell: pick one of your own cards/relics to liquidate for credits.
     if (ch.sell) { r.pendingSell = { kind: ch.sell.kind || 'card' }; r.eventResult = { text: ch.sell.text || 'What will you part with?', gained: [], roll: null }; r.phase = 'event-result'; E.save(); return { sell: true }; }
 
-    var res = { roll: null, pass: null, dc: null, bonus: 0 };
+    // A bet needs a second input (which region, which number) before it rolls.
+    if (ch.op) { r.pendingOp = { k: ch.op.k, pay: ch.op.pay, stake: ch.op.stake, ci: ci }; r.phase = 'event-op'; E.save(); return { op: ch.op.k }; }
+
+    var res = { roll: null, pass: null, dieRead: null, rolls: null };
     var out;
-    if (ch.check) {
-      var roll = d20();
-      var bonus = Math.floor(attr(ch.check.attr) / B.attrs.eventCheckBonusDiv) + art('checkBonus');
-      var pass = (roll + bonus >= ch.check.dc) || roll === 20;
-      if (roll === 1) pass = false;
-      res.roll = roll; res.bonus = bonus; res.dc = ch.check.dc; res.pass = pass;
-      res.attr = ch.check.attr;
-      out = pass ? ch.success : ch.fail;
-    } else if (ch.gamble) {
-      var bag = [];
-      ch.gamble.forEach(function (g, i) { for (var w = 0; w < (g.w || 1); w++) bag.push(i); });
-      out = ch.gamble[bag[Math.floor(rnd() * bag.length)]];
-      res.gamble = true;
-    } else {
-      out = ch.outcome;
-    }
+    if (ch.die) { out = resolveDieCheck(ch.die, res); }
+    else { out = ch.outcome; }
     res.text = out.text;
     res.gained = applyOutcome(out.fx || {});
     r.eventResult = res;
@@ -13489,8 +14266,232 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return res;
   };
 
+  /* Every die verb an event can name. The ones that need the player to point
+   * at something park a pendingFace and the UI collects it — same shape the
+   * card-picker and the relic-trade already use. */
+  function applyDieFx(fx, gained) {
+    var r = E.run, d = r.die;
+    if (!d) return;
+
+    function need(mode, n, meta) {
+      r.pendingFace = Object.assign({ mode: mode, n: n || 1, picked: [] }, meta || {});
+      gained.push(PENDING_LABEL[mode] || 'Choose a face');
+    }
+
+    if (fx.reforge) {
+      if (fx.reforge === 'rolled' && r.eventRolled && d.faces[r.eventRolled]) {
+        r.pendingReforge = { face: d.faces[r.eventRolled].root };
+        gained.push('Rewrite the face that landed');
+      } else if (fx.reforge === 'band') need('reforge', 1, { only: 'band' });
+      else if (fx.reforge === 'listen') need('reforge', 1, { forceLens: 'listen' });
+      else need('reforge', 1);
+    }
+    if (fx.bandCollapse) need('collapse', 1, { only: 'band' });
+    if (fx.unlisten) need('unlisten', 1, { only: 'listen' });
+    if (fx.swapFaces) need('swap', 2, { cross: fx.swapFaces === 'cross' });
+    if (fx.fuseFaces) need('fuse', 2);
+    if (fx.migrateFace) need('migrate', 1);
+    if (fx.mirrorFace) need('mirror', 1);
+    if (fx.stealFace) need('steal', 1);
+    if (fx.blankPick) need('blank', fx.blankPick, { returnUpgraded: fx.returnUpgraded || 0 });
+    if (fx.sellFaces) need('sell', fx.sellFaces);
+    if (fx.sellScarred) need('sellScar', fx.sellScarred);
+    if (fx.giveFace) need('give', 1, { pay: fx.giveFace });
+    if (fx.teachAway) need('teach', 1);
+    if (fx.grantEngraving) need('grant', 1, { tier: fx.grantEngraving });
+
+    if (fx.swapRandom) {
+      var cuts = E.dieCutFaces().map(function (f) { return d.faces[f].root; })
+                  .filter(function (v, i, a) { return a.indexOf(v) === i; });
+      if (cuts.length >= 2) {
+        var a1 = pick(cuts), rest = cuts.filter(function (x) { return x !== a1; });
+        var b1 = pick(rest);
+        E.dieSwapRoots(a1, b1);
+        gained.push('Faces ' + a1 + ' and ' + b1 + ' changed places');
+      } else gained.push('Not enough work on the die to swap');
+    }
+    if (fx.scarRandom) {
+      var clean = ns.dieCleanRoots(d);
+      if (clean.length) { ns.dieAddTaint(d, pick(clean), fx.scarRandom); gained.push('A face took ' + ns.DIE_TAINTS[fx.scarRandom].name); }
+      else gained.push('Nothing left to spoil');
+    }
+    if (fx.scarBest || fx.scarMostFired) {
+      var tid = fx.scarBest || fx.scarMostFired;
+      var roots = ns.dieCleanRoots(d), best = null, bestV = -1;
+      roots.forEach(function (f) {
+        var def = ns.dieEngraving(d.faces[f].id);
+        var v = fx.scarMostFired ? ((r.faceFired && r.faceFired[f]) || 0) : ns.engravingSp(def);
+        if (v > bestV) { bestV = v; best = f; }
+      });
+      if (best != null) { ns.dieAddTaint(d, best, tid); gained.push('Face ' + best + ' took ' + ns.DIE_TAINTS[tid].name); }
+    }
+    if (fx.blankBest) {
+      var rts = [], seen0 = {};
+      for (var f0 = 1; f0 <= 20; f0++) { var sl = d.faces[f0]; if (sl && !seen0[sl.root]) { seen0[sl.root] = 1; rts.push(sl.root); } }
+      var bf = null, bt = -1;
+      rts.forEach(function (f) { var def = ns.dieEngraving(d.faces[f].id); var t = (def && def.tier) || 0; if (t > bt) { bt = t; bf = f; } });
+      if (bf != null && canBlank(1)) { clearRootAt(bf); gained.push('Face ' + bf + ' went blank'); }
+      else gained.push('The die is too bare to give anything up');
+    }
+    if (fx.scarSpread) {
+      var tainted = ns.dieTaintedRoots(d), spread = 0;
+      tainted.forEach(function (root) {
+        var tid2 = d.faces[root].taint;
+        ns.dieNeighbours(d, root).forEach(function (nf) {
+          var ns2 = d.faces[nf];
+          if (ns2 && !d.faces[ns2.root].taint) { ns.dieAddTaint(d, ns2.root, tid2); spread++; }
+        });
+      });
+      gained.push(spread ? 'The rot reached ' + spread + ' more face' + (spread > 1 ? 's' : '') : 'The rot had nowhere to go');
+    }
+    if (fx.tierUpScarred) {
+      var up = 0;
+      ns.dieTaintedRoots(d).forEach(function (root) { if (E.dieTierUp(root)) up++; });
+      gained.push(up ? up + ' scarred face' + (up > 1 ? 's' : '') + ' came back harder' : 'Nothing scarred to harden');
+    }
+    if (fx.weldSeam) {
+      d.weld = true;
+      [20, 1].forEach(function (f) { if (d.faces[f]) ns.dieAddTaint(d, d.faces[f].root, 'feedback'); });
+      gained.push('Twenty and one are one face now');
+    }
+    if (fx.seamCopy) {
+      var src = d.faces[20] || d.faces[1];
+      if (src) {
+        var sid = d.faces[src.root].id, sdef = ns.dieEngraving(sid);
+        [20, 1].forEach(function (f) { if (!d.faces[f]) seatAt(f, sid, sdef); });
+        gained.push('The work stands on both sides of the join');
+      } else gained.push('Nothing at the seam to copy');
+    }
+    if (fx.coreSlots) {
+      d.coreSlots = Math.max(1, Math.min(ns.DIE.coreSlotsMax, (d.coreSlots || 3) + fx.coreSlots));
+      gained.push((fx.coreSlots > 0 ? '+' : '') + fx.coreSlots + ' Core slot');
+    }
+    if (fx.creditsPerBlank) {
+      var nb = E.dieBlankFaces().length, pay = nb * fx.creditsPerBlank;
+      r.credits += pay;
+      gained.push('+' + pay + ' credits — ' + nb + ' still asking');
+    }
+    if (fx.cutPerBlanks) {
+      var nb2 = E.dieBlankFaces().length, cuts2 = Math.floor(nb2 / fx.cutPerBlanks);
+      for (var ci3 = 0; ci3 < cuts2; ci3++) {
+        var blanks = E.dieBlankFaces();
+        if (!blanks.length) break;
+        var poolT1 = Object.keys(ns.DIE_AUGMENTS).filter(function (k) {
+          var a = ns.DIE_AUGMENTS[k];
+          return a.tier === 1 && (a.span || 1) === 1 && (!a.cls || a.cls === r.cls);
+        });
+        if (!poolT1.length) break;
+        var gid = pick(poolT1), gf = pick(blanks);
+        seatAt(gf, gid, ns.DIE_AUGMENTS[gid]);
+      }
+      gained.push(cuts2 ? cuts2 + ' face' + (cuts2 > 1 ? 's' : '') + ' cut, free' : 'Not enough blanks to earn one');
+    }
+    if (fx.fireFace && r.eventRolled) {
+      var fs = d.faces[r.eventRolled];
+      if (fs) {
+        var fd = ns.dieEngraving(d.faces[fs.root].id);
+        var worth = Math.round(ns.engravingSp(fd) * 4);
+        r.credits += worth;
+        gained.push(fd.name + ' fired — +' + worth + ' credits');
+      }
+    }
+    if (fx.countBlanks) gained.push(E.dieCutCount() + ' faces cut, ' + E.dieBlankFaces().length + ' blank');
+    if (fx.offerCut) { r.pendingOffer = { kind: 'cut', cost: fx.offerCut }; gained.push('A cut offered for ' + fx.offerCut); }
+    if (fx.reportWeakRegion) {
+      var byReg = { low: 0, mid: 0, high: 0 };
+      E.dieCutFaces().forEach(function (f) { byReg[ns.dieRegionOf(f)]++; });
+      var worst = Object.keys(byReg).sort(function (a, b) { return byReg[a] - byReg[b]; })[0];
+      gained.push('Weakest region: ' + ns.dieRegionLabel(worst).toUpperCase() + ' (' + byReg[worst] + ' cut)');
+    }
+    if (fx.reportPairs) {
+      var bestP = 1, bestN = 9;
+      for (var p = 1; p <= 10; p++) {
+        var n2 = (d.faces[p] ? 1 : 0) + (d.faces[p + 10] ? 1 : 0);
+        if (n2 < bestN) { bestN = n2; bestP = p; }
+      }
+      gained.push('Emptiest pair: ' + bestP + ' and ' + (bestP + 10));
+    }
+    if (fx.reportProving) {
+      var tg = 10 + (r.sector || 1) * 5;
+      var avg = 0;
+      E.dieCutFaces().forEach(function (f) { avg += ns.engravingSp(ns.dieEngraving(d.faces[f].id)); });
+      avg = avg / 20 * 3;
+      gained.push('Target ' + tg + ' — your die averages ' + (Math.round(avg * 10) / 10) + ' over three rolls');
+    }
+    if (fx.fusePreview) gained.push('Two defensive make a wall · two offensive make a longer blade · one of each makes a hybrid');
+  }
+  var PENDING_LABEL = {
+    reforge: 'Choose a face to rewrite', collapse: 'Choose a band to collapse',
+    unlisten: 'Choose a listener to silence', swap: 'Choose two faces to swap',
+    fuse: 'Choose two engravings to fuse', migrate: 'Choose an engraving to move',
+    mirror: 'Choose a face to mirror', steal: 'Choose a face to overwrite',
+    blank: 'Choose a face to give up', sell: 'Choose faces to sell',
+    sellScar: 'Choose a scarred face to sell', give: 'Choose a face to hand over',
+    teach: 'Choose an engraving to teach away', grant: 'Choose where to cut',
+  };
+
+  // Raise the engraving at `root` one tier, keeping its shape.
+  E.dieTierUp = function (root) {
+    var r = E.run, slot = r.die.faces[root];
+    if (!slot) return false;
+    var def = ns.dieEngraving(slot.id);
+    if (!def || (def.tier || 1) >= 3) return false;
+    var up = JSON.parse(JSON.stringify(def));
+    up.tier = (def.tier || 1) + 1;
+    var factor = ns.TIER_BUDGET[up.tier] / ns.TIER_BUDGET[def.tier || 1];
+    up.fx = (up.fx || []).map(function (fq) {
+      if (fq.k === 'hploss') return fq;                   // costs do not inflate
+      var q = JSON.parse(JSON.stringify(fq));
+      q.v = Math.max(1, Math.round((q.v || 1) * factor));
+      return q;
+    });
+    up.desc = ns.reforgeDescribe(up.fx, { trigger: up.listen });
+    up.name = def.name;
+    /* Keep the scar. Reseating the face was quietly curing it, which made THE
+     * QUARANTINE's third option — come out stronger AND sicker — pay out the
+     * strength and forgive the sickness. The two are supposed to be inseparable. */
+    var taint = r.die.faces[root] && r.die.faces[root].taint;
+    var id = E.forgedInstall(up);
+    clearRootAt(root);
+    seatAt(root, id, up);
+    if (taint) r.die.faces[root].taint = taint;
+    return true;
+  };
+
+  E.dieSwapRoots = function (a, b) {
+    var r = E.run, d = r.die;
+    var sa = d.faces[a], sb = d.faces[b];
+    if (!sa || !sb || sa.root === sb.root) return false;
+    var ida = d.faces[sa.root].id, idb = d.faces[sb.root].id;
+    var da = ns.dieEngraving(ida), db = ns.dieEngraving(idb);
+    var ra = sa.root, rb = sb.root;
+    clearRootAt(ra); clearRootAt(rb);
+    seatAt(ra, idb, db); seatAt(rb, ida, da);
+    E.save();
+    return true;
+  };
+
   function applyOutcome(fx) {
     var r = E.run, gained = [];
+    applyDieFx(fx, gained);
+    if (fx.hpPct) {
+      var lost = Math.max(1, Math.round(r.hp * Math.abs(fx.hpPct)));
+      r.hp -= lost; gained.push('-' + lost + ' HP');
+      if (r.hp <= 0) { playerDied(); return gained; }
+    }
+    if (fx.creditsAll) { gained.push('-' + r.credits + ' credits'); r.credits = 0; }
+    if (fx.curse2) { r.deck.push(mkCard(fx.curse2, false)); gained.push('CURSE: ' + ns.CARDS[fx.curse2].name); }
+    if (fx.skipRewards) { r.skipRewards = (r.skipRewards || 0) + fx.skipRewards; gained.push('The next reward passes you by'); }
+    if (fx.doubleNextReward) { r.doubleReward = true; gained.push('The one after is doubled'); }
+    if (fx.skipEvents) { r.skipEvents = (r.skipEvents || 0) + fx.skipEvents; gained.push('Two events will not happen'); }
+    if (fx.sectorMaxHpPct) {
+      var cut2 = Math.max(1, Math.round(r.maxHp * Math.abs(fx.sectorMaxHpPct)));
+      r.sectorDebt = { maxHp: cut2, sector: r.sector };
+      r.maxHp -= cut2; r.hp = Math.min(r.hp, r.maxHp);
+      gained.push('-' + cut2 + ' Max HP until you clear the sector');
+    }
+    if (fx.sectorEnergy) { r.sectorEnergy = { v: fx.sectorEnergy, sector: r.sector }; gained.push('+' + fx.sectorEnergy + ' Energy every combat this sector'); }
+    if (fx.fightElite) { r.forcedFight = 'elite'; gained.push('It is already moving'); }
     if (fx.credits) {
       r.credits = Math.max(0, r.credits + fx.credits);
       if (fx.credits > 0) questProgress('creditsAtOnce', r.credits);
@@ -14030,6 +15031,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // fight. Discard it and send the player to the title screen instead.
       if (!B.classes[data.run.cls]) { try { s.removeItem('voidspire_save'); } catch (e2) {} return false; }
       E.run = data.run;
+      /* Reforged engravings are made at runtime and stored on the run, not in
+       * DIE_AUGMENTS — so without this every rewritten face loads as a blank
+       * and the player silently loses the work. */
+      ns.forgedClear();
+      E.forgedRehydrate();
       rngState = data.rng >>> 0;
       uidCounter = data.uid || 1000;
       E.combat = null;
@@ -20471,7 +21477,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function rollDie(box, res, onSettle) {
     box.innerHTML = '<div class="d20-wrap">' + d20SVG('?', 'rolling') + '</div><div class="d20-readout"></div>';
     var svg = box.querySelector('.d20'), numEl = svg.querySelector('.d20-num'), read = box.querySelector('.d20-readout');
-    var pre = (res.attr ? res.attr.toUpperCase() + ' · ' : '') + 'DC ' + res.dc + (res.bonus ? ' · you +' + res.bonus : '');
+    /* THE READOUT NAMES WHAT IS BEING READ, not a DC. There is no hidden number
+     * to beat any more — the die lands on a face and the face either has your
+     * work on it or it does not. */
+    var pre = res.dieRead === 'cut'  ? 'YOUR DIE · ' + E.dieOdds('cut').hits + ' OF 20 CUT'
+            : res.dieRead === 'seam' ? 'YOUR DIE · THE SEAM · 20 OR 1'
+            : res.dieRead === 'face' ? 'YOUR DIE · ' + (res.rolls ? res.rolls.length : 3) + ' ROLLS AT THE TARGET'
+            : res.dieRead === 'bet'  ? 'A FLAT TWENTY · NOT YOUR DIE'
+            : 'YOUR DIE';
     read.innerHTML = '<span class="d20-dc">' + pre + '</span>';
     var ticks = 0, max = 18, timer = null, settled = false;
     function settle() {
@@ -20480,9 +21493,23 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       numEl.textContent = res.roll;
       svg.classList.remove('rolling');
       svg.classList.add(res.pass ? 'pass' : 'fail');
-      var total = res.roll + (res.bonus || 0);
-      read.innerHTML = '<span class="d20-eq">' + res.roll + (res.bonus ? ' +' + res.bonus + ' = ' + total : '') + ' vs ' + res.dc + '</span>' +
-        '<span class="d20-res ' + (res.pass ? 'ok' : 'no') + '">' + (res.pass ? 'SUCCESS' : 'FAILURE') + '</span>';
+      var eq, verdict;
+      if (res.dieRead === 'face') {
+        numEl.textContent = res.total;
+        eq = (res.rolls || []).map(function (x) { return x.cut ? x.face : '·' + x.face; }).join('  ');
+        verdict = res.total + ' vs ' + res.target;
+      } else if (res.dieRead === 'cut') {
+        eq = 'FACE ' + res.roll + (res.faceName ? ' · ' + res.faceName.toUpperCase() : '');
+        verdict = res.cut ? 'CUT' : 'BLANK';
+      } else if (res.dieRead === 'seam') {
+        eq = 'FACE ' + res.roll;
+        verdict = res.pass ? 'THE SEAM' : 'ELSEWHERE';
+      } else {
+        eq = 'FACE ' + res.roll;
+        verdict = res.pass ? 'PAID' : 'THE HOUSE';
+      }
+      read.innerHTML = '<span class="d20-eq">' + esc(eq) + '</span>' +
+        '<span class="d20-res ' + (res.pass ? 'ok' : 'no') + '">' + esc(verdict) + '</span>';
       if (SFX) { if (res.pass) SFX.win(); else SFX.lose(); }
       if (onSettle) onSettle();
     }
@@ -20672,6 +21699,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         var res = E.eventChoose(i);
         if (!res) return;
         if (E.run.phase === 'dead') { U.refresh(); return; }
+        if (res.op) { showBet(function () { showEventResult(true); }); return; }
         showEventResult(true);
       });
       s.appendChild(btn);
@@ -20708,6 +21736,42 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (fx.tradeCard) chip('Trade up a card', true);
     if (fx.tradeRelic) chip('Trade a relic', true);
     if (fx.curse) chip('Curse', false);
+    // the die verbs — the currency nothing else in the game trades in
+    if (fx.reforge) chip('Rewrite a face', true);
+    if (fx.bandCollapse) chip('Collapse a band', true);
+    if (fx.unlisten) chip('Silence a listener', true);
+    if (fx.swapFaces) chip('Swap two faces', true);
+    if (fx.swapRandom) chip('Two swap at random', false);
+    if (fx.fuseFaces) chip('Fuse two → one', true);
+    if (fx.migrateFace) chip('Move an engraving', true);
+    if (fx.mirrorFace) chip('Mirror to n+10', true);
+    if (fx.stealFace) chip('Take its face', true);
+    if (fx.blankPick) chip('−' + fx.blankPick + ' face' + (fx.blankPick > 1 ? 's' : ''), false);
+    if (fx.blankBest) chip('−best face', false);
+    if (fx.returnUpgraded) chip('back at +' + fx.returnUpgraded + ' tiers', true);
+    if (fx.sellFaces) chip('Sell up to ' + fx.sellFaces, true);
+    if (fx.sellScarred) chip('Sell a scarred face', true);
+    if (fx.giveFace) chip('+' + fx.giveFace + '¢ for a face', true);
+    if (fx.teachAway) chip('Teach one away', true);
+    if (fx.grantEngraving) chip('Tier ' + fx.grantEngraving + ' cut', true);
+    if (fx.coreSlots) chip((fx.coreSlots > 0 ? '+' : '') + fx.coreSlots + ' Core slot', fx.coreSlots > 0);
+    if (fx.scarRandom) chip('A face takes ' + (ns.DIE_TAINTS[fx.scarRandom] || {}).name, false);
+    if (fx.scarBest || fx.scarMostFired) chip((ns.DIE_TAINTS[fx.scarBest || fx.scarMostFired] || {}).name, false);
+    if (fx.scarSpread) chip('Scars spread', false);
+    if (fx.tierUpScarred) chip('Scarred faces +1 tier', true);
+    if (fx.weldSeam) chip('Weld 20 to 1', true);
+    if (fx.seamCopy) chip('Copy across the seam', true);
+    if (fx.creditsPerBlank) chip(fx.creditsPerBlank + '¢ per blank', true);
+    if (fx.cutPerBlanks) chip('A cut per ' + fx.cutPerBlanks + ' blanks', true);
+    if (fx.fireFace) chip('The face fires', true);
+    if (fx.hpPct) chip('−' + Math.round(Math.abs(fx.hpPct) * 100) + '% HP', false);
+    if (fx.creditsAll) chip('All credits', false);
+    if (fx.skipRewards) chip('Skip a reward', false);
+    if (fx.doubleNextReward) chip('Next but one doubled', true);
+    if (fx.skipEvents) chip('Skip ' + fx.skipEvents + ' events', false);
+    if (fx.sectorMaxHpPct) chip(Math.round(fx.sectorMaxHpPct * 100) + '% Max HP / sector', false);
+    if (fx.sectorEnergy) chip('+' + fx.sectorEnergy + ' Energy / combat', true);
+    if (fx.fightElite) chip('Fight an elite now', false);
     return out.join('');
   }
 
@@ -20726,26 +21790,164 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       pre += '<span class="fx-chip good">Sell ' + (ch.sell.kind === 'relic' ? 'a relic' : 'a card') + ' → ¢</span>';
       return '<div class="pv">' + pre + '</div>';
     }
-    if (ch.check) {
-      var od = E.checkOdds(ch.check);
-      pre += '<span class="fx-chip check">' + ch.check.attr.toUpperCase() + ' DC ' + ch.check.dc +
-        ' · you +' + od.bonus + ' · ' + od.pct + '%</span>';
-      var win = fxChips(ch.success && ch.success.fx), lose = fxChips(ch.fail && ch.fail.fx);
-      if (win) pre += '<span class="pv-row">✓ ' + win + '</span>';
-      if (lose) pre += '<span class="pv-row">✗ ' + lose + '</span>';
-    } else if (ch.gamble) {
-      pre += '<span class="fx-chip check">⚄ GAMBLE</span>';
-      var seen = {}, gc = '';
-      ch.gamble.forEach(function (g) {
-        var c = fxChips(g.fx);
-        if (c && !seen[c]) { seen[c] = 1; gc += c; }
-      });
-      if (gc) pre += '<span class="pv-row">? ' + gc + '</span>';
+    if (ch.die) {
+      /* THE ODDS ARE PRINTED, AND THEY ARE THE BUILD. The old preview showed a
+       * hidden DC against an attribute the player could not move. This shows
+       * how many of their own twenty faces are cut, which they can verify by
+       * looking at the die. Nothing here is secret. */
+      var d = ch.die, od = E.dieOdds(d.read);
+      if (d.read === 'cut') {
+        pre += '<span class="fx-chip check">◈ ROLL YOUR DIE · ' + od.hits + '/20 CUT · ' + od.pct + '%</span>';
+        var wc = fxChips(d.onCut && d.onCut.fx), bc = fxChips(d.onBlank && d.onBlank.fx);
+        if (wc) pre += '<span class="pv-row">◆ cut · ' + wc + '</span>';
+        if (bc) pre += '<span class="pv-row">◇ blank · ' + bc + '</span>';
+      } else if (d.read === 'seam') {
+        pre += '<span class="fx-chip check">◈ ROLL YOUR DIE · 20 OR 1 · 10%</span>';
+        var ws = fxChips(d.onWin && d.onWin.fx), ls = fxChips(d.onLose && d.onLose.fx);
+        if (ws) pre += '<span class="pv-row">✓ ' + ws + '</span>';
+        if (ls) pre += '<span class="pv-row">✗ ' + ls + '</span>';
+      } else if (d.read === 'face') {
+        pre += '<span class="fx-chip check">◈ ' + (d.rolls || 3) + ' ROLLS · YOUR FACES FIRE</span>';
+        var wf = fxChips(d.onWin && d.onWin.fx), lf = fxChips(d.onLose && d.onLose.fx);
+        if (wf) pre += '<span class="pv-row">✓ ' + wf + '</span>';
+        if (lf) pre += '<span class="pv-row">✗ ' + lf + '</span>';
+      }
+    } else if (ch.op) {
+      pre += '<span class="fx-chip check">⚄ ' + (ch.op.k === 'betRegion' ? 'CALL A REGION · 3:1' : 'CALL A FACE · 20:1') + '</span>';
+      pre += '<span class="pv-row dim-row">not your die — a flat twenty</span>';
     } else if (ch.outcome) {
       var oc = fxChips(ch.outcome.fx);
       if (oc) pre += '<span class="pv-row">' + oc + '</span>';
     }
     return pre ? '<div class="pv">' + pre + '</div>' : '';
+  }
+
+  /* ====================== THE REFORGE PICKER ==========================
+   * Three rewrites of one engraving, at the same budget, drawn from the die's
+   * own class table. The base is shown above them so the trade is legible —
+   * you are always looking at what you are giving up. */
+  function showReforge(done) {
+    var r = E.run, pr = r.pendingReforge;
+    if (!pr) { done(); return; }
+    var face = pr.face;
+    var opts = E.reforgeOptionsAt(face);
+    if (!opts.length) { r.pendingReforge = null; done(); return; }
+    var slot = r.die.faces[face];
+    var base = slot ? ns.dieEngraving(slot.id) : null;
+    var col = CLASS_COL[r.cls] || '#5dff88';
+    var table = ns.reforgeTableFor(r.cls);
+
+    var s = overlayScreen();
+    s.appendChild(el('h2', 'screen-title', 'THE REWRITE'));
+    s.appendChild(el('div', 'screen-sub', table.name + ' · FACE ' + face));
+
+    if (base) {
+      var was = el('div', 'reforge-base');
+      was.innerHTML = '<span class="rb-lbl">WAS</span><span class="rb-name">' + esc(base.name) + '</span>' +
+                      '<span class="rb-desc">' + esc(base.desc || '') + '</span>';
+      s.appendChild(was);
+    }
+
+    opts.forEach(function (o, i) {
+      var b = el('div', 'panel-btn reforge-opt');
+      b.style.borderColor = col + '55';
+      b.innerHTML = '<div class="pb-title" style="color:' + col + '">' + esc(o.name) + '</div>'
+        + '<div class="ro-desc">' + esc(o.desc) + '</div>'
+        + (o.note ? '<div class="ro-note">' + esc(o.note) + '</div>' : '');
+      b.addEventListener('pointerdown', function () {
+        SFX.tap();
+        var res = E.reforgeApply(face, i);
+        if (res) toast(res.name.toUpperCase() + ' — ' + res.desc, 2600);
+        done();
+      });
+      s.appendChild(b);
+    });
+  }
+
+  /* ====================== THE FACE PICKER =============================
+   * Everything that needs the player to point at a face. One screen, because
+   * every one of these is the same gesture: here are your twenty, these are
+   * the ones this can touch. */
+  var FACE_PROMPT = {
+    reforge: 'Which face should she rewrite?', collapse: 'Which band collapses?',
+    unlisten: 'Which listener stops waiting?', swap: 'Which two change places?',
+    fuse: 'Which two go in the pot?', migrate: 'Move which engraving — then where?',
+    mirror: 'Which face crosses to its opposite?', steal: 'Which face does it overwrite?',
+    blank: 'Which face do you give up?', sell: 'Which faces go to the floor?',
+    sellScar: 'Which scarred face do they take?', give: 'Which face does it buy?',
+    teach: 'Which one do you teach away?', grant: 'Where should the cut land?',
+  };
+  function showFacePick(done) {
+    var r = E.run, p = r.pendingFace;
+    if (!p) { done(); return; }
+    var cands = E.faceCandidates();
+    if (!cands.length) { r.pendingFace = null; toast('Nothing on the die can answer that', 2200); done(); return; }
+    var col = CLASS_COL[r.cls] || '#5dff88';
+
+    var s = overlayScreen();
+    s.appendChild(el('h2', 'screen-title', 'THE DIE'));
+    s.appendChild(el('div', 'screen-sub',
+      esc(FACE_PROMPT[p.mode] || 'Choose a face') + (p.n > 1 ? ' · ' + (p.n - p.picked.length) + ' TO GO' : '')));
+
+    var grid = el('div', 'face-grid');
+    for (var f = 1; f <= 20; f++) {
+      (function (face) {
+        var slot = r.die.faces[face];
+        var def = slot ? ns.dieEngraving(r.die.faces[slot.root].id) : null;
+        var can = cands.indexOf(face) >= 0;
+        var chosen = p.picked.indexOf(face) >= 0;
+        var taint = slot ? ns.dieTaintAt(r.die, face) : null;
+        var cell = el('div', 'fc' + (can ? ' can' : '') + (chosen ? ' chosen' : '') + (def ? ' cut' : ' blank') + (taint ? ' scarred' : ''));
+        cell.innerHTML = '<span class="fc-n">' + face + '</span>'
+          + '<span class="fc-name">' + esc(def ? def.name : '—') + '</span>'
+          + (taint ? '<span class="fc-scar">' + esc((ns.DIE_TAINTS[taint] || {}).name || '') + '</span>' : '');
+        if (can) {
+          cell.style.borderColor = col + '77';
+          cell.addEventListener('pointerdown', function () {
+            SFX.tap();
+            var res = E.facePick(face);
+            if (!res) return;
+            if (res.reforge != null) { showReforge(done); return; }
+            if (res.more) { showFacePick(done); return; }
+            if (res.text) toast(res.text, 2400);
+            done();
+          });
+        }
+        grid.appendChild(cell);
+      })(f);
+    }
+    s.appendChild(grid);
+  }
+
+  /* THE LONG ODDS. Deliberately not your die — a flat twenty, no build in it. */
+  function showBet(done) {
+    var r = E.run, op = r.pendingOp;
+    if (!op) { done(); return; }
+    var s = overlayScreen();
+    s.appendChild(el('h2', 'screen-title', 'THE LONG ODDS'));
+    s.appendChild(el('div', 'screen-sub', 'STAKE ¢' + op.stake + ' · PAYS ' + op.pay + ':1 · NOT YOUR DIE'));
+
+    var opts = op.k === 'betRegion'
+      ? [{ v: 'low', t: 'LOW · 2–7', o: '6 in 20' }, { v: 'mid', t: 'MID · 8–14', o: '7 in 20' }, { v: 'high', t: 'HIGH · 15–20', o: '6 in 20' }]
+      : null;
+    if (opts) {
+      opts.forEach(function (o) {
+        var b = el('div', 'panel-btn', '<div class="pb-title">' + o.t + '</div><div class="pb-sub">' + o.o + '</div>');
+        b.addEventListener('pointerdown', function () { SFX.tap(); E.betResolve(o.v); done(); });
+        s.appendChild(b);
+      });
+    } else {
+      var grid = el('div', 'face-grid bet-grid');
+      for (var f = 1; f <= 20; f++) {
+        (function (face) {
+          var cell = el('div', 'fc can');
+          cell.innerHTML = '<span class="fc-n">' + face + '</span>';
+          cell.addEventListener('pointerdown', function () { SFX.tap(); E.betResolve(face); done(); });
+          grid.appendChild(cell);
+        })(f);
+      }
+      s.appendChild(grid);
+    }
   }
 
   function showEventResult(animate) {
@@ -20781,7 +21983,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var btn = el('button', 'btn', 'CONTINUE');
     btn.addEventListener('pointerdown', function () {
       SFX.tap();
-      if (r.pendingRelic) {
+      /* The die verbs come first: a face pick can cascade into a reforge pick,
+       * and both have to land before the node is allowed to close. */
+      if (r.pendingFace) {
+        showFacePick(function () { showEventResult(false); });
+      } else if (r.pendingReforge) {
+        showReforge(function () { showEventResult(false); });
+      } else if (r.pendingOp) {
+        showBet(function () { showEventResult(true); });
+      } else if (r.pendingRelic) {
         showEventRelic(function () { E.finishEvent(); U.refresh(); });
       } else if (r.pendingAddCard) {
         showEventAddCard(function () { E.finishEvent(); U.refresh(); });
