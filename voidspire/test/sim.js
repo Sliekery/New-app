@@ -778,6 +778,10 @@ console.log('data integrity: OK');
 
 /* ---- run simulations (only when invoked directly, not when require()d) ----- */
 if (require.main === module) {
+/* VS_PILOT pins every run to one archetype's draft, so a class deficit can be
+ * read per BUILD rather than per class — which is the difference between "this
+ * class is weak" and "two of its five builds are". */
+if (process.env.VS_PILOT) setPilot(process.env.VS_PILOT);
 // `node test/sim.js 800 voidadept` narrows the pool, so a table change to one
 // class can be measured without spending 3/4 of the runs on classes it cannot
 // touch. Seeds stay keyed to the run index, so two filtered runs are comparable.
