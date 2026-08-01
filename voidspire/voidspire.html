@@ -18495,6 +18495,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   /* ====================== vector art -> inline SVG ====================== */
   // Same polyline format as enemies: {p:[[x,y,...]], e:[[x,y]], m:[x,y,...]}
   // The die's own glyph — a d20 silhouette, used wherever the die is the subject.
+  /* The bay's own glyph: a socket with a module seated in it. Deliberately not
+   * a die shape — the two buttons sit side by side and have to be told apart at
+   * 22px without reading a label. */
+  function bayChipSVG(cls) {
+    return '<svg viewBox="0 0 40 40" class="' + (cls || 'art-icon') + '">'
+      + '<rect x="5" y="14" width="30" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="2.4"/>'
+      + '<polygon points="20,3 28,8 28,16 12,16 12,8" fill="none" stroke="currentColor" stroke-width="2"/>'
+      + '<line x1="12" y1="22" x2="28" y2="22" stroke="currentColor" stroke-width="1.6" opacity="0.6"/>'
+      + '<line x1="12" y1="28" x2="22" y2="28" stroke="currentColor" stroke-width="1.6" opacity="0.6"/></svg>';
+  }
+
   function dieChipSVG(cls) {
     return '<svg viewBox="0 0 40 40" class="' + (cls || 'art-icon') + '">'
       + '<polygon points="20,3 35,12 35,28 20,37 5,28 5,12" fill="none" stroke="currentColor" stroke-width="2.4"/>'
@@ -19215,11 +19226,27 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // relics ride the top HUD (in combat and on the map). On the star chart you
     // can tap to toggle them on/off; in combat a tap reads its tooltip. Relics
     // with limited uses show a remaining-count badge.
+    /* TWO DOORS, SIDE BY SIDE. The bay used to be reachable only through the die
+     * screen, which said relics are a sub-page of engravings. They are a system
+     * of their own and they get their own button, on every screen the die
+     * button appears on. */
     html += '<div class="artifact-row">';
     var waiting = (E.run.die && E.run.die.pending) ? E.run.die.pending.length : 0;
     html += '<div class="artifact-chip die-chip' + (waiting ? ' has-pending' : '') + '" data-die="1" title="' +
       (waiting ? waiting + ' engraving' + (waiting > 1 ? 's' : '') + ' waiting to be cut' : 'Inspect the die') + '">' +
       dieChipSVG() + (waiting ? '<span class="die-pend-badge">' + waiting + '</span>' : '') + '</div>';
+    (function () {
+      var die = E.run.die, core = (die && die.core) || [];
+      var slots = (die && die.coreSlots) || ns.DIE.coreSlotsStart;
+      // a relic you own but have not installed does nothing, so the badge counts
+      // exactly that — the number of decisions you have left sitting on the rack
+      var racked = r.artifacts.filter(function (x) { return core.indexOf(x) < 0; }).length;
+      var room = core.length < slots;
+      html += '<div class="artifact-chip bay-chip' + (racked && room ? ' has-pending' : '') + '" data-bay="1" title="' +
+        esc(ns.chassisFor(r.cls).name + ' — ' + core.length + '/' + slots + ' installed'
+            + (racked ? ', ' + racked + ' on the rack' : '')) + '">' +
+        bayChipSVG() + (racked && room ? '<span class="die-pend-badge">' + racked + '</span>' : '') + '</div>';
+    })();
     html += '</div>';
     if ((r.pressure || 0) > 0) html += '<span class="hud-press">P' + r.pressure + ' ' + esc(E.pressureName(r.pressure)) + '</span>';
     // Relics live INSIDE the die, and a relic only DOES anything while it is
@@ -19270,6 +19297,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $hud.querySelectorAll('[data-die]').forEach(function (chip) {
       chip.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation(); if (locked) return; SFX.tap(); showDieScreen();
+      });
+    });
+    $hud.querySelectorAll('[data-bay]').forEach(function (chip) {
+      chip.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation(); if (locked) return; SFX.tap(); showModules();
       });
     });
     $hud.querySelectorAll('[data-mounted]').forEach(function (chip) {
@@ -20053,25 +20085,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         });
       });
 
-      /* Relics moved out. They were three rows of 22px chips down here whose
-       * only description was a hover title — unreadable on a phone and
-       * impossible on a touch screen, which has no hover. The die screen keeps
-       * one line that says what is installed and opens the bay. */
-      var chSpec = ns.chassisFor(r.cls);
-      var slots = die.coreSlots || ns.DIE.coreSlotsStart;
-      var racked = r.artifacts.filter(function (x) { return die.core.indexOf(x) < 0; }).length;
-      mods.innerHTML = '<div class="bay-link" data-bay="1">'
-        + '<span class="bl-t">' + esc(chSpec.name) + '</span>'
-        + '<span class="bl-s">' + die.core.length + '/' + slots + ' installed'
-        + (racked ? ' · <b>' + racked + ' on the rack</b>' : '') + '</span>'
-        + '<span class="bl-go">OPEN ▸</span></div>';
-      mods.querySelectorAll('[data-bay]').forEach(function (b) {
-        b.addEventListener('pointerdown', function (ev) {
-          ev.stopPropagation(); SFX.tap();
-          if (dieView) { dieView.destroy(); dieView = null; }
-          showModules(function () { showDieScreen(opts); });
-        });
-      });
+      /* Relics are NOT here any more, in either direction. They were chips on
+       * this screen, then a link from it — both of which said a relic is a
+       * sub-page of engraving. They are a system of their own with their own
+       * button in the HUD, on every screen this one is reachable from. */
+      mods.innerHTML = '';
 
       if (spinTo && dieView) dieView.setFace(sel, !!flair);
     }
