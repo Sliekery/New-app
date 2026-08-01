@@ -542,7 +542,7 @@ var clone = { id: e0.id, def: e0.def, hp: 50, maxHp: 50, block: 0, statuses: {},
 E.combat.enemies = [e0, clone];   // exactly two, so the chain must hit the clone
 e0.hp = 4; e0.block = 0;
 E.run.potions = ['frag_charge']; E.usePotion(0, 0);
-ok('Void-Touched chains 6 on kill', clone.hp === 44);
+ok('Void-Touched chains 4 on kill', clone.hp === 46);
 
 /* 38. Hunger of the Void: no normal heal, but heal 5 per kill */
 startFight('vanguard'); giveRelic('hunger_void'); E.run.maxHp = 100; E.run.hp = 20;
@@ -550,7 +550,7 @@ E.heal(30);
 ok('Hunger blocks ordinary healing', E.run.hp === 20);
 E.combat.enemies[0].hp = 4; E.combat.enemies[0].block = 0;
 E.run.potions = ['frag_charge']; E.usePotion(0, 0);
-ok('Hunger heals 5 on a kill', E.run.hp === 25);
+ok('Hunger heals 4 on a kill', E.run.hp === 24);
 
 /* 39. Phylactery: the first lethal blow leaves you at 30% HP, once per run */
 startFight('vanguard'); giveRelic('phylactery'); E.run.maxHp = 100; E.run.hp = 5; E.run.phylacteryUsed = false;

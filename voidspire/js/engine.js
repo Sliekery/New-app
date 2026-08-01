@@ -196,7 +196,7 @@
     /* Ascendant Core used to be applied inside resetForLoop — "begin each loop
      * with +2 to your core attribute" — so with the loop gone it granted
      * nothing at all. It is a straight +2 to your class's own stat now. */
-    if (name === CLASS_STAT[E.run.cls] && E.hasEcho('ascendant_core')) v += 2;
+    if (name === CLASS_STAT[E.run.cls] && E.hasEcho('ascendant_core')) v += 1;
     return v;
   }
   E.attr = attr;
@@ -1403,7 +1403,7 @@
   // Void Echo on-kill triggers (used by both card-dealt and burn-tick kills).
   function echoKill(idx) {
     var c = E.combat, r = E.run;
-    if (E.hasEcho('hunger_void')) healRaw(5);                 // Hunger of the Void
+    if (E.hasEcho('hunger_void')) healRaw(4);                 // Hunger of the Void
     if (E.hasEcho('salvage_doctrine')) {                      // Salvage Doctrine
       r.salvageKills = (r.salvageKills || 0) + 1;
       if (r.salvageKills % 3 === 0) {
@@ -1414,7 +1414,7 @@
     }
     if (E.hasEcho('void_touched')) {                          // Void-Touched: chain
       var pool = aliveEnemies();
-      if (pool.length) { var en = pick(pool); dealToEnemy(en, c.enemies.indexOf(en), 6, { noCrit: true, noWeak: true }); }
+      if (pool.length) { var en = pick(pool); dealToEnemy(en, c.enemies.indexOf(en), 4, { noCrit: true, noWeak: true }); }
     }
   }
 

@@ -172,8 +172,8 @@
     },
     whetstone_mark: {
       name: 'Whetstone Mark', tier: 2, span: 3, startOnly: true, cls: 'vanguard',
-      fx: [{ k: 'dmg', v: 3, scale: 'might' }, { k: 'status', s: 'str', v: 3, who: 'self' }],
-      desc: 'Deal 3 damage. Gain 3 Might.',
+      fx: [{ k: 'dmg', v: 5, scale: 'might' }, { k: 'status', s: 'str', v: 3, who: 'self' }],
+      desc: 'Deal 5 damage. Gain 3 Might.',
       art: { p: [[-0.7,0.3, 0.5,-0.5, 0.7,-0.2, -0.5,0.6, -0.7,0.3], [-0.2,0.02, 0.1,-0.2], [0.2,-0.62, 0.34,-0.8]] },
     },
     anvil_mark: {

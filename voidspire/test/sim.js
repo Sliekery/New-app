@@ -852,7 +852,10 @@ allSectors.sort(function (a, b) { return a - b; });
 var median = allSectors[Math.floor(allSectors.length / 2)];
 var totalDeaths = Object.keys(allDeaths).reduce(function (a, k) { return a + allDeaths[k]; }, 0);
 var spikeDeaths = (nodeDeaths.elite || 0) + (nodeDeaths.boss || 0);
-var reach5 = allSectors.filter(function (s) { return s >= 5; }).length;
+/* "reached sector 5+" died with the Recurrence: runs END at sector 4 when the
+ * Unmaker falls, so it would read 0% forever and look like a collapsed curve.
+ * The meaningful question now is how many runs reach the finale at all. */
+var reachFinale = allSectors.filter(function (s) { return s >= VS.BALANCE.run.finale; }).length;
 var s1avg = s1mins.reduce(function (a, b) { return a + b; }, 0) / Math.max(1, s1mins.length);
 var s1unscathed = s1mins.filter(function (f) { return f >= 0.97; }).length;   // dipped <3% HP
 var s1chip = s1mins.filter(function (f) { return f >= 0.80; }).length;        // never below 80%
@@ -866,7 +869,7 @@ var fClean = s1fights.filter(function (f) { return f >= 0.97; }).length;
 console.log('sector-1 HALLWAY fights lowest HP (avg): ' + Math.round(100 * fAvg) + '%   |  ' +
   Math.round(100 * fClean / Math.max(1, s1fights.length)) + '% take ~no damage in hallways');
 console.log('median sector reached: ' + median + '   [~3-4]');
-console.log('reached sector 5+: ' + Math.round(100 * reach5 / RUNS) + '%   [~15-30%]');
+console.log('reached the finale: ' + Math.round(100 * reachFinale / RUNS) + '%   [~40-55%]');
 if (totalDeaths) console.log('deaths at elites/bosses: ' + Math.round(100 * spikeDeaths / totalDeaths) + '%   [>= ~55%]');
 console.log('stalled combats (turtle vs non-escalating enemy): ' + stalls + ' / ' + RUNS);
 

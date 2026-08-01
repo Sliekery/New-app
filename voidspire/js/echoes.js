@@ -7,8 +7,11 @@
  * three at a time, which meant they existed only after you had already won. The
  * Recurrence is gone — difficulty lives on one ladder now, climbed by starting
  * again — so rather than delete eleven good relics they became what they always
- * resembled: BOSS RELICS WITH A COST. Same effects, same names, reachable in a
- * first run.
+ * resembled: BOSS RELICS WITH A COST. Same names, reachable in a first run —
+ * and the kill-payoff ones trimmed for it, because they were priced for NG+
+ * worlds running 12-36% stronger. Measured: reachable untrimmed, they moved
+ * the Void Adept +18.8 points, whose many-small-kills Burn pattern cashes a
+ * per-kill trigger far more often than a single-target class can.
  *
  * Simple Pacts carry hook:{k,v} / hooks:[...] that fold into engine.art(k)
  * exactly like any other relic. Rule-bending ones carry no hook; the engine
@@ -40,7 +43,7 @@
     },
     hunger_void: {
       name: 'Hunger of the Void', tag: 'AGGRO',
-      desc: 'You can no longer be healed — instead heal 5 whenever you kill an enemy.',
+      desc: 'You can no longer be healed — instead heal 4 whenever you kill an enemy.',
       flavor: 'The void does not mend. It feeds.',
     },
     doubled_self: {
@@ -55,7 +58,7 @@
     },
     void_touched: {
       name: 'Void-Touched', tag: 'CHAIN',
-      desc: 'Killing an enemy deals 6 damage to a random other enemy.',
+      desc: 'Killing an enemy deals 4 damage to a random other enemy.',
       flavor: 'Death spreads like a rumour.',
     },
     unmaker_tithe: {
@@ -76,7 +79,7 @@
     },
     ascendant_core: {
       name: 'Ascendant Core', tag: 'LEGACY',
-      desc: '+2 to your core attribute.',
+      desc: '+1 to your core attribute.',
       flavor: 'The one part of you the void cannot strip away.',
     },
   };
