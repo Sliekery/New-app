@@ -270,24 +270,18 @@
       perSector: 100,
       perNode: 12,
       perKill: 4,
-      perLoop: 600,   // bonus per completed Recurrence loop
     },
 
     /* ---- Run arc / win condition ---------------------------------------- */
     run: {
       finale: 4,   // the boss of this sector is THE UNMAKER (the win condition).
-                   // Beat it to win; you may then enter the Recurrence (NG+ loop).
-      loopPower: 0.12, // each Recurrence loop multiplies enemy HP & damage by
-                       // (1 + loopPower*(loop-1)) on top of normal sector scaling.
-      heartLoop: 6,    // NG+5 (loop 6): the secret Heart gauntlet — a single
-                       // Heart node then a build-countering tribute boss.
+                   // Beat it and the run ENDS — the rating clears and the next
+                   // one unlocks. There is no NG+ loop: difficulty lives on one
+                   // ladder, climbed by starting again, the way an ascension does.
+      heartFrom: 4, // from this rating up, beating the Unmaker opens one more
+                    // door: the counter-boss. Optional, and the run ends either way.
     },
 
-    /* ---- VOID PRESSURE: the difficulty ladder -------------------------
-     * Each rating is a designed hazard, not a bigger number — the Recurrence
-     * already handles flat scaling. Modifiers are CUMULATIVE: at pressure 5 you
-     * carry 1 through 5. Clear a rating to unlock the next.
-     * ------------------------------------------------------------------ */
     ladder: [
       { name: 'DRIFT',         desc: 'Standard descent. Nothing out there but the Spire.', mods: {} },
       { name: 'COLD VACUUM',   desc: 'Hostiles run 10% harder to kill.',                  mods: { enemyHp: 1.10 } },
@@ -305,10 +299,11 @@
       { name: 'THE LONG DARK', desc: 'Hostiles hit 10% harder, and every boss wakes angry.', mods: { enemyDmg: 1.10, bossStr: 1 } },
     ],
 
-    /* ---- Void Echoes (Recurrence / NG+ special relics) ------------------ */
-    echoes: {
-      loadoutSlots: 3,  // how many owned Echoes you may equip per loop
-    },
+    /* ---- The Pacts (were: Void Echoes) ----------------------------------
+     * Eleven double-edged relics that used to exist only inside the Recurrence:
+     * you drafted one per loop and equipped three. With the loop gone they had
+     * no delivery mechanism at all, so they became what they always resembled —
+     * boss relics with a real cost attached. Nothing was cut. */
 
     /* ---- Potions & consumables ------------------------------------------ */
     potions: {

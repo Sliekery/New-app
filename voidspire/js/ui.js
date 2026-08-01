@@ -487,9 +487,6 @@
       case 'cutscene': return showCutscene();
       case 'sector-intro': return showSectorIntro();
       case 'victory': return showVictory();
-      case 'recurrence-intro': return showRecurrenceIntro();
-      case 'echo-draft': return showEchoDraft();
-      case 'echo-loadout': return showEchoLoadout();
       case 'dead': return showGameOver();
       default: return showTitle();
     }
@@ -850,7 +847,7 @@
       [['MGT', 'might'], ['TEC', 'tech'], ['PSI', 'psi']].map(function (a) {
         var v = E.attr(a[1]); return v > 0 ? '<span class="attr">' + a[0] + ' <b>' + v + '</b></span>' : '';
       }).join('') +
-      (onMap ? '<span class="attr" style="color:' + fac.color + '">' + (r.loop > 1 ? 'L' + r.loop + '·' : '') + 'S' + r.sector + ' ▴' + Math.max(0, r.mapRow + 1) + '/' + (B.map.rows + 1) + '</span>' : '') +
+      (onMap ? '<span class="attr" style="color:' + fac.color + '">' + (E.inHeart && E.inHeart() ? '◈' : '') + 'S' + r.sector + ' ▴' + Math.max(0, r.mapRow + 1) + '/' + (B.map.rows + 1) + '</span>' : '') +
       '<span class="spacer"></span>' +
       (onMap ? '' : '<button class="icon-btn" data-act="map" title="Star chart">' + MAP_ICON + '</button>') +
       '<button class="icon-btn" data-act="menu">≡</button>' +
@@ -1591,9 +1588,18 @@
       s.appendChild(cont);
     }
 
-    // ---- VOID PRESSURE: pick the rating you descend at ----
-    if (E.nextPressure == null) E.nextPressure = E.pressureUnlocked();
-    var maxP = E.pressureMax(), unlocked = E.pressureUnlocked();
+    /* ---- VOID PRESSURE: pick the rating you descend at ----
+     * The ladder is PER CLASS now, the way an ascension is per character, so
+     * the picker browses up to the highest any class has reached and each class
+     * button states its own ceiling. Choosing a class clamps you to what THAT
+     * class has earned — clearing DRIFT on the Technomancer should not hand a
+     * Void Adept a rating it has never finished a run at. */
+    var CLASS_IDS = Object.keys(CLASS_INFO);
+    var unlockedBy = {};
+    CLASS_IDS.forEach(function (c) { unlockedBy[c] = E.pressureUnlocked(c); });
+    var unlocked = CLASS_IDS.reduce(function (a, c) { return Math.max(a, unlockedBy[c]); }, 0);
+    if (E.nextPressure == null) E.nextPressure = unlocked;
+    var maxP = E.pressureMax();
     var pw = el('div', 'press-pick');
     function drawPressure() {
       var lv = E.nextPressure, L = B.ladder[lv] || B.ladder[0];
@@ -1633,12 +1639,18 @@
     Object.keys(CLASS_INFO).forEach(function (cls) {
       var ci = CLASS_INFO[cls], cc = B.classes[cls];
       var stats = cc.hp + ' HP · MGT ' + cc.might + ' · TEC ' + cc.tech + ' · PSI ' + cc.psi;
+      var top = unlockedBy[cls];
+      var rung = top > 0 ? 'CLEARED TO ' + E.pressureName(top - 1).toUpperCase() : 'NO RATING CLEARED';
       var btn = el('div', 'panel-btn' + (cls === 'technomancer' ? ' cyan' : cls === 'voidadept' ? ' magenta' : ''),
         '<div class="pb-title">' + ci.name + '</div>' +
         '<div class="pb-sub">' + esc(ci.tag) + ' · ' + stats + '</div>' +
-        '<div class="pb-desc">' + esc(ci.desc) + '</div>');
+        '<div class="pb-desc">' + esc(ci.desc) + '</div>' +
+        '<div class="pb-sub">' + rung + ' · MAX ' + E.pressureName(top).toUpperCase() + '</div>');
       btn.addEventListener('pointerdown', function () {
         SFX.play();
+        // clamp to what THIS class has earned, and say so rather than silently
+        var want = E.nextPressure || 0;
+        if (want > top) { E.nextPressure = top; toast(ci.name.toUpperCase() + ' HAS NOT CLEARED THAT — DESCENDING AT ' + E.pressureName(top).toUpperCase(), 2400); }
         E.clearSave();
         E.newRun(cls);
         U.refresh();
@@ -1890,7 +1902,7 @@
 
     var par = land ? 'xMinYMid meet' : 'xMidYMin meet';
     var svg = '<svg class="starchart v2" viewBox="0 0 ' + W.toFixed(0) + ' ' + H.toFixed(0) + '" preserveAspectRatio="' + par + '">';
-    svg += mapBackdrop(W, H, r.sector + (r.loop || 1) * 7);
+    svg += mapBackdrop(W, H, r.sector + (r.pressure || 0) * 7);
 
     // ---- connectors: thick, coloured by where they LEAD, junction ring at the bend
     for (var ri = 0; ri < ROWS; ri++) {
@@ -5239,48 +5251,61 @@
     s.appendChild(btn);
   }
 
-  /* ====================== VICTORY (finale) ====================== */
+  /* ====================== VICTORY (finale) ======================
+   * The run ENDS here. It used to offer the Recurrence — begin again, one loop
+   * deeper, everything 12% stronger — which was a second difficulty ladder
+   * running beside the Pressure one. There is a single ladder now: beat the
+   * Unmaker, the rating clears, the next unlocks, and you start again from
+   * nothing, the way an ascension works.
+   *
+   * The only thing on offer is the Heart, and only at the higher ratings: one
+   * more fight against a boss picked to answer your own build. Optional, and
+   * declining costs you nothing — the rating has already cleared. */
   function showVictory() {
     combatChrome(false);
     updateHUD();
     var r = E.run;
     SFX.win();
     R.flash();
-    var heartWin = (r.loop === B.run.heartLoop);
+    var heartWin = E.inHeart && E.inHeart();
     var s = overlayScreen();
     if (heartWin) {
       s.appendChild(el('div', 'sector-banner victory-banner', 'THE TRIBUTE IS UNMADE'));
-      s.appendChild(el('div', 'screen-sub', 'YOU OUTLASTED AN ECHO OF ANOTHER SPIRE — A FEAT ALMOST NONE WILL SEE'));
-      s.appendChild(el('div', 'event-text', 'The wanderer dissolves into stardust. For an instant the Recurrence falters... then, somewhere far below, it begins again. You have gone where the loop forgets to end.'));
+      s.appendChild(el('div', 'screen-sub', 'YOU ANSWERED THE THING THAT WAS BUILT TO ANSWER YOU'));
+      s.appendChild(el('div', 'event-text', 'It dissolves into stardust, wearing your own habits like a borrowed coat. Whatever was keeping score down here has stopped.'));
     } else {
       s.appendChild(el('div', 'sector-banner victory-banner', 'THE UNMAKER FALLS'));
-      var loopTxt = r.loop > 1 ? 'LOOP ' + r.loop + ' CONQUERED' : 'THE DESCENT IS CONQUERED';
-      s.appendChild(el('div', 'screen-sub', loopTxt));
+      s.appendChild(el('div', 'screen-sub', 'THE DESCENT IS CONQUERED · ' + E.pressureName(r.pressure || 0)));
     }
     s.appendChild(el('div', 'big-score', E.score() + ' PTS'));
+
+    var cleared = r.pressure || 0;
+    var next = E.pressureUnlocked(r.cls);
     var lines = [
-      'LOOP: ' + r.loop,
+      'RATING CLEARED: ' + E.pressureName(cleared) + ' (' + cleared + ')',
       'NODES CLEARED: ' + r.nodesCleared,
       'KILLS: ' + r.kills,
-      'ECHOES HELD: ' + (r.echoes ? r.echoes.length : 0),
     ];
+    if (next > cleared && next <= E.pressureMax()) lines.push('UNLOCKED: ' + E.pressureName(next) + ' (' + next + ') for this class');
     var gl = el('div', 'gain-list');
     lines.forEach(function (l) { gl.appendChild(el('div', '', esc(l))); });
     s.appendChild(gl);
 
-    var cont = el('div', 'panel-btn cyan',
-      '<div class="pb-title">↻ ENTER THE RECURRENCE</div>' +
-      '<div class="pb-desc">Begin again. Your powers fade and the void grows stronger — but you carry an Echo of yourself into the next loop.</div>');
-    cont.addEventListener('pointerdown', function () {
-      SFX.play();
-      E.enterRecurrence();
-      U.refresh();
-    });
-    s.appendChild(cont);
+    if (E.heartOpen && E.heartOpen()) {
+      var deeper = el('div', 'panel-btn magenta',
+        '<div class="pb-title">◈ GO DEEPER</div>' +
+        '<div class="pb-desc">Something down here has been reading you the whole way. One more fight, full-healed, with the deck and the die you finished on. Your rating has already cleared — this is for you.</div>');
+      deeper.addEventListener('pointerdown', function () {
+        SFX.play();
+        E.enterHeart();
+        U.refresh();
+      });
+      s.appendChild(deeper);
+    }
 
     var claim = el('div', 'panel-btn',
       '<div class="pb-title">★ CLAIM VICTORY</div>' +
-      '<div class="pb-desc">End the run a victor. Your score is recorded.</div>');
+      '<div class="pb-desc">End the run a victor. Your score is recorded and the next rating stands open.</div>');
     claim.addEventListener('pointerdown', function () {
       SFX.coin();
       E.claimVictory();
@@ -5288,6 +5313,7 @@
     });
     s.appendChild(claim);
   }
+
 
   /* ====================== THE RECURRENCE (NG+ loop) ====================== */
   // Vector glyph for an Echo: the void seraph's halo + eye, tinted.
@@ -5299,94 +5325,10 @@
   };
   function echoSVG(cls) { return artSVG(ECHO_ICON, cls, '#b8ecff'); }
 
-  function showRecurrenceIntro() {
-    combatChrome(false);
-    $hud.innerHTML = ''; setHud(false);
-    var slides = [
-      'Space warps around you like a void. Your mind goes blank…',
-      'You find yourself in a familiar setting, an urge to continue… Haven’t you been here before?',
-      'Powers you once had have faded — yet your surroundings seem… stronger.',
-    ];
-    var idx = 0;
-    function render() {
-      var s = overlayScreen();
-      s.classList.add('recurrence-screen');
-      s.appendChild(el('div', 'recurrence-loop', 'LOOP ' + E.run.loop));
-      var p = el('div', 'event-text recurrence-text', '');
-      s.appendChild(p);
-      var finish = typeText(p, slides[idx], null);
-      var btn = el('button', 'btn', idx < slides.length - 1 ? 'CONTINUE' : 'REACH INTO THE VOID');
-      btn.addEventListener('pointerdown', function () {
-        if (typing()) { finish(); return; }
-        SFX.tap();
-        idx++;
-        if (idx < slides.length) render();
-        else { E.recurrenceContinue(); U.refresh(); }
-      });
-      s.appendChild(btn);
-      // tapping anywhere also completes the current line
-      s.addEventListener('pointerdown', function (e2) {
-        if (typing()) { finish(); e2.stopPropagation(); }
-      }, true);
-    }
-    render();
-  }
-
-  function showEchoDraft() {
-    $hud.innerHTML = ''; setHud(false);
-    var s = overlayScreen(true);
-    s.appendChild(el('h2', 'screen-title victory-banner', 'A Void Echo'));
-    s.appendChild(el('div', 'screen-sub', 'CLAIM ONE FRAGMENT OF A PAST SELF · IT IS YOURS FOREVER'));
-    var cbar = makeConfirmBar();
-    E.echoOffer().forEach(function (id) {
-      var ec = ns.ECHOES[id];
-      var btn = el('div', 'panel-btn echo-card',
-        '<div class="pb-title"><span class="pb-icon echo-ic">' + echoSVG() + '</span>' + esc(ec.name) +
-        ' <span class="aug-tag">' + esc(ec.tag) + '</span></div>' +
-        '<div class="pb-desc">' + esc(ec.desc) + '</div>' +
-        '<div class="pb-sub echo-flavor">' + esc(ec.flavor) + '</div>');
-      s.appendChild(btn);
-      selectConfirm(s, btn, cbar, 'Claim <b>' + esc(ec.name) + '</b>?<span class="cb-note">' + esc(ec.desc) + '</span>',
-        function () { SFX.win(); E.chooseEcho(id); U.refresh(); }, 'cyan');
-    });
-    s.appendChild(cbar.el);
-  }
-
-  function showEchoLoadout() {
-    $hud.innerHTML = ''; setHud(false);
-    var r = E.run, slots = B.echoes.loadoutSlots;
-    var s = overlayScreen(true);
-    s.appendChild(el('h2', 'screen-title', 'Attune Your Echoes'));
-
-    function render() {
-      // rebuild list region in place
-      var old = s.querySelector('.echo-list'); if (old) old.remove();
-      var oldsub = s.querySelector('.echo-sub'); if (oldsub) oldsub.remove();
-      var oldbtn = s.querySelector('.echo-begin'); if (oldbtn) oldbtn.remove();
-      var equipped = E.echoLoadout();
-      s.appendChild(el('div', 'screen-sub echo-sub', 'EQUIP UP TO ' + slots + ' · ' + equipped.length + '/' + slots + ' ATTUNED'));
-      var list = el('div', 'echo-list');
-      r.echoes.forEach(function (id) {
-        var ec = ns.ECHOES[id];
-        var on = equipped.indexOf(id) >= 0;
-        var full = !on && equipped.length >= slots;
-        var card = el('div', 'panel-btn echo-card' + (on ? ' equipped' : '') + (full ? ' disabled' : ''),
-          '<div class="pb-title"><span class="pb-icon echo-ic">' + echoSVG() + '</span>' + esc(ec.name) +
-          ' <span class="aug-tag">' + esc(ec.tag) + '</span>' + (on ? ' <span class="echo-on">ATTUNED</span>' : '') + '</div>' +
-          '<div class="pb-desc">' + esc(ec.desc) + '</div>');
-        card.addEventListener('pointerdown', function () {
-          if (full) { toast('LOADOUT FULL — UNEQUIP ONE FIRST'); return; }
-          SFX.tap(); E.echoToggle(id); render();
-        });
-        list.appendChild(card);
-      });
-      s.appendChild(list);
-      var begin = el('button', 'btn echo-begin', 'BEGIN THE LOOP');
-      begin.addEventListener('pointerdown', function () { SFX.play(); E.beginLoop(); U.refresh(); });
-      s.appendChild(begin);
-    }
-    render();
-  }
+  /* The Recurrence screens are gone with the Recurrence: the loop narrative,
+   * the Echo draft (pick 1 of 3) and the loadout board (equip 3 of what you
+   * own). The eleven Echoes they served are relics now, drafted from bosses in
+   * a normal run, so nothing they offered is out of reach. */
 
   /* ====================== GAME OVER ====================== */
   function showGameOver() {
@@ -5395,11 +5337,12 @@
     var r = E.run;
     var s = overlayScreen();
     s.appendChild(el('h2', 'screen-title', 'Signal Lost'));
-    s.appendChild(el('div', 'screen-sub', r.loop > 1 ? 'THE LOOP CLAIMS YOU IN LOOP ' + r.loop + ' · SECTOR ' + r.sector : 'YOUR DESCENT ENDS IN SECTOR ' + r.sector));
+    s.appendChild(el('div', 'screen-sub', 'YOUR DESCENT ENDS IN SECTOR ' + r.sector + ' · ' + E.pressureName(r.pressure || 0)));
     s.appendChild(el('div', 'big-score', E.score() + ' PTS'));
     var best = E.getBest();
     var lines = [
-      (r.loop > 1 ? 'LOOP REACHED: ' + r.loop + ' · SECTOR ' + r.sector : 'SECTOR REACHED: ' + r.sector),
+      'SECTOR REACHED: ' + r.sector,
+      'RATING: ' + E.pressureName(r.pressure || 0) + ' (' + (r.pressure || 0) + ')',
       'NODES CLEARED: ' + r.nodesCleared,
       'KILLS: ' + r.kills,
       'ECHOES HELD: ' + (r.echoes ? r.echoes.length : 0),
@@ -5602,8 +5545,6 @@
     var energy = (B.player.baseEnergy != null ? B.player.baseEnergy : 3);
     var draw = (B.player.drawPerTurn != null ? B.player.drawPerTurn : 5);
     var finale = B.run.finale;
-    var loop = Math.round(B.run.loopPower * 100);
-    var slots = (B.echoes && B.echoes.loadoutSlots) || 3;
     var vh = ns.VTOUCH_HP;
     function E2(t, d, cls) { return { t: t, d: d, c: cls }; }
     return [
@@ -5699,11 +5640,12 @@
         E2('Skill checks', 'Some options roll your attribute vs a DC. A natural 1 always fails; a natural 20 always succeeds.'),
         E2('Risk', 'Failed checks can cost HP or jam a curse into your deck. Read the odds before you gamble.', 'bad'),
       ] },
-      { cat: 'Recurrence', intro: 'New Game+ : beating THE UNMAKER opens an endless loop of the same spire.', entries: [
-        E2('Victory', 'Beat the Unmaker, then claim victory (run recorded) or enter the Recurrence for a fresh descent.', 'sp'),
-        E2('Powers fade', 'Each loop your deck and relics reset to baseline. You start over — almost.'),
-        E2('Void Echoes', 'You keep one permanent Echo per loop — sideways relics (glass-cannon, combo, execute-chains, pacts). Equip up to ' + slots + ' at once.', 'sp'),
-        E2('The world strengthens', 'Enemies gain +' + loop + '% HP & damage per loop, on top of normal scaling. Deep loops are a build puzzle, not a treadmill.'),
+      { cat: 'Void Pressure', intro: 'The one difficulty ladder. Clear a rating and the next opens — for that class.', entries: [
+        E2('Victory', 'Beat the Unmaker and the run ends a win. The rating you descended at is cleared and the next unlocks.', 'sp'),
+        E2('Climbing', 'Every rating is carried on top of the ones below it, and most are a designed hazard rather than a bigger number — packs of elites, a hotter die, one less core slot, thinner salvage.'),
+        E2('Per class', 'Each class climbs its own ladder. Clearing DRIFT on one does not hand the rating to another that has never finished a run.', 'sp'),
+        E2('The Heart', 'From ' + E.pressureName(B.run.heartFrom).toUpperCase() + ' upward, felling the Unmaker opens one more door: a boss built to answer your own build. Optional — your rating has already cleared.', 'sp'),
+        E2('Pacts', 'Eleven double-edged relics, one offered at every sector boss beside two ordinary ones. Each is a bargain, never a straight upgrade.'),
       ] },
       { cat: 'Enemies', entries: [
         E2('Summon', 'Some enemies call in reinforcements mid-fight — clear adds or focus the summoner.'),

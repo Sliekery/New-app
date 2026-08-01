@@ -2458,24 +2458,18 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       perSector: 100,
       perNode: 12,
       perKill: 4,
-      perLoop: 600,   // bonus per completed Recurrence loop
     },
 
     /* ---- Run arc / win condition ---------------------------------------- */
     run: {
       finale: 4,   // the boss of this sector is THE UNMAKER (the win condition).
-                   // Beat it to win; you may then enter the Recurrence (NG+ loop).
-      loopPower: 0.12, // each Recurrence loop multiplies enemy HP & damage by
-                       // (1 + loopPower*(loop-1)) on top of normal sector scaling.
-      heartLoop: 6,    // NG+5 (loop 6): the secret Heart gauntlet — a single
-                       // Heart node then a build-countering tribute boss.
+                   // Beat it and the run ENDS — the rating clears and the next
+                   // one unlocks. There is no NG+ loop: difficulty lives on one
+                   // ladder, climbed by starting again, the way an ascension does.
+      heartFrom: 4, // from this rating up, beating the Unmaker opens one more
+                    // door: the counter-boss. Optional, and the run ends either way.
     },
 
-    /* ---- VOID PRESSURE: the difficulty ladder -------------------------
-     * Each rating is a designed hazard, not a bigger number — the Recurrence
-     * already handles flat scaling. Modifiers are CUMULATIVE: at pressure 5 you
-     * carry 1 through 5. Clear a rating to unlock the next.
-     * ------------------------------------------------------------------ */
     ladder: [
       { name: 'DRIFT',         desc: 'Standard descent. Nothing out there but the Spire.', mods: {} },
       { name: 'COLD VACUUM',   desc: 'Hostiles run 10% harder to kill.',                  mods: { enemyHp: 1.10 } },
@@ -2493,10 +2487,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       { name: 'THE LONG DARK', desc: 'Hostiles hit 10% harder, and every boss wakes angry.', mods: { enemyDmg: 1.10, bossStr: 1 } },
     ],
 
-    /* ---- Void Echoes (Recurrence / NG+ special relics) ------------------ */
-    echoes: {
-      loadoutSlots: 3,  // how many owned Echoes you may equip per loop
-    },
+    /* ---- The Pacts (were: Void Echoes) ----------------------------------
+     * Eleven double-edged relics that used to exist only inside the Recurrence:
+     * you drafted one per loop and equipped three. With the loop gone they had
+     * no delivery mechanism at all, so they became what they always resembled —
+     * boss relics with a real cost attached. Nothing was cut. */
 
     /* ---- Potions & consumables ------------------------------------------ */
     potions: {
@@ -9057,24 +9052,29 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   <script>
 /* =========================================================================
  * VOIDSPIRE — echoes.js
- * "Void Echoes": the special relics of the Recurrence (NG+ loop). After you
- * defeat THE UNMAKER you collect one Echo (pick 1 of 3) and keep it forever;
- * each new loop you EQUIP up to BALANCE.echoes.loadoutSlots of your collection.
+ * THE PACTS. Eleven double-edged relics — each one changes HOW you play or is
+ * a self-balancing bargain, never a flat "+power forever".
  *
- * Echoes are sideways-by-design: each changes HOW you play or is a
- * self-balancing pact — never a flat "+power forever" multiplier — so the
- * +loopPower/loop world curve stays meaningful no matter how many you own.
+ * They used to be "Void Echoes": drafted one per Recurrence loop and equipped
+ * three at a time, which meant they existed only after you had already won. The
+ * Recurrence is gone — difficulty lives on one ladder now, climbed by starting
+ * again — so rather than delete eleven good relics they became what they always
+ * resembled: BOSS RELICS WITH A COST. Same effects, same names, reachable in a
+ * first run.
  *
- * Simple Echoes carry hook:{k,v} / hooks:[...] that fold into engine.art(k)
- * exactly like artifacts/augments (only while EQUIPPED). Rule-bending Echoes
- * carry no hook; the engine checks E.hasEcho(id) at the relevant trigger.
+ * Simple Pacts carry hook:{k,v} / hooks:[...] that fold into engine.art(k)
+ * exactly like any other relic. Rule-bending ones carry no hook; the engine
+ * checks E.hasEcho(id) at the relevant trigger — which now reads your relics.
  * ========================================================================= */
 (function (ns) {
   'use strict';
 
   ns.ECHOES = {
-    hollow_crown: {
-      name: 'Hollow Crown', tag: 'GLASS',
+    /* Renamed from hollow_crown: an unrelated relic already owns that id and
+     * name, and two different things called Hollow Crown is how a save file
+     * quietly grants the wrong effect. Its tag was always GLASS. */
+    glass_crown: {
+      name: 'Glass Crown', tag: 'GLASS',
       desc: 'Deal +30% damage — and take +30% damage.',
       flavor: 'A crown of absence, worn by every version of you.',
       hooks: [{ k: 'dmgMult', v: 0.30 }, { k: 'dmgTakenMult', v: 0.30 }],
@@ -9123,12 +9123,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
     phylactery: {
       name: 'Phylactery', tag: 'WARD',
-      desc: 'Once per loop, the first blow that would kill you instead leaves you at 30% HP and clears your debuffs.',
+      desc: 'Once per run, the first blow that would kill you instead leaves you at 30% HP and clears your debuffs.',
       flavor: 'You have died here before. It did not take.',
     },
     ascendant_core: {
       name: 'Ascendant Core', tag: 'LEGACY',
-      desc: 'Begin each loop with +2 to your core attribute.',
+      desc: '+2 to your core attribute.',
       flavor: 'The one part of you the void cannot strip away.',
     },
   };
@@ -10668,7 +10668,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       forged: {}, forgeSeq: 0, faceFired: {}, eventRolled: 0,
       quests: {}, questDone: {},
       potions: [], won: false,
-      loop: 1, echoes: [], loadout: [], echoOffer: null,
+      inHeart: false, heartOpen: false,
       phylacteryUsed: false, salvageKills: 0,
     };
     E.combat = null;
@@ -10768,16 +10768,24 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
     var ch = cornerstoneHooks();
     if (ch && ch[name]) v += ch[name];
+    /* Ascendant Core used to be applied inside resetForLoop — "begin each loop
+     * with +2 to your core attribute" — so with the loop gone it granted
+     * nothing at all. It is a straight +2 to your class's own stat now. */
+    if (name === CLASS_STAT[E.run.cls] && E.hasEcho('ascendant_core')) v += 2;
     return v;
   }
   E.attr = attr;
   // Is a Void Echo currently EQUIPPED (in the loadout, not merely owned)?
+  /* A Pact is a relic now. It used to be an Echo you equipped into a loadout
+   * between Recurrence loops; with the loop gone, "do you have it" is just "is
+   * it among your relics and switched on". Thirteen call sites read this and
+   * none of them had to change. */
   E.hasEcho = function (id) {
-    return !!(E.run && E.run.loadout && E.run.loadout.indexOf(id) >= 0);
+    return !!(E.run && E.run.artifacts && E.run.artifacts.indexOf(id) >= 0 && E.relicActive(id));
   };
-  // Cumulative run depth: each cleared Recurrence loop counts as `finale`
-  // sectors, so depth == sector on the first loop and keeps climbing after.
-  E.depth = function () { return (E.run.loop - 1) * B.run.finale + E.run.sector; };
+  // Depth is simply the sector. It used to add cleared Recurrence loops on top,
+  // which is exactly the second difficulty axis that has been removed.
+  E.depth = function () { return E.run.sector; };
   // Sum of hook k over owned artifacts, including quest "done" hooks once the
   // artifact's quest has been completed, plus EQUIPPED echoes.
   function art(k) {
@@ -10789,13 +10797,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       if (a.hooks) for (var hh = 0; hh < a.hooks.length; hh++) if (a.hooks[hh].k === k) t += a.hooks[hh].v;  // multi-effect / tradeoff relics
       if (a.done && a.done.k === k && E.run.questDone && E.run.questDone[owned[i]]) t += a.done.v;
     }
-    var ech = E.run.loadout || [];
-    for (var e = 0; e < ech.length; e++) {
-      var ee = ns.ECHOES[ech[e]];
-      if (!ee) continue;
-      if (ee.hook && ee.hook.k === k) t += ee.hook.v;
-      if (ee.hooks) for (var hh = 0; hh < ee.hooks.length; hh++) if (ee.hooks[hh].k === k) t += ee.hooks[hh].v;
-    }
+    /* The second pass over an equipped Echo loadout is gone with the Recurrence.
+     * Pacts are merged into ARTIFACTS at load carrying the same hooks, so the
+     * loop above already folds them in — and, like every other relic, only while
+     * they are mounted in the die's core. Owning a module is not using it. */
     var ch = cornerstoneHooks();
     if (ch && k !== 'psi' && ch[k]) t += ch[k];   // psi is an attribute, handled in attr()
     return t;
@@ -10851,7 +10856,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   E.score = function () {
     var r = E.run;
     return (r.sector - 1) * B.score.perSector + r.nodesCleared * B.score.perNode + r.kills * B.score.perKill +
-      ((r.loop || 1) - 1) * B.score.perLoop;
+      0;
   };
 
   /* ---------------- Map generation (branching star chart) -------------- */
@@ -10872,7 +10877,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
    * nothing needs straightening and a branch stays a branch.
    */
   function generateMap(sector) {
-    if (E.run && (E.run.loop || 1) === B.run.heartLoop) return heartMap();
+    if (E.run && E.run.inHeart) return heartMap();
     var M = B.map, ROWS = M.rows, COLS = M.cols;
 
     // ---- how many nodes stand at each depth, and in which lanes
@@ -11058,7 +11063,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // The sector's boss (for the map telegraph).
   E.sectorBossId = function () {
     var r = E.run;
-    if ((r.loop || 1) === B.run.heartLoop) return E.counterBossId(r);
+    if (r.inHeart) return E.counterBossId(r);
     if (r.sector === B.run.finale) return ns.FINAL_BOSS;
     var order = r.bossOrder && r.bossOrder.length ? r.bossOrder : [].concat(ns.BOSSES[r.faction]);
     return order[(r.sector - 1) % order.length];
@@ -11186,7 +11191,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (node && node.type === 'boss' && !r.seenCutscene) r.seenCutscene = {};
     if (node && node.type === 'boss' && ns.cutsceneFor && ns.cutsceneFor(r.sector)) {
       var cs = ns.cutsceneFor(r.sector);
-      if (!r.seenCutscene[cs.id] || r.loop > 1) {
+      if (!r.seenCutscene[cs.id]) {
         r.seenCutscene[cs.id] = true;
         r.cutscene = { id: cs.id, panel: 0, next: next };
         r.phase = 'cutscene';
@@ -11221,14 +11226,30 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   var CLASS_STAT = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
   E.classStat = function () { return CLASS_STAT[E.run.cls] || 'might'; };
 
+  /* TWO RELICS AND A PACT. Folding the eleven Pacts into the tier-2 pool made
+   * them compete with ordinary boss relics for the same three slots, which
+   * diluted it — measured, that alone moved the Void Adept +18.8 points and the
+   * Vanguard -5.2, because it changed WHICH relics each class was being offered
+   * rather than how strong they were.
+   *
+   * So a Pact gets a slot of its own. Everyone is offered the same shape of
+   * choice — two relics and one bargain — and the ordinary pool is undiluted. */
   function setupBossArtifacts(stockOnly) {
     var r = E.run;
-    var pool = Object.keys(ns.ARTIFACTS).filter(function (k) {
-      return ns.ARTIFACTS[k].tier === 2 && r.artifacts.indexOf(k) < 0;
-    });
-    if (pool.length === 0) pool = Object.keys(ns.ARTIFACTS).filter(function (k) { return ns.ARTIFACTS[k].tier === 1 && r.artifacts.indexOf(k) < 0; });
-    shuffle(pool);
-    r.bossArtifacts = pool.slice(0, Math.min(3, pool.length));
+    function avail(pred) {
+      return Object.keys(ns.ARTIFACTS).filter(function (k) {
+        return r.artifacts.indexOf(k) < 0 && pred(ns.ARTIFACTS[k]);
+      });
+    }
+    var plain = avail(function (a) { return a.tier === 2 && !a.pact; });
+    if (plain.length === 0) plain = avail(function (a) { return a.tier === 1 && !a.pact; });
+    var pacts = avail(function (a) { return !!a.pact; });
+    shuffle(plain); shuffle(pacts);
+    var out = plain.slice(0, 2);
+    if (pacts.length) out.push(pacts[0]);
+    while (out.length < 3 && plain.length > out.length) out.push(plain[out.length]);
+    shuffle(out);                      // the bargain is not always in the same seat
+    r.bossArtifacts = out;
     if (!stockOnly) { r.phase = 'boss-artifact'; E.save(); }
   }
 
@@ -11292,23 +11313,38 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   };
   E.pressureMax = function () { return (B.ladder || []).length - 1; };
   // Highest rating you have CLEARED; you may attempt one above it.
-  E.pressureCleared = function () {
+  /* PER CLASS, like an ascension. One global number meant clearing a rating on
+   * the Technomancer silently unlocked it for a Void Adept who had never
+   * finished a run — and the Void Adept is ten points weaker, so that reads as
+   * the game handing you a difficulty you have not earned on a class that
+   * cannot carry it. Each climbs its own ladder now.
+   *
+   * The old global key is read once as a floor so nobody loses progress. */
+  function pressureKey(cls) { return 'voidspire_pressure_' + (cls || (E.run && E.run.cls) || 'vanguard'); }
+  E.pressureCleared = function (cls) {
     var st = store(); if (!st) return -1;
-    try { return parseInt(st.getItem('voidspire_pressure'), 10); } catch (e) { return -1; }
+    try {
+      var v = parseInt(st.getItem(pressureKey(cls)), 10);
+      if (!isNaN(v)) return v;
+      // migrate the old global once, so nobody is demoted by this change
+      var old = parseInt(st.getItem('voidspire_pressure'), 10);
+      return isNaN(old) ? -1 : old;
+    } catch (e) { return -1; }
   };
-  E.pressureUnlocked = function () {
-    var c = E.pressureCleared();
+  E.pressureUnlocked = function (cls) {
+    var c = E.pressureCleared(cls);
     return Math.max(0, Math.min(E.pressureMax(), (isNaN(c) ? -1 : c) + 1));
   };
   function recordPressureClear() {
     var st = store(); if (!st || !E.run) return;
-    var p = E.run.pressure || 0, best = E.pressureCleared();
-    if (isNaN(best) || p > best) { try { st.setItem('voidspire_pressure', String(p)); } catch (e) {} }
+    var p = E.run.pressure || 0, best = E.pressureCleared(E.run.cls);
+    if (isNaN(best) || p > best) { try { st.setItem(pressureKey(E.run.cls), String(p)); } catch (e) {} }
   }
   E.recordPressureClear = recordPressureClear;
 
   function worldPowerMult() {
-    return (1 + B.run.loopPower * ((E.run.loop || 1) - 1)) * (1 + art('worldPower'));
+    // The loop term is gone: the Pressure ladder is the whole difficulty curve.
+    return (1 + art('worldPower'));
   }
   E.worldPowerMult = worldPowerMult;
 
@@ -11350,7 +11386,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
   E.counterAxis = counterAxis;
   E.counterBossId = function (r) { return COUNTER_BOSS[counterAxis(r)]; };
-  E.isHeartLoop = function () { return (E.run.loop || 1) === B.run.heartLoop; };
+  E.inHeart = function () { return !!(E.run && E.run.inHeart); };
+  E.isHeartLoop = E.inHeart;   // old name, same question
 
   // The Heart gauntlet's tiny map: one Heart node, then the tribute boss.
   function heartMap() {
@@ -11389,7 +11426,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var r = E.run;
     var ids, isFinal = false;
     if (kind === 'boss') {
-      if ((r.loop || 1) === B.run.heartLoop) { ids = [E.counterBossId(r)]; isFinal = true; }
+      if (r.inHeart) { ids = [E.counterBossId(r)]; isFinal = true; }
       else if (r.sector === B.run.finale) { ids = [ns.FINAL_BOSS]; isFinal = true; }
       else ids = [E.sectorBossId()];
     } else if (kind === 'elite' || kind === 'beacon') {
@@ -13503,15 +13540,27 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   function winCombat() {
     var r = E.run, kind = E.combat.kind, cc = E.combat;
+    /* THE CORNERSTONE forged a tier per Recurrence loop cleared, which with the
+     * loop gone would mean it never forged at all. It grows per SECTOR BOSS
+     * felled now, so it still reaches tier 4 — inside a single run, where the
+     * player can actually feel it. */
+    if (kind === 'boss' && r.cornerstone && (r.cornerstone.tier || 1) < 4) {
+      r.cornerstone.tier = (r.cornerstone.tier || 1) + 1;
+    }
     tickRelicDurability();   // active durability relics burn a charge per fight
     // quest credit: combats won without ever gaining Shield / without losing HP
     if (!cc.playedShield) questProgress('noShieldWin', 1);
     if (r.hp >= cc.startHp) questProgress('flawlessWin', 1);
 
-    // The finale: beating THE UNMAKER wins the run.
+    // The finale: beating THE UNMAKER wins the run and clears the rating.
     if (cc.isFinal) {
       r.won = true;
-      if (r.cornerstone && (r.cornerstone.tier || 1) < 4) r.cornerstone.tier = (r.cornerstone.tier || 1) + 1;   // forge a tier per loop cleared
+      /* THE HEART is a door, not a loop. Beat the Unmaker at a high enough
+       * rating and one more fight opens — the counter-boss, chosen against your
+       * own build. Optional: the rating clears either way, so nobody is taxed
+       * for declining it. */
+      if (!r.inHeart && (r.pressure || 0) >= (B.run.heartFrom || 99)) r.heartOpen = true;
+      recordPressureClear();
       E.recordBest();
       r.phase = 'victory';
       // The floor gets its cutscene too, before the tally screen.
@@ -13710,116 +13759,68 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return true;
   };
 
-  /* ---------------- Victory & the Recurrence (NG+ loop) ------------------ */
-  // Enter the next loop: bump the loop counter, then run the narrative ->
-  // echo-draft -> loadout flow before a fresh (reset) descent begins.
-  E.enterRecurrence = function () {
+  /* ---------------- Victory ----------------------------------------------
+   * THE RECURRENCE IS GONE. It used to bump a loop counter, draft an Echo,
+   * equip a loadout and start a reset descent with every enemy 12% stronger per
+   * loop — a second difficulty axis running alongside the Pressure ladder, so a
+   * player at Pressure 8 / Loop 3 had two numbers multiplying and no way to tell
+   * which was hurting them.
+   *
+   * There is one ladder now, climbed the way an ascension is: you beat the
+   * Unmaker, the rating clears, the next unlocks, and you start again from
+   * nothing. The eleven Echoes were not lost with it — they are relics now.
+   * -------------------------------------------------------------------- */
+
+  // Everything the old loop flow exposed, kept as no-ops would be worse than
+  // removing it: these are gone, and the UI no longer has screens for them.
+
+  /* Take the extra door: one rest, then the counter-boss. Same run, same deck,
+   * same die — it is a coda, not a new descent. */
+  E.enterHeart = function () {
     var r = E.run;
-    E.combat = null;
-    r.loop = (r.loop || 1) + 1;
-    r.echoOffer = null;
-    r.phase = 'recurrence-intro';
-    E.save();
-  };
-
-  // From the narrative screen: offer a new Echo (or straight to loadout if
-  // every Echo is already collected).
-  E.recurrenceContinue = function () {
-    var off = E.echoOffer();
-    if (off.length) E.run.phase = 'echo-draft';
-    else { prepLoadout(); E.run.phase = 'echo-loadout'; }
-    E.save();
-  };
-
-  // 3 not-yet-owned Echoes to choose from (stable across re-renders).
-  E.echoOffer = function () {
-    var r = E.run;
-    if (r.echoOffer) return r.echoOffer;
-    var pool = Object.keys(ns.ECHOES).filter(function (id) { return r.echoes.indexOf(id) < 0; });
-    shuffle(pool);
-    r.echoOffer = pool.slice(0, Math.min(3, pool.length));
-    return r.echoOffer;
-  };
-
-  E.chooseEcho = function (id) {
-    var r = E.run;
-    if (ns.ECHOES[id] && r.echoes.indexOf(id) < 0) r.echoes.push(id);
-    r.echoOffer = null;
-    prepLoadout();
-    r.phase = 'echo-loadout';
-    E.save();
-  };
-
-  // Default the loadout: keep the previous valid picks, else auto-fill.
-  function prepLoadout() {
-    var r = E.run, slots = B.echoes.loadoutSlots, owned = r.echoes.slice();
-    if (owned.length <= slots) r.loadout = owned.slice();
-    else {
-      var keep = (r.loadout || []).filter(function (id) { return owned.indexOf(id) >= 0; });
-      while (keep.length < slots) { var nx = owned.find(function (id) { return keep.indexOf(id) < 0; }); if (!nx) break; keep.push(nx); }
-      r.loadout = keep.slice(0, slots);
-    }
-  }
-  E.prepLoadout = prepLoadout;
-  E.echoLoadout = function () { return (E.run.loadout || []).slice(); };
-  E.echoLoadoutFull = function () { return (E.run.loadout || []).length >= B.echoes.loadoutSlots; };
-
-  // Toggle an owned Echo in/out of the equipped loadout (respecting the cap).
-  E.echoToggle = function (id) {
-    var r = E.run, L = r.loadout || (r.loadout = []);
-    var i = L.indexOf(id);
-    if (i >= 0) { L.splice(i, 1); E.save(); return true; }
-    if (r.echoes.indexOf(id) < 0 || L.length >= B.echoes.loadoutSlots) return false;
-    L.push(id); E.save(); return true;
-  };
-
-  // Commit the loadout and start the fresh (reset) loop.
-  E.beginLoop = function () { resetForLoop(E.run); E.save(); };
-
-  // Full reset for a new loop: keep class, loop count, Echoes, loadout, and the
-  // cumulative kills/nodes/records ("powers have faded; surroundings stronger").
-  function resetForLoop(r) {
-    var clsId = r.cls, c = B.classes[clsId];
-    // The Heart gauntlet (NG+5) is the climax — you bring your BUILT deck,
-    // relics, attributes and potions into it (full-healed), not a fresh start.
-    var heart = (r.loop === B.run.heartLoop);
-    if (heart) {
-      r.hp = r.maxHp;
-    } else {
-      r.hp = c.hp; r.maxHp = c.hp;
-      r.attrs = { might: c.might, tech: c.tech, psi: c.psi };
-      if (E.hasEcho('ascendant_core')) r.attrs[CLASS_STAT[clsId]] += 2; // legacy stat
-      r.credits = B.player.startCredits;
-      r.deck = ns.STARTER_DECKS[clsId].map(function (id) { return mkCard(id, false); });
-      r.artifacts = [];
-      r.potions = [];
-    }
-    r.sector = 1;
-    r.faction = pick(Object.keys(ns.FACTIONS));
-    r.map = generateMap(1);
+    if (!r || !r.heartOpen || r.inHeart) return false;
+    r.inHeart = true; r.heartOpen = false; r.won = false;
+    r.hp = r.maxHp;                     // you go in whole; the fight is the point
+    r.map = generateMap(r.sector);
     r.mapRow = -1; r.mapCol = 0;
-    r.usedEvents = [];
-    r.removeCost = B.shop.removeCost;
-    r.grindCost = B.dieShop.grindCost;
-    r.quests = {}; r.questDone = {};
-    if (!heart) { r.potions = []; }   // keep your belt for the climax
-    r.phylacteryUsed = false; r.salvageKills = 0;
-    r.reward = null; r.shop = null; r.bossArtifacts = null; r.treasure = null;
-    r.pendingPick = null; r.pendingAddCard = null; r.echoOffer = null;
-    r.pendingFace = null; r.pendingReforge = null; r.pendingOp = null; r.pendingOffer = null;
-    // the Cornerstone survives the Recurrence even though the rest of the relics reset
-    if (r.cornerstone && r.artifacts.indexOf(r.cornerstone.id) < 0) r.artifacts.push(r.cornerstone.id);
-    r.phase = 'sector-intro';
+    r.phase = 'map';
     E.combat = null;
-  }
+    E.save();
+    return true;
+  };
+  E.heartOpen = function () { return !!(E.run && E.run.heartOpen); };
 
-  // End the run a victor: record it and clear the save.
+  E.echoLoadout = function () {
+    // The Pacts you are carrying, for the relic rail and for art() to fold in.
+    var r = E.run;
+    if (!r || !r.artifacts) return [];
+    return r.artifacts.filter(function (id) { return ns.ARTIFACTS[id] && ns.ARTIFACTS[id].pact; });
+  };
+
   E.claimVictory = function () {
     E.recordBest();
     E.clearSave();
     E.run = null;
     E.combat = null;
   };
+
+  /* THE PACTS JOIN THE POOL. They live in echoes.js with the same shape a relic
+   * has, so they are merged in once at load rather than duplicated. Tier 2 =
+   * boss reward, which is where a double-edged bargain belongs. */
+  (function mergePacts() {
+    if (!ns.ECHOES) return;
+    Object.keys(ns.ECHOES).forEach(function (id) {
+      if (ns.ARTIFACTS[id]) return;
+      var e = ns.ECHOES[id];
+      ns.ARTIFACTS[id] = {
+        name: e.name, tier: 2, pact: true,
+        desc: e.desc, flavor: e.flavor,
+        k: e.hook && e.hook.k, v: e.hook && e.hook.v,
+        hooks: e.hooks,
+        art: e.art || { p: [[0,-0.8, 0.7,-0.4, 0.7,0.4, 0,0.8, -0.7,0.4, -0.7,-0.4, 0,-0.8], [0,-0.45, 0.4,-0.22, 0.4,0.22, 0,0.45, -0.4,0.22, -0.4,-0.22, 0,-0.45]], e: [[0,0]] },
+      };
+    });
+  })();
 
   /* ---------------- Events ------------------------------------------------ */
   function startEvent() {
@@ -15116,7 +15117,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var sc = E.score();
       var wonBefore = !!best.won;
       if (!best.score || sc > best.score || (E.run.won && !wonBefore)) {
-        best = { score: Math.max(sc, best.score || 0), sector: E.run.sector, loop: E.run.loop || 1, cls: E.run.cls, won: wonBefore || !!E.run.won };
+        best = { score: Math.max(sc, best.score || 0), sector: E.run.sector, cls: E.run.cls, won: wonBefore || !!E.run.won };
         s.setItem('voidspire_best', JSON.stringify(best));
       }
     } catch (e) {}
@@ -17993,9 +17994,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       case 'cutscene': return showCutscene();
       case 'sector-intro': return showSectorIntro();
       case 'victory': return showVictory();
-      case 'recurrence-intro': return showRecurrenceIntro();
-      case 'echo-draft': return showEchoDraft();
-      case 'echo-loadout': return showEchoLoadout();
       case 'dead': return showGameOver();
       default: return showTitle();
     }
@@ -18356,7 +18354,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       [['MGT', 'might'], ['TEC', 'tech'], ['PSI', 'psi']].map(function (a) {
         var v = E.attr(a[1]); return v > 0 ? '<span class="attr">' + a[0] + ' <b>' + v + '</b></span>' : '';
       }).join('') +
-      (onMap ? '<span class="attr" style="color:' + fac.color + '">' + (r.loop > 1 ? 'L' + r.loop + '·' : '') + 'S' + r.sector + ' ▴' + Math.max(0, r.mapRow + 1) + '/' + (B.map.rows + 1) + '</span>' : '') +
+      (onMap ? '<span class="attr" style="color:' + fac.color + '">' + (E.inHeart && E.inHeart() ? '◈' : '') + 'S' + r.sector + ' ▴' + Math.max(0, r.mapRow + 1) + '/' + (B.map.rows + 1) + '</span>' : '') +
       '<span class="spacer"></span>' +
       (onMap ? '' : '<button class="icon-btn" data-act="map" title="Star chart">' + MAP_ICON + '</button>') +
       '<button class="icon-btn" data-act="menu">≡</button>' +
@@ -19097,9 +19095,18 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       s.appendChild(cont);
     }
 
-    // ---- VOID PRESSURE: pick the rating you descend at ----
-    if (E.nextPressure == null) E.nextPressure = E.pressureUnlocked();
-    var maxP = E.pressureMax(), unlocked = E.pressureUnlocked();
+    /* ---- VOID PRESSURE: pick the rating you descend at ----
+     * The ladder is PER CLASS now, the way an ascension is per character, so
+     * the picker browses up to the highest any class has reached and each class
+     * button states its own ceiling. Choosing a class clamps you to what THAT
+     * class has earned — clearing DRIFT on the Technomancer should not hand a
+     * Void Adept a rating it has never finished a run at. */
+    var CLASS_IDS = Object.keys(CLASS_INFO);
+    var unlockedBy = {};
+    CLASS_IDS.forEach(function (c) { unlockedBy[c] = E.pressureUnlocked(c); });
+    var unlocked = CLASS_IDS.reduce(function (a, c) { return Math.max(a, unlockedBy[c]); }, 0);
+    if (E.nextPressure == null) E.nextPressure = unlocked;
+    var maxP = E.pressureMax();
     var pw = el('div', 'press-pick');
     function drawPressure() {
       var lv = E.nextPressure, L = B.ladder[lv] || B.ladder[0];
@@ -19139,12 +19146,18 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     Object.keys(CLASS_INFO).forEach(function (cls) {
       var ci = CLASS_INFO[cls], cc = B.classes[cls];
       var stats = cc.hp + ' HP · MGT ' + cc.might + ' · TEC ' + cc.tech + ' · PSI ' + cc.psi;
+      var top = unlockedBy[cls];
+      var rung = top > 0 ? 'CLEARED TO ' + E.pressureName(top - 1).toUpperCase() : 'NO RATING CLEARED';
       var btn = el('div', 'panel-btn' + (cls === 'technomancer' ? ' cyan' : cls === 'voidadept' ? ' magenta' : ''),
         '<div class="pb-title">' + ci.name + '</div>' +
         '<div class="pb-sub">' + esc(ci.tag) + ' · ' + stats + '</div>' +
-        '<div class="pb-desc">' + esc(ci.desc) + '</div>');
+        '<div class="pb-desc">' + esc(ci.desc) + '</div>' +
+        '<div class="pb-sub">' + rung + ' · MAX ' + E.pressureName(top).toUpperCase() + '</div>');
       btn.addEventListener('pointerdown', function () {
         SFX.play();
+        // clamp to what THIS class has earned, and say so rather than silently
+        var want = E.nextPressure || 0;
+        if (want > top) { E.nextPressure = top; toast(ci.name.toUpperCase() + ' HAS NOT CLEARED THAT — DESCENDING AT ' + E.pressureName(top).toUpperCase(), 2400); }
         E.clearSave();
         E.newRun(cls);
         U.refresh();
@@ -19396,7 +19409,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     var par = land ? 'xMinYMid meet' : 'xMidYMin meet';
     var svg = '<svg class="starchart v2" viewBox="0 0 ' + W.toFixed(0) + ' ' + H.toFixed(0) + '" preserveAspectRatio="' + par + '">';
-    svg += mapBackdrop(W, H, r.sector + (r.loop || 1) * 7);
+    svg += mapBackdrop(W, H, r.sector + (r.pressure || 0) * 7);
 
     // ---- connectors: thick, coloured by where they LEAD, junction ring at the bend
     for (var ri = 0; ri < ROWS; ri++) {
@@ -22745,48 +22758,61 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     s.appendChild(btn);
   }
 
-  /* ====================== VICTORY (finale) ====================== */
+  /* ====================== VICTORY (finale) ======================
+   * The run ENDS here. It used to offer the Recurrence — begin again, one loop
+   * deeper, everything 12% stronger — which was a second difficulty ladder
+   * running beside the Pressure one. There is a single ladder now: beat the
+   * Unmaker, the rating clears, the next unlocks, and you start again from
+   * nothing, the way an ascension works.
+   *
+   * The only thing on offer is the Heart, and only at the higher ratings: one
+   * more fight against a boss picked to answer your own build. Optional, and
+   * declining costs you nothing — the rating has already cleared. */
   function showVictory() {
     combatChrome(false);
     updateHUD();
     var r = E.run;
     SFX.win();
     R.flash();
-    var heartWin = (r.loop === B.run.heartLoop);
+    var heartWin = E.inHeart && E.inHeart();
     var s = overlayScreen();
     if (heartWin) {
       s.appendChild(el('div', 'sector-banner victory-banner', 'THE TRIBUTE IS UNMADE'));
-      s.appendChild(el('div', 'screen-sub', 'YOU OUTLASTED AN ECHO OF ANOTHER SPIRE — A FEAT ALMOST NONE WILL SEE'));
-      s.appendChild(el('div', 'event-text', 'The wanderer dissolves into stardust. For an instant the Recurrence falters... then, somewhere far below, it begins again. You have gone where the loop forgets to end.'));
+      s.appendChild(el('div', 'screen-sub', 'YOU ANSWERED THE THING THAT WAS BUILT TO ANSWER YOU'));
+      s.appendChild(el('div', 'event-text', 'It dissolves into stardust, wearing your own habits like a borrowed coat. Whatever was keeping score down here has stopped.'));
     } else {
       s.appendChild(el('div', 'sector-banner victory-banner', 'THE UNMAKER FALLS'));
-      var loopTxt = r.loop > 1 ? 'LOOP ' + r.loop + ' CONQUERED' : 'THE DESCENT IS CONQUERED';
-      s.appendChild(el('div', 'screen-sub', loopTxt));
+      s.appendChild(el('div', 'screen-sub', 'THE DESCENT IS CONQUERED · ' + E.pressureName(r.pressure || 0)));
     }
     s.appendChild(el('div', 'big-score', E.score() + ' PTS'));
+
+    var cleared = r.pressure || 0;
+    var next = E.pressureUnlocked(r.cls);
     var lines = [
-      'LOOP: ' + r.loop,
+      'RATING CLEARED: ' + E.pressureName(cleared) + ' (' + cleared + ')',
       'NODES CLEARED: ' + r.nodesCleared,
       'KILLS: ' + r.kills,
-      'ECHOES HELD: ' + (r.echoes ? r.echoes.length : 0),
     ];
+    if (next > cleared && next <= E.pressureMax()) lines.push('UNLOCKED: ' + E.pressureName(next) + ' (' + next + ') for this class');
     var gl = el('div', 'gain-list');
     lines.forEach(function (l) { gl.appendChild(el('div', '', esc(l))); });
     s.appendChild(gl);
 
-    var cont = el('div', 'panel-btn cyan',
-      '<div class="pb-title">↻ ENTER THE RECURRENCE</div>' +
-      '<div class="pb-desc">Begin again. Your powers fade and the void grows stronger — but you carry an Echo of yourself into the next loop.</div>');
-    cont.addEventListener('pointerdown', function () {
-      SFX.play();
-      E.enterRecurrence();
-      U.refresh();
-    });
-    s.appendChild(cont);
+    if (E.heartOpen && E.heartOpen()) {
+      var deeper = el('div', 'panel-btn magenta',
+        '<div class="pb-title">◈ GO DEEPER</div>' +
+        '<div class="pb-desc">Something down here has been reading you the whole way. One more fight, full-healed, with the deck and the die you finished on. Your rating has already cleared — this is for you.</div>');
+      deeper.addEventListener('pointerdown', function () {
+        SFX.play();
+        E.enterHeart();
+        U.refresh();
+      });
+      s.appendChild(deeper);
+    }
 
     var claim = el('div', 'panel-btn',
       '<div class="pb-title">★ CLAIM VICTORY</div>' +
-      '<div class="pb-desc">End the run a victor. Your score is recorded.</div>');
+      '<div class="pb-desc">End the run a victor. Your score is recorded and the next rating stands open.</div>');
     claim.addEventListener('pointerdown', function () {
       SFX.coin();
       E.claimVictory();
@@ -22794,6 +22820,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     });
     s.appendChild(claim);
   }
+
 
   /* ====================== THE RECURRENCE (NG+ loop) ====================== */
   // Vector glyph for an Echo: the void seraph's halo + eye, tinted.
@@ -22805,94 +22832,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   };
   function echoSVG(cls) { return artSVG(ECHO_ICON, cls, '#b8ecff'); }
 
-  function showRecurrenceIntro() {
-    combatChrome(false);
-    $hud.innerHTML = ''; setHud(false);
-    var slides = [
-      'Space warps around you like a void. Your mind goes blank…',
-      'You find yourself in a familiar setting, an urge to continue… Haven’t you been here before?',
-      'Powers you once had have faded — yet your surroundings seem… stronger.',
-    ];
-    var idx = 0;
-    function render() {
-      var s = overlayScreen();
-      s.classList.add('recurrence-screen');
-      s.appendChild(el('div', 'recurrence-loop', 'LOOP ' + E.run.loop));
-      var p = el('div', 'event-text recurrence-text', '');
-      s.appendChild(p);
-      var finish = typeText(p, slides[idx], null);
-      var btn = el('button', 'btn', idx < slides.length - 1 ? 'CONTINUE' : 'REACH INTO THE VOID');
-      btn.addEventListener('pointerdown', function () {
-        if (typing()) { finish(); return; }
-        SFX.tap();
-        idx++;
-        if (idx < slides.length) render();
-        else { E.recurrenceContinue(); U.refresh(); }
-      });
-      s.appendChild(btn);
-      // tapping anywhere also completes the current line
-      s.addEventListener('pointerdown', function (e2) {
-        if (typing()) { finish(); e2.stopPropagation(); }
-      }, true);
-    }
-    render();
-  }
-
-  function showEchoDraft() {
-    $hud.innerHTML = ''; setHud(false);
-    var s = overlayScreen(true);
-    s.appendChild(el('h2', 'screen-title victory-banner', 'A Void Echo'));
-    s.appendChild(el('div', 'screen-sub', 'CLAIM ONE FRAGMENT OF A PAST SELF · IT IS YOURS FOREVER'));
-    var cbar = makeConfirmBar();
-    E.echoOffer().forEach(function (id) {
-      var ec = ns.ECHOES[id];
-      var btn = el('div', 'panel-btn echo-card',
-        '<div class="pb-title"><span class="pb-icon echo-ic">' + echoSVG() + '</span>' + esc(ec.name) +
-        ' <span class="aug-tag">' + esc(ec.tag) + '</span></div>' +
-        '<div class="pb-desc">' + esc(ec.desc) + '</div>' +
-        '<div class="pb-sub echo-flavor">' + esc(ec.flavor) + '</div>');
-      s.appendChild(btn);
-      selectConfirm(s, btn, cbar, 'Claim <b>' + esc(ec.name) + '</b>?<span class="cb-note">' + esc(ec.desc) + '</span>',
-        function () { SFX.win(); E.chooseEcho(id); U.refresh(); }, 'cyan');
-    });
-    s.appendChild(cbar.el);
-  }
-
-  function showEchoLoadout() {
-    $hud.innerHTML = ''; setHud(false);
-    var r = E.run, slots = B.echoes.loadoutSlots;
-    var s = overlayScreen(true);
-    s.appendChild(el('h2', 'screen-title', 'Attune Your Echoes'));
-
-    function render() {
-      // rebuild list region in place
-      var old = s.querySelector('.echo-list'); if (old) old.remove();
-      var oldsub = s.querySelector('.echo-sub'); if (oldsub) oldsub.remove();
-      var oldbtn = s.querySelector('.echo-begin'); if (oldbtn) oldbtn.remove();
-      var equipped = E.echoLoadout();
-      s.appendChild(el('div', 'screen-sub echo-sub', 'EQUIP UP TO ' + slots + ' · ' + equipped.length + '/' + slots + ' ATTUNED'));
-      var list = el('div', 'echo-list');
-      r.echoes.forEach(function (id) {
-        var ec = ns.ECHOES[id];
-        var on = equipped.indexOf(id) >= 0;
-        var full = !on && equipped.length >= slots;
-        var card = el('div', 'panel-btn echo-card' + (on ? ' equipped' : '') + (full ? ' disabled' : ''),
-          '<div class="pb-title"><span class="pb-icon echo-ic">' + echoSVG() + '</span>' + esc(ec.name) +
-          ' <span class="aug-tag">' + esc(ec.tag) + '</span>' + (on ? ' <span class="echo-on">ATTUNED</span>' : '') + '</div>' +
-          '<div class="pb-desc">' + esc(ec.desc) + '</div>');
-        card.addEventListener('pointerdown', function () {
-          if (full) { toast('LOADOUT FULL — UNEQUIP ONE FIRST'); return; }
-          SFX.tap(); E.echoToggle(id); render();
-        });
-        list.appendChild(card);
-      });
-      s.appendChild(list);
-      var begin = el('button', 'btn echo-begin', 'BEGIN THE LOOP');
-      begin.addEventListener('pointerdown', function () { SFX.play(); E.beginLoop(); U.refresh(); });
-      s.appendChild(begin);
-    }
-    render();
-  }
+  /* The Recurrence screens are gone with the Recurrence: the loop narrative,
+   * the Echo draft (pick 1 of 3) and the loadout board (equip 3 of what you
+   * own). The eleven Echoes they served are relics now, drafted from bosses in
+   * a normal run, so nothing they offered is out of reach. */
 
   /* ====================== GAME OVER ====================== */
   function showGameOver() {
@@ -22901,11 +22844,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var r = E.run;
     var s = overlayScreen();
     s.appendChild(el('h2', 'screen-title', 'Signal Lost'));
-    s.appendChild(el('div', 'screen-sub', r.loop > 1 ? 'THE LOOP CLAIMS YOU IN LOOP ' + r.loop + ' · SECTOR ' + r.sector : 'YOUR DESCENT ENDS IN SECTOR ' + r.sector));
+    s.appendChild(el('div', 'screen-sub', 'YOUR DESCENT ENDS IN SECTOR ' + r.sector + ' · ' + E.pressureName(r.pressure || 0)));
     s.appendChild(el('div', 'big-score', E.score() + ' PTS'));
     var best = E.getBest();
     var lines = [
-      (r.loop > 1 ? 'LOOP REACHED: ' + r.loop + ' · SECTOR ' + r.sector : 'SECTOR REACHED: ' + r.sector),
+      'SECTOR REACHED: ' + r.sector,
+      'RATING: ' + E.pressureName(r.pressure || 0) + ' (' + (r.pressure || 0) + ')',
       'NODES CLEARED: ' + r.nodesCleared,
       'KILLS: ' + r.kills,
       'ECHOES HELD: ' + (r.echoes ? r.echoes.length : 0),
@@ -23108,8 +23052,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var energy = (B.player.baseEnergy != null ? B.player.baseEnergy : 3);
     var draw = (B.player.drawPerTurn != null ? B.player.drawPerTurn : 5);
     var finale = B.run.finale;
-    var loop = Math.round(B.run.loopPower * 100);
-    var slots = (B.echoes && B.echoes.loadoutSlots) || 3;
     var vh = ns.VTOUCH_HP;
     function E2(t, d, cls) { return { t: t, d: d, c: cls }; }
     return [
@@ -23205,11 +23147,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         E2('Skill checks', 'Some options roll your attribute vs a DC. A natural 1 always fails; a natural 20 always succeeds.'),
         E2('Risk', 'Failed checks can cost HP or jam a curse into your deck. Read the odds before you gamble.', 'bad'),
       ] },
-      { cat: 'Recurrence', intro: 'New Game+ : beating THE UNMAKER opens an endless loop of the same spire.', entries: [
-        E2('Victory', 'Beat the Unmaker, then claim victory (run recorded) or enter the Recurrence for a fresh descent.', 'sp'),
-        E2('Powers fade', 'Each loop your deck and relics reset to baseline. You start over — almost.'),
-        E2('Void Echoes', 'You keep one permanent Echo per loop — sideways relics (glass-cannon, combo, execute-chains, pacts). Equip up to ' + slots + ' at once.', 'sp'),
-        E2('The world strengthens', 'Enemies gain +' + loop + '% HP & damage per loop, on top of normal scaling. Deep loops are a build puzzle, not a treadmill.'),
+      { cat: 'Void Pressure', intro: 'The one difficulty ladder. Clear a rating and the next opens — for that class.', entries: [
+        E2('Victory', 'Beat the Unmaker and the run ends a win. The rating you descended at is cleared and the next unlocks.', 'sp'),
+        E2('Climbing', 'Every rating is carried on top of the ones below it, and most are a designed hazard rather than a bigger number — packs of elites, a hotter die, one less core slot, thinner salvage.'),
+        E2('Per class', 'Each class climbs its own ladder. Clearing DRIFT on one does not hand the rating to another that has never finished a run.', 'sp'),
+        E2('The Heart', 'From ' + E.pressureName(B.run.heartFrom).toUpperCase() + ' upward, felling the Unmaker opens one more door: a boss built to answer your own build. Optional — your rating has already cleared.', 'sp'),
+        E2('Pacts', 'Eleven double-edged relics, one offered at every sector boss beside two ordinary ones. Each is a bargain, never a straight upgrade.'),
       ] },
       { cat: 'Enemies', entries: [
         E2('Summon', 'Some enemies call in reinforcements mid-fight — clear adds or focus the summoner.'),

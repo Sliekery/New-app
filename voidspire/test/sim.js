@@ -23,7 +23,6 @@ var E = VS.engine;
 
 var RUNS = parseInt(process.argv[2] || '60', 10);
 var MAX_SECTOR = 10; // stop "endless" runs here for stats
-var MAX_LOOP = 8;    // stop the Recurrence here for stats (bounds runtime)
 var rand = Math.random;
 
 /* ====================================================================
@@ -669,15 +668,16 @@ function step() {
     // all of them, not whichever one the bot happens to like.
     case 'first-mark': E.takeFirstMark(FIRST_MARK_PICK % Math.max(1, E.firstMarkOffers().length)); break;
     case 'sector-intro': E.beginSector(); break;
-    case 'victory': E.enterRecurrence(); break;          // beat the finale -> next loop
-    case 'recurrence-intro': E.recurrenceContinue(); break;
-    case 'echo-draft': {
-      // greedy: take the first offered Echo (the bot under-drafts, like augments)
-      var off = E.echoOffer();
-      E.chooseEcho(off[0]);
+    /* Victory ENDS the run now — one ladder, climbed by starting again. The bot
+     * takes the Heart when it is offered, because that is the interesting path
+     * and the rating has already cleared either way. */
+    case 'victory':
+      /* claimVictory() nulls E.run, and everything downstream reads it for
+       * stats — so the sim marks the run finished instead. The win is already
+       * recorded by then: winCombat sets r.won and clears the rating. */
+      if (E.heartOpen && E.heartOpen()) E.enterHeart();
+      else E.run.over = true;
       break;
-    }
-    case 'echo-loadout': E.beginLoop(); break;           // loadout auto-filled; descend
     default:
       throw new Error('unknown phase: ' + r.phase);
   }
@@ -702,11 +702,11 @@ function playOneRun(cls, seed, markPick) {
   E.seed(seed >>> 0);
   E.newRun(cls);
   var steps = 0, s1min = 1, s1fight = 1;
-  while (E.run.phase !== 'dead' && E.run.sector <= MAX_SECTOR && (E.run.loop || 1) <= MAX_LOOP && steps++ < 8000) {
+  while (E.run.phase !== 'dead' && !E.run.over && E.run.sector <= MAX_SECTOR && steps++ < 8000) {
     step();
     sanity();
     // lowest HP fraction in sector 1 (loop 1): overall, and in regular fights only
-    if ((E.run.loop || 1) === 1 && E.run.sector === 1) {
+    if (E.run.sector === 1) {
       var frac = E.run.hp / E.run.maxHp;
       s1min = Math.min(s1min, frac);
       if (E.run.nodeType === 'fight') s1fight = Math.min(s1fight, frac);
@@ -724,12 +724,12 @@ function playOneRun(cls, seed, markPick) {
   }
   E.run._s1min = s1min; E.run._s1fight = s1fight;
   // cumulative depth: each cleared loop counts as `finale` sectors
-  E.run._depth = (E.run.loop - 1) * VS.BALANCE.run.finale + E.run.sector;
+  E.run._depth = E.run.sector;
   return E.run;
 }
 
 var CLASSES = Object.keys(VS.BALANCE.classes);
-module.exports = { playOneRun: playOneRun, botCombat: botCombat, classes: CLASSES, MAX_SECTOR: MAX_SECTOR, MAX_LOOP: MAX_LOOP, setPilot: setPilot, VS: VS, E: E };
+module.exports = { playOneRun: playOneRun, botCombat: botCombat, classes: CLASSES, MAX_SECTOR: MAX_SECTOR, setPilot: setPilot, VS: VS, E: E };
 
 // Only run the integrity checks + CLI stats when invoked directly.
 if (require.main !== module) return;
@@ -810,15 +810,15 @@ for (var run = 0; run < RUNS; run++) {
   var mk = (VS.firstMarks(cls)[markPick] || {}).name || '(none)';
   var mrow = markStats[mk] || (markStats[mk] = { runs: 0, wins: 0, depth: 0, cls: cls });
   mrow.runs++;
-  if ((E.run.loop || 1) > 1) mrow.wins++;
+  if (E.run.won) mrow.wins++;
   mrow.depth += (E.run._depth != null) ? E.run._depth : E.run.sector;
   if (E.run._s1min != null) s1mins.push(E.run._s1min);
   if (E.run._s1fight != null) s1fights.push(E.run._s1fight);
   // cumulative depth (== sector until you beat the Unmaker, then climbs by loop)
-  var depth = (E.run._depth != null) ? E.run._depth : ((E.run.loop - 1) * VS.BALANCE.run.finale + E.run.sector);
+  var depth = (E.run._depth != null) ? E.run._depth : E.run.sector;
   s.sectors.push(depth);
   // a "win" == beat the Unmaker at least once (entered the Recurrence -> loop > 1)
-  if ((E.run.loop || 1) > 1) s.wins++;
+  if (E.run.won) s.wins++;
   if (E.run.phase === 'dead') {
     var k = 'depth ' + depth + ' / ' + (E.run.nodeType || '?');
     s.deaths[k] = (s.deaths[k] || 0) + 1;

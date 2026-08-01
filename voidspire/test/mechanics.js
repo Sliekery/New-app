@@ -504,29 +504,30 @@ ok('finale victory sets run.won', E.run.won === true);
 ok('finale victory plays the last cutscene first', E.run.phase === 'cutscene' && E.run.cutscene.id === 'floor');
 E.cutsceneSkip();
 ok('finale victory enters the victory phase', E.run.phase === 'victory');
-ok('enterRecurrence opens the narrative', (E.enterRecurrence(), E.run.phase === 'recurrence-intro'));
+ok('beating the Unmaker clears the rating rather than opening a loop',
+   E.run.phase === 'victory' && !E.enterRecurrence);
 
 /* 33. Echoes: equipped hooks fold into art() */
-startFight('vanguard'); E.run.loadout = ['hollow_crown'];
-ok('hasEcho reads the loadout', E.hasEcho('hollow_crown'));
-ok('Hollow Crown adds dmgMult', Math.abs(E.art('dmgMult') - 0.30) < 1e-9);
-ok('Hollow Crown adds dmgTakenMult', Math.abs(E.art('dmgTakenMult') - 0.30) < 1e-9);
+startFight('vanguard'); giveRelic('glass_crown');
+ok('hasEcho reads your relics', E.hasEcho('glass_crown'));
+ok('Glass Crown adds dmgMult', Math.abs(E.art('dmgMult') - 0.30) < 1e-9);
+ok('Glass Crown adds dmgTakenMult', Math.abs(E.art('dmgTakenMult') - 0.30) < 1e-9);
 
-/* 34. World power: loop scaling + the Unmaker's Tithe */
-startFight('vanguard'); E.run.loadout = []; E.run.loop = 4;
-ok('loop 4 world mult = 1.36', Math.abs(E.worldPowerMult() - 1.36) < 1e-9);
-E.run.loop = 1; E.run.loadout = ['unmaker_tithe'];
+/* 34. World power: the loop term is GONE — Pressure is the only ladder */
+startFight('vanguard'); E.run.artifacts = [];
+ok('no loop scaling remains (world mult = 1)', Math.abs(E.worldPowerMult() - 1) < 1e-9);
+giveRelic('unmaker_tithe');
 ok("Tithe makes enemies 25% stronger", Math.abs(E.worldPowerMult() - 1.25) < 1e-9);
 
 /* 35. Momentum Engine: each card buffs the next, resets each turn */
-startFight('vanguard'); E.run.loadout = ['momentum_engine'];
+startFight('vanguard'); giveRelic('momentum_engine');
 ok('momentum starts at 0', (E.combat.momentum || 0) === 0);
 setHand(['combat_shield']); playId('combat_shield');
 ok('momentum +1 after a card', E.combat.momentum === 1);
 
 /* 36. Doubled Self: a turn-1 card resolves twice */
 function shieldGain(echo) {
-  startFight('vanguard'); if (echo) E.run.loadout = [echo];
+  startFight('vanguard'); if (echo) giveRelic(echo);
   E.combat.turn = 1; E.combat.player.block = 0;
   setHand(['combat_shield']); playId('combat_shield');
   return E.combat.player.block;
@@ -535,7 +536,7 @@ var nb = shieldGain(null), db = shieldGain('doubled_self');
 ok('Doubled Self doubles a turn-1 card (' + nb + '->' + db + ')', db === nb * 2);
 
 /* 37. Void-Touched: a kill chains 6 to another enemy */
-startFight('vanguard'); E.run.loadout = ['void_touched'];
+startFight('vanguard'); giveRelic('void_touched');
 var e0 = E.combat.enemies[0];
 var clone = { id: e0.id, def: e0.def, hp: 50, maxHp: 50, block: 0, statuses: {}, moveIdx: 0, lastMove: -1, intent: e0.intent, alive: true };
 E.combat.enemies = [e0, clone];   // exactly two, so the chain must hit the clone
@@ -544,15 +545,15 @@ E.run.potions = ['frag_charge']; E.usePotion(0, 0);
 ok('Void-Touched chains 6 on kill', clone.hp === 44);
 
 /* 38. Hunger of the Void: no normal heal, but heal 5 per kill */
-startFight('vanguard'); E.run.loadout = ['hunger_void']; E.run.maxHp = 100; E.run.hp = 20;
+startFight('vanguard'); giveRelic('hunger_void'); E.run.maxHp = 100; E.run.hp = 20;
 E.heal(30);
 ok('Hunger blocks ordinary healing', E.run.hp === 20);
 E.combat.enemies[0].hp = 4; E.combat.enemies[0].block = 0;
 E.run.potions = ['frag_charge']; E.usePotion(0, 0);
 ok('Hunger heals 5 on a kill', E.run.hp === 25);
 
-/* 39. Phylactery: the first lethal blow leaves you at 30% HP, once per loop */
-startFight('vanguard'); E.run.loadout = ['phylactery']; E.run.maxHp = 100; E.run.hp = 5; E.run.phylacteryUsed = false;
+/* 39. Phylactery: the first lethal blow leaves you at 30% HP, once per run */
+startFight('vanguard'); giveRelic('phylactery'); E.run.maxHp = 100; E.run.hp = 5; E.run.phylacteryUsed = false;
 E.combat.enemies = [E.combat.enemies[0]];
 E.combat.enemies[0].intent = { t: 'block', b: 5 }; E.combat.enemies[0].hp = 50;
 E.combat.player.statuses = { burn: 20 }; E.combat.player.block = 0;
@@ -560,36 +561,39 @@ E.endTurn();
 ok('Phylactery revives instead of dying (hp 30)', E.run.phase !== 'dead' && E.run.hp === 30);
 ok('Phylactery is marked used', E.run.phylacteryUsed === true);
 
-/* 40. The Recurrence: full reset keeps Echoes; Ascendant Core persists */
-E.newRun('voidadept'); E.run.echoes = ['ascendant_core']; E.run.loadout = ['ascendant_core'];
-E.run.artifacts.push('void_lens');   // a normal relic that the Recurrence should wipe
-E.run.won = true; E.run.phase = 'victory';
-var lp = E.run.loop;
-E.enterRecurrence();
-ok('Recurrence increments the loop', E.run.loop === lp + 1);
-ok('enterRecurrence -> narrative', E.run.phase === 'recurrence-intro');
-E.recurrenceContinue();
-ok('narrative -> echo draft', E.run.phase === 'echo-draft');
-E.chooseEcho(E.echoOffer()[0]);
-ok('choosing an Echo -> loadout', E.run.phase === 'echo-loadout');
-E.beginLoop();
-ok('Recurrence resets the deck to starter', E.run.deck.length === 10);
-ok('Recurrence wipes normal relics but keeps the Cornerstone',
-   E.run.artifacts.indexOf('void_lens') < 0 && E.run.artifacts.indexOf('hexheart') >= 0);
-ok('Recurrence keeps Echoes', E.run.echoes.indexOf('ascendant_core') >= 0);
-ok('Ascendant Core grants +2 core attribute (+1 from Hexheart tier 1)', E.attr('psi') === 5);
-ok('new loop begins at sector 1', E.run.sector === 1 && E.run.phase === 'sector-intro');
+/* 40. THE RECURRENCE IS GONE. One ladder, climbed by starting again. */
+ok('the loop flow is removed', !E.enterRecurrence && !E.recurrenceContinue && !E.beginLoop && !E.chooseEcho);
+ok('a run carries no loop counter', (E.newRun('vanguard'), E.run.loop === undefined));
+ok('depth is simply the sector', (E.run.sector = 3, E.depth() === 3));
 
-/* 41. Loadout respects the slot cap */
+/* 41. The eleven Echoes became relics rather than being deleted with the loop */
+(function () {
+  var pacts = Object.keys(VS.ARTIFACTS).filter(function (k) { return VS.ARTIFACTS[k].pact; });
+  ok('all eleven Pacts are in the relic pool (' + pacts.length + ')', pacts.length === 11);
+  ok('and every one carries its effect', pacts.every(function (k) {
+    var a = VS.ARTIFACTS[k];
+    return !!a.desc && (!!a.hooks || !!a.k || VS.ECHOES[k]);
+  }));
+  var seen = {};
+  for (var i = 0; i < 900; i++) { E.seed(i); E.newRun('vanguard'); var g = E.randomArtifact(2); if (g) seen[g] = 1; }
+  var unreachable = pacts.filter(function (k) { return !seen[k]; });
+  ok('and every one actually drops' + (unreachable.length ? ' — ' + unreachable.join(',') : ''), unreachable.length === 0);
+})();
+
+/* 41b. PRESSURE IS PER CLASS, the way an ascension is per character */
+ok('pressureCleared takes a class', E.pressureCleared.length >= 1);
+ok('pressureUnlocked takes a class', E.pressureUnlocked.length >= 1);
+
+/* 41c. THE HEART is a door after the Unmaker, not a loop number */
 E.newRun('vanguard');
-E.run.echoes = ['hollow_crown', 'void_battery', 'momentum_engine', 'hunger_void']; E.run.loadout = [];
-E.echoToggle('hollow_crown'); E.echoToggle('void_battery'); E.echoToggle('momentum_engine');
-ok('three Echoes equip', E.run.loadout.length === 3);
-ok('a 4th is rejected at the cap', E.echoToggle('hunger_void') === false && E.run.loadout.length === 3);
-ok('un-equipping frees a slot', E.echoToggle('hollow_crown') === true && E.run.loadout.length === 2);
+ok('the door is shut by default', !E.heartOpen() && E.enterHeart() === false);
+E.run.heartOpen = true;
+ok('and opens into the counter-boss gauntlet',
+   E.enterHeart() === true && E.run.inHeart === true && E.run.hp === E.run.maxHp);
+ok('which is where the counter-boss lives', !!E.counterBossId(E.run));
 
 /* 42. Salvage Doctrine: every 3rd kill grafts a card; no card rewards */
-startFight('vanguard'); E.run.loadout = ['salvage_doctrine']; E.run.salvageKills = 2;
+startFight('vanguard'); giveRelic('salvage_doctrine'); E.run.salvageKills = 2;
 var deck0 = E.run.deck.length;
 E.combat.enemies = [E.combat.enemies[0]]; E.combat.enemies[0].hp = 4; E.combat.enemies[0].block = 0;
 E.run.potions = ['frag_charge']; E.usePotion(0, 0);

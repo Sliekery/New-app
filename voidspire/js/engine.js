@@ -93,7 +93,7 @@
       forged: {}, forgeSeq: 0, faceFired: {}, eventRolled: 0,
       quests: {}, questDone: {},
       potions: [], won: false,
-      loop: 1, echoes: [], loadout: [], echoOffer: null,
+      inHeart: false, heartOpen: false,
       phylacteryUsed: false, salvageKills: 0,
     };
     E.combat = null;
@@ -193,16 +193,24 @@
     }
     var ch = cornerstoneHooks();
     if (ch && ch[name]) v += ch[name];
+    /* Ascendant Core used to be applied inside resetForLoop — "begin each loop
+     * with +2 to your core attribute" — so with the loop gone it granted
+     * nothing at all. It is a straight +2 to your class's own stat now. */
+    if (name === CLASS_STAT[E.run.cls] && E.hasEcho('ascendant_core')) v += 2;
     return v;
   }
   E.attr = attr;
   // Is a Void Echo currently EQUIPPED (in the loadout, not merely owned)?
+  /* A Pact is a relic now. It used to be an Echo you equipped into a loadout
+   * between Recurrence loops; with the loop gone, "do you have it" is just "is
+   * it among your relics and switched on". Thirteen call sites read this and
+   * none of them had to change. */
   E.hasEcho = function (id) {
-    return !!(E.run && E.run.loadout && E.run.loadout.indexOf(id) >= 0);
+    return !!(E.run && E.run.artifacts && E.run.artifacts.indexOf(id) >= 0 && E.relicActive(id));
   };
-  // Cumulative run depth: each cleared Recurrence loop counts as `finale`
-  // sectors, so depth == sector on the first loop and keeps climbing after.
-  E.depth = function () { return (E.run.loop - 1) * B.run.finale + E.run.sector; };
+  // Depth is simply the sector. It used to add cleared Recurrence loops on top,
+  // which is exactly the second difficulty axis that has been removed.
+  E.depth = function () { return E.run.sector; };
   // Sum of hook k over owned artifacts, including quest "done" hooks once the
   // artifact's quest has been completed, plus EQUIPPED echoes.
   function art(k) {
@@ -214,13 +222,10 @@
       if (a.hooks) for (var hh = 0; hh < a.hooks.length; hh++) if (a.hooks[hh].k === k) t += a.hooks[hh].v;  // multi-effect / tradeoff relics
       if (a.done && a.done.k === k && E.run.questDone && E.run.questDone[owned[i]]) t += a.done.v;
     }
-    var ech = E.run.loadout || [];
-    for (var e = 0; e < ech.length; e++) {
-      var ee = ns.ECHOES[ech[e]];
-      if (!ee) continue;
-      if (ee.hook && ee.hook.k === k) t += ee.hook.v;
-      if (ee.hooks) for (var hh = 0; hh < ee.hooks.length; hh++) if (ee.hooks[hh].k === k) t += ee.hooks[hh].v;
-    }
+    /* The second pass over an equipped Echo loadout is gone with the Recurrence.
+     * Pacts are merged into ARTIFACTS at load carrying the same hooks, so the
+     * loop above already folds them in — and, like every other relic, only while
+     * they are mounted in the die's core. Owning a module is not using it. */
     var ch = cornerstoneHooks();
     if (ch && k !== 'psi' && ch[k]) t += ch[k];   // psi is an attribute, handled in attr()
     return t;
@@ -276,7 +281,7 @@
   E.score = function () {
     var r = E.run;
     return (r.sector - 1) * B.score.perSector + r.nodesCleared * B.score.perNode + r.kills * B.score.perKill +
-      ((r.loop || 1) - 1) * B.score.perLoop;
+      0;
   };
 
   /* ---------------- Map generation (branching star chart) -------------- */
@@ -297,7 +302,7 @@
    * nothing needs straightening and a branch stays a branch.
    */
   function generateMap(sector) {
-    if (E.run && (E.run.loop || 1) === B.run.heartLoop) return heartMap();
+    if (E.run && E.run.inHeart) return heartMap();
     var M = B.map, ROWS = M.rows, COLS = M.cols;
 
     // ---- how many nodes stand at each depth, and in which lanes
@@ -483,7 +488,7 @@
   // The sector's boss (for the map telegraph).
   E.sectorBossId = function () {
     var r = E.run;
-    if ((r.loop || 1) === B.run.heartLoop) return E.counterBossId(r);
+    if (r.inHeart) return E.counterBossId(r);
     if (r.sector === B.run.finale) return ns.FINAL_BOSS;
     var order = r.bossOrder && r.bossOrder.length ? r.bossOrder : [].concat(ns.BOSSES[r.faction]);
     return order[(r.sector - 1) % order.length];
@@ -611,7 +616,7 @@
     if (node && node.type === 'boss' && !r.seenCutscene) r.seenCutscene = {};
     if (node && node.type === 'boss' && ns.cutsceneFor && ns.cutsceneFor(r.sector)) {
       var cs = ns.cutsceneFor(r.sector);
-      if (!r.seenCutscene[cs.id] || r.loop > 1) {
+      if (!r.seenCutscene[cs.id]) {
         r.seenCutscene[cs.id] = true;
         r.cutscene = { id: cs.id, panel: 0, next: next };
         r.phase = 'cutscene';
@@ -646,14 +651,30 @@
   var CLASS_STAT = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
   E.classStat = function () { return CLASS_STAT[E.run.cls] || 'might'; };
 
+  /* TWO RELICS AND A PACT. Folding the eleven Pacts into the tier-2 pool made
+   * them compete with ordinary boss relics for the same three slots, which
+   * diluted it — measured, that alone moved the Void Adept +18.8 points and the
+   * Vanguard -5.2, because it changed WHICH relics each class was being offered
+   * rather than how strong they were.
+   *
+   * So a Pact gets a slot of its own. Everyone is offered the same shape of
+   * choice — two relics and one bargain — and the ordinary pool is undiluted. */
   function setupBossArtifacts(stockOnly) {
     var r = E.run;
-    var pool = Object.keys(ns.ARTIFACTS).filter(function (k) {
-      return ns.ARTIFACTS[k].tier === 2 && r.artifacts.indexOf(k) < 0;
-    });
-    if (pool.length === 0) pool = Object.keys(ns.ARTIFACTS).filter(function (k) { return ns.ARTIFACTS[k].tier === 1 && r.artifacts.indexOf(k) < 0; });
-    shuffle(pool);
-    r.bossArtifacts = pool.slice(0, Math.min(3, pool.length));
+    function avail(pred) {
+      return Object.keys(ns.ARTIFACTS).filter(function (k) {
+        return r.artifacts.indexOf(k) < 0 && pred(ns.ARTIFACTS[k]);
+      });
+    }
+    var plain = avail(function (a) { return a.tier === 2 && !a.pact; });
+    if (plain.length === 0) plain = avail(function (a) { return a.tier === 1 && !a.pact; });
+    var pacts = avail(function (a) { return !!a.pact; });
+    shuffle(plain); shuffle(pacts);
+    var out = plain.slice(0, 2);
+    if (pacts.length) out.push(pacts[0]);
+    while (out.length < 3 && plain.length > out.length) out.push(plain[out.length]);
+    shuffle(out);                      // the bargain is not always in the same seat
+    r.bossArtifacts = out;
     if (!stockOnly) { r.phase = 'boss-artifact'; E.save(); }
   }
 
@@ -717,23 +738,38 @@
   };
   E.pressureMax = function () { return (B.ladder || []).length - 1; };
   // Highest rating you have CLEARED; you may attempt one above it.
-  E.pressureCleared = function () {
+  /* PER CLASS, like an ascension. One global number meant clearing a rating on
+   * the Technomancer silently unlocked it for a Void Adept who had never
+   * finished a run — and the Void Adept is ten points weaker, so that reads as
+   * the game handing you a difficulty you have not earned on a class that
+   * cannot carry it. Each climbs its own ladder now.
+   *
+   * The old global key is read once as a floor so nobody loses progress. */
+  function pressureKey(cls) { return 'voidspire_pressure_' + (cls || (E.run && E.run.cls) || 'vanguard'); }
+  E.pressureCleared = function (cls) {
     var st = store(); if (!st) return -1;
-    try { return parseInt(st.getItem('voidspire_pressure'), 10); } catch (e) { return -1; }
+    try {
+      var v = parseInt(st.getItem(pressureKey(cls)), 10);
+      if (!isNaN(v)) return v;
+      // migrate the old global once, so nobody is demoted by this change
+      var old = parseInt(st.getItem('voidspire_pressure'), 10);
+      return isNaN(old) ? -1 : old;
+    } catch (e) { return -1; }
   };
-  E.pressureUnlocked = function () {
-    var c = E.pressureCleared();
+  E.pressureUnlocked = function (cls) {
+    var c = E.pressureCleared(cls);
     return Math.max(0, Math.min(E.pressureMax(), (isNaN(c) ? -1 : c) + 1));
   };
   function recordPressureClear() {
     var st = store(); if (!st || !E.run) return;
-    var p = E.run.pressure || 0, best = E.pressureCleared();
-    if (isNaN(best) || p > best) { try { st.setItem('voidspire_pressure', String(p)); } catch (e) {} }
+    var p = E.run.pressure || 0, best = E.pressureCleared(E.run.cls);
+    if (isNaN(best) || p > best) { try { st.setItem(pressureKey(E.run.cls), String(p)); } catch (e) {} }
   }
   E.recordPressureClear = recordPressureClear;
 
   function worldPowerMult() {
-    return (1 + B.run.loopPower * ((E.run.loop || 1) - 1)) * (1 + art('worldPower'));
+    // The loop term is gone: the Pressure ladder is the whole difficulty curve.
+    return (1 + art('worldPower'));
   }
   E.worldPowerMult = worldPowerMult;
 
@@ -775,7 +811,8 @@
   }
   E.counterAxis = counterAxis;
   E.counterBossId = function (r) { return COUNTER_BOSS[counterAxis(r)]; };
-  E.isHeartLoop = function () { return (E.run.loop || 1) === B.run.heartLoop; };
+  E.inHeart = function () { return !!(E.run && E.run.inHeart); };
+  E.isHeartLoop = E.inHeart;   // old name, same question
 
   // The Heart gauntlet's tiny map: one Heart node, then the tribute boss.
   function heartMap() {
@@ -814,7 +851,7 @@
     var r = E.run;
     var ids, isFinal = false;
     if (kind === 'boss') {
-      if ((r.loop || 1) === B.run.heartLoop) { ids = [E.counterBossId(r)]; isFinal = true; }
+      if (r.inHeart) { ids = [E.counterBossId(r)]; isFinal = true; }
       else if (r.sector === B.run.finale) { ids = [ns.FINAL_BOSS]; isFinal = true; }
       else ids = [E.sectorBossId()];
     } else if (kind === 'elite' || kind === 'beacon') {
@@ -2928,15 +2965,27 @@
 
   function winCombat() {
     var r = E.run, kind = E.combat.kind, cc = E.combat;
+    /* THE CORNERSTONE forged a tier per Recurrence loop cleared, which with the
+     * loop gone would mean it never forged at all. It grows per SECTOR BOSS
+     * felled now, so it still reaches tier 4 — inside a single run, where the
+     * player can actually feel it. */
+    if (kind === 'boss' && r.cornerstone && (r.cornerstone.tier || 1) < 4) {
+      r.cornerstone.tier = (r.cornerstone.tier || 1) + 1;
+    }
     tickRelicDurability();   // active durability relics burn a charge per fight
     // quest credit: combats won without ever gaining Shield / without losing HP
     if (!cc.playedShield) questProgress('noShieldWin', 1);
     if (r.hp >= cc.startHp) questProgress('flawlessWin', 1);
 
-    // The finale: beating THE UNMAKER wins the run.
+    // The finale: beating THE UNMAKER wins the run and clears the rating.
     if (cc.isFinal) {
       r.won = true;
-      if (r.cornerstone && (r.cornerstone.tier || 1) < 4) r.cornerstone.tier = (r.cornerstone.tier || 1) + 1;   // forge a tier per loop cleared
+      /* THE HEART is a door, not a loop. Beat the Unmaker at a high enough
+       * rating and one more fight opens — the counter-boss, chosen against your
+       * own build. Optional: the rating clears either way, so nobody is taxed
+       * for declining it. */
+      if (!r.inHeart && (r.pressure || 0) >= (B.run.heartFrom || 99)) r.heartOpen = true;
+      recordPressureClear();
       E.recordBest();
       r.phase = 'victory';
       // The floor gets its cutscene too, before the tally screen.
@@ -3135,116 +3184,68 @@
     return true;
   };
 
-  /* ---------------- Victory & the Recurrence (NG+ loop) ------------------ */
-  // Enter the next loop: bump the loop counter, then run the narrative ->
-  // echo-draft -> loadout flow before a fresh (reset) descent begins.
-  E.enterRecurrence = function () {
+  /* ---------------- Victory ----------------------------------------------
+   * THE RECURRENCE IS GONE. It used to bump a loop counter, draft an Echo,
+   * equip a loadout and start a reset descent with every enemy 12% stronger per
+   * loop — a second difficulty axis running alongside the Pressure ladder, so a
+   * player at Pressure 8 / Loop 3 had two numbers multiplying and no way to tell
+   * which was hurting them.
+   *
+   * There is one ladder now, climbed the way an ascension is: you beat the
+   * Unmaker, the rating clears, the next unlocks, and you start again from
+   * nothing. The eleven Echoes were not lost with it — they are relics now.
+   * -------------------------------------------------------------------- */
+
+  // Everything the old loop flow exposed, kept as no-ops would be worse than
+  // removing it: these are gone, and the UI no longer has screens for them.
+
+  /* Take the extra door: one rest, then the counter-boss. Same run, same deck,
+   * same die — it is a coda, not a new descent. */
+  E.enterHeart = function () {
     var r = E.run;
-    E.combat = null;
-    r.loop = (r.loop || 1) + 1;
-    r.echoOffer = null;
-    r.phase = 'recurrence-intro';
-    E.save();
-  };
-
-  // From the narrative screen: offer a new Echo (or straight to loadout if
-  // every Echo is already collected).
-  E.recurrenceContinue = function () {
-    var off = E.echoOffer();
-    if (off.length) E.run.phase = 'echo-draft';
-    else { prepLoadout(); E.run.phase = 'echo-loadout'; }
-    E.save();
-  };
-
-  // 3 not-yet-owned Echoes to choose from (stable across re-renders).
-  E.echoOffer = function () {
-    var r = E.run;
-    if (r.echoOffer) return r.echoOffer;
-    var pool = Object.keys(ns.ECHOES).filter(function (id) { return r.echoes.indexOf(id) < 0; });
-    shuffle(pool);
-    r.echoOffer = pool.slice(0, Math.min(3, pool.length));
-    return r.echoOffer;
-  };
-
-  E.chooseEcho = function (id) {
-    var r = E.run;
-    if (ns.ECHOES[id] && r.echoes.indexOf(id) < 0) r.echoes.push(id);
-    r.echoOffer = null;
-    prepLoadout();
-    r.phase = 'echo-loadout';
-    E.save();
-  };
-
-  // Default the loadout: keep the previous valid picks, else auto-fill.
-  function prepLoadout() {
-    var r = E.run, slots = B.echoes.loadoutSlots, owned = r.echoes.slice();
-    if (owned.length <= slots) r.loadout = owned.slice();
-    else {
-      var keep = (r.loadout || []).filter(function (id) { return owned.indexOf(id) >= 0; });
-      while (keep.length < slots) { var nx = owned.find(function (id) { return keep.indexOf(id) < 0; }); if (!nx) break; keep.push(nx); }
-      r.loadout = keep.slice(0, slots);
-    }
-  }
-  E.prepLoadout = prepLoadout;
-  E.echoLoadout = function () { return (E.run.loadout || []).slice(); };
-  E.echoLoadoutFull = function () { return (E.run.loadout || []).length >= B.echoes.loadoutSlots; };
-
-  // Toggle an owned Echo in/out of the equipped loadout (respecting the cap).
-  E.echoToggle = function (id) {
-    var r = E.run, L = r.loadout || (r.loadout = []);
-    var i = L.indexOf(id);
-    if (i >= 0) { L.splice(i, 1); E.save(); return true; }
-    if (r.echoes.indexOf(id) < 0 || L.length >= B.echoes.loadoutSlots) return false;
-    L.push(id); E.save(); return true;
-  };
-
-  // Commit the loadout and start the fresh (reset) loop.
-  E.beginLoop = function () { resetForLoop(E.run); E.save(); };
-
-  // Full reset for a new loop: keep class, loop count, Echoes, loadout, and the
-  // cumulative kills/nodes/records ("powers have faded; surroundings stronger").
-  function resetForLoop(r) {
-    var clsId = r.cls, c = B.classes[clsId];
-    // The Heart gauntlet (NG+5) is the climax — you bring your BUILT deck,
-    // relics, attributes and potions into it (full-healed), not a fresh start.
-    var heart = (r.loop === B.run.heartLoop);
-    if (heart) {
-      r.hp = r.maxHp;
-    } else {
-      r.hp = c.hp; r.maxHp = c.hp;
-      r.attrs = { might: c.might, tech: c.tech, psi: c.psi };
-      if (E.hasEcho('ascendant_core')) r.attrs[CLASS_STAT[clsId]] += 2; // legacy stat
-      r.credits = B.player.startCredits;
-      r.deck = ns.STARTER_DECKS[clsId].map(function (id) { return mkCard(id, false); });
-      r.artifacts = [];
-      r.potions = [];
-    }
-    r.sector = 1;
-    r.faction = pick(Object.keys(ns.FACTIONS));
-    r.map = generateMap(1);
+    if (!r || !r.heartOpen || r.inHeart) return false;
+    r.inHeart = true; r.heartOpen = false; r.won = false;
+    r.hp = r.maxHp;                     // you go in whole; the fight is the point
+    r.map = generateMap(r.sector);
     r.mapRow = -1; r.mapCol = 0;
-    r.usedEvents = [];
-    r.removeCost = B.shop.removeCost;
-    r.grindCost = B.dieShop.grindCost;
-    r.quests = {}; r.questDone = {};
-    if (!heart) { r.potions = []; }   // keep your belt for the climax
-    r.phylacteryUsed = false; r.salvageKills = 0;
-    r.reward = null; r.shop = null; r.bossArtifacts = null; r.treasure = null;
-    r.pendingPick = null; r.pendingAddCard = null; r.echoOffer = null;
-    r.pendingFace = null; r.pendingReforge = null; r.pendingOp = null; r.pendingOffer = null;
-    // the Cornerstone survives the Recurrence even though the rest of the relics reset
-    if (r.cornerstone && r.artifacts.indexOf(r.cornerstone.id) < 0) r.artifacts.push(r.cornerstone.id);
-    r.phase = 'sector-intro';
+    r.phase = 'map';
     E.combat = null;
-  }
+    E.save();
+    return true;
+  };
+  E.heartOpen = function () { return !!(E.run && E.run.heartOpen); };
 
-  // End the run a victor: record it and clear the save.
+  E.echoLoadout = function () {
+    // The Pacts you are carrying, for the relic rail and for art() to fold in.
+    var r = E.run;
+    if (!r || !r.artifacts) return [];
+    return r.artifacts.filter(function (id) { return ns.ARTIFACTS[id] && ns.ARTIFACTS[id].pact; });
+  };
+
   E.claimVictory = function () {
     E.recordBest();
     E.clearSave();
     E.run = null;
     E.combat = null;
   };
+
+  /* THE PACTS JOIN THE POOL. They live in echoes.js with the same shape a relic
+   * has, so they are merged in once at load rather than duplicated. Tier 2 =
+   * boss reward, which is where a double-edged bargain belongs. */
+  (function mergePacts() {
+    if (!ns.ECHOES) return;
+    Object.keys(ns.ECHOES).forEach(function (id) {
+      if (ns.ARTIFACTS[id]) return;
+      var e = ns.ECHOES[id];
+      ns.ARTIFACTS[id] = {
+        name: e.name, tier: 2, pact: true,
+        desc: e.desc, flavor: e.flavor,
+        k: e.hook && e.hook.k, v: e.hook && e.hook.v,
+        hooks: e.hooks,
+        art: e.art || { p: [[0,-0.8, 0.7,-0.4, 0.7,0.4, 0,0.8, -0.7,0.4, -0.7,-0.4, 0,-0.8], [0,-0.45, 0.4,-0.22, 0.4,0.22, 0,0.45, -0.4,0.22, -0.4,-0.22, 0,-0.45]], e: [[0,0]] },
+      };
+    });
+  })();
 
   /* ---------------- Events ------------------------------------------------ */
   function startEvent() {
@@ -4541,7 +4542,7 @@
       var sc = E.score();
       var wonBefore = !!best.won;
       if (!best.score || sc > best.score || (E.run.won && !wonBefore)) {
-        best = { score: Math.max(sc, best.score || 0), sector: E.run.sector, loop: E.run.loop || 1, cls: E.run.cls, won: wonBefore || !!E.run.won };
+        best = { score: Math.max(sc, best.score || 0), sector: E.run.sector, cls: E.run.cls, won: wonBefore || !!E.run.won };
         s.setItem('voidspire_best', JSON.stringify(best));
       }
     } catch (e) {}

@@ -1,23 +1,28 @@
 /* =========================================================================
  * VOIDSPIRE — echoes.js
- * "Void Echoes": the special relics of the Recurrence (NG+ loop). After you
- * defeat THE UNMAKER you collect one Echo (pick 1 of 3) and keep it forever;
- * each new loop you EQUIP up to BALANCE.echoes.loadoutSlots of your collection.
+ * THE PACTS. Eleven double-edged relics — each one changes HOW you play or is
+ * a self-balancing bargain, never a flat "+power forever".
  *
- * Echoes are sideways-by-design: each changes HOW you play or is a
- * self-balancing pact — never a flat "+power forever" multiplier — so the
- * +loopPower/loop world curve stays meaningful no matter how many you own.
+ * They used to be "Void Echoes": drafted one per Recurrence loop and equipped
+ * three at a time, which meant they existed only after you had already won. The
+ * Recurrence is gone — difficulty lives on one ladder now, climbed by starting
+ * again — so rather than delete eleven good relics they became what they always
+ * resembled: BOSS RELICS WITH A COST. Same effects, same names, reachable in a
+ * first run.
  *
- * Simple Echoes carry hook:{k,v} / hooks:[...] that fold into engine.art(k)
- * exactly like artifacts/augments (only while EQUIPPED). Rule-bending Echoes
- * carry no hook; the engine checks E.hasEcho(id) at the relevant trigger.
+ * Simple Pacts carry hook:{k,v} / hooks:[...] that fold into engine.art(k)
+ * exactly like any other relic. Rule-bending ones carry no hook; the engine
+ * checks E.hasEcho(id) at the relevant trigger — which now reads your relics.
  * ========================================================================= */
 (function (ns) {
   'use strict';
 
   ns.ECHOES = {
-    hollow_crown: {
-      name: 'Hollow Crown', tag: 'GLASS',
+    /* Renamed from hollow_crown: an unrelated relic already owns that id and
+     * name, and two different things called Hollow Crown is how a save file
+     * quietly grants the wrong effect. Its tag was always GLASS. */
+    glass_crown: {
+      name: 'Glass Crown', tag: 'GLASS',
       desc: 'Deal +30% damage — and take +30% damage.',
       flavor: 'A crown of absence, worn by every version of you.',
       hooks: [{ k: 'dmgMult', v: 0.30 }, { k: 'dmgTakenMult', v: 0.30 }],
@@ -66,12 +71,12 @@
     },
     phylactery: {
       name: 'Phylactery', tag: 'WARD',
-      desc: 'Once per loop, the first blow that would kill you instead leaves you at 30% HP and clears your debuffs.',
+      desc: 'Once per run, the first blow that would kill you instead leaves you at 30% HP and clears your debuffs.',
       flavor: 'You have died here before. It did not take.',
     },
     ascendant_core: {
       name: 'Ascendant Core', tag: 'LEGACY',
-      desc: 'Begin each loop with +2 to your core attribute.',
+      desc: '+2 to your core attribute.',
       flavor: 'The one part of you the void cannot strip away.',
     },
   };
