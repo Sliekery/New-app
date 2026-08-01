@@ -2179,7 +2179,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .drs-sub { font-size: 11px; color: #61776c; }
 
 .sheet-back {
-  position: absolute; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+  /* above #overlay (100), because it is mounted inside it */
+  position: absolute; inset: 0; z-index: 140; display: flex; align-items: center; justify-content: center;
   background: rgba(3,5,7,0.82); opacity: 0; transition: opacity .18s; padding: 16px;
 }
 .sheet-back.on { opacity: 1; }

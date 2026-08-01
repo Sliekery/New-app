@@ -504,6 +504,12 @@
   };
 
   function overlayScreen(clear) {
+    // a sheet left open when the screen behind it changes would hang around
+    // over a screen that never opened it
+    document.querySelectorAll('.sheet-back').forEach(function (b) {
+      if (b._esc) document.removeEventListener('keydown', b._esc);
+      b.remove();
+    });
     $overlay.innerHTML = '';
     $overlay.classList.add('active');
     combatChrome(false);
@@ -1244,10 +1250,33 @@
     card.innerHTML = '<div class="sheet-head"><span>' + esc(title) + '</span><b class="sheet-x">✕</b></div>'
       + '<div class="sheet-body">' + html + '</div>';
     back.appendChild(card);
-    back.addEventListener('pointerdown', function (e) {
-      if (e.target === back || e.target.classList.contains('sheet-x')) { SFX.tap(); back.remove(); }
+    function close() { SFX.tap(); back.remove(); }
+    /* TAP ANYWHERE. Closing only on the backdrop or the ✕ left almost no target
+     * on a phone — the card fills most of the frame, so the backdrop is a thin
+     * margin. This is a read-once reference panel with nothing to interact with
+     * inside it, so anywhere is a dismiss. The body still scrolls, because a
+     * drag is not a tap. */
+    var downAt = null;
+    back.addEventListener('pointerdown', function (e) { downAt = { x: e.clientX, y: e.clientY }; });
+    back.addEventListener('pointerup', function (e) {
+      if (!downAt) return;
+      var moved = Math.abs(e.clientX - downAt.x) + Math.abs(e.clientY - downAt.y) > 6;
+      downAt = null;
+      if (!moved) close();
     });
-    document.getElementById('game').appendChild(back);
+    // Escape closes it too — a panel with exactly one way out is one bad tap
+    // away from being stuck.
+    back._esc = function (e) { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', back._esc); } };
+    document.addEventListener('keydown', back._esc);
+
+    /* MOUNT IT ON TOP OF WHATEVER IS OPEN. This was appended to #game, which
+     * sits BENEATH #overlay (z-index 100) — so on the die screen the sheet
+     * rendered visibly but every pointer event went to the overlay above it,
+     * including the one aimed at its own close button. It could be opened and
+     * never dismissed, which is exactly the "it keeps showing" that was
+     * reported. It goes into the overlay when the overlay is up. */
+    var host = ($overlay && $overlay.classList.contains('active')) ? $overlay : document.getElementById('game');
+    host.appendChild(back);
     requestAnimationFrame(function () { back.classList.add('on'); });
     return back;
   }

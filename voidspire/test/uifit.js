@@ -148,6 +148,46 @@ function probe(floor) {
       if (pageErrors.length) { fails++; console.log(' FAIL ' + name + ': page errors — ' + pageErrors.slice(0, 3).join(' | ')); }
       await page.close();
     }
+    // ---- the band sheet must always be dismissable ----
+    await (async function sheetCheck() {
+      var page2 = await browser.newPage({ viewport: { width: 844, height: 390 } });
+      await page2.goto('file://' + path.resolve(__dirname, '..', 'voidspire.html'));
+      await page2.waitForTimeout(700);
+      await page2.evaluate(function () {
+        var E = VS.engine; E.seed(4); E.newRun('vanguard'); E.takeFirstMark(0);
+        if (!E.run.die) E.run.die = VS.newDie();
+        E.run.phase = 'map'; VS.ui.showDie();
+      });
+      await page2.waitForTimeout(900);
+      var ok2 = await page2.evaluate(async function () {
+        function n() { return document.querySelectorAll('.sheet-back').length; }
+        function tap(el) {
+          el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 5, clientY: 5 }));
+          el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 5, clientY: 5 }));
+          el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        }
+        var drs = document.querySelector('.drs');
+        if (!drs) return 'no band summary to open';
+        tap(drs);
+        await new Promise(function (r) { setTimeout(r, 60); });
+        if (n() !== 1) return 'sheet did not open';
+        // it must be mounted ON TOP of whatever screen is up, or it cannot be hit
+        var back = document.querySelector('.sheet-back');
+        var host = back.parentElement;
+        if (host && host.id === 'game' && document.getElementById('overlay').classList.contains('active')) {
+          return 'sheet mounted beneath the active overlay';
+        }
+        tap(back.querySelector('.sheet-card'));
+        await new Promise(function (r) { setTimeout(r, 60); });
+        if (n() !== 0) return 'a tap did not dismiss it';
+        return 'ok';
+      });
+      checks++;
+      if (ok2 !== 'ok') { fails++; console.log(' FAIL band sheet: ' + ok2); }
+      else console.log('  ok  band sheet opens above the screen and dismisses');
+      await page2.close();
+    })();
+
     await browser.close();
     console.log('\n' + checks + ' screen checks, ' + (fails === 0 ? 'ALL UI FIT CHECKS PASSED' : fails + ' FAILED'));
     process.exit(fails === 0 ? 0 : 1);
