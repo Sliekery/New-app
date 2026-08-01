@@ -781,4 +781,55 @@
   };
   ns.ELITE_MINIONS = { hierarchy: 'drone_skirmisher', rust: 'scrap_hound', voidspawn: 'void_larva' };
 
+  /* ====================== THE ELITE SIGNATURES ==========================
+   * An elite was a hallway enemy with twice the HP. All nine had exactly four
+   * moves and ai:cycle, all sat at size 1–1.1, and six of the nine carried no
+   * special behaviour at all — proportionally FEWER unique mechanics than the
+   * ordinary enemies they are supposed to be a step up from.
+   *
+   * A boss carries a law AND a phase break, and its fight has an arc. An elite
+   * gets ONE rule that demands ONE answer — a puzzle with a single key, over in
+   * four turns. That is the shape the middle tier was missing.
+   *
+   * Applied here as a patch rather than edited into each definition above: the
+   * nine entries are formatted nine different ways, and one block that states
+   * the whole design together is easier to read and to re-tune than nine edits
+   * scattered through the file.
+   * ------------------------------------------------------------------- */
+  var ELITE_SIG = {
+    honor_guard:     { law: 'formation',  size: 1.18 },
+    iron_butcher:    { law: 'cleaver',    size: 1.20 },
+    abyss_horror:    { law: 'stare',      size: 1.20 },
+    inquisitor:      { law: 'question',   size: 1.16 },
+    choir_adept:     { law: 'hymn',       size: 1.14 },
+    rust_ogre:       { law: 'grudge',     size: 1.26 },
+    salvage_crawler: { law: 'tithe_coin', size: 1.16 },
+    warp_etcher:     { law: 'etching',    size: 1.18 },
+    void_priest:     { law: 'litany',     size: 1.16 },
+  };
+
+  /* New silhouettes. Each one draws its rule: the Guard is a wall with a shield
+   * seam, the Butcher carries the cleaver, the Horror is all eyes, the Etcher is
+   * a die being cut. Sizes sit BETWEEN hallway (avg 0.81) and boss (avg 1.35),
+   * which is where an elite belonged all along. */
+  var ELITE_ART = {
+    honor_guard: { c: '#c86bff', p: [[-0.62,0.72, -0.62,-0.34, -0.4,-0.62, 0.4,-0.62, 0.62,-0.34, 0.62,0.72], [-0.62,-0.1, 0.62,-0.1], [0,-0.62, 0,0.72], [-0.4,0.28, 0.4,0.28], [-0.86,-0.2, -0.62,-0.2], [0.86,-0.2, 0.62,-0.2], [-0.3,-0.86, -0.3,-0.62], [0.3,-0.86, 0.3,-0.62]], e: [[-0.24,-0.34],[0.24,-0.34]], m: [-0.2,0.02, 0.2,0.02] },
+    iron_butcher: { c: '#ff8a3a', p: [[-0.5,0.75, -0.42,-0.2, -0.6,-0.5, -0.3,-0.72, 0.3,-0.72, 0.6,-0.5, 0.42,-0.2, 0.5,0.75], [-0.42,-0.2, 0.42,-0.2], [0.6,-0.5, 0.95,-0.75, 0.82,-0.4, 0.95,-0.05, 0.6,-0.2], [-0.6,-0.5, -0.88,-0.3], [-0.2,0.2, 0.2,0.2], [-0.16,0.46, 0.16,0.46]], e: [[-0.2,-0.48],[0.2,-0.48]], m: [-0.24,-0.28, 0.24,-0.28] },
+    abyss_horror: { c: '#c86bff', p: [[0,-0.8, 0.5,-0.4, 0.62,0.24, 0.3,0.72, -0.3,0.72, -0.62,0.24, -0.5,-0.4, 0,-0.8], [-0.5,-0.4, 0.5,-0.4], [-0.62,0.24, 0.62,0.24], [-0.3,0.72, -0.4,0.95], [0.3,0.72, 0.4,0.95], [0,0.72, 0,0.95]], e: [[0,-0.22],[-0.3,0.02],[0.3,0.02],[-0.15,0.44],[0.15,0.44]] },
+    inquisitor: { c: '#c86bff', p: [[0,-0.85, 0.34,-0.5, 0.34,0.72, -0.34,0.72, -0.34,-0.5, 0,-0.85], [0,-0.5, 0,0.4], [-0.34,-0.16, 0.34,-0.16], [-0.34,-0.5, -0.75,-0.15, -0.62,0.3], [0.34,-0.5, 0.75,-0.15, 0.62,0.3], [-0.16,0.72, -0.16,0.95], [0.16,0.72, 0.16,0.95]], e: [[0,-0.56]], m: [-0.14,-0.02, 0.14,-0.02] },
+    choir_adept: { c: '#c86bff', p: [[0,-0.78, 0.42,-0.34, 0.42,0.7, -0.42,0.7, -0.42,-0.34, 0,-0.78], [-0.42,-0.34, 0.42,-0.34], [-0.66,-0.5, -0.42,-0.2], [0.66,-0.5, 0.42,-0.2], [-0.86,-0.66, -0.7,-0.4], [0.86,-0.66, 0.7,-0.4], [-0.22,0.1, 0.22,0.1], [-0.22,0.36, 0.22,0.36]], e: [[-0.16,-0.52],[0.16,-0.52]] },
+    rust_ogre: { c: '#ff8a3a', p: [[-0.66,0.76, -0.56,-0.28, -0.34,-0.66, 0.34,-0.66, 0.56,-0.28, 0.66,0.76], [-0.56,-0.28, 0.56,-0.28], [-0.86,-0.44, -0.56,-0.22], [0.86,-0.44, 0.56,-0.22], [-0.34,-0.66, -0.5,-0.92], [0.34,-0.66, 0.5,-0.92], [-0.3,0.16, -0.14,0.42], [0.3,0.16, 0.14,0.42], [0,0.1, 0,0.5], [-0.72,0.2, -0.9,0.34], [0.72,0.2, 0.9,0.34]], e: [[-0.22,-0.46],[0.22,-0.46]], m: [-0.26,-0.12, 0.26,-0.12] },
+    salvage_crawler: { c: '#ff8a3a', p: [[-0.7,0.3, -0.5,-0.2, 0.5,-0.2, 0.7,0.3, 0.5,0.62, -0.5,0.62, -0.7,0.3], [-0.5,-0.2, -0.34,-0.6, 0.34,-0.6, 0.5,-0.2], [-0.7,0.3, -0.95,0.5], [0.7,0.3, 0.95,0.5], [-0.5,0.62, -0.62,0.9], [0.5,0.62, 0.62,0.9], [0,0.62, 0,0.9], [-0.24,0.1, 0.24,0.1]], e: [[-0.18,-0.38],[0.18,-0.38]] },
+    warp_etcher: { c: '#c86bff', p: [[0,-0.82, 0.46,-0.36, 0.46,0.36, 0,0.82, -0.46,0.36, -0.46,-0.36, 0,-0.82], [0,-0.44, 0.24,-0.2, 0.24,0.2, 0,0.44, -0.24,0.2, -0.24,-0.2, 0,-0.44], [0,-0.82, 0,-0.44], [0.46,-0.36, 0.24,-0.2], [0.46,0.36, 0.24,0.2], [0,0.82, 0,0.44], [-0.46,0.36, -0.24,0.2], [-0.46,-0.36, -0.24,-0.2], [-0.72,-0.5, -0.5,-0.36], [0.72,-0.5, 0.5,-0.36]], e: [[0,0]] },
+    void_priest: { c: '#c86bff', p: [[0,-0.84, 0.36,-0.46, 0.3,0.74, -0.3,0.74, -0.36,-0.46, 0,-0.84], [-0.36,-0.46, 0.36,-0.46], [0,-0.46, 0,0.36], [-0.24,-0.06, 0.24,-0.06], [-0.36,-0.46, -0.72,-0.7, -0.6,-0.2], [0.36,-0.46, 0.72,-0.7, 0.6,-0.2], [-0.2,0.74, -0.24,0.96], [0.2,0.74, 0.24,0.96]], e: [[-0.13,-0.6],[0.13,-0.6]], m: [-0.16,-0.28, 0.16,-0.28] },
+  };
+
+  Object.keys(ELITE_SIG).forEach(function (id) {
+    var e = ns.ENEMIES[id];
+    if (!e) return;
+    e.law = ELITE_SIG[id].law;
+    e.size = ELITE_SIG[id].size;
+    if (ELITE_ART[id]) e.art = ELITE_ART[id];
+  });
+
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));

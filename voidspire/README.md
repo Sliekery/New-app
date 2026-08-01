@@ -131,6 +131,7 @@ node test/cardfit.js        # every card variant in a real reward grid: fails if
                             # any description still clips at the auto-shrink floor
 node test/cardfit.js --all  # …and lists the ones that only fit by shrinking
 node test/combatfit.js      # the combat HUD against the FIGHT, on ten viewports
+node test/elites.js         # every elite signature, fired on purpose (no browser)
 rm -rf node_modules
 ```
 

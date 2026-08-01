@@ -2316,10 +2316,13 @@
     /* A LAW THE PLAYER CANNOT SEE IS NOT A RULE, IT IS AN AMBUSH. Stated once,
      * up front, before the first card is played. */
     (function () {
-      var law = E.bossLaw && E.bossLaw();
-      if (!law || !E.combat || E.combat.turn > 1 || E.combat._lawShown) return;
+      var laws = (E.activeLaws && E.activeLaws()) || [];
+      if (!laws.length || !E.combat || E.combat.turn > 1 || E.combat._lawShown) return;
       E.combat._lawShown = true;
-      setTimeout(function () { toast(law.name + ' — ' + law.desc, 4200); }, 500);
+      // several can hold at once now — elites travel in packs at high ratings
+      laws.forEach(function (law, i) {
+        setTimeout(function () { toast(law.name + ' — ' + law.desc, 4200); }, 500 + i * 900);
+      });
     })();
     if (!combatDie) combatDieMount();
     if (E.combat && E.combat.turn <= 1 && !E.combat._dieShown) { E.combat._dieShown = true; clearDieResult(); }

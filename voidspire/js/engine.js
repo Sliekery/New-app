@@ -1063,16 +1063,53 @@
      * while the block-caring classes took the whole increase. A boss needs one
      * answer to damage that ignores its guard. */
     cooling:   { name: 'THE COOLING',   desc: 'Burn and Vulnerable on it fade twice as fast.' },
+
+    /* ---- ELITE SIGNATURES -------------------------------------------------
+     * An elite was a hallway enemy with twice the HP: all nine had exactly four
+     * moves, ai:cycle, and six of them had no special behaviour at all — fewer
+     * unique mechanics, proportionally, than the ordinary enemies they were
+     * supposed to be a step up from.
+     *
+     * A boss carries a LAW and a phase break, and its fight has an arc. An
+     * elite gets ONE rule that demands ONE answer: a puzzle with a single key,
+     * over in four turns. That is the shape the middle tier was missing. */
+    formation: { name: 'THE FORMATION', desc: 'While it holds Shield it cannot be pushed below half.' },
+    cleaver:   { name: 'THE CLEAVER',   desc: 'It strikes twice if you played fewer than 3 cards last turn.' },
+    stare:     { name: 'THE STARE',     desc: 'End a turn without damaging it and it gains 3 Might.' },
+    question:  { name: 'THE QUESTION',  desc: 'It copies the last card you played into your draw pile, soured.' },
+    hymn:      { name: 'THE HYMN',      desc: 'Every Shield you gain heals every enemy 4.' },
+    /* GRUDGE was written as "its Might never decays" — which is what enemy
+     * Might already does, so the rule did nothing at all. It escalates the
+     * thing that actually makes this enemy hurt instead: every blow you land
+     * makes the next one cost more, so a long fight is a losing one. */
+    grudge:    { name: 'THE GRUDGE',    desc: 'Every blow you land makes its Thorns bite 1 harder.' },
+    tithe_coin:{ name: 'THE TAKING',    desc: 'Every hit it lands takes credits with it.' },
+    etching:   { name: 'THE ETCHING',   desc: 'Every third turn it scars a face of your die.' },
+    litany:    { name: 'THE LITANY',    desc: 'Its regeneration doubles for every turn it goes undamaged.' },
   };
-  function bossLawOf() {
-    var c = E.combat;
-    if (!c) return null;
+  /* ALL of them, not the first. Bosses come alone so one was enough; elites
+   * travel in packs at higher Pressure ratings, and two elites each with a
+   * signature is two rules in force. */
+  function activeLaws() {
+    var c = E.combat, out = [];
+    if (!c) return out;
     for (var i = 0; i < c.enemies.length; i++) {
       var en = c.enemies[i];
       if (!en.alive) continue;
       var law = en.def && en.def.law;
-      if (law && ns.BOSS_LAWS[law]) return { id: law, en: en };
+      if (law && ns.BOSS_LAWS[law]) out.push({ id: law, en: en });
     }
+    return out;
+  }
+  E.activeLaws = function () {
+    return activeLaws().map(function (l) {
+      return { id: l.id, name: ns.BOSS_LAWS[l.id].name, desc: ns.BOSS_LAWS[l.id].desc, boss: !!l.en.def.boss };
+    });
+  };
+  function bossLawOf() { return activeLaws()[0] || null; }
+  function lawHeld(id) {
+    var all = activeLaws();
+    for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
     return null;
   }
   E.bossLaw = function () {
@@ -1081,27 +1118,51 @@
   };
   // Called wherever a law can bite. Kept in one function so every law is
   // visible together rather than smeared across the engine.
-  function lawTrigger(kind, v) {
-    var l = bossLawOf();
-    if (!l) return 0;
-    if (l.id === 'tithe' && kind === 'shieldGained' && v > 0) {
-      // CAPPED. Uncapped, a Technomancer gaining 30 Shield in a turn handed the
-      // boss +15 Might in one go — measured, the class lost 6.4 points to this
-      // law alone. A tithe is a tax, not a confiscation.
-      addStatus(l.en, 'str', Math.max(1, Math.min(2, Math.floor(v / 2))));
-      emit('bossLaw', { law: 'tithe', idx: E.combat.enemies.indexOf(l.en) });
+  function lawTrigger(kind, v, ctx) {
+    var all = activeLaws(), ret = 0;
+    function fired(l) { emit('bossLaw', { law: l.id, idx: E.combat.enemies.indexOf(l.en) }); }
+    for (var i = 0; i < all.length; i++) {
+      var l = all[i];
+      /* ---- boss laws ---- */
+      if (l.id === 'tithe' && kind === 'shieldGained' && v > 0) {
+        // CAPPED. Uncapped, a Technomancer gaining 30 Shield in a turn handed
+        // the boss +15 Might in one go — measured, the class lost 6.4 points to
+        // this law alone. A tithe is a tax, not a confiscation.
+        addStatus(l.en, 'str', Math.max(1, Math.min(2, Math.floor(v / 2))));
+        fired(l);
+      }
+      if (l.id === 'hunger' && kind === 'cardLeft') {
+        l.en.hp = Math.min(l.en.maxHp, l.en.hp + 4); fired(l);
+      }
+      if (l.id === 'scrutiny' && kind === 'roll' && v < 8) { addStatus(l.en, 'str', 2); fired(l); }
+      if (l.id === 'stillness' && kind === 'firstCardCost') ret += 1;
+      if (l.id === 'weight' && kind === 'blockCarries') ret = -1;
+
+      /* ---- elite signatures ---- */
+      // THE HYMN: your Shield is the pack's medicine
+      if (l.id === 'hymn' && kind === 'shieldGained' && v > 0) {
+        aliveEnemies().forEach(function (e2) { e2.hp = Math.min(e2.maxHp, e2.hp + 3); });
+        fired(l);
+      }
+      // THE TAKING: it bills you for every landed hit
+      if (l.id === 'tithe_coin' && kind === 'playerHit' && v > 0) {
+        var take = Math.min(E.run.credits, 5);
+        if (take > 0) { E.run.credits -= take; fired(l); }
+      }
+      // THE FORMATION: strip the Shield before the kill is even available
+      if (l.id === 'formation' && kind === 'damageFloor' && ctx === l.en) {
+        if ((l.en.block || 0) > 0) ret = Math.max(ret, Math.ceil(l.en.maxHp * 0.5));
+      }
+      // THE CLEAVER: a slow turn is answered twice
+      if (l.id === 'cleaver' && kind === 'extraHits' && ctx === l.en) {
+        if ((E.combat._cardsLastTurn || 0) < 3) ret = Math.max(ret, 1);
+      }
+      // THE GRUDGE: what it has taken personally, it keeps
+      if (l.id === 'grudge' && kind === 'struck' && ctx === l.en) {
+        l.en.grudge = (l.en.grudge || 0) + 1; fired(l);
+      }
     }
-    if (l.id === 'hunger' && kind === 'cardLeft') {
-      l.en.hp = Math.min(l.en.maxHp, l.en.hp + 4);
-      emit('bossLaw', { law: 'hunger', idx: E.combat.enemies.indexOf(l.en) });
-    }
-    if (l.id === 'scrutiny' && kind === 'roll' && v < 8) {
-      addStatus(l.en, 'str', 2);
-      emit('bossLaw', { law: 'scrutiny', idx: E.combat.enemies.indexOf(l.en) });
-    }
-    if (l.id === 'stillness' && kind === 'firstCardCost') return 1;
-    if (l.id === 'weight' && kind === 'blockCarries') return -1;
-    return 0;
+    return ret;
   }
   E.lawTrigger = lawTrigger;
 
@@ -1144,6 +1205,7 @@
     var c = E.combat, p = c.player;
     var leftover = c.energy;
     c.turn++;
+    c._cardsLastTurn = c.cardsThisTurn || 0;   // THE CLEAVER reads a slow turn
     c.cardsThisTurn = 0;
     c.enemies.forEach(function (e) { if (e.def.plated) e.platedReady = true; });   // Reactive Plating re-arms each turn
     c.nonAttacksThisTurn = 0;   // Recoilless Frame: per-turn non-attack limit
@@ -1446,14 +1508,23 @@
     var blocked = Math.min(en.block, amount);
     en.block -= blocked;
     var hpDmg = amount - blocked;
+    /* THE FORMATION holds a floor while the wall is up: strip the Shield before
+     * the kill is even on the table. */
+    if (hpDmg > 0 || (opts && opts.byAttack)) lawTrigger('struck', 0, en);
+    var floorHp = lawTrigger('damageFloor', 0, en);
+    if (floorHp > 0 && en.hp - hpDmg < floorHp) {
+      hpDmg = Math.max(0, en.hp - floorHp);
+      emit('bossLaw', { law: 'formation', idx: idx });
+    }
     en.hp -= hpDmg;
+    en.tookDamageThisTurn = en.tookDamageThisTurn || hpDmg > 0;
     emit('dmg', { who: 'enemy', idx: idx, amount: amount, hpDmg: hpDmg, crit: !!opts.crit, roll: opts.roll, hpAfter: Math.max(0, en.hp), blockAfter: en.block });
     // enemy passives that react to being struck by a player ATTACK (not internal
     // sources, which set noCrit): Enrage gains Strength, Thorns retaliates.
     var byAttack = !opts.noCrit;
     if (en.alive && hpDmg > 0 && byAttack) {
       if (en.def.enrage) { addStatus(en, 'str', en.def.enrage); emit('status', { who: 'enemy', idx: idx, s: 'str', v: en.def.enrage }); }
-      if (en.def.thorns) hurtPlayer(en.def.thorns, { pure: true });
+      if (en.def.thorns) hurtPlayer(en.def.thorns + (en.grudge || 0), { pure: true });
     }
     var ls = art('lifestealPct');   // Vampiric Array: attacks heal a % of damage dealt
     if (ls > 0 && hpDmg > 0 && byAttack) heal(Math.floor(hpDmg * ls / 100));
@@ -1512,6 +1583,7 @@
   E.heal = heal;
 
   function hurtPlayer(amount, opts) {
+    if (amount > 0 && !(opts && opts.pure)) lawTrigger('playerHit', amount);
     opts = opts || {};
     var c = E.combat, r = E.run;
     var p = c ? c.player : null;
@@ -2461,6 +2533,7 @@
     else c.discard.push(card);
 
     c.cardsThisTurn++;
+    c._lastPlayed = card && card.id;          // THE QUESTION remembers it
     if (def.type !== 'attack') c.nonAttacksThisTurn = (c.nonAttacksThisTurn || 0) + 1;   // Recoilless Frame
     if (E.hasEcho('momentum_engine')) c.momentum = (c.momentum || 0) + 1; // each card buffs the next
     if (def.type === 'attack') { var fauto = statN(p, 'fullauto'); if (fauto > 0) addStatus(p, 'momentum', fauto); } // Full Auto: each shot builds Momentum
@@ -2603,8 +2676,46 @@
       // passive: regenerate health each turn
       if (en.def.regen && en.alive) {
         var rg = scaledDmg(en.def.regen, s);
+        /* THE LITANY compounds while it is left alone — which turns "chip it
+         * later" into "you have already lost the race". */
+        if (en.def.law === 'litany') {
+          en.litany = en.tookDamageThisTurn ? 0 : Math.min(3, (en.litany || 0) + 1);
+          rg = rg * Math.pow(2, en.litany);
+          if (en.litany > 0) emit('bossLaw', { law: 'litany', idx: idx });
+        }
         en.hp = Math.min(en.maxHp, en.hp + rg);
         emit('heal', { who: 'enemy', idx: idx, amount: rg, hpAfter: en.hp });
+      }
+      /* THE STARE reads the same silence the Litany does, and answers it with
+       * Might rather than meat. */
+      if (en.def.law === 'stare' && en.alive && !en.tookDamageThisTurn) {
+        addStatus(en, 'str', 3);
+        emit('bossLaw', { law: 'stare', idx: idx });
+      }
+      // THE ETCHING: every third turn it reaches past you to the die itself
+      if (en.def.law === 'etching' && en.alive) {
+        en.etchCount = (en.etchCount || 0) + 1;
+        if (en.etchCount % 4 === 0) {
+          var clean = ns.dieCleanRoots(r.die);
+          if (clean.length) {
+            ns.dieAddTaint(r.die, pick(clean), pick(['rust', 'dead_short', 'silence']));
+            emit('bossLaw', { law: 'etching', idx: idx });
+          }
+        }
+      }
+      en.tookDamageThisTurn = false;
+      /* THE QUESTION hands your own last play back to you, ruined. It is the
+       * only enemy rule that edits the deck mid-fight, so it is capped at one
+       * copy a turn and only ever from something you actually played. */
+      if (en.def.law === 'question' && en.alive && c._lastPlayed) {
+        var src = ns.CARDS[c._lastPlayed];
+        if (src && src.type !== 'curse') {
+          var copy = mkCard(c._lastPlayed, false);
+          copy.corrupt = true;
+          c.drawPile.splice(Math.floor(rnd() * (c.drawPile.length + 1)), 0, copy);
+          c._lastPlayed = null;
+          emit('bossLaw', { law: 'question', idx: idx });
+        }
       }
       // passive: escalate Strength every turn
       if (en.def.rampStr) { addStatus(en, 'str', en.def.rampStr); emit('status', { who: 'enemy', idx: idx, s: 'str', v: en.def.rampStr }); }
@@ -2665,6 +2776,9 @@
         if (statN(en, 'weak')) dmg = Math.floor(dmg * B.status.weakMult);
         var hits = m.hits || 1;
         if (m.hitsPer) hits = Math.max(1, aliveEnemies().filter(function (e) { return e.id === m.hitsPer; }).length); // one volley per living minion
+        // THE CLEAVER answers a slow turn twice
+        var extra = lawTrigger('extraHits', 0, en);
+        if (extra > 0) { hits += extra; emit('bossLaw', { law: 'cleaver', idx: idx }); }
         var totalToPlayer = 0;
         for (var h = 0; h < hits; h++) {
           if (r.phase === 'dead') break;
