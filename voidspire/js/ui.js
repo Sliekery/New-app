@@ -1182,6 +1182,174 @@
       return e;
     }).sort(function (a, b) { return b.hi - a.hi; });
   }
+  function bandTableTitle(cls) {
+    var t = ns.BALANCE.dice.classes[cls];
+    return t ? t.name : 'NO TABLE';
+  }
+
+  /* One line instead of six: the band the selected face lands in, its
+   * multiplier, and a prompt that the whole table is one tap away. */
+  function dieReadSummaryHTML(cls, aim, sel) {
+    var t = ns.BALANCE.dice.classes[cls];
+    if (!t) return '<div class="drs"><span class="drs-name">NO TABLE</span>'
+      + '<span class="drs-sub">the face does not modulate your cards</span></div>';
+    var here = null;
+    dieBandRows(cls, aim).forEach(function (e) { if (sel >= e.lo && sel <= e.hi) here = e; });
+    var m = here ? here.slot.mult : 1;
+    var tone = !here ? 'flat' : here.slot.label === 'CRIT' ? 'crit' : m > 1.02 ? 'up' : m < 0.98 ? 'down' : 'flat';
+    return '<div class="drs ' + tone + '">'
+      + '<span class="drs-name">' + esc(t.name) + '</span>'
+      + (here ? '<span class="drs-band">FACE ' + sel + ' → ' + esc(here.slot.label)
+              + ' <b>×' + m.toFixed(2).replace(/0$/, '') + '</b></span>' : '')
+      + '<span class="drs-more">FULL TABLE ▸</span></div>';
+  }
+
+  /* A dismissable reference panel. Used for anything that is worth reading once
+   * and then wants to be out of the way. */
+  function showSheet(title, html) {
+    var back = el('div', 'sheet-back');
+    var card = el('div', 'sheet-card');
+    card.innerHTML = '<div class="sheet-head"><span>' + esc(title) + '</span><b class="sheet-x">✕</b></div>'
+      + '<div class="sheet-body">' + html + '</div>';
+    back.appendChild(card);
+    back.addEventListener('pointerdown', function (e) {
+      if (e.target === back || e.target.classList.contains('sheet-x')) { SFX.tap(); back.remove(); }
+    });
+    document.getElementById('game').appendChild(back);
+    requestAnimationFrame(function () { back.classList.add('on'); });
+    return back;
+  }
+  U.showSheet = showSheet;
+
+  /* ====================== THE MODULE BAY ==============================
+   * Relics, on their own screen, drawn as hardware. They were a row of 22px
+   * chips under the engraving list whose only description was a hover title —
+   * one of the three systems a run is built out of, and the hardest thing in
+   * the game to read. */
+  function showModules(back) {
+    var r = E.run; if (!r) return;
+    if (!r.die) r.die = ns.newDie();
+    var die = r.die;
+    var col = CLASS_COL[r.cls] || '#5dff88';
+    var view = null;
+
+    var s = overlayScreen();
+    var ch = ns.chassisFor(r.cls);
+    s.appendChild(el('h2', 'screen-title', ch.name));
+    var sub = el('div', 'screen-sub', '');
+    s.appendChild(sub);
+
+    var stage = el('div', 'bay-stage');
+    var cv = el('canvas', 'bay-canvas');
+    stage.appendChild(cv);
+    var readout = el('div', 'bay-readout', '');
+    stage.appendChild(readout);
+    s.appendChild(stage);
+
+    var rack = el('div', 'bay-rack');
+    s.appendChild(rack);
+
+    function slots() { return die.coreSlots || ns.DIE.coreSlotsStart; }
+    function mountedList() {
+      var out = [];
+      for (var i = 0; i < ch.slots.length; i++) out.push(die.core[i] || null);
+      return out;
+    }
+    function describe(id) {
+      var a = ns.ARTIFACTS[id];
+      if (!a) return '';
+      var uses = E.relicUsesLeft && E.relicUsesLeft(id);
+      return '<div class="bay-nm" style="color:' + col + '">' + esc(a.name)
+        + (a.pact ? ' <span class="bay-tag">PACT</span>' : '')
+        + (uses != null ? ' <span class="bay-tag">' + uses + ' LEFT</span>' : '') + '</div>'
+        + '<div class="bay-ds">' + esc(a.desc || '') + '</div>';
+    }
+
+    function paint(seatIdx, ejectIdx) {
+      sub.textContent = die.core.length + ' OF ' + slots() + ' HARDPOINTS LIVE · ' + ch.sub.toUpperCase();
+      if (view) {
+        view.set(mountedList(), slots());
+        if (seatIdx != null) view.seat(seatIdx);
+        if (ejectIdx != null) view.eject(ejectIdx);
+      }
+      // the rack: everything owned but not seated
+      var vault = r.artifacts.filter(function (x) { return die.core.indexOf(x) < 0; });
+      var h = '<div class="bay-rt">THE RACK <span class="bay-rn">' + vault.length + '</span></div>';
+      if (!vault.length) h += '<div class="bay-empty">Nothing on the rack. Everything you own is installed.</div>';
+      h += '<div class="bay-list">';
+      vault.forEach(function (vid) {
+        var a = ns.ARTIFACTS[vid]; if (!a) return;
+        h += '<div class="bay-item" data-mount="' + esc(vid) + '">'
+          +  '<span class="bay-ic">' + artSVG(a.art, 'art-icon', col) + '</span>'
+          +  '<span class="bay-tx"><b>' + esc(a.name) + '</b>' + (a.pact ? ' <i class="bay-tag">PACT</i>' : '')
+          +  '<span>' + esc(a.desc || '') + '</span></span>'
+          +  '<span class="bay-go">INSTALL ▸</span></div>';
+      });
+      h += '</div>';
+      // and what is seated, so a mounted relic is readable without hovering
+      if (die.core.length) {
+        h += '<div class="bay-rt">INSTALLED <span class="bay-rn">' + die.core.length + '</span></div><div class="bay-list">';
+        die.core.forEach(function (cid, i) {
+          var a = ns.ARTIFACTS[cid]; if (!a) return;
+          h += '<div class="bay-item on" data-eject="' + i + '">'
+            +  '<span class="bay-ic">' + artSVG(a.art, 'art-icon', col) + '</span>'
+            +  '<span class="bay-tx"><b>' + esc(a.name) + '</b>' + (a.pact ? ' <i class="bay-tag">PACT</i>' : '')
+            +  '<span>' + esc(a.desc || '') + '</span></span>'
+            +  '<span class="bay-go out">EJECT ◂</span></div>';
+        });
+        h += '</div>';
+      }
+      rack.innerHTML = h;
+
+      rack.querySelectorAll('[data-mount]').forEach(function (b) {
+        b.addEventListener('pointerdown', function (ev) {
+          ev.stopPropagation();
+          if (die.core.length >= slots()) { SFX.tap(); toast('Every hardpoint is live — eject something first.', 1800); return; }
+          SFX.play();
+          var idx = die.core.length;
+          die.core.push(b.dataset.mount);
+          E.save();
+          readout.innerHTML = describe(b.dataset.mount);
+          paint(idx, null);
+        });
+      });
+      rack.querySelectorAll('[data-eject]').forEach(function (b) {
+        b.addEventListener('pointerdown', function (ev) {
+          ev.stopPropagation(); SFX.tap();
+          var i = +b.dataset.eject;
+          if (view) view.eject(i);
+          die.core.splice(i, 1);
+          E.save();
+          readout.innerHTML = '';
+          setTimeout(function () { paint(null, null); }, 200);
+        });
+      });
+    }
+
+    var btn = el('button', 'btn', 'BACK');
+    btn.addEventListener('pointerdown', function () {
+      SFX.tap();
+      if (view) { view.destroy(); view = null; }
+      if (back) back(); else U.refresh();
+    });
+    s.appendChild(btn);
+
+    setTimeout(function () {
+      view = ns.chassisCreate(cv, { cls: r.cls, mounted: mountedList(), slots: slots() });
+      // tapping a live hardpoint reads it out
+      cv.addEventListener('pointerdown', function (ev) {
+        var b = cv.getBoundingClientRect();
+        var i = view.slotAt(ev.clientX - b.left, ev.clientY - b.top);
+        if (i < 0) return;
+        SFX.tap();
+        readout.innerHTML = die.core[i] ? describe(die.core[i])
+          : '<div class="bay-nm dim">HARDPOINT ' + (i + 1) + (i < slots() ? ' — EMPTY' : ' — SEALED') + '</div>';
+      });
+      paint(null, null);
+    }, 0);
+  }
+  U.showModules = showModules;
+
   function dieReadHTML(cls, aim) {
     var t = ns.BALANCE.dice.classes[cls];
     if (!t) return '<div class="dr-title">NO TABLE<span class="dr-sub">Your die rolls for engravings, but the face does not modulate your cards.</span></div>';
@@ -1368,7 +1536,12 @@
         : '<div class="di-name bare">bare</div><div class="di-desc">Nothing engraved on this face.</div>');
       wrap.querySelectorAll('.df').forEach(function (row) { row.classList.toggle('sel', +row.dataset.face === sel); });
 
-      read.innerHTML = dieReadHTML(r.cls, a);
+      /* THE TABLE WAS THE BIGGEST THING ON THE SCREEN and it never changes —
+       * five static rows of class reference above the die you are actually
+       * editing. It collapses to the one line that DOES change (which band the
+       * selected face sits in) and opens in full on a tap. */
+      read.innerHTML = dieReadSummaryHTML(r.cls, a, sel);
+      read.onclick = function () { SFX.tap(); showSheet(bandTableTitle(r.cls), dieReadHTML(r.cls, a)); };
 
       // ---- engravings in hand -------------------------------------------
       // These used to be a silent FIFO: the die screen grabbed pending[0] and
@@ -1505,40 +1678,23 @@
         });
       });
 
-      // core + frame (tap a mounted relic to unmount, or mount one from the vault)
+      /* Relics moved out. They were three rows of 22px chips down here whose
+       * only description was a hover title — unreadable on a phone and
+       * impossible on a touch screen, which has no hover. The die screen keeps
+       * one line that says what is installed and opens the bay. */
+      var chSpec = ns.chassisFor(r.cls);
       var slots = die.coreSlots || ns.DIE.coreSlotsStart;
-      var mh = '<div class="dm-title">CORE <span class="dm-slots">' + die.core.length + '/' + slots + '</span></div><div class="dm-row">';
-      if (!die.core.length) mh += '<span class="dm-empty">no relics mounted</span>';
-      die.core.forEach(function (cid, i) {
-        var art = ns.ARTIFACTS[cid]; if (!art) return;
-        mh += '<div class="dm-chip" data-unmount="' + i + '" title="' + esc(art.name + ' — ' + art.desc) + '">' + artSVG(art.art, 'art-icon') + '</div>';
-      });
-      mh += '</div>';
-      var vault = r.artifacts.filter(function (x) { return die.core.indexOf(x) < 0; });
-      if (vault.length) {
-        mh += '<div class="dm-title">VAULT <span class="dm-slots">' + vault.length + '</span></div><div class="dm-row">';
-        vault.forEach(function (vid) {
-          var art = ns.ARTIFACTS[vid]; if (!art) return;
-          mh += '<div class="dm-chip vault" data-mount="' + vid + '" title="' + esc(art.name + ' — ' + art.desc) + '">' + artSVG(art.art, 'art-icon') + '</div>';
-        });
-        mh += '</div>';
-      }
-      mh += '<div class="dm-title">FRAME</div><div class="dm-row">';
-      if (!die.frame.length) mh += '<span class="dm-empty">stock frame</span>';
-      die.frame.forEach(function (fid) {
-        var art = ns.ARTIFACTS[fid]; if (!art) return;
-        mh += '<div class="dm-chip" title="' + esc(art.desc) + '">' + artSVG(art.art, 'art-icon') + '</div>';
-      });
-      mh += '</div>';
-      mods.innerHTML = mh;
-      mods.querySelectorAll('[data-unmount]').forEach(function (b) {
-        b.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); SFX.tap(); die.core.splice(+b.dataset.unmount, 1); E.save(); renderAll(false, false); });
-      });
-      mods.querySelectorAll('[data-mount]').forEach(function (b) {
+      var racked = r.artifacts.filter(function (x) { return die.core.indexOf(x) < 0; }).length;
+      mods.innerHTML = '<div class="bay-link" data-bay="1">'
+        + '<span class="bl-t">' + esc(chSpec.name) + '</span>'
+        + '<span class="bl-s">' + die.core.length + '/' + slots + ' installed'
+        + (racked ? ' · <b>' + racked + ' on the rack</b>' : '') + '</span>'
+        + '<span class="bl-go">OPEN ▸</span></div>';
+      mods.querySelectorAll('[data-bay]').forEach(function (b) {
         b.addEventListener('pointerdown', function (ev) {
           ev.stopPropagation(); SFX.tap();
-          if (die.core.length >= slots) { toast('Core is full — unmount something first.', 1600); return; }
-          die.core.push(b.dataset.mount); E.save(); renderAll(false, false);
+          if (dieView) { dieView.destroy(); dieView = null; }
+          showModules(function () { showDieScreen(opts); });
         });
       });
 

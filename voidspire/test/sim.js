@@ -12,6 +12,7 @@ require('../js/cards.js');
 require('../js/artifacts.js');
 require('../js/dice.js');
 require('../js/reforge.js');
+require('../js/chassis.js');
 require('../js/potions.js');
 require('../js/echoes.js');
 require('../js/enemies.js');
