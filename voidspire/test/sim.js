@@ -106,6 +106,11 @@ function estCardBlock(card) {
   return total;
 }
 
+/* The bot has to be able to SEE a boss law, or it plays straight into one and
+ * the difficulty reading is of a player who cannot read. Only the two laws that
+ * change what a competent player would do are modelled. */
+function lawInForce() { return (VS.engine.bossLaw && VS.engine.bossLaw()) || null; }
+
 function incomingDamage() {
   var c = VS.engine.combat;
   var total = 0;

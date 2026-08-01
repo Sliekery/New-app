@@ -2091,6 +2091,14 @@
   function showCombat() {
     hideOverlay();
     combatChrome(true);
+    /* A LAW THE PLAYER CANNOT SEE IS NOT A RULE, IT IS AN AMBUSH. Stated once,
+     * up front, before the first card is played. */
+    (function () {
+      var law = E.bossLaw && E.bossLaw();
+      if (!law || !E.combat || E.combat.turn > 1 || E.combat._lawShown) return;
+      E.combat._lawShown = true;
+      setTimeout(function () { toast(law.name + ' — ' + law.desc, 4200); }, 500);
+    })();
     if (!combatDie) combatDieMount();
     if (E.combat && E.combat.turn <= 1 && !E.combat._dieShown) { E.combat._dieShown = true; clearDieResult(); }
     R.syncCombat();
@@ -3466,6 +3474,7 @@
         // chain appears to start before the roll finishes.
         case 'roll': return 300;
         case 'dieFace': return CHAIN.step;
+        case 'bossBreak': return 900;
         case 'construct': return 220;     // the turret's shot needs a beat of its own
         case 'enrage': return 900;        // the announcement gets its own beat
         case 'enrageDecay': return 120;
@@ -3493,6 +3502,28 @@
     evts.forEach(function (e, _ei) {
       delay = times[_ei];
       switch (e.type) {
+        /* HALF HEALTH. The fight changes its mind and has to SAY so, or the
+         * player just notices the numbers got worse and does not know why. */
+        case 'bossBreak':
+          (function (e2, d) {
+            setTimeout(function () {
+              var v = R.views[e2.idx];
+              if (v) floater(v.x, v.y - v.r - 30, e2.line || 'IT BREAKS', 'crit');
+              R.shake(1.1); R.flash();
+              SFX.lose();
+              toast(esc(e2.name.toUpperCase()) + ' — ' + esc(e2.line || 'IT BREAKS'), 2600);
+            }, d);
+          })(e, delay);
+          break;
+        // a law biting is small and constant, so it whispers rather than shouts
+        case 'bossLaw':
+          (function (e2, d) {
+            setTimeout(function () {
+              var v = R.views[e2.idx];
+              if (v) floater(v.x, v.y - v.r - 12, 'THE LAW', 'misfire');
+            }, d);
+          })(e, delay);
+          break;
         // A construct firing has to be visible as the construct firing. The
         // engine used to deal the damage silently, so at end of turn enemies
         // simply lost HP and the thing you spent a card building never moved.

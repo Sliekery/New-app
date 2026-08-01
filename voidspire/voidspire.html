@@ -9217,6 +9217,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       art: { p: [[0,-0.76,0.15,-0.64,0.15,-0.46,0,-0.38,-0.15,-0.46,-0.15,-0.64,0,-0.76], [0,-0.76,0,-0.92], [0.28,-0.58,0.263,-0.676,0.214,-0.76,0.14,-0.822,0.049,-0.856,-0.049,-0.856,-0.14,-0.822,-0.214,-0.76,-0.263,-0.676,-0.28,-0.58,-0.263,-0.484,-0.214,-0.4,-0.14,-0.338,-0.049,-0.304,0.049,-0.304,0.14,-0.338,0.214,-0.4,0.263,-0.484,0.28,-0.58], [-0.34,-0.44,0.34,-0.44,0.46,0.08,0.3,0.48,-0.3,0.48,-0.46,0.08,-0.34,-0.44], [NaN,-0.04,NaN,-0.04,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,0.2,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,-0.34,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,-0.2,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,NaN,-0.04], [0.07,-0.18,0.049,-0.2,0.049,-0.229,0.02,-0.229,0,-0.25,-0.02,-0.229,-0.049,-0.229,-0.049,-0.2,-0.07,-0.18,-0.049,-0.16,-0.049,-0.131,-0.02,-0.131,0,-0.11,0.02,-0.131,0.049,-0.131,0.049,-0.16,0.07,-0.18], [-0.34,-0.4,-0.6,-0.5,-0.66,-0.14,-0.4,-0.08], [0.34,-0.4,0.6,-0.5,0.66,-0.14,0.4,-0.08], [-0.6,-0.4,0.5,0.55], [0.5,0.55,0.64,0.5,0.6,0.72,0.5,0.55], [0.6,-0.4,-0.5,0.55], [-0.5,0.55,-0.64,0.5,-0.6,0.72,-0.5,0.55], [-0.2,0.48,-0.28,-0.44,0,-0.44,0.02,0.5], [0.2,0.48,0.28,-0.44,0.4,-0.44,0.34,0.5]], e: [[-0.06,-0.56],[0.06,-0.56]] },
     },
     hierophant: {
+      law: 'scrutiny',
+      phase2: { at: 0.5, line: 'THE READING TURNS', onEnter: { str: 2, block: 6 },
+        moves: [{ t: 'attack', d: 18 }, { t: 'curse', card: 'void_taint' }, { t: 'attack', d: 10, hits: 2 },
+                { t: 'debuff', s: 'vuln', v: 2 }, { t: 'attack', d: 22 }] },
       name: 'HIEROPHANT KA’RETH', faction: 'hierarchy', hp: 92, size: 1.3, boss: true, ai: 'cycle',
       // SIGNATURE — The Covenant Answers: it summons reinforcements mid-fight,
       // so you must manage the adds while it hexes and strikes.
@@ -9326,6 +9330,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       art: { p: [[-0.18,-0.95,0.18,-0.95,0.24,-0.7,-0.24,-0.7,-0.18,-0.95], [-0.18,-0.95,-0.34,-1.12], [0.18,-0.95,0.34,-1.12], [-0.5,-0.7,0.5,-0.7,0.62,0,0.45,0.35,-0.45,0.35,-0.62,0,-0.5,-0.7], [-0.22,-0.5,0.22,-0.5], [-0.22,-0.4,0.22,-0.4], [-0.22,-0.3,0.22,-0.3], [-0.5,-0.65,-0.88,-0.78,-0.98,-0.4,-0.62,-0.3], [0.5,-0.65,0.88,-0.78,0.98,-0.4,0.62,-0.3], [-0.82,-0.42,-0.96,-0.08,-0.9,0.18,-0.76,-0.06,-0.74,-0.42], [-0.96,-0.08,-1.2,0.02,-1.12,-0.6,-0.92,-0.55,-0.96,-0.08], [0.82,-0.42,0.95,-0.06,0.9,0.2,0.78,-0.06,0.74,-0.42], [0.95,-0.06,1.12,0.05,1.2,0.32,1.06,0.3,0.96,0.12,0.95,-0.06], [-0.42,0.35,-0.5,-0.95,-0.15,-0.95,-0.12,0.35], [0.42,0.35,0.5,-0.95,0.15,-0.95,0.12,0.35]], e: [[-0.07,-0.78],[0.07,-0.78]] },
     },
     forge_tyrant: { grounded: true, enrage: 1,
+      law: 'tithe',
+      phase2: { at: 0.5, line: 'THE FORGE OPENS', onEnter: { str: 2, heal: 6 },
+        moves: [{ t: 'attack', d: 20 }, { t: 'debuff', s: 'burn', v: 6 }, { t: 'attack', d: 8, hits: 3 },
+                { t: 'block', b: 20 }, { t: 'attack', d: 24 }] },
       name: 'THE FORGE TYRANT', faction: 'rust', hp: 92, size: 1.35, boss: true, ai: 'cycle',
       // SIGNATURE — Enrage: gains 2 Strength whenever you damage it, and it
       // reforges (heals) itself, so chipping it away only makes it angrier.
@@ -9439,6 +9447,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       art: { p: [[-0.6,-0.4,-0.3,-0.7,0.3,-0.7,0.6,-0.4,0.7,0.1,0.4,0.45,-0.4,0.45,-0.7,0.1,-0.6,-0.4], [-0.4,0.1,-0.4,0.1,-0.343,0.24,-0.286,0.1,-0.229,0.24,-0.171,0.1,-0.114,0.24,-0.057,0.1,0,0.24,0.057,0.1,0.114,0.24,0.171,0.1,0.229,0.24,0.286,0.1,0.343,0.24,0.4,0.1], [-0.12,-0.2,-0.131,-0.24,-0.16,-0.269,-0.2,-0.28,-0.24,-0.269,-0.269,-0.24,-0.28,-0.2,-0.269,-0.16,-0.24,-0.131,-0.2,-0.12,-0.16,-0.131,-0.131,-0.16,-0.12,-0.2], [-0.168,-0.2,-0.177,-0.223,-0.2,-0.232,-0.223,-0.223,-0.232,-0.2,-0.223,-0.177,-0.2,-0.168,-0.177,-0.177,-0.168,-0.2], [0.22,-0.25,0.211,-0.285,0.185,-0.311,0.15,-0.32,0.115,-0.311,0.089,-0.285,0.08,-0.25,0.089,-0.215,0.115,-0.189,0.15,-0.18,0.185,-0.189,0.211,-0.215,0.22,-0.25], [0.178,-0.25,0.17,-0.27,0.15,-0.278,0.13,-0.27,0.122,-0.25,0.13,-0.23,0.15,-0.222,0.17,-0.23,0.178,-0.25], [0.06,0.05,0.052,0.02,0.03,-0.002,0,-0.01,-0.03,-0.002,-0.052,0.02,-0.06,0.05,-0.052,0.08,-0.03,0.102,0,0.11,0.03,0.102,0.052,0.08,0.06,0.05], [0.024,0.05,0.017,0.033,0,0.026,-0.017,0.033,-0.024,0.05,-0.017,0.067,0,0.074,0.017,0.067,0.024,0.05], [0.35,0,0.343,-0.025,0.325,-0.043,0.3,-0.05,0.275,-0.043,0.257,-0.025,0.25,0,0.257,0.025,0.275,0.043,0.3,0.05,0.325,0.043,0.343,0.025,0.35,0], [0.32,0,0.314,-0.014,0.3,-0.02,0.286,-0.014,0.28,0,0.286,0.014,0.3,0.02,0.314,0.014,0.32,0], [-0.6,-0.1,-0.612,-0.074,-0.625,-0.049,-0.639,-0.026,-0.656,-0.005,-0.674,0.015,-0.693,0.032,-0.715,0.048,-0.737,0.062,-0.761,0.075,-0.785,0.088,-0.809,0.1,-0.833,0.113,-0.857,0.127,-0.879,0.141,-0.901,0.157,-0.921,0.174,-0.94,0.191,-0.959,0.21], [-0.4,0.45,-0.398,0.479,-0.398,0.507,-0.399,0.535,-0.403,0.563,-0.409,0.589,-0.417,0.615,-0.427,0.641,-0.439,0.666,-0.452,0.69,-0.466,0.715,-0.48,0.739,-0.493,0.763,-0.506,0.788,-0.518,0.813,-0.528,0.838,-0.537,0.864,-0.545,0.89,-0.552,0.917], [0.6,-0.1,0.627,-0.09,0.653,-0.08,0.677,-0.067,0.7,-0.053,0.721,-0.037,0.74,-0.019,0.757,0.001,0.774,0.022,0.789,0.045,0.804,0.068,0.818,0.091,0.833,0.113,0.849,0.135,0.865,0.156,0.883,0.176,0.901,0.195,0.921,0.213,0.941,0.23], [0.4,0.45,0.417,0.473,0.433,0.497,0.447,0.521,0.459,0.546,0.469,0.572,0.476,0.598,0.481,0.625,0.485,0.652,0.488,0.68,0.489,0.708,0.491,0.736,0.493,0.763,0.496,0.791,0.5,0.818,0.505,0.845,0.512,0.872,0.52,0.898,0.528,0.923], [0,0.45,0.01,0.478,0.018,0.507,0.025,0.535,0.029,0.563,0.031,0.592,0.031,0.62,0.028,0.648,0.024,0.677,0.018,0.705,0.012,0.733,0.006,0.762,0,0.79,-0.005,0.818,-0.009,0.847,-0.012,0.875,-0.013,0.903,-0.013,0.932,-0.012,0.96]], e: [[-0.2,-0.2],[0.15,-0.25],[0,0.05],[0.3,0]] },
     },
     devourer: { regen: 3,
+      law: 'hunger',
+      phase2: { at: 0.5, line: 'IT STOPS PRETENDING', onEnter: { str: 3 },
+        moves: [{ t: 'drain', d: 14 }, { t: 'attack', d: 11, hits: 2 }, { t: 'debuff', s: 'weak', v: 3 },
+                { t: 'attack', d: 23 }] },
       name: 'THE DEVOURER', faction: 'voidspawn', hp: 84, size: 1.35, boss: true, ai: 'cycle',
       // SIGNATURE — It Knits Itself Whole: regenerates every turn and drains
       // your life, so a slow fight loses; you must out-pace its healing (Burn
@@ -9521,6 +9533,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // faction; uses its own `color`. Spawned only as the boss of the finale
     // sector (see BALANCE.run.finale).
     unmaker: { enrage: 1,
+      law: 'cooling',
+      phase2: { at: 0.45, line: 'THE UNMAKING BEGINS IN EARNEST', onEnter: { str: 3, block: 10 },
+        moves: [{ t: 'unmake', v: 20, str: 3 }, { t: 'attack', d: 16, hits: 2 }, { t: 'attack', d: 30 },
+                { t: 'debuff', s: 'vuln', v: 3 }, { t: 'attack', d: 12, hits: 3 }] },
       name: 'THE UNMAKER', color: '#b8ecff', hp: 110, size: 1.4, boss: true, final: true, ai: 'cycle',
       // SIGNATURE — The Unmaking: every cycle it ERASES your Shield, jams a
       // curse into your deck, knits itself whole and grows in power. You can't
@@ -11588,6 +11604,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (n <= 0) return;
     if (art('noShield') > 0) return;   // tradeoff relics that forbid Shield entirely
     p.block += n;
+    lawTrigger('shieldGained', n);      // THE TITHE
     if (played) c.playedShield = true;
     emit('block', { who: 'player', amount: n, blockAfter: p.block });
     var st = art('shieldThorns');
@@ -11620,6 +11637,68 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function statN(ent, s) { return ent.statuses[s] || 0; }
   var _statListen = { momentum: 'momentum', parry: 'parry', psiPow: 'psi' };
   var _inEnemyListen = false;
+  /* ---- BOSS LAWS ---------------------------------------------------------
+   * One standing rule per boss, in force from the first turn and stated on
+   * screen before you act. This is what actually separates a boss from a large
+   * hallway enemy: not the size of its numbers but the fact that your usual
+   * line does not work here.
+   *
+   * Deliberately small vocabulary — each law reads in one sentence and hooks a
+   * place the engine already passes through. */
+  ns.BOSS_LAWS = {
+    tithe:     { name: 'THE TITHE',     desc: 'Every Shield you gain feeds it — up to 2 Might a time.' },
+    hunger:    { name: 'THE HUNGER',    desc: 'It heals 4 whenever you exhaust or discard a card.' },
+    stillness: { name: 'THE STILLNESS', desc: 'The first card you play each turn costs 1 more.' },
+    scrutiny:  { name: 'THE SCRUTINY',  desc: 'Rolling under 8 gives it 2 Might.' },
+    weight:    { name: 'THE WEIGHT',    desc: 'Your Shield does not carry between turns.' },
+    /* Every other law bites a class that attacks in bursts and blocks between
+     * them. Buffing bosses with Block and Might did nothing at all to Burn —
+     * measured, the Void Adept's share of deaths at bosses FELL from 36% to 29%
+     * while the block-caring classes took the whole increase. A boss needs one
+     * answer to damage that ignores its guard. */
+    cooling:   { name: 'THE COOLING',   desc: 'Burn and Vulnerable on it fade twice as fast.' },
+  };
+  function bossLawOf() {
+    var c = E.combat;
+    if (!c) return null;
+    for (var i = 0; i < c.enemies.length; i++) {
+      var en = c.enemies[i];
+      if (!en.alive) continue;
+      var law = en.def && en.def.law;
+      if (law && ns.BOSS_LAWS[law]) return { id: law, en: en };
+    }
+    return null;
+  }
+  E.bossLaw = function () {
+    var l = bossLawOf();
+    return l ? { id: l.id, name: ns.BOSS_LAWS[l.id].name, desc: ns.BOSS_LAWS[l.id].desc } : null;
+  };
+  // Called wherever a law can bite. Kept in one function so every law is
+  // visible together rather than smeared across the engine.
+  function lawTrigger(kind, v) {
+    var l = bossLawOf();
+    if (!l) return 0;
+    if (l.id === 'tithe' && kind === 'shieldGained' && v > 0) {
+      // CAPPED. Uncapped, a Technomancer gaining 30 Shield in a turn handed the
+      // boss +15 Might in one go — measured, the class lost 6.4 points to this
+      // law alone. A tithe is a tax, not a confiscation.
+      addStatus(l.en, 'str', Math.max(1, Math.min(2, Math.floor(v / 2))));
+      emit('bossLaw', { law: 'tithe', idx: E.combat.enemies.indexOf(l.en) });
+    }
+    if (l.id === 'hunger' && kind === 'cardLeft') {
+      l.en.hp = Math.min(l.en.maxHp, l.en.hp + 4);
+      emit('bossLaw', { law: 'hunger', idx: E.combat.enemies.indexOf(l.en) });
+    }
+    if (l.id === 'scrutiny' && kind === 'roll' && v < 8) {
+      addStatus(l.en, 'str', 2);
+      emit('bossLaw', { law: 'scrutiny', idx: E.combat.enemies.indexOf(l.en) });
+    }
+    if (l.id === 'stillness' && kind === 'firstCardCost') return 1;
+    if (l.id === 'weight' && kind === 'blockCarries') return -1;
+    return 0;
+  }
+  E.lawTrigger = lawTrigger;
+
   function addStatus(ent, s, v) {
     ent.statuses[s] = (ent.statuses[s] || 0) + v;
     if (ent.statuses[s] <= 0) delete ent.statuses[s];
@@ -11671,7 +11750,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (c.turn === 1 && E.hasEcho('cursed_inheritance')) c.hand.push(mkCard('recurring_curse', false));
     // block expiry (Retain / Barricade keep your Shield). Turn 1 has no prior
     // turn to expire, so combat-start Shield (Aegis Core / Forge Reserve) persists.
-    if (c.turn > 1 && !statN(p, 'retain') && !statN(p, 'barricade')) p.block = 0;
+    if (c.turn > 1 && (lawTrigger('blockCarries') < 0 || (!statN(p, 'retain') && !statN(p, 'barricade')))) p.block = 0;   // THE WEIGHT overrides Retain
     if (p.statuses.parry) p.statuses.parry = 0;   // Parry is a per-turn stance (like block)
     // energy (with optional carry-over from Overflow Reactor)
     c.energy = maxEnergy() + (art('energyCarry') > 0 ? leftover : 0);
@@ -11761,18 +11840,35 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       else en.intent = { t: 'ds_arm' };
       return;
     }
+    /* THE SECOND HALF. A boss was a hallway enemy with a longer move list and
+     * more HP — same cycle, same shape, no moment where the fight changes its
+     * mind. Measured, that showed up as 55-62% of all deaths happening in
+     * ordinary fights against a design target of the opposite.
+     *
+     * At half health a boss BREAKS: it takes its escalation once, and switches
+     * to a second, meaner cycle for the rest of the fight. */
+    if (def.phase2 && !en.broken && en.hp <= en.maxHp * (def.phase2.at || 0.5)) {
+      en.broken = true;
+      en.moveIdx = 0;
+      var on = def.phase2.onEnter || {};
+      if (on.str) addStatus(en, 'str', on.str);
+      if (on.block) en.block = (en.block || 0) + on.block;
+      if (on.heal) en.hp = Math.min(en.maxHp, en.hp + on.heal);
+      emit('bossBreak', { idx: E.combat ? E.combat.enemies.indexOf(en) : 0, name: def.name, line: def.phase2.line || '' });
+    }
+    var moves = (en.broken && def.phase2 && def.phase2.moves) ? def.phase2.moves : def.moves;
     if (def.ai === 'cycle') {
-      mv = def.moves[en.moveIdx % def.moves.length];
+      mv = moves[en.moveIdx % moves.length];
       en.moveIdx++;
     } else {
       var pool = [];
-      def.moves.forEach(function (m, i) {
-        if (i === en.lastMove && def.moves.length > 1) return;
+      moves.forEach(function (m, i) {
+        if (i === en.lastMove && moves.length > 1) return;
         for (var w = 0; w < (m.w || 1); w++) pool.push(i);
       });
       var idx = pick(pool);
       en.lastMove = idx;
-      mv = def.moves[idx];
+      mv = moves[idx];
     }
     en.intent = mv;
   }
@@ -12838,6 +12934,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       rollCost = slot ? (slot.hploss || 0) : 0;
       rollGain = slot ? (slot.energy || 0) : 0;
       emit('roll', { roll: roll, eff: eff, crit: crit, misfire: misfire, band: bandLabel, tone: rollTone, cost: rollCost, gain: rollGain });
+      lawTrigger('roll', roll);        // THE SCRUTINY
     }
 
     var ctx = { tgt: tgt, crit: crit, roll: roll, eff: eff, misfire: misfire, bandMult: bandMult, bandLabel: bandLabel, blockBand: !!(dread && dread.blocks), flags: flags, xval: xval, appliedBurn: false };
@@ -12952,6 +13049,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var sbr = statN(p, 'subroutine');   // SUBROUTINE: every Power you play cycles a card
       if (sbr > 0) drawCards(sbr);
       c.consumed.push(card);
+      lawTrigger('cardLeft');           // THE HUNGER
     }
     else if (def.exhaust || (def.type === 'skill' && statN(p, 'corruption') > 0)) exhaustCard(card);
     else c.discard.push(card);
@@ -13084,7 +13182,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           var wfsp = aliveEnemies().filter(function (e) { return e !== en; });
           if (wfsp.length) { var wse = pick(wfsp); addStatus(wse, 'burn', wf); emit('status', { who: 'enemy', idx: c.enemies.indexOf(wse), s: 'burn', v: statN(wse, 'burn') }); trackBurn(wf); }
         } else {
-          addStatus(en, 'burn', -B.status.burnTick);
+          var l0 = bossLawOf();
+          var fade = (l0 && l0.id === 'cooling' && l0.en === en) ? B.status.burnTick * 2 : B.status.burnTick;
+          addStatus(en, 'burn', -fade);
         }
         if (en.hp <= 0) {
           en.alive = false; r.kills++;
@@ -13806,6 +13906,35 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     E.run = null;
     E.combat = null;
   };
+
+  /* EVERY BOSS BREAKS, not just the four that were hand-written. Ten of the
+   * fourteen had no second phase and no law, so most boss fights were still a
+   * hallway enemy with more HP — which is the thing this was supposed to fix.
+   *
+   * Rather than author ten more move lists by hand, a boss without a phase gets
+   * one derived from its own: its attacks hit a third harder and it acts on a
+   * shorter cycle, so it stays recognisably itself and simply stops holding
+   * back. Laws are dealt round-robin so no two bosses in a run feel alike. */
+  (function armBosses() {
+    var LAWS = ['scrutiny', 'tithe', 'hunger', 'weight', 'cooling'];
+    var n = 0;
+    Object.keys(ns.ENEMIES).forEach(function (id) {
+      var d = ns.ENEMIES[id];
+      if (!d.boss) return;
+      if (!d.law) d.law = LAWS[n % LAWS.length];
+      n++;
+      if (d.phase2) return;
+      var harder = (d.moves || []).map(function (m) {
+        var q = JSON.parse(JSON.stringify(m));
+        if (q.t === 'attack' || q.t === 'drain') q.d = Math.max(1, Math.round(q.d * 1.35));
+        if (q.t === 'block') q.b = Math.round(q.b * 1.2);
+        if (q.t === 'buff' || q.t === 'debuff') q.v = Math.max(1, Math.round(q.v * 1.4));
+        return q;
+      // a broken boss stops spending turns on housekeeping
+      }).filter(function (q) { return q.t !== 'heal' && q.t !== 'summon'; });
+      d.phase2 = { at: 0.5, line: 'IT STOPS HOLDING BACK', onEnter: { str: 2, block: 6 }, moves: harder };
+    });
+  })();
 
   /* THE PACTS JOIN THE POOL. They live in echoes.js with the same shape a relic
    * has, so they are merged in once at load rather than duplicated. Tier 2 =
@@ -15282,7 +15411,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       else fx = 0.34 + (0.93 - 0.34) * (b / (bn - 1));
       bv.x = W * fx;
       bv.y = y;
-      bv.r = figScale(0.092) * (bv.def.size || 1) * bshrink;
+      // A boss reads as a different KIND of thing before it reads as a bigger
+      // number, so it gets a third again the silhouette on top of its own size.
+      bv.r = figScale(0.092) * (bv.def.size || 1) * (bv.def.boss ? 1.32 : 1) * bshrink;
     }
     // minions: fan around their spawner with vertical offset, clamped on-field
     var per = {};
@@ -16359,6 +16490,41 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     ctx.restore();
   }
 
+  /* THE CROWN. Drawn UNDER the boss so it never fights the silhouette: a slow
+   * counter-rotating pair of arcs and a ground shadow, and once the thing has
+   * broken at half health the ring goes red, doubles up and spins harder. It is
+   * the same trick the die ring uses — a shape that is obviously not part of
+   * the creature, so a boss is legible as a boss at a glance. */
+  function drawBossCrown(v, col) {
+    var r = v.r * 1.55, broke = !!(v.en && v.en.broken);
+    var spin = t * (broke ? 0.55 : 0.22);
+    var cy = v.y + v.r * 0.1;
+    ctx.save();
+    ctx.translate(v.x, cy);
+    var ring = broke ? '#ff4a5e' : col;
+    for (var k = 0; k < (broke ? 2 : 1); k++) {
+      var rr = r * (1 + k * 0.16), dir = k % 2 ? -1 : 1;
+      ctx.save();
+      ctx.rotate(spin * dir + k);
+      ctx.strokeStyle = ring;
+      ctx.globalAlpha = broke ? 0.5 : 0.28;
+      ctx.lineWidth = 1.4;
+      ctx.shadowColor = ring; ctx.shadowBlur = broke ? 14 : 6;
+      for (var a = 0; a < 5; a++) {
+        ctx.beginPath();
+        var a0 = a * (Math.PI * 2 / 5);
+        ctx.arc(0, 0, rr, a0, a0 + 0.62);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    // a weight under it: bosses stand on the ground harder than anything else
+    ctx.globalAlpha = 0.22; ctx.shadowBlur = 0;
+    ctx.strokeStyle = ring; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(0, v.r * 0.92, r * 0.82, r * 0.2, 0, 0, 7); ctx.stroke();
+    ctx.restore();
+  }
+
   function drawEnemy(v, idx) {
     var dying = !v.alive;
     var dieDur = 0.45;
@@ -16441,7 +16607,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // Tilt (idle lean + act shear) needs a rotation strokePaths doesn't do, so
     // rotate the canvas about the figure's centre and draw in local space.
     var tilt = idleTilt + actTilt;
+    // the crown goes down before the body, so it frames rather than overdraws
+    if (v.def.boss && !dying) drawBossCrown(v, color);
     if (tilt) { ctx.save(); ctx.translate(x, y); ctx.rotate(tilt); ctx.translate(-x, -y); }
+    // A broken boss is stroked twice — a red ghost offset behind the line work,
+    // so the second half of the fight looks different, not just harder.
+    if (v.def.boss && v.en && v.en.broken && !dying) {
+      strokePaths(art.p, x + 2, y - 1, scale * 1.03, '#ff4a5e', 14, alpha * 0.42);
+    }
     strokePaths(art.p, x, y, scale, flash ? '#ffffff' : color, (flash ? 16 : 9) + actGlow, alpha);
     if (tilt) ctx.restore();
 
@@ -19601,6 +19774,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function showCombat() {
     hideOverlay();
     combatChrome(true);
+    /* A LAW THE PLAYER CANNOT SEE IS NOT A RULE, IT IS AN AMBUSH. Stated once,
+     * up front, before the first card is played. */
+    (function () {
+      var law = E.bossLaw && E.bossLaw();
+      if (!law || !E.combat || E.combat.turn > 1 || E.combat._lawShown) return;
+      E.combat._lawShown = true;
+      setTimeout(function () { toast(law.name + ' — ' + law.desc, 4200); }, 500);
+    })();
     if (!combatDie) combatDieMount();
     if (E.combat && E.combat.turn <= 1 && !E.combat._dieShown) { E.combat._dieShown = true; clearDieResult(); }
     R.syncCombat();
@@ -20976,6 +21157,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         // chain appears to start before the roll finishes.
         case 'roll': return 300;
         case 'dieFace': return CHAIN.step;
+        case 'bossBreak': return 900;
         case 'construct': return 220;     // the turret's shot needs a beat of its own
         case 'enrage': return 900;        // the announcement gets its own beat
         case 'enrageDecay': return 120;
@@ -21003,6 +21185,28 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     evts.forEach(function (e, _ei) {
       delay = times[_ei];
       switch (e.type) {
+        /* HALF HEALTH. The fight changes its mind and has to SAY so, or the
+         * player just notices the numbers got worse and does not know why. */
+        case 'bossBreak':
+          (function (e2, d) {
+            setTimeout(function () {
+              var v = R.views[e2.idx];
+              if (v) floater(v.x, v.y - v.r - 30, e2.line || 'IT BREAKS', 'crit');
+              R.shake(1.1); R.flash();
+              SFX.lose();
+              toast(esc(e2.name.toUpperCase()) + ' — ' + esc(e2.line || 'IT BREAKS'), 2600);
+            }, d);
+          })(e, delay);
+          break;
+        // a law biting is small and constant, so it whispers rather than shouts
+        case 'bossLaw':
+          (function (e2, d) {
+            setTimeout(function () {
+              var v = R.views[e2.idx];
+              if (v) floater(v.x, v.y - v.r - 12, 'THE LAW', 'misfire');
+            }, d);
+          })(e, delay);
+          break;
         // A construct firing has to be visible as the construct firing. The
         // engine used to deal the damage silently, so at end of turn enemies
         // simply lost HP and the thing you spent a card building never moved.

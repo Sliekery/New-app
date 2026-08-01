@@ -138,7 +138,9 @@
       else fx = 0.34 + (0.93 - 0.34) * (b / (bn - 1));
       bv.x = W * fx;
       bv.y = y;
-      bv.r = figScale(0.092) * (bv.def.size || 1) * bshrink;
+      // A boss reads as a different KIND of thing before it reads as a bigger
+      // number, so it gets a third again the silhouette on top of its own size.
+      bv.r = figScale(0.092) * (bv.def.size || 1) * (bv.def.boss ? 1.32 : 1) * bshrink;
     }
     // minions: fan around their spawner with vertical offset, clamped on-field
     var per = {};
@@ -1215,6 +1217,41 @@
     ctx.restore();
   }
 
+  /* THE CROWN. Drawn UNDER the boss so it never fights the silhouette: a slow
+   * counter-rotating pair of arcs and a ground shadow, and once the thing has
+   * broken at half health the ring goes red, doubles up and spins harder. It is
+   * the same trick the die ring uses — a shape that is obviously not part of
+   * the creature, so a boss is legible as a boss at a glance. */
+  function drawBossCrown(v, col) {
+    var r = v.r * 1.55, broke = !!(v.en && v.en.broken);
+    var spin = t * (broke ? 0.55 : 0.22);
+    var cy = v.y + v.r * 0.1;
+    ctx.save();
+    ctx.translate(v.x, cy);
+    var ring = broke ? '#ff4a5e' : col;
+    for (var k = 0; k < (broke ? 2 : 1); k++) {
+      var rr = r * (1 + k * 0.16), dir = k % 2 ? -1 : 1;
+      ctx.save();
+      ctx.rotate(spin * dir + k);
+      ctx.strokeStyle = ring;
+      ctx.globalAlpha = broke ? 0.5 : 0.28;
+      ctx.lineWidth = 1.4;
+      ctx.shadowColor = ring; ctx.shadowBlur = broke ? 14 : 6;
+      for (var a = 0; a < 5; a++) {
+        ctx.beginPath();
+        var a0 = a * (Math.PI * 2 / 5);
+        ctx.arc(0, 0, rr, a0, a0 + 0.62);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    // a weight under it: bosses stand on the ground harder than anything else
+    ctx.globalAlpha = 0.22; ctx.shadowBlur = 0;
+    ctx.strokeStyle = ring; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(0, v.r * 0.92, r * 0.82, r * 0.2, 0, 0, 7); ctx.stroke();
+    ctx.restore();
+  }
+
   function drawEnemy(v, idx) {
     var dying = !v.alive;
     var dieDur = 0.45;
@@ -1297,7 +1334,14 @@
     // Tilt (idle lean + act shear) needs a rotation strokePaths doesn't do, so
     // rotate the canvas about the figure's centre and draw in local space.
     var tilt = idleTilt + actTilt;
+    // the crown goes down before the body, so it frames rather than overdraws
+    if (v.def.boss && !dying) drawBossCrown(v, color);
     if (tilt) { ctx.save(); ctx.translate(x, y); ctx.rotate(tilt); ctx.translate(-x, -y); }
+    // A broken boss is stroked twice — a red ghost offset behind the line work,
+    // so the second half of the fight looks different, not just harder.
+    if (v.def.boss && v.en && v.en.broken && !dying) {
+      strokePaths(art.p, x + 2, y - 1, scale * 1.03, '#ff4a5e', 14, alpha * 0.42);
+    }
     strokePaths(art.p, x, y, scale, flash ? '#ffffff' : color, (flash ? 16 : 9) + actGlow, alpha);
     if (tilt) ctx.restore();
 

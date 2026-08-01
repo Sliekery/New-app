@@ -1010,6 +1010,7 @@
     if (n <= 0) return;
     if (art('noShield') > 0) return;   // tradeoff relics that forbid Shield entirely
     p.block += n;
+    lawTrigger('shieldGained', n);      // THE TITHE
     if (played) c.playedShield = true;
     emit('block', { who: 'player', amount: n, blockAfter: p.block });
     var st = art('shieldThorns');
@@ -1042,6 +1043,68 @@
   function statN(ent, s) { return ent.statuses[s] || 0; }
   var _statListen = { momentum: 'momentum', parry: 'parry', psiPow: 'psi' };
   var _inEnemyListen = false;
+  /* ---- BOSS LAWS ---------------------------------------------------------
+   * One standing rule per boss, in force from the first turn and stated on
+   * screen before you act. This is what actually separates a boss from a large
+   * hallway enemy: not the size of its numbers but the fact that your usual
+   * line does not work here.
+   *
+   * Deliberately small vocabulary — each law reads in one sentence and hooks a
+   * place the engine already passes through. */
+  ns.BOSS_LAWS = {
+    tithe:     { name: 'THE TITHE',     desc: 'Every Shield you gain feeds it — up to 2 Might a time.' },
+    hunger:    { name: 'THE HUNGER',    desc: 'It heals 4 whenever you exhaust or discard a card.' },
+    stillness: { name: 'THE STILLNESS', desc: 'The first card you play each turn costs 1 more.' },
+    scrutiny:  { name: 'THE SCRUTINY',  desc: 'Rolling under 8 gives it 2 Might.' },
+    weight:    { name: 'THE WEIGHT',    desc: 'Your Shield does not carry between turns.' },
+    /* Every other law bites a class that attacks in bursts and blocks between
+     * them. Buffing bosses with Block and Might did nothing at all to Burn —
+     * measured, the Void Adept's share of deaths at bosses FELL from 36% to 29%
+     * while the block-caring classes took the whole increase. A boss needs one
+     * answer to damage that ignores its guard. */
+    cooling:   { name: 'THE COOLING',   desc: 'Burn and Vulnerable on it fade twice as fast.' },
+  };
+  function bossLawOf() {
+    var c = E.combat;
+    if (!c) return null;
+    for (var i = 0; i < c.enemies.length; i++) {
+      var en = c.enemies[i];
+      if (!en.alive) continue;
+      var law = en.def && en.def.law;
+      if (law && ns.BOSS_LAWS[law]) return { id: law, en: en };
+    }
+    return null;
+  }
+  E.bossLaw = function () {
+    var l = bossLawOf();
+    return l ? { id: l.id, name: ns.BOSS_LAWS[l.id].name, desc: ns.BOSS_LAWS[l.id].desc } : null;
+  };
+  // Called wherever a law can bite. Kept in one function so every law is
+  // visible together rather than smeared across the engine.
+  function lawTrigger(kind, v) {
+    var l = bossLawOf();
+    if (!l) return 0;
+    if (l.id === 'tithe' && kind === 'shieldGained' && v > 0) {
+      // CAPPED. Uncapped, a Technomancer gaining 30 Shield in a turn handed the
+      // boss +15 Might in one go — measured, the class lost 6.4 points to this
+      // law alone. A tithe is a tax, not a confiscation.
+      addStatus(l.en, 'str', Math.max(1, Math.min(2, Math.floor(v / 2))));
+      emit('bossLaw', { law: 'tithe', idx: E.combat.enemies.indexOf(l.en) });
+    }
+    if (l.id === 'hunger' && kind === 'cardLeft') {
+      l.en.hp = Math.min(l.en.maxHp, l.en.hp + 4);
+      emit('bossLaw', { law: 'hunger', idx: E.combat.enemies.indexOf(l.en) });
+    }
+    if (l.id === 'scrutiny' && kind === 'roll' && v < 8) {
+      addStatus(l.en, 'str', 2);
+      emit('bossLaw', { law: 'scrutiny', idx: E.combat.enemies.indexOf(l.en) });
+    }
+    if (l.id === 'stillness' && kind === 'firstCardCost') return 1;
+    if (l.id === 'weight' && kind === 'blockCarries') return -1;
+    return 0;
+  }
+  E.lawTrigger = lawTrigger;
+
   function addStatus(ent, s, v) {
     ent.statuses[s] = (ent.statuses[s] || 0) + v;
     if (ent.statuses[s] <= 0) delete ent.statuses[s];
@@ -1093,7 +1156,7 @@
     if (c.turn === 1 && E.hasEcho('cursed_inheritance')) c.hand.push(mkCard('recurring_curse', false));
     // block expiry (Retain / Barricade keep your Shield). Turn 1 has no prior
     // turn to expire, so combat-start Shield (Aegis Core / Forge Reserve) persists.
-    if (c.turn > 1 && !statN(p, 'retain') && !statN(p, 'barricade')) p.block = 0;
+    if (c.turn > 1 && (lawTrigger('blockCarries') < 0 || (!statN(p, 'retain') && !statN(p, 'barricade')))) p.block = 0;   // THE WEIGHT overrides Retain
     if (p.statuses.parry) p.statuses.parry = 0;   // Parry is a per-turn stance (like block)
     // energy (with optional carry-over from Overflow Reactor)
     c.energy = maxEnergy() + (art('energyCarry') > 0 ? leftover : 0);
@@ -1183,18 +1246,35 @@
       else en.intent = { t: 'ds_arm' };
       return;
     }
+    /* THE SECOND HALF. A boss was a hallway enemy with a longer move list and
+     * more HP — same cycle, same shape, no moment where the fight changes its
+     * mind. Measured, that showed up as 55-62% of all deaths happening in
+     * ordinary fights against a design target of the opposite.
+     *
+     * At half health a boss BREAKS: it takes its escalation once, and switches
+     * to a second, meaner cycle for the rest of the fight. */
+    if (def.phase2 && !en.broken && en.hp <= en.maxHp * (def.phase2.at || 0.5)) {
+      en.broken = true;
+      en.moveIdx = 0;
+      var on = def.phase2.onEnter || {};
+      if (on.str) addStatus(en, 'str', on.str);
+      if (on.block) en.block = (en.block || 0) + on.block;
+      if (on.heal) en.hp = Math.min(en.maxHp, en.hp + on.heal);
+      emit('bossBreak', { idx: E.combat ? E.combat.enemies.indexOf(en) : 0, name: def.name, line: def.phase2.line || '' });
+    }
+    var moves = (en.broken && def.phase2 && def.phase2.moves) ? def.phase2.moves : def.moves;
     if (def.ai === 'cycle') {
-      mv = def.moves[en.moveIdx % def.moves.length];
+      mv = moves[en.moveIdx % moves.length];
       en.moveIdx++;
     } else {
       var pool = [];
-      def.moves.forEach(function (m, i) {
-        if (i === en.lastMove && def.moves.length > 1) return;
+      moves.forEach(function (m, i) {
+        if (i === en.lastMove && moves.length > 1) return;
         for (var w = 0; w < (m.w || 1); w++) pool.push(i);
       });
       var idx = pick(pool);
       en.lastMove = idx;
-      mv = def.moves[idx];
+      mv = moves[idx];
     }
     en.intent = mv;
   }
@@ -2260,6 +2340,7 @@
       rollCost = slot ? (slot.hploss || 0) : 0;
       rollGain = slot ? (slot.energy || 0) : 0;
       emit('roll', { roll: roll, eff: eff, crit: crit, misfire: misfire, band: bandLabel, tone: rollTone, cost: rollCost, gain: rollGain });
+      lawTrigger('roll', roll);        // THE SCRUTINY
     }
 
     var ctx = { tgt: tgt, crit: crit, roll: roll, eff: eff, misfire: misfire, bandMult: bandMult, bandLabel: bandLabel, blockBand: !!(dread && dread.blocks), flags: flags, xval: xval, appliedBurn: false };
@@ -2374,6 +2455,7 @@
       var sbr = statN(p, 'subroutine');   // SUBROUTINE: every Power you play cycles a card
       if (sbr > 0) drawCards(sbr);
       c.consumed.push(card);
+      lawTrigger('cardLeft');           // THE HUNGER
     }
     else if (def.exhaust || (def.type === 'skill' && statN(p, 'corruption') > 0)) exhaustCard(card);
     else c.discard.push(card);
@@ -2506,7 +2588,9 @@
           var wfsp = aliveEnemies().filter(function (e) { return e !== en; });
           if (wfsp.length) { var wse = pick(wfsp); addStatus(wse, 'burn', wf); emit('status', { who: 'enemy', idx: c.enemies.indexOf(wse), s: 'burn', v: statN(wse, 'burn') }); trackBurn(wf); }
         } else {
-          addStatus(en, 'burn', -B.status.burnTick);
+          var l0 = bossLawOf();
+          var fade = (l0 && l0.id === 'cooling' && l0.en === en) ? B.status.burnTick * 2 : B.status.burnTick;
+          addStatus(en, 'burn', -fade);
         }
         if (en.hp <= 0) {
           en.alive = false; r.kills++;
@@ -3228,6 +3312,35 @@
     E.run = null;
     E.combat = null;
   };
+
+  /* EVERY BOSS BREAKS, not just the four that were hand-written. Ten of the
+   * fourteen had no second phase and no law, so most boss fights were still a
+   * hallway enemy with more HP — which is the thing this was supposed to fix.
+   *
+   * Rather than author ten more move lists by hand, a boss without a phase gets
+   * one derived from its own: its attacks hit a third harder and it acts on a
+   * shorter cycle, so it stays recognisably itself and simply stops holding
+   * back. Laws are dealt round-robin so no two bosses in a run feel alike. */
+  (function armBosses() {
+    var LAWS = ['scrutiny', 'tithe', 'hunger', 'weight', 'cooling'];
+    var n = 0;
+    Object.keys(ns.ENEMIES).forEach(function (id) {
+      var d = ns.ENEMIES[id];
+      if (!d.boss) return;
+      if (!d.law) d.law = LAWS[n % LAWS.length];
+      n++;
+      if (d.phase2) return;
+      var harder = (d.moves || []).map(function (m) {
+        var q = JSON.parse(JSON.stringify(m));
+        if (q.t === 'attack' || q.t === 'drain') q.d = Math.max(1, Math.round(q.d * 1.35));
+        if (q.t === 'block') q.b = Math.round(q.b * 1.2);
+        if (q.t === 'buff' || q.t === 'debuff') q.v = Math.max(1, Math.round(q.v * 1.4));
+        return q;
+      // a broken boss stops spending turns on housekeeping
+      }).filter(function (q) { return q.t !== 'heal' && q.t !== 'summon'; });
+      d.phase2 = { at: 0.5, line: 'IT STOPS HOLDING BACK', onEnter: { str: 2, block: 6 }, moves: harder };
+    });
+  })();
 
   /* THE PACTS JOIN THE POOL. They live in echoes.js with the same shape a relic
    * has, so they are merged in once at load rather than duplicated. Tier 2 =
