@@ -2258,6 +2258,23 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 }
 .bay-go.out { color: #ff8a3a; }
 
+
+/* ====================== THE DIE SCREEN, SIDE BY SIDE ==================
+ * Measured: the die stage and the twenty-face list were 137px and 187px
+ * stacked, and the screen ran 1.48 viewports deep — you scrolled past the die
+ * to reach the faces, then back up to watch the die answer. On any screen wide
+ * enough they sit beside each other instead. */
+.die-split { display: grid; gap: 10px; align-items: start; }
+@media (min-width: 560px) {
+  .die-split { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 14px; }
+  .die-pane { position: sticky; top: 0; }
+}
+.die-pane { display: grid; gap: 6px; align-content: start; }
+.die-faces { display: grid; gap: 5px; align-content: start; }
+/* the rows are the tallest thing left, so they tighten too */
+.die-split .die-cols { gap: 3px 8px; }
+.die-split .df { padding-top: 1px; padding-bottom: 1px; }
+
 </style>
 </head>
 <body>
@@ -19785,21 +19802,36 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var sub = el('div', 'screen-sub', '');
     s.appendChild(sub);
 
+    /* SIDE BY SIDE, not stacked. Measured on landscape: the die stage was 137px
+     * and the twenty-face list 187px, one above the other, and the screen ran
+     * 1.48 viewports deep — you scrolled past the die to reach the faces, then
+     * back up to see the die react to the face you picked, which is the one
+     * thing this screen exists to show you.
+     *
+     * The die and what it says go left, the faces go right. Nothing is removed;
+     * the tallest two blocks simply stop queueing behind each other. */
+    var split = el('div', 'die-split');
+    var pane = el('div', 'die-pane');
     var stage = el('div', 'die-stage');
     var cv = document.createElement('canvas');
     cv.className = 'die-canvas';
     stage.appendChild(cv);
-    s.appendChild(stage);
-
+    pane.appendChild(stage);
     var info = el('div', 'die-info');
-    s.appendChild(info);
+    pane.appendChild(info);
     var read = el('div', 'die-read');
-    s.appendChild(read);
+    pane.appendChild(read);
+    split.appendChild(pane);
+
+    var faces = el('div', 'die-faces');
+    var wrap = el('div', 'die-cols');
+    faces.appendChild(wrap);
+    faces.appendChild(el('div', 'die-legend', 'TAP A FACE TO SPIN THE DIE TO IT · THE TAG IS THE BAND IT LANDS IN'));
+    split.appendChild(faces);
+    s.appendChild(split);
+
     var shop = el('div', 'die-shop');
     s.appendChild(shop);
-    var wrap = el('div', 'die-cols');
-    s.appendChild(wrap);
-    s.appendChild(el('div', 'die-legend', 'TAP A FACE TO SPIN THE DIE TO IT · THE TAG IS THE BAND IT LANDS IN'));
     var mods = el('div', 'die-mods');
     s.appendChild(mods);
 
