@@ -224,6 +224,57 @@ function probe(floor) {
       await page3.close();
     })();
 
+    /* ---- the HUD must not reserve a band it does not need ---------------
+     * overlayScreen used to set paddingTop to the HUD's full height. The HUD is
+     * a corner cluster AND a menu button hard against the right edge, so any
+     * single box around it spans the frame — which bought 206px of empty band
+     * on a 1587px screen and turned a screen that fits into a 1.27x scroll.
+     * This asserts wide frames reclaim it, and that nothing ends up hidden
+     * beneath the HUD on any frame. */
+    await (async function gapCheck() {
+      var sizes = [[1720, 930, true], [844, 390, true], [390, 844, false]];
+      for (var i = 0; i < sizes.length; i++) {
+        var pg = await browser.newPage({ viewport: { width: sizes[i][0], height: sizes[i][1] } });
+        await pg.goto('file://' + path.resolve(__dirname, '..', 'voidspire.html'));
+        await pg.waitForTimeout(600);
+        await pg.evaluate(function () {
+          var E = VS.engine; E.seed(4); E.newRun('vanguard'); E.takeFirstMark(0);
+          if (!E.run.die) E.run.die = VS.newDie();
+          E.run.pressure = 1; E.run.artifacts = ['aegis_core', 'servo_skull', 'targeting_visor'];
+          E.run.phase = 'map'; VS.ui.refresh();
+        });
+        await pg.waitForTimeout(500);
+        await pg.evaluate(function () { VS.ui.showDie(); });
+        await pg.waitForTimeout(900);
+        var r = await pg.evaluate(function () {
+          var s = document.querySelector('.screen');
+          var leaves = [];
+          (function walk(n) {
+            [].forEach.call(n.children, function (c) {
+              if (c.children.length) { walk(c); return; }
+              var b = c.getBoundingClientRect();
+              if (b.width && b.height) leaves.push(b);
+            });
+          })(document.getElementById('hud'));
+          var hidden = false;
+          [].forEach.call(s.children, function (c) {
+            var b = c.getBoundingClientRect();
+            leaves.forEach(function (hb) {
+              if (b.top < hb.bottom && b.bottom > hb.top && b.left < hb.right && b.right > hb.left) hidden = true;
+            });
+          });
+          return { pad: parseFloat(getComputedStyle(s).paddingTop), hidden: hidden };
+        });
+        checks++;
+        var wide = sizes[i][2], bad = null;
+        if (r.hidden) bad = 'content sits under the HUD';
+        else if (wide && r.pad > 40) bad = 'reserved ' + Math.round(r.pad) + 'px of band it does not need';
+        if (bad) { fails++; console.log(' FAIL hud gap ' + sizes[i][0] + 'x' + sizes[i][1] + ': ' + bad); }
+        else console.log('  ok  hud gap ' + sizes[i][0] + 'x' + sizes[i][1] + ' (pad ' + Math.round(r.pad) + 'px)');
+        await pg.close();
+      }
+    })();
+
     await browser.close();
     console.log('\n' + checks + ' screen checks, ' + (fails === 0 ? 'ALL UI FIT CHECKS PASSED' : fails + ' FAILED'));
     process.exit(fails === 0 ? 0 : 1);
