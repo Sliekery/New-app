@@ -2246,3 +2246,20 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   letter-spacing: .14em; color: #5dff88;
 }
 .bay-go.out { color: #ff8a3a; }
+
+
+/* ====================== THE DIE SCREEN, SIDE BY SIDE ==================
+ * Measured: the die stage and the twenty-face list were 137px and 187px
+ * stacked, and the screen ran 1.48 viewports deep — you scrolled past the die
+ * to reach the faces, then back up to watch the die answer. On any screen wide
+ * enough they sit beside each other instead. */
+.die-split { display: grid; gap: 10px; align-items: start; }
+@media (min-width: 560px) {
+  .die-split { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 14px; }
+  .die-pane { position: sticky; top: 0; }
+}
+.die-pane { display: grid; gap: 6px; align-content: start; }
+.die-faces { display: grid; gap: 5px; align-content: start; }
+/* the rows are the tallest thing left, so they tighten too */
+.die-split .die-cols { gap: 3px 8px; }
+.die-split .df { padding-top: 1px; padding-bottom: 1px; }

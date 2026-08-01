@@ -1443,21 +1443,36 @@
     var sub = el('div', 'screen-sub', '');
     s.appendChild(sub);
 
+    /* SIDE BY SIDE, not stacked. Measured on landscape: the die stage was 137px
+     * and the twenty-face list 187px, one above the other, and the screen ran
+     * 1.48 viewports deep — you scrolled past the die to reach the faces, then
+     * back up to see the die react to the face you picked, which is the one
+     * thing this screen exists to show you.
+     *
+     * The die and what it says go left, the faces go right. Nothing is removed;
+     * the tallest two blocks simply stop queueing behind each other. */
+    var split = el('div', 'die-split');
+    var pane = el('div', 'die-pane');
     var stage = el('div', 'die-stage');
     var cv = document.createElement('canvas');
     cv.className = 'die-canvas';
     stage.appendChild(cv);
-    s.appendChild(stage);
-
+    pane.appendChild(stage);
     var info = el('div', 'die-info');
-    s.appendChild(info);
+    pane.appendChild(info);
     var read = el('div', 'die-read');
-    s.appendChild(read);
+    pane.appendChild(read);
+    split.appendChild(pane);
+
+    var faces = el('div', 'die-faces');
+    var wrap = el('div', 'die-cols');
+    faces.appendChild(wrap);
+    faces.appendChild(el('div', 'die-legend', 'TAP A FACE TO SPIN THE DIE TO IT · THE TAG IS THE BAND IT LANDS IN'));
+    split.appendChild(faces);
+    s.appendChild(split);
+
     var shop = el('div', 'die-shop');
     s.appendChild(shop);
-    var wrap = el('div', 'die-cols');
-    s.appendChild(wrap);
-    s.appendChild(el('div', 'die-legend', 'TAP A FACE TO SPIN THE DIE TO IT · THE TAG IS THE BAND IT LANDS IN'));
     var mods = el('div', 'die-mods');
     s.appendChild(mods);
 
