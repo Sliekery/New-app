@@ -2264,3 +2264,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 /* the rows are the tallest thing left, so they tighten too */
 .die-split .die-cols { gap: 3px 8px; }
 .die-split .df { padding-top: 1px; padding-bottom: 1px; }
+
+/* the Aim readout says loudly when it has been moved off your real value */
+.ws-val.preview { color: var(--amber, #ffb02e); }
+.ws-note [data-aimreset] {
+  cursor: pointer; color: #41d8ff; border-bottom: 1px dotted currentColor;
+  font-weight: 700; margin-left: 4px;
+}

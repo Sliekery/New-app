@@ -188,6 +188,43 @@ function probe(floor) {
       await page2.close();
     })();
 
+    /* ---- the Aim control must be a PREVIEW ----------------------------
+     * Opened during a fight it used to write c.player.statuses.aim directly,
+     * so the two buttons labelled "preview" moved a face from GRAZE x0.8 to
+     * SOLID x1.25 in the combat you were standing in. */
+    await (async function aimCheck() {
+      var page3 = await browser.newPage({ viewport: { width: 844, height: 390 } });
+      await page3.goto('file://' + path.resolve(__dirname, '..', 'voidspire.html'));
+      await page3.waitForTimeout(700);
+      var verdict = await page3.evaluate(async function () {
+        var E = VS.engine;
+        E.seed(4); E.newRun('vanguard'); E.takeFirstMark(0);
+        if (!E.run.die) E.run.die = VS.newDie();
+        E.run.faction = 'hierarchy'; E.run.nodeIdx = 0; E.startNode('fight');
+        VS.ui.refresh();
+        await new Promise(function (r) { setTimeout(r, 200); });
+        var before = E.combat.player.statuses.aim || 0;
+        VS.ui.showDie();
+        await new Promise(function (r) { setTimeout(r, 250); });
+        var plus = document.querySelector('[data-aim="1"]');
+        if (!plus) return 'no aim control on the die screen';
+        for (var i = 0; i < 6; i++) {
+          plus.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+          plus = document.querySelector('[data-aim="1"]');       // the row re-renders
+          if (!plus) return 'aim control vanished mid-press';
+        }
+        var after = E.combat.player.statuses.aim || 0;
+        if (after !== before) return 'PREVIEW WROTE REAL AIM: ' + before + ' -> ' + after;
+        var shown = (document.querySelector('.ws-val') || {}).textContent || '';
+        if (shown === '+' + before) return 'preview did not move (' + shown + ')';
+        return 'ok';
+      });
+      checks++;
+      if (verdict !== 'ok') { fails++; console.log(' FAIL aim preview: ' + verdict); }
+      else console.log('  ok  aim control previews without touching real Aim');
+      await page3.close();
+    })();
+
     await browser.close();
     console.log('\n' + checks + ' screen checks, ' + (fails === 0 ? 'ALL UI FIT CHECKS PASSED' : fails + ' FAILED'));
     process.exit(fails === 0 ? 0 : 1);

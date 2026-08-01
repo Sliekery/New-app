@@ -1161,17 +1161,35 @@
   // nothing is ever out of reach. Kept as a function because every caller
   // threads it through; it now simply never dims anything.
   function dieReach() { return function () { return true; }; }
-  function dieAimNow() {
+  /* THE AIM CONTROL IS A PREVIEW AND NOTHING ELSE.
+   *
+   * It used to write straight into c.player.statuses.aim whenever the die
+   * screen was opened DURING a fight — so the two little buttons labelled
+   * "preview the bands it puts each face in" were a free cheat: twelve taps
+   * moved face 5 from GRAZE x0.8 to SOLID x1.25 in the fight you were in.
+   * Out of combat it was already a real preview, which is why it went unnoticed.
+   *
+   * It writes to the die's own scratch value now, in both cases, and nothing
+   * outside this screen ever reads that. */
+  function dieRealAim() {
     var c = E.combat;
     if (c) return (c.player.statuses.aim || 0);
-    var d = E.run && E.run.die;
-    if (d && d.previewAim != null) return d.previewAim;
     return E.run ? E.startAim(E.run.cls) : 0;
   }
+  function dieAimNow() {
+    var d = E.run && E.run.die;
+    if (d && d.previewAim != null) return d.previewAim;
+    return dieRealAim();
+  }
   function dieSetAim(n) {
-    var c = E.combat, d = E.run && E.run.die;
-    n = Math.max(0, Math.min(19, n));
-    if (c) c.player.statuses.aim = n; else if (d) d.previewAim = n;
+    var d = E.run && E.run.die;
+    if (d) d.previewAim = Math.max(0, Math.min(19, n));
+  }
+  // seeded from reality every time the screen opens, so a preview left at +14
+  // never greets you as though it were your Aim
+  function dieResetAim() {
+    var d = E.run && E.run.die;
+    if (d) delete d.previewAim;
   }
   /* THE CLASS TABLE. Roll every face through the class's own reading so the
    * screen shows what the die MEANS for you, and how Aim reshapes it — which is
@@ -1491,6 +1509,7 @@
 
   function showDieScreen(opts) {
     var r = E.run; if (!r) return;
+    dieResetAim();
     if (!r.die) r.die = ns.newDie();
     var die = r.die;
     var bench = !!(opts && opts.bench) && E.benchOpen();
@@ -1681,9 +1700,12 @@
       }
 
       // ---- inspection / dev workshop ----
+      var realA = dieRealAim(), moved = a !== realA;
       h += '<div class="ws-row"><span class="ws-lab">AIM</span>'
-        +  '<button class="ws-btn" data-aim="-1">−</button><span class="ws-val">+' + a + '</span><button class="ws-btn" data-aim="1">+</button>'
-        +  '<span class="ws-note">preview the bands it puts each face in</span>'
+        +  '<button class="ws-btn" data-aim="-1">−</button><span class="ws-val' + (moved ? ' preview' : '') + '">+' + a + '</span><button class="ws-btn" data-aim="1">+</button>'
+        +  '<span class="ws-note">' + (moved
+              ? 'PREVIEW ONLY — you actually have +' + realA + ' <b data-aimreset="1">RESET</b>'
+              : 'preview the bands a higher Aim would put each face in') + '</span>'
         + (DEV_WORKSHOP
           ? ('<span class="ws-gap"></span>'
             + '<button class="ws-btn wide" data-pick="1">' + (pickOpen ? 'CANCEL' : 'ENGRAVE FACE ' + sel) + '</button>'
@@ -1742,6 +1764,8 @@
       shop.querySelectorAll('[data-aim]').forEach(function (b) {
         b.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); SFX.tap(); dieSetAim(aim() + (+b.dataset.aim)); renderAll(false, false); });
       });
+      var ar = shop.querySelector('[data-aimreset]');
+      if (ar) ar.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); SFX.tap(); dieResetAim(); renderAll(false, false); });
       var pb = shop.querySelector('[data-pick]');
       if (pb) pb.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); SFX.tap(); pickOpen = !pickOpen; renderAll(false, false); });
       var sb = shop.querySelector('[data-scrub]');
