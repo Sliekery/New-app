@@ -2210,8 +2210,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .bl-go { margin-left: auto; font: 700 9.5px/1.3 ui-monospace, monospace; letter-spacing: .16em; color: #61776c; }
 
 .bay-stage { position: relative; display: grid; gap: 6px; }
-.bay-canvas { width: 100%; height: 178px; display: block; touch-action: manipulation; }
-@media (min-width: 620px) { .bay-canvas { height: 208px; } }
+.bay-canvas { width: 100%; height: 196px; display: block; touch-action: none; cursor: grab; }
+@media (min-width: 620px) { .bay-canvas { height: 230px; } }
 @media (max-height: 520px) { .bay-canvas { height: 168px; } }
 .bay-readout { min-height: 34px; text-align: center; }
 .bay-nm { font: 700 13px/1.4 ui-monospace, monospace; letter-spacing: .04em; }

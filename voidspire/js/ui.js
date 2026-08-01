@@ -1337,7 +1337,8 @@
     setTimeout(function () {
       view = ns.chassisCreate(cv, { cls: r.cls, mounted: mountedList(), slots: slots() });
       // tapping a live hardpoint reads it out
-      cv.addEventListener('pointerdown', function (ev) {
+      cv.addEventListener('pointerup', function (ev) {
+        if (!view || view.dragged()) return;      // a turn is not a tap
         var b = cv.getBoundingClientRect();
         var i = view.slotAt(ev.clientX - b.left, ev.clientY - b.top);
         if (i < 0) return;
