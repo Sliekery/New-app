@@ -188,10 +188,12 @@ function probe(floor) {
       await page2.close();
     })();
 
-    /* ---- the Aim control must be a PREVIEW ----------------------------
-     * Opened during a fight it used to write c.player.statuses.aim directly,
-     * so the two buttons labelled "preview" moved a face from GRAZE x0.8 to
-     * SOLID x1.25 in the combat you were standing in. */
+    /* ---- Aim is a READOUT ---------------------------------------------
+     * It used to be +/- buttons previewing the table at a hypothetical Aim,
+     * and opened mid-fight they wrote c.player.statuses.aim directly. The
+     * preview is gone — the face list already prints every band at your real
+     * Aim — so this asserts the control is absent AND that simply opening the
+     * die screen in combat cannot move the stat. */
     await (async function aimCheck() {
       var page3 = await browser.newPage({ viewport: { width: 844, height: 390 } });
       await page3.goto('file://' + path.resolve(__dirname, '..', 'voidspire.html'));
@@ -206,22 +208,19 @@ function probe(floor) {
         var before = E.combat.player.statuses.aim || 0;
         VS.ui.showDie();
         await new Promise(function (r) { setTimeout(r, 250); });
-        var plus = document.querySelector('[data-aim="1"]');
-        if (!plus) return 'no aim control on the die screen';
-        for (var i = 0; i < 6; i++) {
-          plus.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-          plus = document.querySelector('[data-aim="1"]');       // the row re-renders
-          if (!plus) return 'aim control vanished mid-press';
-        }
+        if (document.querySelector('[data-aim]')) return 'the +/- preview is back';
         var after = E.combat.player.statuses.aim || 0;
-        if (after !== before) return 'PREVIEW WROTE REAL AIM: ' + before + ' -> ' + after;
+        if (after !== before) return 'opening the die screen moved real Aim ' + before + ' -> ' + after;
         var shown = (document.querySelector('.ws-val') || {}).textContent || '';
-        if (shown === '+' + before) return 'preview did not move (' + shown + ')';
+        if (shown !== '+' + before) return 'readout says ' + shown + ' but Aim is +' + before;
+        // and the face list must be showing bands, since that is what replaced it
+        if (!document.querySelectorAll('.df-tag').length) return 'no band tags on the face list';
+        if (E.run.die.previewAim != null) return 'previewAim is still being written to the save';
         return 'ok';
       });
       checks++;
-      if (verdict !== 'ok') { fails++; console.log(' FAIL aim preview: ' + verdict); }
-      else console.log('  ok  aim control previews without touching real Aim');
+      if (verdict !== 'ok') { fails++; console.log(' FAIL aim readout: ' + verdict); }
+      else console.log('  ok  aim is a readout that matches the real stat');
       await page3.close();
     })();
 
