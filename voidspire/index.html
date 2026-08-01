@@ -19047,11 +19047,58 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     combatChrome(false);
     var s = el('div', 'screen' + (clear ? ' clear' : ''));
     $overlay.appendChild(s);
-    // reserve room for the HUD (which sits on top) so a screen title never
-    // collides with the HP bar / attribute row behind it
+    /* RESERVE ONLY WHAT ACTUALLY COLLIDES.
+     *
+     * This reserved the HUD's whole height as top padding — but the HUD is a
+     * cluster in the top-LEFT corner, about 250px wide. On a 1587px frame that
+     * bought 206px of empty band across the entire screen to avoid a collision
+     * that could not happen, pushed the title 319px down, and turned a screen
+     * that fits into one you scroll (1.27x). On a landscape phone it was the
+     * difference between 1.00x and 1.09x.
+     *
+     * The content is a centred column, so whether it collides depends on the
+     * frame's width. That cannot be known until the children exist, so a small
+     * padding goes on now and a frame later it is measured for real. */
     if ($hud && $hud.style.display !== 'none' && $hud.innerHTML.trim()) {
       var hh = $hud.getBoundingClientRect().height;
-      if (hh > 0 && hh < 220) s.style.paddingTop = (hh + 12) + 'px';
+      s.style.paddingTop = '14px';
+      requestAnimationFrame(function () {
+        if (!s.isConnected) return;
+        var kid = s.firstElementChild;
+        if (!kid || !(hh > 0 && hh < 220)) return;
+
+        /* PER LEAF, NOT ONE BOX. The HUD is not the corner cluster it looks
+         * like — it is that cluster AND a menu button hard against the right
+         * edge, so any single bounding box around it spans the entire frame and
+         * reports that everything collides. That is why this reserved 206px of
+         * empty band on a 1587px screen for a collision that cannot happen, and
+         * pushed the title 300px down into a scroll.
+         *
+         * Only the leaves that actually sit over the content column count, and
+         * only those decide how far the content has to duck. */
+        /* The COLUMN, not the title. Testing only the first child passed on a
+         * narrow frame — the title is short and centred, but the wider blocks
+         * below it sat straight under the corner chips. The column is the union
+         * of everything the screen actually lays out. */
+        var kb = { left: Infinity, right: -Infinity };
+        [].forEach.call(s.children, function (c) {
+          var b = c.getBoundingClientRect();
+          if (!b.width || !b.height) return;
+          kb.left = Math.min(kb.left, b.left); kb.right = Math.max(kb.right, b.right);
+        });
+        if (!isFinite(kb.left)) kb = kid.getBoundingClientRect();
+        var need = 0;
+        var top = $hud.getBoundingClientRect().top;
+        (function walk(node) {
+          [].forEach.call(node.children, function (c) {
+            if (c.children.length) { walk(c); return; }
+            var b = c.getBoundingClientRect();
+            if (!b.width || !b.height) return;
+            if (b.left < kb.right + 8 && b.right > kb.left - 8) need = Math.max(need, b.bottom - top + 12);
+          });
+        })($hud);
+        s.style.paddingTop = Math.max(14, need) + 'px';
+      });
     }
     // cascade-in for whatever the caller builds next
     setTimeout(function () {
