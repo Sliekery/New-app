@@ -209,7 +209,9 @@ html, body {
   touch-action: none;
   position: relative;
   width: 90px; min-width: 0; height: 128px;
-  margin: 0 -8px;
+  /* set per-hand by renderHand: a gap while there is room, an overlap only
+     once the hand will not fit. -8px is the fallback for cards outside a hand. */
+  margin: 0 var(--cm, -8px);
   display: flex; flex-direction: column;
   background: linear-gradient(160deg, var(--panel2), var(--panel));
   border: 1px solid var(--green-dim);

@@ -417,6 +417,7 @@
     applyScale();
     if (R.resize) R.resize();
     if (E.combat && R.syncCombat) R.syncCombat();
+    fitHand();                                 // the reserves are measured, so they move with the dock
     if (land !== lastLandscape) {
       lastLandscape = land;
       if (E.run && E.run.phase !== 'combat' && $overlay.classList.contains('active')) U.refresh();
@@ -2856,6 +2857,60 @@
       '<div class="cdesc">' + descHTML(desc) + '</div>';
   }
 
+  /* ---- the hand fits the bar it is in ---------------------------------
+   * Two numbers used to be hand-fitted constants: the card margin (a flat
+   * -8px, applied whether you held ten cards or three) and the hand's side
+   * padding (`0 142px 0 280px`). Measured on a 1742px window with five in
+   * hand: 1320px of room for 450px of card, and they still buried 27% of each
+   * other — and what a card covers is the NEXT card's description, the half
+   * you read. The right reserve was 72px short of END TURN, so a full hand
+   * dealt its last card over the button you end the turn with.
+   *
+   * Both are measured now. Kept OUT of renderHand because the dock, the belt
+   * and the piles are laid out around the same moment the cards are, and
+   * measuring them mid-flight reads zero — which is how the reserve came back
+   * as 73px when the belt needed 274. It runs after the frame settles and on
+   * every resize, and it is idempotent. */
+  var CARD_W = 90, CARD_H = 128, GAP_MAX = 5, OVERLAP_MAX = 50;
+  function fitHand() {
+    var c = E.combat;
+    if (!c || !$hand || $hand.style.display === 'none') return;
+    var n = $hand.children.length;
+    if (!n) return;
+    var mid = (n - 1) / 2;
+    var spread = n > 1 ? Math.min(4.2, 26 / n) : 0;
+    /* The outer cards are ROTATED, so each one's box is wider than the card: a
+     * 90x128 card at 12 degrees measures 114 across. Reserve that too, or the
+     * end of the fan clips the button it was supposed to be clearing. */
+    var fanBulge = Math.abs(CARD_H * Math.sin(mid * spread * Math.PI / 180)) / 2;
+    var hb = $hand.getBoundingClientRect();
+    var fs0 = $game ? ($game.getBoundingClientRect().width / Math.max(1, $game.offsetWidth)) : 1;
+    if (!(fs0 > 0.01)) fs0 = 1;
+    function reserve(sels, right) {
+      var need = 0;
+      sels.forEach(function (sel) {
+        var e = document.querySelector(sel); if (!e) return;
+        var b = e.getBoundingClientRect(); if (!b.width || !b.height) return;
+        need = Math.max(need, right ? (hb.right - b.left) : (b.right - hb.left));
+      });
+      return Math.max(0, need / fs0) + 12 + fanBulge;
+    }
+    var padL = reserve(['#draw-pile', '#potion-belt', '.belt-lbl', '#energy-pip'], false);
+    var padR = reserve(['#combat-controls', '#discard-pile'], true);
+    $hand.style.paddingLeft = padL.toFixed(0) + 'px';
+    $hand.style.paddingRight = padR.toFixed(0) + 'px';
+    var avail = Math.max(80, $hand.clientWidth - padL - padR);
+    var slack = avail - n * CARD_W;                       // px spare across the whole hand
+    var per = n > 1 ? slack / (n - 1) : slack;            // ...per join
+    /* 50 leaves 40px of every card showing — cost, name and enough art to tell
+     * it apart, and still a tappable target. Capping the overlap tighter than
+     * the hand needs does not make it fit; it makes the hand overflow its own
+     * reserves and sit on the buttons instead. */
+    var join = Math.max(-OVERLAP_MAX, Math.min(GAP_MAX, per));
+    $hand.style.setProperty('--cm', (join / 2).toFixed(2) + 'px');
+  }
+  U.fitHand = fitHand;
+
   function renderHand(deal) {
     $hand.innerHTML = '';
     var c = E.combat;
@@ -2888,6 +2943,8 @@
       });
       $hand.appendChild(d);
     });
+    fitHand();
+    requestAnimationFrame(fitHand);   // ...and again once the dock has settled
     fitCards($hand);
   }
 

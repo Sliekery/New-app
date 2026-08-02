@@ -220,7 +220,9 @@ html, body {
   touch-action: none;
   position: relative;
   width: 90px; min-width: 0; height: 128px;
-  margin: 0 -8px;
+  /* set per-hand by renderHand: a gap while there is room, an overlap only
+     once the hand will not fit. -8px is the fallback for cards outside a hand. */
+  margin: 0 var(--cm, -8px);
   display: flex; flex-direction: column;
   background: linear-gradient(160deg, var(--panel2), var(--panel));
   border: 1px solid var(--green-dim);
@@ -16642,27 +16644,66 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
    * backing store), so a rect offset from the canvas IS a canvas coordinate.
    * Cached per resize rather than read every frame. */
   var handY = 0, leftY = 0;
-  function topOf(ids) {
-    var cb = canvas && canvas.getBoundingClientRect();
-    if (!cb || !cb.height || typeof document === 'undefined') return H;
-    var best = H;
-    ids.forEach(function (id) {
-      var el = document.getElementById(id);
+  /* LAYOUT POSITION, NOT THE PAINTED RECT. Cards deal in with a translateY and
+   * the hand fans, so a getBoundingClientRect on them is a moving target for
+   * the third of a second it takes to settle — the reserve line would slide
+   * down and back up while the animation ran, flipping HP bars with it. The
+   * offsetTop chain is where the element LANDS, which is the line we want, and
+   * transforms do not touch it. */
+  function layoutTop(el) {
+    var y = 0;
+    for (var n = el; n; n = n.offsetParent) y += n.offsetTop;
+    return y;
+  }
+  function topEdge(base, k, cb, sel, all) {
+    var best = Infinity;
+    var list = all ? document.querySelectorAll(sel) : [document.querySelector(sel)];
+    [].forEach.call(list, function (el) {
       if (!el) return;
       var b = el.getBoundingClientRect();
-      if (!b.height) return;                      // hidden out of combat
-      best = Math.min(best, b.top - cb.top);
+      if (!b.height || !b.width) return;          // hidden out of combat
+      /* THE LOWER OF THE TWO, which is right in both regimes. While the cards
+       * deal in they are translated DOWN, so the painted rect is below where
+       * they land and the layout value is the honest one. Once settled, the
+       * fan ROTATES them and a rotated card's box reaches higher than its
+       * layout box, so the painted rect is the honest one. Taking the minimum
+       * is conservative during the animation and exact after it. */
+      best = Math.min(best, (layoutTop(el) - base) * k, b.top - cb.top);
     });
-    return Math.max(0, best);
+    return best;
   }
   /* TWO REGIONS, because the chrome is not one bar. The cards sit centre and
    * right; the stim belt, the energy pip and the draw pile sit far left, which
    * is exactly where the player figure and its gauge stand. Measuring one
    * rectangle for both would push the enemy bars up to clear a belt they are
-   * nowhere near. */
+   * nowhere near.
+   *
+   * THE CARDS, NOT THE HAND. #hand is 227px tall with the cards occupying only
+   * its bottom 90 — measured, the box top sits 149px above the first card — so
+   * reserving against the container flipped ordinary enemies above their heads
+   * to clear empty space. The card elements are the obstacle; the container is
+   * not. Falls back to the dock, which is always there.
+   *
+   * RE-MEASURED EVERY FRAME. This ran once, in syncCombat, and the hand and the
+   * belt are laid out AFTER that — so whether the reserve was right depended on
+   * when the first frame landed. That is exactly the flavour of bug that shows
+   * up on someone else's machine and not on the one it was written on. Six rect
+   * reads a frame is nothing next to being wrong intermittently. */
   function measureChrome() {
-    handY = topOf(['hand', 'combat-dock']);
-    leftY = topOf(['potion-belt', 'energy-pip', 'draw-pile', 'combat-dock']);
+    var cb = canvas && canvas.getBoundingClientRect();
+    if (!cb || !cb.height || typeof document === 'undefined') { handY = leftY = H; return; }
+    // the frame is transform scaled, so layout px have to be converted into the
+    // canvas coordinate space the rest of this file draws in
+    var k = canvas.offsetHeight ? (cb.height / canvas.offsetHeight) : 1;
+    if (!(k > 0.01)) k = 1;
+    var base = layoutTop(canvas);
+    var cards = topEdge(base, k, cb, '#hand .card', true);
+    var dock = topEdge(base, k, cb, '#combat-dock');
+    var left = Math.min(
+      topEdge(base, k, cb, '#potion-belt'), topEdge(base, k, cb, '.belt-lbl'),
+      topEdge(base, k, cb, '#energy-pip'), topEdge(base, k, cb, '#draw-pile'), dock);
+    handY = Math.max(0, Math.min(H, Math.min(cards, dock)));
+    leftY = Math.max(0, Math.min(H, left));
   }
   // The lowest line a readout may occupy. Called with the block's own height so
   // each caller says how much room it needs rather than sharing a guess.
@@ -17216,6 +17257,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   /* ---- main frame --------------------------------------------------------- */
   R.frame = function (dt) {
     if (!ctx) return;
+    if (R.combatVisible) measureChrome();
     t += dt;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#04080a';
@@ -19469,6 +19511,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     applyScale();
     if (R.resize) R.resize();
     if (E.combat && R.syncCombat) R.syncCombat();
+    fitHand();                                 // the reserves are measured, so they move with the dock
     if (land !== lastLandscape) {
       lastLandscape = land;
       if (E.run && E.run.phase !== 'combat' && $overlay.classList.contains('active')) U.refresh();
@@ -21908,6 +21951,60 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       '<div class="cdesc">' + descHTML(desc) + '</div>';
   }
 
+  /* ---- the hand fits the bar it is in ---------------------------------
+   * Two numbers used to be hand-fitted constants: the card margin (a flat
+   * -8px, applied whether you held ten cards or three) and the hand's side
+   * padding (`0 142px 0 280px`). Measured on a 1742px window with five in
+   * hand: 1320px of room for 450px of card, and they still buried 27% of each
+   * other — and what a card covers is the NEXT card's description, the half
+   * you read. The right reserve was 72px short of END TURN, so a full hand
+   * dealt its last card over the button you end the turn with.
+   *
+   * Both are measured now. Kept OUT of renderHand because the dock, the belt
+   * and the piles are laid out around the same moment the cards are, and
+   * measuring them mid-flight reads zero — which is how the reserve came back
+   * as 73px when the belt needed 274. It runs after the frame settles and on
+   * every resize, and it is idempotent. */
+  var CARD_W = 90, CARD_H = 128, GAP_MAX = 5, OVERLAP_MAX = 50;
+  function fitHand() {
+    var c = E.combat;
+    if (!c || !$hand || $hand.style.display === 'none') return;
+    var n = $hand.children.length;
+    if (!n) return;
+    var mid = (n - 1) / 2;
+    var spread = n > 1 ? Math.min(4.2, 26 / n) : 0;
+    /* The outer cards are ROTATED, so each one's box is wider than the card: a
+     * 90x128 card at 12 degrees measures 114 across. Reserve that too, or the
+     * end of the fan clips the button it was supposed to be clearing. */
+    var fanBulge = Math.abs(CARD_H * Math.sin(mid * spread * Math.PI / 180)) / 2;
+    var hb = $hand.getBoundingClientRect();
+    var fs0 = $game ? ($game.getBoundingClientRect().width / Math.max(1, $game.offsetWidth)) : 1;
+    if (!(fs0 > 0.01)) fs0 = 1;
+    function reserve(sels, right) {
+      var need = 0;
+      sels.forEach(function (sel) {
+        var e = document.querySelector(sel); if (!e) return;
+        var b = e.getBoundingClientRect(); if (!b.width || !b.height) return;
+        need = Math.max(need, right ? (hb.right - b.left) : (b.right - hb.left));
+      });
+      return Math.max(0, need / fs0) + 12 + fanBulge;
+    }
+    var padL = reserve(['#draw-pile', '#potion-belt', '.belt-lbl', '#energy-pip'], false);
+    var padR = reserve(['#combat-controls', '#discard-pile'], true);
+    $hand.style.paddingLeft = padL.toFixed(0) + 'px';
+    $hand.style.paddingRight = padR.toFixed(0) + 'px';
+    var avail = Math.max(80, $hand.clientWidth - padL - padR);
+    var slack = avail - n * CARD_W;                       // px spare across the whole hand
+    var per = n > 1 ? slack / (n - 1) : slack;            // ...per join
+    /* 50 leaves 40px of every card showing — cost, name and enough art to tell
+     * it apart, and still a tappable target. Capping the overlap tighter than
+     * the hand needs does not make it fit; it makes the hand overflow its own
+     * reserves and sit on the buttons instead. */
+    var join = Math.max(-OVERLAP_MAX, Math.min(GAP_MAX, per));
+    $hand.style.setProperty('--cm', (join / 2).toFixed(2) + 'px');
+  }
+  U.fitHand = fitHand;
+
   function renderHand(deal) {
     $hand.innerHTML = '';
     var c = E.combat;
@@ -21940,6 +22037,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       });
       $hand.appendChild(d);
     });
+    fitHand();
+    requestAnimationFrame(fitHand);   // ...and again once the dock has settled
     fitCards($hand);
   }
 

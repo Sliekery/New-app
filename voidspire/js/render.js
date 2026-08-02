@@ -84,27 +84,66 @@
    * backing store), so a rect offset from the canvas IS a canvas coordinate.
    * Cached per resize rather than read every frame. */
   var handY = 0, leftY = 0;
-  function topOf(ids) {
-    var cb = canvas && canvas.getBoundingClientRect();
-    if (!cb || !cb.height || typeof document === 'undefined') return H;
-    var best = H;
-    ids.forEach(function (id) {
-      var el = document.getElementById(id);
+  /* LAYOUT POSITION, NOT THE PAINTED RECT. Cards deal in with a translateY and
+   * the hand fans, so a getBoundingClientRect on them is a moving target for
+   * the third of a second it takes to settle — the reserve line would slide
+   * down and back up while the animation ran, flipping HP bars with it. The
+   * offsetTop chain is where the element LANDS, which is the line we want, and
+   * transforms do not touch it. */
+  function layoutTop(el) {
+    var y = 0;
+    for (var n = el; n; n = n.offsetParent) y += n.offsetTop;
+    return y;
+  }
+  function topEdge(base, k, cb, sel, all) {
+    var best = Infinity;
+    var list = all ? document.querySelectorAll(sel) : [document.querySelector(sel)];
+    [].forEach.call(list, function (el) {
       if (!el) return;
       var b = el.getBoundingClientRect();
-      if (!b.height) return;                      // hidden out of combat
-      best = Math.min(best, b.top - cb.top);
+      if (!b.height || !b.width) return;          // hidden out of combat
+      /* THE LOWER OF THE TWO, which is right in both regimes. While the cards
+       * deal in they are translated DOWN, so the painted rect is below where
+       * they land and the layout value is the honest one. Once settled, the
+       * fan ROTATES them and a rotated card's box reaches higher than its
+       * layout box, so the painted rect is the honest one. Taking the minimum
+       * is conservative during the animation and exact after it. */
+      best = Math.min(best, (layoutTop(el) - base) * k, b.top - cb.top);
     });
-    return Math.max(0, best);
+    return best;
   }
   /* TWO REGIONS, because the chrome is not one bar. The cards sit centre and
    * right; the stim belt, the energy pip and the draw pile sit far left, which
    * is exactly where the player figure and its gauge stand. Measuring one
    * rectangle for both would push the enemy bars up to clear a belt they are
-   * nowhere near. */
+   * nowhere near.
+   *
+   * THE CARDS, NOT THE HAND. #hand is 227px tall with the cards occupying only
+   * its bottom 90 — measured, the box top sits 149px above the first card — so
+   * reserving against the container flipped ordinary enemies above their heads
+   * to clear empty space. The card elements are the obstacle; the container is
+   * not. Falls back to the dock, which is always there.
+   *
+   * RE-MEASURED EVERY FRAME. This ran once, in syncCombat, and the hand and the
+   * belt are laid out AFTER that — so whether the reserve was right depended on
+   * when the first frame landed. That is exactly the flavour of bug that shows
+   * up on someone else's machine and not on the one it was written on. Six rect
+   * reads a frame is nothing next to being wrong intermittently. */
   function measureChrome() {
-    handY = topOf(['hand', 'combat-dock']);
-    leftY = topOf(['potion-belt', 'energy-pip', 'draw-pile', 'combat-dock']);
+    var cb = canvas && canvas.getBoundingClientRect();
+    if (!cb || !cb.height || typeof document === 'undefined') { handY = leftY = H; return; }
+    // the frame is transform scaled, so layout px have to be converted into the
+    // canvas coordinate space the rest of this file draws in
+    var k = canvas.offsetHeight ? (cb.height / canvas.offsetHeight) : 1;
+    if (!(k > 0.01)) k = 1;
+    var base = layoutTop(canvas);
+    var cards = topEdge(base, k, cb, '#hand .card', true);
+    var dock = topEdge(base, k, cb, '#combat-dock');
+    var left = Math.min(
+      topEdge(base, k, cb, '#potion-belt'), topEdge(base, k, cb, '.belt-lbl'),
+      topEdge(base, k, cb, '#energy-pip'), topEdge(base, k, cb, '#draw-pile'), dock);
+    handY = Math.max(0, Math.min(H, Math.min(cards, dock)));
+    leftY = Math.max(0, Math.min(H, left));
   }
   // The lowest line a readout may occupy. Called with the block's own height so
   // each caller says how much room it needs rather than sharing a guess.
@@ -658,6 +697,7 @@
   /* ---- main frame --------------------------------------------------------- */
   R.frame = function (dt) {
     if (!ctx) return;
+    if (R.combatVisible) measureChrome();
     t += dt;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#04080a';

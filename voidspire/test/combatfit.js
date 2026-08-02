@@ -144,8 +144,20 @@ pc.chromium.launch({
           var b = el.getBoundingClientRect();
           return b.height ? b.top - cb.top : null;
         }
+        /* THE CARDS, NOT THE CONTAINER. #hand is a 227px box whose cards
+         * occupy only the bottom 90 — measuring the box put the line 149px
+         * too high and flipped ordinary enemies above their own heads to
+         * clear empty space. */
+        function cardsTop() {
+          var best = Infinity;
+          document.querySelectorAll('#hand .card').forEach(function (c) {
+            var b = c.getBoundingClientRect();
+            if (b.height && b.width) best = Math.min(best, b.top - cb.top);
+          });
+          return isFinite(best) ? best : topOf('hand');
+        }
         return {
-          hand: topOf('hand'), belt: topOf('potion-belt'),
+          hand: cardsTop(), belt: topOf('potion-belt'),
           // the lowest ink each bar block puts down, mirroring drawEnemy
           bars: (R.views || []).map(function (v) {
             return { r: Math.round(v.r), bottom: Math.round(v.barBottom), up: !!v.barsUp };
@@ -170,6 +182,58 @@ pc.chromium.launch({
       if (bad) { fails++; console.log(' FAIL readout clearance ' + vp[0] + '/' + kind + ': ' + bad); }
       else console.log('  ok  readout clearance ' + vp[0] + '/' + kind + ' (floor ' + Math.round(g.bottom) + ', cards at ' + Math.round(g.hand) + ')');
       await pg2.close();
+    }
+  }
+
+  /* ---- the hand fits between the things it must not cover --------------
+   * Two hand-fitted constants used to decide this: a flat -8px card margin and
+   * `padding: 0 142px 0 280px`. Measured on a 1742px window, five in hand had
+   * 1320px of room for 450px of card and still buried 27% of each other, and
+   * the right reserve was 72px short of END TURN. Assert it at both ends of
+   * the range: a small hand must not overlap AT ALL, and a full one must still
+   * clear the belt, the piles and the button. */
+  for (var hv = 0; hv < 2; hv++) {
+    var hvp = [[1742, 922], [844, 390]][hv];
+    for (var hn = 0; hn < 2; hn++) {
+      var want = [5, 10][hn];
+      var hp = await browser.newPage({ viewport: { width: hvp[0], height: hvp[1] } });
+      await hp.goto('file://' + path.resolve(__dirname, '..', 'voidspire.html'));
+      await hp.waitForTimeout(700);
+      await hp.evaluate(function (want) {
+        var E = VS.engine;
+        E.seed(4); E.newRun('vanguard'); E.takeFirstMark(0);
+        E.run.faction = 'hierarchy'; E.run.nodeIdx = 0; E.startNode('fight');
+        E.run.credits = 903;
+        var c = E.combat;
+        while (c.hand.length > want) c.hand.pop();
+        while (c.hand.length < want) c.hand.push({ uid: 9000 + c.hand.length, id: 'pulse_rifle', up: false });
+        VS.ui.refresh();
+      }, want);
+      await hp.waitForTimeout(900);
+      var hr = await hp.evaluate(function () {
+        function box(sel) { var e = document.querySelector(sel); if (!e) return null; var b = e.getBoundingClientRect(); return b.width && b.height ? b : null; }
+        var cards = [].map.call(document.querySelectorAll('#hand .card'), function (c) { return c.getBoundingClientRect(); });
+        var hit = [];
+        ['#combat-controls', '#discard-pile', '#draw-pile', '#potion-belt', '.belt-lbl', '#energy-pip'].forEach(function (sel) {
+          var b = box(sel); if (!b) return;
+          cards.forEach(function (cb) {
+            if (cb.left < b.right && cb.right > b.left && cb.top < b.bottom && cb.bottom > b.top) {
+              if (hit.indexOf(sel) < 0) hit.push(sel);
+            }
+          });
+        });
+        var over = 0;
+        for (var i = 1; i < cards.length; i++) over = Math.max(over, cards[i - 1].right - cards[i].left);
+        return { n: cards.length, hit: hit, over: Math.round(over), w: Math.round(cards[0] ? cards[0].width : 0) };
+      });
+      checks++;
+      var hbad = null;
+      if (hr.n !== want) hbad = 'expected ' + want + ' cards, drew ' + hr.n;
+      else if (hr.hit.length) hbad = 'the hand covers ' + hr.hit.join(', ');
+      else if (want === 5 && hr.over > hr.w * 0.12) hbad = 'cards bury each other by ' + hr.over + 'px with room to spare';
+      if (hbad) { fails++; console.log(' FAIL hand fit ' + hvp[0] + 'x' + hvp[1] + '/' + want + ': ' + hbad); }
+      else console.log('  ok  hand fit ' + hvp[0] + 'x' + hvp[1] + '/' + want + ' (overlap ' + hr.over + 'px of ' + hr.w + ')');
+      await hp.close();
     }
   }
 
