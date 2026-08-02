@@ -734,17 +734,30 @@
 
   /* ---- Run-state helpers --------------------------------------------- */
   ns.newDie = function () {
-    return { faces: {}, core: [], vault: [], frame: [], coreSlots: ns.DIE.coreSlotsStart };
+    return { faces: {}, seams: {}, welds: [], core: [], vault: [], frame: [], coreSlots: ns.DIE.coreSlotsStart };
   };
 
-  // Which faces an engraving covers when installed at `face`.
+  // Step `d` faces around the ring. The die is a RING everywhere else in this
+  // file — dieNeighbours has always wrapped 20 into 1 — and spans used to be
+  // the one thing that did not, which is why a band could never be anchored
+  // above face 18 and the top of every class table held fewer bands than it
+  // looked like it did.
+  ns.dieStep = function (face, d) {
+    var n = ns.DIE.faces;
+    return ((face - 1 + d) % n + n) % n + 1;
+  };
+
+  /* Which faces an engraving covers when anchored at `face`.
+   *
+   * CENTRED, not head-anchored. This used to be `face + i`, so tapping 12 with
+   * a three-face band silently ate 13 and 14 — you pointed at one face and got
+   * two you never pointed at, and the anchor could never be 19 or 20. The
+   * anchor is now the MIDDLE of the cut and the span grows both ways, which is
+   * what the die already looked like it was doing. Even spans lean high. */
   ns.dieSpan = function (id, face) {
     var d = ns.dieEngraving(id); if (!d) return [];
-    var out = [];
-    for (var i = 0; i < (d.span || 1); i++) {
-      var f = face + i;
-      if (f >= 1 && f <= ns.DIE.faces) out.push(f);
-    }
+    var s = d.span || 1, lo = -Math.floor((s - 1) / 2), out = [];
+    for (var i = 0; i < s; i++) out.push(ns.dieStep(face, lo + i));
     return out;
   };
 
@@ -854,15 +867,57 @@
     return out;
   };
 
-  ns.dieCanEngrave = function (die, id, face) {
+  /* ---- SEAMS --------------------------------------------------------- *
+   * A face may carry a SECOND engraving. `die.faces` keeps the primary and
+   * `die.seams` the passenger, rather than one map of arrays, because of the
+   * invariant below: an engraving's ROOT is always a primary. Every reader in
+   * the game that walks `die.faces` collecting roots — listeners, taints, the
+   * reforge target list, the scrub list — therefore still sees every engraving
+   * on the die without knowing seams exist. Only FIRING has to look at both.
+   *
+   * THE HEAD CANNOT BE SHARED. You may seam onto the body of a band but never
+   * onto the face another engraving is anchored at. That is what keeps roots
+   * primary, and it reads as a rule rather than as an implementation detail:
+   * the head is where the cut begins.
+   * ------------------------------------------------------------------- */
+  ns.dieSeamAt = function (die, face) {
+    return (die && die.seams && die.seams[face]) || null;
+  };
+  ns.dieSeamId = function (die, face) {
+    var s = ns.dieSeamAt(die, face);
+    return s ? s.id : null;
+  };
+  // Every engraving on a face, primary first. One or two entries, or none.
+  ns.dieSlotsAt = function (die, face) {
+    var out = [];
+    if (die && die.faces && die.faces[face]) out.push(die.faces[face]);
+    var s = ns.dieSeamAt(die, face);
+    if (s) out.push(s);
+    return out;
+  };
+  ns.dieIsRoot = function (die, face) {
+    var slot = die && die.faces && die.faces[face];
+    return !!(slot && slot.root === face);
+  };
+  // How much a single engraving on `face` fires for. A shared face pays for
+  // itself: BOTH occupants come out reduced, not just the newcomer.
+  ns.dieSeamMult = function (die, face) {
+    return ns.dieSeamAt(die, face) ? (ns.BALANCE.dice.seam || 0.6) : 1;
+  };
+
+  /* What placing `id` at `face` would do — the whole answer in one object, so
+   * the preview and the commit cannot disagree about it. `why` is non-null if
+   * it is illegal; `seam` is the one face that would be shared. */
+  ns.diePlacement = function (die, id, face) {
     var d = ns.dieEngraving(id);
-    if (!d) return 'unknown engraving';
-    if (d.onlyFace && d.onlyFace !== face) return 'only fits face ' + d.onlyFace;
-    var span = ns.dieSpan(id, face);
-    if (span.length < (d.span || 1)) return 'does not fit past face ' + ns.DIE.faces;
+    var out = { id: id, face: face, span: [], seam: null, seamWith: null, why: null, def: d };
+    if (!d) { out.why = 'unknown engraving'; return out; }
+    if (d.onlyFace && d.onlyFace !== face) { out.why = 'only fits face ' + d.onlyFace; return out; }
+    var span = out.span = ns.dieSpan(id, face);
+    if (span.length < (d.span || 1)) { out.why = 'does not fit'; return out; }
     if (d.band) {
       for (var s = 0; s < span.length; s++) {
-        if (ns.dieRegionOf(span[s]) !== d.band) return 'only cuts into ' + ns.dieRegionLabel(d.band);
+        if (ns.dieRegionOf(span[s]) !== d.band) { out.why = 'only cuts into ' + ns.dieRegionLabel(d.band); return out; }
       }
     }
     /* A second copy of a DOER is fine — it just covers more of the table. A
@@ -871,27 +926,96 @@
      * to pay for it: two Called Shots simply doubled every crit. */
     if (d.listen || d.field) {
       for (var q = 1; q <= ns.DIE.faces; q++) {
-        if (die.faces[q] && die.faces[q].id === id) {
-          return (d.listen ? 'that listener' : 'that field') + ' is already on the die';
+        if (ns.dieFaceId(die, q) === id || ns.dieSeamId(die, q) === id) {
+          out.why = (d.listen ? 'that listener' : 'that field') + ' is already on the die';
+          return out;
         }
       }
     }
-    for (var i = 0; i < span.length; i++) if (die.faces[span[i]]) return 'face ' + span[i] + ' is taken';
-    return null;
+    for (var i = 0; i < span.length; i++) {
+      var f = span[i], occ = die.faces[f];
+      if (!occ) continue;
+      // A flaw is cut into the die BY the void, not placed by the player, and
+      // it has no business buying a face at a discount.
+      if (d.flaw) { out.why = 'face ' + f + ' is taken'; return out; }
+      if (occ.root === f) { out.why = 'face ' + f + ' is the head of ' + (ns.dieEngraving(occ.id) || {}).name; return out; }
+      if (ns.dieSeamAt(die, f)) { out.why = 'face ' + f + ' is already doubled'; return out; }
+      if (out.seam != null) { out.why = 'that would double two faces — slide it'; return out; }
+      out.seam = f;
+      out.seamWith = occ.id;
+    }
+    return out;
+  };
+
+  ns.dieCanEngrave = function (die, id, face) {
+    return ns.diePlacement(die, id, face).why;
   };
 
   ns.dieEngrave = function (die, id, face) {
-    var why = ns.dieCanEngrave(die, id, face);
-    if (why) return why;
-    ns.dieSpan(id, face).forEach(function (f) { die.faces[f] = { id: id, root: face }; });
+    var p = ns.diePlacement(die, id, face);
+    if (p.why) return p.why;
+    if (!die.seams) die.seams = {};
+    p.span.forEach(function (f) {
+      // the incumbent yields the face to the newcomer and rides along as the
+      // passenger — it can never be a root, so nothing else has to be repointed
+      if (die.faces[f]) die.seams[f] = die.faces[f];
+      die.faces[f] = { id: id, root: face };
+    });
     return null;
   };
 
+  // Lift an engraving off the die, seams and welds included, and promote any
+  // passenger it was carrying back to primary.
   ns.dieScrub = function (die, face) {
     var slot = die.faces[face]; if (!slot) return false;
     var root = slot.root;
-    Object.keys(die.faces).forEach(function (f) { if (die.faces[f].root === root) delete die.faces[f]; });
+    if (!die.seams) die.seams = {};
+    Object.keys(die.faces).forEach(function (f) {
+      if (die.faces[f].root !== root) return;
+      delete die.faces[f];
+      if (die.seams[f]) { die.faces[f] = die.seams[f]; delete die.seams[f]; }
+    });
+    Object.keys(die.seams).forEach(function (f) { if (die.seams[f].root === root) delete die.seams[f]; });
+    ns.dieWeldPrune(die);
     return true;
+  };
+
+  /* ---- WELDS --------------------------------------------------------- *
+   * A boundary between two DIFFERENT engravings, paid for at the bench, where
+   * the bleed runs at full instead of a quarter. Adjacency already does
+   * something on its own; this is the player choosing WHICH adjacency matters.
+   * ------------------------------------------------------------------- */
+  ns.dieWeldKey = function (a, b) { return (a < b ? a + '|' + b : b + '|' + a); };
+  ns.dieWelds = function (die) { return (die && die.welds) || []; };
+  ns.dieWelded = function (die, a, b) {
+    return ns.dieWelds(die).indexOf(ns.dieWeldKey(a, b)) >= 0;
+  };
+  ns.dieCanWeld = function (die, a, b) {
+    if (ns.dieStep(a, 1) !== b && ns.dieStep(b, 1) !== a) return 'those faces do not touch';
+    var sa = die.faces[a], sb = die.faces[b];
+    if (!sa || !sb) return 'both faces must be cut';
+    if (sa.root === sb.root) return 'that is one engraving, not two';
+    if (ns.dieWelded(die, a, b)) return 'that seam is already welded';
+    if (ns.dieWelds(die).length >= (ns.BALANCE.dice.weldCap || 3)) return 'the die will hold no more welds';
+    return null;
+  };
+  ns.dieWeld = function (die, a, b) {
+    var why = ns.dieCanWeld(die, a, b);
+    if (why) return why;
+    die.welds = ns.dieWelds(die).concat([ns.dieWeldKey(a, b)]);
+    return null;
+  };
+  // A weld across a boundary that stopped being one — either face scrubbed, or
+  // both sides now the same engraving — is dropped rather than left dangling.
+  ns.dieWeldPrune = function (die) {
+    if (!die || !die.welds || !die.welds.length) return 0;
+    var before = die.welds.length;
+    die.welds = die.welds.filter(function (k) {
+      var p = k.split('|'), a = +p[0], b = +p[1];
+      var sa = die.faces[a], sb = die.faces[b];
+      return !!(sa && sb && sa.root !== sb.root);
+    });
+    return before - die.welds.length;
   };
 
   // The engraving that fires for an effective roll (null if the face is bare).

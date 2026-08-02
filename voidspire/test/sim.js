@@ -164,22 +164,39 @@ function botManageDie() {
   });
 }
 
-// Place any queued engravings. A decent player cuts them where the die actually
-// lands, i.e. inside the Aim band, and keeps face 1 for its own anchor.
-function botFaceOrder(id) {
-  var r = VS.engine.run;
-  var lo = Math.min(20, 2 + VS.engine.startAim(r.cls));
-  var g = VS.DIE_AUGMENTS[id];
-  if (g && g.onlyFace) return [g.onlyFace];
-  var order = [];
-  for (var f = 20; f >= lo; f--) order.push(f);
-  order.push(1);
-  return order;
+/* Place any queued engravings. A decent player cuts them where the die actually
+ * lands, i.e. high on the table, and keeps face 1 for its own anchor.
+ *
+ * THIS SCORES THE WHOLE SPAN, not the anchor. It used to walk anchors from 20
+ * downwards and take the first legal one, which was correct only while a span
+ * grew UPWARD from its anchor and could not wrap. Under a centred, wrapping
+ * span that same walk anchors every band at 20 — covering 19, 20 and face 1 —
+ * so a third of every band the bot cut landed on the misfire face. Measured:
+ * Vanguard 26.1% -> 15.7% win, entirely from the harness, not the game. */
+function botFaceValue(f, lo) {
+  if (f === 1) return 0.5;        // fires only on a jam; the anchor faces want it
+  return f >= lo ? f : 1;
+}
+function botPlaceScore(id, face) {
+  var d = VS.engine.run.die, p = VS.diePlacement(d, id, face);
+  if (p.why) return null;
+  var lo = Math.min(20, 2 + VS.engine.startAim(VS.engine.run.cls));
+  var s = 0;
+  p.span.forEach(function (f) { s += botFaceValue(f, lo); });
+  // a shared face is 60% for BOTH occupants — worth it when the die is full,
+  // never worth it while a clean face of similar value is going spare
+  if (p.seam != null) s -= 14;
+  return s;
 }
 function botBestFace(id) {
-  var d = VS.engine.run.die, order = botFaceOrder(id);
-  for (var i = 0; i < order.length; i++) if (!VS.dieCanEngrave(d, id, order[i])) return order[i];
-  return -1;
+  var g = VS.DIE_AUGMENTS[id];
+  if (g && g.onlyFace) return VS.dieCanEngrave(VS.engine.run.die, id, g.onlyFace) ? -1 : g.onlyFace;
+  var best = -1, bestS = -Infinity;
+  for (var f = 1; f <= VS.DIE.faces; f++) {
+    var sc = botPlaceScore(id, f);
+    if (sc != null && sc > bestS) { bestS = sc; best = f; }
+  }
+  return best;
 }
 function botPlaceEngravings() {
   var r = VS.engine.run, d = r && r.die; if (!d || !d.pending || !d.pending.length) return;
@@ -213,6 +230,17 @@ function botBench() {
     var face = botBestFace(it.id);
     if (face > 0) E.shopBuyEngraving(i, face);
   });
+  /* THE TORCH. Welding is a real spend and a real power gain, so the bot has
+   * to buy it or the sim reports a die weaker than the one a player builds.
+   * It welds the highest boundary between two DIFFERENT engravings, which is
+   * where the full-strength bleed is worth the most on a ramp table. */
+  var opts = E.weldOptions().filter(function (o) { return Math.min(o.a, o.b) > 1; });
+  opts.sort(function (x, y) { return (y.a + y.b) - (x.a + x.b); });
+  while (opts.length && r.credits >= E.weldCost() * 2) {   // never spend the last of it
+    if (E.shopWeld(opts[0].a, opts[0].b)) break;
+    opts = E.weldOptions().filter(function (o) { return Math.min(o.a, o.b) > 1; });
+    opts.sort(function (x, y) { return (y.a + y.b) - (x.a + x.b); });
+  }
 }
 
 function botCombat() {

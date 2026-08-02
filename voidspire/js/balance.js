@@ -44,6 +44,21 @@
       // at this fraction. It is what makes WHERE you cut matter as much as
       // WHAT, and it turns a filled die from a dead end into the payoff.
       bleed: 0.25,
+      /* THE SEAM. Two engravings may share ONE face. Neither is destroyed and
+       * neither wins: on the shared face both fire at this fraction. The die's
+       * scarce resource is faces, not power, so a seam BUYS BACK a face and
+       * pays for it in strength — two span-3 bands that share a face occupy 5
+       * of your 20 instead of 6. Total coverage falls, which is why this is
+       * priced as a trade rather than a bonus. */
+      seam: 0.6,
+      /* THE WELD. Bleed across a chosen boundary between two DIFFERENT
+       * engravings runs at full instead of `bleed`. Bought at the bench, and
+       * hard-capped: on a dense die every engraving touches another, so an
+       * automatic weld would be a flat multiplier on cutting a lot rather than
+       * on cutting deliberately. */
+      weldCap: 3,
+      weldCost: 70,
+      weldStep: 60,
       // a listener may set off another listener, but only this deep — the
       // shape of "when you apply Burn, attack" is a loop waiting to happen
       chainDepth: 2,

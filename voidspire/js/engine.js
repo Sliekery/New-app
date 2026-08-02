@@ -1881,16 +1881,40 @@
     return slot === dread.bands[0] || slot === dread.bands[dread.bands.length - 1];
   }
 
-  function fireOneFace(face, tgt, k, why) {
+  /* A face can carry TWO engravings. `fireOneFace` fires everything on it;
+   * `fireSlot` is one occupant. When a face is seamed BOTH come out at
+   * `dice.seam` — the newcomer does not simply win, and the incumbent is not
+   * simply diluted. That symmetry is what makes a seam a trade for a face
+   * rather than a way to overwrite someone else's cut for free.
+   *
+   * `from` is the face the charge arrived from, if any. Without it a band that
+   * seams onto its own neighbour bleeds into itself and fires twice. */
+  function fireOneFace(face, tgt, k, why, from) {
+    var r = E.run;
+    if (!r || !r.die) return false;
+    var slots = ns.dieSlotsAt(r.die, face);
+    if (!slots.length) return false;
+    var km = k * ns.dieSeamMult(r.die, face);
+    var skip = {};
+    if (from != null) ns.dieSlotsAt(r.die, from).forEach(function (s) { skip[s.root] = 1; });
+    var lit = false;
+    for (var i = 0; i < slots.length; i++) {
+      if (skip[slots[i].root]) continue;
+      if (fireSlot(face, slots[i], tgt, km, i ? (why || 'seam') : why)) lit = true;
+    }
+    return lit;
+  }
+  function fireSlot(face, slot, tgt, k, why) {
     var r = E.run, c = E.combat;
-    var id = ns.dieFaceId(r.die, face);
+    var id = slot && slot.id;
     if (!id) return false;
     var aug = ns.dieEngraving(id);
     if (!aug || !aug.fx || !aug.fx.length) return false;
     // The taint riding this face is paid EVERY time it fires, which is what
     // makes the cost proportional to how central the face is to the build
-    // rather than to luck.
-    var taint = ns.dieTaintAt(r.die, face);
+    // rather than to luck. It rides the OCCUPANT'S root, so a passenger does
+    // not inherit the scar on the engraving it is sharing a face with.
+    var taint = (r.die.faces[slot.root] || {}).taint || null;
     if (taint === 'rust') k = k * 0.5;
     /* THE LINK REPORTS WHAT IT DID. The event used to say only that a face had
      * fired, so the chain could be narrated but never totalled — the numbers
@@ -1899,7 +1923,7 @@
      * after the whole card resolves, so filling it in below needs no second
      * event and cannot arrive out of order. */
     var ev = { face: face, id: id, name: aug.name, flaw: !!aug.flaw, bleed: k < 1,
-               why: why || null, taint: taint || null };
+               why: why || null, taint: taint || null, seam: !!ns.dieSeamAt(r.die, face) };
     emit('dieFace', ev);
     var dread0 = E.dieRead(r.cls);
     var b0 = c.player.block, en0 = c.energy;
@@ -1948,7 +1972,11 @@
       // RELAY MARK hands its neighbours the full effect instead of the half
       var relayRoot = ns.dieFaceId(r.die, face);
       var k = (relayRoot && (ns.dieEngraving(relayRoot) || {}).field === 'relay') ? 1 : bleed;
-      fireOneFace(f, tgt, k, 'bleed');
+      // A WELDED boundary carries the whole charge. Adjacency already bleeds;
+      // the weld is the player paying to say which adjacency is the build.
+      var weld = ns.dieWelded(r.die, face, f);
+      if (weld) k = 1;
+      fireOneFace(f, tgt, k, weld ? 'weld' : 'bleed', face);
       fireListeners('neighbour', { face: f, tgt: tgt });
     });
     // CASCADE COUPLER: the surge carries one ring further out, at half again.
@@ -1959,7 +1987,7 @@
       [-2, 2].forEach(function (d) {
         if (c.over) return;
         var f2 = ((face - 1 + d + ns.DIE.faces) % ns.DIE.faces) + 1;
-        fireOneFace(f2, tgt, span, 'bleed');
+        fireOneFace(f2, tgt, span, 'bleed', face);
       });
     }
     // TWIN SIGHT: the face opposite on the ring answers too
@@ -1967,7 +1995,7 @@
       var self = ns.dieEngraving(ns.dieFaceId(r.die, face));
       if (self && self.field === 'opposite') {
         var opp = ((face + 9) % ns.DIE.faces) + 1;
-        fireOneFace(opp, tgt, 1, 'opposite');
+        fireOneFace(opp, tgt, 1, 'opposite', face);
       }
     }
   }
@@ -2467,17 +2495,17 @@
         fireDieFace(lands, tgt);
         // TWINNED FIRING PIN: the opening roll of a combat catches both sides
         if (art('firstSplash') > 0 && c.rollNo === 1) {
-          ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) fireOneFace(nf, tgt, 1, 'relay'); });
+          ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) fireOneFace(nf, tgt, 1, 'relay', lands); });
         }
         // Reaching ACROSS the ring rather than along it. Both of these use
         // fireOneFace for the same reason Hot Barrel does: a relay upgrades the
         // charge on one more face, it does not start a second bleed.
         var across = ((lands + 9) % ns.DIE.faces) + 1;
         if (art('evenMirror') > 0 && lands % 2 === 0 && !c.over) {          // PARITY PIN
-          fireOneFace(across, tgt, Math.min(1, B.dice.bleed + art('bleedPct')), 'opposite');
+          fireOneFace(across, tgt, Math.min(1, B.dice.bleed + art('bleedPct')), 'opposite', lands);
         }
         if (art('extremeRelay') > 0 && (roll === 20 || misfire) && !c.over) {   // TWIN MAW
-          fireOneFace(across, tgt, 1, 'opposite');
+          fireOneFace(across, tgt, 1, 'opposite', lands);
         }
         if (crit) {
           fireListeners('crit', { tgt: tgt });
@@ -2486,7 +2514,7 @@
             // neighbours in turn, so relaying through it cascaded a crit across
             // five faces and measured 2.3x. A relay upgrades the bleed to full;
             // it does not start a second bleed.
-            ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) fireOneFace(nf, tgt, 1, 'relay'); });
+            ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) fireOneFace(nf, tgt, 1, 'relay', lands); });
           }
         }
       }
@@ -3623,19 +3651,30 @@
   };
 
   // Put an engraving on a face, replacing whatever is there, span included.
+  // Anything already sitting on a face it covers becomes that face's seam.
   function seatAt(face, id, def) {
-    var r = E.run, span = (def && def.span) || 1;
-    for (var i = 0; i < span; i++) {
-      var f = face + i;
-      if (f > 20) break;
-      r.die.faces[f] = { id: id, root: face };
-    }
+    var r = E.run, d = r.die, s = (def && def.span) || 1;
+    var lo = -Math.floor((s - 1) / 2), span = [];
+    for (var i = 0; i < s; i++) span.push(ns.dieStep(face, lo + i));
+    d.seams = d.seams || {};
+    span.forEach(function (f) {
+      if (d.faces[f] && d.faces[f].root !== face && !d.seams[f]) d.seams[f] = d.faces[f];
+      d.faces[f] = { id: id, root: face };
+    });
   }
   function clearRootAt(face) {
-    var r = E.run, slot = r.die.faces[face];
+    var r = E.run, d = r.die, slot = d.faces[face];
     if (!slot) return null;
-    var root = slot.root, id = r.die.faces[root] ? r.die.faces[root].id : slot.id;
-    for (var f = 1; f <= 20; f++) if (r.die.faces[f] && r.die.faces[f].root === root) delete r.die.faces[f];
+    var root = slot.root, id = d.faces[root] ? d.faces[root].id : slot.id;
+    d.seams = d.seams || {};
+    for (var f = 1; f <= 20; f++) {
+      if (!d.faces[f] || d.faces[f].root !== root) continue;
+      delete d.faces[f];
+      // whatever was riding along on that face takes it over
+      if (d.seams[f]) { d.faces[f] = d.seams[f]; delete d.seams[f]; }
+    }
+    for (var g in d.seams) if (d.seams[g].root === root) delete d.seams[g];
+    ns.dieWeldPrune(d);
     return id;
   }
   E.dieClearRootAt = clearRootAt;
@@ -3650,11 +3689,24 @@
   function dieRepair() {
     var d = E.run && E.run.die;
     if (!d || !d.faces) return 0;
-    var fixed = 0;
-    for (var f = 1; f <= 20; f++) {
-      var slot = d.faces[f];
-      if (slot && !d.faces[slot.root]) { delete d.faces[f]; fixed++; }
+    d.seams = d.seams || {};
+    var fixed = 0, f;
+    // A SEAM'S ROOT IS ALWAYS PRIMARY — that is the whole reason seams are a
+    // second map instead of a list, so it gets checked before anything else.
+    for (f in d.seams) {
+      var sm = d.seams[f];
+      if (!d.faces[sm.root] || d.faces[sm.root].id !== sm.id) { delete d.seams[f]; fixed++; }
     }
+    for (f = 1; f <= 20; f++) {
+      var slot = d.faces[f];
+      if (slot && !d.faces[slot.root]) {
+        delete d.faces[f]; fixed++;
+        if (d.seams[f]) { d.faces[f] = d.seams[f]; delete d.seams[f]; }
+      }
+      // a passenger with no driver simply becomes the driver
+      if (!d.faces[f] && d.seams[f]) { d.faces[f] = d.seams[f]; delete d.seams[f]; fixed++; }
+    }
+    fixed += ns.dieWeldPrune(d);
     return fixed;
   }
   E.dieRepair = dieRepair;
@@ -4672,14 +4724,50 @@
     if (r.credits < cost) return 'not enough credits';
     var id = slot.id, root = slot.root;
     if (to === root) return 'already seated there';
-    // lift the whole span, then try to reseat it; put it back if it will not fit
-    var span = [];
-    Object.keys(r.die.faces).forEach(function (f) { if (r.die.faces[f].root === root) span.push(+f); });
-    span.forEach(function (f) { delete r.die.faces[f]; });
+    /* Lift the whole span and try to reseat it — but a die that carries seams
+     * and welds cannot be put back by remembering one root's faces, because
+     * lifting it PROMOTES whatever was riding under it. Snapshot the shape,
+     * and restore the snapshot if the new seat will not take. */
+    var snap = JSON.stringify({ f: r.die.faces, s: r.die.seams || {}, w: r.die.welds || [] });
+    ns.dieScrub(r.die, root);
     var why = ns.dieEngrave(r.die, id, to);
-    if (why) { span.forEach(function (f) { r.die.faces[f] = { id: id, root: root }; }); return why; }
+    if (why) {
+      var back = JSON.parse(snap);
+      r.die.faces = back.f; r.die.seams = back.s; r.die.welds = back.w;
+      return why;
+    }
     r.credits -= cost;
     r.shop.reseatUsed = true;
+    E.save();
+    return null;
+  };
+
+  /* ---------------- The torch (welding a seam) -----------------------------
+   * Priced to climb, because the first weld is the one you have a reason for
+   * and the third is the one you are buying because you can afford it. */
+  E.weldCost = function () {
+    var n = ns.dieWelds(E.run && E.run.die).length;
+    return Math.round((B.dice.weldCost + B.dice.weldStep * n) * (E.pressureMods().shopCost || 1));
+  };
+  // Every boundary on the die that could still be welded, as {a,b} pairs.
+  E.weldOptions = function () {
+    var d = E.run && E.run.die, out = [];
+    if (!d) return out;
+    for (var f = 1; f <= ns.DIE.faces; f++) {
+      var g = ns.dieStep(f, 1);
+      if (!ns.dieCanWeld(d, f, g)) out.push({ a: f, b: g });
+    }
+    return out;
+  };
+  E.shopWeld = function (a, b) {
+    var r = E.run;
+    if (!E.benchOpen()) return 'the bench is closed';
+    var why = ns.dieCanWeld(r.die, a, b);
+    if (why) return why;
+    var cost = E.weldCost();
+    if (r.credits < cost) return 'not enough credits';
+    ns.dieWeld(r.die, a, b);
+    r.credits -= cost;
     E.save();
     return null;
   };
@@ -4734,6 +4822,13 @@
        * and the player silently loses the work. */
       ns.forgedClear();
       E.forgedRehydrate();
+      // Seams and welds postdate the save format; a run made before them loads
+      // as a die that simply has none rather than as a crash.
+      if (E.run.die) {
+        E.run.die.seams = E.run.die.seams || {};
+        E.run.die.welds = E.run.die.welds || [];
+        dieRepair();
+      }
       rngState = data.rng >>> 0;
       uidCounter = data.uid || 1000;
       E.combat = null;

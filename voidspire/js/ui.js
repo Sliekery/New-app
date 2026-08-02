@@ -1487,26 +1487,37 @@
     return { label: slot.label, crit: false, good: slot.mult > 1.02 };
   }
 
-  function dieFaceRowHTML(die, face, reach, armedId, aimNow) {
+  function dieFaceRowHTML(die, face, reach, fitFor, aimNow, ghost, welds) {
     var id = ns.dieFaceId(die, face), d = id ? ns.dieEngraving(id) : null;
     var slot = die.faces[face];
     var cont = slot && slot.root !== face;                 // continuation of a band
+    var sm = ns.dieSeamAt(die, face), smD = sm ? ns.dieEngraving(sm.id) : null;
     var cls = 'df' + (d ? (d.flaw ? ' flaw' : ' aug') : ' bare') + (reach(face) ? '' : ' unreach');
     // While something is armed, say up-front which faces will take it. A band
     // that runs off the end of the die, or a face-locked engraving, used to be
     // discoverable only by tapping and reading a rejection.
-    if (armedId) cls += ns.dieCanEngrave(die, armedId, face) ? ' no-fit' : ' fits';
+    if (fitFor) cls += fitFor(face) ? ' no-fit' : ' fits';
+    /* THE GHOST. The one thing the old screen never showed: a three-face band
+     * lit ONE face green and then quietly ate its neighbours. */
+    if (ghost && ghost.span.indexOf(face) >= 0) {
+      cls += ghost.why ? ' ghost bad' : ' ghost';
+      if (ghost.seam === face) cls += ' ghost-seam';
+    }
     var et = dieEndTag(E.run && E.run.cls, face, aimNow);
     var tag = et ? '<span class="df-tag' + (et.crit || et.good ? ' crit' : '') + '">' + esc(et.label) + '</span>' : '';
     // a scarred face has to look scarred in the list, not only when tapped
     var tt = ns.dieTaintAt(die, face);
     if (tt) cls += ' tainted';
+    if (sm) cls += ' seamed';
     var scar = tt ? '<span class="df-scar" title="' + esc((ns.DIE_TAINTS[tt] || {}).name || tt) + '">✖</span>' : '';
     var body = d
       ? (cont ? '<span class="df-cont">— ' + esc(d.name) + '</span>' + scar
               : artSVG(d.art, 'df-icon') + '<span class="df-name">' + esc(d.name) + '</span>' + scar)
       : '<span class="df-empty">bare</span>';
-    return '<div class="' + cls + '" data-face="' + face + '"><span class="df-n">' + face + '</span>' + body + tag + '</div>';
+    if (smD) body += '<span class="df-seam" title="shared face">+ ' + esc(smD.name) + '</span>';
+    // a welded boundary is drawn ON the face that owns its upper edge
+    var wl = (welds && ns.dieWelded(die, face, ns.dieStep(face, 1))) ? '<span class="df-weld" title="welded seam">=</span>' : '';
+    return '<div class="' + cls + '" data-face="' + face + '"><span class="df-n">' + face + '</span>' + body + tag + wl + '</div>';
   }
   var dieView = null;
   // The free-engraving sandbox is a dev tool, not content — it would hand you
@@ -1540,6 +1551,12 @@
     var back = opts && opts.back;
     var buying = null, moving = null;   // bench: engraving being placed / reseated
     var armed = null;                   // index into die.pending being placed
+    /* NOTHING COMMITS ON A TAP ANY MORE. A cut is permanent, costs credits at
+     * the bench, and a three-face band takes two faces you did not point at —
+     * one click deciding all of that was the single worst interaction on the
+     * screen. Tapping a face now ARMS a placement; the panel says exactly what
+     * it will do, ◀ ▶ slide it a face at a time, and CONFIRM cuts it. */
+    var preview = null;                 // { face } — the anchor being considered
     var wasCombat = r.phase === 'combat';
     var sel = 20, pickOpen = false;
     var s = overlayScreen();
@@ -1583,6 +1600,64 @@
     function aim() { return dieAimNow(); }
     function reach() { return dieReach(aim()); }
 
+    /* Whichever of the three ways to put an engraving on the die is live. They
+     * were three parallel code paths with three copies of "tap a face"; one
+     * shape means the preview, the ghost and the commit cannot drift apart. */
+    function armedCut() {
+      if (buying != null && r.shop && r.shop.engravings[buying]) {
+        var it = r.shop.engravings[buying];
+        return { kind: 'buy', id: it.id, cost: it.cost, verb: 'CUT' };
+      }
+      if (moving != null && die.faces[moving]) {
+        return { kind: 'move', id: die.faces[moving].id, cost: E.reseatCost(), verb: 'RESEAT' };
+      }
+      var q = die.pending || [];
+      if (armed != null && q[armed]) return { kind: 'pend', id: q[armed], cost: 0, verb: 'CUT' };
+      return null;
+    }
+    // What would happen if `cut` were anchored at `face`. A RESEAT has to be
+    // tested against a die the engraving has already left, or it collides with
+    // itself and every face reads as taken.
+    function placementFor(cut, face) {
+      if (!cut) return null;
+      if (cut.kind !== 'move') return ns.diePlacement(die, cut.id, face);
+      var tmp = {
+        faces: JSON.parse(JSON.stringify(die.faces)),
+        seams: JSON.parse(JSON.stringify(die.seams || {})),
+        welds: [],
+      };
+      ns.dieScrub(tmp, moving);
+      return ns.diePlacement(tmp, cut.id, face);
+    }
+    function regionFill(face) {
+      var reg = ns.dieRegionOf(face);
+      if (!reg) return null;
+      var rg = ns.DIE_REGION[reg], n = 0, tot = rg[1] - rg[0] + 1;
+      for (var f = rg[0]; f <= rg[1]; f++) if (die.faces[f]) n++;
+      return { reg: reg, lo: rg[0], hi: rg[1], n: n, tot: tot };
+    }
+    function commitPreview() {
+      var cut = armedCut(); if (!cut || !preview) return;
+      var f = preview.face, p = placementFor(cut, f);
+      if (p.why) { toast(p.why.toUpperCase(), 1800); return; }
+      if (cut.kind === 'buy') {
+        var bw = E.shopBuyEngraving(buying, f);
+        if (bw) { toast(bw.toUpperCase(), 1700); return; }
+        SFX.coin(); buying = null;
+      } else if (cut.kind === 'move') {
+        var mw = E.shopReseat(moving, f);
+        if (mw) { toast(mw.toUpperCase(), 1700); return; }
+        SFX.coin(); moving = null;
+      } else {
+        ns.dieEngrave(die, cut.id, f);
+        die.pending.splice(armed, 1);
+        armed = null;
+        E.save();
+      }
+      preview = null; sel = f;
+      renderAll(true, true);
+    }
+
     function renderAll(spinTo, flair) {
       var a = aim(), rc = reach();
       var queue = die.pending || [];
@@ -1592,11 +1667,11 @@
       var buyG = (buying != null && r.shop && r.shop.engravings[buying]) ? ns.dieEngraving(r.shop.engravings[buying].id) : null;
       var moveG = (moving != null && die.faces[moving]) ? ns.dieEngraving(die.faces[moving].id) : null;
       sub.innerHTML = buyG
-        ? ('<span class="die-place">CUTTING: ' + esc(buyG.name) + ' — TAP A FACE · ¢' + r.credits + '</span>')
+        ? ('<span class="die-place">CUTTING: ' + esc(buyG.name) + ' — TAP A FACE TO LINE IT UP · ¢' + r.credits + '</span>')
         : moveG
-        ? ('<span class="die-place">MOVING: ' + esc(moveG.name) + ' — TAP A NEW FACE · ¢' + r.credits + '</span>')
+        ? ('<span class="die-place">MOVING: ' + esc(moveG.name) + ' — TAP A NEW FACE TO LINE IT UP · ¢' + r.credits + '</span>')
         : pg
-        ? ('<span class="die-place">CUTTING: ' + esc(pg.name) + ' — TAP A FACE IN GREEN</span>')
+        ? ('<span class="die-place">CUTTING: ' + esc(pg.name) + ' — TAP A FACE, THEN CONFIRM</span>')
         : queue.length
         ? ('<span class="die-place">' + queue.length + ' ENGRAVING' + (queue.length > 1 ? 'S' : '') + ' WAITING — CHOOSE ONE BELOW</span>')
         : (bench ? '“BRING ME THE DIE.” · ¢' + r.credits + ' — ' : '')
@@ -1605,10 +1680,14 @@
           : 'NO AIM — EVERY FACE IS IN REACH');
 
       // face index
+      var cut = armedCut();
+      if (!cut) preview = null;
+      var ghost = (cut && preview) ? placementFor(cut, preview.face) : null;
+      var fitFor = cut ? function (f) { return placementFor(cut, f).why; } : null;
       wrap.innerHTML = '';
       [[1, 10], [11, 20]].forEach(function (rng) {
         var col = el('div', 'die-col'), h = '';
-        for (var f = rng[0]; f <= rng[1]; f++) h += dieFaceRowHTML(die, f, rc, pend, a);
+        for (var f = rng[0]; f <= rng[1]; f++) h += dieFaceRowHTML(die, f, rc, fitFor, a, ghost, true);
         col.innerHTML = h;
         wrap.appendChild(col);
       });
@@ -1616,25 +1695,10 @@
         row.addEventListener('pointerdown', function (ev) {
           ev.stopPropagation(); SFX.tap(); pickOpen = false;
           var f = +row.dataset.face;
-          if (buying != null) {          // bench: pay on placement
-            var bw = E.shopBuyEngraving(buying, f);
-            if (bw) { toast(bw.toUpperCase(), 1700); return; }
-            SFX.coin(); buying = null; sel = f; renderAll(true, true); return;
-          }
-          if (moving != null) {          // bench: reseat an installed engraving
-            if (f === moving) { moving = null; renderAll(false, false); return; }
-            var mw = E.shopReseat(moving, f);
-            if (mw) { toast(mw.toUpperCase(), 1700); return; }
-            SFX.coin(); moving = null; sel = f; renderAll(true, true); return;
-          }
-          if (pend) {   // cutting in the engraving the player armed
-            var why = ns.dieCanEngrave(die, pend, f);
-            if (why) { toast(why.toUpperCase(), 1700); return; }
-            ns.dieEngrave(die, pend, f);
-            die.pending.splice(armed, 1);
-            armed = null;
-            E.save();
-            sel = f; renderAll(true, true); return;
+          if (cut) {
+            // tapping a moving engraving's own head puts it back down
+            if (cut.kind === 'move' && f === moving && !preview) { moving = null; renderAll(false, false); return; }
+            preview = { face: f }; sel = f; renderAll(true, false); return;
           }
           sel = f; renderAll(true, false);
         });
@@ -1653,8 +1717,71 @@
               var T = ns.DIE_TAINTS[tt] || {};
               return '<div class="di-taint">✖ ' + esc(T.name || tt) + ' — ' + esc(T.desc || '') + '</div>';
             })()
+          + (function () {
+              var sm = ns.dieSeamAt(die, sel); if (!sm) return '';
+              var sg = ns.dieEngraving(sm.id); if (!sg) return '';
+              return '<div class="di-seam">◈ SHARED WITH ' + esc(sg.name) + ' — both fire at '
+                   + Math.round((B.dice.seam || 0.6) * 100) + '% on this face.</div>'
+                   + '<div class="di-desc">' + esc(sg.desc || '') + '</div>';
+            })()
+          + (function () {
+              var w = [ns.dieStep(sel, -1), ns.dieStep(sel, 1)].filter(function (nf) { return ns.dieWelded(die, sel, nf); });
+              return w.length ? '<div class="di-weld">= WELDED TO ' + w.join(' AND ') + ' — the bleed across runs at full.</div>' : '';
+            })()
         : '<div class="di-name bare">bare</div><div class="di-desc">Nothing engraved on this face.</div>');
+
+      /* ---- THE PREVIEW ------------------------------------------------
+       * Everything the commit is about to do, in the order you need it: what
+       * it covers, how often that fires, what band it lands in, how full the
+       * region gets, and who it will be sharing a face with. The frequency
+       * line in particular has never been visible anywhere, and the entire SP
+       * price of an engraving is computed from it. */
+      if (ghost) {
+        var pd = ghost.def || {};
+        var pct = Math.round(ghost.span.length / ns.DIE.faces * 100);
+        var rf = regionFill(preview.face);
+        var smD = ghost.seamWith ? ns.dieEngraving(ghost.seamWith) : null;
+        var seamPct = Math.round((B.dice.seam || 0.6) * 100);
+        var bandTag = dieEndTag(r.cls, preview.face, a);
+        var ph = '<div class="pv" ' + (ghost.why ? 'data-bad="1"' : '') + '>'
+          + '<div class="pv-head">' + esc(cut.verb) + ' · ' + esc(pd.name || '') + '</div>'
+          + '<div class="pv-desc">' + engTagHTML(pd) + esc(pd.desc || '') + '</div>'
+          + '<div class="pv-row"><span class="pv-k">COVERS</span><span class="pv-v">'
+          + ghost.span.map(function (f) { return f === preview.face ? '<b>' + f + '</b>' : f; }).join(' · ') + '</span></div>'
+          + '<div class="pv-row"><span class="pv-k">FIRES ON</span><span class="pv-v">'
+          + ghost.span.length + '/' + ns.DIE.faces + ' FACES — ' + pct + '% OF ROLLS</span></div>'
+          + (bandTag ? '<div class="pv-row"><span class="pv-k">ANCHOR</span><span class="pv-v">FACE '
+              + preview.face + ' → ' + esc(bandTag.label) + '</span></div>' : '')
+          + (rf ? '<div class="pv-row"><span class="pv-k">' + esc(rf.reg.toUpperCase()) + ' ' + rf.lo + '–' + rf.hi
+              + '</span><span class="pv-v">' + rf.n + '/' + rf.tot + ' CUT</span></div>' : '');
+        if (ghost.seam != null && smD) {
+          ph += '<div class="pv-seam">SEAM ON FACE ' + ghost.seam + ' — shares with ' + esc(smD.name)
+             +  '. Both fire at ' + seamPct + '% there, and you keep the face.</div>';
+        }
+        if (ghost.why) ph += '<div class="pv-bad">' + esc(ghost.why.toUpperCase()) + '</div>';
+        ph += '<div class="pv-btns">'
+          + '<button class="pv-nudge" data-slide="-1">◀</button>'
+          + '<button class="pv-go' + (ghost.why ? ' bad' : '') + '" data-confirm="1">'
+          + (ghost.why ? 'WILL NOT FIT' : (cut.cost ? cut.verb + ' · ¢' + cut.cost : 'CONFIRM')) + '</button>'
+          + '<button class="pv-nudge" data-slide="1">▶</button>'
+          + '</div><button class="pv-cancel" data-cancel="1">CANCEL</button></div>';
+        info.innerHTML = ph;
+      }
       wrap.querySelectorAll('.df').forEach(function (row) { row.classList.toggle('sel', +row.dataset.face === sel); });
+      var pvSlide = info.querySelectorAll('[data-slide]');
+      pvSlide.forEach(function (b) {
+        b.addEventListener('pointerdown', function (ev) {
+          ev.stopPropagation(); SFX.tap();
+          preview = { face: ns.dieStep(preview.face, +b.dataset.slide) };
+          sel = preview.face; renderAll(true, false);
+        });
+      });
+      var pvGo = info.querySelector('[data-confirm]');
+      if (pvGo) pvGo.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); SFX.tap(); commitPreview(); });
+      var pvNo = info.querySelector('[data-cancel]');
+      if (pvNo) pvNo.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation(); SFX.tap(); preview = null; renderAll(false, false);
+      });
 
       /* THE TABLE WAS THE BIGGEST THING ON THE SCREEN and it never changes —
        * five static rows of class reference above the die you are actually
@@ -1684,7 +1811,7 @@
             +  (fits ? fits + ' FIT' : 'NO ROOM') + '</span></button>';
         });
         h += '</div>';
-        if (armed != null) h += '<div class="ws-hint">TAP A GREEN FACE TO CUT IT IN, OR TAP THE ENGRAVING AGAIN TO PUT IT DOWN.</div>';
+        if (armed != null) h += '<div class="ws-hint">TAP A FACE TO LINE THE CUT UP — NOTHING IS CUT UNTIL YOU CONFIRM. ◀ ▶ SLIDE IT A FACE AT A TIME.</div>';
       }
       if (bench) {
         var stock = (r.shop.engravings || []);
@@ -1721,6 +1848,31 @@
         }
         h += '</div>';
         if (!d && !flaws.length) h += '<div class="ws-hint">SELECT AN ENGRAVED FACE FOR THE GRINDER OR THE JIG.</div>';
+
+        /* ---- THE TORCH ------------------------------------------------
+         * Welding is the only bench service about the SPACE BETWEEN two
+         * engravings rather than about one of them, so it lists boundaries,
+         * not faces — and only the boundaries the selected face is part of,
+         * or the die would offer you twenty of them. */
+        var welded = ns.dieWelds(die), cap = B.dice.weldCap || 3;
+        var wOpts = d ? [ns.dieStep(sel, -1), ns.dieStep(sel, 1)].map(function (nf) {
+          return { a: sel, b: nf, why: ns.dieCanWeld(die, sel, nf) };
+        }).filter(function (o) { return !o.why || ns.dieWelded(die, o.a, o.b); }) : [];
+        h += '<div class="ws-title">THE TORCH <span class="ws-note">' + welded.length + '/' + cap + ' WELDED</span></div>';
+        h += '<div class="ws-hint">A WELDED BOUNDARY CARRIES THE FULL EFFECT INTO ITS NEIGHBOUR INSTEAD OF '
+          +  Math.round((B.dice.bleed || 0.25) * 100) + '%.</div>';
+        if (!d) h += '<div class="ws-hint">SELECT AN ENGRAVED FACE TO SEE ITS BOUNDARIES.</div>';
+        else if (!wOpts.length) h += '<div class="ws-hint">NOTHING NEXT TO FACE ' + sel + ' TO WELD IT TO.</div>';
+        else {
+          h += '<div class="ws-row bench-row">';
+          wOpts.forEach(function (o) {
+            var done2 = ns.dieWelded(die, o.a, o.b);
+            var poor = !done2 && r.credits < E.weldCost();
+            h += '<button class="ws-btn' + (done2 ? ' on' : poor ? ' bad' : '') + '" data-weld="' + o.a + ',' + o.b + '">'
+              +  (done2 ? '= ' + o.a + '–' + o.b + ' WELDED' : 'WELD ' + o.a + '–' + o.b + ' · ¢' + E.weldCost()) + '</button>';
+          });
+          h += '</div>';
+        }
       }
 
       // ---- inspection / dev workshop ----
@@ -1790,6 +1942,17 @@
         if (r.credits < E.reseatCost()) { toast('NOT ENOUGH CREDITS', 1400); return; }
         moving = (moving != null) ? null : +mb.dataset.move; buying = null;
         renderAll(false, false);
+      });
+
+      shop.querySelectorAll('[data-weld]').forEach(function (b) {
+        b.addEventListener('pointerdown', function (ev) {
+          ev.stopPropagation(); SFX.tap();
+          var pr = b.dataset.weld.split(','), wa = +pr[0], wb = +pr[1];
+          if (ns.dieWelded(die, wa, wb)) { toast('ALREADY WELDED', 1400); return; }
+          var ww = E.shopWeld(wa, wb);
+          if (ww) { toast(ww.toUpperCase(), 1700); return; }
+          SFX.coin(); renderAll(false, false);
+        });
       });
 
       var pb = shop.querySelector('[data-pick]');

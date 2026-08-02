@@ -23,7 +23,7 @@ var PAGE = 'file://' + path.resolve(__dirname, '..', 'voidspire.html');
 
 var TEXT_FLOOR = 8.4;      // below this a condensed mono face stops being readable on a phone
 var SCROLL_SLACK = 520;    // default allowance
-var SLACK = { die: 900, dietray: 900, dierelic: 900 };   // the face index is a long list on purpose
+var SLACK = { die: 900, dietray: 900, dierelic: 900, diepreview: 900 };   // the face index is a long list on purpose
 
 var VIEWPORTS = [
   ['phone',   390, 844],
@@ -52,6 +52,20 @@ var SCREENS = {
     var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.run.phase = 'map';
     E.run.die.pending = ['ranging_mark', 'jam_clearance', 'executioners_mark'];
     VS.ui.refresh(); VS.ui.showDie();
+  },
+  /* THE PLACEMENT PREVIEW. It replaces the selected-face readout beside the
+   * die, so it is the one thing on this screen that can push the pane taller
+   * than the face list — and it only exists while a cut is lined up, which no
+   * other fixture reaches. Driven the way a player does: arm, then tap. */
+  diepreview: function () {
+    var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.run.phase = 'map';
+    E.run.die.pending = ['ranging_mark', 'jam_clearance'];
+    VS.dieEngrave(E.run.die, 'scrap_sifter', 13);      // something to seam onto
+    VS.ui.refresh(); VS.ui.showDie();
+    var arm = document.querySelector('[data-pend="0"]');
+    if (arm) arm.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    var face = document.querySelector('.df[data-face="14"]');
+    if (face) face.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
   },
   // The band table is read through the engine, relics and all, so a relic that
   // deletes a band (Regulator Clamp) or splits one (Duty Cycle) changes how

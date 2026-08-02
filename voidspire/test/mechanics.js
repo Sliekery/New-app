@@ -995,12 +995,13 @@ ok('one reseat per bench', E.shopReseat(12, 11) === 'the jig is already reset');
 
 // a band that will not fit must be put back exactly as it was
 E.startNode('shop'); br.credits = 500;
-VS.dieEngrave(br.die, 'scrap_sifter', 5);           // spans 5,6,7
-ok('a band augment occupies its whole span', VS.dieFaceId(br.die, 7) === 'scrap_sifter');
-ok('a band that will not fit is refused', typeof E.shopReseat(5, 11) === 'string');   // 11-13, and 12 is taken
-ok('a refused reseat puts the band back', VS.dieFaceId(br.die, 5) === 'scrap_sifter' && VS.dieFaceId(br.die, 7) === 'scrap_sifter');
+VS.dieEngrave(br.die, 'scrap_sifter', 5);           // CENTRED: spans 4,5,6
+ok('a band augment occupies its whole span', VS.dieFaceId(br.die, 4) === 'scrap_sifter' && VS.dieFaceId(br.die, 6) === 'scrap_sifter');
+// 12 is kinetic_buffer's ROOT, and a head can never be shared
+ok('a band that will not fit is refused', typeof E.shopReseat(5, 12) === 'string');
+ok('a refused reseat puts the band back', VS.dieFaceId(br.die, 4) === 'scrap_sifter' && VS.dieFaceId(br.die, 6) === 'scrap_sifter');
 ok('a refused reseat costs nothing', br.credits === 500 && !br.shop.reseatUsed);
-ok('the band reseats where it does fit', E.shopReseat(5, 16) === null && VS.dieFaceId(br.die, 18) === 'scrap_sifter' && VS.dieFaceId(br.die, 5) === null);
+ok('the band reseats where it does fit', E.shopReseat(5, 17) === null && VS.dieFaceId(br.die, 18) === 'scrap_sifter' && VS.dieFaceId(br.die, 5) === null);
 
 // the bench is a place, not a menu
 br.phase = 'map';
@@ -1639,11 +1640,14 @@ ok('every remaining class has a starter deck whose cards all exist',
   // 2. a band takes its whole span, so "which faces fit" is not just "is it bare"
   var band = VS.dieEngraving('ranging_mark');
   ok('Ranging Mark is a band', (band.span || 1) === 3);
-  ok('it cannot start where it would run off the die', !!VS.dieCanEngrave(die, 'ranging_mark', 19));
-  ok('nor where its span would overlap something', !!VS.dieCanEngrave(die, 'ranging_mark', 7));
+  // THE DIE IS A RING. dieNeighbours has always wrapped 20 into 1; spans do too
+  // now, so the top of the table holds as many bands as the middle does.
+  ok('a band may straddle the 20-1 seam', VS.dieCanEngrave(die, 'ranging_mark', 20) === null);
+  ok('and it really covers 19, 20 and 1', VS.dieSpan('ranging_mark', 20).join() === '19,20,1');
+  ok('it cannot be cut onto another engraving\u2019s head', !!VS.dieCanEngrave(die, 'ranging_mark', 9));
   VS.dieEngrave(die, 'ranging_mark', 15);
   ok('placing it covers every face in its span',
-     VS.dieFaceId(die, 15) === 'ranging_mark' && VS.dieFaceId(die, 16) === 'ranging_mark' && VS.dieFaceId(die, 17) === 'ranging_mark');
+     VS.dieFaceId(die, 14) === 'ranging_mark' && VS.dieFaceId(die, 15) === 'ranging_mark' && VS.dieFaceId(die, 16) === 'ranging_mark');
 
   // 3. a face-locked engraving has exactly one legal seat, and the tray has to
   //    be able to say so before the player taps and gets a rejection
@@ -2089,6 +2093,151 @@ ok('every remaining class has a starter deck whose cards all exist',
        causeless.length === 0);
     ok('the root is the only link with no cause', !got.links[0].why && !got.links[0].listen);
   }
+  E.run.phase = 'map';
+})();
+
+/* ============ SEAMS, WELDS AND THE CENTRED SPAN ========================
+ * Three rules changed at once and they interlock, so they are asserted
+ * together: a span is CENTRED on the face you point at and WRAPS the ring; a
+ * face may carry a SECOND engraving at reduced strength; and a boundary
+ * between two engravings can be WELDED so the bleed across it runs full.
+ *
+ * The load-bearing invariant under all of it: A SEAM'S ROOT IS ALWAYS A
+ * PRIMARY FACE. Every reader in the game that walks die.faces collecting
+ * roots — listeners, taints, reforge targets, the scrub list — depends on it,
+ * and none of them were changed. If it ever breaks, they all break at once.
+ * ==================================================================== */
+(function () {
+  E.seed(11); E.newRun('vanguard');
+  var d = E.run.die;
+
+  // --- centred, and it wraps
+  ok('a point engraving is just its own face', VS.dieSpan('overcharge_cell', 9).join() === '9');
+  ok('a band centres on the face you point at', VS.dieSpan('scrap_sifter', 9).join() === '8,9,10');
+  ok('and it wraps the 20-1 seam', VS.dieSpan('scrap_sifter', 20).join() === '19,20,1');
+  ok('the ring steps both ways', VS.dieStep(1, -1) === 20 && VS.dieStep(20, 1) === 1);
+
+  // --- the seam
+  VS.dieEngrave(d, 'scrap_sifter', 9);              // 8,9,10 — root 9
+  var pl = VS.diePlacement(d, 'overcharge_cell', 10);
+  ok('a point may share a band’s BODY', pl.why === null && pl.seam === 10);
+  ok('but never its HEAD', !!VS.diePlacement(d, 'overcharge_cell', 9).why);
+  VS.dieEngrave(d, 'overcharge_cell', 10);
+  ok('the newcomer takes the face', VS.dieFaceId(d, 10) === 'overcharge_cell');
+  ok('and the incumbent rides along on it', VS.dieSeamId(d, 10) === 'scrap_sifter');
+  ok('the band still owns its other two faces',
+     VS.dieFaceId(d, 8) === 'scrap_sifter' && VS.dieFaceId(d, 9) === 'scrap_sifter');
+  ok('a seam’s root is a primary face', VS.dieFaceId(d, VS.dieSeamAt(d, 10).root) === 'scrap_sifter');
+  ok('a shared face pays for itself both ways', VS.dieSeamMult(d, 10) === VS.BALANCE.dice.seam);
+  ok('an unshared face is untouched', VS.dieSeamMult(d, 8) === 1);
+  ok('a face holds no more than two', !!VS.diePlacement(d, 'munition_feed', 10).why);
+  ok('one placement doubles at most one face', !!VS.diePlacement(d, 'scrap_sifter', 15).why === false);
+
+  // --- scrubbing promotes the passenger rather than dropping it
+  var d2 = VS.newDie();
+  VS.dieEngrave(d2, 'scrap_sifter', 9);
+  VS.dieEngrave(d2, 'overcharge_cell', 10);
+  VS.dieScrub(d2, 10);                               // lift the point off
+  ok('scrubbing the newcomer hands the face back', VS.dieFaceId(d2, 10) === 'scrap_sifter' && !VS.dieSeamAt(d2, 10));
+  var d3 = VS.newDie();
+  VS.dieEngrave(d3, 'scrap_sifter', 9);
+  VS.dieEngrave(d3, 'overcharge_cell', 10);
+  VS.dieScrub(d3, 9);                                // lift the band out from under
+  ok('scrubbing the band promotes the passenger', VS.dieFaceId(d3, 10) === 'overcharge_cell' && !VS.dieSeamAt(d3, 10));
+  ok('and the passenger is now its own root', VS.dieIsRoot(d3, 10));
+  ok('the band left nothing behind', !d3.faces[8] && !d3.faces[9]);
+
+  // --- welds
+  var d4 = VS.newDie();
+  VS.dieEngrave(d4, 'overcharge_cell', 5);
+  VS.dieEngrave(d4, 'munition_feed', 6);
+  ok('a boundary between two engravings can be welded', VS.dieWeld(d4, 5, 6) === null);
+  ok('and it reads as welded from either side', VS.dieWelded(d4, 6, 5));
+  ok('the same boundary cannot be welded twice', !!VS.dieCanWeld(d4, 5, 6));
+  VS.dieEngrave(d4, 'scrap_sifter', 15);
+  ok('one engraving is not two', VS.dieCanWeld(d4, 15, 16) === 'that is one engraving, not two');
+  ok('a bare face cannot be welded', !!VS.dieCanWeld(d4, 5, 4));
+  ok('faces that do not touch cannot be welded', VS.dieCanWeld(d4, 5, 9) === 'those faces do not touch');
+  VS.dieScrub(d4, 6);
+  ok('scrubbing a side drops the weld with it', VS.dieWelds(d4).length === 0);
+
+  // --- a die with a seam and a weld survives being written out and read back
+  // (localStorage does not exist here, so this is the serialisation itself)
+  E.seed(11); E.newRun('vanguard');
+  var dd = E.run.die;
+  VS.dieEngrave(dd, 'scrap_sifter', 9);              // 8,9,10
+  VS.dieEngrave(dd, 'overcharge_cell', 10);          // seams onto 10
+  VS.dieEngrave(dd, 'munition_feed', 11);
+  ok('a live boundary welds', VS.dieWeld(dd, 10, 11) === null);
+  E.run.die = JSON.parse(JSON.stringify(dd));
+  ok('the seam survives the round trip', VS.dieSeamId(E.run.die, 10) === 'scrap_sifter');
+  ok('the weld survives the round trip', VS.dieWelded(E.run.die, 10, 11));
+  ok('and the shape needs no repair', E.dieRepair() === 0);
+
+  // A run saved before seams existed must load as a die with none, not a crash.
+  var old = { faces: { 5: { id: 'overcharge_cell', root: 5 } }, core: [], vault: [], frame: [], coreSlots: 3 };
+  E.run.die = old;
+  ok('a pre-seam die repairs cleanly', E.dieRepair() === 0 && VS.dieFaceId(old, 5) === 'overcharge_cell');
+  ok('and reports no seams rather than throwing', VS.dieSeamAt(old, 5) === null && VS.dieWelds(old).length === 0);
+})();
+
+/* THE SEAM IN A FIGHT. The rule is only real if the numbers move: a shared
+ * face has to fire BOTH engravings, and both have to come out reduced. */
+(function () {
+  startFight('vanguard');
+  var d = E.run.die, c = E.combat;
+  for (var f = 1; f <= 20; f++) delete d.faces[f];
+  d.seams = {}; d.welds = [];
+  VS.dieEngrave(d, 'kinetic_buffer', 12);            // point, 9 Shield, face 12
+  function faceEvents() { return E.events.filter(function (e) { return e.type === 'dieFace'; }); }
+  E.events.length = 0;
+  c.player.block = 0;
+  E.fireDieFace(12, null);
+  var solo = c.player.block, got = faceEvents();
+  ok('a lone face fires whole (' + solo + ')', solo > 0 && got.length === 1);
+
+  // The band goes down FIRST — a head can never be shared, so the point has to
+  // be the newcomer that seams onto the band's body.
+  VS.dieScrub(d, 12);
+  VS.dieEngrave(d, 'scrap_sifter', 13);              // band 12,13,14 — root 13
+  VS.dieEngrave(d, 'kinetic_buffer', 12);            // seams onto the band's body
+  ok('the point took the face and the band rides it',
+     VS.dieFaceId(d, 12) === 'kinetic_buffer' && VS.dieSeamId(d, 12) === 'scrap_sifter');
+  E.events.length = 0; c.player.block = 0;
+  E.fireDieFace(12, null);
+  got = faceEvents();
+  var pair = got.filter(function (e) { return e.face === 12; });
+  ok('a seamed face fires BOTH engravings', pair.length === 2);
+  ok('and both report themselves as shared', pair.every(function (e) { return e.seam; }));
+  ok('the point comes out reduced, not whole (' + c.player.block + ' vs ' + solo + ')',
+     c.player.block > 0 && c.player.block < solo);
+
+  // A band that seams onto its own neighbour must not bleed into itself.
+  var self = got.filter(function (e) { return e.id === 'scrap_sifter'; });
+  var dbl = {};
+  var doubled = self.filter(function (e) { return dbl[e.face] ? true : (dbl[e.face] = 1, false); });
+  ok('nothing fires the same face twice', doubled.length === 0);
+  E.run.phase = 'map';
+})();
+
+/* THE WELD IN A FIGHT: the bleed across the chosen boundary runs at full. */
+(function () {
+  startFight('vanguard');
+  var d = E.run.die, c = E.combat;
+  for (var f = 1; f <= 20; f++) delete d.faces[f];
+  d.seams = {}; d.welds = [];
+  VS.dieEngrave(d, 'overcharge_cell', 12);           // 2 Energy, face 12
+  VS.dieEngrave(d, 'kinetic_buffer', 13);            // 9 Shield, face 13
+  c.player.block = 0; c.energy = 0;
+  E.fireDieFace(12, null);
+  var bled = c.player.block;
+  ok('an unwelded neighbour bleeds a fraction (' + bled + ')', bled > 0);
+
+  VS.dieWeld(d, 12, 13);
+  c.player.block = 0; c.energy = 0;
+  E.fireDieFace(12, null);
+  ok('a welded neighbour carries the whole charge (' + bled + ' -> ' + c.player.block + ')',
+     c.player.block > bled);
   E.run.phase = 'map';
 })();
 
