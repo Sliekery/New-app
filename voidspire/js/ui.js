@@ -556,13 +556,24 @@
         });
         if (!isFinite(kb.left)) kb = kid.getBoundingClientRect();
         var need = 0;
-        var top = $hud.getBoundingClientRect().top;
+        var hb = $hud.getBoundingClientRect();
+        var top = hb.top;
+        /* MEASURE IN DEVICE PIXELS, RESERVE IN CSS PIXELS.
+         *
+         * The frame is CSS-transform scaled — 1.52x on a desktop window — so
+         * every rect here comes back 1.52x larger than the padding unit it was
+         * being assigned to. The screens duly reserved 1.52x the clearance they
+         * needed: 115px of padding for an 80px HUD, on every overlay in the
+         * game. The overlap test below is unaffected (both sides are scaled the
+         * same way); only the distance has to be converted back. */
+        var scale = $hud.offsetHeight ? (hb.height / $hud.offsetHeight) : 1;
+        if (!(scale > 0.1)) scale = 1;
         (function walk(node) {
           [].forEach.call(node.children, function (c) {
             if (c.children.length) { walk(c); return; }
             var b = c.getBoundingClientRect();
             if (!b.width || !b.height) return;
-            if (b.left < kb.right + 8 && b.right > kb.left - 8) need = Math.max(need, b.bottom - top + 12);
+            if (b.left < kb.right + 8 && b.right > kb.left - 8) need = Math.max(need, (b.bottom - top) / scale + 12);
           });
         })($hud);
         s.style.paddingTop = Math.max(14, need) + 'px';
@@ -912,14 +923,18 @@
         var v = E.attr(a[1]); return v > 0 ? '<span class="attr">' + a[0] + ' <b>' + v + '</b></span>' : '';
       }).join('') +
       (onMap ? '<span class="attr" style="color:' + fac.color + '">' + (E.inHeart && E.inHeart() ? '◈' : '') + 'S' + r.sector + ' ▴' + Math.max(0, r.mapRow + 1) + '/' + (B.map.rows + 1) + '</span>' : '') +
+      /* The rating rode its own LINE for a chip. It belongs beside the other
+       * run-level readouts — but spelled out ("P1 COLD VACUUM") it is 150px
+       * wide, which pushed the HUD cluster across the left edge of the content
+       * column and made every overlay reserve a band to duck it. The number is
+       * the information; the name is flavour you chose on the title screen, so
+       * it rides the tooltip. */
+      ((r.pressure || 0) > 0 ? '<span class="hud-press" title="' + esc(E.pressureName(r.pressure)) + '">P' + r.pressure + '</span>' : '') +
       '<span class="spacer"></span>' +
       (onMap ? '' : '<button class="icon-btn" data-act="map" title="Star chart">' + MAP_ICON + '</button>') +
       '<button class="icon-btn" data-act="menu">≡</button>' +
       '</div>';
 
-    // relics ride the top HUD (in combat and on the map). On the star chart you
-    // can tap to toggle them on/off; in combat a tap reads its tooltip. Relics
-    // with limited uses show a remaining-count badge.
     /* TWO DOORS, SIDE BY SIDE. The bay used to be reachable only through the die
      * screen, which said relics are a sub-page of engravings. They are a system
      * of their own and they get their own button, on every screen the die
@@ -942,37 +957,19 @@
         bayChipSVG() + (racked && room ? '<span class="die-pend-badge">' + racked + '</span>' : '') + '</div>';
     })();
     html += '</div>';
-    if ((r.pressure || 0) > 0) html += '<span class="hud-press">P' + r.pressure + ' ' + esc(E.pressureName(r.pressure)) + '</span>';
-    // Relics live INSIDE the die, and a relic only DOES anything while it is
-    // mounted. The HUD used to show the mounted ones and nothing else, so the
-    // ones sitting in the vault were invisible as well as inert: measured over
-    // 300 bot runs, 85% ended holding relics that did nothing, an average of
-    // 5.2 of them. Show the idle ones too, struck through, so the fact that you
-    // own a dead relic is on screen rather than two taps away.
-    var mounted = (r.die ? r.die.core.concat(r.die.frame) : []);
-    var idle = (r.artifacts || []).filter(function (x) { return mounted.indexOf(x) < 0; });
-    if (mounted.length || idle.length) {
-      html += '<div class="artifact-row">';
-      mounted.forEach(function (id) {
-        var a = ns.ARTIFACTS[id]; if (!a) return;
-        var cls = 'artifact-chip';
-        if (a.quest) { var qs = E.questState(id); cls += qs.done ? ' quest-done' : ' quest'; }
-        var uses = E.relicUsesLeft(id), spent = uses != null && uses <= 0;
-        if (spent) cls += ' relic-off';
-        var badge = (uses != null) ? '<span class="relic-uses">' + uses + '</span>' : '';
-        html += '<div class="' + cls + '" data-mounted="' + id + '">' + artSVG(a.art, 'art-icon') + badge + '</div>';
-      });
-      if (idle.length) {
-        html += '<div class="relic-idle-sep" data-die="1" title="' + idle.length +
-          ' relic' + (idle.length > 1 ? 's' : '') + ' unmounted — they do nothing until they are in the die">IDLE</div>';
-        idle.forEach(function (id) {
-          var a = ns.ARTIFACTS[id]; if (!a) return;
-          html += '<div class="artifact-chip idle" data-die="1" title="' + esc(a.name) +
-            ' — NOT MOUNTED, does nothing. Tap to open the die.">' + artSVG(a.art, 'art-icon') + '</div>';
-        });
-      }
-      html += '</div>';
-    }
+    /* THE RELIC LIST IS GONE FROM HERE.
+     *
+     * It listed every relic you own — mounted, then a separator, then the idle
+     * ones — as a second row of chips, on every screen. That was the right
+     * answer when the only way to reach a relic was through the die screen,
+     * and the wrong one the moment relics got a bay of their own with its own
+     * button: the same information, permanently, in the corner of a map you
+     * are trying to read. Measured on this frame it cost 38px of HUD, which is
+     * 38px the star chart does not get.
+     *
+     * What survives is the DOOR — the bay chip above, which still badges the
+     * number of relics sitting on the rack doing nothing, because that is the
+     * part that was ever a call to action. */
 
     if (c) {
       // Statuses (buffs/powers/debuffs) now live on the on-figure Dual-Rail bar.
@@ -996,11 +993,6 @@
     $hud.querySelectorAll('[data-bay]').forEach(function (chip) {
       chip.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation(); if (locked) return; SFX.tap(); showModules();
-      });
-    });
-    $hud.querySelectorAll('[data-mounted]').forEach(function (chip) {
-      chip.addEventListener('pointerdown', function (ev) {
-        ev.stopPropagation(); toast(artifactTip(chip.dataset.mounted), 2800);
       });
     });
     var mapBtn = $hud.querySelector('[data-act="map"]');
@@ -1363,10 +1355,17 @@
       var a = ns.ARTIFACTS[id];
       if (!a) return '';
       var uses = E.relicUsesLeft && E.relicUsesLeft(id);
+      /* Quest progress used to live ONLY on the HUD chip, as a dashed border
+       * and a tooltip. With the chip row gone this is the only place it can be
+       * read, so it is a line of text here rather than a border state there. */
+      var qs = a.quest ? E.questState(id) : null;
       return '<div class="bay-nm" style="color:' + col + '">' + esc(a.name)
         + (a.pact ? ' <span class="bay-tag">PACT</span>' : '')
+        + (qs ? ' <span class="bay-tag' + (qs.done ? ' done' : '') + '">'
+              + (qs.done ? 'COMPLETE' : 'QUEST ' + qs.progress + '/' + qs.goal) + '</span>' : '')
         + (uses != null ? ' <span class="bay-tag">' + uses + ' LEFT</span>' : '') + '</div>'
-        + '<div class="bay-ds">' + esc(a.desc || '') + '</div>';
+        + '<div class="bay-ds">' + esc((qs && qs.done ? a.doneDesc : a.desc) || '') + '</div>'
+        + (qs && !qs.done ? '<div class="bay-quest">' + esc(a.quest.label) + '</div>' : '');
     }
 
     function paint(seatIdx, ejectIdx) {
@@ -2315,6 +2314,25 @@
     // distance along the run, measured from the entry end
     function axis(row) { return row >= ROWS ? (ROWS - 1) * step + bossGap : row * step; }
     var runLen = padE + axis(ROWS) + padA;
+    /* FIT THE LANE PITCH TO THE PANEL, rather than guessing a constant.
+     *
+     * The chart is drawn to a viewBox and fitted with `meet`, so its own aspect
+     * ratio — not its size — decides how much of the panel it uses. A constant
+     * pitch made the chart wider in proportion than the panel, so it either
+     * left a band of dead chart above and below (before the row template was
+     * fixed) or, once the panel got its full height, ran the back half of the
+     * descent off the right-hand edge.
+     *
+     * Landscape is a FIXED 1024x600 design frame scaled by transform, so the
+     * panel is 978x412 on every window from a phone to a 4K monitor — measured
+     * across six viewports, identical every time. That is a known number, not
+     * something to sample at runtime: solve the pitch for it and the descent
+     * fills the panel and ends at its edge. */
+    if (land) {
+      var PANEL_ASPECT = 978 / 412;
+      lane = Math.max(120, Math.min(320,
+        Math.round((runLen / PANEL_ASPECT - padT - padB) / COLS)));
+    }
     var W = land ? runLen : COLS * lane + padT + padB;
     var H = land ? COLS * lane + padT + padB : runLen;
     var reach = E.mapReachable(), cur = E.currentNode();
@@ -2427,6 +2445,22 @@
       legend.innerHTML += '<span class="leg lane" style="color:' + LANE_COLOR[ln] + '"><i></i>' + esc(LANE_LABEL[ln]) + '</span>';
     });
     s.appendChild(legend);
+
+    /* THE CHART GETS THE SLACK — whichever row it happens to be in.
+     *
+     * Landscape lays every screen out on a grid, and this one hard-coded
+     * `auto minmax(0,1fr) auto`: three rows for a screen that has three
+     * children ONLY when there is no die-alert bar and no RETURN button. With
+     * the alert up — which is most of a run — the 1fr landed on the ALERT and
+     * the chart fell into an implicit auto row, so a 46px bar was handed 60px
+     * of slack above and below it while the star chart got 408px of a 914px
+     * window. Same again in tactical view, where RETURN takes a row.
+     *
+     * The template is built from the children that actually exist, so adding
+     * another bar here can never silently re-assign the slack. */
+    s.style.gridTemplateRows = [].map.call(s.children, function (k) {
+      return k.classList.contains('map-wrap') ? 'minmax(0, 1fr)' : 'auto';
+    }).join(' ');
 
     wrap.addEventListener('pointerdown', function (ev) {
       if (preview) return;

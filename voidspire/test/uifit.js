@@ -238,6 +238,59 @@ function probe(floor) {
       await page3.close();
     })();
 
+    /* ---- the star chart must actually get the screen ---------------------
+     * Two ways this screen has failed, both invisible in a diff:
+     *   1. the landscape grid hard-coded three rows, so the moment a die-alert
+     *      bar existed the 1fr slack landed on a 30px bar and the chart fell
+     *      into an implicit auto row — 44% of the window for the one thing the
+     *      screen is for;
+     *   2. giving the chart that height made it over-scale, and the back half
+     *      of the descent ran off the right edge where it cannot be tapped.
+     * Assert both: the chart owns most of the panel, and the whole sector fits
+     * inside it. */
+    await (async function chartCheck() {
+      for (var i = 0; i < 2; i++) {
+        var vp = [[1720, 930], [844, 390]][i];
+        var pg = await browser.newPage({ viewport: { width: vp[0], height: vp[1] } });
+        await pg.goto('file://' + path.resolve(__dirname, '..', 'voidspire.html'));
+        await pg.waitForTimeout(600);
+        await pg.evaluate(function () {
+          var E = VS.engine; E.seed(5); E.newRun('vanguard');
+          E.run.phase = 'map'; E.run.mapRow = 8; E.run.pressure = 1;
+          // a scarred face puts the die-alert bar up, which is the case that broke
+          VS.dieEngrave(E.run.die, 'kinetic_buffer', 5);
+          VS.dieAddTaint(E.run.die, 5, 'rust');
+          VS.ui.refresh();
+        });
+        await pg.waitForTimeout(700);
+        var r = await pg.evaluate(function () {
+          var sc = document.querySelector('.screen'), w = document.querySelector('.map-wrap');
+          var svg = document.querySelector('.starchart');
+          if (!sc || !w || !svg) return null;
+          var alert = document.querySelector('.die-alert');
+          // clientHeight for the share (both LAYOUT px — the frame is transform
+          // scaled, so a rect here is not the same unit as a clientHeight) and
+          // rects for the overflow, where both sides are scaled alike
+          var sb = svg.getBoundingClientRect(), wb = w.getBoundingClientRect();
+          return {
+            share: w.clientHeight / sc.clientHeight,
+            hasAlert: !!alert,
+            overflowX: Math.round(sb.width - wb.width),
+            scrollX: w.scrollWidth - w.clientWidth,
+          };
+        });
+        checks++;
+        var bad = null;
+        if (!r) bad = 'no chart on the map screen';
+        else if (!r.hasAlert) bad = 'fixture did not raise the die-alert bar';
+        else if (r.share < 0.55) bad = 'the chart got only ' + Math.round(r.share * 100) + '% of the screen';
+        else if (r.overflowX > 2 || r.scrollX > 2) bad = 'the descent runs ' + Math.max(r.overflowX, r.scrollX) + 'px off the edge';
+        if (bad) { fails++; console.log(' FAIL chart fit ' + vp[0] + 'x' + vp[1] + ': ' + bad); }
+        else console.log('  ok  chart fit ' + vp[0] + 'x' + vp[1] + ' (' + Math.round(r.share * 100) + '% of screen, whole sector visible)');
+        await pg.close();
+      }
+    })();
+
     /* ---- the HUD must not reserve a band it does not need ---------------
      * overlayScreen used to set paddingTop to the HUD's full height. The HUD is
      * a corner cluster AND a menu button hard against the right edge, so any
