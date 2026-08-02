@@ -4919,6 +4919,15 @@
    * Everything that needs the player to point at a face. One screen, because
    * every one of these is the same gesture: here are your twenty, these are
    * the ones this can touch. */
+  /* A MOUSE CAN LOOK BEFORE IT COMMITS; A FINGER CANNOT. The face picker
+   * shows its readout on hover where hover exists, and makes the first tap a
+   * look on the screens where it does not — rather than shipping a two-tap
+   * flow to a mouse, which reads as the click not having worked. */
+  var hasHover = (function () {
+    try { return !!(window.matchMedia && window.matchMedia('(hover: hover)').matches); }
+    catch (e) { return false; }
+  })();
+
   var FACE_PROMPT = {
     reforge: 'Which face should she rewrite?', collapse: 'Which band collapses?',
     unlisten: 'Which listener stops waiting?', swap: 'Which two change places?',
@@ -4941,6 +4950,61 @@
       esc(FACE_PROMPT[p.mode] || 'Choose a face') + (p.n > 1 ? ' · ' + (p.n - p.picked.length) + ' TO GO' : '')));
 
     var grid = el('div', 'face-grid');
+    /* THE GRID SAID NOTHING. Twenty names, some of them the same name three
+     * times because a band covers three faces, and no statement anywhere of
+     * what any of them DOES or what it is about to become — on a screen whose
+     * whole question is which one to destroy. The readout below the grid
+     * follows the pointer on a mouse, and on a touch screen the first tap
+     * selects and shows it while the second commits. Nothing is destroyed on
+     * one tap, the same rule the engraving screen now follows. */
+    var readout = el('div', 'fp-read');
+    var sel = null, hov = null;
+
+    function commit(face) {
+      SFX.tap();
+      var res = E.facePick(face);
+      if (!res) return;
+      if (res.reforge != null) { showReforge(done); return; }
+      if (res.more) { showFacePick(done); return; }
+      if (res.text) toast(res.text, 2400);
+      done();
+    }
+    function engBlock(g, cls, extra) {
+      if (!g) return '';
+      return '<div class="fp-eng ' + cls + '">'
+        + '<span class="fp-ic">' + artSVG(g.art, 'df-icon') + '</span>'
+        + '<span class="fp-body"><span class="fp-nm">' + esc(g.name) + '</span>'
+        + '<span class="fp-ds">' + engTagHTML(g) + esc(g.desc || '') + '</span>'
+        + (extra || '') + '</span></div>';
+    }
+    function paint() {
+      var face = hov != null ? hov : sel;
+      if (face == null) {
+        readout.innerHTML = '<div class="fp-hint">'
+          + (hasHover ? 'POINT AT A FACE TO SEE WHAT IT DOES AND WHAT IT BECOMES.'
+                      : 'TAP A FACE TO SEE WHAT IT DOES — TAP IT AGAIN TO COMMIT.') + '</div>';
+      } else {
+        var o = E.faceOutcome(face);
+        if (!o) { readout.innerHTML = '<div class="fp-hint">ALREADY CHOSEN.</div>'; }
+        else {
+          var tt = o.taint ? ns.DIE_TAINTS[o.taint] : null;
+          var h = '<div class="fp-head">FACE ' + face + (o.pending ? ' · ' + o.pending + ' MORE TO PICK' : '') + '</div>';
+          h += o.from ? engBlock(o.from, 'from',
+                 tt ? '<span class="fp-taint">✖ ' + esc(tt.name) + ' — ' + esc(tt.desc || '') + '</span>' : '')
+             : '<div class="fp-eng from"><span class="fp-body"><span class="fp-nm bare">bare</span>'
+               + '<span class="fp-ds">Nothing is engraved here.</span></span></div>';
+          if (o.to) h += '<div class="fp-arrow">BECOMES</div>' + engBlock(o.to, 'to');
+          if (o.line) h += '<div class="fp-line">' + esc(o.line) + '</div>';
+          readout.innerHTML = h;
+        }
+      }
+      grid.querySelectorAll('.fc').forEach(function (c) {
+        c.classList.toggle('armed', sel != null && +c.dataset.face === sel);
+      });
+      go.style.display = sel == null ? 'none' : '';
+      go.textContent = sel == null ? '' : 'CONFIRM FACE ' + sel;
+    }
+
     for (var f = 1; f <= 20; f++) {
       (function (face) {
         var slot = r.die.faces[face];
@@ -4949,28 +5013,39 @@
         var chosen = p.picked.indexOf(face) >= 0;
         var taint = slot ? ns.dieTaintAt(r.die, face) : null;
         var cell = el('div', 'fc' + (can ? ' can' : '') + (chosen ? ' chosen' : '') + (def ? ' cut' : ' blank') + (taint ? ' scarred' : ''));
+        cell.dataset.face = face;
         cell.innerHTML = '<span class="fc-n">' + face + '</span>'
           + '<span class="fc-name">' + esc(def ? def.name : '—') + '</span>'
           + (taint ? '<span class="fc-scar">' + esc((ns.DIE_TAINTS[taint] || {}).name || '') + '</span>' : '');
         if (can) {
           cell.style.borderColor = col + '77';
+          cell.addEventListener('pointerenter', function () { hov = face; paint(); });
+          cell.addEventListener('pointerleave', function () { if (hov === face) { hov = null; paint(); } });
           cell.addEventListener('pointerdown', function () {
-            SFX.tap();
-            var res = E.facePick(face);
-            if (!res) return;
-            if (res.reforge != null) { showReforge(done); return; }
-            if (res.more) { showFacePick(done); return; }
-            if (res.text) toast(res.text, 2400);
-            done();
+            // a mouse has already shown you the readout, so it commits on the
+            // click you meant; a finger has not, so the first tap is the look
+            if (hasHover || sel === face) { commit(face); return; }
+            SFX.tap(); sel = face; paint();
           });
         }
         grid.appendChild(cell);
       })(f);
     }
     s.appendChild(grid);
+    s.appendChild(readout);
+    var go = el('button', 'btn fp-go', '');
+    go.addEventListener('pointerdown', function (ev) {
+      ev.stopPropagation();
+      if (sel != null) commit(sel);
+    });
+    s.appendChild(go);
+    paint();
   }
 
   /* THE LONG ODDS. Deliberately not your die — a flat twenty, no build in it. */
+  // reachable from the fit tests, which have no event to route through
+  U._facePick = showFacePick;
+
   function showBet(done) {
     var r = E.run, op = r.pendingOp;
     if (!op) { done(); return; }

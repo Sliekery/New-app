@@ -2241,5 +2241,90 @@ ok('every remaining class has a starter deck whose cards all exist',
   E.run.phase = 'map';
 })();
 
+/* ============ THE FACE PICKER TELLS YOU WHAT IT WILL DO ================
+ * The grid offered twenty faces, some of them the same name three times
+ * because a band covers three, and stated nowhere what any of them did or
+ * what it was about to become — on a screen whose whole question is which one
+ * to destroy. faceOutcome answers that, and the load-bearing property is that
+ * it is the SAME arithmetic the commit uses: a preview that can disagree with
+ * the result is worse than no preview.
+ * ==================================================================== */
+(function () {
+  function setup(mode, n) {
+    E.seed(5); E.newRun('vanguard');
+    var d = E.run.die;
+    VS.dieEngrave(d, 'ranging_mark', 3);        // a band (span 3)
+    VS.dieEngrave(d, 'kinetic_buffer', 6);
+    VS.dieEngrave(d, 'ignition_coil', 9);
+    VS.dieEngrave(d, 'called_shot', 12);        // a listener
+    VS.dieEngrave(d, 'munition_feed', 15);
+    E.run.pendingFace = { mode: mode, n: n || 1, picked: [] };
+    return d;
+  }
+
+  // every mode says SOMETHING — a silent readout is the bug being fixed
+  var MODES = ['reforge','collapse','unlisten','swap','fuse','migrate','mirror',
+               'blank','sell','sellScar','give','teach','grant','steal'];
+  var mute = MODES.filter(function (m) {
+    setup(m, (m === 'swap' || m === 'fuse' || m === 'migrate') ? 2 : 1);
+    var cands = E.faceCandidates();
+    if (!cands.length) return false;                 // gated by the die floor
+    var o = E.faceOutcome(cands[0]);
+    return !o || !o.line;
+  });
+  ok('every face verb states what it will do' + (mute.length ? ' — ' + mute.join(', ') + ' say nothing' : ''),
+     mute.length === 0);
+
+  // the preview IS the commit — collapse
+  setup('collapse');
+  var pre = E.faceOutcome(3);
+  ok('collapse previews the poured engraving', !!(pre && pre.to && pre.to.desc));
+  var preDesc = pre.to.desc, preSpan = pre.to.span;
+  E.facePick(3);
+  var got = VS.dieEngraving(VS.dieFaceId(E.run.die, 3));
+  ok('and the face really holds what was previewed (' + preDesc + ')',
+     got.desc === preDesc && (got.span || 1) === preSpan);
+  ok('the band really did collapse to one face', !VS.dieFaceId(E.run.die, 4));
+
+  // the preview IS the commit — unlisten
+  setup('unlisten');
+  var pre2 = E.faceOutcome(12);
+  ok('unlisten previews the plain engraving', !!(pre2 && pre2.to && !pre2.to.listen));
+  var d2 = pre2.to.desc;
+  E.facePick(12);
+  ok('and the listener really became that (' + d2 + ')',
+     VS.dieEngraving(VS.dieFaceId(E.run.die, 12)).desc === d2);
+
+  // the preview IS the commit — fuse, which needs BOTH faces before it can say
+  setup('fuse', 2);
+  var half = E.faceOutcome(6);
+  ok('fuse will not name a result off one face', half && half.to === null && !!half.line);
+  E.facePick(6);
+  var full = E.faceOutcome(15);
+  ok('with both picked it names the fusion', !!(full && full.to && full.to.name));
+  var fname = full.to.name, fdesc = full.to.desc;
+  E.facePick(15);
+  var fused = VS.dieEngraving(VS.dieFaceId(E.run.die, 6));
+  ok('and the pot really produced it (' + fname + ' — ' + fdesc + ')',
+     fused.name === fname && fused.desc === fdesc);
+  ok('the second face went into the pot', !VS.dieFaceId(E.run.die, 15));
+
+  // the preview IS the commit — mirror
+  setup('mirror');
+  var pre3 = E.faceOutcome(3);
+  ok('mirror previews the thinned engraving', !!(pre3 && pre3.to));
+  var d3 = pre3.to.desc;
+  E.facePick(3);
+  ok('and both faces carry it (' + d3 + ')',
+     VS.dieEngraving(VS.dieFaceId(E.run.die, 3)).desc === d3 &&
+     VS.dieEngraving(VS.dieFaceId(E.run.die, 13)).desc === d3);
+
+  // a face already spent is not offered a second outcome
+  setup('fuse', 2);
+  E.facePick(6);
+  ok('an already-picked face previews nothing', E.faceOutcome(6) === null);
+  E.run.phase = 'map';
+})();
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

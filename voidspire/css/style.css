@@ -2208,9 +2208,36 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .fc.blank .fc-name { color: #3f5049; }
-.fc-scar { font: 700 8px/1.2 ui-monospace, monospace; color: #ff4a5e; letter-spacing: .05em; }
+/* 8.5, not 8: below 8.4 a condensed mono stops being readable on a phone, and
+   this screen had never been covered by a fit fixture so it was never caught. */
+.fc-scar { font: 700 8.5px/1.2 ui-monospace, monospace; color: #ff4a5e; letter-spacing: .05em; }
 .fc.scarred { border-color: rgba(255,74,94,0.45); }
+.fc.armed { background: rgba(255,176,46,0.14); border-color: #ffb02e; box-shadow: inset 0 0 12px rgba(255,176,46,0.25); }
 .bet-grid .fc { min-height: 40px; }
+
+/* ---- the face picker's readout: what it is, and what it becomes ---- */
+.fp-read {
+  width: 100%; margin: 6px 0 0; padding: 8px 10px; min-height: 74px;
+  border: 1px solid rgba(120,150,165,0.28); background: rgba(8,14,18,0.62);
+}
+.fp-hint { font: 700 8.5px/1.5 ui-monospace, monospace; letter-spacing: .12em; color: #61776c; text-align: center; }
+.fp-head { font: 700 9px/1.3 ui-monospace, monospace; letter-spacing: .18em; color: #ffb02e; margin-bottom: 4px; }
+.fp-eng { display: flex; gap: 8px; align-items: flex-start; }
+.fp-eng + .fp-eng { margin-top: 2px; }
+.fp-ic { width: 20px; height: 20px; flex: 0 0 auto; opacity: 0.9; }
+.fp-ic svg { width: 100%; height: 100%; }
+.fp-body { display: block; min-width: 0; }
+.fp-nm { display: block; font: 700 10px/1.3 ui-monospace, monospace; color: #eafcff; letter-spacing: .06em; }
+.fp-nm.bare { color: #4b5f57; }
+.fp-ds { display: block; font: 400 9px/1.4 ui-monospace, monospace; color: #b8ccc2; }
+.fp-eng.to .fp-nm { color: #5dff88; text-shadow: 0 0 8px rgba(93,255,136,0.4); }
+.fp-arrow {
+  font: 700 8.5px/1.6 ui-monospace, monospace; letter-spacing: .3em; color: #5dff88;
+  margin: 3px 0 2px 28px;
+}
+.fp-line { margin-top: 5px; font: 700 8.5px/1.45 ui-monospace, monospace; letter-spacing: .06em; color: #ffd48a; }
+.fp-taint { display: block; margin-top: 2px; font: 700 8px/1.35 ui-monospace, monospace; color: #ff8a94; }
+.fp-go { margin-top: 6px; }
 .pv-row.dim-row { color: #61776c; font-style: italic; }
 
 

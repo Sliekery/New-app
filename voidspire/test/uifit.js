@@ -67,6 +67,23 @@ var SCREENS = {
     var face = document.querySelector('.df[data-face="14"]');
     if (face) face.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
   },
+  /* The face picker with its readout open — the tallest state of the screen
+   * that decides which engraving gets destroyed, and one no other fixture
+   * reaches because it is only entered from inside an event. */
+  facepick: function () {
+    var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.run.phase = 'map';
+    var d = E.run.die;
+    VS.dieEngrave(d, 'ranging_mark', 3);
+    VS.dieEngrave(d, 'kinetic_buffer', 6);
+    VS.dieEngrave(d, 'ignition_coil', 9);
+    VS.dieEngrave(d, 'munition_feed', 15);
+    VS.dieAddTaint(d, 9, 'rust');
+    E.run.pendingFace = { mode: 'fuse', n: 2, picked: [6] };
+    VS.ui.refresh();
+    VS.ui._facePick(function () {});
+    var cell = document.querySelector('.fc[data-face="15"]');
+    if (cell) cell.dispatchEvent(new PointerEvent('pointerenter', { bubbles: true }));
+  },
   // The band table is read through the engine, relics and all, so a relic that
   // deletes a band (Regulator Clamp) or splits one (Duty Cycle) changes how
   // many rows this screen draws — check the shortest and longest tables it can

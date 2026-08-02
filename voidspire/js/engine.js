@@ -3784,6 +3784,152 @@
     return cuts.filter(function (f) { return p.picked.indexOf(f) < 0; });
   };
 
+  /* ---- what a verb WOULD do -------------------------------------------
+   * These used to be computed inline inside facePick, at the moment of
+   * commitment, which meant the screen offering the choice had nothing to
+   * show: the player picked two faces out of a grid of twenty names with no
+   * statement of what any of them did or what they were about to become.
+   * Pulled out as pure builders so the preview and the commit are the same
+   * arithmetic and cannot drift apart. */
+  function scaleDefFx(def, mult) {
+    return (def.fx || []).map(function (q) {
+      var z = JSON.parse(JSON.stringify(q));
+      if (z.k !== 'hploss') z.v = Math.max(1, Math.round((z.v || 1) * mult));
+      return z;
+    });
+  }
+  function collapseDef(a) {
+    var d = E.run.die, base = ns.dieEngraving(d.faces[a].id);
+    if (!base) return null;
+    var solo = JSON.parse(JSON.stringify(base));
+    solo.span = 1;
+    solo.fx = scaleDefFx(base, 1 / ns.SPAN_MULT);
+    solo.desc = ns.reforgeDescribe(solo.fx, { trigger: solo.listen });
+    return solo;
+  }
+  function unlistenDef(a) {
+    var d = E.run.die, base = ns.dieEngraving(d.faces[a].id);
+    if (!base) return null;
+    var plain = JSON.parse(JSON.stringify(base));
+    delete plain.listen;
+    plain.fx = scaleDefFx(base, 1.6);
+    plain.desc = ns.reforgeDescribe(plain.fx);
+    return plain;
+  }
+  function mirrorDef(a) {
+    var d = E.run.die, base = ns.dieEngraving(d.faces[a].id);
+    if (!base) return null;
+    var thin = JSON.parse(JSON.stringify(base));
+    thin.tier = Math.max(1, (thin.tier || 1) - 1);
+    thin.fx = scaleDefFx(base, 0.7);
+    thin.desc = ns.reforgeDescribe(thin.fx, { trigger: thin.listen });
+    return thin;
+  }
+  function fuseDef(a, b) {
+    var r = E.run, d = r.die;
+    if (!d.faces[a] || !d.faces[b]) return null;
+    var da = ns.dieEngraving(d.faces[a].id), db = ns.dieEngraving(d.faces[b].id);
+    if (!da || !db) return null;
+    function off(def) { return (def.fx || []).some(function (q) { return q.k === 'dmg' || (q.k === 'status' && q.who !== 'self'); }); }
+    var oa = off(da), ob = off(db);
+    var budget = ns.engravingSp(da) + ns.engravingSp(db);
+    var fx, nm;
+    if (oa && ob) { nm = 'THE LONGER BLADE'; fx = [{ k: 'dmg', v: Math.max(1, Math.round(budget / 0.6)) }]; }
+    else if (!oa && !ob) { nm = 'THE WALL'; fx = [{ k: 'block', v: Math.max(1, Math.round(budget)) }]; }
+    else {
+      nm = 'THE HYBRID';
+      var half = budget / 2;
+      fx = [{ k: 'block', v: Math.max(1, Math.round(half)) }, { k: 'dmg', v: Math.max(1, Math.round(half / 0.6)) }];
+      var tbl = ns.reforgeTableFor(r.cls);
+      var tl = tbl.lenses.filter(function (l) { return l.rider; })[0];
+      if (tl) { var rf2 = { k: tl.rider.k, v: 1 }; if (tl.rider.s) rf2.s = tl.rider.s; if (tl.rider.who) rf2.who = tl.rider.who; fx.push(rf2); }
+    }
+    return { name: nm, tier: Math.min(3, Math.max(da.tier || 1, db.tier || 1) + 1), span: 1, fx: fx, cls: r.cls,
+             desc: ns.reforgeDescribe(fx), art: da.art };
+  }
+
+  /* WHAT HAPPENS IF YOU PICK THIS ONE.
+   *
+   * Returns a plain object the screen can render without knowing any of the
+   * arithmetic above: `from` is what is on the face now, `to` is what it would
+   * become (null when the verb does not produce an engraving), `line` says it
+   * in a sentence, and `pending` is set while the verb still needs more faces
+   * and so cannot state its result yet. */
+  E.faceOutcome = function (face) {
+    var r = E.run, p = r.pendingFace, d = r && r.die;
+    if (!p || !d) return null;
+    if (p.picked.indexOf(face) >= 0) return null;
+    var slot = d.faces[face];
+    var from = slot ? ns.dieEngraving(d.faces[slot.root].id) : null;
+    var out = { face: face, from: from, to: null, line: '', pending: 0,
+                taint: slot ? ns.dieTaintAt(d, face) : null };
+    var picked = p.picked.concat([face]);
+    var need = p.n - picked.length;
+    if (need > 0) out.pending = need;
+    var a = picked[0], b = picked[1];
+    switch (p.mode) {
+      case 'reforge':
+        out.line = 'She rewrites this face. You choose from three cuts.';
+        break;
+      case 'collapse': {
+        out.to = collapseDef(face);
+        var spanWas = (from && from.span) || 1;
+        out.line = 'Poured into a single face: ' + (1 / ns.SPAN_MULT).toFixed(1)
+                 + 'x the effect, but it fires on 1 face instead of ' + spanWas + '.';
+        break;
+      }
+      case 'unlisten':
+        out.to = unlistenDef(face);
+        out.line = 'It stops waiting for its trigger and fires on the face instead, 60% stronger.';
+        break;
+      case 'swap':
+        out.line = need > 0 ? 'Pick the face it changes places with.'
+                            : 'Faces ' + a + ' and ' + b + ' change places. Nothing else changes.';
+        break;
+      case 'fuse':
+        if (need > 0) { out.line = 'Pick the second one. Both are destroyed.'; break; }
+        out.to = fuseDef(a, b);
+        out.line = 'Both are destroyed and one stronger engraving is cut on face ' + a + '.';
+        break;
+      case 'migrate':
+        out.line = need > 0 ? 'Pick where it should go.'
+                            : 'Moved to face ' + b + ', unchanged.';
+        break;
+      case 'mirror':
+        out.to = mirrorDef(face);
+        out.line = 'It stands on face ' + face + ' AND face ' + (face > 10 ? face - 10 : face + 10)
+                 + ' — twice the reach at 70% of the size.';
+        break;
+      case 'blank':
+        out.line = p.returnUpgraded
+          ? 'Face ' + face + ' goes blank. It comes back upgraded later.'
+          : 'Face ' + face + ' goes blank. The engraving is gone.';
+        break;
+      case 'sell':
+        out.line = from ? 'Sold for ' + ({ 1: 40, 2: 85, 3: 150 }[from.tier || 1] || 40) + ' credits.' : '';
+        break;
+      case 'sellScar':
+        out.line = from ? 'Sold for ' + Math.round(({ 1: 40, 2: 85, 3: 150 }[from.tier || 1] || 40) / 2)
+                        + ' credits — the scar goes with it.' : '';
+        break;
+      case 'give':
+        out.line = 'Handed over for ' + (p.pay || 0) + ' credits.';
+        break;
+      case 'teach':
+        out.line = 'This one is destroyed; every other engraving of its kind gets stronger.';
+        break;
+      case 'grant':
+        out.line = 'The new cut lands here.';
+        break;
+      case 'steal':
+        out.line = from ? 'It overwrites ' + from.name + '.' : 'It lands on this bare face.';
+        break;
+      default:
+        out.line = '';
+    }
+    return out;
+  };
+
   E.facePick = function (face) {
     var r = E.run, p = r.pendingFace, d = r.die;
     if (!p || E.faceCandidates().indexOf(face) < 0) return null;
@@ -3797,23 +3943,14 @@
         r.pendingFace = null; E.save();
         return { reforge: a };
       case 'collapse': {
-        var idc = d.faces[a].id, defc = ns.dieEngraving(idc);
-        var solo = JSON.parse(JSON.stringify(defc));
-        solo.span = 1;
-        var fct = 1 / ns.SPAN_MULT;
-        solo.fx = (solo.fx || []).map(function (q) { var z = JSON.parse(JSON.stringify(q)); if (z.k !== 'hploss') z.v = Math.max(1, Math.round((z.v || 1) * fct)); return z; });
-        solo.desc = ns.reforgeDescribe(solo.fx, { trigger: solo.listen });
+        var solo = collapseDef(a);
         var nidc = E.forgedInstall(solo);
         clearRootAt(a); seatAt(a, nidc, solo);
         msg = solo.name + ' poured into face ' + a + ': ' + solo.desc;
         break;
       }
       case 'unlisten': {
-        var idu = d.faces[a].id, defu = ns.dieEngraving(idu);
-        var plain = JSON.parse(JSON.stringify(defu));
-        delete plain.listen;
-        plain.fx = (plain.fx || []).map(function (q) { var z = JSON.parse(JSON.stringify(q)); if (z.k !== 'hploss') z.v = Math.max(1, Math.round((z.v || 1) * 1.6)); return z; });
-        plain.desc = ns.reforgeDescribe(plain.fx);
+        var plain = unlistenDef(a);
         var nidu = E.forgedInstall(plain);
         clearRootAt(a); seatAt(a, nidu, plain);
         msg = plain.name + ' stopped waiting: ' + plain.desc;
@@ -3836,11 +3973,7 @@
       }
       case 'mirror': {
         var opp = a > 10 ? a - 10 : a + 10;
-        var idr = d.faces[a].id, defr = ns.dieEngraving(idr);
-        var thin = JSON.parse(JSON.stringify(defr));
-        thin.tier = Math.max(1, (thin.tier || 1) - 1);
-        thin.fx = (thin.fx || []).map(function (q) { var z = JSON.parse(JSON.stringify(q)); if (z.k !== 'hploss') z.v = Math.max(1, Math.round((z.v || 1) * 0.7)); return z; });
-        thin.desc = ns.reforgeDescribe(thin.fx, { trigger: thin.listen });
+        var thin = mirrorDef(a);
         var nidr = E.forgedInstall(thin);
         clearRootAt(a); seatAt(a, nidr, thin); seatAt(opp, nidr, thin);
         msg = thin.name + ' now stands on ' + a + ' and ' + opp;
@@ -3914,26 +4047,8 @@
    * in — two defensive make a wall, two offensive make a longer blade, one of
    * each makes a hybrid drawn from the die's own class table. */
   E.dieFuse = function (a, b) {
-    var r = E.run, d = r.die;
-    if (!d.faces[a] || !d.faces[b]) return null;
-    var da = ns.dieEngraving(d.faces[a].id), db = ns.dieEngraving(d.faces[b].id);
-    if (!da || !db) return null;
-    function off(def) { return (def.fx || []).some(function (q) { return q.k === 'dmg' || (q.k === 'status' && q.who !== 'self'); }); }
-    var oa = off(da), ob = off(db);
-    var budget = ns.engravingSp(da) + ns.engravingSp(db);
-    var fx, nm;
-    if (oa && ob) { nm = 'THE LONGER BLADE'; fx = [{ k: 'dmg', v: Math.max(1, Math.round(budget / 0.6)) }]; }
-    else if (!oa && !ob) { nm = 'THE WALL'; fx = [{ k: 'block', v: Math.max(1, Math.round(budget)) }]; }
-    else {
-      nm = 'THE HYBRID';
-      var half = budget / 2;
-      fx = [{ k: 'block', v: Math.max(1, Math.round(half)) }, { k: 'dmg', v: Math.max(1, Math.round(half / 0.6)) }];
-      var tbl = ns.reforgeTableFor(r.cls);
-      var tl = tbl.lenses.filter(function (l) { return l.rider; })[0];
-      if (tl) { var rf2 = { k: tl.rider.k, v: 1 }; if (tl.rider.s) rf2.s = tl.rider.s; if (tl.rider.who) rf2.who = tl.rider.who; fx.push(rf2); }
-    }
-    var def = { name: nm, tier: Math.min(3, Math.max(da.tier || 1, db.tier || 1) + 1), span: 1, fx: fx, cls: r.cls,
-                desc: ns.reforgeDescribe(fx), art: da.art };
+    var def = fuseDef(a, b);
+    if (!def) return null;
     var id = E.forgedInstall(def);
     clearRootAt(a); clearRootAt(b);
     seatAt(a, id, def);
