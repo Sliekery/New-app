@@ -113,6 +113,66 @@ pc.chromium.launch({
     await page.close();
   }
 
+  /* ---- no readout may hide behind the chrome --------------------------
+   * A boss is 178px of radius standing on a line at 0.72 of the band, so the
+   * HP bar drawn under its feet landed 68px inside the hand and its number
+   * 83px in — on the one number that decides whether you can win the turn.
+   * The player's own gauge had the same collision with the stim belt, which
+   * printed "¢299 STIMS" across it. Both now yield to the chrome; assert it
+   * for a boss, an ordinary pack, and the player, since the fix must NOT flip
+   * ordinary enemies above their heads to buy clearance they do not need. */
+  for (var k = 0; k < 2; k++) {
+    var vp = [['wide', 1773, 894], ['land', 844, 390]][k];
+    for (var n = 0; n < 2; n++) {
+      var kind = ['boss', 'fight'][n];
+      var pg2 = await browser.newPage({ viewport: { width: vp[1], height: vp[2] } });
+      await pg2.goto('file://' + path.resolve(__dirname, '..', 'voidspire.html'));
+      await pg2.waitForTimeout(700);
+      await pg2.evaluate(function (kind) {
+        var E = VS.engine;
+        E.seed(7); E.newRun('vanguard');
+        E.run.faction = 'hierarchy'; E.run.nodeIdx = 0; E.run.mapRow = 12;
+        E.startNode(kind); VS.ui.refresh();
+      }, kind);
+      await pg2.waitForTimeout(900);
+      var g = await pg2.evaluate(function () {
+        var R = VS.render, cv = document.getElementById('battlefield');
+        var cb = cv.getBoundingClientRect();
+        function topOf(id) {
+          var el = document.getElementById(id);
+          if (!el) return null;
+          var b = el.getBoundingClientRect();
+          return b.height ? b.top - cb.top : null;
+        }
+        return {
+          hand: topOf('hand'), belt: topOf('potion-belt'),
+          // the lowest ink each bar block puts down, mirroring drawEnemy
+          bars: (R.views || []).map(function (v) {
+            return { r: Math.round(v.r), bottom: Math.round(v.barBottom), up: !!v.barsUp };
+          }),
+          gauge: R.playerGaugeBottom == null ? null : Math.round(R.playerGaugeBottom),
+          bottom: R.readableBottom ? R.readableBottom(0) : null,
+        };
+      });
+      checks++;
+      var bad = null;
+      if (!g.bars.length) bad = 'no enemies on the battlefield';
+      else if (g.hand == null) bad = 'the hand is not up';
+      else if (g.bottom == null || g.bottom > g.hand + 1) bad = 'the readable floor (' + Math.round(g.bottom) + ') is below the cards (' + Math.round(g.hand) + ')';
+      else if (g.bars.some(function (bb) { return bb.bottom > g.hand; }))
+        bad = 'an HP bar block reaches ' + Math.round(Math.max.apply(null, g.bars.map(function (bb) { return bb.bottom; })) - g.hand) + 'px behind the cards';
+      else if (kind === 'fight' && g.bars.some(function (bb) { return bb.up; }))
+        bad = 'an ordinary enemy flipped its bar above its head for clearance it did not need';
+      else if (kind === 'boss' && !g.bars.some(function (bb) { return bb.up; }))
+        bad = 'the boss kept its bar below the feet — it does not fit there';
+      else if (g.belt != null && g.gauge != null && g.gauge > g.belt)
+        bad = 'the player gauge reaches ' + Math.round(g.gauge - g.belt) + 'px into the stim belt';
+      if (bad) { fails++; console.log(' FAIL readout clearance ' + vp[0] + '/' + kind + ': ' + bad); }
+      else console.log('  ok  readout clearance ' + vp[0] + '/' + kind + ' (floor ' + Math.round(g.bottom) + ', cards at ' + Math.round(g.hand) + ')');
+      await pg2.close();
+    }
+  }
+
   await browser.close();
   console.log('\n' + checks + ' combat-fit checks, ' + (fails === 0 ? 'ALL COMBAT FIT CHECKS PASSED' : fails + ' FAILED'));
   process.exit(fails === 0 ? 0 : 1);

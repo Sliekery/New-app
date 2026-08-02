@@ -72,12 +72,53 @@
     }
   };
 
+  /* WHERE THE CARDS ACTUALLY START.
+   *
+   * `fieldBottom()` reserves min(170, H*0.28) for the hand, which is a guess:
+   * the hand is a DOM element whose height depends on the card size, the frame
+   * scale and the orientation. Measured on a 1773x894 window it is 229px tall,
+   * so the guess was 59px optimistic — and 59px is exactly how a boss's HP bar
+   * and its number ended up drawn behind the cards.
+   *
+   * The canvas is sized in CSS pixels (W/H are the rect, dpr only scales the
+   * backing store), so a rect offset from the canvas IS a canvas coordinate.
+   * Cached per resize rather than read every frame. */
+  var handY = 0, leftY = 0;
+  function topOf(ids) {
+    var cb = canvas && canvas.getBoundingClientRect();
+    if (!cb || !cb.height || typeof document === 'undefined') return H;
+    var best = H;
+    ids.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var b = el.getBoundingClientRect();
+      if (!b.height) return;                      // hidden out of combat
+      best = Math.min(best, b.top - cb.top);
+    });
+    return Math.max(0, best);
+  }
+  /* TWO REGIONS, because the chrome is not one bar. The cards sit centre and
+   * right; the stim belt, the energy pip and the draw pile sit far left, which
+   * is exactly where the player figure and its gauge stand. Measuring one
+   * rectangle for both would push the enemy bars up to clear a belt they are
+   * nowhere near. */
+  function measureChrome() {
+    handY = topOf(['hand', 'combat-dock']);
+    leftY = topOf(['potion-belt', 'energy-pip', 'draw-pile', 'combat-dock']);
+  }
+  // The lowest line a readout may occupy. Called with the block's own height so
+  // each caller says how much room it needs rather than sharing a guess.
+  function readableBottom(need) { return Math.min(H, handY || H) - (need || 0); }
+  function playerBottom(need) { return Math.min(H, leftY || H) - (need || 0); }
+  R.readableBottom = readableBottom;
+
   R.resize = function () {
     var rect = canvas.getBoundingClientRect();
     dpr = Math.min(2, window.devicePixelRatio || 1);
     W = rect.width; H = rect.height;
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
+    measureChrome();
     layout();
   };
 
@@ -162,6 +203,9 @@
     var c = ns.engine.combat;
     if (!c) { R.views = []; R.combatVisible = false; return; }
     R.combatVisible = true;
+    // the hand and the belt are display:none outside a fight, so a resize taken
+    // on the map measured them as zero — re-read once the chrome is actually up
+    measureChrome();
     R.views = c.enemies.map(function (en, i) {
       var old = R.views[i];
       var same = old && old.en === en;
@@ -1367,6 +1411,43 @@
     if (Math.abs(v.dispHp - v.hp) < 0.4) v.dispHp = v.hp;
     var bw = Math.max(46, Math.min(96, v.r * 2.1));
     var bx = v.x - bw / 2, by = v.y + v.r + 20, bh = 6;
+    /* A BOSS OUTGROWS ITS OWN LABEL.
+     *
+     * The bar sits under the feet, which works for anything that fits the
+     * band — but a boss is 178px of radius standing on a line at 0.72 of it,
+     * so "under the feet" is 68px INTO the hand and the number 83px into it.
+     * Measured on a 1773x894 window against SAINT KA'LETH: the one readout
+     * that decides whether you can win the turn was behind your cards.
+     *
+     * Bosses are meant to overrun the frame — legs disappearing behind the
+     * hand reads as too big for the screen, which is the point. The readout is
+     * not. When the block will not clear the cards it goes ABOVE the figure
+     * instead, under the crown, where a boss has empty sky anyway. */
+    /* HOW FAR THE BLOCK ACTUALLY REACHES, not a worst case. The bar and its
+     * number are always drawn; the debuff rail and the trait row are only
+     * there when the enemy has statuses or traits. Estimating the worst case
+     * flipped ordinary enemies above their own heads to protect a rail that
+     * was not being drawn. */
+    var stk0 = v.en.statuses, anyStatus = false;
+    for (var sk0 in stk0) { if (stk0[sk0] > 0) { anyStatus = true; break; } }
+    var anyTrait = enemyTraits(v.def).length > 0;
+    var reach = 24 + (anyStatus ? 14 : 0) + (anyTrait ? (anyStatus ? 40 : 23) + 8 : 0);
+    /* A BOSS OUTGROWS ITS OWN LABEL. The bar sits under the feet, which works
+     * for anything that fits the band — but a boss is 178px of radius standing
+     * on a line at 0.72 of it, so "under the feet" is 68px INTO the hand and
+     * the number 83px in. Measured on a 1773x894 window against SAINT KA'LETH:
+     * the one readout that decides whether you can win the turn was behind
+     * your cards.
+     *
+     * Bosses are meant to overrun the frame — legs vanishing behind the hand
+     * reads as too big for the screen, which is the point. The readout is not.
+     * When the block will not clear the cards it goes ABOVE instead, high
+     * enough to clear the intent floating at v.r+22. */
+    var barsUp = by + reach > readableBottom(0);
+    if (barsUp) by = Math.max(fieldTop() + 22, v.y - v.r - 46 - reach);
+    // recorded so the fit test can assert where the block actually landed
+    // rather than re-deriving it and drifting from this
+    v.barY = by; v.barBottom = by + reach; v.barsUp = barsUp;
     ctx.fillStyle = 'rgba(6, 14, 10, 0.85)';
     ctx.fillRect(bx, by, bw, bh);
     ctx.fillStyle = color; ctx.globalAlpha = 0.9;
@@ -1388,9 +1469,7 @@
     drawStatusRails(v.x, by - 12, by + 24, v.en.statuses, 8);
 
     // persistent passive-trait badges (Enrage / Thorns / Plated / Overload / etc.)
-    var hasStatus = false, stk = v.en.statuses;
-    for (var sk in stk) { if (stk[sk] > 0) { hasStatus = true; break; } }
-    drawEnemyTraits(v, by + 2, hasStatus);
+    drawEnemyTraits(v, by + 2, anyStatus);
 
     // intent
     drawIntent(v);
@@ -2158,9 +2237,14 @@
     var block = Math.round(R.player.block || 0);
     var frac = Math.max(0, Math.min(1, hp / maxHp));
     var hpCol = frac > 0.5 ? '#5dff88' : frac > 0.25 ? '#ffb02e' : '#ff4a5e';
-    var cy = py + scale * 1.74;
     var bw = Math.max(104, scale * 2.4), h = Math.max(6, scale * 0.14);
     var fs = Math.max(9, Math.round(scale * 0.22));
+    /* The gauge hangs a fixed multiple of the figure below it, and the stim
+     * belt is a DOM element pinned a fixed distance above the bottom — so on a
+     * tall window they meet, and "¢299 STIMS" was printed straight across your
+     * own HP. Same rule as the enemy bars: the readout yields to the chrome. */
+    var cy = Math.min(py + scale * 1.74, playerBottom(h / 2 + fs + 8));
+    R.playerGaugeBottom = cy + h / 2 + fs + 2;      // for the fit test, as above
     // the player figure sits at the far left — shift the bar's centre right so
     // the bracketed bar and chip row never clip off the left edge.
     var cx = Math.max(bw / 2 + 8, px);
