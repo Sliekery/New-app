@@ -49,7 +49,7 @@ Opening deck: 5× Pulse Rifle, 4× Combat Shield, 1× Bayonet Charge
 - **THE LONG SHOT** — _HIGH FACES · 15–20_. The top of the table pays more for the same cut. You build where the multiplier already is.  
   Cuts _Ranging Mark_: Gain 1 Aim. Draw 1 card. Adds **Sighting Round** to the deck.
 - **THE RED DEBT** — _LOW FACES · 2–7_. A bad face is still a face. You give the bottom of the die something to do.  
-  Cuts _Whetstone Mark_: Deal 3 damage. Gain 3 Might. Adds **Red Ledger** to the deck.
+  Cuts _Whetstone Mark_: Deal 5 damage. Gain 3 Might. Adds **Red Ledger** to the deck.
 - **THE SET SHIELD** — _MIDDLE FACES · 8–14_. The widest band on the table, and Aim lifts every face of it at once.  
   Cuts _Anvil Mark_: Gain 5 Shield, 1 Thorns. Adds **Set Against It** to the deck.
 
@@ -296,8 +296,8 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
     - Base: Deal 11 damage. Roll 16+: Draw 1 card. Exhaust.
     - Upgraded: Deal 15 damage. Roll 14+: Draw 1 card. Exhaust.
 - **Bulwark Stance**  — Skill · ⚡1
-    - Base: Then gain Shield equal to twice your Might.
-    - Upgraded: _(no change)_
+    - Base: Gain 1 Might, 3 Shield. Then gain Shield equal to twice your Might.
+    - Upgraded: Gain 2 Might, 4 Shield. Then gain Shield equal to twice your Might.
 - **Burst Fire**  — Attack · ⚡1
     - Base: Deal 3 damage 2 times. Roll 15+: Deal 3 damage.
     - Upgraded: Deal 3 damage 3 times. Roll 13+: Deal 3 damage.
@@ -317,8 +317,8 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
     - Base: Draw 2 cards. Exhaust.
     - Upgraded: Draw 3 cards. Exhaust.
 - **Follow Through**  — Attack · ⚡1
-    - Base: Deal 1 more damage per Momentum.
-    - Upgraded: Deal 2 more damage per Momentum.
+    - Base: Deal 4 damage. Deal 1 more damage per Momentum.
+    - Upgraded: Deal 6 damage. Deal 2 more damage per Momentum.
 - **Frag Grenade**  — Attack · ⚡1
     - Base: ALL enemies: 4 damage, 1 Vulnerable.
     - Upgraded: ALL enemies: 6 damage, 2 Vulnerable.
@@ -326,8 +326,8 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
     - Base: Deal 4 damage. Roll 13+: Gain 1 Energy.
     - Upgraded: Deal 6 damage. Roll 11+: Gain 1 Energy.
 - **Raking Fire**  — Attack · ⚡1
-    - Base: Deal 6 damage, and 3 to every other enemy.
-    - Upgraded: Deal 8 damage, and 5 to every other enemy.
+    - Base: Apply 1 Weak. Deal 6 damage, and 3 to every other enemy.
+    - Upgraded: Apply 2 Weak. Deal 8 damage, and 5 to every other enemy.
 - **Rapid Fire**  — Attack · ⚡0
     - Base: Deal 3 damage. Gain 1 Momentum.
     - Upgraded: Deal 4 damage. Gain 1 Momentum.
@@ -371,19 +371,19 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
     - Base: Gain 3 Might. Lose 3 HP.
     - Upgraded: Gain 4 Might. Lose 2 HP.
 - **Executioner Round**  — Attack · ⚡2
-    - Base: Doubled if the target is below 30% HP.
+    - Base: Deal 10 damage. Doubled if the target is below 30% HP.
     - Upgraded: Deal 14 damage. Doubled if the target is below 30% HP.
 - **Hail of Lead**  — Attack · ⚡1
-    - Base: Each hit also scales with Momentum.
+    - Base: Deal 2 damage 3 times. Each hit also scales with Momentum.
     - Upgraded: Deal 3 damage 3 times. Each hit also scales with Momentum.
 - **Heavy Ordnance**  — Attack · ⚡2
-    - Base: MIGHT counts three times.
+    - Base: Deal 8 damage. MIGHT counts three times.
     - Upgraded: Deal 12 damage. MIGHT counts three times.
 - **Iron Resolve**  — Power · ⚡1
     - Base: Gain 4 Resolve.
     - Upgraded: Gain 5 Resolve.
 - **Limit Break**  — Skill · ⚡1 → 0  _(Exhaust)_
-    - Base: Double your Might.
+    - Base: Double your Might. Exhaust.
     - Upgraded: _(no change)_
 - **Marksman Round**  — Attack · ⚡1
     - Base: Deal 6 damage. Roll 14+: Apply 2 Vulnerable. Draw 1 card.
@@ -401,7 +401,7 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
     - Base: Lose 3 HP. Gain 2 Might, 2 Blood Rage.
     - Upgraded: Lose 3 HP. Gain 3 Might, 3 Blood Rage.
 - **Reload**  — Skill · ⚡1 → 0
-    - Base: Return a random exhausted Attack to your hand.
+    - Base: Draw 1 card. Return a random exhausted Attack to your hand.
     - Upgraded: _(no change)_
 - **Ricochet**  — Attack · ⚡1
     - Base: Deal 6 damage. Roll 14+: Deal 6 damage to ALL enemies.
@@ -416,14 +416,14 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
     - Base: Deal 4 damage. Gain 1 Aim. Retain.
     - Upgraded: Deal 6 damage. Gain 1 Aim. Retain.
 - **Spiked Bulwark**  — Skill · ⚡1
-    - Base: This combat, attackers take your Might + 3 damage.
-    - Upgraded: This combat, attackers take your Might + 5 damage.
+    - Base: Gain 8 Shield. This combat, attackers take your Might + 3 damage.
+    - Upgraded: Gain 11 Shield. This combat, attackers take your Might + 5 damage.
 - **Steady Aim**  — Power · ⚡1
-    - Base: Gain 1 more Aim at the start of each turn.
-    - Upgraded: Gain 2 more Aim at the start of each turn.
+    - Base: Gain 1 Aim. Gain 1 more Aim at the start of each turn.
+    - Upgraded: Gain 1 Aim. Gain 2 more Aim at the start of each turn.
 - **Unload**  — Attack · ⚡2
-    - Base: Deal 2 more damage per Momentum.
-    - Upgraded: Deal 3 more damage per Momentum.
+    - Base: Deal 4 damage. Deal 2 more damage per Momentum.
+    - Upgraded: Deal 5 damage. Deal 3 more damage per Momentum.
 - **Vengeance**  — Power · ⚡1
     - Base: Gain 4 Vengeance.
     - Upgraded: Gain 6 Vengeance.
@@ -473,8 +473,8 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
     - Base: ALL enemies: 16 damage, 2 Vulnerable.
     - Upgraded: ALL enemies: 22 damage, 3 Vulnerable.
 - **Overrun**  — Attack · ⚡2
-    - Base: Deal 4 more damage per Momentum.
-    - Upgraded: Deal 5 more damage per Momentum.
+    - Base: Deal 6 damage. Deal 4 more damage per Momentum.
+    - Upgraded: Deal 8 damage. Deal 5 more damage per Momentum.
 - **Quartermaster**  — Power · ⚡1
     - Base: Gain 1 Quartermaster.
     - Upgraded: Gain 2 Quartermaster.
@@ -485,8 +485,8 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
     - Base: Gain 4 Salvo.
     - Upgraded: Gain 6 Salvo.
 - **Scorched Earth**  — Attack · ⚡2  _(Exhaust)_
-    - Base: Exhaust your hand. Deal 6 damage per card Exhausted.
-    - Upgraded: Exhaust your hand. Deal 9 damage per card Exhausted.
+    - Base: Exhaust your hand. Deal 6 damage per card Exhausted. Exhaust.
+    - Upgraded: Exhaust your hand. Deal 9 damage per card Exhausted. Exhaust.
 - **Warlord Protocol**  — Power · ⚡2 → 1
     - Base: Gain 1 Warlord.
     - Upgraded: _(no change)_
@@ -546,8 +546,8 @@ _Machine-priest — TECH shields, turrets & reactors. (59 cards)_
     - Base: Gain 1 Energy. Draw 1 card. Roll 7 or less: Gain 1 Aim.
     - Upgraded: Gain 1 Energy. Draw 2 cards. Roll 9 or less: Gain 1 Aim.
 - **Repair Bay**  — Skill · ⚡1  _(Exhaust)_
-    - Base: Heal 4 HP. Gain 6 Shield if a Turret or Drone is out.
-    - Upgraded: Heal 7 HP. Gain 9 Shield if a Turret or Drone is out.
+    - Base: Heal 4 HP. Gain 6 Shield if a Turret or Drone is out. Exhaust.
+    - Upgraded: Heal 7 HP. Gain 9 Shield if a Turret or Drone is out. Exhaust.
 - **Salvage Servitor**  — Attack · ⚡1
     - Base: Deal 5 damage. Deploy a Turret (1 dmg/turn).
     - Upgraded: Deal 7 damage. Deploy a Turret (2 dmg/turn).
@@ -591,7 +591,7 @@ _Machine-priest — TECH shields, turrets & reactors. (59 cards)_
     - Base: Deal damage equal to your Shield.
     - Upgraded: Deal damage equal to 150% of your Shield.
 - **Leech Coil**  — Attack · ⚡1
-    - Base: Gain Shield equal to damage dealt.
+    - Base: Deal 5 damage. Gain Shield equal to damage dealt.
     - Upgraded: Deal 8 damage. Gain Shield equal to damage dealt.
 - **Mains Surge**  — Skill · ⚡1
     - Base: Gain 7 Shield. Roll 15+: Double your Shield.
@@ -606,7 +606,7 @@ _Machine-priest — TECH shields, turrets & reactors. (59 cards)_
     - Base: Gain 1 Conduit, 2 Plating.
     - Upgraded: Gain 2 Conduit, 2 Plating.
 - **Overcharged Capacitor**  — Attack · ⚡1
-    - Base: Doubles under Echo.
+    - Base: Deal 4 damage 2 times. Doubles under Echo.
     - Upgraded: Deal 6 damage 2 times. Doubles under Echo.
 - **Overload Capacitor**  — Power · ⚡1
     - Base: Gain 1 Mirror Field.
@@ -636,14 +636,14 @@ _Machine-priest — TECH shields, turrets & reactors. (59 cards)_
     - Base: Deal 8 damage. Apply 2 Weak.
     - Upgraded: Deal 11 damage. Apply 3 Weak.
 - **Static Ward**  — Skill · ⚡1
-    - Base: This combat, enemies that attack you gain 2 Weak.
+    - Base: Gain 6 Shield. This combat, enemies that attack you gain 2 Weak.
     - Upgraded: Gain 9 Shield. This combat, enemies that attack you gain 2 Weak.
 - **Surge Protocol**  — Skill · ⚡1
     - Base: Gain 1 Energy. Draw 2 cards. Roll 15+: Gain 1 Energy.
     - Upgraded: Gain 2 Energy. Draw 2 cards. Roll 13+: Gain 1 Energy.
 - **Surge Routing**  — Power · ⚡1
-    - Base: Whenever you play a Power, draw a card.
-    - Upgraded: Whenever you play a Power, draw 2 cards.
+    - Base: Gain 1 Reactor. Whenever you play a Power, draw a card.
+    - Upgraded: Gain 1 Reactor. Whenever you play a Power, draw 2 cards.
 - **System Shock**  — Skill · ⚡1
     - Base: ALL enemies: 1 Weak, 1 Vulnerable.
     - Upgraded: ALL enemies: 2 Weak, 1 Vulnerable.
@@ -763,7 +763,7 @@ _Sanctioned psyker — PSI burns, hexes & blasts. (56 cards)_
     - Base: Double the Burn on the target.
     - Upgraded: Triple the Burn on the target.
 - **Cerebral Spike**  — Attack · ⚡1
-    - Base: Your Psi Focus counts twice.
+    - Base: Deal 4 damage. Your Psi Focus counts twice.
     - Upgraded: Deal 6 damage. Your Psi Focus counts twice.
 - **Cinder Burst**  — Attack · ⚡1
     - Base: Detonate the target's Burn for 200% damage.
@@ -778,8 +778,8 @@ _Sanctioned psyker — PSI burns, hexes & blasts. (56 cards)_
     - Base: Apply 2 Burn to ALL enemies. Draw 1 card.
     - Upgraded: Apply 3 Burn to ALL enemies. Draw 1 card.
 - **Ember Ward**  — Skill · ⚡1
-    - Base: This combat, enemies that attack you gain 2 Burn.
-    - Upgraded: This combat, enemies that attack you gain 3 Burn.
+    - Base: Gain 8 Shield. This combat, enemies that attack you gain 2 Burn.
+    - Upgraded: Gain 11 Shield. This combat, enemies that attack you gain 3 Burn.
 - **Entropic Lash**  — Attack · ⚡1
     - Base: Deal 5 damage. Apply 2 Burn to ALL enemies.
     - Upgraded: Deal 7 damage. Apply 3 Burn to ALL enemies.
@@ -799,7 +799,7 @@ _Sanctioned psyker — PSI burns, hexes & blasts. (56 cards)_
     - Base: Apply 1 Vulnerable, 1 Weak. Draw 1 card.
     - Upgraded: Apply 2 Vulnerable, 2 Weak. Draw 1 card.
 - **Mind Lance**  — Attack · ⚡1
-    - Base: Both hits are boosted by your Psi Focus.
+    - Base: Deal 4 damage 2 times. Both hits are boosted by your Psi Focus.
     - Upgraded: Deal 5 damage 2 times. Both hits are boosted by your Psi Focus.
 - **Mind Storm**  — Attack · ⚡0
     - Base: Deal 3 damage for each other card played this turn.
@@ -809,7 +809,7 @@ _Sanctioned psyker — PSI burns, hexes & blasts. (56 cards)_
     - Upgraded: ALL enemies: 2 Weak, 2 Vulnerable.
 - **Parch**  — Attack · ⚡1
     - Base: Deal damage equal to the target's Burn. It is not consumed.
-    - Upgraded: _(no change)_
+    - Upgraded: Apply 2 Burn. Deal damage equal to the target's Burn. It is not consumed.
 - **Psionic Focus**  — Power · ⚡1
     - Base: Gain 2 Psi Focus.
     - Upgraded: Gain 3 Psi Focus.
@@ -844,8 +844,8 @@ _Sanctioned psyker — PSI burns, hexes & blasts. (56 cards)_
     - Base: Gain 1 Blood Pact.
     - Upgraded: Gain 2 Blood Pact.
 - **Conflagration**  — Attack · ⚡2
-    - Base: Then Detonate it all for 200% damage.
-    - Upgraded: Then Detonate it all for 250% damage.
+    - Base: Apply 5 Burn. Then Detonate it all for 200% damage.
+    - Upgraded: Apply 8 Burn. Then Detonate it all for 250% damage.
 - **Dimensional Rift**  — Attack · ⚡2
     - Base: Deal 6 damage. Apply 3 Vulnerable. Draw 1 card.
     - Upgraded: Deal 9 damage. Apply 4 Vulnerable. Draw 1 card.
@@ -929,8 +929,8 @@ _Colourless cards any class can draft (starters, boss & event pool). (16 cards)_
     - Base: Search your draw pile and put any card into your hand.
     - Upgraded: _(no change)_
 - **Salvage Cache**  — Skill · ⚡1  _(Exhaust)_
-    - Base: Discover a card.
-    - Upgraded: _(no change)_
+    - Base: Discover a card. Exhaust.
+    - Upgraded: Draw 1 card. Discover a card. Exhaust.
 - **Salvage Protocol**  — Power · ⚡1 → 0
     - Base: Gain 1 Salvage.
     - Upgraded: _(no change)_
@@ -966,7 +966,7 @@ _Unplayable junk that clogs your deck. (4 cards)_
 #### Curse
 
 - **Recurring Dread**  — Curse · ⚡0  _(Retain; Unplayable)_
-    - Base: Unplayable. A fragment of the loop, lodged in your mind.
+    - Base: Unplayable. A fragment of the loop, lodged in your mind. Retain.
     - Upgraded: _(cannot be upgraded)_
 - **Shrapnel**  — Curse · ⚡0  _(Unplayable)_
     - Base: Unplayable. Lose 2 HP if still in hand at end of turn.

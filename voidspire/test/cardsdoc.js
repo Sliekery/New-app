@@ -79,14 +79,15 @@ function group(cls) {
 // The effect line. Cards with a hand-written `text` are authored to be the full
 // player-facing description, so prefer it (avoids the auto-fx summary doubling
 // up with the flavour text); otherwise build the description from the effects.
+/* cardDesc ALREADY appends def.text — it is a RIDER on the generated effect
+ * line, not a replacement for it. `def.text || cardDesc(...)` therefore printed
+ * the rider alone and dropped the effect it rides on: Heavy Ordnance read
+ * "MIGHT counts three times." with no mention of the 8 damage, Hail of Lead
+ * "Each hit also scales with Momentum." with no mention of the three hits.
+ * 14 cards in the codex were documented as fragments. */
 function effect(def, upgraded) {
-  if (upgraded) {
-    if (def.up && def.up.text) return def.up.text;
-    if (!def.up) return null;                       // not upgradeable
-    if (def.up.fx) return ns.cardDesc(def, true, null, false);
-    return def.text || ns.cardDesc(def, true, null, false);   // up only tweaks cost
-  }
-  return def.text || ns.cardDesc(def, false, null, false);
+  if (upgraded && !def.up) return null;             // not upgradeable
+  return ns.cardDesc(def, !!upgraded, null, false);
 }
 
 /* ---------------- class section -------------------------------------- */
