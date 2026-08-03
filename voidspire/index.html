@@ -2446,6 +2446,23 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
        * of your 20 instead of 6. Total coverage falls, which is why this is
        * priced as a trade rather than a bonus. */
       seam: 0.6,
+      /* STEERING (Marksmanship). 1 Aim per face of travel, and never more than
+       * this many faces however much you hold — the cap is what stops a loaded
+       * marksman landing on his best face every single roll and turning the die
+       * into decoration. Surplus Aim past the cap only feeds the cashouts. */
+      steerCap: 3,
+      /* BURST N fires the landing face and the next N-1 round the ring at these
+       * fractions. The landing face still matters most; later faces are a bonus
+       * that stacks with the 25% bleed and with welds. */
+      /* Raised from the designed 0.6/0.35 once Marksmanship had measured as the
+       * weakest of the three archetypes three separate times. The arithmetic
+       * was always against it: on a MEDIAN engraving of 8 a BURST 3 added 7.6
+       * damage, and only when both faces past the landing one were cut, while
+       * two Pulse Rifles deal 12 for the same two energy — the payoff sat below
+       * the filler. At these rates a BURST 3 adds 11.2 and a BURST 4 adds 14.8,
+       * so a dense run is worth building toward while a sparse die still makes
+       * these cards bad, which is the intended shape. */
+      burst: [1, 0.8, 0.6, 0.45, 0.3],
       /* THE WELD. Bleed across a chosen boundary between two DIFFERENT
        * engravings runs at full instead of `bleed`. Bought at the bench, and
        * hard-capped: on a dense die every engraving touches another, so an
@@ -2473,10 +2490,27 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       baseAim: 1,               // every class steers the die a little — it is a game-wide system
 
       classes: {
-        /* MARKSMANSHIP — accuracy. The shot lands well or it goes wide. */
+        /* MARKSMANSHIP — the marksman POINTS the die.
+         *
+         * Aim used to be added to the roll, which made it a flat damage
+         * multiplier wearing a marksman's hat: it improved the band and nothing
+         * else, and deliberately did NOT move the landing face (at +5 Aim,
+         * faces 1-5 could never fire and half the die would be dead).
+         *
+         * It steers now. After the roll the die CLIMBS to the highest engraved
+         * face it can reach, spending 1 Aim per face, and the band is read from
+         * where it lands — so climbing earns SOLID as a consequence rather than
+         * as a separate rule, and a crit means literally reaching face 20.
+         * Bare faces are never a destination, so Aim is worth exactly as much
+         * as your engraving is good, and the skill moves from a mid-fight
+         * prompt into how you lay the die out.
+         *
+         * The other two classes keep Aim as a band bonus. This matters: the
+         * Void Adept's table is a U and he wants to go DOWN. */
         vanguard: {
           name: 'MARKSMANSHIP',
-          read: 'A low face grazes and a natural 1 goes wide. Aim climbs the table.',
+          read: 'Aim STEERS the die: it climbs to the highest face you have cut, and the band is read from where it lands.',
+          steer: true,
           aim: 1,               // the marksman sights in further on top of the base
           misfire: { mult: 0.5, label: 'MISFIRE' },
           bands: [
@@ -2797,7 +2831,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
     wildfire: 'Wildfire', psiRamp: 'Ascendant', hive: 'Hive', conduit: 'Conduit', plating: 'Plating',
     emberward: 'Ember Ward', staticward: 'Static Ward', spikeward: 'Spiked Bulwark',
-    aim: 'Aim', aimPerTurn: 'Steady Aim', critFury: 'Killing Rage', deadeyeDraw: 'Deadeye', misfireGuard: 'Misfire Protocol',
+    aim: 'Aim', aimPerTurn: 'Steady Aim', burstPlus: 'Full Auto', steerDown: 'Steady Hands',
+    burstWall: 'Loophole', stimHold: 'Fever', wallThorns: 'Reactive Plating',
+    wallPerTurn: 'Casemate', wallBoost: 'Barricade', redoubt: 'The Redoubt', scarWall: 'Scar Tissue',
+    bloodCement: 'Blood Cement',
+    bulwark: 'Bulwark', stim: 'Stim', critFury: 'Killing Rage', deadeyeDraw: 'Deadeye', misfireGuard: 'Misfire Protocol',
     demoCharge: 'Demolition', subroutine: 'Subroutine', aegisLink: 'Swarm Uplink',
     platedArmor: 'Plated Armor', barricade: 'Barricade', bloodPact: 'Blood Pact',
   };
@@ -2818,6 +2856,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     'Might': 'Increases the damage of your attacks by its value.',
     'Psi Focus': 'Increases the damage of your Psi attacks.',
     'Energy': 'Spent to play cards. Refills at the start of your turn.',
+    'Full Auto': 'Every attack you play BURSTs one face further round the die.',
+    'Loophole': 'Every face your BURST reaches adds that much Bulwark.',
+    'BURST': 'Fires the face you landed on and the next few round the die \u2014 up at higher numbers, down at lower. Each face after the first fires weaker: 100%, 60%, 35%.',
+    'Aim': 'Marksmanship STEERS the die. After the roll it climbs to the highest face you have cut that it can reach, spending 1 Aim per face, up to 3. The band is read from where it lands. A natural 1 is never steered.',
+    'Bulwark': 'A wall that does NOT expire at the start of your turn. It absorbs damage once your Shield is gone, and some cards detonate it for damage.',
+    'Stim': 'Increases the damage of your attacks by its value, and decays by 1 at the start of each of your turns.',
     'Exhaust': 'When played, this card is removed for the rest of combat.',
     'Retain': 'This card stays in your hand at the end of turn instead of being discarded.',
     'Regen': 'Heal HP equal to its value at the start of your turn. Ticks down.',
@@ -2913,8 +2957,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     /* ---------------- Vanguard ---------------- */
     burst_fire: {
       name: 'Burst Fire', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
-      fx: [{ k: 'dmg', v: 3, hits: 2, scale: 'might' }, { k: 'onRoll', min: 15, fx: [{ k: 'dmg', v: 3, scale: 'might' }] }],
-      up: { fx: [{ k: 'dmg', v: 3, hits: 3, scale: 'might' }, { k: 'onRoll', min: 13, fx: [{ k: 'dmg', v: 3, scale: 'might' }] }] },
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }], burst: { n: 2, dir: 1 },
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }], burst: { n: 3, dir: 1 } },
     },
     suppressing_fire: {   // a raking burst — hammers one target, pins it, and carries through the pack
       name: 'Raking Fire', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
@@ -2928,20 +2972,20 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       up: { fx: [{ k: 'dmg', v: 6, all: true, scale: 'might' }, { k: 'status', s: 'vuln', v: 2, who: 'allEnemies' }] },
     },
     shield_slam: {
-      name: 'Shield Slam', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
-      fx: [{ k: 'special', id: 'shieldSlam' }],
-      text: 'Deal damage equal to your Shield.',
-      up: { fx: [{ k: 'special', id: 'shieldSlam15' }], text: 'Deal damage equal to 150% of your Shield.' },
+      name: 'Breach the Wall', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
+      fx: [{ k: 'special', id: 'breachWall' }],
+      text: 'Consume all your Bulwark: deal that much damage.',
+      up: { cost: 1, fx: [{ k: 'special', id: 'breachWall' }], text: 'Consume all your Bulwark: deal that much damage.' },
     },
     bulwark: {   // heavy block + tempo (Riot Shield = thorns, Bunker Down = engine)
-      name: 'Bulwark', cls: 'vanguard', type: 'skill', rarity: 2, cost: 2,
-      fx: [{ k: 'block', v: 12, scale: 'pri' }, { k: 'draw', v: 1 }],
-      up: { fx: [{ k: 'block', v: 16, scale: 'pri' }, { k: 'draw', v: 1 }] },
+      name: 'Rampart', cls: 'vanguard', type: 'skill', rarity: 2, cost: 2,
+      fx: [{ k: 'status', s: 'bulwark', v: 14, who: 'self' }, { k: 'draw', v: 1 }],
+      up: { fx: [{ k: 'status', s: 'bulwark', v: 19, who: 'self' }, { k: 'draw', v: 1 }] },
     },
     combat_stims: {   // aggressive Might spike at an HP cost (War Cry = safe Str + draw)
-      name: 'Combat Stims', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
-      fx: [{ k: 'status', s: 'str', v: 3, who: 'self' }, { k: 'hploss', v: 3 }],
-      up: { fx: [{ k: 'status', s: 'str', v: 4, who: 'self' }, { k: 'hploss', v: 2 }] },
+      name: 'Combat Stims', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'stim', v: 5, who: 'self' }],
+      up: { fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'stim', v: 7, who: 'self' }] },
     },
     adrenal_surge: {
       name: 'Adrenal Surge', cls: 'vanguard', type: 'skill', rarity: 2, cost: 0, exhaust: true,
@@ -2949,10 +2993,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       up: { fx: [{ k: 'energy', v: 2 }] },
     },
     executioner: {
-      name: 'Executioner Round', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
-      fx: [{ k: 'dmg', v: 10, scale: 'might' }, { k: 'special', id: 'execute' }],
-      text: 'Doubled if the target is below 30% HP.',
-      up: { fx: [{ k: 'dmg', v: 14, scale: 'might' }, { k: 'special', id: 'execute' }] },
+      name: 'Ragged Swing', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'special', id: 'wounded', base: 5, v: 1 }, { k: 'special', id: 'drain' }],
+      text: 'Deal 5 damage, plus 1 per 10% of Max HP you are missing.',
+      up: { fx: [{ k: 'special', id: 'wounded', base: 7, v: 2 }, { k: 'special', id: 'drain' }], text: 'Deal 7 damage, plus 2 per 10% of Max HP you are missing.' },
     },
     orbital_strike: {   // the finisher — flattens the field and leaves the survivors cracked open
       name: 'Orbital Strike', cls: 'vanguard', type: 'attack', rarity: 3, cost: 3,
@@ -2960,7 +3004,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       up: { fx: [{ k: 'dmg', v: 22, all: true, scale: 'might' }, { k: 'status', s: 'vuln', v: 3, who: 'allEnemies' }] },
     },
     warlord_protocol: {
-      name: 'Warlord Protocol', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      name: 'Warlord Protocol', cls: 'vanguard', type: 'power', rarity: 3, pool: 'retired', cost: 2,
       fx: [{ k: 'status', s: 'strPerTurn', v: 1, who: 'self' }],
       up: { cost: 1 },
     },
@@ -3097,31 +3141,32 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     /* -- Vanguard: STRENGTH + EXHAUST berserker -- */
     heavy_ordnance: {
-      name: 'Heavy Ordnance', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
-      fx: [{ k: 'dmg', v: 8, scale: 'might', scaleMul: 3 }],
-      text: 'MIGHT counts three times.',
-      up: { fx: [{ k: 'dmg', v: 12, scale: 'might', scaleMul: 3 }] },
+      name: 'Ravening', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
+      fx: [{ k: 'special', id: 'stimScale', base: 8, v: 2 }, { k: 'special', id: 'drain' }],
+      text: 'Deal 8 damage, plus 2 per Stim.',
+      up: { fx: [{ k: 'special', id: 'stimScale', base: 10, v: 3 }, { k: 'special', id: 'drain' }], text: 'Deal 10 damage, plus 3 per Stim.' },
     },
     limit_break: {
       name: 'Limit Break', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1, exhaust: true,
-      fx: [{ k: 'special', id: 'limitBreak' }],
-      text: 'Double your Might.',
+      fx: [{ k: 'special', id: 'limitBreakStim' }],
+      text: 'Double your Stim.',
       up: { cost: 0, fx: [{ k: 'special', id: 'limitBreak' }], text: 'Double your Might.' },
     },
     whirlwind: {
-      name: 'Whirlwind', cls: 'vanguard', type: 'attack', rarity: 2, cost: 0, xcost: true,
+      name: 'Whirlwind', cls: 'vanguard', type: 'attack', rarity: 2, pool: 'retired', cost: 0, xcost: true,
       fx: [{ k: 'dmg', v: 5, all: true, scale: 'might', xcost: true }],
       up: { fx: [{ k: 'dmg', v: 8, all: true, scale: 'might', xcost: true }] },
     },
     iron_resolve: {
-      name: 'Iron Resolve', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
-      fx: [{ k: 'status', s: 'feelNoPain', v: 4, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'feelNoPain', v: 5, who: 'self' }] },
+      name: 'Reactive Plating', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'wallThorns', v: 4, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'wallThorns', v: 6, who: 'self' }] },
     },
     reckless_protocol: {   // BUILD-AROUND — bleed for Might (Blood Rage) AND armour up off your Exhausts (Resolve)
-      name: 'Berserker Engine', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
-      fx: [{ k: 'status', s: 'bloodrage', v: 1, who: 'self' }, { k: 'status', s: 'feelNoPain', v: 2, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'bloodrage', v: 2, who: 'self' }, { k: 'status', s: 'feelNoPain', v: 2, who: 'self' }] },
+      name: 'The Red Hour', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'special', id: 'stat', s: 'redHour', v: 4 }],
+      text: 'Every misfire grants 4 Stim and 1 Energy.',
+      up: { cost: 1, fx: [{ k: 'special', id: 'stat', s: 'redHour', v: 4 }], text: 'Every misfire grants 4 Stim and 1 Energy.' },
     },
 
     /* -- Technomancer: SHIELD + ORB/TURRET + POWER stacking -- */
@@ -3180,7 +3225,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     /* ============ Expansion: new class cards ============ */
     /* -- Vanguard -- */
     war_cry: {
-      name: 'War Cry', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
+      name: 'War Cry', cls: 'vanguard', type: 'skill', rarity: 1, pool: 'retired', cost: 1,
       fx: [{ k: 'status', s: 'str', v: 2, who: 'self' }, { k: 'draw', v: 1 }],
       up: { fx: [{ k: 'status', s: 'str', v: 3, who: 'self' }, { k: 'draw', v: 1 }] },
     },
@@ -3191,75 +3236,96 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
     bunker_down: {
       name: 'Bunker Down', cls: 'vanguard', type: 'skill', rarity: 2, cost: 2,
-      fx: [{ k: 'block', v: 8, scale: 'pri' }, { k: 'status', s: 'platedArmor', v: 3, who: 'self' }],
-      up: { fx: [{ k: 'block', v: 12, scale: 'pri' }, { k: 'status', s: 'platedArmor', v: 4, who: 'self' }] },
+      fx: [{ k: 'status', s: 'bulwark', v: 10, who: 'self' }, { k: 'status', s: 'wallPerTurn', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'bulwark', v: 15, who: 'self' }, { k: 'status', s: 'wallPerTurn', v: 4, who: 'self' }] },
     },
     // --- new commons: deepen the layer you draft most (each a distinct niche) ---
     shield_bash: {   // the hybrid: only common that hits AND blocks (tempo + survivability)
       name: 'Shield Bash', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
-      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'block', v: 4, scale: 'pri' }, { k: 'onRoll', min: 13, fx: [{ k: 'block', v: 4, scale: 'pri' }] }],
-      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'block', v: 6, scale: 'pri' }, { k: 'onRoll', min: 11, fx: [{ k: 'block', v: 5, scale: 'pri' }] }] },
+      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'status', s: 'bulwark', v: 4, who: 'self' }],
+      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'status', s: 'bulwark', v: 7, who: 'self' }] },
     },
     reckless_charge: {   // 0-cost burst & Exhaust-fuel (feeds Resolve/Salvage/combos)
-      name: 'Reckless Charge', cls: 'vanguard', type: 'attack', rarity: 1, cost: 0, exhaust: true,
+      name: 'Reckless Charge', cls: 'vanguard', type: 'attack', rarity: 1, pool: 'retired', cost: 0, exhaust: true,
       fx: [{ k: 'dmg', v: 7, scale: 'might' }],
       up: { fx: [{ k: 'dmg', v: 10, scale: 'might' }] },
     },
     suppressing_barrage: {   // defensive suppression — hunker down while you pin the whole pack
-      name: 'Covering Fire', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
-      fx: [{ k: 'block', v: 6, scale: 'pri' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }],
-      up: { fx: [{ k: 'block', v: 9, scale: 'pri' }, { k: 'status', s: 'weak', v: 2, who: 'allEnemies' }] },
+      name: 'Revetment', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'special', id: 'wallFace' }],
+      text: 'Gain Bulwark equal to the face you landed on.',
+      up: { fx: [{ k: 'special', id: 'wallFace' }, { k: 'status', s: 'bulwark', v: 4, who: 'self' }], text: 'Gain 4 Bulwark, plus the face you landed on.' },
     },
     rallying_shout: {   // Might as defence — forge your stacked Strength into a wall
-      name: 'Bulwark Stance', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
-      fx: [{ k: 'status', s: 'str', v: 1, who: 'self' }, { k: 'block', v: 3, scale: 'pri' }, { k: 'special', id: 'forgeBarrier', v: 2 }],
-      text: 'Then gain Shield equal to twice your Might.',
-      up: { fx: [{ k: 'status', s: 'str', v: 2, who: 'self' }, { k: 'block', v: 4, scale: 'pri' }, { k: 'special', id: 'forgeBarrier', v: 2 }], text: 'Then gain Shield equal to twice your Might.' },
+      name: 'Spall', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'special', id: 'spall', v: 0.5, cost: 1 }],
+      text: 'Deal damage equal to half your Bulwark, and spend it.',
+      up: { fx: [{ k: 'special', id: 'spall', v: 0.75, cost: 1 }], text: 'Deal damage equal to three quarters of your Bulwark, and spend it.' },
     },
     // --- new rares: each anchors a different Vanguard build ---
     frenzy: {   // the Strength payoff — multi-hit, every hit rides your MIGHT
-      name: 'Frenzy', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
-      fx: [{ k: 'dmg', v: 3, hits: 3, scale: 'might' }],
-      up: { fx: [{ k: 'dmg', v: 3, hits: 4, scale: 'might' }] },
+      name: "Butcher's Bill", cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
+      fx: [{ k: 'dmg', v: 6, all: true, scale: 'might' }, { k: 'special', id: 'drain' }, { k: 'status', s: 'stim', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'dmg', v: 9, all: true, scale: 'might' }, { k: 'special', id: 'drain' }, { k: 'status', s: 'stim', v: 4, who: 'self' }] },
     },
     bloodlust: {   // glass-cannon engine: permanent extra energy bought with HP
       name: 'Bloodlust', cls: 'vanguard', type: 'power', rarity: 3, cost: 1,
-      fx: [{ k: 'status', s: 'reactor', v: 1, who: 'self' }, { k: 'hploss', v: 6 }],
+      fx: [{ k: 'status', s: 'reactor', v: 1, who: 'self' }, { k: 'hploss', v: 4 }],
       up: { fx: [{ k: 'status', s: 'reactor', v: 1, who: 'self' }, { k: 'hploss', v: 3 }] },
     },
     riposte_protocol: {   // turtle-and-punish engine: block becomes offense
-      name: 'Riposte Protocol', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
-      fx: [{ k: 'status', s: 'retaliate', v: 3, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'retaliate', v: 5, who: 'self' }] },
+      name: 'The Redoubt', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'special', id: 'stat', s: 'redoubt', v: 1 }],
+      text: 'End of turn: gain Bulwark equal to the highest face you reached.',
+      up: { cost: 1, fx: [{ k: 'special', id: 'stat', s: 'redoubt', v: 1 }], text: 'End of turn: gain Bulwark equal to the highest face you reached.' },
     },
     // --- FUSILLADE: the full-auto tempo engine. Cheap shots build Momentum
     //     (+1 dmg per stack to your attacks, resets each turn); spend it on a payoff. ---
-    rapid_fire: {   // ⚡0 chain-starter — cheap shot that gets the Momentum rolling
-      name: 'Rapid Fire', cls: 'vanguard', type: 'attack', rarity: 1, cost: 0,
-      fx: [{ k: 'dmg', v: 3 }, { k: 'status', s: 'momentum', v: 1, who: 'self' }],
-      up: { fx: [{ k: 'dmg', v: 4 }, { k: 'status', s: 'momentum', v: 1, who: 'self' }] },
+    long_shot: {   // the cashout you can hold ALONGSIDE steering
+      name: 'Long Shot', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1, retain: true,
+      fx: [{ k: 'special', id: 'aimGate', cost: 3, v: 18, base: 4 }],
+      text: 'Spend 3 Aim: deal 18. Otherwise deal 4.',
+      up: { fx: [{ k: 'special', id: 'aimGate', cost: 3, v: 24, base: 6 }], text: 'Spend 3 Aim: deal 24. Otherwise deal 6.' },
     },
-    trigger_discipline: {   // the draw enabler — keep the chain fed
-      name: 'Trigger Discipline', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
-      fx: [{ k: 'draw', v: 2 }, { k: 'status', s: 'momentum', v: 1, who: 'self' }],
-      up: { fx: [{ k: 'draw', v: 2 }, { k: 'status', s: 'momentum', v: 2, who: 'self' }] },
+    firing_step: {   // BRIDGE - Marksman x Bulwark
+      name: 'Firing Step', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'status', s: 'bulwark', v: 4, who: 'self' }], burst: { n: 2, dir: 1 },
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'status', s: 'bulwark', v: 6, who: 'self' }], burst: { n: 2, dir: 1 } },
+    },
+    loophole: {   // BRIDGE - Marksman x Bulwark
+      name: 'Loophole', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'burstWall', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'burstWall', v: 3, who: 'self' }] },
+    },
+    suppressing_burst: {
+      name: 'Suppressing Burst', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 3, scale: 'might' }, { k: 'status', s: 'weak', v: 1, who: 'target' }], burst: { n: 2, dir: 1 },
+      up: { fx: [{ k: 'dmg', v: 5, scale: 'might' }, { k: 'status', s: 'weak', v: 2, who: 'target' }], burst: { n: 3, dir: 1 } },
+    },
+    ranging_shot: {   // ⚡0 chain-starter — cheap shot that gets the Momentum rolling
+      name: 'Ranging Shot', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'status', s: 'aim', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'status', s: 'aim', v: 2, who: 'self' }] },
+    },
+    boresight: {   // the draw enabler — keep the chain fed
+      name: 'Boresight', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'aim', v: 3, who: 'self' }, { k: 'draw', v: 1 }],
+      up: { fx: [{ k: 'status', s: 'aim', v: 4, who: 'self' }, { k: 'draw', v: 1 }] },
     },
     hail_of_lead: {   // multi-hit payoff — every shot rides your Momentum (and Might)
-      name: 'Hail of Lead', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
-      fx: [{ k: 'dmg', v: 2, hits: 3, scale: 'might' }],
-      text: 'Each hit also scales with Momentum.',
-      up: { fx: [{ k: 'dmg', v: 3, hits: 3, scale: 'might' }] },
+      name: 'Hail of Lead', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }], burst: { n: 3, dir: 1 },
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }], burst: { n: 4, dir: 1 } },
     },
     full_auto: {   // the engine anchor — every attack now snowballs Momentum
-      name: 'Full Auto', cls: 'vanguard', type: 'power', rarity: 3, cost: 1,
-      fx: [{ k: 'status', s: 'fullauto', v: 1, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'fullauto', v: 2, who: 'self' }] },
+      name: 'Full Auto', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'burstPlus', v: 1, who: 'self' }],
+      up: { cost: 1, fx: [{ k: 'status', s: 'burstPlus', v: 1, who: 'self' }] },
     },
-    unload: {   // the cashout — dump a turn of built-up Momentum into one hit
-      name: 'Unload', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
-      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'special', id: 'unload', v: 2 }],
-      text: 'Deal 2 more damage per Momentum.',
-      up: { fx: [{ k: 'dmg', v: 5, scale: 'might' }, { k: 'special', id: 'unload', v: 3 }], text: 'Deal 3 more damage per Momentum.' },
+    walking_fire: {   // the long walk — the widest burst in the class
+      name: 'Walking Fire', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
+      fx: [{ k: 'dmg', v: 6, scale: 'might' }], burst: { n: 4, dir: 1 },
+      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }], burst: { n: 5, dir: 1 } },
     },
     // --- BLOODFORGE: spend life to stoke Might; defend by parrying (deflect + riposte),
     //     not turtling. Stacked Strength powers your attacks, your parries, and the cashout. ---
@@ -3268,30 +3334,91 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       fx: [{ k: 'status', s: 'bloodrage', v: 1, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'bloodrage', v: 2, who: 'self' }] },
     },
+    gutshot: {
+      name: 'Gutshot', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 7, scale: 'might' }, { k: 'special', id: 'drain' }, { k: 'status', s: 'stim', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'dmg', v: 10, scale: 'might' }, { k: 'special', id: 'drain' }, { k: 'status', s: 'stim', v: 2, who: 'self' }] },
+    },
+    overdose: {
+      name: 'Overdose', cls: 'vanguard', type: 'skill', rarity: 1, cost: 2,
+      fx: [{ k: 'hploss', v: 4 }, { k: 'status', s: 'stim', v: 6, who: 'self' }],
+      up: { fx: [{ k: 'hploss', v: 3 }, { k: 'status', s: 'stim', v: 9, who: 'self' }] },
+    },
+    field_amputation: {
+      name: 'Field Amputation', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'hploss', v: 3 }, { k: 'draw', v: 2 }],
+      up: { fx: [{ k: 'hploss', v: 2 }, { k: 'draw', v: 3 }] },
+    },
+    second_wind: {
+      name: 'Second Wind', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'heal', v: 6 }, { k: 'status', s: 'stim', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'heal', v: 9 }, { k: 'status', s: 'stim', v: 3, who: 'self' }] },
+    },
+    last_round: {
+      name: 'Last Round', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'special', id: 'lastRound', base: 6 }, { k: 'special', id: 'drain' }],
+      text: 'Deal 6 damage, doubled below half your Max HP.',
+      up: { fx: [{ k: 'special', id: 'lastRound', base: 9 }, { k: 'special', id: 'drain' }], text: 'Deal 9 damage, doubled below half your Max HP.' },
+    },
+    running_on_empty: {
+      name: 'Running on Empty', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'special', id: 'stat', s: 'runEmpty', v: 1 }],
+      text: 'Below half your Max HP, draw 1 more card each turn.',
+      up: { fx: [{ k: 'special', id: 'stat', s: 'runEmpty', v: 2 }], text: 'Below half your Max HP, draw 2 more cards each turn.' },
+    },
+    fever: {
+      name: 'Fever', cls: 'vanguard', type: 'power', rarity: 2, cost: 2,
+      fx: [{ k: 'special', id: 'stat', s: 'stimHold', v: 1 }],
+      text: 'Your Stim no longer burns off.',
+      up: { cost: 1, fx: [{ k: 'special', id: 'stat', s: 'stimHold', v: 1 }], text: 'Your Stim no longer burns off.' },
+    },
+    mainline: {
+      name: 'Mainline', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'aim', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'aim', v: 4, who: 'self' }] },
+    },
+    steady_hands: {
+      name: 'Steady Hands', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'special', id: 'stat', s: 'steerDown', v: 1 }],
+      text: 'Your Aim steers DOWN the die instead of up.',
+      up: { cost: 0, fx: [{ k: 'special', id: 'stat', s: 'steerDown', v: 1 }], text: 'Your Aim steers DOWN the die instead of up.' },
+    },
+    dead_mans_trigger: {
+      name: "Dead Man's Trigger", cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'special', id: 'stat', s: 'deadMan', v: 1 }],
+      text: 'Below 40% of your Max HP, your attacks BURST 1 further.',
+      up: { cost: 1, fx: [{ k: 'special', id: 'stat', s: 'deadMan', v: 1 }], text: 'Below 40% of your Max HP, your attacks BURST 1 further.' },
+    },
     deflect: {   // the parry stance — Bloodforge's defence, and it bites back
-      name: 'Deflect', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
+      name: 'Deflect', cls: 'vanguard', type: 'skill', rarity: 1, pool: 'retired', cost: 1,
       fx: [{ k: 'status', s: 'parry', v: 8, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'parry', v: 11, who: 'self' }] },
     },
     vengeance: {   // the sustain anchor — trade blows and feed on the exchange
-      name: 'Vengeance', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      name: 'Vengeance', cls: 'vanguard', type: 'power', rarity: 2, pool: 'retired', cost: 1,
       fx: [{ k: 'status', s: 'vengeance', v: 4, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'vengeance', v: 6, who: 'self' }] },
     },
     counterstrike: {   // parry + a jab — defend forward
-      name: 'Counterstrike', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      name: 'Counterstrike', cls: 'vanguard', type: 'attack', rarity: 1, pool: 'retired', cost: 1,
       fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'status', s: 'parry', v: 4, who: 'self' }],
       up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'status', s: 'parry', v: 5, who: 'self' }] },
     },
     crimson_pact: {   // ⚡0 blood-fuelled jab — cheap, and it feeds Blood Rage
       name: 'Crimson Pact', cls: 'vanguard', type: 'attack', rarity: 1, cost: 0,
-      fx: [{ k: 'hploss', v: 3 }, { k: 'dmg', v: 6, scale: 'might' }],
+      fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 6, scale: 'might' }],
       up: { fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 8, scale: 'might' }] },
     },
     whet_the_blade: {   // pure HP -> Might conversion (doubles with Blood Rage)
-      name: 'Whet the Blade', cls: 'vanguard', type: 'skill', rarity: 2, cost: 0,
-      fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'str', v: 2, who: 'self' }],
-      up: { fx: [{ k: 'hploss', v: 1 }, { k: 'status', s: 'str', v: 2, who: 'self' }] },
+      /* ========================= STIM ===============================
+       * Buy power with HP, and the power BURNS OFF — Stim decays a point a
+       * turn, so it is a window you open and have to use rather than Might
+       * with a worse price. Missing HP is itself a stat here. Its die hook is
+       * the JAM: misfires and low faces, the outcomes Marksmanship cannot save
+       * and every other build throws away, are what pay it. ================ */
+      name: 'Whet the Blade', cls: 'vanguard', type: 'skill', rarity: 1, cost: 0,
+      fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'stim', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'hploss', v: 1 }, { k: 'status', s: 'stim', v: 3, who: 'self' }] },
     },
     bloodbath: {   // the cashout — pour all your stacked Might into one brutal blow, and drink deep
       name: 'Bloodbath', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
@@ -3301,18 +3428,18 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // --- BANDOLIER: heavy ordnance, spent & reloaded. Big shots Exhaust (spent
     //     shells); payoffs reward spending them; Reload racks them back. ---
     salvo: {   // the anchor — every spent shell detonates
-      name: 'Salvo', cls: 'vanguard', type: 'power', rarity: 3, cost: 1,
+      name: 'Salvo', cls: 'vanguard', type: 'power', rarity: 3, pool: 'retired', cost: 1,
       fx: [{ k: 'status', s: 'salvo', v: 4, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'salvo', v: 6, who: 'self' }] },
     },
     reload: {   // the reuse engine — rack a spent shell back into the chamber
-      name: 'Reload', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
+      name: 'Reload', cls: 'vanguard', type: 'skill', rarity: 2, pool: 'retired', cost: 1,
       fx: [{ k: 'special', id: 'reload' }, { k: 'draw', v: 1 }],
       text: 'Return a random exhausted Attack to your hand.',
       up: { cost: 0, fx: [{ k: 'special', id: 'reload' }, { k: 'draw', v: 1 }], text: 'Return a random exhausted Attack to your hand.' },
     },
     quartermaster: {   // the restock anchor — a self-feeding reload loop
-      name: 'Quartermaster', cls: 'vanguard', type: 'power', rarity: 3, cost: 1,
+      name: 'Quartermaster', cls: 'vanguard', type: 'power', rarity: 3, pool: 'retired', cost: 1,
       fx: [{ k: 'status', s: 'restock', v: 1, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'restock', v: 2, who: 'self' }] },
     },
@@ -3322,12 +3449,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       up: { fx: [{ k: 'dmg', v: 15, scale: 'might' }, { k: 'onRoll', min: 14, fx: [{ k: 'draw', v: 1 }] }] },
     },
     field_strip: {   // cheap exhaust-fuel — cycles and feeds the spent-shell payoffs
-      name: 'Field Strip', cls: 'vanguard', type: 'skill', rarity: 1, cost: 0, exhaust: true,
+      name: 'Field Strip', cls: 'vanguard', type: 'skill', rarity: 1, pool: 'retired', cost: 0, exhaust: true,
       fx: [{ k: 'draw', v: 2 }],
       up: { fx: [{ k: 'draw', v: 3 }] },
     },
     cluster_charge: {   // an AoE shell
-      name: 'Cluster Charge', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1, exhaust: true,
+      name: 'Cluster Charge', cls: 'vanguard', type: 'attack', rarity: 2, pool: 'retired', cost: 1, exhaust: true,
       fx: [{ k: 'dmg', v: 5, all: true, scale: 'might' }],
       up: { fx: [{ k: 'dmg', v: 7, all: true, scale: 'might' }] },
     },
@@ -3371,28 +3498,35 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     /* -- Vanguard: ORDNANCE (exhaust) + BULWARK (block) + SUPPRESSION -- */
     scorched_earth: {
-      name: 'Scorched Earth', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2, exhaust: true,
+      name: 'Scorched Earth', cls: 'vanguard', type: 'attack', rarity: 3, pool: 'retired', cost: 2, exhaust: true,
       fx: [{ k: 'special', id: 'fiendFire', v: 6 }],
       text: 'Exhaust your hand. Deal 6 damage per card Exhausted.',
       up: { fx: [{ k: 'special', id: 'fiendFire', v: 9 }], text: 'Exhaust your hand. Deal 9 damage per card Exhausted.' },
     },
     munitions_dump: {
-      name: 'Munitions Dump', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1, exhaust: true,
+      name: 'Munitions Dump', cls: 'vanguard', type: 'skill', rarity: 2, pool: 'retired', cost: 1, exhaust: true,
       fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 1 }],
       up: { fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }] },
     },
     barricade_protocol: {
-      name: 'Barricade Protocol', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
-      fx: [{ k: 'status', s: 'barricade', v: 1, who: 'self' }],
-      up: { cost: 1, fx: [{ k: 'status', s: 'barricade', v: 1, who: 'self' }] },
+      name: 'Barricade Protocol', cls: 'vanguard', type: 'power', rarity: 3, cost: 1,
+      fx: [{ k: 'special', id: 'stat', s: 'wallBoost', v: 50 }],
+      text: 'Bulwark you gain is increased by half.',
+      up: { fx: [{ k: 'special', id: 'stat', s: 'wallBoost', v: 80 }], text: 'Bulwark you gain is increased by four fifths.' },
     },
     riot_shield: {
+      /* ======================= BULWARK ==============================
+       * The wall does NOT expire, it absorbs what gets past Shield, and it can
+       * be fired. That is the archetype: your armour and your ammunition are
+       * the same pool, so every detonation is a decision to stand naked for a
+       * turn. Its die hook is the FACE NUMBER — high rolls build a big wall,
+       * which is why it allies with Marksmanship. ======================== */
       name: 'Riot Shield', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
-      fx: [{ k: 'block', v: 6, scale: 'pri' }, { k: 'status', s: 'thorns', v: 3, who: 'self' }],
-      up: { fx: [{ k: 'block', v: 9, scale: 'pri' }, { k: 'status', s: 'thorns', v: 4, who: 'self' }] },
+      fx: [{ k: 'status', s: 'bulwark', v: 5, who: 'self' }, { k: 'status', s: 'thorns', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'bulwark', v: 8, who: 'self' }, { k: 'status', s: 'thorns', v: 4, who: 'self' }] },
     },
     breach: {
-      name: 'Breach', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
+      name: 'Breach', cls: 'vanguard', type: 'attack', rarity: 2, pool: 'retired', cost: 1,
       fx: [{ k: 'special', id: 'reap', v: 5 }],
       text: 'Deal 5 damage for each Vulnerable, Weak, and Burn on the target.',
       up: { fx: [{ k: 'special', id: 'reap', v: 8 }], text: 'Deal 8 damage for each Vulnerable, Weak, and Burn on the target.' },
@@ -3510,8 +3644,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
     ricochet: {   // the trick shot: lands well, it carries
       name: 'Ricochet', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
-      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'onRoll', min: 14, fx: [{ k: 'dmg', v: 6, all: true }] }],
-      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'onRoll', min: 12, fx: [{ k: 'dmg', v: 8, all: true }] }] },
+      fx: [{ k: 'dmg', v: 5, scale: 'might' }], burst: { n: 2, dir: -1 },
+      up: { fx: [{ k: 'dmg', v: 7, scale: 'might' }], burst: { n: 3, dir: -1 } },
     },
     mains_surge: {   // LOAD BALANCE: ride a SURGE and the wall doubles
       name: 'Mains Surge', cls: 'technomancer', type: 'skill', rarity: 2, cost: 1,
@@ -3562,17 +3696,22 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       fx: [{ k: 'status', s: 'conduit', v: 2, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'conduit', v: 3, who: 'self' }] },
     },
-    follow_through: {   // a common way to spend Momentum, not just build it
-      name: 'Follow Through', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
-      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'special', id: 'unload', v: 1 }],
-      text: 'Deal 1 more damage per Momentum.',
-      up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'special', id: 'unload', v: 2 }], text: 'Deal 2 more damage per Momentum.' },
+    /* ===================== MARKSMANSHIP ==============================
+     * Aim STEERS the die (see balance.js). These load it, the BURSTs walk
+     * along whatever it steered onto, and the RETAIN cashouts are held in hand
+     * until the magazine is full. Momentum used to live here and was replaced
+     * wholesale: chaining across cards and bursting within one are the same
+     * fantasy, and only one of them uses the die we already built. ======== */
+    called_high: {
+      name: 'Called High', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'onRoll', min: 20, fx: [{ k: 'status', s: 'aim', v: 2, who: 'self' }] }],
+      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'onRoll', min: 20, fx: [{ k: 'status', s: 'aim', v: 3, who: 'self' }] }] },
     },
-    overrun: {   // the Momentum capstone
-      name: 'Overrun', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
-      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'special', id: 'unload', v: 4 }],
-      text: 'Deal 4 more damage per Momentum.',
-      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'special', id: 'unload', v: 5 }], text: 'Deal 5 more damage per Momentum.' },
+    empty_the_magazine: {   // the whole load turns into REACH, not one number
+      name: 'Empty the Magazine', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2, retain: true,
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'special', id: 'emptyMag', per: 2 }],
+      text: 'Consume all Aim: BURST 1 further per 2 Aim.',
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'special', id: 'emptyMag', per: 1 }], text: 'Consume all Aim: BURST 1 further per Aim.' },
     },
     brace_plate: {   // the common entry the Shield stack lacked — every other
                      // plating card in the class is uncommon or rare
@@ -3609,13 +3748,51 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
     red_ledger: {   // MIGHT/BLOOD: every HP you spend on yourself is paid back
       name: 'Red Ledger', cls: 'vanguard', type: 'power', rarity: 2, pool: 'mark', cost: 1,
-      fx: [{ k: 'hploss', v: 3 }, { k: 'status', s: 'str', v: 2, who: 'self' }, { k: 'status', s: 'bloodrage', v: 2, who: 'self' }],
-      up: { fx: [{ k: 'hploss', v: 3 }, { k: 'status', s: 'str', v: 3, who: 'self' }, { k: 'status', s: 'bloodrage', v: 3, who: 'self' }] },
+      fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'bloodrage', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'bloodrage', v: 3, who: 'self' }] },
     },
     set_against_it: {   // BLOCK/THORNS: turn the turtle into a hazard
       name: 'Set Against It', cls: 'vanguard', type: 'power', rarity: 2, pool: 'mark', cost: 1,
-      fx: [{ k: 'status', s: 'thorns', v: 2, who: 'self' }, { k: 'status', s: 'plate', v: 2, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'thorns', v: 4, who: 'self' }, { k: 'status', s: 'plate', v: 3, who: 'self' }] },
+      fx: [{ k: 'status', s: 'thorns', v: 2, who: 'self' }, { k: 'status', s: 'wallPerTurn', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'thorns', v: 4, who: 'self' }, { k: 'status', s: 'wallPerTurn', v: 3, who: 'self' }] },
+    },
+    casemate: {   // the wall that builds itself
+      name: 'Casemate', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'wallPerTurn', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'wallPerTurn', v: 5, who: 'self' }] },
+    },
+    buttress: {   // held in hand until the turn you need the wall
+      name: 'Buttress', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1, retain: true,
+      fx: [{ k: 'status', s: 'bulwark', v: 8, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'bulwark', v: 12, who: 'self' }] },
+    },
+    embrasure: {   // the wall is built out of what you just hit
+      name: 'Embrasure', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
+      fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'special', id: 'wallDealt' }],
+      text: 'Gain Bulwark equal to the damage dealt.',
+      up: { fx: [{ k: 'dmg', v: 12, scale: 'might' }, { k: 'special', id: 'wallDealt' }], text: 'Gain Bulwark equal to the damage dealt.' },
+    },
+    sandbag: {   // BRIDGE - Bulwark x Stim
+      name: 'Sandbag', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'hploss', v: 4 }, { k: 'status', s: 'bulwark', v: 12, who: 'self' }],
+      up: { fx: [{ k: 'hploss', v: 4 }, { k: 'status', s: 'bulwark', v: 18, who: 'self' }] },
+    },
+    scar_tissue: {   // BRIDGE - Bulwark x Stim
+      name: 'Scar Tissue', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'scarWall', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'scarWall', v: 3, who: 'self' }] },
+    },
+    detonate: {   // the whole wall, thrown at the whole room
+      name: 'Detonate', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
+      fx: [{ k: 'special', id: 'detonate' }],
+      text: 'Consume all your Bulwark: deal that much to ALL enemies.',
+      up: { cost: 1, fx: [{ k: 'special', id: 'detonate' }], text: 'Consume all your Bulwark: deal that much to ALL enemies.' },
+    },
+    blood_cement: {   // BRIDGE - Bulwark x Stim
+      name: 'Blood Cement', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'special', id: 'stat', s: 'bloodCement', v: 1 }],
+      text: 'Bulwark you gain grows with how wounded you are.',
+      up: { cost: 1, fx: [{ k: 'special', id: 'stat', s: 'bloodCement', v: 1 }], text: 'Bulwark you gain grows with how wounded you are.' },
     },
 
     assembly_line: {   // CONSTRUCTS: one turret, and everything fires twice
@@ -3949,7 +4126,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       up: { fx: [{ k: 'status', s: 'aimPerTurn', v: 2, who: 'self' }, { k: 'status', s: 'aim', v: 1, who: 'self' }], text: 'Gain 2 more Aim at the start of each turn.' },
     },
     marksman_round: {   // a shot that rewards a good roll with a cracked-open target
-      name: 'Marksman Round', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
+      name: 'Marksman Round', cls: 'vanguard', type: 'attack', rarity: 2, pool: 'retired', cost: 1,
       fx: [{ k: 'dmg', v: 6, scale: 'might' },
            { k: 'onRoll', min: 14, fx: [{ k: 'status', s: 'vuln', v: 2, who: 'target' }, { k: 'draw', v: 1 }] }],
       up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'onRoll', min: 12, fx: [{ k: 'status', s: 'vuln', v: 2, who: 'target' }, { k: 'draw', v: 1 }] }] },
@@ -3967,11 +4144,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     misfire_protocol: {   // BUILD-AROUND — a jammed round becomes momentum
       name: 'Misfire Protocol', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
       fx: [{ k: 'status', s: 'misfireGuard', v: 3, who: 'self' }],
-      text: 'When an attack misfires, gain 3 Momentum and 1 Energy.',
-      up: { fx: [{ k: 'status', s: 'misfireGuard', v: 5, who: 'self' }], text: 'When an attack misfires, gain 5 Momentum and 1 Energy.' },
+      text: 'When an attack misfires, gain 3 Aim and 1 Energy.',
+      up: { fx: [{ k: 'status', s: 'misfireGuard', v: 5, who: 'self' }], text: 'When an attack misfires, gain 5 Aim and 1 Energy.' },
     },
     killshot: {   // the cashout — dump every point of banked Aim into one round
-      name: 'Killshot', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
+      name: 'Killshot', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2, retain: true,
       fx: [{ k: 'special', id: 'spendAim', base: 6, v: 4 }],
       text: 'Consume all your Aim. Deal 6 damage plus 4 for each Aim consumed.',
       up: { fx: [{ k: 'special', id: 'spendAim', base: 8, v: 5 }], text: 'Consume all your Aim. Deal 8 damage plus 5 for each Aim consumed.' },
@@ -4026,12 +4203,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     /* -- Vanguard -- */
     spiked_bulwark: {   // a turtle that bites — attackers gore themselves on your Might
       name: 'Spiked Bulwark', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
-      fx: [{ k: 'block', v: 8, scale: 'pri' }, { k: 'status', s: 'spikeward', v: 3, who: 'self' }],
+      fx: [{ k: 'status', s: 'bulwark', v: 8, who: 'self' }, { k: 'status', s: 'spikeward', v: 3, who: 'self' }],
       text: 'This combat, attackers take your Might + 3 damage.',
       up: { fx: [{ k: 'block', v: 11, scale: 'pri' }, { k: 'status', s: 'spikeward', v: 5, who: 'self' }], text: 'This combat, attackers take your Might + 5 damage.' },
     },
     demolition_train: {   // BUILD-AROUND — every spent shell shrapnels the whole pack
-      name: 'Demolition Train', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      name: 'Demolition Train', cls: 'vanguard', type: 'power', rarity: 3, pool: 'retired', cost: 2,
       fx: [{ k: 'status', s: 'demoCharge', v: 4, who: 'self' }],
       text: 'Whenever you Exhaust a card, deal 4 damage to ALL enemies.',
       up: { fx: [{ k: 'status', s: 'demoCharge', v: 6, who: 'self' }], text: 'Whenever you Exhaust a card, deal 6 damage to ALL enemies.' },
@@ -4184,6 +4361,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       }
     });
     var out = collapse(parts);
+    /* BURST reads BEFORE the card's own rider, because it is what the card
+     * does to the die rather than a note about it. */
+    var bs = (upgraded && def.up && def.up.burst) ? def.up.burst : def.burst;
+    if (bs) out.push('BURST ' + (bs.n || 2) + ((bs.dir || 1) < 0 ? ' \u2193' : ' \u2191') + '.');
     var text = (upgraded && def.up && def.up.text) ? def.up.text : def.text;
     if (text) out.push(text);
     if (def.retain) out.push('Retain.');
@@ -7292,7 +7473,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       art: { p: [[0,-0.85,0.34,-0.4,0.18,-0.06,0.46,0.24,0.2,0.62,0,0.8,-0.2,0.62,-0.46,0.24,-0.18,-0.06,-0.34,-0.4,0,-0.85]] } },
     critical_cascade: { name: 'Critical Cascade', tier: 2, k: 'critVuln', v: 2, desc: 'Your crits also apply 2 Vulnerable.',
       art: { p: [[0,-0.8,0.2,-0.25,0.78,-0.15,0.32,0.2,0.45,0.75,0,0.45,-0.45,0.75,-0.32,0.2,-0.78,-0.15,-0.2,-0.25,0,-0.8]] } },
-    warlord_doctrine: { name: 'Warlord Doctrine', tier: 2, cls: 'vanguard', k: 'strStart', v: 3, desc: 'Start each combat with 3 Might.',
+    warlord_doctrine: { name: 'Counterscarp', tier: 2, cls: 'vanguard', k: 'wallFloor', v: 6, desc: 'Your Bulwark never falls below 6.',
       art: { p: [[-0.45,-0.2,-0.5,-0.55,0.3,-0.6,0.45,-0.3,0.45,0.35,-0.3,0.5,-0.5,0.25,-0.45,-0.2], [0.45,-0.1,0.7,-0.1], [0.45,0.12,0.7,0.12]] } },
     echo_protocol: { name: 'Echo Protocol', tier: 2, cls: 'technomancer', k: 'echoStart', v: 1, desc: 'The first Attack you play each turn is played twice.',
       art: { p: [[0,-0.75,0.65,0,0,0.75,-0.65,0,0,-0.75], [0,-0.4,0.35,0,0,0.4,-0.35,0,0,-0.4]] } },
@@ -7316,7 +7497,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       art: { p: [[0,-0.8, 0.3,-0.26, 0.8,-0.14, 0.42,0.24, 0.48,0.74, 0,0.48, -0.48,0.74, -0.42,0.24, -0.8,-0.14, -0.3,-0.26, 0,-0.8], [-0.2,-0.05, 0.2,-0.05]], e: [[0,0.06]] } },
     foundry_spine:   { name: 'Foundry Spine',     tier: 1, cls: 'technomancer', k: 'turretStart', v: 3, desc: 'Start each combat with a Turret (3 dmg/turn).',
       art: { p: [[-0.6,0.7, -0.3,0.1, 0.3,0.1, 0.6,0.7], [-0.3,0.1, 0.3,0.1, 0.24,-0.35, -0.24,-0.35, -0.3,0.1], [0.24,-0.22, 0.8,-0.22], [-0.5,0.7, 0.5,0.7]], e: [[0,-0.14]] } },
-    ash_reliquary:   { name: 'Ash Reliquary',     tier: 1, cls: 'vanguard', k: 'salvoStart', v: 2, desc: 'Start each combat with 2 Salvo — burning a card spits shrapnel at a random enemy.',
+    /* Salvo was the Exhaust archetype's anchor and that line is retired, so
+     * this pointed at a mechanic with no cards behind it. It opens the WALL
+     * instead, which had exactly one relic of twenty-one. */
+    ash_reliquary:   { name: 'The Bastion',       tier: 1, cls: 'vanguard', k: 'wallStart', v: 8, desc: 'Start each combat with 8 Bulwark.',
       art: { p: [[-0.45,0.7, -0.3,-0.3, 0.3,-0.3, 0.45,0.7, -0.45,0.7], [-0.35,-0.3, -0.5,-0.55, 0.5,-0.55, 0.35,-0.3], [-0.15,-0.75, 0,-0.95, 0.15,-0.75], [-0.2,0.1, 0.2,0.35], [0.2,0.1, -0.2,0.35]] } },
     iron_leech:      { name: 'Iron Leech',        tier: 1, cls: 'vanguard', k: 'bloodrageStart', v: 2, desc: 'Start each combat with 2 Blood Rage — your own wounds feed your Might.',
       art: { p: [[0,-0.85, 0.4,-0.2, 0.26,0.5, -0.26,0.5, -0.4,-0.2, 0,-0.85], [-0.26,0.5, -0.16,0.82], [0.26,0.5, 0.16,0.82], [-0.24,-0.1, 0.24,-0.1], [-0.14,0.16, 0.14,0.16]] } },
@@ -7334,8 +7518,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     ranging_wedge: { name: 'Ranging Wedge', tier: 1, cls: 'vanguard', k: 'aimStart', v: 2,
       desc: 'Start each combat with 2 Aim.',
       art: { p: [[-0.8,0.3, 0.6,0.3], [-0.8,0.3, 0.2,-0.4], [0.2,-0.4, 0.6,0.3], [-0.3,0.3, 0.1,0.0], [0.1,0.3, 0.35,0.1], [-0.8,0.44, 0.6,0.44]], e: [[0.2,-0.46]] } },
+    /* Deliberate anti-synergy with steering: Marksmanship spends Aim to AVOID
+     * bare faces, so this pays the build that does not steer. */
     dry_fire: { name: 'Dry Fire', tier: 1, cls: 'vanguard', k: 'bareRefund', v: 1,
-      desc: 'Rolling a BARE face gives 1 Energy — an empty die still pays.',
+      desc: 'Rolling a BARE face gives 1 Energy and 1 Stim — an empty die still pays.',
       art: { p: [[-0.6,-0.4, 0.3,-0.4, 0.3,0.1, -0.6,0.1, -0.6,-0.4], [-0.6,-0.15, 0.3,-0.15], [0.3,-0.28, 0.7,-0.28], [-0.35,0.1, -0.4,0.5], [-0.15,0.1, -0.15,0.5], [0.55,-0.5, 0.7,-0.66], [0.62,-0.1, 0.8,0.0]], e: [[0.8,-0.28]] } },
     hot_barrel: { name: 'Hot Barrel', tier: 1, cls: 'vanguard', k: 'critRelay', v: 1,
       desc: 'On a crit, the faces beside the one you rolled fire at FULL.',
@@ -7344,34 +7530,37 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       desc: 'The first scar the void tries to cut each sector is turned aside.',
       art: { p: [[0,-0.7, 0.55,-0.4, 0.55,0.16, 0,0.66, -0.55,0.16, -0.55,-0.4, 0,-0.7], [0,-0.5, 0.38,-0.28, 0.38,0.1, 0,0.46, -0.38,0.1, -0.38,-0.28, 0,-0.5], [-0.7,-0.6, 0.7,0.5], [-0.3,-0.06, 0.3,-0.06]], e: [[0,-0.02]] } },
 
-    machined_barrel: { name: 'Machined Barrel', tier: 2, cls: 'vanguard', k: 'bandShift', v: 2,
-      desc: 'Every band on your die triggers 2 lower — SOLID from 13, HIT from 6.',
+    machined_barrel: { name: 'Sapper Charge', tier: 2, cls: 'vanguard', k: 'wallBurst', v: 1,
+      desc: 'Detonating your Bulwark also stuns: all enemies gain 2 Vulnerable.',
       art: { p: [[-0.86,-0.2, 0.5,-0.2], [-0.86,0.1, 0.5,0.1], [-0.86,-0.2, -0.86,0.1], [-0.5,-0.2, -0.5,0.1], [-0.1,-0.2, -0.1,0.1], [0.3,-0.2, 0.3,0.1], [0.5,-0.3, 0.86,-0.3, 0.86,0.2, 0.5,0.2], [0.68,-0.3, 0.68,0.2], [-0.7,0.1, -0.7,0.5], [-0.3,0.1, -0.3,0.5], [-0.86,0.5, -0.14,0.5]], e: [[0.9,-0.05]] } },
     counterweight: { name: 'Counterweight', tier: 2, cls: 'vanguard', k: 'rerollOnes', v: 1,
       desc: 'A natural 1 is rerolled once. Turns off anything you built on face 1.',
       art: { p: [[0,-0.7, 0.2,-0.3, 0,0.1, -0.2,-0.3, 0,-0.7], [-0.5,0.1, 0.5,0.1, 0.36,0.6, -0.36,0.6, -0.5,0.1], [-0.42,0.35, 0.42,0.35], [0,-0.7, 0,-0.86], [-0.66,0.1, -0.5,0.1], [0.66,0.1, 0.5,0.1]], e: [[0,-0.3],[0,0.48]] } },
-    bandolier_rig: { name: 'Bandolier Rig', tier: 2, cls: 'vanguard', k: 'bleedPct', v: 0.25,
-      desc: 'Faces beside the one you roll fire at 75% instead of half.',
+    bandolier_rig: { name: 'Bandolier Rig', tier: 2, cls: 'vanguard', k: 'burstBoost', v: 0.2,
+      desc: 'Every face your BURST reaches fires 20% harder.',
       art: { p: [[-0.86,-0.5, 0.86,0.3], [-0.86,-0.2, 0.86,0.6], [-0.7,-0.44, -0.66,-0.2], [-0.4,-0.3, -0.36,-0.06], [-0.1,-0.16, -0.06,0.08], [0.2,-0.02, 0.24,0.22], [0.5,0.12, 0.54,0.36]], e: [[-0.68,-0.32],[-0.38,-0.18],[-0.08,-0.04],[0.22,0.1],[0.52,0.24]] } },
     spent_brass: { name: 'Spent Brass', tier: 2, cls: 'vanguard', k: 'bankRoll', v: 1,
-      desc: 'Every roll banks its number. At end of turn, bank becomes that much Shield.',
+      desc: 'Every roll banks its number. At end of turn, bank becomes that much Bulwark.',
       art: { p: [[-0.5,0.6, -0.4,-0.2, -0.16,-0.5, 0.16,-0.5, 0.4,-0.2, 0.5,0.6, -0.5,0.6], [-0.46,0.2, 0.46,0.2], [-0.44,-0.05, 0.44,-0.05], [-0.16,-0.5, -0.16,-0.66, 0.16,-0.66, 0.16,-0.5], [-0.7,0.6, 0.7,0.6]], e: [[0,0.4],[0,0.08]] } },
     trench_ledger: { name: 'Trench Ledger', tier: 2, cls: 'vanguard', k: 'lowMight', v: 1,
-      desc: 'Every roll under 6 grants 1 Might for the rest of the combat.',
+      desc: 'Every roll under 6 grants 1 Stim.',
       art: { p: [[-0.4,-0.7, 0.4,-0.7, 0.5,-0.5, 0.5,0.6, -0.5,0.6, -0.5,-0.5, -0.4,-0.7], [-0.5,-0.36, 0.5,-0.36], [-0.34,-0.16, -0.34,0.16], [-0.18,-0.16, -0.18,0.16], [-0.02,-0.16, -0.02,0.16], [0.14,-0.16, 0.14,0.16], [-0.42,-0.2, 0.22,0.2], [-0.34,0.38, 0.34,0.38]], e: [[0,-0.82]] } },
     ranging_tables: { name: 'Ranging Tables', tier: 3, cls: 'vanguard', k: 'everyThird', v: 1,
       desc: 'Every third roll each combat is automatically a 20.',
       art: { p: [[-0.6,-0.6, 0.6,-0.6, 0.6,0.6, -0.6,0.6, -0.6,-0.6], [-0.6,-0.3, 0.6,-0.3], [-0.6,0.0, 0.6,0.0], [-0.6,0.3, 0.6,0.3], [-0.2,-0.6, -0.2,0.6], [0.2,-0.6, 0.2,0.6], [-0.86,-0.44, -0.6,-0.44], [0.86,0.44, 0.6,0.44]], e: [[0.4,0.45],[0.4,-0.15]] } },
+    /* `rollBonus` added to the effective roll, which under steering IS the
+     * landed face — so it moved your band without moving your die, and read as
+     * a rule that contradicted the class. It buys travel now. */
     long_shots_debt: { name: "The Long Shot's Debt", tier: 3, cls: 'vanguard',
-      hooks: [{ k: 'rollBonus', v: 4 }, { k: 'misfireWiden', v: 2 }],
-      desc: '+4 to every roll — but a misfire now triggers on 1-3.',
+      hooks: [{ k: 'steerCap', v: 2 }, { k: 'misfireWiden', v: 2 }],
+      desc: 'Your Aim steers 2 faces further — but a misfire now triggers on 1-3.',
       art: { p: [[-0.86,0.3, 0.3,-0.4], [0.3,-0.4, 0.1,-0.36], [0.3,-0.4, 0.26,-0.2], [-0.5,-0.5, -0.5,-0.14], [-0.5,-0.5, -0.14,-0.5], [0.66,0.5, 0.66,0.14], [0.66,0.5, 0.3,0.5], [-0.3,0.5, 0.0,0.5]], e: [[0.5,-0.55],[-0.7,0.6]] } },
     stripped_rifling: { name: 'Stripped Rifling', tier: 2, cls: 'vanguard',
       hooks: [{ k: 'critWiden', v: 1 }, { k: 'bandShift', v: -1 }],
       desc: 'Crit on 19 as well as 20 — but every other band triggers 1 higher.',
       art: { p: [[-0.7,-0.3, 0.7,-0.3], [-0.7,0.2, 0.7,0.2], [-0.7,-0.3, -0.7,0.2], [0.7,-0.3, 0.7,0.2], [-0.5,-0.3, -0.34,0.2], [-0.1,-0.3, 0.06,0.2], [0.3,-0.3, 0.46,0.2], [0.7,-0.05, 0.86,-0.05]], e: [[0.9,-0.05]] } },
-    twinned_pin: { name: 'Twinned Firing Pin', tier: 3, cls: 'vanguard', k: 'firstSplash', v: 1,
-      desc: 'The first roll of each combat fires its face and both neighbours at full.',
+    twinned_pin: { name: 'Twinned Firing Pin', tier: 3, cls: 'vanguard', k: 'burstPlusRelic', v: 2,
+      desc: 'Your BURSTs walk 2 faces further.',
       art: { p: [[-0.24,-0.7, -0.24,0.4], [0.24,-0.7, 0.24,0.4], [-0.24,0.4, -0.16,0.66, 0.16,0.66, 0.24,0.4], [-0.4,-0.7, -0.08,-0.7], [0.08,-0.7, 0.4,-0.7], [-0.66,-0.1, -0.4,-0.1], [0.66,-0.1, 0.4,-0.1]], e: [[0,0.66],[-0.72,-0.1],[0.72,-0.1]] } },
     deadeye_reticle: { name: 'Deadeye Reticle', tier: 3, cls: 'vanguard',
       hooks: [{ k: 'rollAdv', v: 1 }, { k: 'maxHpPct', v: 0.15 }],
@@ -7475,7 +7664,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       desc: 'Every 20% of Max HP you are missing shifts every band 2 lower. Ruin reads well.',
       art: { p: [[-0.7,0.45, -0.7,-0.5, -0.4,-0.15, -0.15,-0.6, 0.15,-0.15, 0.4,-0.6, 0.7,-0.15, 0.7,0.45, -0.7,0.45], [-0.7,0.2, 0.7,0.2], [-0.7,0.6, 0.7,0.6], [-0.35,0.3, -0.35,0.45], [0.35,0.3, 0.35,0.45]], e: [[0,0.34]] } },
 
-    cycling_breech:  { name: 'Cycling Breech',    tier: 2, cls: 'vanguard', k: 'momentumKeep', v: 1, desc: 'Your Momentum no longer resets at the start of your turn.',
+    /* Momentum is gone from the class, so this pointed at nothing. It holds
+     * the OTHER thing that burns off between turns instead. */
+    cycling_breech:  { name: 'Cycling Breech',    tier: 2, cls: 'vanguard', k: 'stimHold', v: 1, desc: 'Your Stim no longer burns off between turns.',
       art: { p: [[-0.7,-0.25, 0.7,-0.25], [-0.7,0.25, 0.7,0.25], [-0.7,-0.25, -0.7,0.25], [0.7,-0.25, 0.7,0.25], [-0.35,-0.25, -0.35,0.25], [0,-0.25, 0,0.25], [0.35,-0.25, 0.35,0.25], [0.5,-0.55, 0.8,-0.55, 0.8,-0.25], [-0.5,0.55, -0.8,0.55, -0.8,0.25]] } },
     thorn_husk:      { name: 'Thornmail Husk',    tier: 1, k: 'thorns',          v: 2,    desc: 'Attackers take 2 damage.',
       art: { p: [[0,-0.6, 0.6,0, 0,0.6, -0.6,0, 0,-0.6], [0,-0.6, 0,-1], [0.6,0, 1,0], [0,0.6, 0,1], [-0.6,0, -1,0]], e: [] } },
@@ -7538,7 +7729,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       desc: 'Your attacks deal +5 — but you may play at most 1 non-attack card per turn. Toggle it off on the star chart when you need to set up.',
       art: { p: [[-0.75,0.05, 0.75,0.05], [-0.75,0.05, -0.6,0.4], [0.75,0.05, 0.6,0.4], [-0.4,0.05, -0.4,-0.4, 0.4,-0.4, 0.4,0.05], [0,-0.4, 0,-0.65]], e: [[0,-0.5]] } },
     execution_protocol: { name: 'Execution Protocol', tier: 1, rarity: 'class', cls: 'vanguard', k: 'executeBonus', v: 1,
-      desc: 'Your attacks deal double damage to enemies below 25% HP.',
+      desc: 'Your attacks deal double damage to enemies below 25% HP, and to any enemy while YOU are below 25%.',
       art: { p: [[0,-0.7, 0,0.7], [-0.45,-0.45, 0,-0.7, 0.45,-0.45], [-0.3,0.3, 0.3,0.3], [-0.45,0.55, 0.45,0.55]], e: [[0,0]] } },
     forge_reserve: { name: 'Forge Reserve', tier: 1, rarity: 'class', cls: 'technomancer', k: 'blockStartTechMul', v: 3,
       desc: 'Start each combat with Shield equal to 3× your TECH.',
@@ -12546,6 +12737,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (ts > 0) c.player.statuses.turret = ts;
     var sv = art('salvoStart');
     if (sv > 0) c.player.statuses.salvo = sv;
+    var ws = art('wallStart');        // THE BASTION
+    if (ws > 0) c.player.statuses.bulwark = ws;
     var br = art('bloodrageStart');
     if (br > 0) c.player.statuses.bloodrage = br;
     // SCARFEEDER turns the pressure system on its head for exactly one class:
@@ -12601,10 +12794,18 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       return;
     }
     hurtPlayer(n, { pure: true });
+    /* SCAR TISSUE — the bridge from Stim into Bulwark. HP you spend on your own
+     * cards comes back as wall, which is what makes the pair better than
+     * either line alone. */
+    var sw = statN(p, 'scarWall');
+    if (sw > 0) { addStatus(p, 'bulwark', wallGain(sw)); emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') }); }
     var bp = statN(p, 'bloodPact');   // BLOOD PACT: spilled HP feeds your Psi
     if (bp > 0) { addStatus(p, 'psiPow', bp); emit('status', { who: 'player', s: 'psiPow', v: bp }); }
-    var brg = statN(p, 'bloodrage');  // BLOOD RAGE: spending life stokes your Might (Bloodforge)
-    if (brg > 0) { addStatus(p, 'str', brg); emit('status', { who: 'player', s: 'str', v: brg }); }
+    /* STIM. Spending life stokes it, and it BURNS OFF — which is the whole
+     * difference from Might: you are buying a window, not a stat. Paying HP for
+     * something permanent would just be Might with a worse price. */
+    var brg = statN(p, 'bloodrage');
+    if (brg > 0) { addStatus(p, 'stim', brg); emit('status', { who: 'player', s: 'stim', v: statN(p, 'stim') }); }
     fireListeners('selfHp', {});
   }
 
@@ -12868,6 +13069,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // Fusillade: Momentum is a per-turn combo — unless a Cycling Breech says
     // otherwise, which is the whole point of that relic.
     if (p.statuses.momentum && !art('momentumKeep')) p.statuses.momentum = 0;
+    /* STIM BURNS OFF. It is bought with HP, so if it persisted it would just be
+     * Might with a worse price. Decaying one a turn makes it a window you open
+     * and have to use, which is what a stimulant is. FEVER stops the decay. */
+    // FEVER grants it as a status, CYCLING BREECH as a relic hook — both hold
+    if (p.statuses.stim > 0 && statN(p, 'stimHold') <= 0 && art('stimHold') <= 0) {
+      addStatus(p, 'stim', -1);
+      emit('status', { who: 'player', s: 'stim', v: statN(p, 'stim') });
+    }
     // Cursed Inheritance: a curse is lodged in hand at the start of combat
     if (c.turn === 1 && E.hasEcho('cursed_inheritance')) c.hand.push(mkCard('recurring_curse', false));
     // block expiry (Retain / Barricade keep your Shield). Turn 1 has no prior
@@ -12884,6 +13093,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (padv > 0) { gainBlock(padv); addStatus(p, 'platedArmor', -1); } // Plated Armor: shield = stacks, then decays
     var spt = statN(p, 'strPerTurn');
     if (spt > 0) addStatus(p, 'str', spt);
+    // RUNNING ON EMPTY: the closer to the edge, the faster you dig
+    if (statN(p, 'runEmpty') > 0 && E.run.hp <= E.run.maxHp * 0.5) drawCards(statN(p, 'runEmpty'));
+    var wpt = statN(p, 'wallPerTurn');  // CASEMATE: the wall builds itself
+    if (wpt > 0) { addStatus(p, 'bulwark', wallGain(wpt)); emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') }); }
     var apt = statN(p, 'aimPerTurn');   // STEADY AIM: marksmanship sharpens every turn
     if (apt > 0) { addStatus(p, 'aim', apt); emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') }); }
     var psr = statN(p, 'psiRamp');     // ASCENDANT MIND: Psi Focus grows each turn
@@ -13082,11 +13295,28 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function priAttr() { return PRI_ATTR[E.run && E.run.cls] || 'might'; }
   function resolveScale(s) { return s === 'pri' ? priAttr() : s; }
 
+  /* Everything that adds to the wall goes through here, so the relics and
+   * powers that scale it — BARRICADE PROTOCOL's half again, BLOOD CEMENT's
+   * one percent per percent of Max HP missing — are applied in one place
+   * rather than on each of a dozen cards. */
+  function wallGain(v) {
+    var p = E.combat.player, r = E.run;
+    var mul = 1 + (statN(p, 'wallBoost') / 100);
+    if (statN(p, 'bloodCement') > 0) mul += Math.max(0, 1 - (r.hp / Math.max(1, r.maxHp)));
+    return Math.max(1, Math.round(v * mul));
+  }
+  E.wallGain = wallGain;
+
   function attackBonus(f) {
     var p = E.combat.player;
     var mul = f.scaleMul || 1;
     var sc = resolveScale(f.scale);
-    var v = statN(p, 'str') + statN(p, 'momentum') + art('flatDmg') + (E.combat.momentum || 0); // Strength + Momentum (Fusillade)
+    /* STIM COUNTS DOUBLE. It is bought with HP and it burns off a point a turn,
+     * so at parity with Might it was strictly worse than Might in every way —
+     * you paid blood for a stat that then evaporated. Measured: a piloted Stim
+     * deck won 7.0% of runs against 22.0% for drafting at random. Two points of
+     * damage per Stim is what makes the trade worth making. */
+    var v = statN(p, 'str') + statN(p, 'momentum') + statN(p, 'stim') * 2 + art('flatDmg') + (E.combat.momentum || 0);
     if (sc === 'might') v += attr('might') * B.attrs.mightDmgPerPoint * mul;
     if (sc === 'tech') v += attr('tech') * mul;
     if (sc === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * mul + statN(p, 'psiPow');
@@ -13144,7 +13374,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (statN(c.player, 'weak') && !opts.noWeak) amount = Math.floor(amount * B.status.weakMult);
     if (statN(en, 'vuln')) { amount = Math.floor(amount * B.status.vulnMult); amount += art('vulnDmg'); }
     if (opts.execute && en.hp <= en.maxHp * 0.30) amount *= 2;
-    if (!opts.noCrit && art('executeBonus') > 0 && en.hp <= en.maxHp * 0.25) amount *= 2;   // Execution Protocol
+    /* EXECUTION PROTOCOL reads BOTH wounds — the enemy's and yours. Reading
+     * your own is what ties a Marksman relic to the Stim line. */
+    if (!opts.noCrit && art('executeBonus') > 0 &&
+        (en.hp <= en.maxHp * 0.25 || E.run.hp <= E.run.maxHp * 0.25)) amount *= 2;
     if (opts.crit) {
       amount = Math.floor(amount * B.dice.critMult);
       var cv = art('critVuln');
@@ -13248,6 +13481,27 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (p && !opts.pure) {
       blocked = Math.min(p.block, amount);
       p.block -= blocked;
+      /* THE WALL STANDS BEHIND THE SHIELD. Bulwark is not Shield: it does not
+       * expire at the start of your turn, so it accumulates across a fight and
+       * is spent either by being hit or by being detonated. It absorbs only
+       * what gets past Shield, which is what makes the two stack rather than
+       * compete — Shield is this turn's answer, the wall is the fight's. */
+      var wall = statN(p, 'bulwark');
+      if (wall > 0 && amount > blocked) {
+        // COUNTERSCARP keeps a footing back, so the wall is never fully gone
+        var ate = Math.min(Math.max(0, wall - art('wallFloor')), amount - blocked);
+        addStatus(p, 'bulwark', -ate);
+        emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') });
+        lawTrigger('wallHit', ate);
+        blocked += ate;
+        // REACTIVE PLATING: a wall that is only armour is a worse Shield. This
+        // is what makes standing behind it an offensive turn.
+        var wt = statN(p, 'wallThorns');
+        if (wt > 0 && !c.over) {
+          var wtEn = aliveEnemies();
+          if (wtEn.length) dealToEnemy(wtEn[0], c.enemies.indexOf(wtEn[0]), wt, { noCrit: true, noWeak: true });
+        }
+      }
     }
     var hpDmg = amount - blocked;
     r.hp -= hpDmg;
@@ -13609,7 +13863,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var lit = fireOneFace(face, tgt, art('rootHalf') > 0 ? 0.5 : 1);
     // SUBSTATION remembers the first face to fire this turn and re-fires it later
     if (lit && art('faceEcho') > 0 && c.echoFace == null) c.echoFace = face;
-    if (!lit && art('bareRefund') > 0) c.energy += art('bareRefund');   // DRY FIRE
+    if (!lit && art('bareRefund') > 0) {                                // DRY FIRE
+      c.energy += art('bareRefund');
+      addStatus(c.player, 'stim', art('bareRefund'));
+      emit('status', { who: 'player', s: 'stim', v: statN(c.player, 'stim') });
+    }
     // The roll has to LAND on something to splash. Bleeding off a bare face
     // paid you for a dead roll, which made the mechanic free rather than a
     // reward for cutting densely — and it was most of why the difficulty
@@ -13835,7 +14093,97 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           break;
         }
         case 'special': {
-          if (f.id === 'shieldSlam' || f.id === 'shieldSlam15') {
+          /* ---- THE WALL --------------------------------------------------
+           * Four verbs, and the tension between them is the archetype: the
+           * wall is both your armour and your ammunition, so every detonation
+           * is a decision to stand naked for a turn. */
+          if (f.id === 'wallFace') {
+            // REVETMENT: the face you landed on IS the wall you build. `eff`
+            // IS the landed face for a steering class, which is the only class
+            // these cards belong to.
+            var wf = (eff || 0);
+            if (wf > 0) { addStatus(p, 'bulwark', wallGain(wf)); emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') }); }
+          } else if (f.id === 'wallDealt') {
+            // EMBRASURE: the wall is built out of what you just hit
+            if (totalDealt > 0) { addStatus(p, 'bulwark', wallGain(totalDealt)); emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') }); }
+          } else if (f.id === 'spall' || f.id === 'detonate' || f.id === 'breachWall') {
+            // SPALL keeps the wall standing and fires a chip of it; BREACH and
+            // DETONATE spend the lot, the latter across the whole board.
+            var wallNow = statN(p, 'bulwark');
+            var shot = (f.id === 'spall') ? Math.floor(wallNow * (f.v || 0.5)) : wallNow;
+            if (f.id !== 'spall' && wallNow > 0) { addStatus(p, 'bulwark', -wallNow); emit('status', { who: 'player', s: 'bulwark', v: 0 }); }
+            else if (f.id === 'spall' && f.cost) { addStatus(p, 'bulwark', -shot); emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') }); }
+            if (shot > 0) {
+              if (art('wallBurst') > 0) {          // SAPPER CHARGE
+                aliveEnemies().forEach(function (e3) {
+                  addStatus(e3, 'vuln', 2);
+                  emit('status', { who: 'enemy', idx: c.enemies.indexOf(e3), s: 'vuln', v: 2 });
+                });
+              }
+              if (f.id === 'detonate') {
+                aliveEnemies().forEach(function (e2) { totalDealt += dealToEnemy(e2, c.enemies.indexOf(e2), shot, { noCrit: true, bandMult: bandMult }); });
+              } else {
+                var wEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+                if (wEn) totalDealt += dealToEnemy(wEn, c.enemies.indexOf(wEn), shot, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
+              }
+            }
+          } else if (f.id === 'wounded') {
+            /* STIM reads the wound. Every 10% of Max HP you are missing adds
+             * `v` — so the archetype's damage curve is the inverse of your
+             * health bar, and the cards that cost HP are paying into it. */
+            var missPct = Math.max(0, 1 - (E.run.hp / Math.max(1, E.run.maxHp)));
+            var bonus = Math.floor(missPct * 10) * (f.v || 1);
+            var wdEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            if (wdEn && (f.base || 0) + bonus > 0) {
+              totalDealt += dealToEnemy(wdEn, c.enemies.indexOf(wdEn), (f.base || 0) + bonus + attackBonus(f),
+                { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
+            }
+          } else if (f.id === 'stimScale') {
+            // RAVENING reads the window you bought with your own blood
+            var rvEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            if (rvEn) totalDealt += dealToEnemy(rvEn, c.enemies.indexOf(rvEn),
+              (f.base || 0) + statN(p, 'stim') * (f.v || 1) + attackBonus(f),
+              { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
+          } else if (f.id === 'lastRound') {
+            // LAST ROUND: the cliff edge, not a gradient — half HP or nothing
+            var lrEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            var lrD = (f.base || 0) + attackBonus(f);
+            if (E.run.hp <= E.run.maxHp * 0.5) lrD *= 2;
+            if (lrEn) totalDealt += dealToEnemy(lrEn, c.enemies.indexOf(lrEn), lrD,
+              { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
+          } else if (f.id === 'limitBreakStim') {
+            // LIMIT BREAK doubles the window rather than a permanent stat
+            var lbs = statN(p, 'stim');
+            if (lbs > 0) { addStatus(p, 'stim', lbs); emit('status', { who: 'player', s: 'stim', v: statN(p, 'stim') }); }
+          } else if (f.id === 'stat') {
+            /* A status the card's own TEXT explains, so the generated line
+             * would only repeat it worse ("Gain 50 Barricade."). Sets the
+             * stat and prints nothing. */
+            addStatus(p, f.s, f.v || 1);
+            emit('status', { who: 'player', s: f.s, v: statN(p, f.s) });
+          } else if (f.id === 'aimGate') {
+            /* LONG SHOT. Pay a fixed price for a fixed shot, or fire it dry for
+             * scraps. Unlike Killshot it does not want your whole magazine, so
+             * it is the cashout you can hold alongside steering. */
+            var haveA = statN(p, 'aim'), payA = f.cost || 3;
+            var shotA = (haveA >= payA) ? (f.v || 18) : (f.base || 4);
+            if (haveA >= payA) { addStatus(p, 'aim', -payA); emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') }); }
+            var agEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            if (agEn) totalDealt += dealToEnemy(agEn, c.enemies.indexOf(agEn), shotA + attackBonus(f),
+              { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
+          } else if (f.id === 'emptyMag') {
+            /* EMPTY THE MAGAZINE. The whole load turns into reach rather than
+             * into one big number — every 2 Aim walks the burst one face
+             * further round the ring, so it wants a long engraved run and it
+             * is the only card that turns Aim into WIDTH. */
+            var magA = statN(p, 'aim');
+            if (magA > 0) { addStatus(p, 'aim', -magA); emit('status', { who: 'player', s: 'aim', v: 0 }); }
+            var extra = Math.floor(magA / (f.per || 2));
+            var bm2 = B.dice.burst || [1, 0.6, 0.35];
+            for (var em = 1; em <= extra && !c.over; em++) {
+              fireOneFace(ns.dieStep(eff || roll, em), tgt, bm2[Math.min(em, bm2.length - 1)], 'burst', eff || roll);
+            }
+          } else if (f.id === 'shieldSlam' || f.id === 'shieldSlam15') {
             var dmg = Math.floor(p.block * (f.id === 'shieldSlam15' ? 1.5 : 1)) + statN(p, 'str') + art('flatDmg');
             var sEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             if (sEn && dmg > 0) totalDealt += dealToEnemy(sEn, c.enemies.indexOf(sEn), dmg, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
@@ -14026,11 +14374,56 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (roll < 8 && art('rerollSag') > 0) roll = d20();             // HOT SPARE
     c.rollNo = (c.rollNo || 0) + 1;
     if (art('everyThird') > 0 && c.rollNo % 3 === 0) roll = 20;     // RANGING TABLES
-    eff = Math.min(20, roll + statN(p, 'aim') + art('rollBonus'));
+    /* MARKSMANSHIP STEERS. For a class whose table says `steer`, Aim is not
+     * added to the roll — it MOVES the die. It climbs (or dives, under Steady
+     * Hands) to the furthest ENGRAVED face it can reach, spends 1 Aim a face,
+     * and the band is then read from where it landed. Bare faces are never a
+     * destination, which is what makes Aim worth exactly as much as the die is
+     * well cut. A natural 1 is never steered: a jam is a jam.
+     *
+     * Steering does not WRAP. Climbing off 20 onto face 1 would turn the best
+     * outcome into the worst, and diving off 2 onto the jam would do the same
+     * in reverse — the metaphor is a table you climb, not a ring you circle. */
+    var steered = null;
+    if (dread && dread.steer && roll > 1) {
+      var aimHave = statN(p, 'aim');
+      var capF = Math.min(aimHave, (B.dice.steerCap || 3) + art('steerCap'));
+      if (capF > 0) {
+        var dive = statN(p, 'steerDown') > 0;      // STEADY HANDS inverts the climb
+        /* ONLY SPEND WHAT IT BUYS. Climbing blindly to the highest cut face
+         * burned 3 Aim to move 15 -> 18 — both engraved, both SOLID, nothing
+         * gained. Aim moves you when you are on a BARE face (anything beats
+         * nothing) or when the move changes the band. Otherwise it stays in the
+         * magazine for the cashout. */
+        var hereCut = !!ns.dieFaceId(r.die, roll);
+        var hereBand = bandFor(dread, roll, roll);
+        for (var st = 1; st <= capF; st++) {
+          var sf = roll + (dive ? -st : st);
+          if (sf > ns.DIE.faces || sf < 2) break;
+          if (!ns.dieFaceId(r.die, sf)) continue;
+          if (hereCut) {
+            var thereBand = bandFor(dread, sf, sf);
+            if (!thereBand || !hereBand || thereBand.mult <= hereBand.mult) continue;
+          }
+          steered = { face: sf, spent: st };
+        }
+      }
+      if (steered) {
+        addStatus(p, 'aim', -steered.spent);
+        emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') });
+        emit('steer', { from: roll, to: steered.face, spent: steered.spent });
+      }
+    }
+    var landed = steered ? steered.face : roll;
+    eff = (dread && dread.steer)
+      ? Math.min(20, landed + art('rollBonus'))
+      : Math.min(20, roll + statN(p, 'aim') + art('rollBonus'));
+    c.highFace = Math.max(c.highFace || 0, landed);                 // THE REDOUBT reads it at end of turn
     if (art('bankRoll') > 0) c.banked = (c.banked || 0) + roll;     // SPENT BRASS
     if (art('lowMight') > 0 && roll < 6) {                          // TRENCH LEDGER
-      addStatus(p, 'str', art('lowMight'));
-      emit('status', { who: 'player', s: 'str', v: statN(p, 'str') });
+      // the bottom of the die is Stim's territory now, not Might's
+      addStatus(p, 'stim', art('lowMight'));
+      emit('status', { who: 'player', s: 'stim', v: statN(p, 'stim') });
     }
     if (!bandsNow) {
       emit('roll', { roll: roll, eff: eff, crit: false, misfire: false, band: null });
@@ -14042,8 +14435,19 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       if (!misfire && art('lowCrit') > 0 && roll <= art('lowCrit')) crit = true;
       if (misfire && art('critDie1Energy') > 0) c.energy += art('critDie1Energy');   // Misfire Capacitor
       if (misfire) {   // MISFIRE PROTOCOL turns a jam into fuel
+        // MISFIRE PROTOCOL pays in AIM now: a jam is the one roll steering
+        // cannot save, so the compensation is ammunition for the next one.
+        /* THE RED HOUR: a jam is the one roll Marksmanship cannot save, so it
+         * is the roll Stim is paid for. The bottom of the Vanguard's table
+         * stops being waste and becomes an engine. */
+        var rh = statN(p, 'redHour');
+        if (rh > 0) {
+          addStatus(p, 'stim', rh);
+          emit('status', { who: 'player', s: 'stim', v: statN(p, 'stim') });
+          c.energy += 1;
+        }
         var mg = statN(p, 'misfireGuard');
-        if (mg > 0) { addStatus(p, 'momentum', mg); emit('status', { who: 'player', s: 'momentum', v: statN(p, 'momentum') }); c.energy += 1; }
+        if (mg > 0) { addStatus(p, 'aim', mg); emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') }); c.energy += 1; }
         // TRIP COIL / SACRIFICIAL FUSE: a tripped breaker is never dead weight
         if (art('breakerBlock') > 0) gainBlock(art('breakerBlock'));
         if (art('breakerEnergy') > 0) c.energy += art('breakerEnergy');
@@ -14145,8 +14549,30 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
          * Both stated intents survive: Aim still climbs the table, and the
          * Voidadept still starves his bottom-band blood engines by climbing,
          * because the BAND is what he is climbing out of. */
-        var lands = roll <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden')) ? 1 : roll;
+        var lands = roll <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden')) ? 1 : landed;
         fireDieFace(lands, tgt);
+        /* BURST N — the multi-shot. The card fires the face it landed on and
+         * the next N-1 round the ring, decaying, in the direction the CARD
+         * states. Unlike steering this DOES wrap, because a burst is adjacency
+         * on the physical solid and the solid is a ring — the same reason bleed
+         * wraps. It stacks with bleed and with welds, which is the point: a
+         * welded boundary carries a burst face at full. */
+        var bspec = (card.up && def.up && def.up.burst) ? def.up.burst : def.burst;
+        if (bspec) {
+          var bn = (bspec.n || 2) + statN(p, 'burstPlus') + art('burstPlusRelic');
+          // DEAD MAN'S TRIGGER: the wound widens the burst
+          if (statN(p, 'deadMan') > 0 && E.run.hp <= E.run.maxHp * 0.4) bn += 1;
+          var bdir = bspec.dir || 1;
+          var bmul = B.dice.burst || [1, 0.6, 0.35];
+          var lp = statN(p, 'burstWall');      // LOOPHOLE: the burst builds the wall
+          for (var bi = 1; bi < bn; bi++) {
+            if (c.over) break;
+            fireOneFace(ns.dieStep(lands, bdir * bi), tgt,
+                        bmul[Math.min(bi, bmul.length - 1)] * (1 + art('burstBoost')), 'burst', lands);
+            if (lp > 0) addStatus(p, 'bulwark', wallGain(lp));
+          }
+          if (lp > 0 && bn > 1) emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') });
+        }
         // TWINNED FIRING PIN: the opening roll of a combat catches both sides
         if (art('firstSplash') > 0 && c.rollNo === 1) {
           ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) fireOneFace(nf, tgt, 1, 'relay', lands); });
@@ -14242,10 +14668,20 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     // SPENT BRASS cashes the numbers you rolled this turn in as plating
     if (art('bankRoll') > 0 && (c.banked || 0) > 0) {
-      gainBlock(c.banked);
+      // the Vanguard's defensive pool is the WALL now, and it does not expire
+      addStatus(c.player, 'bulwark', wallGain(c.banked));
+      emit('status', { who: 'player', s: 'bulwark', v: statN(c.player, 'bulwark') });
       emit('relic', { id: 'spent_brass', v: c.banked });
       c.banked = 0;
     }
+    /* THE REDOUBT banks the best face you reached this turn. It is the wall's
+     * die hook and the reason Bulwark wants to land high like Marksmanship
+     * does — the same roll serves both, which is what makes the pair work. */
+    if (statN(c.player, 'redoubt') > 0 && (c.highFace || 0) > 0) {
+      addStatus(c.player, 'bulwark', wallGain(c.highFace));
+      emit('status', { who: 'player', s: 'bulwark', v: statN(c.player, 'bulwark') });
+    }
+    c.highFace = 0;
 
     // end-of-turn: shrapnel curses in hand
     c.hand.forEach(function (card) {
