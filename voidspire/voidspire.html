@@ -12514,6 +12514,21 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
    * Ratings are cumulative — at pressure 5 you carry 1..5. Multiplicative keys
    * compound; additive keys sum; flags latch on.
    * ------------------------------------------------------------------- */
+  /* VS_NO_DIE is a balance probe, not a game option. It silences the die
+   * entirely — no engraving fires, no band multiplies — so the question "is the
+   * die adding depth or just adding variance?" can be answered against a
+   * control. If drafting matters MORE with the die off, the die is diluting the
+   * decisions rather than deepening them. */
+  var NO_DIE = (typeof process !== 'undefined' && process.env && !!process.env.VS_NO_DIE);
+  /* VS_FLAT_DIE keeps the die's POWER and removes only its VARIANCE: instead of
+   * rolling, it walks 1..20 in order, so every face still fires exactly as often
+   * over a run and the expected value is identical. VS_NO_DIE could not answer
+   * the question — silencing the die dropped the win rate to 8% and at that
+   * difficulty every arm converges, which is a floor effect, not a finding.
+   * This isolates the one thing actually in question: is the randomness adding
+   * depth, or is it drowning the decisions? */
+  var FLAT_DIE = (typeof process !== 'undefined' && process.env && !!process.env.VS_FLAT_DIE);
+
   var PMUL = { enemyHp: 1, enemyDmg: 1, restHeal: 1, shopCost: 1, potionDrop: 1, misfireMult: 1 };
   E.pressure = function () { return (E.run && E.run.pressure) || 0; };
   E.pressureMods = function (lvl) {
@@ -14363,7 +14378,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var bandsNow = !!dread && (def.type === 'attack' || (dread.blocks && hasBlockFx(fx)));
     // THE AUGMENTED DIE: every card play rolls, so a skill/power deck still
     // engages the die even when its table has nothing to say about the card.
-    roll = d20();
+    roll = FLAT_DIE ? ((c.flatRoll = ((c.flatRoll || 0) % ns.DIE.faces) + 1)) : d20();
     // ---- relics that shape the die itself, before anything reads it -------
     // These are the half of the marriage that was missing: 55 of 62 relics had
     // nothing to do with the die, so mounting one in it was fiction. A relic
@@ -14463,7 +14478,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // bottom band up into the middle — all of it in one reader.
       else slot = bandFor(dread, eff, roll);
       if (slot) {
-        bandMult = slot.mult;
+        bandMult = NO_DIE ? 1 : slot.mult;
         bandLabel = slot.label;
         if (misfire) bandMult *= (E.pressureMods().misfireMult || 1);
         if (slot.energy) c.energy += slot.energy;
@@ -14550,7 +14565,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
          * Voidadept still starves his bottom-band blood engines by climbing,
          * because the BAND is what he is climbing out of. */
         var lands = roll <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden')) ? 1 : landed;
-        fireDieFace(lands, tgt);
+        if (!NO_DIE) fireDieFace(lands, tgt);
         /* BURST N — the multi-shot. The card fires the face it landed on and
          * the next N-1 round the ring, decaying, in the direction the CARD
          * states. Unlike steering this DOES wrap, because a burst is adjacency
