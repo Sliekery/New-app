@@ -691,9 +691,12 @@
 
     /* ============ Legendaries (boss rewards only) ============ */
     orbital_bombardment: {
+      /* This LEGENDARY was strictly worse than Orbital Strike, a plain rare:
+       * same 3 energy, same 2 Vulnerable, 12 damage against its 16. A boss
+       * reward you would decline. It is the ceiling of the class now. */
       name: 'Orbital Bombardment', cls: 'vanguard', type: 'attack', rarity: 4, pool: 'boss', cost: 3,
-      fx: [{ k: 'dmg', v: 12, all: true, scale: 'might' }, { k: 'status', s: 'vuln', v: 2, who: 'allEnemies' }],
-      up: { fx: [{ k: 'dmg', v: 16, all: true, scale: 'might' }, { k: 'status', s: 'vuln', v: 3, who: 'allEnemies' }] },
+      fx: [{ k: 'dmg', v: 20, all: true, scale: 'might' }, { k: 'status', s: 'vuln', v: 3, who: 'allEnemies' }],
+      up: { fx: [{ k: 'dmg', v: 26, all: true, scale: 'might' }, { k: 'status', s: 'vuln', v: 4, who: 'allEnemies' }] },
     },
     omega_protocol: {
       name: 'Omega Protocol', cls: 'technomancer', type: 'power', rarity: 4, pool: 'boss', cost: 3,

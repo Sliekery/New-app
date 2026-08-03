@@ -255,6 +255,10 @@ function botCombat() {
     for (var i = 0; i < c.hand.length; i++) if (E.canPlay(i)) playable.push(i);
     if (playable.length === 0) { E.endTurn(); continue; }
 
+    if (RANDOM_PLAY) {
+      if (!E.playCard(playable[Math.floor(probeRnd() * playable.length)], pickTarget())) E.endTurn();
+      continue;
+    }
     var incoming = incomingDamage();
     var needBlock = Math.max(0, incoming - c.player.block);
     var hpDanger = E.run.hp < E.run.maxHp * 0.6 || needBlock >= E.run.hp * 0.25;
@@ -366,6 +370,52 @@ var ENGINES = {
 };
 var FLEX_OF = {};  // per-class default flex
 var PILOT = null;   // an ENGINES key — null = default greedy draft
+
+/* ---- THE DECISION PROBE ------------------------------------------------
+ * The question this answers is the one that matters most and is the hardest
+ * to answer by playing: DOES CHOOSING ANYTHING MATTER? Run the same seeds
+ * with a decision removed and compare.
+ *
+ *   VS_RANDOM_DRAFT=1   take a random card from every reward, always
+ *   VS_RANDOM_PLAY=1    play a random legal card until nothing is legal
+ *
+ * The target is simple and falsifiable: a deliberate draft should beat a
+ * random one by 10+ points. Measured before the Vanguard card pass it LOST
+ * by 15 (random 41.3% vs greedy 26.7% over 240 Vanguard runs) — the game was
+ * rewarding you for not thinking, which is the numeric form of "anything
+ * works". Combat was fine over the same runs: removing play skill cost 21
+ * points of finale rate, so the depth was all in the fight and none in the
+ * build.
+ * --------------------------------------------------------------------- */
+var RANDOM_DRAFT = !!process.env.VS_RANDOM_DRAFT;
+var RANDOM_PLAY = !!process.env.VS_RANDOM_PLAY;
+/* VS_ALWAYS_TAKE isolates the two things the greedy arm was doing at once. It
+ * picks the BEST of the three offered but never declines, so "random" vs
+ * "always take" is a clean read on whether CHOOSING matters, with deck size
+ * held equal — and "always take" vs "greedy" is a clean read on whether
+ * DECLINING is worth anything. Without this the control arm varies two
+ * things and neither result means what it looks like. */
+var ALWAYS_TAKE = !!process.env.VS_ALWAYS_TAKE;
+/* VS_PREFER=<axis> drafts on ONE axis and nothing else, which is how the
+ * rarity inversion was found: over 150 Vanguard runs with deck size held
+ * equal, preferring COMMONS won 56.0% and preferring RARES won 28.7%. The
+ * game's own signal for "this card is better" is pointing the wrong way. */
+var PREFER = process.env.VS_PREFER || null;
+function preferScore(cid) {
+  var d = VS.CARDS[cid], cls = VS.engine.run.cls;
+  switch (PREFER) {
+    case 'class':   return d.cls === cls ? 10 : 0;
+    case 'neutral': return d.cls === 'any' ? 10 : 0;
+    case 'common':  return -(d.rarity || 0);
+    case 'rare':    return d.rarity || 0;
+    case 'nopower': return d.type === 'power' ? 0 : 10;
+    case 'cheap':   return -(d.cost || 0);
+    default:        return scoreRewardCard(cid);
+  }
+}
+// the probe's own randomness, seeded per run so the arms stay comparable
+var _probeRs = 12345;
+function probeRnd() { _probeRs = (_probeRs * 1103515245 + 12345) & 0x7fffffff; return _probeRs / 0x7fffffff; }
 function setPilot(a) { PILOT = a; }
 function pilotSpec() {
   if (!PILOT || !ENGINES[PILOT]) return null;
@@ -571,10 +621,15 @@ function step() {
         if (best) { E.takeEngraving(best); botPlaceEngravings(); }
       }
       var bi = -1, bs = 0;
-      r.reward.cards.forEach(function (cid, i) {
-        var s = scoreRewardCard(cid);
-        if (s > bs) { bs = s; bi = i; }
-      });
+      if (RANDOM_DRAFT) {
+        bi = r.reward.cards.length ? Math.floor(probeRnd() * r.reward.cards.length) : -1;
+      } else {
+        if (ALWAYS_TAKE || PREFER) bs = -1e9;
+        r.reward.cards.forEach(function (cid, i) {
+          var s = PREFER ? preferScore(cid) : scoreRewardCard(cid);
+          if (s > bs) { bs = s; bi = i; }
+        });
+      }
       if (bi >= 0) E.takeRewardCard(bi);
       E.finishReward();
       break;
@@ -733,6 +788,7 @@ function sanity() {
 var FIRST_MARK_PICK = 0;
 function playOneRun(cls, seed, markPick) {
   FIRST_MARK_PICK = markPick || 0;
+  _probeRs = (seed >>> 0) || 1;
   E.seed(seed >>> 0);
   E.newRun(cls);
   var steps = 0, s1min = 1, s1fight = 1;
@@ -840,7 +896,7 @@ for (var run = 0; run < RUNS; run++) {
   } catch (e) {
     // a defensive build can stalemate a non-escalating enemy forever; the bot's
     // loop guard surfaces it. Count it rather than aborting the whole batch.
-    if (e.message.indexOf('combat loop') >= 0) { stalls++; }
+    if (e.message.indexOf('combat loop') >= 0 || e.message.indexOf('loop guard') >= 0) { stalls++; }
     else throw e;
   }
   var s = stats[cls];
