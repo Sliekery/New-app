@@ -7473,7 +7473,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       art: { p: [[0,-0.85,0.34,-0.4,0.18,-0.06,0.46,0.24,0.2,0.62,0,0.8,-0.2,0.62,-0.46,0.24,-0.18,-0.06,-0.34,-0.4,0,-0.85]] } },
     critical_cascade: { name: 'Critical Cascade', tier: 2, k: 'critVuln', v: 2, desc: 'Your crits also apply 2 Vulnerable.',
       art: { p: [[0,-0.8,0.2,-0.25,0.78,-0.15,0.32,0.2,0.45,0.75,0,0.45,-0.45,0.75,-0.32,0.2,-0.78,-0.15,-0.2,-0.25,0,-0.8]] } },
-    warlord_doctrine: { name: 'Warlord Doctrine', tier: 2, cls: 'vanguard', k: 'strStart', v: 3, desc: 'Start each combat with 3 Might.',
+    warlord_doctrine: { name: 'Counterscarp', tier: 2, cls: 'vanguard', k: 'wallFloor', v: 6, desc: 'Your Bulwark never falls below 6.',
       art: { p: [[-0.45,-0.2,-0.5,-0.55,0.3,-0.6,0.45,-0.3,0.45,0.35,-0.3,0.5,-0.5,0.25,-0.45,-0.2], [0.45,-0.1,0.7,-0.1], [0.45,0.12,0.7,0.12]] } },
     echo_protocol: { name: 'Echo Protocol', tier: 2, cls: 'technomancer', k: 'echoStart', v: 1, desc: 'The first Attack you play each turn is played twice.',
       art: { p: [[0,-0.75,0.65,0,0,0.75,-0.65,0,0,-0.75], [0,-0.4,0.35,0,0,0.4,-0.35,0,0,-0.4]] } },
@@ -7497,7 +7497,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       art: { p: [[0,-0.8, 0.3,-0.26, 0.8,-0.14, 0.42,0.24, 0.48,0.74, 0,0.48, -0.48,0.74, -0.42,0.24, -0.8,-0.14, -0.3,-0.26, 0,-0.8], [-0.2,-0.05, 0.2,-0.05]], e: [[0,0.06]] } },
     foundry_spine:   { name: 'Foundry Spine',     tier: 1, cls: 'technomancer', k: 'turretStart', v: 3, desc: 'Start each combat with a Turret (3 dmg/turn).',
       art: { p: [[-0.6,0.7, -0.3,0.1, 0.3,0.1, 0.6,0.7], [-0.3,0.1, 0.3,0.1, 0.24,-0.35, -0.24,-0.35, -0.3,0.1], [0.24,-0.22, 0.8,-0.22], [-0.5,0.7, 0.5,0.7]], e: [[0,-0.14]] } },
-    ash_reliquary:   { name: 'Ash Reliquary',     tier: 1, cls: 'vanguard', k: 'salvoStart', v: 2, desc: 'Start each combat with 2 Salvo — burning a card spits shrapnel at a random enemy.',
+    /* Salvo was the Exhaust archetype's anchor and that line is retired, so
+     * this pointed at a mechanic with no cards behind it. It opens the WALL
+     * instead, which had exactly one relic of twenty-one. */
+    ash_reliquary:   { name: 'The Bastion',       tier: 1, cls: 'vanguard', k: 'wallStart', v: 8, desc: 'Start each combat with 8 Bulwark.',
       art: { p: [[-0.45,0.7, -0.3,-0.3, 0.3,-0.3, 0.45,0.7, -0.45,0.7], [-0.35,-0.3, -0.5,-0.55, 0.5,-0.55, 0.35,-0.3], [-0.15,-0.75, 0,-0.95, 0.15,-0.75], [-0.2,0.1, 0.2,0.35], [0.2,0.1, -0.2,0.35]] } },
     iron_leech:      { name: 'Iron Leech',        tier: 1, cls: 'vanguard', k: 'bloodrageStart', v: 2, desc: 'Start each combat with 2 Blood Rage — your own wounds feed your Might.',
       art: { p: [[0,-0.85, 0.4,-0.2, 0.26,0.5, -0.26,0.5, -0.4,-0.2, 0,-0.85], [-0.26,0.5, -0.16,0.82], [0.26,0.5, 0.16,0.82], [-0.24,-0.1, 0.24,-0.1], [-0.14,0.16, 0.14,0.16]] } },
@@ -7515,8 +7518,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     ranging_wedge: { name: 'Ranging Wedge', tier: 1, cls: 'vanguard', k: 'aimStart', v: 2,
       desc: 'Start each combat with 2 Aim.',
       art: { p: [[-0.8,0.3, 0.6,0.3], [-0.8,0.3, 0.2,-0.4], [0.2,-0.4, 0.6,0.3], [-0.3,0.3, 0.1,0.0], [0.1,0.3, 0.35,0.1], [-0.8,0.44, 0.6,0.44]], e: [[0.2,-0.46]] } },
+    /* Deliberate anti-synergy with steering: Marksmanship spends Aim to AVOID
+     * bare faces, so this pays the build that does not steer. */
     dry_fire: { name: 'Dry Fire', tier: 1, cls: 'vanguard', k: 'bareRefund', v: 1,
-      desc: 'Rolling a BARE face gives 1 Energy — an empty die still pays.',
+      desc: 'Rolling a BARE face gives 1 Energy and 1 Stim — an empty die still pays.',
       art: { p: [[-0.6,-0.4, 0.3,-0.4, 0.3,0.1, -0.6,0.1, -0.6,-0.4], [-0.6,-0.15, 0.3,-0.15], [0.3,-0.28, 0.7,-0.28], [-0.35,0.1, -0.4,0.5], [-0.15,0.1, -0.15,0.5], [0.55,-0.5, 0.7,-0.66], [0.62,-0.1, 0.8,0.0]], e: [[0.8,-0.28]] } },
     hot_barrel: { name: 'Hot Barrel', tier: 1, cls: 'vanguard', k: 'critRelay', v: 1,
       desc: 'On a crit, the faces beside the one you rolled fire at FULL.',
@@ -7525,14 +7530,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       desc: 'The first scar the void tries to cut each sector is turned aside.',
       art: { p: [[0,-0.7, 0.55,-0.4, 0.55,0.16, 0,0.66, -0.55,0.16, -0.55,-0.4, 0,-0.7], [0,-0.5, 0.38,-0.28, 0.38,0.1, 0,0.46, -0.38,0.1, -0.38,-0.28, 0,-0.5], [-0.7,-0.6, 0.7,0.5], [-0.3,-0.06, 0.3,-0.06]], e: [[0,-0.02]] } },
 
-    machined_barrel: { name: 'Machined Barrel', tier: 2, cls: 'vanguard', k: 'bandShift', v: 2,
-      desc: 'Every band on your die triggers 2 lower — SOLID from 13, HIT from 6.',
+    machined_barrel: { name: 'Sapper Charge', tier: 2, cls: 'vanguard', k: 'wallBurst', v: 1,
+      desc: 'Detonating your Bulwark also stuns: all enemies gain 2 Vulnerable.',
       art: { p: [[-0.86,-0.2, 0.5,-0.2], [-0.86,0.1, 0.5,0.1], [-0.86,-0.2, -0.86,0.1], [-0.5,-0.2, -0.5,0.1], [-0.1,-0.2, -0.1,0.1], [0.3,-0.2, 0.3,0.1], [0.5,-0.3, 0.86,-0.3, 0.86,0.2, 0.5,0.2], [0.68,-0.3, 0.68,0.2], [-0.7,0.1, -0.7,0.5], [-0.3,0.1, -0.3,0.5], [-0.86,0.5, -0.14,0.5]], e: [[0.9,-0.05]] } },
     counterweight: { name: 'Counterweight', tier: 2, cls: 'vanguard', k: 'rerollOnes', v: 1,
       desc: 'A natural 1 is rerolled once. Turns off anything you built on face 1.',
       art: { p: [[0,-0.7, 0.2,-0.3, 0,0.1, -0.2,-0.3, 0,-0.7], [-0.5,0.1, 0.5,0.1, 0.36,0.6, -0.36,0.6, -0.5,0.1], [-0.42,0.35, 0.42,0.35], [0,-0.7, 0,-0.86], [-0.66,0.1, -0.5,0.1], [0.66,0.1, 0.5,0.1]], e: [[0,-0.3],[0,0.48]] } },
-    bandolier_rig: { name: 'Bandolier Rig', tier: 2, cls: 'vanguard', k: 'bleedPct', v: 0.25,
-      desc: 'Faces beside the one you roll fire at 75% instead of half.',
+    bandolier_rig: { name: 'Bandolier Rig', tier: 2, cls: 'vanguard', k: 'burstBoost', v: 0.2,
+      desc: 'Every face your BURST reaches fires 20% harder.',
       art: { p: [[-0.86,-0.5, 0.86,0.3], [-0.86,-0.2, 0.86,0.6], [-0.7,-0.44, -0.66,-0.2], [-0.4,-0.3, -0.36,-0.06], [-0.1,-0.16, -0.06,0.08], [0.2,-0.02, 0.24,0.22], [0.5,0.12, 0.54,0.36]], e: [[-0.68,-0.32],[-0.38,-0.18],[-0.08,-0.04],[0.22,0.1],[0.52,0.24]] } },
     spent_brass: { name: 'Spent Brass', tier: 2, cls: 'vanguard', k: 'bankRoll', v: 1,
       desc: 'Every roll banks its number. At end of turn, bank becomes that much Bulwark.',
@@ -7543,16 +7548,19 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     ranging_tables: { name: 'Ranging Tables', tier: 3, cls: 'vanguard', k: 'everyThird', v: 1,
       desc: 'Every third roll each combat is automatically a 20.',
       art: { p: [[-0.6,-0.6, 0.6,-0.6, 0.6,0.6, -0.6,0.6, -0.6,-0.6], [-0.6,-0.3, 0.6,-0.3], [-0.6,0.0, 0.6,0.0], [-0.6,0.3, 0.6,0.3], [-0.2,-0.6, -0.2,0.6], [0.2,-0.6, 0.2,0.6], [-0.86,-0.44, -0.6,-0.44], [0.86,0.44, 0.6,0.44]], e: [[0.4,0.45],[0.4,-0.15]] } },
+    /* `rollBonus` added to the effective roll, which under steering IS the
+     * landed face — so it moved your band without moving your die, and read as
+     * a rule that contradicted the class. It buys travel now. */
     long_shots_debt: { name: "The Long Shot's Debt", tier: 3, cls: 'vanguard',
-      hooks: [{ k: 'rollBonus', v: 4 }, { k: 'misfireWiden', v: 2 }],
-      desc: '+4 to every roll — but a misfire now triggers on 1-3.',
+      hooks: [{ k: 'steerCap', v: 2 }, { k: 'misfireWiden', v: 2 }],
+      desc: 'Your Aim steers 2 faces further — but a misfire now triggers on 1-3.',
       art: { p: [[-0.86,0.3, 0.3,-0.4], [0.3,-0.4, 0.1,-0.36], [0.3,-0.4, 0.26,-0.2], [-0.5,-0.5, -0.5,-0.14], [-0.5,-0.5, -0.14,-0.5], [0.66,0.5, 0.66,0.14], [0.66,0.5, 0.3,0.5], [-0.3,0.5, 0.0,0.5]], e: [[0.5,-0.55],[-0.7,0.6]] } },
     stripped_rifling: { name: 'Stripped Rifling', tier: 2, cls: 'vanguard',
       hooks: [{ k: 'critWiden', v: 1 }, { k: 'bandShift', v: -1 }],
       desc: 'Crit on 19 as well as 20 — but every other band triggers 1 higher.',
       art: { p: [[-0.7,-0.3, 0.7,-0.3], [-0.7,0.2, 0.7,0.2], [-0.7,-0.3, -0.7,0.2], [0.7,-0.3, 0.7,0.2], [-0.5,-0.3, -0.34,0.2], [-0.1,-0.3, 0.06,0.2], [0.3,-0.3, 0.46,0.2], [0.7,-0.05, 0.86,-0.05]], e: [[0.9,-0.05]] } },
-    twinned_pin: { name: 'Twinned Firing Pin', tier: 3, cls: 'vanguard', k: 'firstSplash', v: 1,
-      desc: 'The first roll of each combat fires its face and both neighbours at full.',
+    twinned_pin: { name: 'Twinned Firing Pin', tier: 3, cls: 'vanguard', k: 'burstPlusRelic', v: 2,
+      desc: 'Your BURSTs walk 2 faces further.',
       art: { p: [[-0.24,-0.7, -0.24,0.4], [0.24,-0.7, 0.24,0.4], [-0.24,0.4, -0.16,0.66, 0.16,0.66, 0.24,0.4], [-0.4,-0.7, -0.08,-0.7], [0.08,-0.7, 0.4,-0.7], [-0.66,-0.1, -0.4,-0.1], [0.66,-0.1, 0.4,-0.1]], e: [[0,0.66],[-0.72,-0.1],[0.72,-0.1]] } },
     deadeye_reticle: { name: 'Deadeye Reticle', tier: 3, cls: 'vanguard',
       hooks: [{ k: 'rollAdv', v: 1 }, { k: 'maxHpPct', v: 0.15 }],
@@ -7721,7 +7729,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       desc: 'Your attacks deal +5 — but you may play at most 1 non-attack card per turn. Toggle it off on the star chart when you need to set up.',
       art: { p: [[-0.75,0.05, 0.75,0.05], [-0.75,0.05, -0.6,0.4], [0.75,0.05, 0.6,0.4], [-0.4,0.05, -0.4,-0.4, 0.4,-0.4, 0.4,0.05], [0,-0.4, 0,-0.65]], e: [[0,-0.5]] } },
     execution_protocol: { name: 'Execution Protocol', tier: 1, rarity: 'class', cls: 'vanguard', k: 'executeBonus', v: 1,
-      desc: 'Your attacks deal double damage to enemies below 25% HP.',
+      desc: 'Your attacks deal double damage to enemies below 25% HP, and to any enemy while YOU are below 25%.',
       art: { p: [[0,-0.7, 0,0.7], [-0.45,-0.45, 0,-0.7, 0.45,-0.45], [-0.3,0.3, 0.3,0.3], [-0.45,0.55, 0.45,0.55]], e: [[0,0]] } },
     forge_reserve: { name: 'Forge Reserve', tier: 1, rarity: 'class', cls: 'technomancer', k: 'blockStartTechMul', v: 3,
       desc: 'Start each combat with Shield equal to 3× your TECH.',
@@ -12729,6 +12737,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (ts > 0) c.player.statuses.turret = ts;
     var sv = art('salvoStart');
     if (sv > 0) c.player.statuses.salvo = sv;
+    var ws = art('wallStart');        // THE BASTION
+    if (ws > 0) c.player.statuses.bulwark = ws;
     var br = art('bloodrageStart');
     if (br > 0) c.player.statuses.bloodrage = br;
     // SCARFEEDER turns the pressure system on its head for exactly one class:
@@ -13364,7 +13374,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (statN(c.player, 'weak') && !opts.noWeak) amount = Math.floor(amount * B.status.weakMult);
     if (statN(en, 'vuln')) { amount = Math.floor(amount * B.status.vulnMult); amount += art('vulnDmg'); }
     if (opts.execute && en.hp <= en.maxHp * 0.30) amount *= 2;
-    if (!opts.noCrit && art('executeBonus') > 0 && en.hp <= en.maxHp * 0.25) amount *= 2;   // Execution Protocol
+    /* EXECUTION PROTOCOL reads BOTH wounds — the enemy's and yours. Reading
+     * your own is what ties a Marksman relic to the Stim line. */
+    if (!opts.noCrit && art('executeBonus') > 0 &&
+        (en.hp <= en.maxHp * 0.25 || E.run.hp <= E.run.maxHp * 0.25)) amount *= 2;
     if (opts.crit) {
       amount = Math.floor(amount * B.dice.critMult);
       var cv = art('critVuln');
@@ -13475,7 +13488,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
        * compete — Shield is this turn's answer, the wall is the fight's. */
       var wall = statN(p, 'bulwark');
       if (wall > 0 && amount > blocked) {
-        var ate = Math.min(wall, amount - blocked);
+        // COUNTERSCARP keeps a footing back, so the wall is never fully gone
+        var ate = Math.min(Math.max(0, wall - art('wallFloor')), amount - blocked);
         addStatus(p, 'bulwark', -ate);
         emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') });
         lawTrigger('wallHit', ate);
@@ -13849,7 +13863,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var lit = fireOneFace(face, tgt, art('rootHalf') > 0 ? 0.5 : 1);
     // SUBSTATION remembers the first face to fire this turn and re-fires it later
     if (lit && art('faceEcho') > 0 && c.echoFace == null) c.echoFace = face;
-    if (!lit && art('bareRefund') > 0) c.energy += art('bareRefund');   // DRY FIRE
+    if (!lit && art('bareRefund') > 0) {                                // DRY FIRE
+      c.energy += art('bareRefund');
+      addStatus(c.player, 'stim', art('bareRefund'));
+      emit('status', { who: 'player', s: 'stim', v: statN(c.player, 'stim') });
+    }
     // The roll has to LAND on something to splash. Bleeding off a bare face
     // paid you for a dead roll, which made the mechanic free rather than a
     // reward for cutting densely — and it was most of why the difficulty
@@ -14096,6 +14114,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             if (f.id !== 'spall' && wallNow > 0) { addStatus(p, 'bulwark', -wallNow); emit('status', { who: 'player', s: 'bulwark', v: 0 }); }
             else if (f.id === 'spall' && f.cost) { addStatus(p, 'bulwark', -shot); emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') }); }
             if (shot > 0) {
+              if (art('wallBurst') > 0) {          // SAPPER CHARGE
+                aliveEnemies().forEach(function (e3) {
+                  addStatus(e3, 'vuln', 2);
+                  emit('status', { who: 'enemy', idx: c.enemies.indexOf(e3), s: 'vuln', v: 2 });
+                });
+              }
               if (f.id === 'detonate') {
                 aliveEnemies().forEach(function (e2) { totalDealt += dealToEnemy(e2, c.enemies.indexOf(e2), shot, { noCrit: true, bandMult: bandMult }); });
               } else {
@@ -14363,7 +14387,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var steered = null;
     if (dread && dread.steer && roll > 1) {
       var aimHave = statN(p, 'aim');
-      var capF = Math.min(aimHave, B.dice.steerCap || 3);
+      var capF = Math.min(aimHave, (B.dice.steerCap || 3) + art('steerCap'));
       if (capF > 0) {
         var dive = statN(p, 'steerDown') > 0;      // STEADY HANDS inverts the climb
         /* ONLY SPEND WHAT IT BUYS. Climbing blindly to the highest cut face
@@ -14535,7 +14559,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
          * welded boundary carries a burst face at full. */
         var bspec = (card.up && def.up && def.up.burst) ? def.up.burst : def.burst;
         if (bspec) {
-          var bn = (bspec.n || 2) + statN(p, 'burstPlus');
+          var bn = (bspec.n || 2) + statN(p, 'burstPlus') + art('burstPlusRelic');
           // DEAD MAN'S TRIGGER: the wound widens the burst
           if (statN(p, 'deadMan') > 0 && E.run.hp <= E.run.maxHp * 0.4) bn += 1;
           var bdir = bspec.dir || 1;
@@ -14544,7 +14568,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           for (var bi = 1; bi < bn; bi++) {
             if (c.over) break;
             fireOneFace(ns.dieStep(lands, bdir * bi), tgt,
-                        bmul[Math.min(bi, bmul.length - 1)], 'burst', lands);
+                        bmul[Math.min(bi, bmul.length - 1)] * (1 + art('burstBoost')), 'burst', lands);
             if (lp > 0) addStatus(p, 'bulwark', wallGain(lp));
           }
           if (lp > 0 && bn > 1) emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') });

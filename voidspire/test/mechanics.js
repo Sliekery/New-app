@@ -1559,7 +1559,7 @@ ok('every remaining class has a starter deck whose cards all exist',
     return v;
   }
   ok('Foundry Spine deploys a turret before turn 1', atCombatStart('foundry_spine', 'technomancer', 'turret') === 3);
-  ok('Ash Reliquary arms Salvo before turn 1', atCombatStart('ash_reliquary', 'vanguard', 'salvo') === 2);
+  ok('The Bastion raises a wall before turn 1', atCombatStart('ash_reliquary', 'vanguard', 'bulwark') === 8);
   ok('Iron Leech arms Blood Rage before turn 1', atCombatStart('iron_leech', 'vanguard', 'bloodrage') === 2);
   ok('Resonance Node banks Psi Focus before turn 1', atCombatStart('resonance_node', 'voidadept', 'psiPow') === 2);
 
@@ -2493,6 +2493,99 @@ ok('every remaining class has a starter deck whose cards all exist',
 
   delete VS.CARDS._test_burst; delete VS.CARDS._test_burst_dn;
   delete VS.CARDS._test_wall; delete VS.CARDS._test_revet; delete VS.CARDS._test_breach;
+  E.run.phase = 'map';
+})();
+
+/* ============ THE VANGUARD'S RELICS POINT AT LIVE MECHANICS ===========
+ * Five of the twenty-one referenced things the rebuild deleted — Momentum,
+ * Salvo, Aim-as-a-band-bonus, Shield-as-the-defensive-pool. A relic whose
+ * hook has no mechanic behind it is not weak, it is BLANK, and nothing in
+ * the game says so. This asserts every reworked one actually fires.
+ * ==================================================================== */
+(function () {
+  function withRelic(id, engrave) {
+    E.seed(4); E.newRun('vanguard'); E.takeFirstMark(0);
+    E.run.artifacts.push(id); E.run.die.core.push(id);
+    E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
+    (engrave || []).forEach(function (pr) { VS.dieEngrave(E.run.die, pr[1], pr[0]); });
+    E.startNode('fight');
+    E.combat.enemies.forEach(function (e) { e.platedReady = false; });
+    return E.combat;
+  }
+  function play(c, id) {
+    c.hand = [{ uid: 800000 + Math.floor(Math.random() * 1e5), id: id, up: false }];
+    c.energy = 3; E.events.length = 0;
+    return E.playCard(0, 0);
+  }
+
+  // THE BASTION — the wall is up before turn 1
+  var c = withRelic('ash_reliquary');
+  ok('The Bastion raises a wall before turn 1', (c.player.statuses.bulwark || 0) === 8);
+
+  // COUNTERSCARP — the wall keeps a footing back
+  c = withRelic('warlord_doctrine');
+  c.player.statuses.bulwark = 20; c.player.block = 0;
+  c.enemies.forEach(function (e) { e.statuses.str = 40; });
+  E.endTurn();
+  ok('Counterscarp never lets the wall fall to nothing (' + (c.player.statuses.bulwark || 0) + ')',
+     (c.player.statuses.bulwark || 0) >= 6);
+
+  // TRENCH LEDGER — the bottom of the die pays Stim, not Might
+  c = withRelic('trench_ledger');
+  var lows = 0;
+  for (var i = 0; i < 60 && !c.over; i++) {
+    c.player.statuses.stim = 0; c.player.statuses.aim = 0;
+    if (!play(c, 'pulse_rifle')) break;
+    var rl = E.events.filter(function (e) { return e.type === 'roll'; })[0];
+    if (rl && rl.roll < 6 && (c.player.statuses.stim || 0) > 0) lows++;
+  }
+  ok('Trench Ledger pays Stim off a low roll (' + lows + ' seen)', lows > 0);
+
+  // CYCLING BREECH — holds the Stim that would otherwise burn off
+  c = withRelic('cycling_breech');
+  c.player.statuses.stim = 5; E.endTurn();
+  ok('Cycling Breech holds Stim through the turn', (c.player.statuses.stim || 0) === 5);
+
+  // SPENT BRASS — banks into the WALL, which does not expire
+  c = withRelic('spent_brass');
+  c.player.statuses.bulwark = 0;
+  play(c, 'pulse_rifle');
+  E.endTurn();
+  ok('Spent Brass banks the roll into the wall (' + (c.player.statuses.bulwark || 0) + ')',
+     (c.player.statuses.bulwark || 0) > 0);
+
+  // THE LONG SHOT'S DEBT — buys travel, not band
+  var ring = [[16, 'kinetic_buffer']];
+  c = withRelic('long_shots_debt', ring);
+  // the enemy has to survive long enough to see a rare roll
+  c.enemies.forEach(function (e) { e.hp = 99999; e.maxHp = 99999; });
+  var far = 0;
+  for (i = 0; i < 200 && !c.over; i++) {
+    c.player.statuses.aim = 5;
+    if (!play(c, 'pulse_rifle')) break;
+    var st = E.events.filter(function (e) { return e.type === 'steer'; })[0];
+    if (st && st.spent > 3) far++;      // past the base cap of 3
+  }
+  ok("The Long Shot's Debt steers past the base cap (" + far + ' seen)', far > 0);
+
+  // TWINNED FIRING PIN / BANDOLIER RIG — the two BURST relics
+  VS.CARDS._t_b = { name: 'T', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+                    fx: [{ k: 'dmg', v: 3, scale: 'might' }], burst: { n: 2, dir: 1 } };
+  var wide = [];
+  for (i = 10; i <= 17; i++) wide.push([i, ['kinetic_buffer','ignition_coil','overcharge_cell','munition_feed','repair_nanites','static_discharge','scavenger_port','targeting_spike'][i - 10]]);
+  function burstWidth(relic) {
+    var cc = relic ? withRelic(relic, wide) : withRelic('votive_shim', wide);
+    var best = 0;
+    for (var k = 0; k < 40 && !cc.over; k++) {
+      cc.player.statuses.aim = 0;
+      if (!play(cc, '_t_b')) break;
+      best = Math.max(best, E.events.filter(function (e) { return e.type === 'dieFace' && e.why === 'burst'; }).length);
+    }
+    return best;
+  }
+  var plain = burstWidth(null), pinned = burstWidth('twinned_pin');
+  ok('Twinned Firing Pin walks the burst further (' + plain + ' -> ' + pinned + ')', pinned > plain);
+  delete VS.CARDS._t_b;
   E.run.phase = 'map';
 })();
 

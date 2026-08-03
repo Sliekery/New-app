@@ -941,6 +941,8 @@
     if (ts > 0) c.player.statuses.turret = ts;
     var sv = art('salvoStart');
     if (sv > 0) c.player.statuses.salvo = sv;
+    var ws = art('wallStart');        // THE BASTION
+    if (ws > 0) c.player.statuses.bulwark = ws;
     var br = art('bloodrageStart');
     if (br > 0) c.player.statuses.bloodrage = br;
     // SCARFEEDER turns the pressure system on its head for exactly one class:
@@ -1576,7 +1578,10 @@
     if (statN(c.player, 'weak') && !opts.noWeak) amount = Math.floor(amount * B.status.weakMult);
     if (statN(en, 'vuln')) { amount = Math.floor(amount * B.status.vulnMult); amount += art('vulnDmg'); }
     if (opts.execute && en.hp <= en.maxHp * 0.30) amount *= 2;
-    if (!opts.noCrit && art('executeBonus') > 0 && en.hp <= en.maxHp * 0.25) amount *= 2;   // Execution Protocol
+    /* EXECUTION PROTOCOL reads BOTH wounds — the enemy's and yours. Reading
+     * your own is what ties a Marksman relic to the Stim line. */
+    if (!opts.noCrit && art('executeBonus') > 0 &&
+        (en.hp <= en.maxHp * 0.25 || E.run.hp <= E.run.maxHp * 0.25)) amount *= 2;
     if (opts.crit) {
       amount = Math.floor(amount * B.dice.critMult);
       var cv = art('critVuln');
@@ -1687,7 +1692,8 @@
        * compete — Shield is this turn's answer, the wall is the fight's. */
       var wall = statN(p, 'bulwark');
       if (wall > 0 && amount > blocked) {
-        var ate = Math.min(wall, amount - blocked);
+        // COUNTERSCARP keeps a footing back, so the wall is never fully gone
+        var ate = Math.min(Math.max(0, wall - art('wallFloor')), amount - blocked);
         addStatus(p, 'bulwark', -ate);
         emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') });
         lawTrigger('wallHit', ate);
@@ -2061,7 +2067,11 @@
     var lit = fireOneFace(face, tgt, art('rootHalf') > 0 ? 0.5 : 1);
     // SUBSTATION remembers the first face to fire this turn and re-fires it later
     if (lit && art('faceEcho') > 0 && c.echoFace == null) c.echoFace = face;
-    if (!lit && art('bareRefund') > 0) c.energy += art('bareRefund');   // DRY FIRE
+    if (!lit && art('bareRefund') > 0) {                                // DRY FIRE
+      c.energy += art('bareRefund');
+      addStatus(c.player, 'stim', art('bareRefund'));
+      emit('status', { who: 'player', s: 'stim', v: statN(c.player, 'stim') });
+    }
     // The roll has to LAND on something to splash. Bleeding off a bare face
     // paid you for a dead roll, which made the mechanic free rather than a
     // reward for cutting densely — and it was most of why the difficulty
@@ -2308,6 +2318,12 @@
             if (f.id !== 'spall' && wallNow > 0) { addStatus(p, 'bulwark', -wallNow); emit('status', { who: 'player', s: 'bulwark', v: 0 }); }
             else if (f.id === 'spall' && f.cost) { addStatus(p, 'bulwark', -shot); emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') }); }
             if (shot > 0) {
+              if (art('wallBurst') > 0) {          // SAPPER CHARGE
+                aliveEnemies().forEach(function (e3) {
+                  addStatus(e3, 'vuln', 2);
+                  emit('status', { who: 'enemy', idx: c.enemies.indexOf(e3), s: 'vuln', v: 2 });
+                });
+              }
               if (f.id === 'detonate') {
                 aliveEnemies().forEach(function (e2) { totalDealt += dealToEnemy(e2, c.enemies.indexOf(e2), shot, { noCrit: true, bandMult: bandMult }); });
               } else {
@@ -2575,7 +2591,7 @@
     var steered = null;
     if (dread && dread.steer && roll > 1) {
       var aimHave = statN(p, 'aim');
-      var capF = Math.min(aimHave, B.dice.steerCap || 3);
+      var capF = Math.min(aimHave, (B.dice.steerCap || 3) + art('steerCap'));
       if (capF > 0) {
         var dive = statN(p, 'steerDown') > 0;      // STEADY HANDS inverts the climb
         /* ONLY SPEND WHAT IT BUYS. Climbing blindly to the highest cut face
@@ -2747,7 +2763,7 @@
          * welded boundary carries a burst face at full. */
         var bspec = (card.up && def.up && def.up.burst) ? def.up.burst : def.burst;
         if (bspec) {
-          var bn = (bspec.n || 2) + statN(p, 'burstPlus');
+          var bn = (bspec.n || 2) + statN(p, 'burstPlus') + art('burstPlusRelic');
           // DEAD MAN'S TRIGGER: the wound widens the burst
           if (statN(p, 'deadMan') > 0 && E.run.hp <= E.run.maxHp * 0.4) bn += 1;
           var bdir = bspec.dir || 1;
@@ -2756,7 +2772,7 @@
           for (var bi = 1; bi < bn; bi++) {
             if (c.over) break;
             fireOneFace(ns.dieStep(lands, bdir * bi), tgt,
-                        bmul[Math.min(bi, bmul.length - 1)], 'burst', lands);
+                        bmul[Math.min(bi, bmul.length - 1)] * (1 + art('burstBoost')), 'burst', lands);
             if (lp > 0) addStatus(p, 'bulwark', wallGain(lp));
           }
           if (lp > 0 && bn > 1) emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') });
