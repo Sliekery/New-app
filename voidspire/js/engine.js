@@ -996,6 +996,11 @@
       return;
     }
     hurtPlayer(n, { pure: true });
+    /* SCAR TISSUE — the bridge from Stim into Bulwark. HP you spend on your own
+     * cards comes back as wall, which is what makes the pair better than
+     * either line alone. */
+    var sw = statN(p, 'scarWall');
+    if (sw > 0) { addStatus(p, 'bulwark', wallGain(sw)); emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') }); }
     var bp = statN(p, 'bloodPact');   // BLOOD PACT: spilled HP feeds your Psi
     if (bp > 0) { addStatus(p, 'psiPow', bp); emit('status', { who: 'player', s: 'psiPow', v: bp }); }
     var brg = statN(p, 'bloodrage');  // BLOOD RAGE: spending life stokes your Might (Bloodforge)
@@ -1286,6 +1291,8 @@
     if (padv > 0) { gainBlock(padv); addStatus(p, 'platedArmor', -1); } // Plated Armor: shield = stacks, then decays
     var spt = statN(p, 'strPerTurn');
     if (spt > 0) addStatus(p, 'str', spt);
+    var wpt = statN(p, 'wallPerTurn');  // CASEMATE: the wall builds itself
+    if (wpt > 0) { addStatus(p, 'bulwark', wallGain(wpt)); emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') }); }
     var apt = statN(p, 'aimPerTurn');   // STEADY AIM: marksmanship sharpens every turn
     if (apt > 0) { addStatus(p, 'aim', apt); emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') }); }
     var psr = statN(p, 'psiRamp');     // ASCENDANT MIND: Psi Focus grows each turn
@@ -1676,6 +1683,13 @@
         emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') });
         lawTrigger('wallHit', ate);
         blocked += ate;
+        // REACTIVE PLATING: a wall that is only armour is a worse Shield. This
+        // is what makes standing behind it an offensive turn.
+        var wt = statN(p, 'wallThorns');
+        if (wt > 0 && !c.over) {
+          var wtEn = aliveEnemies();
+          if (wtEn.length) dealToEnemy(wtEn[0], c.enemies.indexOf(wtEn[0]), wt, { noCrit: true, noWeak: true });
+        }
       }
     }
     var hpDmg = amount - blocked;
@@ -2303,6 +2317,12 @@
               totalDealt += dealToEnemy(wdEn, c.enemies.indexOf(wdEn), (f.base || 0) + bonus + attackBonus(f),
                 { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
             }
+          } else if (f.id === 'stat') {
+            /* A status the card's own TEXT explains, so the generated line
+             * would only repeat it worse ("Gain 50 Barricade."). Sets the
+             * stat and prints nothing. */
+            addStatus(p, f.s, f.v || 1);
+            emit('status', { who: 'player', s: f.s, v: statN(p, f.s) });
           } else if (f.id === 'aimGate') {
             /* LONG SHOT. Pay a fixed price for a fixed shot, or fire it dry for
              * scraps. Unlike Killshot it does not want your whole magazine, so
@@ -2560,6 +2580,7 @@
     eff = (dread && dread.steer)
       ? Math.min(20, landed + art('rollBonus'))
       : Math.min(20, roll + statN(p, 'aim') + art('rollBonus'));
+    c.highFace = Math.max(c.highFace || 0, landed);                 // THE REDOUBT reads it at end of turn
     if (art('bankRoll') > 0) c.banked = (c.banked || 0) + roll;     // SPENT BRASS
     if (art('lowMight') > 0 && roll < 6) {                          // TRENCH LEDGER
       addStatus(p, 'str', art('lowMight'));
@@ -2801,6 +2822,14 @@
       emit('relic', { id: 'spent_brass', v: c.banked });
       c.banked = 0;
     }
+    /* THE REDOUBT banks the best face you reached this turn. It is the wall's
+     * die hook and the reason Bulwark wants to land high like Marksmanship
+     * does — the same roll serves both, which is what makes the pair work. */
+    if (statN(c.player, 'redoubt') > 0 && (c.highFace || 0) > 0) {
+      addStatus(c.player, 'bulwark', wallGain(c.highFace));
+      emit('status', { who: 'player', s: 'bulwark', v: statN(c.player, 'bulwark') });
+    }
+    c.highFace = 0;
 
     // end-of-turn: shrapnel curses in hand
     c.hand.forEach(function (card) {

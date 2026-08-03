@@ -359,6 +359,15 @@ var ENGINES = {
                          'breaching_charge', 'marksman_round', 'firing_step', 'loophole'] },
   bloodforge: { cls: 'vanguard', core: ['blood_rage', 'deflect', 'vengeance', 'counterstrike', 'crimson_pact', 'whet_the_blade', 'bloodbath', 'frenzy', 'limit_break', 'heavy_ordnance', 'combat_stims', 'bloodlust'],
                 flex: ['pulse_rifle', 'war_cry', 'rallying_shout', 'bayonet_charge', 'executioner', 'adrenal_surge'] },
+  /* BULWARK: the wall does not expire, its build cards scale with the face you
+   * land on, and it can be fired. Shares the high-roll want with Marksmanship,
+   * which is what the bridges are for. */
+  bulwark: { cls: 'vanguard', core: ['riot_shield', 'shield_bash', 'suppressing_barrage', 'rallying_shout',
+                                     'bulwark', 'bunker_down', 'spiked_bulwark', 'casemate', 'buttress',
+                                     'embrasure', 'shield_slam', 'iron_resolve', 'detonate',
+                                     'barricade_protocol', 'riposte_protocol', 'set_against_it'],
+             flex: ['pulse_rifle', 'combat_shield', 'brace', 'bayonet_charge', 'firing_step', 'loophole',
+                    'sandbag', 'scar_tissue', 'blood_cement'] },
   // kept as a NARROWER marksman pilot: the pure Aim line with no burst support,
   // so the two can be measured against each other
   marksman: { cls: 'vanguard', core: ['take_aim', 'boresight', 'steady_aim', 'sighting_round', 'ranging_shot',

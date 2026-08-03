@@ -26,7 +26,9 @@
     wildfire: 'Wildfire', psiRamp: 'Ascendant', hive: 'Hive', conduit: 'Conduit', plating: 'Plating',
     emberward: 'Ember Ward', staticward: 'Static Ward', spikeward: 'Spiked Bulwark',
     aim: 'Aim', aimPerTurn: 'Steady Aim', burstPlus: 'Full Auto', steerDown: 'Steady Hands',
-    burstWall: 'Loophole', stimHold: 'Fever',
+    burstWall: 'Loophole', stimHold: 'Fever', wallThorns: 'Reactive Plating',
+    wallPerTurn: 'Casemate', wallBoost: 'Barricade', redoubt: 'The Redoubt', scarWall: 'Scar Tissue',
+    bloodCement: 'Blood Cement',
     bulwark: 'Bulwark', stim: 'Stim', critFury: 'Killing Rage', deadeyeDraw: 'Deadeye', misfireGuard: 'Misfire Protocol',
     demoCharge: 'Demolition', subroutine: 'Subroutine', aegisLink: 'Swarm Uplink',
     platedArmor: 'Plated Armor', barricade: 'Barricade', bloodPact: 'Blood Pact',
@@ -164,15 +166,15 @@
       up: { fx: [{ k: 'dmg', v: 6, all: true, scale: 'might' }, { k: 'status', s: 'vuln', v: 2, who: 'allEnemies' }] },
     },
     shield_slam: {
-      name: 'Shield Slam', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
-      fx: [{ k: 'special', id: 'shieldSlam' }],
-      text: 'Deal damage equal to your Shield.',
-      up: { fx: [{ k: 'special', id: 'shieldSlam15' }], text: 'Deal damage equal to 150% of your Shield.' },
+      name: 'Breach the Wall', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
+      fx: [{ k: 'special', id: 'breachWall' }],
+      text: 'Consume all your Bulwark: deal that much damage.',
+      up: { cost: 1, fx: [{ k: 'special', id: 'breachWall' }], text: 'Consume all your Bulwark: deal that much damage.' },
     },
     bulwark: {   // heavy block + tempo (Riot Shield = thorns, Bunker Down = engine)
-      name: 'Bulwark', cls: 'vanguard', type: 'skill', rarity: 2, cost: 2,
-      fx: [{ k: 'block', v: 12, scale: 'pri' }, { k: 'draw', v: 1 }],
-      up: { fx: [{ k: 'block', v: 16, scale: 'pri' }, { k: 'draw', v: 1 }] },
+      name: 'Rampart', cls: 'vanguard', type: 'skill', rarity: 2, cost: 2,
+      fx: [{ k: 'status', s: 'bulwark', v: 14, who: 'self' }, { k: 'draw', v: 1 }],
+      up: { fx: [{ k: 'status', s: 'bulwark', v: 19, who: 'self' }, { k: 'draw', v: 1 }] },
     },
     combat_stims: {   // aggressive Might spike at an HP cost (War Cry = safe Str + draw)
       name: 'Combat Stims', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
@@ -350,9 +352,9 @@
       up: { fx: [{ k: 'dmg', v: 8, all: true, scale: 'might', xcost: true }] },
     },
     iron_resolve: {
-      name: 'Iron Resolve', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
-      fx: [{ k: 'status', s: 'feelNoPain', v: 4, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'feelNoPain', v: 5, who: 'self' }] },
+      name: 'Reactive Plating', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'wallThorns', v: 4, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'wallThorns', v: 6, who: 'self' }] },
     },
     reckless_protocol: {   // BUILD-AROUND — bleed for Might (Blood Rage) AND armour up off your Exhausts (Resolve)
       name: 'Berserker Engine', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
@@ -427,14 +429,14 @@
     },
     bunker_down: {
       name: 'Bunker Down', cls: 'vanguard', type: 'skill', rarity: 2, cost: 2,
-      fx: [{ k: 'block', v: 8, scale: 'pri' }, { k: 'status', s: 'platedArmor', v: 3, who: 'self' }],
-      up: { fx: [{ k: 'block', v: 12, scale: 'pri' }, { k: 'status', s: 'platedArmor', v: 4, who: 'self' }] },
+      fx: [{ k: 'status', s: 'bulwark', v: 10, who: 'self' }, { k: 'status', s: 'wallPerTurn', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'bulwark', v: 15, who: 'self' }, { k: 'status', s: 'wallPerTurn', v: 4, who: 'self' }] },
     },
     // --- new commons: deepen the layer you draft most (each a distinct niche) ---
     shield_bash: {   // the hybrid: only common that hits AND blocks (tempo + survivability)
       name: 'Shield Bash', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
-      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'block', v: 4, scale: 'pri' }, { k: 'onRoll', min: 13, fx: [{ k: 'block', v: 4, scale: 'pri' }] }],
-      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'block', v: 6, scale: 'pri' }, { k: 'onRoll', min: 11, fx: [{ k: 'block', v: 5, scale: 'pri' }] }] },
+      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'status', s: 'bulwark', v: 4, who: 'self' }],
+      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'status', s: 'bulwark', v: 7, who: 'self' }] },
     },
     reckless_charge: {   // 0-cost burst & Exhaust-fuel (feeds Resolve/Salvage/combos)
       name: 'Reckless Charge', cls: 'vanguard', type: 'attack', rarity: 1, cost: 0, exhaust: true,
@@ -442,15 +444,16 @@
       up: { fx: [{ k: 'dmg', v: 10, scale: 'might' }] },
     },
     suppressing_barrage: {   // defensive suppression — hunker down while you pin the whole pack
-      name: 'Covering Fire', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
-      fx: [{ k: 'block', v: 6, scale: 'pri' }, { k: 'status', s: 'weak', v: 1, who: 'allEnemies' }],
-      up: { fx: [{ k: 'block', v: 9, scale: 'pri' }, { k: 'status', s: 'weak', v: 2, who: 'allEnemies' }] },
+      name: 'Revetment', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
+      fx: [{ k: 'special', id: 'wallFace' }],
+      text: 'Gain Bulwark equal to the face you landed on.',
+      up: { fx: [{ k: 'special', id: 'wallFace' }, { k: 'status', s: 'bulwark', v: 4, who: 'self' }], text: 'Gain 4 Bulwark, plus the face you landed on.' },
     },
     rallying_shout: {   // Might as defence — forge your stacked Strength into a wall
-      name: 'Bulwark Stance', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
-      fx: [{ k: 'status', s: 'str', v: 1, who: 'self' }, { k: 'block', v: 3, scale: 'pri' }, { k: 'special', id: 'forgeBarrier', v: 2 }],
-      text: 'Then gain Shield equal to twice your Might.',
-      up: { fx: [{ k: 'status', s: 'str', v: 2, who: 'self' }, { k: 'block', v: 4, scale: 'pri' }, { k: 'special', id: 'forgeBarrier', v: 2 }], text: 'Then gain Shield equal to twice your Might.' },
+      name: 'Spall', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'special', id: 'spall', v: 0.5, cost: 1 }],
+      text: 'Deal damage equal to half your Bulwark, and spend it.',
+      up: { fx: [{ k: 'special', id: 'spall', v: 0.75, cost: 1 }], text: 'Deal damage equal to three quarters of your Bulwark, and spend it.' },
     },
     // --- new rares: each anchors a different Vanguard build ---
     frenzy: {   // the Strength payoff — multi-hit, every hit rides your MIGHT
@@ -464,9 +467,10 @@
       up: { fx: [{ k: 'status', s: 'reactor', v: 1, who: 'self' }, { k: 'hploss', v: 3 }] },
     },
     riposte_protocol: {   // turtle-and-punish engine: block becomes offense
-      name: 'Riposte Protocol', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
-      fx: [{ k: 'status', s: 'retaliate', v: 3, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'retaliate', v: 5, who: 'self' }] },
+      name: 'The Redoubt', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'special', id: 'stat', s: 'redoubt', v: 1 }],
+      text: 'End of turn: gain Bulwark equal to the highest face you reached.',
+      up: { cost: 1, fx: [{ k: 'special', id: 'stat', s: 'redoubt', v: 1 }], text: 'End of turn: gain Bulwark equal to the highest face you reached.' },
     },
     // --- FUSILLADE: the full-auto tempo engine. Cheap shots build Momentum
     //     (+1 dmg per stack to your attacks, resets each turn); spend it on a payoff. ---
@@ -637,14 +641,21 @@
       up: { fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }] },
     },
     barricade_protocol: {
-      name: 'Barricade Protocol', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
-      fx: [{ k: 'status', s: 'barricade', v: 1, who: 'self' }],
-      up: { cost: 1, fx: [{ k: 'status', s: 'barricade', v: 1, who: 'self' }] },
+      name: 'Barricade Protocol', cls: 'vanguard', type: 'power', rarity: 3, cost: 1,
+      fx: [{ k: 'special', id: 'stat', s: 'wallBoost', v: 50 }],
+      text: 'Bulwark you gain is increased by half.',
+      up: { fx: [{ k: 'special', id: 'stat', s: 'wallBoost', v: 80 }], text: 'Bulwark you gain is increased by four fifths.' },
     },
     riot_shield: {
+      /* ======================= BULWARK ==============================
+       * The wall does NOT expire, it absorbs what gets past Shield, and it can
+       * be fired. That is the archetype: your armour and your ammunition are
+       * the same pool, so every detonation is a decision to stand naked for a
+       * turn. Its die hook is the FACE NUMBER — high rolls build a big wall,
+       * which is why it allies with Marksmanship. ======================== */
       name: 'Riot Shield', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
-      fx: [{ k: 'block', v: 6, scale: 'pri' }, { k: 'status', s: 'thorns', v: 3, who: 'self' }],
-      up: { fx: [{ k: 'block', v: 9, scale: 'pri' }, { k: 'status', s: 'thorns', v: 4, who: 'self' }] },
+      fx: [{ k: 'status', s: 'bulwark', v: 5, who: 'self' }, { k: 'status', s: 'thorns', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'bulwark', v: 8, who: 'self' }, { k: 'status', s: 'thorns', v: 4, who: 'self' }] },
     },
     breach: {
       name: 'Breach', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
@@ -874,8 +885,46 @@
     },
     set_against_it: {   // BLOCK/THORNS: turn the turtle into a hazard
       name: 'Set Against It', cls: 'vanguard', type: 'power', rarity: 2, pool: 'mark', cost: 1,
-      fx: [{ k: 'status', s: 'thorns', v: 2, who: 'self' }, { k: 'status', s: 'plate', v: 2, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'thorns', v: 4, who: 'self' }, { k: 'status', s: 'plate', v: 3, who: 'self' }] },
+      fx: [{ k: 'status', s: 'thorns', v: 2, who: 'self' }, { k: 'status', s: 'wallPerTurn', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'thorns', v: 4, who: 'self' }, { k: 'status', s: 'wallPerTurn', v: 3, who: 'self' }] },
+    },
+    casemate: {   // the wall that builds itself
+      name: 'Casemate', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'wallPerTurn', v: 3, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'wallPerTurn', v: 5, who: 'self' }] },
+    },
+    buttress: {   // held in hand until the turn you need the wall
+      name: 'Buttress', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1, retain: true,
+      fx: [{ k: 'status', s: 'bulwark', v: 8, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'bulwark', v: 12, who: 'self' }] },
+    },
+    embrasure: {   // the wall is built out of what you just hit
+      name: 'Embrasure', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
+      fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'special', id: 'wallDealt' }],
+      text: 'Gain Bulwark equal to the damage dealt.',
+      up: { fx: [{ k: 'dmg', v: 12, scale: 'might' }, { k: 'special', id: 'wallDealt' }], text: 'Gain Bulwark equal to the damage dealt.' },
+    },
+    sandbag: {   // BRIDGE - Bulwark x Stim
+      name: 'Sandbag', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'hploss', v: 4 }, { k: 'status', s: 'bulwark', v: 12, who: 'self' }],
+      up: { fx: [{ k: 'hploss', v: 4 }, { k: 'status', s: 'bulwark', v: 18, who: 'self' }] },
+    },
+    scar_tissue: {   // BRIDGE - Bulwark x Stim
+      name: 'Scar Tissue', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'scarWall', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'scarWall', v: 3, who: 'self' }] },
+    },
+    detonate: {   // the whole wall, thrown at the whole room
+      name: 'Detonate', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
+      fx: [{ k: 'special', id: 'detonate' }],
+      text: 'Consume all your Bulwark: deal that much to ALL enemies.',
+      up: { cost: 1, fx: [{ k: 'special', id: 'detonate' }], text: 'Consume all your Bulwark: deal that much to ALL enemies.' },
+    },
+    blood_cement: {   // BRIDGE - Bulwark x Stim
+      name: 'Blood Cement', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'special', id: 'stat', s: 'bloodCement', v: 1 }],
+      text: 'Bulwark you gain grows with how wounded you are.',
+      up: { cost: 1, fx: [{ k: 'special', id: 'stat', s: 'bloodCement', v: 1 }], text: 'Bulwark you gain grows with how wounded you are.' },
     },
 
     assembly_line: {   // CONSTRUCTS: one turret, and everything fires twice
@@ -1286,7 +1335,7 @@
     /* -- Vanguard -- */
     spiked_bulwark: {   // a turtle that bites — attackers gore themselves on your Might
       name: 'Spiked Bulwark', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
-      fx: [{ k: 'block', v: 8, scale: 'pri' }, { k: 'status', s: 'spikeward', v: 3, who: 'self' }],
+      fx: [{ k: 'status', s: 'bulwark', v: 8, who: 'self' }, { k: 'status', s: 'spikeward', v: 3, who: 'self' }],
       text: 'This combat, attackers take your Might + 3 damage.',
       up: { fx: [{ k: 'block', v: 11, scale: 'pri' }, { k: 'status', s: 'spikeward', v: 5, who: 'self' }], text: 'This combat, attackers take your Might + 5 damage.' },
     },
