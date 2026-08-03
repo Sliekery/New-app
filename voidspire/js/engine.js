@@ -827,13 +827,21 @@
     var prog = Math.min(1, Math.max(0, r.mapRow) / Math.max(1, B.map.rows - 1));
     return 1 + prog * (B.scaling.depthBonus || 0);
   }
-  function scaledHp(base, s) { return Math.round(base * B.scaling.hpMul(s) * worldPowerMult() * depthMult() * (E.pressureMods().enemyHp || 1)); }
-  function scaledDmg(base, s) { return Math.round(base * B.scaling.dmgMul(s) * worldPowerMult() * depthMult() * (E.pressureMods().enemyDmg || 1)); }
+  /* The clock is per ENCOUNTER KIND, so a boss can be longer than a hallway
+   * fight rather than just bigger. Summons mid-combat inherit the combat's own
+   * kind, which is what stops a boss's adds being scaled as trash. */
+  function clockKind(kind) {
+    return kind || (E.combat && E.combat.kind) || 'fight';
+  }
+  function clockHp(kind) { return (B.clock && B.clock.hp[clockKind(kind)]) || 1; }
+  function clockDmg(kind) { return (B.clock && B.clock.dmg[clockKind(kind)]) || 1; }
+  function scaledHp(base, s, kind) { return Math.round(base * B.scaling.hpMul(s) * worldPowerMult() * depthMult() * clockHp(kind) * (E.pressureMods().enemyHp || 1)); }
+  function scaledDmg(base, s, kind) { return Math.max(1, Math.round(base * B.scaling.dmgMul(s) * worldPowerMult() * depthMult() * clockDmg(kind) * (E.pressureMods().enemyDmg || 1))); }
 
-  function mkEnemy(id) {
+  function mkEnemy(id, kind) {
     var def = ns.ENEMIES[id];
     var s = E.run.sector;
-    var hp = scaledHp(def.hp, s);
+    var hp = scaledHp(def.hp, s, kind);
     var hs = art('enemyHpScale');   // Famine Engine: enemies start weakened
     if (hs > 0) hp = Math.max(1, Math.round(hp * (1 - hs / 100)));
     var en = {
@@ -881,7 +889,7 @@
     }
     var c = E.combat = {
       kind: kind,
-      enemies: ids.map(mkEnemy),
+      enemies: ids.map(function (id) { return mkEnemy(id, kind); }),
       turn: 0,
       energy: 0,
       hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
@@ -1093,6 +1101,10 @@
   function activeLaws() {
     var c = E.combat, out = [];
     if (!c) return out;
+    // VS_NO_LAWS is a balance probe, not a game option: it silences every boss
+    // and elite signature so their contribution to lethality can be measured
+    // against a control instead of argued about.
+    if (typeof process !== 'undefined' && process.env && process.env.VS_NO_LAWS) return out;
     for (var i = 0; i < c.enemies.length; i++) {
       var en = c.enemies[i];
       if (!en.alive) continue;

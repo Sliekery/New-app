@@ -146,7 +146,11 @@
      * beat an unbounded Shield pool in any sensible number of turns.
      * ------------------------------------------------------------------ */
     enrage: {
-      turn: 20,          // last patient turn; escalation begins on the next one
+      /* Retuned with the clock. The old 20 came from a measurement taken when
+       * the 99th percentile fight was 8 turns and the 99.9th was 14; under the
+       * new clock p99 is 14 and the longest legitimate fights reach 25, so 20
+       * would start escalating fights that are merely long rather than stuck. */
+      turn: 30,          // last patient turn; escalation begins on the next one
       str: 2,            // Might each enemy gains per turn, cumulative
       shieldDecay: 0.34, // fraction of your Shield that fails each turn
       shieldFloor: 5,    // ...and at least this much, so small pools still drain
@@ -160,6 +164,42 @@
     },
 
     /* ---- Enemy scaling per sector (s = sector, 1-based) -------------- */
+    /* ---- THE COMBAT CLOCK ---------------------------------------------
+     * Measured over 2,139 fights, a hallway fight lasted a MEDIAN OF 2 TURNS
+     * and a boss 3.8. The genre runs 4-6 and 9-14. At two turns you draw 10
+     * cards of a 26-card deck, so 62% of what you drafted is never seen — and
+     * a card that needs turns AFTER being drawn (61% of the Vanguard's rares
+     * are Powers) is worth close to nothing. That is measurable: drafting
+     * commons won 56.0% of runs and drafting rares 28.7%. The game's own
+     * signal for "this card is better" was pointing the wrong way, because
+     * the fight was too short for better to mean anything.
+     *
+     * It also starved three systems we had already built. The die's bleed and
+     * listener chains, the nine elite signature laws and the six boss laws are
+     * all things that need turns to express — which is why elite signatures
+     * measured as a win-rate cost with no movement in the death distribution.
+     *
+     * HP goes up and damage-per-turn comes down together, so the TOTAL damage
+     * a fight deals is roughly preserved and the fight simply takes longer:
+     *   fight  2.2 x 0.42     elite  2.0 x 0.42     boss  2.4 x 0.38
+     *
+     * The boss column is steeper on HP: a boss being 1.8x a trash fight is why
+     * it never read as a different kind of event, and it is 2.3x now.
+     *
+     * MEASURED CAVEAT. The clock is difficulty-neutral ON ITS OWN — with the
+     * boss and elite LAWS silenced it lands at 24.0% against a 24.2% baseline.
+     * With them on it lands at 14.7%, because the fifteen signature laws were
+     * tuned when a boss fight was 3.8 turns and they now get seven. They are
+     * worth -9.3 win points at this clock and want retuning one at a time;
+     * they are. Holding elite and boss HP down was tried as a stopgap and did
+     * not earn its keep — the laws fire per TURN, so a 25% shorter boss fight
+     * bought 1.5 win points and gave back the length the boss needed. The
+     * clock keeps its honest values and the laws are the next job. -------- */
+    clock: {
+      hp:  { fight: 2.2, elite: 2.4, boss: 2.9, beacon: 2.4, heart: 2.9 },
+      dmg: { fight: 0.45, elite: 0.45, boss: 0.40, beacon: 0.45, heart: 0.40 },
+    },
+
     scaling: {
       hpMul:  function (s) { return 1 + 0.30 * (s - 1) + 0.034 * (s - 1) * (s - 1); },
       dmgMul: function (s) { return 1 + 0.165 * (s - 1) + 0.017 * (s - 1) * (s - 1); },

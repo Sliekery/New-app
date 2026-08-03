@@ -243,13 +243,23 @@ function botBench() {
   }
 }
 
+/* THE COMBAT CLOCK, reported rather than assumed. A hallway fight used to run
+ * a median of 2 turns against a genre norm of 4-6, which is why 62% of a
+ * drafted deck was never drawn and why rarity was anti-correlated with
+ * winning. It is the number the clock retune is aimed at, so it is measured
+ * every run. `seen` is how much of your deck a fight actually shows you —
+ * drawPerTurn x turns against deck size — which is the figure that decides
+ * whether deckbuilding is a real activity. */
+var TURNS = [], TURNS_BY = { fight: [], elite: [], boss: [], beacon: [] }, SEEN = [];
 function botCombat() {
   var E = VS.engine;
   var guard = 0;
+  var maxTurn = 0;
   botManageDie();
   botPlaceEngravings();
   while (E.run.phase === 'combat' && guard++ < 400) {
     var c = E.combat;
+    if (c) maxTurn = Math.max(maxTurn, c.turn || 0);
     if (c.over || aliveIdx().length === 0) break;
     var playable = [];
     for (var i = 0; i < c.hand.length; i++) if (E.canPlay(i)) playable.push(i);
@@ -320,6 +330,13 @@ function botCombat() {
   // BALANCE.enrage ends any real fight well inside this.
   if (E.combat && E.combat.turn >= 150) throw new Error('combat loop guard tripped (sector ' + E.run.sector + ')');
   if (guard >= 4000) throw new Error('combat loop guard tripped (sector ' + E.run.sector + ')');
+
+  TURNS.push(maxTurn);
+  var _k = (VS.engine.run && VS.engine.run.nodeType) || 'fight';
+  if (TURNS_BY[_k]) TURNS_BY[_k].push(maxTurn);
+  // how much of the deck this fight actually showed you
+  var _d = VS.engine.run && VS.engine.run.deck ? VS.engine.run.deck.length : 0;
+  if (_d > 0) SEEN.push(Math.min(3, (maxTurn * VS.BALANCE.player.drawPerTurn) / _d));
 }
 function card0(c, idx) { return c.hand[idx]; }
 
@@ -979,6 +996,34 @@ classes.forEach(function (c) {
 });
 
 /* ---- class parity (StS-style: archetypes should win at similar rates) ----- */
+/* THE CLOCK. Reported first because everything downstream depends on it. */
+(function () {
+  if (!TURNS.length) return;
+  function stat(a) {
+    a = a.slice().sort(function (x, y) { return x - y; });
+    return { med: a[Math.floor(a.length / 2)], mean: (a.reduce(function (x, y) { return x + y; }, 0) / a.length),
+             p90: a[Math.floor(a.length * 0.9)], p99: a[Math.floor(a.length * 0.99)], max: a[a.length - 1], n: a.length };
+  }
+  var all = stat(TURNS);
+  console.log('\n--- the combat clock (' + all.n + ' fights) ---');
+  console.log('turns per fight: median ' + all.med + '  mean ' + all.mean.toFixed(1) +
+              '  p90 ' + all.p90 + '  p99 ' + all.p99 + '  max ' + all.max + '   [genre: hallway 4-6, boss 9-14]');
+  ['fight', 'elite', 'boss'].forEach(function (k) {
+    if (!TURNS_BY[k].length) return;
+    var t = stat(TURNS_BY[k]);
+    console.log('   ' + (k + '     ').slice(0, 6) + ': median ' + t.med + '  mean ' + t.mean.toFixed(1) + '  (n=' + t.n + ')');
+  });
+  if (TURNS_BY.boss.length && TURNS_BY.fight.length) {
+    console.log('   boss is ' + (stat(TURNS_BY.boss).mean / stat(TURNS_BY.fight).mean).toFixed(1) +
+                'x a hallway fight   [genre: ~2.3x]');
+  }
+  if (SEEN.length) {
+    var sn = stat(SEEN);
+    console.log('deck seen per fight: median ' + Math.round(sn.med * 100) + '%  mean ' + Math.round(sn.mean * 100) +
+                '%   [below ~80% and drafting is a coin flip]');
+  }
+})();
+
 console.log('\n--- class parity (win = beat the Unmaker) ---');
 var wrList = classes.map(function (c) {
   return { c: c, wr: 100 * stats[c].wins / Math.max(1, stats[c].runs) };
