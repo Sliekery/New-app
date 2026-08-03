@@ -601,8 +601,12 @@
     $energy.style.display = on ? 'flex' : 'none';   // energy lives in the bottom dock now
     if ($die) $die.style.display = on ? 'block' : 'none';
     $counts.style.display = 'none';
-    $drawPile.style.display = on ? 'block' : 'none';   // piles ride the dock corners (per-class art)
-    $discardPile.style.display = on ? 'block' : 'none';
+    /* No piles for a throw class. Its hand is its dice, rebuilt every turn —
+     * there is nothing to draw from and nothing to discard to, and two counters
+     * pinned at zero all fight read as a bug rather than as an absence. */
+    var noPiles = !!(E.combat && E.combat.throwClass);
+    $drawPile.style.display = (on && !noPiles) ? 'block' : 'none';   // piles ride the dock corners (per-class art)
+    $discardPile.style.display = (on && !noPiles) ? 'block' : 'none';
     if (!on && $rail) { $rail.style.display = 'none'; closeRail(); }
     $potions.style.display = on ? 'flex' : 'none';
     if (!on) { $hint.style.display = 'none'; onPotionCancel(); hidePotionTip(); }
@@ -1597,19 +1601,22 @@
     var mods = el('div', 'die-mods');
     s.appendChild(mods);
 
-    /* THE SMALL DICE, read-only here. They are cut at the reward screen, where
-     * the choice is made against a live offer; this screen exists to answer
-     * "what do my machines actually do right now", so it lists all twelve faces
-     * flat rather than hiding them behind a second spinning canvas. */
-    if (r.dice6 && r.dice6.length) {
+    /* THE RACK, read-only here. Cuts are made at the reward screen against a
+     * live offer; this screen answers "what do my machines actually do right
+     * now", so it lists every face of every die flat. A second spinning canvas
+     * would look better and tell you less — a d6 has no neighbours, bands or
+     * spans to show, only a distribution. */
+    if (r.dice && r.dice.length) {
       var small = el('div', 'die-small');
-      small.appendChild(el('div', 'screen-sub', 'THE SMALL DICE · THEY CYCLE ONCE EACH TURN'));
-      r.dice6.forEach(function (d6) {
+      small.appendChild(el('div', 'screen-sub', 'THE RACK · FOUR THROWS A TURN · ONE THROW PER DIE'));
+      r.dice.forEach(function (d6) {
+        if (d6.d20) return;                       // that is the die above
+        var kk = ns.diceKind(d6.id) || {};
         var row = el('div', 'd6-row');
-        row.appendChild(el('div', 'd6-name', d6.kind === 'battery' ? 'BATTERY' : 'PLATE'));
+        row.appendChild(el('div', 'd6-name', (kk.name || 'DIE') + ' · ' + (d6.cost || 1) + ' THROW'));
         var g = el('div', 'd6-grid');
-        for (var f = 1; f <= ns.D6.faces; f++) {
-          var cut = ns.d6FaceAt(d6, f);
+        for (var f = 1; f <= (d6.sides || 6); f++) {
+          var cut = ns.D6_AUGMENTS[d6.faces[f]] || null;
           g.appendChild(el('div', 'd6-cell t' + (cut ? cut.tier : 0),
             '<div class="d6-pip">' + f + '</div>'
             + '<div class="d6-was">' + (cut ? esc(cut.name) : '—') + '</div>'
@@ -2960,7 +2967,28 @@
       var ty = Math.abs(off) * Math.abs(off) * 1.5;
       d.style.setProperty('--fan', 'rotate(' + rot.toFixed(2) + 'deg) translateY(' + ty.toFixed(1) + 'px)');
       d.dataset.cid = card.id; if (card.up) d.dataset.up = '1'; if (info.vtouch) d.dataset.vt = '1';
-      d.innerHTML = cardInner(info.name, info.xcost ? 'X' : info.cost, info.type, info.rarity, info.desc, info.unplayable, card.id);
+      /* A DIE IN HAND IS NOT A CARD. It has no printed number to read — what
+       * you are choosing between is six faces and how often each comes up, so
+       * that is what the face of it says. The Long Gun is the exception: it is
+       * twenty faces deep with bands on top, which no tile can hold, so it
+       * shows what it is and sends you to the die screen for the rest. */
+      if (card.dieIdx != null) {
+        var die = (E.run.dice || [])[card.dieIdx] || {};
+        var kk = ns.diceKind(die.id) || {};
+        d.classList.add('die-card');
+        if (die.d20) d.classList.add('die-big');
+        var rows = die.d20
+          ? '<div class="dk-row"><b>d20</b><span>' + esc(kk.blurb || '') + '</span></div>'
+          : ns.throwSpread(die).map(function (sp) {
+              return '<div class="dk-row' + (sp.id === 'x_jam' ? ' dk-jam' : '') + '">'
+                   + '<b>' + sp.n + '/' + die.sides + '</b><span>' + esc(sp.desc || sp.name) + '</span></div>';
+            }).join('');
+        d.innerHTML = '<div class="dk-cost">' + (die.cost || 1) + '</div>'
+                    + '<div class="dk-name">' + esc(kk.name || 'DIE') + '</div>'
+                    + '<div class="dk-faces">' + rows + '</div>';
+      } else {
+        d.innerHTML = cardInner(info.name, info.xcost ? 'X' : info.cost, info.type, info.rarity, info.desc, info.unplayable, card.id);
+      }
       d.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
         startCardDrag(d, i, ev);
@@ -4419,20 +4447,46 @@
       return;
     }
 
-    /* THE SMALL DICE. Two steps, deliberately: pick the cut, then pick which of
-     * the six faces it replaces. Every face is already cut, so the second step
-     * is the actual decision and it needs to show you what you are giving up —
-     * a one-tap "take it" would hide the whole cost of the reward. */
+    /* A WHOLE NEW DIE. Offered at the fights that earn one, and shown as its
+     * distribution because that is what you are judging — a die is only worth
+     * taking if it beats the one it will push out of your four throws. */
+    if (rw.diceChoices && rw.diceChoices.length && !rw.dicePicked) {
+      s.appendChild(el('div', 'screen-sub', 'A NEW DIE FOR THE RACK'));
+      var dbar = makeConfirmBar();
+      rw.diceChoices.forEach(function (did) {
+        var proto = ns.newThrowDie(did), kk = ns.diceKind(did);
+        if (!proto || !kk) return;
+        var spread = ns.throwSpread(proto).map(function (sp) {
+          return '<div class="d6-line' + (sp.id === 'x_jam' ? ' dim' : '') + '"><b>' + sp.n + '/' + proto.sides + '</b> ' + esc(sp.desc || sp.name) + '</div>';
+        }).join('');
+        var db = el('div', 'panel-btn',
+          '<div class="pb-title">' + esc(kk.name) + '<span class="pb-tag">' + (proto.cost || 1) + ' THROW</span></div>'
+          + '<div class="pb-desc">' + spread + '</div>');
+        s.appendChild(db);
+        selectConfirm(s, db, dbar, 'Add <b>' + esc(kk.name) + '</b> to the rack?<span class="cb-note">You still only get four throws a turn — it has to beat something you already own.</span>',
+          function () { SFX.coin(); E.diceTake(did); rw.dicePicked = true; showReward(); }, 'amber');
+      });
+      s.appendChild(dbar.el);
+      var skipD = el('button', 'btn dim small', 'LEAVE THE DIE');
+      skipD.addEventListener('pointerdown', function () { SFX.tap(); rw.dicePicked = true; showReward(); });
+      s.appendChild(skipD);
+      return;
+    }
+
+    /* A CUT. Three steps now, not two: which cut, which die it goes on, which
+     * face it replaces. With a rack rather than a pair, "the battery" stopped
+     * being a unique address — and the die you put it on matters more than the
+     * face does, since a cut on a die you never throw is a wasted reward. */
     if (rw.d6Choices && rw.d6Choices.length && !rw.d6Picked) {
-      var chosen6 = null;
+      var chosen6 = null, chosenDie = null;
       var render6 = function () {
         var body = el('div', '');
         if (chosen6 == null) {
-          body.appendChild(el('div', 'screen-sub', 'CHOOSE A CUT FOR YOUR SMALL DICE'));
+          body.appendChild(el('div', 'screen-sub', 'CHOOSE A CUT'));
           rw.d6Choices.forEach(function (id6) {
             var g6 = ns.d6Engraving(id6); if (!g6) return;
             var b6 = el('div', 'panel-btn',
-              '<div class="pb-title">' + esc(g6.name) + '<span class="pb-tag">' + (g6.die === 'battery' ? 'BATTERY' : 'PLATE') + ' · T' + g6.tier + '</span></div>'
+              '<div class="pb-title">' + esc(g6.name) + '<span class="pb-tag">T' + g6.tier + '</span></div>'
               + '<div class="pb-desc">' + esc(g6.desc) + '</div>');
             b6.addEventListener('pointerdown', function () { SFX.tap(); chosen6 = id6; swap6(); });
             body.appendChild(b6);
@@ -4440,16 +4494,34 @@
           var skip6 = el('button', 'btn dim small', 'LEAVE THE CUT');
           skip6.addEventListener('pointerdown', function () { SFX.tap(); rw.d6Picked = true; showReward(); });
           body.appendChild(skip6);
+        } else if (chosenDie == null) {
+          var g6b = ns.d6Engraving(chosen6);
+          body.appendChild(el('div', 'screen-sub', 'WHICH DIE TAKES ' + esc(g6b.name.toUpperCase()) + '?'));
+          var fits = E.d6Fits(chosen6);
+          if (!fits.length) { body.appendChild(el('div', 'gain-list', '<div>It fits none of your dice.</div>')); }
+          fits.forEach(function (di) {
+            var die = E.run.dice[di], kk = ns.diceKind(die.id) || {};
+            var spread = ns.throwSpread(die).map(function (sp) {
+              return '<div class="d6-line' + (sp.id === 'x_jam' ? ' dim' : '') + '"><b>' + sp.n + '/' + die.sides + '</b> ' + esc(sp.desc || sp.name) + '</div>';
+            }).join('');
+            var pb2 = el('div', 'panel-btn', '<div class="pb-title">' + esc(kk.name || 'DIE') + '</div><div class="pb-desc">' + spread + '</div>');
+            pb2.addEventListener('pointerdown', function () { SFX.tap(); chosenDie = di; swap6(); });
+            body.appendChild(pb2);
+          });
+          var backD = el('button', 'btn dim small', '◀ PICK A DIFFERENT CUT');
+          backD.addEventListener('pointerdown', function () { SFX.tap(); chosen6 = null; swap6(); });
+          body.appendChild(backD);
         } else {
           var g6 = ns.d6Engraving(chosen6);
-          var die6 = (E.run.dice6 || []).filter(function (d) { return d.kind === g6.die; })[0];
-          body.appendChild(el('div', 'screen-sub', 'WHICH FACE DOES ' + esc(g6.name.toUpperCase()) + ' REPLACE?'));
+          var die6 = E.run.dice[chosenDie];
+          var kk6 = ns.diceKind(die6.id) || {};
+          body.appendChild(el('div', 'screen-sub', esc(kk6.name || 'DIE') + ' · WHICH FACE DOES ' + esc(g6.name.toUpperCase()) + ' REPLACE?'));
           var bar6 = makeConfirmBar();
           var grid6 = el('div', 'd6-grid');
-          for (var f6 = 1; f6 <= ns.D6.faces; f6++) {
+          for (var f6 = 1; f6 <= (die6.sides || 6); f6++) {
             (function (face) {
-              var had = ns.d6FaceAt(die6, face);
-              var cell = el('div', 'd6-cell',
+              var had = ns.D6_AUGMENTS[die6.faces[face]] || null;
+              var cell = el('div', 'd6-cell' + (had ? ' t' + had.tier : ''),
                 '<div class="d6-pip">' + face + '</div>'
                 + '<div class="d6-was">' + (had ? esc(had.name) : '—') + '</div>'
                 + '<div class="d6-fx">' + (had ? esc(had.desc) : 'bare') + '</div>');
@@ -4457,13 +4529,13 @@
               selectConfirm(grid6, cell, bar6,
                 'Cut <b>' + esc(g6.name) + '</b> over face ' + face + '?<span class="cb-note">' +
                 (had ? 'You lose ' + esc(had.name) + ' — ' + esc(had.desc) : 'That face is bare') + '</span>',
-                function () { SFX.coin(); E.d6Take(chosen6, face); rw.d6Picked = true; showReward(); }, 'amber');
+                function () { SFX.coin(); E.d6Take(chosen6, chosenDie, face); rw.d6Picked = true; showReward(); }, 'amber');
             })(f6);
           }
           body.appendChild(grid6);
           body.appendChild(bar6.el);
-          var backC = el('button', 'btn dim small', '◀ PICK A DIFFERENT CUT');
-          backC.addEventListener('pointerdown', function () { SFX.tap(); chosen6 = null; swap6(); });
+          var backC = el('button', 'btn dim small', '◀ PICK A DIFFERENT DIE');
+          backC.addEventListener('pointerdown', function () { SFX.tap(); chosenDie = null; swap6(); });
           body.appendChild(backC);
         }
         return body;

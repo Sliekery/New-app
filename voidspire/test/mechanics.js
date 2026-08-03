@@ -1193,10 +1193,15 @@ ok('no card summons a pet', !Object.keys(VS.CARDS).some(function (k) {
 ok('every remaining class has a die table', Object.keys(VS.BALANCE.classes).every(function (c) {
   return !!VS.BALANCE.dice.classes[c];
 }));
-ok('every remaining class has a starter deck whose cards all exist',
+/* A class either starts with cards or starts with dice. The Arsenal is the
+ * second kind — its deck is deliberately empty and its hand is rebuilt from
+ * run.dice every turn — so "has a starter deck" is now "has something to open
+ * the fight with", which is the property that actually matters. */
+ok('every class opens with either a starter deck or a rack of dice',
   Object.keys(VS.BALANCE.classes).every(function (c) {
     var d = VS.STARTER_DECKS[c];
-    return d && d.length && d.every(function (id) { return !!VS.CARDS[id]; });
+    if (d && d.length) return d.every(function (id) { return !!VS.CARDS[id]; });
+    return c === 'arsenal' && VS.newThrowDice().length > 0;
   }));
 
 (function () {
@@ -2594,55 +2599,75 @@ ok('every remaining class has a starter deck whose cards all exist',
   E.run.phase = 'map';
 })();
 
-/* ---- THE ARSENAL'S SMALL DICE ------------------------------------------
- * The dice-builder trial. Three claims worth pinning down, because all three
- * were wrong at some point during the build: the dice start fully cut (blank
- * faces made the class read as broken), they cycle ONCE A TURN rather than
- * once per card play (per-play they out-produced the whole deck and the class
- * measured 72.5% against the Vanguard's 28%), and a reward cut REPLACES the
- * face you point at rather than filling a hole. */
+/* ---- THE ARSENAL: DICE IN HAND, NOT CARDS ------------------------------
+ * The second trial. No deck at all — the hand is the rack, a turn is four
+ * throws, and a die you have thrown is gone until next turn. Every one of
+ * these was wrong at some point while it was being built. */
 (function () {
   startFight('arsenal');
-  var r = E.run;
-  ok('the Arsenal carries a battery and a plate',
-     (r.dice6 || []).length === 2 && r.dice6[0].kind === 'battery' && r.dice6[1].kind === 'plate');
+  var r = E.run, c = E.combat;
+  ok('the Arsenal starts with a rack, not a deck',
+     (r.dice || []).length === 6 && r.deck.length === 0);
+  ok('the first die is the Long Gun and it costs two throws',
+     r.dice[0].d20 === true && r.dice[0].cost === 2);
+  ok('the hand IS the rack', c.hand.length === r.dice.length);
+  ok('four throws a turn', c.energy === 4);
 
-  var allCut = true;
-  r.dice6.forEach(function (d) {
-    for (var f = 1; f <= VS.D6.faces; f++) if (!VS.d6FaceAt(d, f)) allCut = false;
-  });
-  ok('every face starts cut — no bare faces', allCut);
-
-  // Cycle once a turn: the first play emits two d6 events, later plays none.
+  // A thrown die leaves the hand — that is the one-throw-per-die rule, made
+  // physical rather than tracked in a side table.
   bigEnemies();
-  setHand(['pulse_rifle', 'pulse_rifle', 'pulse_rifle']);
-  E.combat.energy = 9;
+  var before = c.hand.length;
+  var bi = c.hand.findIndex(function (h) { return h.id === '_smalldie'; });
+  var bidx = c.hand[bi].dieIdx;
   E.events.length = 0;
-  playId('pulse_rifle');
-  var first = E.events.filter(function (e) { return e.type === 'd6'; }).length;
-  E.events.length = 0;
-  playId('pulse_rifle');
-  var second = E.events.filter(function (e) { return e.type === 'd6'; }).length;
-  ok('both small dice cycle on the first card of the turn (' + first + ')', first === 2);
-  ok('they do NOT cycle again later in the same turn (' + second + ')', second === 0);
+  E.playCard(bi, 0);
+  ok('throwing a die spends it from hand', c.hand.length === before - 1);
+  ok('the same die cannot be thrown twice in a turn',
+     !c.hand.some(function (h) { return h.dieIdx === bidx; }));
+  ok('a throw emits the face it landed on',
+     E.events.filter(function (e) { return e.type === 'throw'; }).length === 1);
 
   E.endTurn();
-  while (E.run.phase === 'combat' && E.combat.turn < 2) E.endTurn();
-  E.combat.energy = 9;
-  setHand(['pulse_rifle']);
-  E.events.length = 0;
-  playId('pulse_rifle');
-  ok('they cycle again next turn',
-     E.events.filter(function (e) { return e.type === 'd6'; }).length === 2);
+  while (E.run.phase === 'combat' && c.turn < 2) E.endTurn();
+  ok('every die comes back next turn', c.hand.length === r.dice.length);
+  ok('and there are no piles to draw from',
+     c.drawPile.length === 0 && c.discard.length === 0);
 
-  // A cut replaces the face you point at, and only on its own die.
-  E.d6Take('b_heavy', 3);
-  ok('a battery cut lands on the battery', r.dice6[0].faces[3] === 'b_heavy');
-  ok('it displaced what was there', r.dice6[0].faces[2] === 'b_shot');
-  ok('a plate cut cannot be forced onto the battery',
-     VS.d6Engrave(r.dice6[0], 1, 'p_bastion') !== null);
-  ok('every offered cut is a real engraving',
-     E.d6Offer(3).every(function (id) { return !!VS.d6Engraving(id); }));
+  // The Long Gun resolves as a real card play, which is the whole reason it
+  // keeps bands, aim, steering, engravings and misfires for free.
+  c.energy = 9;
+  E.events.length = 0;
+  var li = c.hand.findIndex(function (h) { return h.id === '_longgun'; });
+  E.playCard(li, 0);
+  ok('the Long Gun rolls the d20',
+     E.events.filter(function (e) { return e.type === 'roll'; }).length === 1);
+
+  // Cuts address a die by name now — a rack has no unique "the battery".
+  var pi = r.dice.findIndex(function (d) { return d.id === 'plate'; });
+  var bi2 = r.dice.findIndex(function (d) { return d.id === 'battery'; });
+  ok('a battery cut will not fit the plate die',
+     E.d6Take('b_heavy', pi, 1) !== null);
+  ok('it fits the battery', E.d6Take('b_heavy', bi2, 1) === null && r.dice[bi2].faces[1] === 'b_heavy');
+  ok('d6Fits only names dice that take the cut',
+     E.d6Fits('p_bastion').every(function (i) { return r.dice[i].kind === 'plate'; }));
+  ok('the Long Gun takes no small cuts', E.d6Fits('b_shot').indexOf(0) < 0);
+
+  // A whole new die is the other reward currency.
+  var owned = r.dice.length;
+  var offer = E.diceOffer(2);
+  ok('a die offer names dice you do not own',
+     offer.length === 2 && offer.every(function (id) {
+       return !r.dice.some(function (d) { return d.id === id; });
+     }));
+  E.diceTake(offer[0]);
+  ok('taking one widens the rack', r.dice.length === owned + 1);
+  ok('you cannot carry the same die twice', E.diceTake(offer[0]) !== null);
+
+  // The spread is what the player is actually choosing between.
+  var sp = VS.throwSpread(r.dice[bi2]);
+  var total = sp.reduce(function (a, x) { return a + x.n; }, 0);
+  ok('a spread accounts for every face (' + total + '/6)', total === 6);
+  ok('Jam is never offered as a cut', E.d6Offer(12).indexOf('x_jam') < 0);
   E.run.phase = 'map';
 })();
 

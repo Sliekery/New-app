@@ -2394,6 +2394,29 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   font-weight: 700; margin-left: 4px;
 }
 
+/* ---- A DIE IN HAND -------------------------------------------------------
+ * Same footprint as a card so the fan, the drag, the dock measurement and the
+ * hand fitter all keep working — only the face of it differs. What it shows is
+ * the distribution, because that is the thing being chosen. */
+.card.die-card { background: linear-gradient(180deg, rgba(65,216,255,.07), rgba(4,8,10,.9)); }
+.card.die-card.die-big { background: linear-gradient(180deg, rgba(255,176,46,.10), rgba(4,8,10,.92)); }
+.card.die-card .dk-cost {
+  position: absolute; top: 4px; left: 5px; font-size: 12px; font-weight: 700;
+  color: var(--amber); text-shadow: var(--glow-a);
+}
+.card.die-card .dk-name {
+  font-size: 8.5px; letter-spacing: .09em; text-align: center;
+  margin: 4px 2px 3px; color: var(--cyan); text-shadow: var(--glow-c);
+}
+.card.die-card .dk-faces { padding: 0 4px; display: flex; flex-direction: column; gap: 1px; }
+.card.die-card .dk-row { display: flex; gap: 3px; align-items: baseline; font-size: 7px; line-height: 1.15; }
+.card.die-card .dk-row b { color: var(--amber); flex: 0 0 auto; font-size: 7px; }
+.card.die-card .dk-row span { color: var(--text); opacity: .85; }
+.card.die-card .dk-row.dk-jam span { color: var(--text-dim); font-style: italic; }
+.d6-line { font-size: 10px; line-height: 1.35; }
+.d6-line b { color: var(--amber); }
+.d6-line.dim { color: var(--text-dim); font-style: italic; }
+
 </style>
 </head>
 <body>
@@ -2968,6 +2991,29 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   ns.CARDS = {
 
     /* ---------------- Starters ---------------- */
+    /* ---- THE THROW: two hidden cards that are never in any deck ----------
+     * The Arsenal has no cards. But throwing THE LONG GUN wants every single
+     * thing a card play already does — bands, aim, steering, engravings,
+     * seams, welds, taints, misfires, crit relics — and reimplementing that
+     * beside the real one is how two subtly different d20s get born. So a
+     * Long Gun throw IS a card play, of this card, which nobody can ever
+     * draw. The small dice do not want any of that machinery, so they get a
+     * `noDie` marker and skip it entirely. */
+    _longgun: {
+      name: 'THE LONG GUN', cls: 'arsenal', type: 'attack', rarity: 0, cost: 2, pool: 'die',
+      /* Two throws has to buy more than two small dice would, or the big gun is
+       * a trap you stop throwing by sector 2 — which is exactly what happened
+       * at 9. It is also the one die you can really build: every engraving,
+       * band, seam and weld in the game lands here, so its ceiling is the
+       * class's ceiling. */
+      fx: [{ k: 'dmg', v: 18, scale: 'might' }],
+      desc: 'Throw the d20. Its band is the shot.',
+    },
+    _smalldie: {
+      name: 'SMALL DIE', cls: 'arsenal', type: 'skill', rarity: 0, cost: 1, pool: 'die',
+      noDie: true, fx: [],
+      desc: 'Throw it and take the face.',
+    },
     pulse_rifle: {
       name: 'Pulse Rifle', cls: 'any', type: 'attack', rarity: 0, cost: 1,
       fx: [{ k: 'dmg', v: 6, scale: 'might' }],
@@ -4307,7 +4353,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     vanguard: { name: 'VANGUARD', tag: 'Shock trooper of the 9th Voidborne', desc: 'High HP. Brutal weapons that scale with MIGHT. Hits first, asks never.' },
     technomancer: { name: 'TECHNOMANCER', tag: 'Machine-priest of the Forge Choir', desc: 'Shields, turrets and reactors that scale with TECH. Out-build the enemy.' },
     voidadept: { name: 'VOID ADEPT', tag: 'Sanctioned psyker, mostly stable', desc: 'Burns, hexes and psionic blasts that scale with PSI. The void answers.' },
-    arsenal: { name: 'THE ARSENAL', tag: 'Vanguard armourer — a DICE BUILDER trial', desc: 'Three dice, not a deck. A d20 for range, a d6 that shoots and a d6 that shields. The small dice cycle once each turn, and rewards are engravings rather than cards.' },
+    arsenal: { name: 'THE ARSENAL', tag: 'Vanguard armourer — a DICE BUILDER trial', desc: 'No cards at all. Your hand is the dice you own — a d20 big gun and a rack of d6s — and a turn is choosing which three throws to spend. Rewards are dice and the cuts that reshape them.' },
   };
 
   /* ---- Starter decks ------------------------------------------------- */
@@ -4318,8 +4364,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
                    'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'overshield'],
     /* A FIXED HAND, not a deck to build. The cards exist to spend Energy and
      * pull the trigger; the build lives entirely on the three dice. */
-    arsenal:      ['pulse_rifle', 'pulse_rifle', 'pulse_rifle', 'pulse_rifle', 'pulse_rifle',
-                   'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield'],
+    // THE ARSENAL HAS NO DECK. Its hand is the dice it owns, rebuilt every
+    // turn from run.dice — see newThrowDice() and the throw loop in engine.js.
+    arsenal:      [],
     voidadept:    ['pulse_rifle', 'pulse_rifle',
                    'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield',
                    'mind_spike', 'mind_spike', 'mind_spike', 'mind_spike'],
@@ -8727,19 +8774,19 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
    * in engine.js for why: per-play the small dice out-produced the whole deck. */
   ns.D6_AUGMENTS = {
     // --- BATTERY (offensive) ---
-    b_shot:    { name: 'Shot',        die: 'battery', tier: 1, fx: [{ k: 'dmg', v: 5 }], desc: 'Deal 5 damage.' },
-    b_burst:   { name: 'Twin Shot',   die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 9 }], desc: 'Deal 9 damage.' },
-    b_heavy:   { name: 'Heavy Slug',  die: 'battery', tier: 3, fx: [{ k: 'dmg', v: 15 }], desc: 'Deal 15 damage.' },
-    b_spray:   { name: 'Spray',       die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 6, all: true }], desc: 'Deal 6 damage to ALL enemies.' },
-    b_pierce:  { name: 'Piercing',    die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 6 }, { k: 'status', s: 'vuln', v: 1, who: 'target' }], desc: 'Deal 6 damage and apply 1 Vulnerable.' },
-    b_stim:    { name: 'Hot Load',    die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 5 }, { k: 'status', s: 'stim', v: 1, who: 'self' }], desc: 'Deal 5 damage and gain 1 Stim.' },
+    b_shot:    { name: 'Shot',        die: 'battery', tier: 1, fx: [{ k: 'dmg', v: 6, scale: 'might' }], desc: 'Deal 6 damage.' },
+    b_burst:   { name: 'Twin Shot',   die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 13, scale: 'might' }], desc: 'Deal 13 damage.' },
+    b_heavy:   { name: 'Heavy Slug',  die: 'battery', tier: 3, fx: [{ k: 'dmg', v: 22, scale: 'might' }], desc: 'Deal 22 damage.' },
+    b_spray:   { name: 'Spray',       die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 10, all: true, scale: 'might' }], desc: 'Deal 10 damage to ALL enemies.' },
+    b_pierce:  { name: 'Piercing',    die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 11, scale: 'might' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }], desc: 'Deal 11 damage and apply 2 Vulnerable.' },
+    b_stim:    { name: 'Hot Load',    die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 10, scale: 'might' }, { k: 'status', s: 'stim', v: 2, who: 'self' }], desc: 'Deal 10 damage and gain 2 Stim.' },
     // --- PLATE (defensive) ---
-    p_plate:   { name: 'Plate',       die: 'plate', tier: 1, fx: [{ k: 'status', s: 'bulwark', v: 4, who: 'self' }], desc: 'Gain 4 Bulwark.' },
-    p_slab:    { name: 'Slab',        die: 'plate', tier: 2, fx: [{ k: 'status', s: 'bulwark', v: 7, who: 'self' }], desc: 'Gain 7 Bulwark.' },
-    p_bastion: { name: 'Bastion Ply', die: 'plate', tier: 3, fx: [{ k: 'status', s: 'bulwark', v: 12, who: 'self' }], desc: 'Gain 12 Bulwark.' },
-    p_spike:   { name: 'Spiked Ply',  die: 'plate', tier: 2, fx: [{ k: 'status', s: 'bulwark', v: 5, who: 'self' }, { k: 'status', s: 'thorns', v: 2, who: 'self' }], desc: 'Gain 5 Bulwark and 2 Thorns.' },
-    p_weave:   { name: 'Weave',       die: 'plate', tier: 2, fx: [{ k: 'block', v: 7 }], desc: 'Gain 7 Block.' },
-    p_vent:    { name: 'Vent',        die: 'plate', tier: 2, fx: [{ k: 'status', s: 'bulwark', v: 4, who: 'self' }, { k: 'draw', v: 1 }], desc: 'Gain 4 Bulwark and draw a card.' },
+    p_plate:   { name: 'Plate',       die: 'plate', tier: 1, fx: [{ k: 'status', s: 'bulwark', v: 10, who: 'self' }], desc: 'Gain 10 Bulwark.' },
+    p_slab:    { name: 'Slab',        die: 'plate', tier: 2, fx: [{ k: 'status', s: 'bulwark', v: 18, who: 'self' }], desc: 'Gain 18 Bulwark.' },
+    p_bastion: { name: 'Bastion Ply', die: 'plate', tier: 3, fx: [{ k: 'status', s: 'bulwark', v: 32, who: 'self' }], desc: 'Gain 32 Bulwark.' },
+    p_spike:   { name: 'Spiked Ply',  die: 'plate', tier: 2, fx: [{ k: 'status', s: 'bulwark', v: 15, who: 'self' }, { k: 'status', s: 'thorns', v: 5, who: 'self' }], desc: 'Gain 15 Bulwark and 5 Thorns.' },
+    p_weave:   { name: 'Weave',       die: 'plate', tier: 2, fx: [{ k: 'block', v: 19, scale: 'might' }], desc: 'Gain 19 Block.' },
+    p_vent:    { name: 'Vent',        die: 'plate', tier: 2, fx: [{ k: 'status', s: 'bulwark', v: 10, who: 'self' }, { k: 'energy', v: 1 }], desc: 'Gain 10 Bulwark and a throw back.' },
   };
   ns.d6Engraving = function (id) { return ns.D6_AUGMENTS[id] || null; };
 
@@ -8810,6 +8857,109 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (!d || d.die !== die.kind) return 'that cut does not fit this die';
     die.faces[face] = id;
     return null;
+  };
+
+  /* ==================================================================
+   * THE THROW — dice in your hand instead of cards
+   * ==================================================================
+   * The second trial, and the one that has teeth. In the first the dice
+   * fired BECAUSE you played a card; here there are no cards at all. Your
+   * hand is the dice you own and a turn is choosing which of them to throw.
+   *
+   * The reason this is a better game than the first trial: throwing a die is
+   * choosing a DISTRIBUTION, not an outcome. Weighing "three Heavy Slugs and
+   * three Jams" against "six Shots" is a real decision, and it is a decision
+   * you re-make every turn — where a cut in the first trial was made once and
+   * then rolled FOR you forever after.
+   *
+   * ONE THROW PER DIE PER TURN, expressed physically: a thrown die leaves
+   * your hand and every die comes back at the start of the next turn. With
+   * four dice and three throws you are choosing which one to leave out, so
+   * your second- and third-best dice matter as much as your best — and that
+   * is what stops "own more dice" from being free. A pool of one great die
+   * and three bad ones is worse than four solid ones.
+   * ------------------------------------------------------------------ */
+
+  // Faces that are not upside. A high ceiling has to cost something, or every
+  // die is strictly better than the last and there is nothing to weigh.
+  ns.D6_AUGMENTS.x_jam    = { name: 'Jam',    die: 'any', tier: 0, fx: [], desc: 'Nothing. The die caught.' };
+  ns.D6_AUGMENTS.x_recoil = { name: 'Recoil', die: 'battery', tier: 3,
+                              fx: [{ k: 'dmg', v: 28, scale: 'might' }, { k: 'hploss', v: 4 }],
+                              desc: 'Deal 28 damage. Lose 4 HP.' };
+  ns.D6_AUGMENTS.x_brace  = { name: 'Brace',  die: 'plate', tier: 3,
+                              fx: [{ k: 'status', s: 'bulwark', v: 36, who: 'self' }, { k: 'hploss', v: 3 }],
+                              desc: 'Gain 36 Bulwark. Lose 3 HP.' };
+
+  /* The dice themselves. `d20: true` means this entry IS the run's big die —
+   * the Long Gun keeps every band, seam, weld, taint and engraving the game
+   * already has, because throwing it resolves as a real card play. The small
+   * dice are flat: six faces, one of which happens. */
+  ns.DICE_KINDS = {
+    longgun: { name: 'THE LONG GUN', sides: 20, cost: 2, d20: true, start: true,
+               blurb: 'The whole table. Bands, aim, everything you cut into it.' },
+    battery: { name: 'BATTERY', sides: 6, cost: 1, kind: 'battery', start: true,
+               faces: ['b_shot', 'b_shot', 'b_shot', 'b_shot', 'b_shot', 'b_shot'] },
+    plate:   { name: 'PLATE', sides: 6, cost: 1, kind: 'plate', start: true,
+               faces: ['p_plate', 'p_plate', 'p_plate', 'p_plate', 'p_plate', 'p_plate'] },
+    sidearm: { name: 'SIDEARM', sides: 6, cost: 1, kind: 'battery', start: true,
+               faces: ['b_shot', 'b_shot', 'b_shot', 'p_plate', 'p_plate', 'p_plate'] },
+    /* SIX DICE, FOUR THROWS. With four dice and four throws — the Long Gun
+     * eating two — you simply threw everything you could afford every turn and
+     * the choice the whole format exists for did not appear until the rack grew.
+     * Two more starters, deliberately the weakest things you own, means from
+     * turn one you are leaving two dice on the table and deciding which. They
+     * are also the obvious first things to cut, which is the reward loop
+     * pointing at itself. */
+    carbine: { name: 'CARBINE', sides: 6, cost: 1, kind: 'battery', start: true,
+               faces: ['b_shot', 'b_shot', 'b_shot', 'b_shot', 'x_jam', 'x_jam'] },
+    buckler: { name: 'BUCKLER', sides: 6, cost: 1, kind: 'plate', start: true,
+               faces: ['p_plate', 'p_plate', 'p_plate', 'p_plate', 'x_jam', 'x_jam'] },
+    // --- acquirable. Every one of these is a ceiling with a bill attached ---
+    slug:    { name: 'SLUG THROWER', sides: 6, cost: 1, kind: 'battery',
+               faces: ['b_heavy', 'b_heavy', 'b_heavy', 'b_heavy', 'x_jam', 'x_jam'] },
+    bastion: { name: 'BASTION', sides: 6, cost: 1, kind: 'plate',
+               faces: ['p_bastion', 'p_bastion', 'p_bastion', 'p_bastion', 'x_jam', 'x_jam'] },
+    scatter: { name: 'SCATTERGUN', sides: 6, cost: 1, kind: 'battery',
+               faces: ['b_spray', 'b_spray', 'b_spray', 'b_spray', 'b_spray', 'x_jam'] },
+    hotbar:  { name: 'HOT BARREL', sides: 6, cost: 1, kind: 'battery',
+               faces: ['x_recoil', 'x_recoil', 'x_recoil', 'x_recoil', 'x_jam', 'x_jam'] },
+    revet:   { name: 'REVETMENT', sides: 6, cost: 1, kind: 'plate',
+               faces: ['x_brace', 'x_brace', 'x_brace', 'p_slab', 'p_slab', 'x_jam'] },
+    workshop:{ name: 'WORKSHOP', sides: 6, cost: 1, kind: 'plate',
+               faces: ['p_vent', 'p_vent', 'p_weave', 'p_weave', 'p_spike', 'p_spike'] },
+    twin:    { name: 'TWIN BARREL', sides: 6, cost: 1, kind: 'battery',
+               faces: ['b_burst', 'b_burst', 'b_burst', 'b_pierce', 'b_pierce', 'x_jam'] },
+    stimgun: { name: 'STIM GUN', sides: 6, cost: 1, kind: 'battery',
+               faces: ['b_stim', 'b_stim', 'b_stim', 'b_stim', 'b_stim', 'x_jam'] },
+  };
+  ns.diceKind = function (id) { return ns.DICE_KINDS[id] || null; };
+  ns.newThrowDie = function (id) {
+    var k = ns.DICE_KINDS[id]; if (!k) return null;
+    var d = { id: id, kind: k.kind || null, sides: k.sides, cost: k.cost, d20: !!k.d20, faces: {} };
+    if (k.faces) for (var f = 1; f <= k.sides; f++) d.faces[f] = k.faces[f - 1];
+    return d;
+  };
+  ns.newThrowDice = function () {
+    return Object.keys(ns.DICE_KINDS)
+      .filter(function (k) { return ns.DICE_KINDS[k].start; })
+      .map(function (k) { return ns.newThrowDie(k); });
+  };
+  // What a die will do, as a distribution — the thing you are actually choosing
+  // between. Returns [{ id, name, desc, n }] sorted by how often it comes up.
+  ns.throwSpread = function (die) {
+    if (!die || die.d20) return [];
+    var by = {}, out = [];
+    for (var f = 1; f <= die.sides; f++) {
+      var id = die.faces[f]; if (!id) id = 'x_jam';
+      if (!by[id]) { by[id] = { id: id, n: 0 }; out.push(by[id]); }
+      by[id].n++;
+    }
+    out.forEach(function (o) {
+      var g = ns.D6_AUGMENTS[o.id] || {};
+      o.name = g.name || '?'; o.desc = g.desc || ''; o.tier = g.tier || 0;
+    });
+    out.sort(function (a, b) { return b.n - a.n || b.tier - a.tier; });
+    return out;
   };
 
   ns.DIE_REGION = { low: [2, 7], mid: [8, 14], high: [15, 20] };
@@ -12036,6 +12186,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   var uidCounter = 1;
 
   function mkCard(id, up) { return { uid: uidCounter++, id: id, up: !!up }; }
+  /* A die, dressed as a card so that hand rendering, targeting, cost checks
+   * and the whole play path need no special case. `dieIdx` points back into
+   * run.dice; the id is one of the two hidden defs nobody can ever draw. */
+  function mkDieCard(die, i) {
+    return { uid: uidCounter++, id: die.d20 ? '_longgun' : '_smalldie', up: false, dieIdx: i };
+  }
 
   E.newRun = function (clsId) {
     ns.forgedClear();   // forged ids are per-run; a stale registry would resolve into the new one
@@ -12055,7 +12211,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
        * generalising `run.die` because 86 sites in this file read that field
        * directly — the trial is meant to answer a design question, not to
        * bankroll a refactor before we know the answer. */
-      dice6: (clsId === 'arsenal') ? [ns.newD6('battery'), ns.newD6('plate')] : [],
+      /* THE THROW. `dice` is the Arsenal's hand: every entry is a die it owns,
+       * rebuilt into c.hand at the start of every turn. The first entry is the
+       * Long Gun, which is `run.die` wearing a throwable jacket — its faces
+       * live where 86 other sites in this file already expect to find them. */
+      dice: (clsId === 'arsenal') ? ns.newThrowDice() : [],
       bossOrder: shuffle((ns.BOSSES[fac] || []).slice()),   // no sector boss repeats in a run
       relicOff: {},        // relics switched off (toggled on the star chart)
       relicUses: {},       // remaining durability for relics that have it
@@ -12888,6 +13048,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       turn: 0,
       energy: 0,
       hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
+      throwClass: !!(r.dice && r.dice.length),   // THE THROW: dice in hand, no deck
       // Everyone rolls, so everyone gets some Aim to steer with. A class may
       // sight in further on top of that baseline — the Vanguard does, because he
       // is the marksman. The Voidadept pointedly does not: climbing the table is
@@ -13049,7 +13210,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
 
   /* ---------------- Combat: turn structure ------------------------------ */
-  function maxEnergy() { return B.player.baseEnergy + art('energyEveryTurn') + (statN(E.combat.player, 'reactor')); }
+  /* FOUR THROWS, not three. A deck gets its per-turn volume from drawing five
+   * cards and picking the affordable ones; a rack of dice gets it only from
+   * throws, and at three the Arsenal put out about two thirds of the
+   * Vanguard's damage and won 0% of its runs. Four is also the better game:
+   * with one throw per die it means you commit four of your dice every turn,
+   * so the fourth-best die in the rack is a real decision rather than a bench
+   * warmer you never reach. */
+  function maxEnergy() {
+    var base = B.player.baseEnergy + (E.combat && E.combat.throwClass ? 1 : 0);
+    return base + art('energyEveryTurn') + (statN(E.combat.player, 'reactor'));
+  }
   E.maxEnergy = function () { return E.combat ? maxEnergy() : (B.player.baseEnergy || 0); };
 
   var _inConduit = false;   // re-entrancy guard for the Disruption conduit hook
@@ -13263,7 +13434,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     c.cardsThisTurn = 0;
     c.enemies.forEach(function (e) { if (e.def.plated) e.platedReady = true; });   // Reactive Plating re-arms each turn
     c.nonAttacksThisTurn = 0;   // Recoilless Frame: per-turn non-attack limit
-    c.d6Cycled = false;         // the Arsenal's small dice spin once a turn
     c.turnDamage = 0;           // class quest: damage dealt this turn
     c.momentum = 0;   // Momentum Engine resets each turn
     // Fusillade: Momentum is a per-turn combo — unless a Cycling Breech says
@@ -13320,9 +13490,19 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var bg = art('burnGrow');
     if (bg > 0) c.enemies.forEach(function (en, i) { if (en.alive && statN(en, 'burn') > 0) { addStatus(en, 'burn', bg); emit('status', { who: 'enemy', idx: i, s: 'burn', v: bg }); } });
     var aoe = art('aoeTurnStart');
-    var baseDraw = B.player.drawPerTurn;
-    var draws = baseDraw + art('drawTurn') + (c.turn === 1 ? art('drawStart') : 0);
-    drawCards(draws);
+    /* THE THROW: your hand IS your dice, every turn, all of them. There is no
+     * draw, no shuffle and no discard — the piles below are swept because a
+     * spent die is not a card going anywhere, it is a die you have already
+     * thrown this turn. That is the one-throw-per-die rule made physical:
+     * throwing removes it from hand, and the next turn hands it back. */
+    if (c.throwClass) {
+      c.drawPile = []; c.discard = []; c.exhaust = [];
+      c.hand = (E.run.dice || []).map(mkDieCard);
+    } else {
+      var baseDraw = B.player.drawPerTurn;
+      var draws = baseDraw + art('drawTurn') + (c.turn === 1 ? art('drawStart') : 0);
+      drawCards(draws);
+    }
     c.echoReady = statN(p, 'echo') > 0;   // Echo Core: first attack each turn plays twice
     emit('turnStart', { turn: c.turn });
     if (aoe > 0) {
@@ -14528,10 +14708,42 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return totalDealt;
   }
 
+  /* THROWING A SMALL DIE. Six faces, one happens, done — and deliberately
+   * none of the d20's surface area: no bands, no aim, no steering, no seams,
+   * no taints. That asymmetry IS the design. The Long Gun is the die you
+   * built and can bend; the small dice are the shape you chose and then have
+   * to live with. If both bent, choosing between them would be arithmetic. */
+  function throwSmall(handIdx, targetIdx) {
+    var c = E.combat, r = E.run, p = c.player;
+    var card = c.hand[handIdx];
+    var die = (r.dice || [])[card.dieIdx];
+    if (!die) return false;
+    var tgt = c.enemies[targetIdx];
+    if (!tgt || !tgt.alive) {
+      targetIdx = c.enemies.findIndex(function (e) { return e.alive; });
+      tgt = c.enemies[targetIdx];
+    }
+    c.energy -= (die.cost || 1);
+    c.hand.splice(handIdx, 1);          // spent for the turn; back next turn
+    c.cardsThisTurn = (c.cardsThisTurn || 0) + 1;
+    var face = 1 + Math.floor(rnd() * (die.sides || 6));
+    var cut = ns.D6_AUGMENTS[die.faces[face]] || null;
+    emit('throw', { die: die.id, idx: card.dieIdx, face: face,
+                    id: cut ? die.faces[face] : null, name: cut ? cut.name : 'Jam' });
+    if (cut && cut.fx && cut.fx.length) {
+      applyCardFx(cut.fx, { tgt: tgt, crit: false, roll: null, eff: face, misfire: false,
+                            bandMult: 1, blockBand: false, flags: {}, xval: 0, appliedBurn: false });
+    }
+    checkWin();
+    if (!c.over) E.save();
+    return true;
+  }
+
   E.playCard = function (handIdx, targetIdx) {
     var c = E.combat, r = E.run, p = c.player;
     if (!E.canPlay(handIdx)) return false;
     var card = c.hand[handIdx];
+    if (card && card.dieIdx != null && card.id === '_smalldie') return throwSmall(handIdx, targetIdx);
     var def = ns.CARDS[card.id];
     var fx = ns.cardFx(def, card.up, card.vtouch);
     var cost = effCost(def, card.up, card);
@@ -14797,32 +15009,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
             ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) fireOneFace(nf, tgt, 1, 'relay', lands); });
           }
         }
-      }
-      /* THE SMALL DICE. The battery and the plate CYCLE ONCE A TURN — the first
-       * card you play spins all three, the d20 above having already fired.
-       *
-       * It was per card play first, and that was the single biggest thing the
-       * trial got wrong. Six faces is 16.7% a face against the d20's 5%, and
-       * once every face is cut a d6 fires on EVERY play: twelve plays a fight
-       * meant the two small dice out-produced the entire deck, and the class
-       * measured 72.5% against the Vanguard's 28%. Once a turn is three firings
-       * a fight instead of twelve, which lets the faces keep numbers you can
-       * actually read (3 → 8) instead of the 1s and 2s per-play pricing forces.
-       *
-       * The d6s deliberately carry none of the d20's surface area: no bands,
-       * bleed, seams or taints. */
-      if (r.dice6 && r.dice6.length && !c.over && !c.d6Cycled) {
-        c.d6Cycled = true;
-        r.dice6.forEach(function (d6, di) {
-          if (c.over) return;
-          var f6 = 1 + Math.floor(rnd() * ns.D6.faces);
-          var eng6 = ns.d6FaceAt(d6, f6);
-          emit('d6', { die: d6.kind, idx: di, face: f6, id: eng6 ? d6.faces[f6] : null, name: eng6 ? eng6.name : null });
-          if (!eng6) return;
-          var b6 = c.player.block, e6 = c.energy;
-          applyCardFx(eng6.fx, { tgt: tgt, crit: false, roll: null, eff: f6, misfire: false,
-                                 bandMult: 1, blockBand: false, flags: {}, xval: 0, appliedBurn: false });
-        });
       }
       // crit payoffs (Omega Visor / Targeting Matrix + DEADEYE), once per critting card
       if (crit) {
@@ -15597,8 +15783,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
      * shuffle into a deck I will not draw". Every fight, because six faces per
      * die is a small enough board that a cut every third fight would never
      * finish building anything. */
+    /* Cuts most fights, a whole new die at the fights that earn one. Two
+     * reward currencies for one class is deliberate: a cut sharpens a die you
+     * already throw, a die widens what you can throw at all, and being asked
+     * which you want is the economy decision the first trial never had. */
     var d6Choices = (r.cls === 'arsenal') ? E.d6Offer(3) : [];
-    r.reward = { credits: credits, cards: cards, artifact: artifactDrop, artifactChoices: artifactChoices, engChoices: engChoices, engPicked: false, artifactPicked: false, bonusArtifact: bonusArtifact, potion: potionDrop, potionTaken: false, cardTaken: false, kind: kind, d6Choices: d6Choices, d6Picked: false };
+    var diceChoices = (r.cls === 'arsenal' && (kind === 'elite' || kind === 'boss' || kind === 'beacon'))
+                      ? E.diceOffer(2) : [];
+    r.reward = { credits: credits, cards: cards, artifact: artifactDrop, artifactChoices: artifactChoices, engChoices: engChoices, engPicked: false, artifactPicked: false, bonusArtifact: bonusArtifact, potion: potionDrop, potionTaken: false, cardTaken: false, kind: kind, d6Choices: d6Choices, d6Picked: false, diceChoices: diceChoices, dicePicked: false };
     r.phase = 'reward';
     emit('win', { kind: kind, credits: credits });
     E.save();
@@ -15629,9 +15821,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
    * a card reward is three cards you cannot evaluate without knowing your
    * draw; an engraving reward is "which of my six faces does this replace",
    * which is a decision with geometry in it. */
+  /* Jam is never offered — it is a face you are given by a die, never one you
+   * would ever choose, and putting it in the offer would just be a dead pick. */
   E.d6Offer = function (n) {
     var r = E.run, out = [], bag = [];
-    Object.keys(ns.D6_AUGMENTS).forEach(function (k) { bag.push(k); });
+    Object.keys(ns.D6_AUGMENTS).forEach(function (k) {
+      if (k !== 'x_jam') bag.push(k);
+    });
     var guard = 0;
     while (out.length < (n || 3) && guard++ < 200) {
       var pick0 = bag[Math.floor(rnd() * bag.length)];
@@ -15639,14 +15835,50 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
     return out;
   };
-  // Cut it onto the die it belongs to, replacing whatever was on that face.
-  E.d6Take = function (id, face) {
+  /* Cut a face on one of the dice you own. The die is named explicitly now —
+   * with a rack of them, "the battery" is no longer a unique address. */
+  E.d6Take = function (id, dieIdx, face) {
     var r = E.run, def = ns.d6Engraving(id);
-    if (!def || !r.dice6) return 'no such cut';
-    var die = r.dice6.filter(function (d) { return d.kind === def.die; })[0];
-    if (!die) return 'you carry no ' + def.die;
-    if (face < 1 || face > ns.D6.faces) return 'no such face';
+    if (!def || !r.dice) return 'no such cut';
+    var die = r.dice[dieIdx];
+    if (!die || die.d20) return 'that die takes no small cuts';
+    if (def.die !== 'any' && die.kind && def.die !== die.kind) return 'that cut does not fit this die';
+    if (face < 1 || face > (die.sides || 6)) return 'no such face';
     die.faces[face] = id;
+    E.save();
+    return null;
+  };
+  // Which of your dice a given cut will fit — the first half of the decision.
+  E.d6Fits = function (id) {
+    var r = E.run, def = ns.d6Engraving(id), out = [];
+    if (!def || !r.dice) return out;
+    r.dice.forEach(function (d, i) {
+      if (d.d20) return;
+      if (def.die === 'any' || !d.kind || def.die === d.kind) out.push(i);
+    });
+    return out;
+  };
+  /* A WHOLE NEW DIE. The other half of the reward economy, and the half that
+   * makes the first half a choice: a cut sharpens what you have, a die widens
+   * what you can pick from. With three throws a turn and one throw per die,
+   * a fifth die is only worth taking if it beats the fourth-best thing you
+   * already own — which is exactly the diminishing return that stops
+   * collecting from being free. */
+  E.diceOffer = function (n) {
+    var r = E.run, have = {}, bag = [];
+    (r.dice || []).forEach(function (d) { have[d.id] = 1; });
+    Object.keys(ns.DICE_KINDS).forEach(function (k) {
+      var kk = ns.DICE_KINDS[k];
+      if (!kk.start && !kk.d20 && !have[k]) bag.push(k);
+    });
+    shuffle(bag);
+    return bag.slice(0, n || 2);
+  };
+  E.diceTake = function (id) {
+    var r = E.run, d = ns.newThrowDie(id);
+    if (!d) return 'no such die';
+    if ((r.dice || []).some(function (x) { return x.id === id; })) return 'you carry one already';
+    r.dice.push(d);
     E.save();
     return null;
   };
@@ -20489,8 +20721,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     $energy.style.display = on ? 'flex' : 'none';   // energy lives in the bottom dock now
     if ($die) $die.style.display = on ? 'block' : 'none';
     $counts.style.display = 'none';
-    $drawPile.style.display = on ? 'block' : 'none';   // piles ride the dock corners (per-class art)
-    $discardPile.style.display = on ? 'block' : 'none';
+    /* No piles for a throw class. Its hand is its dice, rebuilt every turn —
+     * there is nothing to draw from and nothing to discard to, and two counters
+     * pinned at zero all fight read as a bug rather than as an absence. */
+    var noPiles = !!(E.combat && E.combat.throwClass);
+    $drawPile.style.display = (on && !noPiles) ? 'block' : 'none';   // piles ride the dock corners (per-class art)
+    $discardPile.style.display = (on && !noPiles) ? 'block' : 'none';
     if (!on && $rail) { $rail.style.display = 'none'; closeRail(); }
     $potions.style.display = on ? 'flex' : 'none';
     if (!on) { $hint.style.display = 'none'; onPotionCancel(); hidePotionTip(); }
@@ -21485,19 +21721,22 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var mods = el('div', 'die-mods');
     s.appendChild(mods);
 
-    /* THE SMALL DICE, read-only here. They are cut at the reward screen, where
-     * the choice is made against a live offer; this screen exists to answer
-     * "what do my machines actually do right now", so it lists all twelve faces
-     * flat rather than hiding them behind a second spinning canvas. */
-    if (r.dice6 && r.dice6.length) {
+    /* THE RACK, read-only here. Cuts are made at the reward screen against a
+     * live offer; this screen answers "what do my machines actually do right
+     * now", so it lists every face of every die flat. A second spinning canvas
+     * would look better and tell you less — a d6 has no neighbours, bands or
+     * spans to show, only a distribution. */
+    if (r.dice && r.dice.length) {
       var small = el('div', 'die-small');
-      small.appendChild(el('div', 'screen-sub', 'THE SMALL DICE · THEY CYCLE ONCE EACH TURN'));
-      r.dice6.forEach(function (d6) {
+      small.appendChild(el('div', 'screen-sub', 'THE RACK · FOUR THROWS A TURN · ONE THROW PER DIE'));
+      r.dice.forEach(function (d6) {
+        if (d6.d20) return;                       // that is the die above
+        var kk = ns.diceKind(d6.id) || {};
         var row = el('div', 'd6-row');
-        row.appendChild(el('div', 'd6-name', d6.kind === 'battery' ? 'BATTERY' : 'PLATE'));
+        row.appendChild(el('div', 'd6-name', (kk.name || 'DIE') + ' · ' + (d6.cost || 1) + ' THROW'));
         var g = el('div', 'd6-grid');
-        for (var f = 1; f <= ns.D6.faces; f++) {
-          var cut = ns.d6FaceAt(d6, f);
+        for (var f = 1; f <= (d6.sides || 6); f++) {
+          var cut = ns.D6_AUGMENTS[d6.faces[f]] || null;
           g.appendChild(el('div', 'd6-cell t' + (cut ? cut.tier : 0),
             '<div class="d6-pip">' + f + '</div>'
             + '<div class="d6-was">' + (cut ? esc(cut.name) : '—') + '</div>'
@@ -22848,7 +23087,28 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var ty = Math.abs(off) * Math.abs(off) * 1.5;
       d.style.setProperty('--fan', 'rotate(' + rot.toFixed(2) + 'deg) translateY(' + ty.toFixed(1) + 'px)');
       d.dataset.cid = card.id; if (card.up) d.dataset.up = '1'; if (info.vtouch) d.dataset.vt = '1';
-      d.innerHTML = cardInner(info.name, info.xcost ? 'X' : info.cost, info.type, info.rarity, info.desc, info.unplayable, card.id);
+      /* A DIE IN HAND IS NOT A CARD. It has no printed number to read — what
+       * you are choosing between is six faces and how often each comes up, so
+       * that is what the face of it says. The Long Gun is the exception: it is
+       * twenty faces deep with bands on top, which no tile can hold, so it
+       * shows what it is and sends you to the die screen for the rest. */
+      if (card.dieIdx != null) {
+        var die = (E.run.dice || [])[card.dieIdx] || {};
+        var kk = ns.diceKind(die.id) || {};
+        d.classList.add('die-card');
+        if (die.d20) d.classList.add('die-big');
+        var rows = die.d20
+          ? '<div class="dk-row"><b>d20</b><span>' + esc(kk.blurb || '') + '</span></div>'
+          : ns.throwSpread(die).map(function (sp) {
+              return '<div class="dk-row' + (sp.id === 'x_jam' ? ' dk-jam' : '') + '">'
+                   + '<b>' + sp.n + '/' + die.sides + '</b><span>' + esc(sp.desc || sp.name) + '</span></div>';
+            }).join('');
+        d.innerHTML = '<div class="dk-cost">' + (die.cost || 1) + '</div>'
+                    + '<div class="dk-name">' + esc(kk.name || 'DIE') + '</div>'
+                    + '<div class="dk-faces">' + rows + '</div>';
+      } else {
+        d.innerHTML = cardInner(info.name, info.xcost ? 'X' : info.cost, info.type, info.rarity, info.desc, info.unplayable, card.id);
+      }
       d.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
         startCardDrag(d, i, ev);
@@ -24307,20 +24567,46 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       return;
     }
 
-    /* THE SMALL DICE. Two steps, deliberately: pick the cut, then pick which of
-     * the six faces it replaces. Every face is already cut, so the second step
-     * is the actual decision and it needs to show you what you are giving up —
-     * a one-tap "take it" would hide the whole cost of the reward. */
+    /* A WHOLE NEW DIE. Offered at the fights that earn one, and shown as its
+     * distribution because that is what you are judging — a die is only worth
+     * taking if it beats the one it will push out of your four throws. */
+    if (rw.diceChoices && rw.diceChoices.length && !rw.dicePicked) {
+      s.appendChild(el('div', 'screen-sub', 'A NEW DIE FOR THE RACK'));
+      var dbar = makeConfirmBar();
+      rw.diceChoices.forEach(function (did) {
+        var proto = ns.newThrowDie(did), kk = ns.diceKind(did);
+        if (!proto || !kk) return;
+        var spread = ns.throwSpread(proto).map(function (sp) {
+          return '<div class="d6-line' + (sp.id === 'x_jam' ? ' dim' : '') + '"><b>' + sp.n + '/' + proto.sides + '</b> ' + esc(sp.desc || sp.name) + '</div>';
+        }).join('');
+        var db = el('div', 'panel-btn',
+          '<div class="pb-title">' + esc(kk.name) + '<span class="pb-tag">' + (proto.cost || 1) + ' THROW</span></div>'
+          + '<div class="pb-desc">' + spread + '</div>');
+        s.appendChild(db);
+        selectConfirm(s, db, dbar, 'Add <b>' + esc(kk.name) + '</b> to the rack?<span class="cb-note">You still only get four throws a turn — it has to beat something you already own.</span>',
+          function () { SFX.coin(); E.diceTake(did); rw.dicePicked = true; showReward(); }, 'amber');
+      });
+      s.appendChild(dbar.el);
+      var skipD = el('button', 'btn dim small', 'LEAVE THE DIE');
+      skipD.addEventListener('pointerdown', function () { SFX.tap(); rw.dicePicked = true; showReward(); });
+      s.appendChild(skipD);
+      return;
+    }
+
+    /* A CUT. Three steps now, not two: which cut, which die it goes on, which
+     * face it replaces. With a rack rather than a pair, "the battery" stopped
+     * being a unique address — and the die you put it on matters more than the
+     * face does, since a cut on a die you never throw is a wasted reward. */
     if (rw.d6Choices && rw.d6Choices.length && !rw.d6Picked) {
-      var chosen6 = null;
+      var chosen6 = null, chosenDie = null;
       var render6 = function () {
         var body = el('div', '');
         if (chosen6 == null) {
-          body.appendChild(el('div', 'screen-sub', 'CHOOSE A CUT FOR YOUR SMALL DICE'));
+          body.appendChild(el('div', 'screen-sub', 'CHOOSE A CUT'));
           rw.d6Choices.forEach(function (id6) {
             var g6 = ns.d6Engraving(id6); if (!g6) return;
             var b6 = el('div', 'panel-btn',
-              '<div class="pb-title">' + esc(g6.name) + '<span class="pb-tag">' + (g6.die === 'battery' ? 'BATTERY' : 'PLATE') + ' · T' + g6.tier + '</span></div>'
+              '<div class="pb-title">' + esc(g6.name) + '<span class="pb-tag">T' + g6.tier + '</span></div>'
               + '<div class="pb-desc">' + esc(g6.desc) + '</div>');
             b6.addEventListener('pointerdown', function () { SFX.tap(); chosen6 = id6; swap6(); });
             body.appendChild(b6);
@@ -24328,16 +24614,34 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           var skip6 = el('button', 'btn dim small', 'LEAVE THE CUT');
           skip6.addEventListener('pointerdown', function () { SFX.tap(); rw.d6Picked = true; showReward(); });
           body.appendChild(skip6);
+        } else if (chosenDie == null) {
+          var g6b = ns.d6Engraving(chosen6);
+          body.appendChild(el('div', 'screen-sub', 'WHICH DIE TAKES ' + esc(g6b.name.toUpperCase()) + '?'));
+          var fits = E.d6Fits(chosen6);
+          if (!fits.length) { body.appendChild(el('div', 'gain-list', '<div>It fits none of your dice.</div>')); }
+          fits.forEach(function (di) {
+            var die = E.run.dice[di], kk = ns.diceKind(die.id) || {};
+            var spread = ns.throwSpread(die).map(function (sp) {
+              return '<div class="d6-line' + (sp.id === 'x_jam' ? ' dim' : '') + '"><b>' + sp.n + '/' + die.sides + '</b> ' + esc(sp.desc || sp.name) + '</div>';
+            }).join('');
+            var pb2 = el('div', 'panel-btn', '<div class="pb-title">' + esc(kk.name || 'DIE') + '</div><div class="pb-desc">' + spread + '</div>');
+            pb2.addEventListener('pointerdown', function () { SFX.tap(); chosenDie = di; swap6(); });
+            body.appendChild(pb2);
+          });
+          var backD = el('button', 'btn dim small', '◀ PICK A DIFFERENT CUT');
+          backD.addEventListener('pointerdown', function () { SFX.tap(); chosen6 = null; swap6(); });
+          body.appendChild(backD);
         } else {
           var g6 = ns.d6Engraving(chosen6);
-          var die6 = (E.run.dice6 || []).filter(function (d) { return d.kind === g6.die; })[0];
-          body.appendChild(el('div', 'screen-sub', 'WHICH FACE DOES ' + esc(g6.name.toUpperCase()) + ' REPLACE?'));
+          var die6 = E.run.dice[chosenDie];
+          var kk6 = ns.diceKind(die6.id) || {};
+          body.appendChild(el('div', 'screen-sub', esc(kk6.name || 'DIE') + ' · WHICH FACE DOES ' + esc(g6.name.toUpperCase()) + ' REPLACE?'));
           var bar6 = makeConfirmBar();
           var grid6 = el('div', 'd6-grid');
-          for (var f6 = 1; f6 <= ns.D6.faces; f6++) {
+          for (var f6 = 1; f6 <= (die6.sides || 6); f6++) {
             (function (face) {
-              var had = ns.d6FaceAt(die6, face);
-              var cell = el('div', 'd6-cell',
+              var had = ns.D6_AUGMENTS[die6.faces[face]] || null;
+              var cell = el('div', 'd6-cell' + (had ? ' t' + had.tier : ''),
                 '<div class="d6-pip">' + face + '</div>'
                 + '<div class="d6-was">' + (had ? esc(had.name) : '—') + '</div>'
                 + '<div class="d6-fx">' + (had ? esc(had.desc) : 'bare') + '</div>');
@@ -24345,13 +24649,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
               selectConfirm(grid6, cell, bar6,
                 'Cut <b>' + esc(g6.name) + '</b> over face ' + face + '?<span class="cb-note">' +
                 (had ? 'You lose ' + esc(had.name) + ' — ' + esc(had.desc) : 'That face is bare') + '</span>',
-                function () { SFX.coin(); E.d6Take(chosen6, face); rw.d6Picked = true; showReward(); }, 'amber');
+                function () { SFX.coin(); E.d6Take(chosen6, chosenDie, face); rw.d6Picked = true; showReward(); }, 'amber');
             })(f6);
           }
           body.appendChild(grid6);
           body.appendChild(bar6.el);
-          var backC = el('button', 'btn dim small', '◀ PICK A DIFFERENT CUT');
-          backC.addEventListener('pointerdown', function () { SFX.tap(); chosen6 = null; swap6(); });
+          var backC = el('button', 'btn dim small', '◀ PICK A DIFFERENT DIE');
+          backC.addEventListener('pointerdown', function () { SFX.tap(); chosenDie = null; swap6(); });
           body.appendChild(backC);
         }
         return body;

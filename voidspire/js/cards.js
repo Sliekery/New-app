@@ -122,6 +122,29 @@
   ns.CARDS = {
 
     /* ---------------- Starters ---------------- */
+    /* ---- THE THROW: two hidden cards that are never in any deck ----------
+     * The Arsenal has no cards. But throwing THE LONG GUN wants every single
+     * thing a card play already does — bands, aim, steering, engravings,
+     * seams, welds, taints, misfires, crit relics — and reimplementing that
+     * beside the real one is how two subtly different d20s get born. So a
+     * Long Gun throw IS a card play, of this card, which nobody can ever
+     * draw. The small dice do not want any of that machinery, so they get a
+     * `noDie` marker and skip it entirely. */
+    _longgun: {
+      name: 'THE LONG GUN', cls: 'arsenal', type: 'attack', rarity: 0, cost: 2, pool: 'die',
+      /* Two throws has to buy more than two small dice would, or the big gun is
+       * a trap you stop throwing by sector 2 — which is exactly what happened
+       * at 9. It is also the one die you can really build: every engraving,
+       * band, seam and weld in the game lands here, so its ceiling is the
+       * class's ceiling. */
+      fx: [{ k: 'dmg', v: 18, scale: 'might' }],
+      desc: 'Throw the d20. Its band is the shot.',
+    },
+    _smalldie: {
+      name: 'SMALL DIE', cls: 'arsenal', type: 'skill', rarity: 0, cost: 1, pool: 'die',
+      noDie: true, fx: [],
+      desc: 'Throw it and take the face.',
+    },
     pulse_rifle: {
       name: 'Pulse Rifle', cls: 'any', type: 'attack', rarity: 0, cost: 1,
       fx: [{ k: 'dmg', v: 6, scale: 'might' }],
@@ -1461,7 +1484,7 @@
     vanguard: { name: 'VANGUARD', tag: 'Shock trooper of the 9th Voidborne', desc: 'High HP. Brutal weapons that scale with MIGHT. Hits first, asks never.' },
     technomancer: { name: 'TECHNOMANCER', tag: 'Machine-priest of the Forge Choir', desc: 'Shields, turrets and reactors that scale with TECH. Out-build the enemy.' },
     voidadept: { name: 'VOID ADEPT', tag: 'Sanctioned psyker, mostly stable', desc: 'Burns, hexes and psionic blasts that scale with PSI. The void answers.' },
-    arsenal: { name: 'THE ARSENAL', tag: 'Vanguard armourer — a DICE BUILDER trial', desc: 'Three dice, not a deck. A d20 for range, a d6 that shoots and a d6 that shields. The small dice cycle once each turn, and rewards are engravings rather than cards.' },
+    arsenal: { name: 'THE ARSENAL', tag: 'Vanguard armourer — a DICE BUILDER trial', desc: 'No cards at all. Your hand is the dice you own — a d20 big gun and a rack of d6s — and a turn is choosing which three throws to spend. Rewards are dice and the cuts that reshape them.' },
   };
 
   /* ---- Starter decks ------------------------------------------------- */
@@ -1472,8 +1495,9 @@
                    'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'overshield'],
     /* A FIXED HAND, not a deck to build. The cards exist to spend Energy and
      * pull the trigger; the build lives entirely on the three dice. */
-    arsenal:      ['pulse_rifle', 'pulse_rifle', 'pulse_rifle', 'pulse_rifle', 'pulse_rifle',
-                   'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield'],
+    // THE ARSENAL HAS NO DECK. Its hand is the dice it owns, rebuilt every
+    // turn from run.dice — see newThrowDice() and the throw loop in engine.js.
+    arsenal:      [],
     voidadept:    ['pulse_rifle', 'pulse_rifle',
                    'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield',
                    'mind_spike', 'mind_spike', 'mind_spike', 'mind_spike'],
