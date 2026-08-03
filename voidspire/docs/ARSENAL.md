@@ -373,25 +373,28 @@ Deaths concentrate at bosses and elites — the healthy shape.
 The question all three trials exist to answer: does picking well beat picking
 at random?
 
-**n = 300 per arm.**
+| n per arm | deliberate | random | gate |
+| --- | --- | --- | --- |
+| 300 | 28.0% | 24.3% | **+3.7** |
+| 900 | 25.0% | 27.2% | **−2.2** |
+| **pooled (1200)** | **25.8%** | **26.5%** | **−0.7 ± 1.8** |
 
-| Arm | Win |
-| --- | --- |
-| deliberate | **28.0%** |
-| random | 24.3% |
-| **gate** | **+3.7** |
+**The gate is flat.** The n=300 run came back +3.7 and I reported it as the
+first positive gate in three trials; the n=900 confirmation landed on the other
+side of zero and the pooled figure is indistinguishable from nothing. The first
+number was sampling noise at ~1σ, which is exactly why it needed confirming.
 
-Standard error is ~2.6 per arm, ~3.7 on the difference — so this is about 1σ
-and is **not** conclusive on its own. A larger run is in flight. What makes it
-worth reporting anyway is the direction: this is the first arm in three trials
-and four formats where deliberate drafting is **ahead** rather than behind.
+What survives is narrower but real: this format does not *punish* deliberate
+drafting the way trial two did (−15.5) and the Vanguard's cards still do
+(−3.6). It sits with trial one at flat — you are never worse off for choosing
+well, but the choice is not yet paying either.
 
-The plausible reason, which is worth more than the number: a cut here goes onto
-**a barrel you choose to roll**, so the choice keeps paying every turn. In trial
-one a cut was made once at a reward screen and then rolled *for* you forever
-after — passive. In trial two the dice had a separate, shallower vocabulary
-with nothing to build toward. Here the thing you choose and the thing you
-operate are the same object.
+The most likely reason it is still flat, and the first thing to attack next:
+**engraving supply outruns engraving quality.** Three choices every fight over
+sixty faces means almost anything is an upgrade on a bare face, so most picks
+are correct by default and choosing carefully changes little. A deeper pool
+with real trade-offs — and fewer, better-earned cuts — is what would give the
+decision teeth.
 
 ## Where the three trials landed
 
@@ -400,7 +403,7 @@ operate are the same object.
 | Vanguard — cards | **−3.6** (random ahead) |
 | Trial 1 — cuts on small dice | +0.7 (flat) |
 | Trial 2 — dice in hand, own face vocabulary | **−15.5** (random far ahead) |
-| Trial 3 — three real dice, one engraving system | see above |
+| Trial 3 — three real dice, one engraving system | **−0.7** (flat, n=1200/arm) |
 
 ## Open
 
