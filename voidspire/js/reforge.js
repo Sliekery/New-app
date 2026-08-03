@@ -253,7 +253,12 @@
       note: 'You will not see it until it is done.', sp: baseSp,
     });
 
-    // 2. twice the effect, paid for in blood
+    // 2. twice the effect, paid for in blood.
+    /* An engraving that is nothing but a `special` — "consume all your
+     * Bulwark", "gain Bulwark equal to this face" — has no numeric primary to
+     * double, so there is nothing here to sell. It keeps the recast and skips
+     * the rest rather than throwing on an undefined primary. */
+    if (!prim || prim.v == null) return out;
     var fx2 = JSON.parse(JSON.stringify(def.fx));
     var added = spOf(prim);
     fx2[pi].v = prim.v * 2;

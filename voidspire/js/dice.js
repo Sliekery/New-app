@@ -840,6 +840,135 @@
     return true;
   };
 
+  /* =====================================================================
+   * THE ARSENAL — a DICE BUILDER trial
+   *
+   * The measurement that motivated this: with the die's variance flattened,
+   * drafting commons and drafting rares produced IDENTICAL win rates. The
+   * cards were never carrying the build; the die was. So this class drops the
+   * card layer to a fixed starting hand and makes the DICE the thing you
+   * build — three of them, engraved instead of drafted.
+   *
+   *   THE RIFLE    d20, mixed cuts. Twenty faces of range and dilution: a
+   *                given face fires 5% of the time, so it is where the big,
+   *                greedy engravings go.
+   *   THE BATTERY  d6, offensive. 16.7% a face — small, reliable, and cheap
+   *                to fill. This is the engine.
+   *   THE PLATE    d6, defensive. Same shape, the other job.
+   *
+   * ALL THREE ROLL ON EVERY CARD PLAY and every landed face fires. That is
+   * the whole feel: you are not drawing a hand, you are watching three
+   * machines you built go off at once. The d20 is the lottery, the d6s are
+   * the floor — which is exactly the consistency-versus-ceiling tension a
+   * deckbuilder normally gets from deck size, here from geometry.
+   *
+   * The d6s deliberately carry NONE of the d20's surface area: no bands, no
+   * seams, no welds, no taints, no listeners. Span-1 cuts only. Eleven
+   * subsystems on one die is what made Marksmanship fragile; the small dice
+   * are the argument that less machinery reads better.
+   * ================================================================== */
+  ns.D6 = { faces: 6 };
+  ns.D6_BASE = { battery: 'b_shot', plate: 'p_plate' };
+  /* The small dice are never blank. Every face starts cut with the die's basic
+   * engraving — Shot on the battery, Plate on the plate — so the machines always
+   * do something and progression is REPLACING a weak face rather than filling a
+   * hole. That matters more than it sounds: a dice builder whose dice mostly
+   * whiff early reads as broken rather than as unfinished, and "your Shot became
+   * a Heavy Slug" is a far more legible reward than "face 4 is no longer blank". */
+  ns.newD6 = function (kind) {
+    var d = { kind: kind, faces: {} };
+    for (var f = 1; f <= ns.D6.faces; f++) d.faces[f] = ns.D6_BASE[kind];
+    return d;
+  };
+  /* Priced against ONE FIRING PER TURN, not per card play. See the firing block
+   * in engine.js for why: per-play the small dice out-produced the whole deck. */
+  ns.D6_AUGMENTS = {
+    // --- BATTERY (offensive) ---
+    b_shot:    { name: 'Shot',        die: 'battery', tier: 1, fx: [{ k: 'dmg', v: 4 }], desc: 'Deal 4 damage.' },
+    b_burst:   { name: 'Twin Shot',   die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 7 }], desc: 'Deal 7 damage.' },
+    b_heavy:   { name: 'Heavy Slug',  die: 'battery', tier: 3, fx: [{ k: 'dmg', v: 12 }], desc: 'Deal 12 damage.' },
+    b_spray:   { name: 'Spray',       die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 5, all: true }], desc: 'Deal 5 damage to ALL enemies.' },
+    b_pierce:  { name: 'Piercing',    die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 5 }, { k: 'status', s: 'vuln', v: 1, who: 'target' }], desc: 'Deal 5 damage and apply 1 Vulnerable.' },
+    b_stim:    { name: 'Hot Load',    die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 4 }, { k: 'status', s: 'stim', v: 1, who: 'self' }], desc: 'Deal 4 damage and gain 1 Stim.' },
+    // --- PLATE (defensive) ---
+    p_plate:   { name: 'Plate',       die: 'plate', tier: 1, fx: [{ k: 'status', s: 'bulwark', v: 4, who: 'self' }], desc: 'Gain 4 Bulwark.' },
+    p_slab:    { name: 'Slab',        die: 'plate', tier: 2, fx: [{ k: 'status', s: 'bulwark', v: 7, who: 'self' }], desc: 'Gain 7 Bulwark.' },
+    p_bastion: { name: 'Bastion Ply', die: 'plate', tier: 3, fx: [{ k: 'status', s: 'bulwark', v: 12, who: 'self' }], desc: 'Gain 12 Bulwark.' },
+    p_spike:   { name: 'Spiked Ply',  die: 'plate', tier: 2, fx: [{ k: 'status', s: 'bulwark', v: 5, who: 'self' }, { k: 'status', s: 'thorns', v: 2, who: 'self' }], desc: 'Gain 5 Bulwark and 2 Thorns.' },
+    p_weave:   { name: 'Weave',       die: 'plate', tier: 2, fx: [{ k: 'block', v: 7 }], desc: 'Gain 7 Block.' },
+    p_vent:    { name: 'Vent',        die: 'plate', tier: 2, fx: [{ k: 'status', s: 'bulwark', v: 4, who: 'self' }, { k: 'draw', v: 1 }], desc: 'Gain 4 Bulwark and draw a card.' },
+  };
+  ns.d6Engraving = function (id) { return ns.D6_AUGMENTS[id] || null; };
+
+  /* ---- BULWARK, TRANSLATED ------------------------------------------
+   * The Vanguard's wall archetype rewritten as cuts rather than cards, which
+   * is the point of the trial. What the translation taught, and it is the most
+   * useful thing to come out of it:
+   *
+   * ATTACKS AND SKILLS TRANSLATE CLEANLY. "Gain 8 Bulwark", "spend the wall
+   * for damage", "bank the face you landed on" are all one-shot effects and a
+   * face is a one-shot effect that happens sometimes. Straight swap.
+   *
+   * POWERS DO NOT TRANSLATE AT ALL. Casemate (3 wall every turn), Reactive
+   * Plating (the wall hits back), Barricade Protocol (+50% wall) are PERSISTENT
+   * — and a face fires again every time you land on it, so cutting one would
+   * stack it without limit. They have to become relics, or one-shot versions of
+   * themselves. That is a real constraint on a dice builder, not a detail:
+   * roughly a third of the Vanguard's cards are Powers and none of them can be
+   * a face. It is also an argument FOR the format — it forces every effect to
+   * be something that happens, rather than something that is true.
+   * ------------------------------------------------------------------ */
+  ns.DIE_AUGMENTS.arsenal_revetment = {
+    name: 'Revetment', tier: 1, span: 1, cls: 'arsenal',
+    fx: [{ k: 'special', id: 'wallFace' }],
+    desc: 'Gain Bulwark equal to this face.',
+    art: { p: [[-0.7,0.5, -0.7,-0.2, 0.7,-0.2, 0.7,0.5], [-0.7,0.15, 0.7,0.15], [-0.2,-0.2, -0.2,0.5], [0.2,-0.2, 0.2,0.5]], e: [] },
+  };
+  ns.DIE_AUGMENTS.arsenal_spall = {
+    name: 'Spall', tier: 2, span: 1, cls: 'arsenal',
+    fx: [{ k: 'special', id: 'spall', v: 0.5, cost: 1 }],
+    desc: 'Deal damage equal to half your Bulwark, and spend it.',
+    art: { p: [[-0.6,0.4, -0.4,-0.3, 0.1,-0.5], [0.1,-0.5, 0.5,0.1], [-0.2,-0.1, 0.3,0.45], [0.5,-0.4, 0.7,-0.2]], e: [[0.7,0.4]] },
+  };
+  ns.DIE_AUGMENTS.arsenal_breach = {
+    name: 'Breach the Wall', tier: 3, span: 1, cls: 'arsenal',
+    fx: [{ k: 'special', id: 'breachWall' }],
+    desc: 'Consume all your Bulwark: deal that much damage.',
+    art: { p: [[-0.75,0.5, -0.75,-0.3, 0.75,-0.3, 0.75,0.5], [-0.75,0.1, -0.2,0.1], [0.2,0.1, 0.75,0.1], [-0.2,-0.5, 0.1,0.3, -0.1,0.3, 0.2,0.7]], e: [] },
+  };
+  ns.DIE_AUGMENTS.arsenal_detonate = {
+    name: 'Detonate', tier: 3, span: 1, cls: 'arsenal',
+    fx: [{ k: 'special', id: 'detonate' }],
+    desc: 'Consume all your Bulwark: deal that much to ALL enemies.',
+    art: { p: [[0,-0.8, 0.25,-0.2, 0.8,0], [0.8,0, 0.25,0.2, 0,0.8], [0,0.8, -0.25,0.2, -0.8,0], [-0.8,0, -0.25,-0.2, 0,-0.8]], e: [[0,0]] },
+  };
+  ns.DIE_AUGMENTS.arsenal_embrasure = {
+    name: 'Embrasure', tier: 2, span: 1, cls: 'arsenal',
+    fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'special', id: 'wallDealt' }],
+    desc: 'Deal 6 damage. Gain Bulwark equal to the damage dealt.',
+    art: { p: [[-0.7,0.5, -0.7,-0.1, -0.25,-0.1, -0.25,0.5], [0.25,0.5, 0.25,-0.1, 0.7,-0.1, 0.7,0.5], [-0.7,0.5, 0.7,0.5], [-0.1,-0.4, 0.1,-0.4]], e: [[0,-0.15]] },
+  };
+  ns.DIE_AUGMENTS.arsenal_buttress = {
+    name: 'Buttress', tier: 2, span: 3, cls: 'arsenal',
+    fx: [{ k: 'status', s: 'bulwark', v: 5, who: 'self' }],
+    desc: 'Gain 5 Bulwark.',
+    art: { p: [[-0.6,0.6, -0.2,-0.5, 0.2,-0.5, 0.6,0.6], [-0.4,0.1, 0.4,0.1], [-0.5,0.35, 0.5,0.35]], e: [] },
+  };
+  ns.d6FaceAt = function (die, face) {
+    return (die && die.faces && die.faces[face]) ? ns.D6_AUGMENTS[die.faces[face]] : null;
+  };
+  ns.d6Blank = function (die) {
+    var out = [];
+    for (var f = 1; f <= ns.D6.faces; f++) if (!die.faces[f]) out.push(f);
+    return out;
+  };
+  ns.d6Engrave = function (die, face, id) {
+    var d = ns.D6_AUGMENTS[id];
+    if (!d || d.die !== die.kind) return 'that cut does not fit this die';
+    die.faces[face] = id;
+    return null;
+  };
+
   ns.DIE_REGION = { low: [2, 7], mid: [8, 14], high: [15, 20] };
   ns.dieRegionOf = function (face) {
     if (face <= 1) return 'misfire';

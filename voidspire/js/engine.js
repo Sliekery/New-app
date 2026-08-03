@@ -76,6 +76,11 @@
       artifacts: [],
       pressure: E.nextPressure || 0,   // VOID PRESSURE rating for this run
       die: ns.newDie(),    // THE AUGMENTED DIE: faces / core / frame
+      /* THE ARSENAL carries two more. Kept as a SEPARATE array rather than
+       * generalising `run.die` because 86 sites in this file read that field
+       * directly — the trial is meant to answer a design question, not to
+       * bankroll a refactor before we know the answer. */
+      dice6: (clsId === 'arsenal') ? [ns.newD6('battery'), ns.newD6('plate')] : [],
       bossOrder: shuffle((ns.BOSSES[fac] || []).slice()),   // no sector boss repeats in a run
       relicOff: {},        // relics switched off (toggled on the star chart)
       relicUses: {},       // remaining durability for relics that have it
@@ -1283,6 +1288,7 @@
     c.cardsThisTurn = 0;
     c.enemies.forEach(function (e) { if (e.def.plated) e.platedReady = true; });   // Reactive Plating re-arms each turn
     c.nonAttacksThisTurn = 0;   // Recoilless Frame: per-turn non-attack limit
+    c.d6Cycled = false;         // the Arsenal's small dice spin once a turn
     c.turnDamage = 0;           // class quest: damage dealt this turn
     c.momentum = 0;   // Momentum Engine resets each turn
     // Fusillade: Momentum is a per-turn combo — unless a Cycling Breech says
@@ -2817,6 +2823,32 @@
           }
         }
       }
+      /* THE SMALL DICE. The battery and the plate CYCLE ONCE A TURN — the first
+       * card you play spins all three, the d20 above having already fired.
+       *
+       * It was per card play first, and that was the single biggest thing the
+       * trial got wrong. Six faces is 16.7% a face against the d20's 5%, and
+       * once every face is cut a d6 fires on EVERY play: twelve plays a fight
+       * meant the two small dice out-produced the entire deck, and the class
+       * measured 72.5% against the Vanguard's 28%. Once a turn is three firings
+       * a fight instead of twelve, which lets the faces keep numbers you can
+       * actually read (3 → 8) instead of the 1s and 2s per-play pricing forces.
+       *
+       * The d6s deliberately carry none of the d20's surface area: no bands,
+       * bleed, seams or taints. */
+      if (r.dice6 && r.dice6.length && !c.over && !c.d6Cycled) {
+        c.d6Cycled = true;
+        r.dice6.forEach(function (d6, di) {
+          if (c.over) return;
+          var f6 = 1 + Math.floor(rnd() * ns.D6.faces);
+          var eng6 = ns.d6FaceAt(d6, f6);
+          emit('d6', { die: d6.kind, idx: di, face: f6, id: eng6 ? d6.faces[f6] : null, name: eng6 ? eng6.name : null });
+          if (!eng6) return;
+          var b6 = c.player.block, e6 = c.energy;
+          applyCardFx(eng6.fx, { tgt: tgt, crit: false, roll: null, eff: f6, misfire: false,
+                                 bandMult: 1, blockBand: false, flags: {}, xval: 0, appliedBurn: false });
+        });
+      }
       // crit payoffs (Omega Visor / Targeting Matrix + DEADEYE), once per critting card
       if (crit) {
         var cdr = art('critDraw') + statN(p, 'deadeyeDraw'); if (cdr > 0) drawCards(cdr);
@@ -3584,7 +3616,14 @@
     if (r.sector >= (B.dice.taintEliteFrom || 3) && (kind === 'elite' || kind === 'boss')) E.taintDie(1);
     else if (rnd() < E.taintChance()) E.taintDie(1);
 
-    r.reward = { credits: credits, cards: cards, artifact: artifactDrop, artifactChoices: artifactChoices, engChoices: engChoices, engPicked: false, artifactPicked: false, bonusArtifact: bonusArtifact, potion: potionDrop, potionTaken: false, cardTaken: false, kind: kind };
+    /* THE ARSENAL'S REWARD. Every fight offers three cuts for its small dice —
+     * the trial's whole proposition, that "which of my six faces does this
+     * replace" is a better decision than "which of these three cards do I
+     * shuffle into a deck I will not draw". Every fight, because six faces per
+     * die is a small enough board that a cut every third fight would never
+     * finish building anything. */
+    var d6Choices = (r.cls === 'arsenal') ? E.d6Offer(3) : [];
+    r.reward = { credits: credits, cards: cards, artifact: artifactDrop, artifactChoices: artifactChoices, engChoices: engChoices, engPicked: false, artifactPicked: false, bonusArtifact: bonusArtifact, potion: potionDrop, potionTaken: false, cardTaken: false, kind: kind, d6Choices: d6Choices, d6Picked: false };
     r.phase = 'reward';
     emit('win', { kind: kind, credits: credits });
     E.save();
@@ -3607,6 +3646,34 @@
     if (!id) return;
     r.deck.push(mkCard(id, false));
     r.reward.cardTaken = true;
+  };
+
+  /* ---- THE ARSENAL DRAFTS CUTS, NOT CARDS ---------------------------
+   * Its reward is three engravings for its small dice instead of three cards
+   * for a deck it does not really have. This is the trial's whole proposition:
+   * a card reward is three cards you cannot evaluate without knowing your
+   * draw; an engraving reward is "which of my six faces does this replace",
+   * which is a decision with geometry in it. */
+  E.d6Offer = function (n) {
+    var r = E.run, out = [], bag = [];
+    Object.keys(ns.D6_AUGMENTS).forEach(function (k) { bag.push(k); });
+    var guard = 0;
+    while (out.length < (n || 3) && guard++ < 200) {
+      var pick0 = bag[Math.floor(rnd() * bag.length)];
+      if (out.indexOf(pick0) < 0) out.push(pick0);
+    }
+    return out;
+  };
+  // Cut it onto the die it belongs to, replacing whatever was on that face.
+  E.d6Take = function (id, face) {
+    var r = E.run, def = ns.d6Engraving(id);
+    if (!def || !r.dice6) return 'no such cut';
+    var die = r.dice6.filter(function (d) { return d.kind === def.die; })[0];
+    if (!die) return 'you carry no ' + def.die;
+    if (face < 1 || face > ns.D6.faces) return 'no such face';
+    die.faces[face] = id;
+    E.save();
+    return null;
   };
 
   E.finishReward = function () {

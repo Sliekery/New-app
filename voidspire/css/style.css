@@ -1438,6 +1438,28 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .df.unreach { opacity: 0.34; }
 .die-legend { margin-top: 8px; font: 600 8.5px/1.3 ui-monospace, monospace; letter-spacing: 0.09em; color: #6f8579; text-align: center; }
 .die-mods { width: 100%; max-width: 620px; margin: 10px auto 0; }
+
+/* ---- THE SMALL DICE (the Arsenal) --------------------------------------
+ * Six faces read as a strip, not as a die. A second spinning canvas next to
+ * the d20 was the obvious build and it was wrong: the d20 canvas exists to
+ * show geometry — neighbours, bands, spans — and a d6 here has none of that.
+ * All the player needs is what the six faces say, so they are said. */
+.die-small { width: 100%; max-width: 660px; margin: 12px auto 0; }
+.d6-row { margin: 0 0 10px; }
+.d6-name { font-size: 10px; letter-spacing: .16em; color: var(--text-dim); margin: 0 0 4px 2px; }
+.d6-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+@media (max-width: 520px) { .d6-grid { grid-template-columns: repeat(3, 1fr); } }
+.d6-cell {
+  border: 1px solid var(--green-dim); border-radius: 5px; padding: 5px 5px 6px;
+  background: rgba(255,255,255,.02); min-height: 58px; cursor: pointer;
+}
+.d6-cell.sel { border-color: var(--amber); background: rgba(255,176,32,.10); }
+.d6-pip { font-size: 11px; color: var(--text-dim); letter-spacing: .1em; }
+.d6-was { font-size: 11px; font-weight: 700; margin: 1px 0 2px; }
+.d6-fx { font-size: 10px; line-height: 1.25; color: var(--text-dim); }
+.d6-cell.t2 .d6-was { color: var(--cyan); }
+.d6-cell.t3 .d6-was { color: var(--amber); }
+
 .dm-title { font: 700 9px/1.4 ui-monospace, monospace; letter-spacing: 0.12em; color: #9bb0a6; margin: 8px 0 4px; }
 .dm-slots { color: #ffb02e; margin-left: 6px; }
 .dm-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 26px; }

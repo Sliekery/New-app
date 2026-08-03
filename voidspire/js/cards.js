@@ -1461,6 +1461,7 @@
     vanguard: { name: 'VANGUARD', tag: 'Shock trooper of the 9th Voidborne', desc: 'High HP. Brutal weapons that scale with MIGHT. Hits first, asks never.' },
     technomancer: { name: 'TECHNOMANCER', tag: 'Machine-priest of the Forge Choir', desc: 'Shields, turrets and reactors that scale with TECH. Out-build the enemy.' },
     voidadept: { name: 'VOID ADEPT', tag: 'Sanctioned psyker, mostly stable', desc: 'Burns, hexes and psionic blasts that scale with PSI. The void answers.' },
+    arsenal: { name: 'THE ARSENAL', tag: 'Vanguard armourer — a DICE BUILDER trial', desc: 'Three dice, not a deck. A d20 for range, a d6 that shoots and a d6 that shields. Every card rolls all three, and rewards are engravings.' },
   };
 
   /* ---- Starter decks ------------------------------------------------- */
@@ -1469,6 +1470,10 @@
                    'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'bayonet_charge'],
     technomancer: ['pulse_rifle', 'pulse_rifle', 'pulse_rifle', 'pulse_rifle',
                    'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'overshield'],
+    /* A FIXED HAND, not a deck to build. The cards exist to spend Energy and
+     * pull the trigger; the build lives entirely on the three dice. */
+    arsenal:      ['pulse_rifle', 'pulse_rifle', 'pulse_rifle', 'pulse_rifle', 'pulse_rifle',
+                   'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield'],
     voidadept:    ['pulse_rifle', 'pulse_rifle',
                    'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield',
                    'mind_spike', 'mind_spike', 'mind_spike', 'mind_spike'],

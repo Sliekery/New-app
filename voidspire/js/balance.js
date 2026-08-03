@@ -25,6 +25,9 @@
       vanguard:  { hp: 100, might: 2, tech: 0, psi: 0 },
       technomancer: { hp: 68, might: 0, tech: 2, psi: 0 },
       voidadept: { hp: 80, might: 0, tech: 0, psi: 2 },
+      /* THE ARSENAL — the dice-builder trial. Same body as the Vanguard on
+       * purpose, so any difference measured is the DICE and not the stat line. */
+      arsenal:   { hp: 100, might: 2, tech: 0, psi: 0 },
     },
 
     /* ---- Attribute scaling ------------------------------------------ */
@@ -122,6 +125,21 @@
           read: 'Aim STEERS the die: it climbs to the highest face you have cut, and the band is read from where it lands.',
           steer: true,
           aim: 1,               // the marksman sights in further on top of the base
+          misfire: { mult: 0.5, label: 'MISFIRE' },
+          bands: [
+            { min: 15, mult: 1.25, label: 'SOLID' },
+            { min: 8,  mult: 1.0,  label: 'HIT' },
+            { min: 2,  mult: 0.8,  label: 'GRAZE' },
+          ],
+        },
+
+        /* THE ARSENAL reads the d20 exactly as the Vanguard does — it is a
+         * copy by design, so the trial measures the two extra dice and nothing
+         * else. It does NOT steer: Aim is a Marksmanship rule, and this class
+         * builds width across three dice instead of precision on one. */
+        arsenal: {
+          name: 'THREE BARRELS',
+          read: 'Every card rolls all three dice. The d20 is the lottery; the d6s are the floor you built.',
           misfire: { mult: 0.5, label: 'MISFIRE' },
           bands: [
             { min: 15, mult: 1.25, label: 'SOLID' },

@@ -650,6 +650,36 @@ function step() {
       break;
     case 'combat': botCombat(); break;
     case 'reward': {
+      /* THE ARSENAL DRAFTS CUTS. Its reward is three engravings for its two
+       * d6s rather than three cards, so the bot places rather than deck-builds:
+       * overwrite the weakest cut on that die, and only if the offer beats it.
+       * That IS the decision the format creates — six faces, all of them
+       * already cut, no room to hoard, every pick displaces something. */
+      if (r.cls === 'arsenal' && !r.reward.d6Picked) {
+        r.reward.d6Picked = true;
+        var offer = r.reward.d6Choices || [];
+        var bestCut = null, bestTier = -1;
+        offer.forEach(function (id) {
+          var t = (VS.d6Engraving(id) || {}).tier || 1;
+          if (t > bestTier) { bestTier = t; bestCut = id; }
+        });
+        if (bestCut) {
+          var kind = VS.d6Engraving(bestCut).die;
+          var die = (r.dice6 || []).filter(function (d) { return d.kind === kind; })[0];
+          if (die) {
+            var slot = VS.d6Blank(die)[0];
+            if (slot == null) {                       // no bare face — displace the weakest
+              var worst = 1, worstT = 99;
+              for (var f6 = 1; f6 <= VS.D6.faces; f6++) {
+                var t6 = (VS.d6Engraving(die.faces[f6]) || {}).tier || 0;
+                if (t6 < worstT) { worstT = t6; worst = f6; }
+              }
+              slot = (worstT < bestTier) ? worst : null;
+            }
+            if (slot != null) E.d6Take(bestCut, slot);
+          }
+        }
+      }
       if (r.reward.artifactChoices && r.reward.artifactChoices.length && !r.reward.artifactPicked) {
         var rp = bestRelic(r.reward.artifactChoices);
         if (rp.score > 0) E.takeRewardArtifact(rp.idx);

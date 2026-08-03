@@ -383,6 +383,11 @@ ok('a forged engraving survives the registry being dropped (the load path)', (fu
   var bad = 0, n = 0;
   Object.keys(VS.DIE_AUGMENTS).forEach(function (id) {
     var def = VS.DIE_AUGMENTS[id], base = VS.engravingSp(def);
+    /* The Arsenal's cuts are skipped: they are locked to the dice-builder trial
+     * class, which has no reforge table of its own, and several are a bare
+     * `special` with no numeric primary to rewrite — so reforging them against
+     * the other three classes' tables is not a case this test is about. */
+    if (def.cls === 'arsenal') return;
     var baseDesc = VS.reforgeDescribe(def.fx, { trigger: def.listen });
     ['common', 'vanguard', 'technomancer', 'voidadept'].forEach(function (c) {
       var os = VS.reforgeOptions(def, c), seen = {};
@@ -2586,6 +2591,58 @@ ok('every remaining class has a starter deck whose cards all exist',
   var plain = burstWidth(null), pinned = burstWidth('twinned_pin');
   ok('Twinned Firing Pin walks the burst further (' + plain + ' -> ' + pinned + ')', pinned > plain);
   delete VS.CARDS._t_b;
+  E.run.phase = 'map';
+})();
+
+/* ---- THE ARSENAL'S SMALL DICE ------------------------------------------
+ * The dice-builder trial. Three claims worth pinning down, because all three
+ * were wrong at some point during the build: the dice start fully cut (blank
+ * faces made the class read as broken), they cycle ONCE A TURN rather than
+ * once per card play (per-play they out-produced the whole deck and the class
+ * measured 72.5% against the Vanguard's 28%), and a reward cut REPLACES the
+ * face you point at rather than filling a hole. */
+(function () {
+  startFight('arsenal');
+  var r = E.run;
+  ok('the Arsenal carries a battery and a plate',
+     (r.dice6 || []).length === 2 && r.dice6[0].kind === 'battery' && r.dice6[1].kind === 'plate');
+
+  var allCut = true;
+  r.dice6.forEach(function (d) {
+    for (var f = 1; f <= VS.D6.faces; f++) if (!VS.d6FaceAt(d, f)) allCut = false;
+  });
+  ok('every face starts cut — no bare faces', allCut);
+
+  // Cycle once a turn: the first play emits two d6 events, later plays none.
+  bigEnemies();
+  setHand(['pulse_rifle', 'pulse_rifle', 'pulse_rifle']);
+  E.combat.energy = 9;
+  E.events.length = 0;
+  playId('pulse_rifle');
+  var first = E.events.filter(function (e) { return e.type === 'd6'; }).length;
+  E.events.length = 0;
+  playId('pulse_rifle');
+  var second = E.events.filter(function (e) { return e.type === 'd6'; }).length;
+  ok('both small dice cycle on the first card of the turn (' + first + ')', first === 2);
+  ok('they do NOT cycle again later in the same turn (' + second + ')', second === 0);
+
+  E.endTurn();
+  while (E.run.phase === 'combat' && E.combat.turn < 2) E.endTurn();
+  E.combat.energy = 9;
+  setHand(['pulse_rifle']);
+  E.events.length = 0;
+  playId('pulse_rifle');
+  ok('they cycle again next turn',
+     E.events.filter(function (e) { return e.type === 'd6'; }).length === 2);
+
+  // A cut replaces the face you point at, and only on its own die.
+  E.d6Take('b_heavy', 3);
+  ok('a battery cut lands on the battery', r.dice6[0].faces[3] === 'b_heavy');
+  ok('it displaced what was there', r.dice6[0].faces[2] === 'b_shot');
+  ok('a plate cut cannot be forced onto the battery',
+     VS.d6Engrave(r.dice6[0], 1, 'p_bastion') !== null);
+  ok('every offered cut is a real engraving',
+     E.d6Offer(3).every(function (id) { return !!VS.d6Engraving(id); }));
   E.run.phase = 'map';
 })();
 

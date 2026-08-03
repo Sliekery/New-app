@@ -1597,6 +1597,30 @@
     var mods = el('div', 'die-mods');
     s.appendChild(mods);
 
+    /* THE SMALL DICE, read-only here. They are cut at the reward screen, where
+     * the choice is made against a live offer; this screen exists to answer
+     * "what do my machines actually do right now", so it lists all twelve faces
+     * flat rather than hiding them behind a second spinning canvas. */
+    if (r.dice6 && r.dice6.length) {
+      var small = el('div', 'die-small');
+      small.appendChild(el('div', 'screen-sub', 'THE SMALL DICE · THEY CYCLE ONCE EACH TURN'));
+      r.dice6.forEach(function (d6) {
+        var row = el('div', 'd6-row');
+        row.appendChild(el('div', 'd6-name', d6.kind === 'battery' ? 'BATTERY' : 'PLATE'));
+        var g = el('div', 'd6-grid');
+        for (var f = 1; f <= ns.D6.faces; f++) {
+          var cut = ns.d6FaceAt(d6, f);
+          g.appendChild(el('div', 'd6-cell t' + (cut ? cut.tier : 0),
+            '<div class="d6-pip">' + f + '</div>'
+            + '<div class="d6-was">' + (cut ? esc(cut.name) : '—') + '</div>'
+            + '<div class="d6-fx">' + (cut ? esc(cut.desc) : 'bare') + '</div>'));
+        }
+        row.appendChild(g);
+        small.appendChild(row);
+      });
+      s.appendChild(small);
+    }
+
     function aim() { return dieAimNow(); }
     function reach() { return dieReach(aim()); }
 
@@ -4392,6 +4416,61 @@
       var skipR = el('button', 'btn dim small', 'LEAVE THE RELIC');
       skipR.addEventListener('pointerdown', function () { SFX.tap(); rw.artifactPicked = true; showReward(); });
       s.appendChild(skipR);
+      return;
+    }
+
+    /* THE SMALL DICE. Two steps, deliberately: pick the cut, then pick which of
+     * the six faces it replaces. Every face is already cut, so the second step
+     * is the actual decision and it needs to show you what you are giving up —
+     * a one-tap "take it" would hide the whole cost of the reward. */
+    if (rw.d6Choices && rw.d6Choices.length && !rw.d6Picked) {
+      var chosen6 = null;
+      var render6 = function () {
+        var body = el('div', '');
+        if (chosen6 == null) {
+          body.appendChild(el('div', 'screen-sub', 'CHOOSE A CUT FOR YOUR SMALL DICE'));
+          rw.d6Choices.forEach(function (id6) {
+            var g6 = ns.d6Engraving(id6); if (!g6) return;
+            var b6 = el('div', 'panel-btn',
+              '<div class="pb-title">' + esc(g6.name) + '<span class="pb-tag">' + (g6.die === 'battery' ? 'BATTERY' : 'PLATE') + ' · T' + g6.tier + '</span></div>'
+              + '<div class="pb-desc">' + esc(g6.desc) + '</div>');
+            b6.addEventListener('pointerdown', function () { SFX.tap(); chosen6 = id6; swap6(); });
+            body.appendChild(b6);
+          });
+          var skip6 = el('button', 'btn dim small', 'LEAVE THE CUT');
+          skip6.addEventListener('pointerdown', function () { SFX.tap(); rw.d6Picked = true; showReward(); });
+          body.appendChild(skip6);
+        } else {
+          var g6 = ns.d6Engraving(chosen6);
+          var die6 = (E.run.dice6 || []).filter(function (d) { return d.kind === g6.die; })[0];
+          body.appendChild(el('div', 'screen-sub', 'WHICH FACE DOES ' + esc(g6.name.toUpperCase()) + ' REPLACE?'));
+          var bar6 = makeConfirmBar();
+          var grid6 = el('div', 'd6-grid');
+          for (var f6 = 1; f6 <= ns.D6.faces; f6++) {
+            (function (face) {
+              var had = ns.d6FaceAt(die6, face);
+              var cell = el('div', 'd6-cell',
+                '<div class="d6-pip">' + face + '</div>'
+                + '<div class="d6-was">' + (had ? esc(had.name) : '—') + '</div>'
+                + '<div class="d6-fx">' + (had ? esc(had.desc) : 'bare') + '</div>');
+              grid6.appendChild(cell);
+              selectConfirm(grid6, cell, bar6,
+                'Cut <b>' + esc(g6.name) + '</b> over face ' + face + '?<span class="cb-note">' +
+                (had ? 'You lose ' + esc(had.name) + ' — ' + esc(had.desc) : 'That face is bare') + '</span>',
+                function () { SFX.coin(); E.d6Take(chosen6, face); rw.d6Picked = true; showReward(); }, 'amber');
+            })(f6);
+          }
+          body.appendChild(grid6);
+          body.appendChild(bar6.el);
+          var backC = el('button', 'btn dim small', '◀ PICK A DIFFERENT CUT');
+          backC.addEventListener('pointerdown', function () { SFX.tap(); chosen6 = null; swap6(); });
+          body.appendChild(backC);
+        }
+        return body;
+      };
+      var host6 = render6();
+      var swap6 = function () { var n = render6(); host6.parentNode.replaceChild(n, host6); host6 = n; };
+      s.appendChild(host6);
       return;
     }
 
