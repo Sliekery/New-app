@@ -2326,5 +2326,164 @@ ok('every remaining class has a starter deck whose cards all exist',
   E.run.phase = 'map';
 })();
 
+/* ============ THE VANGUARD REBUILD: FOUR NEW MECHANICS ================
+ * Steering, BURST, the Bulwark wall and Stim. Asserted here because they are
+ * the substrate the whole class redesign sits on, and because three of them
+ * are invisible in a card's text — you can only see them by playing one.
+ * ==================================================================== */
+(function () {
+  function fight(engrave) {
+    E.seed(9); E.newRun('vanguard'); E.takeFirstMark(0);
+    E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
+    (engrave || []).forEach(function (pair) { VS.dieEngrave(E.run.die, pair[1], pair[0]); });
+    E.startNode('fight');
+    E.combat.enemies.forEach(function (e) { e.platedReady = false; });
+    return E.combat;
+  }
+  function play(c, id) {
+    c.hand = [{ uid: 900000 + Math.floor(Math.random() * 1e5), id: id, up: false }];
+    c.energy = 3; E.events.length = 0;
+    return E.playCard(0, 0);
+  }
+
+  // ---- STEERING -------------------------------------------------------
+  var c = fight([[15, 'kinetic_buffer'], [18, 'overcharge_cell']]);
+  ok('Marksmanship declares itself a steering table', !!E.dieRead('vanguard').steer);
+  ok('the other two tables do not steer',
+     !E.dieRead('technomancer').steer && !E.dieRead('voidadept').steer);
+
+  var steers = [], held = 0;
+  for (var i = 0; i < 40 && !c.over; i++) {
+    c.player.statuses.aim = 3;
+    if (!play(c, 'pulse_rifle')) break;
+    var st = E.events.filter(function (e) { return e.type === 'steer'; })[0];
+    var rl = E.events.filter(function (e) { return e.type === 'roll'; })[0];
+    if (st) steers.push({ from: st.from, to: st.to, spent: st.spent, band: rl && rl.band });
+    else held++;
+  }
+  ok('the die steers at all (' + steers.length + ' of ' + (steers.length + held) + ' rolls)', steers.length > 0);
+  ok('it never travels further than the cap',
+     steers.every(function (s) { return s.spent <= VS.BALANCE.dice.steerCap; }));
+  ok('it only ever lands on an ENGRAVED face',
+     steers.every(function (s) { return !!VS.dieFaceId(E.run.die, s.to); }));
+  ok('it spends exactly one Aim per face travelled',
+     steers.every(function (s) { return s.spent === Math.abs(s.to - s.from); }));
+  ok('it climbs, never descends', steers.every(function (s) { return s.to > s.from; }));
+
+  // it must not burn Aim for nothing: standing on a cut face in the same band
+  c = fight([[15, 'kinetic_buffer'], [16, 'ignition_coil']]);
+  var wasted = 0;
+  for (i = 0; i < 60 && !c.over; i++) {
+    c.player.statuses.aim = 3;
+    if (!play(c, 'pulse_rifle')) break;
+    var s2 = E.events.filter(function (e) { return e.type === 'steer'; })[0];
+    if (s2 && s2.from === 15 && s2.to === 16) wasted++;   // 15 and 16 are both SOLID
+  }
+  ok('it will not spend Aim to move within the same band', wasted === 0);
+
+  // a jam is a jam
+  c = fight([[2, 'kinetic_buffer'], [3, 'ignition_coil'], [4, 'overcharge_cell']]);
+  var jams = 0, jamSteers = 0;
+  for (i = 0; i < 200 && !c.over; i++) {
+    c.player.statuses.aim = 3;
+    if (!play(c, 'pulse_rifle')) break;
+    var rl2 = E.events.filter(function (e) { return e.type === 'roll'; })[0];
+    if (rl2 && rl2.roll === 1) { jams++; if (E.events.some(function (e) { return e.type === 'steer'; })) jamSteers++; }
+  }
+  ok('a natural 1 is never steered off (' + jams + ' jams seen)', jamSteers === 0);
+
+  // ---- BURST ----------------------------------------------------------
+  VS.CARDS._test_burst = { name: 'Test Burst', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+                           fx: [{ k: 'dmg', v: 4, scale: 'might' }], burst: { n: 3, dir: 1 } };
+  VS.CARDS._test_burst_dn = { name: 'Test Burst Down', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+                              fx: [{ k: 'dmg', v: 4, scale: 'might' }], burst: { n: 3, dir: -1 } };
+  ok('BURST reads on the card', /BURST 3/.test(VS.cardDesc(VS.CARDS._test_burst, false, null, false)));
+  ok('and it states its direction',
+     /↑/.test(VS.cardDesc(VS.CARDS._test_burst, false, null, false)) &&
+     /↓/.test(VS.cardDesc(VS.CARDS._test_burst_dn, false, null, false)));
+
+  var ring = [];
+  for (i = 10; i <= 16; i++) ring.push([i, ['kinetic_buffer','ignition_coil','overcharge_cell','munition_feed','repair_nanites','static_discharge','scavenger_port'][i - 10]]);
+  c = fight(ring);
+  var burstSeen = null;
+  for (i = 0; i < 40 && !c.over && !burstSeen; i++) {
+    c.player.statuses.aim = 0;
+    if (!play(c, '_test_burst')) break;
+    var bf = E.events.filter(function (e) { return e.type === 'dieFace' && e.why === 'burst'; });
+    if (bf.length) burstSeen = { root: E.events.filter(function (e) { return e.type === 'roll'; })[0].roll, faces: bf.map(function (e) { return e.face; }) };
+  }
+  ok('a BURST fires extra faces', !!burstSeen);
+  if (burstSeen) {
+    ok('and they walk UP the ring from where it landed (' + burstSeen.root + ' -> ' + burstSeen.faces.join(',') + ')',
+       burstSeen.faces.every(function (f, k) { return f === VS.dieStep(burstSeen.root, k + 1); }));
+  }
+
+  // ---- THE WALL -------------------------------------------------------
+  VS.CARDS._test_wall = { name: 'Test Wall', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
+                          fx: [{ k: 'status', s: 'bulwark', v: 10, who: 'self' }] };
+  VS.CARDS._test_revet = { name: 'Test Revetment', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
+                           fx: [{ k: 'special', id: 'wallFace' }] };
+  VS.CARDS._test_breach = { name: 'Test Breach', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+                            fx: [{ k: 'special', id: 'breachWall' }] };
+  c = fight([[12, 'kinetic_buffer']]);
+  play(c, '_test_wall');
+  ok('the wall can be gained', E.combat.player.statuses.bulwark === 10);
+  E.endTurn();
+  ok('and it does NOT expire like Shield', (E.combat.player.statuses.bulwark || 0) === 10);
+
+  c = fight([[12, 'kinetic_buffer']]);
+  c.player.statuses.aim = 0;
+  var rev = 0;
+  for (i = 0; i < 20 && !c.over && !rev; i++) {
+    c.player.statuses.bulwark = 0;
+    if (!play(c, '_test_revet')) break;
+    var rr = E.events.filter(function (e) { return e.type === 'roll'; })[0];
+    if (rr && (c.player.statuses.bulwark || 0) > 0) rev = { face: rr.roll, wall: c.player.statuses.bulwark };
+  }
+  ok('REVETMENT banks the face it landed on' + (rev ? ' (face ' + rev.face + ' -> ' + rev.wall + ' wall)' : ''),
+     !!rev && rev.wall === rev.face);
+
+  c = fight([[12, 'kinetic_buffer']]);
+  c.player.statuses.bulwark = 18;
+  play(c, '_test_breach');
+  var dealt = E.events.filter(function (e) { return e.type === 'dmg' && e.who !== 'player'; })
+                      .reduce(function (a, e) { return a + (e.amount || 0); }, 0);
+  ok('detonating spends the whole wall', (E.combat.player.statuses.bulwark || 0) === 0);
+  ok('...and throws it at the enemy (' + dealt + ')', dealt >= 18);
+
+  // the wall stands BEHIND Shield and eats what gets past it
+  c = fight([[12, 'kinetic_buffer']]);
+  c.player.block = 5; c.player.statuses.bulwark = 20;
+  c.enemies.forEach(function (e) { e.statuses.str = 30; });
+  var hp0 = E.run.hp; E.events.length = 0;
+  E.endTurn();
+  var hit = E.events.filter(function (e) { return e.type === 'dmg' && e.who === 'player'; })[0];
+  ok('Shield is spent before the wall is' + (hit ? ' (' + hit.amount + ' in, ' + (hp0 - E.run.hp) + ' through)' : ''),
+     !!hit && hit.amount > 25 && (hp0 - E.run.hp) === hit.amount - 25);
+
+  // ---- STIM -----------------------------------------------------------
+  c = fight([[12, 'kinetic_buffer']]);
+  c.player.statuses.stim = 0;
+  play(c, 'pulse_rifle');
+  var base = E.events.filter(function (e) { return e.type === 'dmg' && e.who !== 'player'; })
+                     .reduce(function (a, e) { return a + (e.amount || 0); }, 0);
+  c = fight([[12, 'kinetic_buffer']]);
+  c.player.statuses.stim = 5;
+  play(c, 'pulse_rifle');
+  var stimmed = E.events.filter(function (e) { return e.type === 'dmg' && e.who !== 'player'; })
+                        .reduce(function (a, e) { return a + (e.amount || 0); }, 0);
+  ok('Stim adds to attack damage (' + base + ' -> ' + stimmed + ')', stimmed > base);
+  c.player.statuses.stim = 4;
+  E.endTurn();
+  ok('...and burns off a point each turn', c.player.statuses.stim === 3);
+  c.player.statuses.stim = 4; c.player.statuses.stimHold = 1;
+  E.endTurn();
+  ok('unless it is held (FEVER)', c.player.statuses.stim === 4);
+
+  delete VS.CARDS._test_burst; delete VS.CARDS._test_burst_dn;
+  delete VS.CARDS._test_wall; delete VS.CARDS._test_revet; delete VS.CARDS._test_breach;
+  E.run.phase = 'map';
+})();
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

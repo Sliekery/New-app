@@ -25,7 +25,8 @@
     afterImage: 'Mirror Field', plague: 'Contagion', echo: 'Echo', corruption: 'Corruption',
     wildfire: 'Wildfire', psiRamp: 'Ascendant', hive: 'Hive', conduit: 'Conduit', plating: 'Plating',
     emberward: 'Ember Ward', staticward: 'Static Ward', spikeward: 'Spiked Bulwark',
-    aim: 'Aim', aimPerTurn: 'Steady Aim', critFury: 'Killing Rage', deadeyeDraw: 'Deadeye', misfireGuard: 'Misfire Protocol',
+    aim: 'Aim', aimPerTurn: 'Steady Aim', burstPlus: 'Full Auto', steerDown: 'Steady Hands',
+    bulwark: 'Bulwark', stim: 'Stim', critFury: 'Killing Rage', deadeyeDraw: 'Deadeye', misfireGuard: 'Misfire Protocol',
     demoCharge: 'Demolition', subroutine: 'Subroutine', aegisLink: 'Swarm Uplink',
     platedArmor: 'Plated Armor', barricade: 'Barricade', bloodPact: 'Blood Pact',
   };
@@ -46,6 +47,10 @@
     'Might': 'Increases the damage of your attacks by its value.',
     'Psi Focus': 'Increases the damage of your Psi attacks.',
     'Energy': 'Spent to play cards. Refills at the start of your turn.',
+    'BURST': 'Fires the face you landed on and the next few round the die \u2014 up at higher numbers, down at lower. Each face after the first fires weaker: 100%, 60%, 35%.',
+    'Aim': 'Marksmanship STEERS the die. After the roll it climbs to the highest face you have cut that it can reach, spending 1 Aim per face, up to 3. The band is read from where it lands. A natural 1 is never steered.',
+    'Bulwark': 'A wall that does NOT expire at the start of your turn. It absorbs damage once your Shield is gone, and some cards detonate it for damage.',
+    'Stim': 'Increases the damage of your attacks by its value, and decays by 1 at the start of each of your turns.',
     'Exhaust': 'When played, this card is removed for the rest of combat.',
     'Retain': 'This card stays in your hand at the end of turn instead of being discarded.',
     'Regen': 'Heal HP equal to its value at the start of your turn. Ticks down.',
@@ -1412,6 +1417,10 @@
       }
     });
     var out = collapse(parts);
+    /* BURST reads BEFORE the card's own rider, because it is what the card
+     * does to the die rather than a note about it. */
+    var bs = (upgraded && def.up && def.up.burst) ? def.up.burst : def.burst;
+    if (bs) out.push('BURST ' + (bs.n || 2) + ((bs.dir || 1) < 0 ? ' \u2193' : ' \u2191') + '.');
     var text = (upgraded && def.up && def.up.text) ? def.up.text : def.text;
     if (text) out.push(text);
     if (def.retain) out.push('Retain.');

@@ -56,6 +56,15 @@
        * of your 20 instead of 6. Total coverage falls, which is why this is
        * priced as a trade rather than a bonus. */
       seam: 0.6,
+      /* STEERING (Marksmanship). 1 Aim per face of travel, and never more than
+       * this many faces however much you hold — the cap is what stops a loaded
+       * marksman landing on his best face every single roll and turning the die
+       * into decoration. Surplus Aim past the cap only feeds the cashouts. */
+      steerCap: 3,
+      /* BURST N fires the landing face and the next N-1 round the ring at these
+       * fractions. The landing face still matters most; later faces are a bonus
+       * that stacks with the 25% bleed and with welds. */
+      burst: [1, 0.6, 0.35, 0.2, 0.12],
       /* THE WELD. Bleed across a chosen boundary between two DIFFERENT
        * engravings runs at full instead of `bleed`. Bought at the bench, and
        * hard-capped: on a dense die every engraving touches another, so an
@@ -83,10 +92,27 @@
       baseAim: 1,               // every class steers the die a little — it is a game-wide system
 
       classes: {
-        /* MARKSMANSHIP — accuracy. The shot lands well or it goes wide. */
+        /* MARKSMANSHIP — the marksman POINTS the die.
+         *
+         * Aim used to be added to the roll, which made it a flat damage
+         * multiplier wearing a marksman's hat: it improved the band and nothing
+         * else, and deliberately did NOT move the landing face (at +5 Aim,
+         * faces 1-5 could never fire and half the die would be dead).
+         *
+         * It steers now. After the roll the die CLIMBS to the highest engraved
+         * face it can reach, spending 1 Aim per face, and the band is read from
+         * where it lands — so climbing earns SOLID as a consequence rather than
+         * as a separate rule, and a crit means literally reaching face 20.
+         * Bare faces are never a destination, so Aim is worth exactly as much
+         * as your engraving is good, and the skill moves from a mid-fight
+         * prompt into how you lay the die out.
+         *
+         * The other two classes keep Aim as a band bonus. This matters: the
+         * Void Adept's table is a U and he wants to go DOWN. */
         vanguard: {
           name: 'MARKSMANSHIP',
-          read: 'A low face grazes and a natural 1 goes wide. Aim climbs the table.',
+          read: 'Aim STEERS the die: it climbs to the highest face you have cut, and the band is read from where it lands.',
+          steer: true,
           aim: 1,               // the marksman sights in further on top of the base
           misfire: { mult: 0.5, label: 'MISFIRE' },
           bands: [

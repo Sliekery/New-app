@@ -1263,6 +1263,13 @@
     // Fusillade: Momentum is a per-turn combo — unless a Cycling Breech says
     // otherwise, which is the whole point of that relic.
     if (p.statuses.momentum && !art('momentumKeep')) p.statuses.momentum = 0;
+    /* STIM BURNS OFF. It is bought with HP, so if it persisted it would just be
+     * Might with a worse price. Decaying one a turn makes it a window you open
+     * and have to use, which is what a stimulant is. FEVER stops the decay. */
+    if (p.statuses.stim > 0 && statN(p, 'stimHold') <= 0) {
+      addStatus(p, 'stim', -1);
+      emit('status', { who: 'player', s: 'stim', v: statN(p, 'stim') });
+    }
     // Cursed Inheritance: a curse is lodged in hand at the start of combat
     if (c.turn === 1 && E.hasEcho('cursed_inheritance')) c.hand.push(mkCard('recurring_curse', false));
     // block expiry (Retain / Barricade keep your Shield). Turn 1 has no prior
@@ -1477,11 +1484,25 @@
   function priAttr() { return PRI_ATTR[E.run && E.run.cls] || 'might'; }
   function resolveScale(s) { return s === 'pri' ? priAttr() : s; }
 
+  /* Everything that adds to the wall goes through here, so the relics and
+   * powers that scale it — BARRICADE PROTOCOL's half again, BLOOD CEMENT's
+   * one percent per percent of Max HP missing — are applied in one place
+   * rather than on each of a dozen cards. */
+  function wallGain(v) {
+    var p = E.combat.player, r = E.run;
+    var mul = 1 + (statN(p, 'wallBoost') / 100);
+    if (statN(p, 'bloodCement') > 0) mul += Math.max(0, 1 - (r.hp / Math.max(1, r.maxHp)));
+    return Math.max(1, Math.round(v * mul));
+  }
+  E.wallGain = wallGain;
+
   function attackBonus(f) {
     var p = E.combat.player;
     var mul = f.scaleMul || 1;
     var sc = resolveScale(f.scale);
-    var v = statN(p, 'str') + statN(p, 'momentum') + art('flatDmg') + (E.combat.momentum || 0); // Strength + Momentum (Fusillade)
+    // STIM is bought with HP and decays, so it is a burst stat rather than a
+    // permanent one — it adds like Might but you are paying for it in blood.
+    var v = statN(p, 'str') + statN(p, 'momentum') + statN(p, 'stim') + art('flatDmg') + (E.combat.momentum || 0);
     if (sc === 'might') v += attr('might') * B.attrs.mightDmgPerPoint * mul;
     if (sc === 'tech') v += attr('tech') * mul;
     if (sc === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * mul + statN(p, 'psiPow');
@@ -1643,6 +1664,19 @@
     if (p && !opts.pure) {
       blocked = Math.min(p.block, amount);
       p.block -= blocked;
+      /* THE WALL STANDS BEHIND THE SHIELD. Bulwark is not Shield: it does not
+       * expire at the start of your turn, so it accumulates across a fight and
+       * is spent either by being hit or by being detonated. It absorbs only
+       * what gets past Shield, which is what makes the two stack rather than
+       * compete — Shield is this turn's answer, the wall is the fight's. */
+      var wall = statN(p, 'bulwark');
+      if (wall > 0 && amount > blocked) {
+        var ate = Math.min(wall, amount - blocked);
+        addStatus(p, 'bulwark', -ate);
+        emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') });
+        lawTrigger('wallHit', ate);
+        blocked += ate;
+      }
     }
     var hpDmg = amount - blocked;
     r.hp -= hpDmg;
@@ -2230,7 +2264,46 @@
           break;
         }
         case 'special': {
-          if (f.id === 'shieldSlam' || f.id === 'shieldSlam15') {
+          /* ---- THE WALL --------------------------------------------------
+           * Four verbs, and the tension between them is the archetype: the
+           * wall is both your armour and your ammunition, so every detonation
+           * is a decision to stand naked for a turn. */
+          if (f.id === 'wallFace') {
+            // REVETMENT: the face you landed on IS the wall you build. `eff`
+            // IS the landed face for a steering class, which is the only class
+            // these cards belong to.
+            var wf = (eff || 0);
+            if (wf > 0) { addStatus(p, 'bulwark', wallGain(wf)); emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') }); }
+          } else if (f.id === 'wallDealt') {
+            // EMBRASURE: the wall is built out of what you just hit
+            if (totalDealt > 0) { addStatus(p, 'bulwark', wallGain(totalDealt)); emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') }); }
+          } else if (f.id === 'spall' || f.id === 'detonate' || f.id === 'breachWall') {
+            // SPALL keeps the wall standing and fires a chip of it; BREACH and
+            // DETONATE spend the lot, the latter across the whole board.
+            var wallNow = statN(p, 'bulwark');
+            var shot = (f.id === 'spall') ? Math.floor(wallNow * (f.v || 0.5)) : wallNow;
+            if (f.id !== 'spall' && wallNow > 0) { addStatus(p, 'bulwark', -wallNow); emit('status', { who: 'player', s: 'bulwark', v: 0 }); }
+            else if (f.id === 'spall' && f.cost) { addStatus(p, 'bulwark', -shot); emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') }); }
+            if (shot > 0) {
+              if (f.id === 'detonate') {
+                aliveEnemies().forEach(function (e2) { totalDealt += dealToEnemy(e2, c.enemies.indexOf(e2), shot, { noCrit: true, bandMult: bandMult }); });
+              } else {
+                var wEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+                if (wEn) totalDealt += dealToEnemy(wEn, c.enemies.indexOf(wEn), shot, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
+              }
+            }
+          } else if (f.id === 'wounded') {
+            /* STIM reads the wound. Every 10% of Max HP you are missing adds
+             * `v` — so the archetype's damage curve is the inverse of your
+             * health bar, and the cards that cost HP are paying into it. */
+            var missPct = Math.max(0, 1 - (E.run.hp / Math.max(1, E.run.maxHp)));
+            var bonus = Math.floor(missPct * 10) * (f.v || 1);
+            var wdEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            if (wdEn && (f.base || 0) + bonus > 0) {
+              totalDealt += dealToEnemy(wdEn, c.enemies.indexOf(wdEn), (f.base || 0) + bonus + attackBonus(f),
+                { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
+            }
+          } else if (f.id === 'shieldSlam' || f.id === 'shieldSlam15') {
             var dmg = Math.floor(p.block * (f.id === 'shieldSlam15' ? 1.5 : 1)) + statN(p, 'str') + art('flatDmg');
             var sEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             if (sEn && dmg > 0) totalDealt += dealToEnemy(sEn, c.enemies.indexOf(sEn), dmg, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
@@ -2421,7 +2494,50 @@
     if (roll < 8 && art('rerollSag') > 0) roll = d20();             // HOT SPARE
     c.rollNo = (c.rollNo || 0) + 1;
     if (art('everyThird') > 0 && c.rollNo % 3 === 0) roll = 20;     // RANGING TABLES
-    eff = Math.min(20, roll + statN(p, 'aim') + art('rollBonus'));
+    /* MARKSMANSHIP STEERS. For a class whose table says `steer`, Aim is not
+     * added to the roll — it MOVES the die. It climbs (or dives, under Steady
+     * Hands) to the furthest ENGRAVED face it can reach, spends 1 Aim a face,
+     * and the band is then read from where it landed. Bare faces are never a
+     * destination, which is what makes Aim worth exactly as much as the die is
+     * well cut. A natural 1 is never steered: a jam is a jam.
+     *
+     * Steering does not WRAP. Climbing off 20 onto face 1 would turn the best
+     * outcome into the worst, and diving off 2 onto the jam would do the same
+     * in reverse — the metaphor is a table you climb, not a ring you circle. */
+    var steered = null;
+    if (dread && dread.steer && roll > 1) {
+      var aimHave = statN(p, 'aim');
+      var capF = Math.min(aimHave, B.dice.steerCap || 3);
+      if (capF > 0) {
+        var dive = statN(p, 'steerDown') > 0;      // STEADY HANDS inverts the climb
+        /* ONLY SPEND WHAT IT BUYS. Climbing blindly to the highest cut face
+         * burned 3 Aim to move 15 -> 18 — both engraved, both SOLID, nothing
+         * gained. Aim moves you when you are on a BARE face (anything beats
+         * nothing) or when the move changes the band. Otherwise it stays in the
+         * magazine for the cashout. */
+        var hereCut = !!ns.dieFaceId(r.die, roll);
+        var hereBand = bandFor(dread, roll, roll);
+        for (var st = 1; st <= capF; st++) {
+          var sf = roll + (dive ? -st : st);
+          if (sf > ns.DIE.faces || sf < 2) break;
+          if (!ns.dieFaceId(r.die, sf)) continue;
+          if (hereCut) {
+            var thereBand = bandFor(dread, sf, sf);
+            if (!thereBand || !hereBand || thereBand.mult <= hereBand.mult) continue;
+          }
+          steered = { face: sf, spent: st };
+        }
+      }
+      if (steered) {
+        addStatus(p, 'aim', -steered.spent);
+        emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') });
+        emit('steer', { from: roll, to: steered.face, spent: steered.spent });
+      }
+    }
+    var landed = steered ? steered.face : roll;
+    eff = (dread && dread.steer)
+      ? Math.min(20, landed + art('rollBonus'))
+      : Math.min(20, roll + statN(p, 'aim') + art('rollBonus'));
     if (art('bankRoll') > 0) c.banked = (c.banked || 0) + roll;     // SPENT BRASS
     if (art('lowMight') > 0 && roll < 6) {                          // TRENCH LEDGER
       addStatus(p, 'str', art('lowMight'));
@@ -2540,8 +2656,25 @@
          * Both stated intents survive: Aim still climbs the table, and the
          * Voidadept still starves his bottom-band blood engines by climbing,
          * because the BAND is what he is climbing out of. */
-        var lands = roll <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden')) ? 1 : roll;
+        var lands = roll <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden')) ? 1 : landed;
         fireDieFace(lands, tgt);
+        /* BURST N — the multi-shot. The card fires the face it landed on and
+         * the next N-1 round the ring, decaying, in the direction the CARD
+         * states. Unlike steering this DOES wrap, because a burst is adjacency
+         * on the physical solid and the solid is a ring — the same reason bleed
+         * wraps. It stacks with bleed and with welds, which is the point: a
+         * welded boundary carries a burst face at full. */
+        var bspec = (card.up && def.up && def.up.burst) ? def.up.burst : def.burst;
+        if (bspec) {
+          var bn = (bspec.n || 2) + statN(p, 'burstPlus');
+          var bdir = bspec.dir || 1;
+          var bmul = B.dice.burst || [1, 0.6, 0.35];
+          for (var bi = 1; bi < bn; bi++) {
+            if (c.over) break;
+            fireOneFace(ns.dieStep(lands, bdir * bi), tgt,
+                        bmul[Math.min(bi, bmul.length - 1)], 'burst', lands);
+          }
+        }
         // TWINNED FIRING PIN: the opening roll of a combat catches both sides
         if (art('firstSplash') > 0 && c.rollNo === 1) {
           ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) fireOneFace(nf, tgt, 1, 'relay', lands); });
