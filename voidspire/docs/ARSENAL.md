@@ -142,7 +142,35 @@ The Arsenal sits *inside* the genre band the Vanguard still undershoots.
 
 The number the trial exists to produce: does picking well beat picking at random?
 
-<!-- GATE_TABLE -->
+**n = 900 per arm**, deterministic harness. `VS_RANDOM_DRAFT` takes a random reward
+every time — a random card for the Vanguard, a random cut onto a random face for
+the Arsenal.
+
+| Class | deliberate | random | gate |
+| --- | --- | --- | --- |
+| **Arsenal** (cuts) | 35.0% | 34.3% | **+0.7** |
+| **Vanguard** (cards) | 30.6% | 34.2% | **−3.6** |
+
+Standard error is ~1.6 points per arm, ~2.2 on the difference. Read honestly:
+
+- **The Vanguard is still inverted.** Drafting at random beats drafting
+  deliberately by 3.6 points (~1.6σ). This is the residue of the "pick random
+  shit, play random shit, win" problem, down from the 27-point inversion the
+  rebuild started at, but not gone.
+- **The Arsenal is flat.** +0.7 ± 2.2 is indistinguishable from zero. The dice
+  builder **removes the inversion** — it never punishes you for choosing well —
+  but it does **not** yet reward choosing well either.
+
+That is a real improvement and an honest disappointment in the same number.
+
+**The caveat that matters.** The Arsenal's "deliberate" bot is crude: take the
+highest-tier cut on offer, displace the lowest-tier face, skip if that would be a
+downgrade. It does not weigh Vent's draw against Heavy Slug's damage, does not
+know what the d20 is built toward, does not plan. The Vanguard's card bot is far
+more developed. A flat gate can mean *the format has no gradient* or *the bot
+cannot find the gradient*, and this measurement cannot separate those. Before
+concluding anything about dice builders, the Arsenal needs a bot as good as the
+Vanguard's — and a deeper cut pool for it to be good about.
 
 ---
 
