@@ -8727,12 +8727,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
    * in engine.js for why: per-play the small dice out-produced the whole deck. */
   ns.D6_AUGMENTS = {
     // --- BATTERY (offensive) ---
-    b_shot:    { name: 'Shot',        die: 'battery', tier: 1, fx: [{ k: 'dmg', v: 4 }], desc: 'Deal 4 damage.' },
-    b_burst:   { name: 'Twin Shot',   die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 7 }], desc: 'Deal 7 damage.' },
-    b_heavy:   { name: 'Heavy Slug',  die: 'battery', tier: 3, fx: [{ k: 'dmg', v: 12 }], desc: 'Deal 12 damage.' },
-    b_spray:   { name: 'Spray',       die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 5, all: true }], desc: 'Deal 5 damage to ALL enemies.' },
-    b_pierce:  { name: 'Piercing',    die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 5 }, { k: 'status', s: 'vuln', v: 1, who: 'target' }], desc: 'Deal 5 damage and apply 1 Vulnerable.' },
-    b_stim:    { name: 'Hot Load',    die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 4 }, { k: 'status', s: 'stim', v: 1, who: 'self' }], desc: 'Deal 4 damage and gain 1 Stim.' },
+    b_shot:    { name: 'Shot',        die: 'battery', tier: 1, fx: [{ k: 'dmg', v: 5 }], desc: 'Deal 5 damage.' },
+    b_burst:   { name: 'Twin Shot',   die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 9 }], desc: 'Deal 9 damage.' },
+    b_heavy:   { name: 'Heavy Slug',  die: 'battery', tier: 3, fx: [{ k: 'dmg', v: 15 }], desc: 'Deal 15 damage.' },
+    b_spray:   { name: 'Spray',       die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 6, all: true }], desc: 'Deal 6 damage to ALL enemies.' },
+    b_pierce:  { name: 'Piercing',    die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 6 }, { k: 'status', s: 'vuln', v: 1, who: 'target' }], desc: 'Deal 6 damage and apply 1 Vulnerable.' },
+    b_stim:    { name: 'Hot Load',    die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 5 }, { k: 'status', s: 'stim', v: 1, who: 'self' }], desc: 'Deal 5 damage and gain 1 Stim.' },
     // --- PLATE (defensive) ---
     p_plate:   { name: 'Plate',       die: 'plate', tier: 1, fx: [{ k: 'status', s: 'bulwark', v: 4, who: 'self' }], desc: 'Gain 4 Bulwark.' },
     p_slab:    { name: 'Slab',        die: 'plate', tier: 2, fx: [{ k: 'status', s: 'bulwark', v: 7, who: 'self' }], desc: 'Gain 7 Bulwark.' },

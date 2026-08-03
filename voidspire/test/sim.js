@@ -24,7 +24,6 @@ var E = VS.engine;
 
 var RUNS = parseInt(process.argv[2] || '60', 10);
 var MAX_SECTOR = 10; // stop "endless" runs here for stats
-var rand = Math.random;
 
 /* ====================================================================
  * "Decent player" bot: estimates incoming damage, blocks when needed,
@@ -637,7 +636,13 @@ function step() {
       if (!node) node = find('treasure');          // free relics are great
       if (!node && hurt) node = reach.filter(function (n) { return n.type !== 'elite'; })[0]; // dodge elites when low
       if (!node) node = find('shop') || find('event');
-      if (!node) node = reach[Math.floor(rand() * reach.length)];
+      /* probeRnd, NOT Math.random. This one line made the whole harness
+       * non-deterministic: the routing fallback fires on most map rows, so two
+       * invocations of the same seed took different paths and the same code
+       * measured 28.0%, 31.5%, 33.0% and 37.0% on four consecutive n=200 runs.
+       * That is wider than almost every effect this sim exists to detect, and
+       * it silently defeated the paired-seed design directly above. */
+      if (!node) node = reach[Math.floor(probeRnd() * reach.length)];
       E.enterNode(node);
       break;
     }
@@ -663,6 +668,16 @@ function step() {
           var t = (VS.d6Engraving(id) || {}).tier || 1;
           if (t > bestTier) { bestTier = t; bestCut = id; }
         });
+        /* VS_RANDOM_DRAFT reaches the small dice too, and it has to — the whole
+         * point of the trial is whether picking cuts well matters more than
+         * picking cards well did, and that question is only answerable against
+         * a bot that picks them badly. Random cut onto a random face. */
+        if (RANDOM_DRAFT && offer.length) {
+          var rc = offer[Math.floor(probeRnd() * offer.length)];
+          var rd = (r.dice6 || []).filter(function (d) { return d.kind === VS.d6Engraving(rc).die; })[0];
+          if (rd) E.d6Take(rc, 1 + Math.floor(probeRnd() * VS.D6.faces));
+          bestCut = null;
+        }
         if (bestCut) {
           var kind = VS.d6Engraving(bestCut).die;
           var die = (r.dice6 || []).filter(function (d) { return d.kind === kind; })[0];
