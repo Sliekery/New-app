@@ -2407,7 +2407,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     /* ---- Classes ---------------------------------------------------- */
     classes: {
-      vanguard:  { hp: 80, might: 2, tech: 0, psi: 0 },
+      /* +20 with the combat clock. Longer fights mean more enemy turns per
+       * node and the same number of rests to recover between them, so the run
+       * bleeds faster even with per-turn damage cut. HP is the lever that pays
+       * for that without touching the shape of a fight. Vanguard only — he is
+       * the testing ground for the clock work. */
+      vanguard:  { hp: 100, might: 2, tech: 0, psi: 0 },
       technomancer: { hp: 68, might: 0, tech: 2, psi: 0 },
       voidadept: { hp: 80, might: 0, tech: 0, psi: 2 },
     },
@@ -2536,7 +2541,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
      * beat an unbounded Shield pool in any sensible number of turns.
      * ------------------------------------------------------------------ */
     enrage: {
-      turn: 20,          // last patient turn; escalation begins on the next one
+      /* Retuned with the clock. The old 20 came from a measurement taken when
+       * the 99th percentile fight was 8 turns and the 99.9th was 14; under the
+       * new clock p99 is 14 and the longest legitimate fights reach 25, so 20
+       * would start escalating fights that are merely long rather than stuck. */
+      turn: 30,          // last patient turn; escalation begins on the next one
       str: 2,            // Might each enemy gains per turn, cumulative
       shieldDecay: 0.34, // fraction of your Shield that fails each turn
       shieldFloor: 5,    // ...and at least this much, so small pools still drain
@@ -2550,6 +2559,42 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     },
 
     /* ---- Enemy scaling per sector (s = sector, 1-based) -------------- */
+    /* ---- THE COMBAT CLOCK ---------------------------------------------
+     * Measured over 2,139 fights, a hallway fight lasted a MEDIAN OF 2 TURNS
+     * and a boss 3.8. The genre runs 4-6 and 9-14. At two turns you draw 10
+     * cards of a 26-card deck, so 62% of what you drafted is never seen — and
+     * a card that needs turns AFTER being drawn (61% of the Vanguard's rares
+     * are Powers) is worth close to nothing. That is measurable: drafting
+     * commons won 56.0% of runs and drafting rares 28.7%. The game's own
+     * signal for "this card is better" was pointing the wrong way, because
+     * the fight was too short for better to mean anything.
+     *
+     * It also starved three systems we had already built. The die's bleed and
+     * listener chains, the nine elite signature laws and the six boss laws are
+     * all things that need turns to express — which is why elite signatures
+     * measured as a win-rate cost with no movement in the death distribution.
+     *
+     * HP goes up and damage-per-turn comes down together, so the TOTAL damage
+     * a fight deals is roughly preserved and the fight simply takes longer:
+     *   fight  2.2 x 0.37     elite  2.4 x 0.37     boss  2.9 x 0.33
+     *
+     * The boss column is steeper on HP: a boss being 1.8x a trash fight is why
+     * it never read as a different kind of event, and it is 2.3x now.
+     *
+     * MEASURED CAVEAT. The clock is difficulty-neutral ON ITS OWN — with the
+     * boss and elite LAWS silenced it lands at 24.0% against a 24.2% baseline.
+     * With them on it lands at 14.7%, because the fifteen signature laws were
+     * tuned when a boss fight was 3.8 turns and they now get seven. They are
+     * worth -9.3 win points at this clock and want retuning one at a time;
+     * they are. Holding elite and boss HP down was tried as a stopgap and did
+     * not earn its keep — the laws fire per TURN, so a 25% shorter boss fight
+     * bought 1.5 win points and gave back the length the boss needed. The
+     * clock keeps its honest values and the laws are the next job. -------- */
+    clock: {
+      hp:  { fight: 2.2, elite: 2.4, boss: 2.9, beacon: 2.4, heart: 2.9 },
+      dmg: { fight: 0.37, elite: 0.37, boss: 0.33, beacon: 0.37, heart: 0.33 },
+    },
+
     scaling: {
       hpMul:  function (s) { return 1 + 0.30 * (s - 1) + 0.034 * (s - 1) * (s - 1); },
       dmgMul: function (s) { return 1 + 0.165 * (s - 1) + 0.017 * (s - 1) * (s - 1); },
@@ -3418,9 +3463,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
     /* ============ Legendaries (boss rewards only) ============ */
     orbital_bombardment: {
+      /* This LEGENDARY was strictly worse than Orbital Strike, a plain rare:
+       * same 3 energy, same 2 Vulnerable, 12 damage against its 16. A boss
+       * reward you would decline. It is the ceiling of the class now. */
       name: 'Orbital Bombardment', cls: 'vanguard', type: 'attack', rarity: 4, pool: 'boss', cost: 3,
-      fx: [{ k: 'dmg', v: 12, all: true, scale: 'might' }, { k: 'status', s: 'vuln', v: 2, who: 'allEnemies' }],
-      up: { fx: [{ k: 'dmg', v: 16, all: true, scale: 'might' }, { k: 'status', s: 'vuln', v: 3, who: 'allEnemies' }] },
+      fx: [{ k: 'dmg', v: 20, all: true, scale: 'might' }, { k: 'status', s: 'vuln', v: 3, who: 'allEnemies' }],
+      up: { fx: [{ k: 'dmg', v: 26, all: true, scale: 'might' }, { k: 'status', s: 'vuln', v: 4, who: 'allEnemies' }] },
     },
     omega_protocol: {
       name: 'Omega Protocol', cls: 'technomancer', type: 'power', rarity: 4, pool: 'boss', cost: 3,
@@ -12384,13 +12432,21 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var prog = Math.min(1, Math.max(0, r.mapRow) / Math.max(1, B.map.rows - 1));
     return 1 + prog * (B.scaling.depthBonus || 0);
   }
-  function scaledHp(base, s) { return Math.round(base * B.scaling.hpMul(s) * worldPowerMult() * depthMult() * (E.pressureMods().enemyHp || 1)); }
-  function scaledDmg(base, s) { return Math.round(base * B.scaling.dmgMul(s) * worldPowerMult() * depthMult() * (E.pressureMods().enemyDmg || 1)); }
+  /* The clock is per ENCOUNTER KIND, so a boss can be longer than a hallway
+   * fight rather than just bigger. Summons mid-combat inherit the combat's own
+   * kind, which is what stops a boss's adds being scaled as trash. */
+  function clockKind(kind) {
+    return kind || (E.combat && E.combat.kind) || 'fight';
+  }
+  function clockHp(kind) { return (B.clock && B.clock.hp[clockKind(kind)]) || 1; }
+  function clockDmg(kind) { return (B.clock && B.clock.dmg[clockKind(kind)]) || 1; }
+  function scaledHp(base, s, kind) { return Math.round(base * B.scaling.hpMul(s) * worldPowerMult() * depthMult() * clockHp(kind) * (E.pressureMods().enemyHp || 1)); }
+  function scaledDmg(base, s, kind) { return Math.max(1, Math.round(base * B.scaling.dmgMul(s) * worldPowerMult() * depthMult() * clockDmg(kind) * (E.pressureMods().enemyDmg || 1))); }
 
-  function mkEnemy(id) {
+  function mkEnemy(id, kind) {
     var def = ns.ENEMIES[id];
     var s = E.run.sector;
-    var hp = scaledHp(def.hp, s);
+    var hp = scaledHp(def.hp, s, kind);
     var hs = art('enemyHpScale');   // Famine Engine: enemies start weakened
     if (hs > 0) hp = Math.max(1, Math.round(hp * (1 - hs / 100)));
     var en = {
@@ -12438,7 +12494,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
     var c = E.combat = {
       kind: kind,
-      enemies: ids.map(mkEnemy),
+      enemies: ids.map(function (id) { return mkEnemy(id, kind); }),
       turn: 0,
       energy: 0,
       hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
@@ -12650,6 +12706,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   function activeLaws() {
     var c = E.combat, out = [];
     if (!c) return out;
+    // VS_NO_LAWS is a balance probe, not a game option: it silences every boss
+    // and elite signature so their contribution to lethality can be measured
+    // against a control instead of argued about.
+    if (typeof process !== 'undefined' && process.env && process.env.VS_NO_LAWS) return out;
     for (var i = 0; i < c.enemies.length; i++) {
       var en = c.enemies[i];
       if (!en.alive) continue;
@@ -12675,6 +12735,35 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   };
   // Called wherever a law can bite. Kept in one function so every law is
   // visible together rather than smeared across the engine.
+  /* ---- LAWS ARE A SHAPE, NOT A METER ---------------------------------
+   * Almost every law here is CUMULATIVE — Might per roll, Thorns per blow,
+   * healing per card, regeneration that doubles per quiet turn. That is fine
+   * in a four-turn fight and ruinous in a seven-turn one, and the combat clock
+   * retune just made every boss fight seven turns. Measured: with the laws
+   * silenced the game sits at 24.0% win, with them on 14.7% — they were worth
+   * -9.3 points, having been tuned when they barely fired.
+   *
+   * The fix is a ceiling on each accumulator rather than a smaller number per
+   * trigger. A law should state a rule you have to answer, reach its full
+   * expression in the first few turns, and then stop — so that fighting it for
+   * longer is a test of whether you solved it, not a countdown you lose by
+   * default. `lawCap` is the one place those ceilings live. ----------------- */
+  var LAW_CAP = {
+    mightTotal: { scrutiny: 6, tithe: 6, stare: 9 },   // cumulative Might a law may hand out
+    healPct:    { hunger: 0.30, hymn: 0.25 },          // ...healing, as a share of its own max HP
+    thorns:     { grudge: 5 },
+    litany:     2,                                     // doublings of its regeneration
+  };
+  // grant up to `cap` of `stat` over the whole fight, returning what was given
+  function lawGrant(en, id, stat, want, cap) {
+    var key = '_law_' + stat;
+    var had = en[key] || 0;
+    var give = Math.max(0, Math.min(want, cap - had));
+    if (give <= 0) return 0;
+    en[key] = had + give;
+    return give;
+  }
+
   function lawTrigger(kind, v, ctx) {
     var all = activeLaws(), ret = 0;
     function fired(l) { emit('bossLaw', { law: l.id, idx: E.combat.enemies.indexOf(l.en) }); }
@@ -12682,24 +12771,32 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var l = all[i];
       /* ---- boss laws ---- */
       if (l.id === 'tithe' && kind === 'shieldGained' && v > 0) {
-        // CAPPED. Uncapped, a Technomancer gaining 30 Shield in a turn handed
-        // the boss +15 Might in one go — measured, the class lost 6.4 points to
-        // this law alone. A tithe is a tax, not a confiscation.
-        addStatus(l.en, 'str', Math.max(1, Math.min(2, Math.floor(v / 2))));
-        fired(l);
+        // CAPPED PER TRIGGER since a Technomancer gaining 30 Shield in a turn
+        // handed the boss +15 Might in one go, and CAPPED OVER THE FIGHT so a
+        // long one does not simply hand over more.
+        var tg = lawGrant(l.en, 'tithe', 'might', Math.max(1, Math.min(2, Math.floor(v / 2))), LAW_CAP.mightTotal.tithe);
+        if (tg > 0) { addStatus(l.en, 'str', tg); fired(l); }
       }
       if (l.id === 'hunger' && kind === 'cardLeft') {
-        l.en.hp = Math.min(l.en.maxHp, l.en.hp + 4); fired(l);
+        var hh = lawGrant(l.en, 'hunger', 'heal', 4, Math.round(l.en.maxHp * LAW_CAP.healPct.hunger));
+        if (hh > 0) { l.en.hp = Math.min(l.en.maxHp, l.en.hp + hh); fired(l); }
       }
-      if (l.id === 'scrutiny' && kind === 'roll' && v < 8) { addStatus(l.en, 'str', 2); fired(l); }
+      if (l.id === 'scrutiny' && kind === 'roll' && v < 8) {
+        var sg = lawGrant(l.en, 'scrutiny', 'might', 2, LAW_CAP.mightTotal.scrutiny);
+        if (sg > 0) { addStatus(l.en, 'str', sg); fired(l); }
+      }
       if (l.id === 'stillness' && kind === 'firstCardCost') ret += 1;
       if (l.id === 'weight' && kind === 'blockCarries') ret = -1;
 
       /* ---- elite signatures ---- */
       // THE HYMN: your Shield is the pack's medicine
       if (l.id === 'hymn' && kind === 'shieldGained' && v > 0) {
-        aliveEnemies().forEach(function (e2) { e2.hp = Math.min(e2.maxHp, e2.hp + 3); });
-        fired(l);
+        var sang = 0;
+        aliveEnemies().forEach(function (e2) {
+          var g = lawGrant(e2, 'hymn', 'heal', 3, Math.round(e2.maxHp * LAW_CAP.healPct.hymn));
+          if (g > 0) { e2.hp = Math.min(e2.maxHp, e2.hp + g); sang++; }
+        });
+        if (sang) fired(l);
       }
       // THE TAKING: it bills you for every landed hit
       if (l.id === 'tithe_coin' && kind === 'playerHit' && v > 0) {
@@ -12716,7 +12813,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       }
       // THE GRUDGE: what it has taken personally, it keeps
       if (l.id === 'grudge' && kind === 'struck' && ctx === l.en) {
-        l.en.grudge = (l.en.grudge || 0) + 1; fired(l);
+        if ((l.en.grudge || 0) < LAW_CAP.thorns.grudge) { l.en.grudge = (l.en.grudge || 0) + 1; fired(l); }
       }
     }
     return ret;
@@ -14264,7 +14361,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         /* THE LITANY compounds while it is left alone — which turns "chip it
          * later" into "you have already lost the race". */
         if (en.def.law === 'litany') {
-          en.litany = en.tookDamageThisTurn ? 0 : Math.min(3, (en.litany || 0) + 1);
+          en.litany = en.tookDamageThisTurn ? 0 : Math.min(LAW_CAP.litany, (en.litany || 0) + 1);
           rg = rg * Math.pow(2, en.litany);
           if (en.litany > 0) emit('bossLaw', { law: 'litany', idx: idx });
         }
@@ -14274,8 +14371,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       /* THE STARE reads the same silence the Litany does, and answers it with
        * Might rather than meat. */
       if (en.def.law === 'stare' && en.alive && !en.tookDamageThisTurn) {
-        addStatus(en, 'str', 3);
-        emit('bossLaw', { law: 'stare', idx: idx });
+        var stg = lawGrant(en, 'stare', 'might', 3, LAW_CAP.mightTotal.stare);
+        if (stg > 0) { addStatus(en, 'str', stg); emit('bossLaw', { law: 'stare', idx: idx }); }
       }
       // THE ETCHING: every third turn it reaches past you to the die itself
       if (en.def.law === 'etching' && en.alive) {
