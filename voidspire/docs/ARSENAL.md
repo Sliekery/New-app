@@ -299,3 +299,113 @@ was flat against a bot that at least played its own draft competently.
 - Shops sell cards it cannot use — a whole economy is dead to it.
 - Twelve cuts and eight acquirable dice is a thin pool.
 - The Long Gun and the small dice still do not interact.
+
+
+---
+
+# TRIAL THREE — THREE REAL DICE
+
+_No cards. Three d20s. The engravings are the deck._
+
+The first two trials made the same mistake twice: the extra dice got their own
+private vocabulary of faces, deliberately stripped of bands, seams, welds and
+taints "for legibility". That is a second game bolted beside the first one.
+
+This is the version that was actually asked for. **Three complete d20s**, all
+running the one engraving system every other class's die runs. Which barrel a
+cut lands on is the deckbuilding.
+
+## The rules
+
+| | |
+| --- | --- |
+| Hand | your three dice, every turn |
+| Rolls | 3 a turn, spent across them however you like |
+| Per die | no limit — rolling a die does not spend it |
+| A roll | resolves exactly as a card play always did: band, aim, steering, the engraved face, seams, welds, taints, misfires, crit relics |
+| Deck | engravings — three offered every fight |
+| Aim | tops back up to 3 at the start of every turn |
+
+Rolling one die does not spend it, because with only three dice a
+one-roll-per-die rule would just mean rolling all three every turn. **The
+decision is allocation**: twice into the damage barrel and once into the
+shield barrel, or all three into one.
+
+## The implementation is one pointer
+
+`run.dice` holds the three; `run.die` is a live **pointer** at whichever is
+resolving. Rolling barrel 3 assigns `run.die = run.dice[2]` and that is the
+entire multi-die implementation — all 107 sites that read `run.die` keep
+working untouched, and the three dice get the whole existing surface for free.
+
+`core`, `vault`, `frame` and the earned-engraving queue are **shared array
+objects** across all three: relics mount to the class, not to a barrel. That
+works only because nothing in the codebase ever *assigns* those fields — every
+site pushes or splices — so one object behind three references stays correct.
+JSON breaks the sharing on save, so `diceRelink` restores it on load.
+
+## What measurement forced
+
+- **Engravings had to move to every fight, three choices.** For a class with no
+  deck they *are* the deck, and leaving them on the card-drop schedule (elites,
+  bosses, 22% of hallways) starved it to **0% win** — it reached sector 3 still
+  rolling three nearly-bare dice.
+- **Sixty faces is too dilute for engravings to be a deck.** One cut fires on
+  about one roll in sixty. The die system already had the answer: the Arsenal
+  **steers**, and its Aim tops back up every turn, so Aim walks a roll to the
+  nearest thing you cut. That makes *where* you cut the skill.
+- **The base payload was set by probe, not taste.** 5 → 9 → 13 gave 14.2% →
+  34.2% → 40.8%; 9 lands at parity.
+
+## Measurements
+
+**30.0% against the Vanguard's 25.3%** (n=300) — at parity, slightly ahead.
+
+| | hallway | elite | boss | boss ÷ hallway |
+| --- | --- | --- | --- | --- |
+| Arsenal | 3 | 4 | 7 | **2.3×** |
+| genre | 4–6 | — | 9–14 | ~2.3× |
+
+Deaths concentrate at bosses and elites — the healthy shape.
+
+### The draft gate
+
+The question all three trials exist to answer: does picking well beat picking
+at random?
+
+**n = 300 per arm.**
+
+| Arm | Win |
+| --- | --- |
+| deliberate | **28.0%** |
+| random | 24.3% |
+| **gate** | **+3.7** |
+
+Standard error is ~2.6 per arm, ~3.7 on the difference — so this is about 1σ
+and is **not** conclusive on its own. A larger run is in flight. What makes it
+worth reporting anyway is the direction: this is the first arm in three trials
+and four formats where deliberate drafting is **ahead** rather than behind.
+
+The plausible reason, which is worth more than the number: a cut here goes onto
+**a barrel you choose to roll**, so the choice keeps paying every turn. In trial
+one a cut was made once at a reward screen and then rolled *for* you forever
+after — passive. In trial two the dice had a separate, shallower vocabulary
+with nothing to build toward. Here the thing you choose and the thing you
+operate are the same object.
+
+## Where the three trials landed
+
+| Format | deliberate vs random |
+| --- | --- |
+| Vanguard — cards | **−3.6** (random ahead) |
+| Trial 1 — cuts on small dice | +0.7 (flat) |
+| Trial 2 — dice in hand, own face vocabulary | **−15.5** (random far ahead) |
+| Trial 3 — three real dice, one engraving system | see above |
+
+## Open
+
+- Relics still assume cards: burst, momentum, exhaust and salvo hooks do
+  nothing for a class with no deck.
+- Shops sell cards it cannot use — a whole economy is dead to it.
+- The base payload is a flat number all run; every other class compounds
+  through powers and upgrades, and the Arsenal has no equivalent axis.
