@@ -2,7 +2,7 @@
 
 _Auto-generated from the game data (`node test/cardsdoc.js`). Effect text is exactly what the game shows; numbers are the base values **before** any MIGHT/TECH/PSI scaling._
 
-**201 cards · 3 classes.** Jump to: [The Die](#the-die) · [Classes](#the-classes) · [Keywords](#keywords) · [Vanguard cards](#vanguard) · [Technomancer cards](#technomancer) · [Void Adept cards](#void-adept) · [Neutral (any class) cards](#neutral-any-class) · [Curses cards](#curses)
+**205 cards · 3 classes.** Jump to: [The Die](#the-die) · [Classes](#the-classes) · [Keywords](#keywords) · [Vanguard cards](#vanguard) · [Technomancer cards](#technomancer) · [Void Adept cards](#void-adept) · [Neutral (any class) cards](#neutral-any-class) · [Curses cards](#curses)
 
 
 ---
@@ -32,10 +32,10 @@ The Vanguard's is a **ramp**, and he is the only class with Aim, so he can climb
 
 > High HP. Brutal weapons that scale with MIGHT. Hits first, asks never.
 
-**80 HP · MIGHT 2 · 66 cards**  
+**100 HP · MIGHT 2 · 70 cards**  
 Opening deck: 5× Pulse Rifle, 4× Combat Shield, 1× Bayonet Charge
 
-**MARKSMANSHIP** — _A low face grazes and a natural 1 goes wide. Aim climbs the table._
+**MARKSMANSHIP** — _Aim STEERS the die: it climbs to the highest face you have cut, and the band is read from where it lands._
 
 | Roll | Band | Damage |
 | --- | --- | --- |
@@ -57,8 +57,8 @@ Opening deck: 5× Pulse Rifle, 4× Combat Shield, 1× Bayonet Charge
 
 | Build | Cards | Reads |
 | --- | --- | --- |
-| **Marksman**<br>_opens THE LONG SHOT_ | 10 | Aim is added to every attack roll, so he is the only class that can climb his own die table. Crit payoffs sit on top of it. |
-| **Momentum** | 3 | Every attack makes the next one bigger, and it all resets at end of turn — so the payoff is one long turn, not a long fight. |
+| **Marksman**<br>_opens THE LONG SHOT_ | 11 | Aim is added to every attack roll, so he is the only class that can climb his own die table. Crit payoffs sit on top of it. |
+| **Momentum** | 0 | Every attack makes the next one bigger, and it all resets at end of turn — so the payoff is one long turn, not a long fight. |
 | **Blood engine** | 3 | Wounds you inflict on yourself feed your Might. The cards that cost HP stop being a price and start being the engine. |
 | **Exhaust / Salvo** | 10 | Burning a card through Exhaust is itself the effect — shrapnel, Shield or a fresh draw every time one goes. |
 | **Counter-punch**<br>_opens THE SET SHIELD_ | 7 | Parry absorbs like Shield but hits back, and it scales with Might — defence that is not a wasted turn. |
@@ -209,7 +209,7 @@ Opening deck: 2× Pulse Rifle, 4× Combat Shield, 4× Mind Spike
 
 ## Keywords
 
-_Every status and mechanic the cards below refer to (59)._
+_Every status and mechanic the cards below refer to (63)._
 
 - **Shield** — Absorbs incoming damage. Expires at the start of your next turn unless stated otherwise.
 - **Plated Armor** — At the start of your turn, gain Shield equal to your Plated Armor, then lose 1 of it.
@@ -222,6 +222,12 @@ _Every status and mechanic the cards below refer to (59)._
 - **Might** — Increases the damage of your attacks by its value.
 - **Psi Focus** — Increases the damage of your Psi attacks.
 - **Energy** — Spent to play cards. Refills at the start of your turn.
+- **Full Auto** — Whenever you play an Attack, gain Momentum.
+- **Loophole** — Every face your BURST reaches adds that much Bulwark.
+- **BURST** — Fires the face you landed on and the next few round the die — up at higher numbers, down at lower. Each face after the first fires weaker: 100%, 60%, 35%.
+- **Aim** — Added to your attack roll. It does not move which face fires — it lifts the BAND every face lands in, so it makes crits likelier AND every engraving on your die hit harder.
+- **Bulwark** — A wall that does NOT expire at the start of your turn. It absorbs damage once your Shield is gone, and some cards detonate it for damage.
+- **Stim** — Increases the damage of your attacks by its value, and decays by 1 at the start of each of your turns.
 - **Exhaust** — When played, this card is removed for the rest of combat.
 - **Retain** — This card stays in your hand at the end of turn instead of being discarded.
 - **Regen** — Heal HP equal to its value at the start of your turn. Ticks down.
@@ -232,7 +238,6 @@ _Every status and mechanic the cards below refer to (59)._
 - **Riposte** — Whenever you gain Shield, deal damage equal to your Riposte to a random enemy.
 - **Salvo** — Whenever you Exhaust a card, deal damage equal to your Salvo to a random enemy.
 - **Quartermaster** — At the start of each turn, return that many random exhausted Attacks to your hand.
-- **Full Auto** — Whenever you play an Attack, gain Momentum.
 - **Blood Rage** — Whenever you lose HP to your own cards, gain Might.
 - **Blood Pact** — Whenever you lose HP to your own cards, gain Psi Focus.
 - **Vengeance** — After you take a hit or parry a blow, your next Attack heals you.
@@ -248,7 +253,6 @@ _Every status and mechanic the cards below refer to (59)._
 - **Demolition** — Whenever you Exhaust a card, deal that much damage to ALL enemies.
 - **Subroutine** — Whenever you play a Power, draw a card.
 - **Swarm Uplink** — Whenever one of your constructs fires, gain that much Shield.
-- **Aim** — Added to your attack roll. It does not move which face fires — it lifts the BAND every face lands in, so it makes crits likelier AND every engraving on your die hit harder.
 - **Steady Aim** — Gain that much Aim at the start of each turn.
 - **Killing Rage** — Whenever an attack crits, gain that much Might.
 - **Deadeye** — Whenever an attack crits, draw that many cards.
@@ -281,7 +285,7 @@ _Every status and mechanic the cards below refer to (59)._
 
 ### Vanguard
 
-_Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
+_Shock trooper — MIGHT weapons & raw aggression. (70 cards)_
 
 
 #### Starter
@@ -299,8 +303,8 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
     - Base: Gain 1 Might, 3 Shield. Then gain Shield equal to twice your Might.
     - Upgraded: Gain 2 Might, 4 Shield. Then gain Shield equal to twice your Might.
 - **Burst Fire**  — Attack · ⚡1
-    - Base: Deal 3 damage 2 times. Roll 15+: Deal 3 damage.
-    - Upgraded: Deal 3 damage 3 times. Roll 13+: Deal 3 damage.
+    - Base: Deal 4 damage. BURST 2 ↑.
+    - Upgraded: Deal 6 damage. BURST 3 ↑.
 - **Counterstrike**  — Attack · ⚡1
     - Base: Deal 4 damage. Gain 4 Parry.
     - Upgraded: Deal 6 damage. Gain 5 Parry.
@@ -316,9 +320,6 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
 - **Field Strip**  — Skill · ⚡0  _(Exhaust)_
     - Base: Draw 2 cards. Exhaust.
     - Upgraded: Draw 3 cards. Exhaust.
-- **Follow Through**  — Attack · ⚡1
-    - Base: Deal 4 damage. Deal 1 more damage per Momentum.
-    - Upgraded: Deal 6 damage. Deal 2 more damage per Momentum.
 - **Frag Grenade**  — Attack · ⚡1
     - Base: ALL enemies: 4 damage, 1 Vulnerable.
     - Upgraded: ALL enemies: 6 damage, 2 Vulnerable.
@@ -328,9 +329,9 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
 - **Raking Fire**  — Attack · ⚡1
     - Base: Apply 1 Weak. Deal 6 damage, and 3 to every other enemy.
     - Upgraded: Apply 2 Weak. Deal 8 damage, and 5 to every other enemy.
-- **Rapid Fire**  — Attack · ⚡0
-    - Base: Deal 3 damage. Gain 1 Momentum.
-    - Upgraded: Deal 4 damage. Gain 1 Momentum.
+- **Ranging Shot**  — Attack · ⚡1
+    - Base: Deal 6 damage. Gain 1 Aim.
+    - Upgraded: Deal 8 damage. Gain 2 Aim.
 - **Reckless Charge**  — Attack · ⚡0  _(Exhaust)_
     - Base: Deal 7 damage. Exhaust.
     - Upgraded: Deal 10 damage. Exhaust.
@@ -340,12 +341,12 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
 - **Shield Bash**  — Attack · ⚡1
     - Base: Deal 6 damage. Gain 4 Shield. Roll 13+: Gain 4 Shield.
     - Upgraded: Deal 8 damage. Gain 6 Shield. Roll 11+: Gain 5 Shield.
+- **Suppressing Burst**  — Attack · ⚡1
+    - Base: Deal 3 damage. Apply 1 Weak. BURST 2 ↑.
+    - Upgraded: Deal 5 damage. Apply 2 Weak. BURST 3 ↑.
 - **Take Aim**  — Skill · ⚡0
     - Base: Gain 2 Aim.
     - Upgraded: Gain 3 Aim.
-- **Trigger Discipline**  — Skill · ⚡1
-    - Base: Draw 2 cards. Gain 1 Momentum.
-    - Upgraded: Draw 2 cards. Gain 2 Momentum.
 - **War Cry**  — Skill · ⚡1
     - Base: Gain 2 Might. Draw 1 card.
     - Upgraded: Gain 3 Might. Draw 1 card.
@@ -355,6 +356,9 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
 - **Adrenal Surge**  — Skill · ⚡0  _(Exhaust)_
     - Base: Gain 2 Energy. Lose 2 HP. Exhaust.
     - Upgraded: Gain 2 Energy. Exhaust.
+- **Boresight**  — Skill · ⚡1
+    - Base: Gain 3 Aim. Draw 1 card.
+    - Upgraded: Gain 4 Aim. Draw 1 card.
 - **Breach**  — Attack · ⚡1
     - Base: Deal 5 damage for each Vulnerable, Weak, and Burn on the target.
     - Upgraded: Deal 8 damage for each Vulnerable, Weak, and Burn on the target.
@@ -364,6 +368,9 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
 - **Bunker Down**  — Skill · ⚡2
     - Base: Gain 8 Shield, 3 Plated Armor.
     - Upgraded: Gain 12 Shield, 4 Plated Armor.
+- **Called High**  — Attack · ⚡1
+    - Base: Deal 6 damage. Roll 20+: Gain 2 Aim.
+    - Upgraded: Deal 8 damage. Roll 20+: Gain 3 Aim.
 - **Cluster Charge**  — Attack · ⚡1  _(Exhaust)_
     - Base: Deal 5 damage to ALL enemies. Exhaust.
     - Upgraded: Deal 7 damage to ALL enemies. Exhaust.
@@ -373,9 +380,12 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
 - **Executioner Round**  — Attack · ⚡2
     - Base: Deal 10 damage. Doubled if the target is below 30% HP.
     - Upgraded: Deal 14 damage. Doubled if the target is below 30% HP.
-- **Hail of Lead**  — Attack · ⚡1
-    - Base: Deal 2 damage 3 times. Each hit also scales with Momentum.
-    - Upgraded: Deal 3 damage 3 times. Each hit also scales with Momentum.
+- **Firing Step**  — Attack · ⚡1
+    - Base: Deal 4 damage. Gain 4 Bulwark. BURST 2 ↑.
+    - Upgraded: Deal 6 damage. Gain 6 Bulwark. BURST 2 ↑.
+- **Hail of Lead**  — Attack · ⚡2
+    - Base: Deal 4 damage. BURST 3 ↑.
+    - Upgraded: Deal 6 damage. BURST 4 ↑.
 - **Heavy Ordnance**  — Attack · ⚡2
     - Base: Deal 8 damage. MIGHT counts three times.
     - Upgraded: Deal 12 damage. MIGHT counts three times.
@@ -385,12 +395,18 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
 - **Limit Break**  — Skill · ⚡1 → 0  _(Exhaust)_
     - Base: Double your Might. Exhaust.
     - Upgraded: _(no change)_
+- **Long Shot**  — Attack · ⚡1  _(Retain)_
+    - Base: Spend 3 Aim: deal 18. Otherwise deal 4. Retain.
+    - Upgraded: Spend 3 Aim: deal 24. Otherwise deal 6. Retain.
+- **Loophole**  — Power · ⚡1
+    - Base: Gain 2 Loophole.
+    - Upgraded: Gain 3 Loophole.
 - **Marksman Round**  — Attack · ⚡1
     - Base: Deal 6 damage. Roll 14+: Apply 2 Vulnerable. Draw 1 card.
     - Upgraded: Deal 8 damage. Roll 12+: Apply 2 Vulnerable. Draw 1 card.
 - **Misfire Protocol**  — Power · ⚡1
-    - Base: When an attack misfires, gain 3 Momentum and 1 Energy.
-    - Upgraded: When an attack misfires, gain 5 Momentum and 1 Energy.
+    - Base: When an attack misfires, gain 3 Aim and 1 Energy.
+    - Upgraded: When an attack misfires, gain 5 Aim and 1 Energy.
 - **Munitions Dump**  — Skill · ⚡1  _(Exhaust)_
     - Base: Gain 2 Energy. Draw 1 card. Exhaust.
     - Upgraded: Gain 2 Energy. Draw 2 cards. Exhaust.
@@ -404,8 +420,8 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
     - Base: Draw 1 card. Return a random exhausted Attack to your hand.
     - Upgraded: _(no change)_
 - **Ricochet**  — Attack · ⚡1
-    - Base: Deal 6 damage. Roll 14+: Deal 6 damage to ALL enemies.
-    - Upgraded: Deal 8 damage. Roll 12+: Deal 8 damage to ALL enemies.
+    - Base: Deal 5 damage. BURST 2 ↓.
+    - Upgraded: Deal 7 damage. BURST 3 ↓.
 - **Set Against It**  — Power · ⚡1
     - Base: Gain 2 Thorns, 2 Plating.
     - Upgraded: Gain 4 Thorns, 3 Plating.
@@ -421,12 +437,12 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
 - **Steady Aim**  — Power · ⚡1
     - Base: Gain 1 Aim. Gain 1 more Aim at the start of each turn.
     - Upgraded: Gain 1 Aim. Gain 2 more Aim at the start of each turn.
-- **Unload**  — Attack · ⚡2
-    - Base: Deal 4 damage. Deal 2 more damage per Momentum.
-    - Upgraded: Deal 5 damage. Deal 3 more damage per Momentum.
 - **Vengeance**  — Power · ⚡1
     - Base: Gain 4 Vengeance.
     - Upgraded: Gain 6 Vengeance.
+- **Walking Fire**  — Attack · ⚡2
+    - Base: Deal 6 damage. BURST 4 ↑.
+    - Upgraded: Deal 8 damage. BURST 5 ↑.
 - **Whet the Blade**  — Skill · ⚡0
     - Base: Lose 2 HP. Gain 2 Might.
     - Upgraded: Lose 1 HP. Gain 2 Might.
@@ -457,24 +473,24 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
 - **Demolition Train**  — Power · ⚡2
     - Base: Whenever you Exhaust a card, deal 4 damage to ALL enemies.
     - Upgraded: Whenever you Exhaust a card, deal 6 damage to ALL enemies.
+- **Empty the Magazine**  — Attack · ⚡2  _(Retain)_
+    - Base: Deal 4 damage. Consume all Aim: BURST 1 further per 2 Aim. Retain.
+    - Upgraded: Deal 6 damage. Consume all Aim: BURST 1 further per Aim. Retain.
 - **Frenzy**  — Attack · ⚡2
     - Base: Deal 3 damage 3 times.
     - Upgraded: Deal 3 damage 4 times.
-- **Full Auto**  — Power · ⚡1
+- **Full Auto**  — Power · ⚡2 → 1
     - Base: Gain 1 Full Auto.
-    - Upgraded: Gain 2 Full Auto.
-- **Killshot**  — Attack · ⚡2
-    - Base: Consume all your Aim. Deal 6 damage plus 4 for each Aim consumed.
-    - Upgraded: Consume all your Aim. Deal 8 damage plus 5 for each Aim consumed.
+    - Upgraded: _(no change)_
+- **Killshot**  — Attack · ⚡2  _(Retain)_
+    - Base: Consume all your Aim. Deal 6 damage plus 4 for each Aim consumed. Retain.
+    - Upgraded: Consume all your Aim. Deal 8 damage plus 5 for each Aim consumed. Retain.
 - **One in the Chamber**  — Attack · ⚡1  _(Exhaust)_
     - Base: Roll 8+: Deal 24 damage. Exhaust.
     - Upgraded: Roll 6+: Deal 30 damage. Exhaust.
 - **Orbital Strike**  — Attack · ⚡3
     - Base: ALL enemies: 16 damage, 2 Vulnerable.
     - Upgraded: ALL enemies: 22 damage, 3 Vulnerable.
-- **Overrun**  — Attack · ⚡2
-    - Base: Deal 6 damage. Deal 4 more damage per Momentum.
-    - Upgraded: Deal 8 damage. Deal 5 more damage per Momentum.
 - **Quartermaster**  — Power · ⚡1
     - Base: Gain 1 Quartermaster.
     - Upgraded: Gain 2 Quartermaster.
@@ -494,8 +510,8 @@ _Shock trooper — MIGHT weapons & raw aggression. (66 cards)_
 #### Legendary
 
 - **Orbital Bombardment**  — Attack · ⚡3  _(boss reward only)_
-    - Base: ALL enemies: 12 damage, 2 Vulnerable.
-    - Upgraded: ALL enemies: 16 damage, 3 Vulnerable.
+    - Base: ALL enemies: 20 damage, 3 Vulnerable.
+    - Upgraded: ALL enemies: 26 damage, 4 Vulnerable.
 
 ---
 

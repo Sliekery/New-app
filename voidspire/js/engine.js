@@ -2303,6 +2303,28 @@
               totalDealt += dealToEnemy(wdEn, c.enemies.indexOf(wdEn), (f.base || 0) + bonus + attackBonus(f),
                 { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
             }
+          } else if (f.id === 'aimGate') {
+            /* LONG SHOT. Pay a fixed price for a fixed shot, or fire it dry for
+             * scraps. Unlike Killshot it does not want your whole magazine, so
+             * it is the cashout you can hold alongside steering. */
+            var haveA = statN(p, 'aim'), payA = f.cost || 3;
+            var shotA = (haveA >= payA) ? (f.v || 18) : (f.base || 4);
+            if (haveA >= payA) { addStatus(p, 'aim', -payA); emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') }); }
+            var agEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            if (agEn) totalDealt += dealToEnemy(agEn, c.enemies.indexOf(agEn), shotA + attackBonus(f),
+              { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
+          } else if (f.id === 'emptyMag') {
+            /* EMPTY THE MAGAZINE. The whole load turns into reach rather than
+             * into one big number — every 2 Aim walks the burst one face
+             * further round the ring, so it wants a long engraved run and it
+             * is the only card that turns Aim into WIDTH. */
+            var magA = statN(p, 'aim');
+            if (magA > 0) { addStatus(p, 'aim', -magA); emit('status', { who: 'player', s: 'aim', v: 0 }); }
+            var extra = Math.floor(magA / (f.per || 2));
+            var bm2 = B.dice.burst || [1, 0.6, 0.35];
+            for (var em = 1; em <= extra && !c.over; em++) {
+              fireOneFace(ns.dieStep(eff || roll, em), tgt, bm2[Math.min(em, bm2.length - 1)], 'burst', eff || roll);
+            }
           } else if (f.id === 'shieldSlam' || f.id === 'shieldSlam15') {
             var dmg = Math.floor(p.block * (f.id === 'shieldSlam15' ? 1.5 : 1)) + statN(p, 'str') + art('flatDmg');
             var sEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
@@ -2553,8 +2575,10 @@
       if (!misfire && art('lowCrit') > 0 && roll <= art('lowCrit')) crit = true;
       if (misfire && art('critDie1Energy') > 0) c.energy += art('critDie1Energy');   // Misfire Capacitor
       if (misfire) {   // MISFIRE PROTOCOL turns a jam into fuel
+        // MISFIRE PROTOCOL pays in AIM now: a jam is the one roll steering
+        // cannot save, so the compensation is ammunition for the next one.
         var mg = statN(p, 'misfireGuard');
-        if (mg > 0) { addStatus(p, 'momentum', mg); emit('status', { who: 'player', s: 'momentum', v: statN(p, 'momentum') }); c.energy += 1; }
+        if (mg > 0) { addStatus(p, 'aim', mg); emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') }); c.energy += 1; }
         // TRIP COIL / SACRIFICIAL FUSE: a tripped breaker is never dead weight
         if (art('breakerBlock') > 0) gainBlock(art('breakerBlock'));
         if (art('breakerEnergy') > 0) c.energy += art('breakerEnergy');
@@ -2669,11 +2693,14 @@
           var bn = (bspec.n || 2) + statN(p, 'burstPlus');
           var bdir = bspec.dir || 1;
           var bmul = B.dice.burst || [1, 0.6, 0.35];
+          var lp = statN(p, 'burstWall');      // LOOPHOLE: the burst builds the wall
           for (var bi = 1; bi < bn; bi++) {
             if (c.over) break;
             fireOneFace(ns.dieStep(lands, bdir * bi), tgt,
                         bmul[Math.min(bi, bmul.length - 1)], 'burst', lands);
+            if (lp > 0) addStatus(p, 'bulwark', wallGain(lp));
           }
+          if (lp > 0 && bn > 1) emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') });
         }
         // TWINNED FIRING PIN: the opening roll of a combat catches both sides
         if (art('firstSplash') > 0 && c.rollNo === 1) {

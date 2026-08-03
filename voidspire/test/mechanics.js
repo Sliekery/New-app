@@ -1592,24 +1592,30 @@ ok('every remaining class has a starter deck whose cards all exist',
   // thing they claim to, rather than dealing a flat number. This compares two
   // plays of the same card, so the die has to be frozen: each play rolls it,
   // and the roll swings damage by more than the Momentum being measured.
+  /* Momentum is GONE from the Vanguard — BURST replaced it, because chaining
+   * across cards and bursting within one are the same fantasy and only one of
+   * them uses the die. What replaces this test is that the cashout actually
+   * cashes out: Long Shot pays a fixed price for a fixed shot. */
   flatDie(function () {
     E.seed(8); E.newRun('vanguard'); E.takeFirstMark(0);
     E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
     E.startNode('fight');
     var c = E.combat, en = c.enemies[0];
     en.hp = 9999; en.maxHp = 9999; c.energy = 30; en.platedReady = false;
-    c.player.statuses.momentum = 0;
-    c.hand = [{ uid: 5001, id: 'follow_through', up: false }];
-    var hp1 = en.hp; E.playCard(0, 0); var dmgNoMo = hp1 - en.hp;
-    c.player.statuses.momentum = 6;
-    c.hand = [{ uid: 5002, id: 'follow_through', up: false }];
-    var hp2 = en.hp; E.playCard(0, 0); var dmgMo = hp2 - en.hp;
-    ok('Follow Through actually spends Momentum (' + dmgNoMo + ' -> ' + dmgMo + ')', dmgMo > dmgNoMo);
+    c.player.statuses.aim = 0;
+    c.hand = [{ uid: 5001, id: 'long_shot', up: false }];
+    var hp1 = en.hp; E.playCard(0, 0); var dryShot = hp1 - en.hp;
+    c.player.statuses.aim = 3;
+    c.hand = [{ uid: 5002, id: 'long_shot', up: false }];
+    var hp2 = en.hp; E.playCard(0, 0); var loaded = hp2 - en.hp;
+    ok('Long Shot pays out only when loaded (' + dryShot + ' -> ' + loaded + ')', loaded > dryShot * 2);
+    ok('...and it spends the Aim it used', (c.player.statuses.aim || 0) === 0);
   });
   E.run.phase = 'map';
 
   // Every new card must be reachable as a reward, or it is content nobody sees.
-  var NEW = ['worry_wound','sympathetic_ache','follow_through','overrun','munitions_link','bootstrap','brace_plate'];
+  var NEW = ['worry_wound','sympathetic_ache','called_high','empty_the_magazine','munitions_link','bootstrap','brace_plate',
+             'long_shot','firing_step','loophole','suppressing_burst','walking_fire'];
   var unreachable = NEW.filter(function (id) { return !!VS.CARDS[id].pool; });
   ok('the new archetype cards are all draftable' + (unreachable.length ? ' — ' + unreachable.join(', ') : ''),
      unreachable.length === 0);

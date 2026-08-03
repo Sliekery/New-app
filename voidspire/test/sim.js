@@ -348,12 +348,22 @@ var CLASS_ATTR = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
 // of the greedy grab-bag. Reusable across classes.
 var ENGINES = {
   // Vanguard engines
-  fusillade: { cls: 'vanguard', core: ['rapid_fire', 'trigger_discipline', 'hail_of_lead', 'full_auto', 'unload', 'burst_fire', 'frenzy', 'reckless_charge'],
-               flex: ['pulse_rifle', 'combat_shield', 'war_cry', 'suppressing_fire', 'bayonet_charge', 'brace', 'reload', 'rallying_shout', 'munitions_dump'] },
+  /* MARKSMANSHIP replaced the old Momentum line: load Aim, let the die steer
+   * onto an engraved run, walk a BURST along it, hold the RETAIN cashout until
+   * the magazine is full. */
+  marksmanship: { cls: 'vanguard', core: ['take_aim', 'boresight', 'steady_aim', 'ranging_shot', 'sighting_round',
+                                          'burst_fire', 'suppressing_burst', 'hail_of_lead', 'walking_fire', 'ricochet',
+                                          'full_auto', 'long_shot', 'killshot', 'empty_the_magazine', 'called_high',
+                                          'deadeye_protocol', 'one_in_the_chamber', 'misfire_protocol'],
+                  flex: ['pulse_rifle', 'combat_shield', 'war_cry', 'bayonet_charge', 'brace', 'hair_trigger',
+                         'breaching_charge', 'marksman_round', 'firing_step', 'loophole'] },
   bloodforge: { cls: 'vanguard', core: ['blood_rage', 'deflect', 'vengeance', 'counterstrike', 'crimson_pact', 'whet_the_blade', 'bloodbath', 'frenzy', 'limit_break', 'heavy_ordnance', 'combat_stims', 'bloodlust'],
                 flex: ['pulse_rifle', 'war_cry', 'rallying_shout', 'bayonet_charge', 'executioner', 'adrenal_surge'] },
-  marksman: { cls: 'vanguard', core: ['take_aim', 'steady_aim', 'marksman_round', 'hair_trigger', 'deadeye_protocol', 'killshot', 'misfire_protocol', 'executioner', 'burst_fire', 'shield_bash'],
-              flex: ['pulse_rifle', 'combat_shield', 'war_cry', 'brace', 'reload', 'bayonet_charge'] },
+  // kept as a NARROWER marksman pilot: the pure Aim line with no burst support,
+  // so the two can be measured against each other
+  marksman: { cls: 'vanguard', core: ['take_aim', 'boresight', 'steady_aim', 'sighting_round', 'ranging_shot',
+                                      'long_shot', 'killshot', 'called_high', 'deadeye_protocol', 'misfire_protocol'],
+              flex: ['pulse_rifle', 'combat_shield', 'war_cry', 'brace', 'bayonet_charge', 'hair_trigger'] },
   bandolier: { cls: 'vanguard', core: ['salvo', 'reload', 'quartermaster', 'breaching_charge', 'field_strip', 'cluster_charge', 'scorched_earth', 'iron_resolve', 'salvage_protocol', 'reckless_charge', 'limit_break', 'adrenal_surge'],
                flex: ['pulse_rifle', 'combat_shield', 'munitions_dump', 'bayonet_charge', 'brace', 'reload'] },
   // Voidadept affliction/Burn engine

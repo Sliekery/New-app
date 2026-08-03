@@ -64,6 +64,13 @@
       /* BURST N fires the landing face and the next N-1 round the ring at these
        * fractions. The landing face still matters most; later faces are a bonus
        * that stacks with the 25% bleed and with welds. */
+      /* OPEN QUESTION, deliberately left at the designed values. Against what
+       * it competes with these look light: on a MEDIAN engraving of 8 a BURST 3
+       * adds 7.6 damage, and only if both faces past the landing one are cut,
+       * while two Pulse Rifles deal 12 for the same two energy. Raising them to
+       * 0.8/0.6 was tried and every arm moved DOWN about 5 points — which at
+       * n=200 is inside the noise and across three unpaired batches means
+       * nothing either way. It wants a paired test at n=600+ before it moves. */
       burst: [1, 0.6, 0.35, 0.2, 0.12],
       /* THE WELD. Bleed across a chosen boundary between two DIFFERENT
        * engravings runs at full instead of `bleed`. Bought at the bench, and

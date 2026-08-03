@@ -26,6 +26,7 @@
     wildfire: 'Wildfire', psiRamp: 'Ascendant', hive: 'Hive', conduit: 'Conduit', plating: 'Plating',
     emberward: 'Ember Ward', staticward: 'Static Ward', spikeward: 'Spiked Bulwark',
     aim: 'Aim', aimPerTurn: 'Steady Aim', burstPlus: 'Full Auto', steerDown: 'Steady Hands',
+    burstWall: 'Loophole', stimHold: 'Fever',
     bulwark: 'Bulwark', stim: 'Stim', critFury: 'Killing Rage', deadeyeDraw: 'Deadeye', misfireGuard: 'Misfire Protocol',
     demoCharge: 'Demolition', subroutine: 'Subroutine', aegisLink: 'Swarm Uplink',
     platedArmor: 'Plated Armor', barricade: 'Barricade', bloodPact: 'Blood Pact',
@@ -47,6 +48,8 @@
     'Might': 'Increases the damage of your attacks by its value.',
     'Psi Focus': 'Increases the damage of your Psi attacks.',
     'Energy': 'Spent to play cards. Refills at the start of your turn.',
+    'Full Auto': 'Every attack you play BURSTs one face further round the die.',
+    'Loophole': 'Every face your BURST reaches adds that much Bulwark.',
     'BURST': 'Fires the face you landed on and the next few round the die \u2014 up at higher numbers, down at lower. Each face after the first fires weaker: 100%, 60%, 35%.',
     'Aim': 'Marksmanship STEERS the die. After the roll it climbs to the highest face you have cut that it can reach, spending 1 Aim per face, up to 3. The band is read from where it lands. A natural 1 is never steered.',
     'Bulwark': 'A wall that does NOT expire at the start of your turn. It absorbs damage once your Shield is gone, and some cards detonate it for damage.',
@@ -146,8 +149,8 @@
     /* ---------------- Vanguard ---------------- */
     burst_fire: {
       name: 'Burst Fire', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
-      fx: [{ k: 'dmg', v: 3, hits: 2, scale: 'might' }, { k: 'onRoll', min: 15, fx: [{ k: 'dmg', v: 3, scale: 'might' }] }],
-      up: { fx: [{ k: 'dmg', v: 3, hits: 3, scale: 'might' }, { k: 'onRoll', min: 13, fx: [{ k: 'dmg', v: 3, scale: 'might' }] }] },
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }], burst: { n: 2, dir: 1 },
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }], burst: { n: 3, dir: 1 } },
     },
     suppressing_fire: {   // a raking burst — hammers one target, pins it, and carries through the pack
       name: 'Raking Fire', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
@@ -467,32 +470,51 @@
     },
     // --- FUSILLADE: the full-auto tempo engine. Cheap shots build Momentum
     //     (+1 dmg per stack to your attacks, resets each turn); spend it on a payoff. ---
-    rapid_fire: {   // ⚡0 chain-starter — cheap shot that gets the Momentum rolling
-      name: 'Rapid Fire', cls: 'vanguard', type: 'attack', rarity: 1, cost: 0,
-      fx: [{ k: 'dmg', v: 3 }, { k: 'status', s: 'momentum', v: 1, who: 'self' }],
-      up: { fx: [{ k: 'dmg', v: 4 }, { k: 'status', s: 'momentum', v: 1, who: 'self' }] },
+    long_shot: {   // the cashout you can hold ALONGSIDE steering
+      name: 'Long Shot', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1, retain: true,
+      fx: [{ k: 'special', id: 'aimGate', cost: 3, v: 18, base: 4 }],
+      text: 'Spend 3 Aim: deal 18. Otherwise deal 4.',
+      up: { fx: [{ k: 'special', id: 'aimGate', cost: 3, v: 24, base: 6 }], text: 'Spend 3 Aim: deal 24. Otherwise deal 6.' },
     },
-    trigger_discipline: {   // the draw enabler — keep the chain fed
-      name: 'Trigger Discipline', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
-      fx: [{ k: 'draw', v: 2 }, { k: 'status', s: 'momentum', v: 1, who: 'self' }],
-      up: { fx: [{ k: 'draw', v: 2 }, { k: 'status', s: 'momentum', v: 2, who: 'self' }] },
+    firing_step: {   // BRIDGE - Marksman x Bulwark
+      name: 'Firing Step', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'status', s: 'bulwark', v: 4, who: 'self' }], burst: { n: 2, dir: 1 },
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'status', s: 'bulwark', v: 6, who: 'self' }], burst: { n: 2, dir: 1 } },
+    },
+    loophole: {   // BRIDGE - Marksman x Bulwark
+      name: 'Loophole', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'burstWall', v: 2, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'burstWall', v: 3, who: 'self' }] },
+    },
+    suppressing_burst: {
+      name: 'Suppressing Burst', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 3, scale: 'might' }, { k: 'status', s: 'weak', v: 1, who: 'target' }], burst: { n: 2, dir: 1 },
+      up: { fx: [{ k: 'dmg', v: 5, scale: 'might' }, { k: 'status', s: 'weak', v: 2, who: 'target' }], burst: { n: 3, dir: 1 } },
+    },
+    ranging_shot: {   // ⚡0 chain-starter — cheap shot that gets the Momentum rolling
+      name: 'Ranging Shot', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'status', s: 'aim', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'status', s: 'aim', v: 2, who: 'self' }] },
+    },
+    boresight: {   // the draw enabler — keep the chain fed
+      name: 'Boresight', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
+      fx: [{ k: 'status', s: 'aim', v: 3, who: 'self' }, { k: 'draw', v: 1 }],
+      up: { fx: [{ k: 'status', s: 'aim', v: 4, who: 'self' }, { k: 'draw', v: 1 }] },
     },
     hail_of_lead: {   // multi-hit payoff — every shot rides your Momentum (and Might)
-      name: 'Hail of Lead', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
-      fx: [{ k: 'dmg', v: 2, hits: 3, scale: 'might' }],
-      text: 'Each hit also scales with Momentum.',
-      up: { fx: [{ k: 'dmg', v: 3, hits: 3, scale: 'might' }] },
+      name: 'Hail of Lead', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }], burst: { n: 3, dir: 1 },
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }], burst: { n: 4, dir: 1 } },
     },
     full_auto: {   // the engine anchor — every attack now snowballs Momentum
-      name: 'Full Auto', cls: 'vanguard', type: 'power', rarity: 3, cost: 1,
-      fx: [{ k: 'status', s: 'fullauto', v: 1, who: 'self' }],
-      up: { fx: [{ k: 'status', s: 'fullauto', v: 2, who: 'self' }] },
+      name: 'Full Auto', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      fx: [{ k: 'status', s: 'burstPlus', v: 1, who: 'self' }],
+      up: { cost: 1, fx: [{ k: 'status', s: 'burstPlus', v: 1, who: 'self' }] },
     },
-    unload: {   // the cashout — dump a turn of built-up Momentum into one hit
-      name: 'Unload', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
-      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'special', id: 'unload', v: 2 }],
-      text: 'Deal 2 more damage per Momentum.',
-      up: { fx: [{ k: 'dmg', v: 5, scale: 'might' }, { k: 'special', id: 'unload', v: 3 }], text: 'Deal 3 more damage per Momentum.' },
+    walking_fire: {   // the long walk — the widest burst in the class
+      name: 'Walking Fire', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
+      fx: [{ k: 'dmg', v: 6, scale: 'might' }], burst: { n: 4, dir: 1 },
+      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }], burst: { n: 5, dir: 1 } },
     },
     // --- BLOODFORGE: spend life to stoke Might; defend by parrying (deflect + riposte),
     //     not turtling. Stacked Strength powers your attacks, your parries, and the cashout. ---
@@ -743,8 +765,8 @@
     },
     ricochet: {   // the trick shot: lands well, it carries
       name: 'Ricochet', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
-      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'onRoll', min: 14, fx: [{ k: 'dmg', v: 6, all: true }] }],
-      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'onRoll', min: 12, fx: [{ k: 'dmg', v: 8, all: true }] }] },
+      fx: [{ k: 'dmg', v: 5, scale: 'might' }], burst: { n: 2, dir: -1 },
+      up: { fx: [{ k: 'dmg', v: 7, scale: 'might' }], burst: { n: 3, dir: -1 } },
     },
     mains_surge: {   // LOAD BALANCE: ride a SURGE and the wall doubles
       name: 'Mains Surge', cls: 'technomancer', type: 'skill', rarity: 2, cost: 1,
@@ -795,17 +817,22 @@
       fx: [{ k: 'status', s: 'conduit', v: 2, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'conduit', v: 3, who: 'self' }] },
     },
-    follow_through: {   // a common way to spend Momentum, not just build it
-      name: 'Follow Through', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
-      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'special', id: 'unload', v: 1 }],
-      text: 'Deal 1 more damage per Momentum.',
-      up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'special', id: 'unload', v: 2 }], text: 'Deal 2 more damage per Momentum.' },
+    /* ===================== MARKSMANSHIP ==============================
+     * Aim STEERS the die (see balance.js). These load it, the BURSTs walk
+     * along whatever it steered onto, and the RETAIN cashouts are held in hand
+     * until the magazine is full. Momentum used to live here and was replaced
+     * wholesale: chaining across cards and bursting within one are the same
+     * fantasy, and only one of them uses the die we already built. ======== */
+    called_high: {
+      name: 'Called High', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
+      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'onRoll', min: 20, fx: [{ k: 'status', s: 'aim', v: 2, who: 'self' }] }],
+      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'onRoll', min: 20, fx: [{ k: 'status', s: 'aim', v: 3, who: 'self' }] }] },
     },
-    overrun: {   // the Momentum capstone
-      name: 'Overrun', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
-      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'special', id: 'unload', v: 4 }],
-      text: 'Deal 4 more damage per Momentum.',
-      up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'special', id: 'unload', v: 5 }], text: 'Deal 5 more damage per Momentum.' },
+    empty_the_magazine: {   // the whole load turns into REACH, not one number
+      name: 'Empty the Magazine', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2, retain: true,
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'special', id: 'emptyMag', per: 2 }],
+      text: 'Consume all Aim: BURST 1 further per 2 Aim.',
+      up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'special', id: 'emptyMag', per: 1 }], text: 'Consume all Aim: BURST 1 further per Aim.' },
     },
     brace_plate: {   // the common entry the Shield stack lacked — every other
                      // plating card in the class is uncommon or rare
@@ -1200,11 +1227,11 @@
     misfire_protocol: {   // BUILD-AROUND — a jammed round becomes momentum
       name: 'Misfire Protocol', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
       fx: [{ k: 'status', s: 'misfireGuard', v: 3, who: 'self' }],
-      text: 'When an attack misfires, gain 3 Momentum and 1 Energy.',
-      up: { fx: [{ k: 'status', s: 'misfireGuard', v: 5, who: 'self' }], text: 'When an attack misfires, gain 5 Momentum and 1 Energy.' },
+      text: 'When an attack misfires, gain 3 Aim and 1 Energy.',
+      up: { fx: [{ k: 'status', s: 'misfireGuard', v: 5, who: 'self' }], text: 'When an attack misfires, gain 5 Aim and 1 Energy.' },
     },
     killshot: {   // the cashout — dump every point of banked Aim into one round
-      name: 'Killshot', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
+      name: 'Killshot', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2, retain: true,
       fx: [{ k: 'special', id: 'spendAim', base: 6, v: 4 }],
       text: 'Consume all your Aim. Deal 6 damage plus 4 for each Aim consumed.',
       up: { fx: [{ k: 'special', id: 'spendAim', base: 8, v: 5 }], text: 'Consume all your Aim. Deal 8 damage plus 5 for each Aim consumed.' },
