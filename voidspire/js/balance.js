@@ -25,8 +25,9 @@
       vanguard:  { hp: 100, might: 2, tech: 0, psi: 0 },
       technomancer: { hp: 68, might: 0, tech: 2, psi: 0 },
       voidadept: { hp: 80, might: 0, tech: 0, psi: 2 },
-      /* THE ARSENAL — the dice-builder trial. Same body as the Vanguard on
-       * purpose, so any difference measured is the DICE and not the stat line. */
+      /* THE ARSENAL — no cards, three dice. Vanguard stats on purpose: the
+       * class exists to test the FORMAT, so anything it measures differently
+       * has to come from the format and not from a better statline. */
       arsenal:   { hp: 100, might: 2, tech: 0, psi: 0 },
     },
 
@@ -48,6 +49,8 @@
      * design: three answers to the same question, not three sets of numbers.
      * ---------------------------------------------------------------- */
     dice: {
+      arsenalDice: 3,        // how many barrels the Arsenal rolls
+      arsenalAim: 3,         // Aim it tops back up to at the start of every turn
       // THE ROLL BLEEDS: a roll fires its face fully and the faces either side
       // at this fraction. It is what makes WHERE you cut matter as much as
       // WHAT, and it turns a filled die from a dead end into the payoff.
@@ -133,21 +136,6 @@
           ],
         },
 
-        /* THE ARSENAL reads the d20 exactly as the Vanguard does — it is a
-         * copy by design, so the trial measures the two extra dice and nothing
-         * else. It does NOT steer: Aim is a Marksmanship rule, and this class
-         * builds width across three dice instead of precision on one. */
-        arsenal: {
-          name: 'THREE BARRELS',
-          read: 'Every card rolls all three dice. The d20 is the lottery; the d6s are the floor you built.',
-          misfire: { mult: 0.5, label: 'MISFIRE' },
-          bands: [
-            { min: 15, mult: 1.25, label: 'SOLID' },
-            { min: 8,  mult: 1.0,  label: 'HIT' },
-            { min: 2,  mult: 0.8,  label: 'GRAZE' },
-          ],
-        },
-
         /* LOAD BALANCE — throughput. A machine does not miss, it sags. The band
          * scales Shield as well as damage, so the die reads on a defensive turn
          * too, and a tripped breaker dumps its charge back as Energy. */
@@ -170,6 +158,32 @@
          * who pays. The bottom of the die is STRONGER than the middle and bills
          * you in HP, so Aim is a genuine trade for the Voidadept: climb the
          * table and you starve the blood engines that feed on the bottom. */
+        /* THE ARSENAL reads its own table because the die IS the attack now —
+         * there is no card underneath carrying the number, so the band spread
+         * has to be wide enough to make a good roll feel like a good roll and
+         * a bad one hurt. Wider than the Vanguard's on purpose. */
+        arsenal: {
+          name: 'THREE BARRELS',
+          read: 'Three dice, one system. Roll any of them; AIM walks the roll up to the nearest thing you cut.',
+          /* THE ARSENAL STEERS, and it has to. Sixty faces across three dice
+           * means a single cut fires on about one roll in sixty — engravings
+           * cannot be your deck at that dilution, and the class measured 14%
+           * against the Vanguard's 32.5% while rolling almost entirely bare
+           * faces. Steering is the answer the die system already had: Aim
+           * climbs the table to the nearest ENGRAVED face, so cutting five
+           * good faces high on a barrel means most rolls of it find one.
+           * That makes WHERE you cut the skill, which is the whole point. */
+          steer: true,
+          aim: 2,
+          misfire: { mult: 0.4, label: 'MISFIRE' },
+          bands: [
+            { min: 17, mult: 1.7, label: 'SOLID' },
+            { min: 11, mult: 1.25, label: 'HIT' },
+            { min: 5,  mult: 0.9, label: 'GRAZE' },
+            { min: 2,  mult: 0.6, label: 'SCRAPE' },
+          ],
+        },
+
         voidadept: {
           name: 'THE HUNGER',
           read: 'The bottom of the die hits HARDER than the middle — and bills you in HP.',

@@ -867,56 +867,21 @@
    * subsystems on one die is what made Marksmanship fragile; the small dice
    * are the argument that less machinery reads better.
    * ================================================================== */
-  ns.D6 = { faces: 6 };
-  ns.D6_BASE = { battery: 'b_shot', plate: 'p_plate' };
-  /* The small dice are never blank. Every face starts cut with the die's basic
-   * engraving — Shot on the battery, Plate on the plate — so the machines always
-   * do something and progression is REPLACING a weak face rather than filling a
-   * hole. That matters more than it sounds: a dice builder whose dice mostly
-   * whiff early reads as broken rather than as unfinished, and "your Shot became
-   * a Heavy Slug" is a far more legible reward than "face 4 is no longer blank". */
-  ns.newD6 = function (kind) {
-    var d = { kind: kind, faces: {} };
-    for (var f = 1; f <= ns.D6.faces; f++) d.faces[f] = ns.D6_BASE[kind];
-    return d;
-  };
-  /* Priced against ONE FIRING PER TURN, not per card play. See the firing block
-   * in engine.js for why: per-play the small dice out-produced the whole deck. */
-  ns.D6_AUGMENTS = {
-    // --- BATTERY (offensive) ---
-    b_shot:    { name: 'Shot',        die: 'battery', tier: 1, fx: [{ k: 'dmg', v: 6, scale: 'might' }], desc: 'Deal 6 damage.' },
-    b_burst:   { name: 'Twin Shot',   die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 13, scale: 'might' }], desc: 'Deal 13 damage.' },
-    b_heavy:   { name: 'Heavy Slug',  die: 'battery', tier: 3, fx: [{ k: 'dmg', v: 22, scale: 'might' }], desc: 'Deal 22 damage.' },
-    b_spray:   { name: 'Spray',       die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 10, all: true, scale: 'might' }], desc: 'Deal 10 damage to ALL enemies.' },
-    b_pierce:  { name: 'Piercing',    die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 11, scale: 'might' }, { k: 'status', s: 'vuln', v: 2, who: 'target' }], desc: 'Deal 11 damage and apply 2 Vulnerable.' },
-    b_stim:    { name: 'Hot Load',    die: 'battery', tier: 2, fx: [{ k: 'dmg', v: 10, scale: 'might' }, { k: 'status', s: 'stim', v: 2, who: 'self' }], desc: 'Deal 10 damage and gain 2 Stim.' },
-    // --- PLATE (defensive) ---
-    p_plate:   { name: 'Plate',       die: 'plate', tier: 1, fx: [{ k: 'status', s: 'bulwark', v: 10, who: 'self' }], desc: 'Gain 10 Bulwark.' },
-    p_slab:    { name: 'Slab',        die: 'plate', tier: 2, fx: [{ k: 'status', s: 'bulwark', v: 18, who: 'self' }], desc: 'Gain 18 Bulwark.' },
-    p_bastion: { name: 'Bastion Ply', die: 'plate', tier: 3, fx: [{ k: 'status', s: 'bulwark', v: 32, who: 'self' }], desc: 'Gain 32 Bulwark.' },
-    p_spike:   { name: 'Spiked Ply',  die: 'plate', tier: 2, fx: [{ k: 'status', s: 'bulwark', v: 15, who: 'self' }, { k: 'status', s: 'thorns', v: 5, who: 'self' }], desc: 'Gain 15 Bulwark and 5 Thorns.' },
-    p_weave:   { name: 'Weave',       die: 'plate', tier: 2, fx: [{ k: 'block', v: 19, scale: 'might' }], desc: 'Gain 19 Block.' },
-    p_vent:    { name: 'Vent',        die: 'plate', tier: 2, fx: [{ k: 'status', s: 'bulwark', v: 10, who: 'self' }, { k: 'energy', v: 1 }], desc: 'Gain 10 Bulwark and a throw back.' },
-  };
-  ns.d6Engraving = function (id) { return ns.D6_AUGMENTS[id] || null; };
-
-  /* ---- BULWARK, TRANSLATED ------------------------------------------
-   * The Vanguard's wall archetype rewritten as cuts rather than cards, which
-   * is the point of the trial. What the translation taught, and it is the most
-   * useful thing to come out of it:
+  /* ==================================================================
+   * THE ARSENAL — three dice, one engraving system
+   * ==================================================================
+   * There are no cards. You own THREE d20s and a turn is three rolls spent
+   * across them; whichever you roll resolves exactly as the die has always
+   * resolved — bands, seams, welds, taints, listeners, the lot. Engravings
+   * are the deck, and WHICH DIE you cut one onto is the deckbuilding.
    *
-   * ATTACKS AND SKILLS TRANSLATE CLEANLY. "Gain 8 Bulwark", "spend the wall
-   * for damage", "bank the face you landed on" are all one-shot effects and a
-   * face is a one-shot effect that happens sometimes. Straight swap.
-   *
-   * POWERS DO NOT TRANSLATE AT ALL. Casemate (3 wall every turn), Reactive
-   * Plating (the wall hits back), Barricade Protocol (+50% wall) are PERSISTENT
-   * — and a face fires again every time you land on it, so cutting one would
-   * stack it without limit. They have to become relics, or one-shot versions of
-   * themselves. That is a real constraint on a dice builder, not a detail:
-   * roughly a third of the Vanguard's cards are Powers and none of them can be
-   * a face. It is also an argument FOR the format — it forces every effect to
-   * be something that happens, rather than something that is true.
+   * Two earlier trials got this wrong in the same way, so it is worth
+   * stating plainly: the small dice had their own private vocabulary of
+   * faces, deliberately stripped of bands and seams to keep them legible.
+   * That was a second game bolted beside the first. One engraving system
+   * across three dice is the whole idea — put every defensive engraving on
+   * one die and you have built a shield die, and you built it out of the
+   * same parts everyone else is using.
    * ------------------------------------------------------------------ */
   ns.DIE_AUGMENTS.arsenal_revetment = {
     name: 'Revetment', tier: 1, span: 1, cls: 'arsenal',
@@ -954,124 +919,6 @@
     desc: 'Gain 5 Bulwark.',
     art: { p: [[-0.6,0.6, -0.2,-0.5, 0.2,-0.5, 0.6,0.6], [-0.4,0.1, 0.4,0.1], [-0.5,0.35, 0.5,0.35]], e: [] },
   };
-  ns.d6FaceAt = function (die, face) {
-    return (die && die.faces && die.faces[face]) ? ns.D6_AUGMENTS[die.faces[face]] : null;
-  };
-  ns.d6Blank = function (die) {
-    var out = [];
-    for (var f = 1; f <= ns.D6.faces; f++) if (!die.faces[f]) out.push(f);
-    return out;
-  };
-  ns.d6Engrave = function (die, face, id) {
-    var d = ns.D6_AUGMENTS[id];
-    if (!d || d.die !== die.kind) return 'that cut does not fit this die';
-    die.faces[face] = id;
-    return null;
-  };
-
-  /* ==================================================================
-   * THE THROW — dice in your hand instead of cards
-   * ==================================================================
-   * The second trial, and the one that has teeth. In the first the dice
-   * fired BECAUSE you played a card; here there are no cards at all. Your
-   * hand is the dice you own and a turn is choosing which of them to throw.
-   *
-   * The reason this is a better game than the first trial: throwing a die is
-   * choosing a DISTRIBUTION, not an outcome. Weighing "three Heavy Slugs and
-   * three Jams" against "six Shots" is a real decision, and it is a decision
-   * you re-make every turn — where a cut in the first trial was made once and
-   * then rolled FOR you forever after.
-   *
-   * ONE THROW PER DIE PER TURN, expressed physically: a thrown die leaves
-   * your hand and every die comes back at the start of the next turn. With
-   * four dice and three throws you are choosing which one to leave out, so
-   * your second- and third-best dice matter as much as your best — and that
-   * is what stops "own more dice" from being free. A pool of one great die
-   * and three bad ones is worse than four solid ones.
-   * ------------------------------------------------------------------ */
-
-  // Faces that are not upside. A high ceiling has to cost something, or every
-  // die is strictly better than the last and there is nothing to weigh.
-  ns.D6_AUGMENTS.x_jam    = { name: 'Jam',    die: 'any', tier: 0, fx: [], desc: 'Nothing. The die caught.' };
-  ns.D6_AUGMENTS.x_recoil = { name: 'Recoil', die: 'battery', tier: 3,
-                              fx: [{ k: 'dmg', v: 28, scale: 'might' }, { k: 'hploss', v: 4 }],
-                              desc: 'Deal 28 damage. Lose 4 HP.' };
-  ns.D6_AUGMENTS.x_brace  = { name: 'Brace',  die: 'plate', tier: 3,
-                              fx: [{ k: 'status', s: 'bulwark', v: 36, who: 'self' }, { k: 'hploss', v: 3 }],
-                              desc: 'Gain 36 Bulwark. Lose 3 HP.' };
-
-  /* The dice themselves. `d20: true` means this entry IS the run's big die —
-   * the Long Gun keeps every band, seam, weld, taint and engraving the game
-   * already has, because throwing it resolves as a real card play. The small
-   * dice are flat: six faces, one of which happens. */
-  ns.DICE_KINDS = {
-    longgun: { name: 'THE LONG GUN', sides: 20, cost: 2, d20: true, start: true,
-               blurb: 'The whole table. Bands, aim, everything you cut into it.' },
-    battery: { name: 'BATTERY', sides: 6, cost: 1, kind: 'battery', start: true,
-               faces: ['b_shot', 'b_shot', 'b_shot', 'b_shot', 'b_shot', 'b_shot'] },
-    plate:   { name: 'PLATE', sides: 6, cost: 1, kind: 'plate', start: true,
-               faces: ['p_plate', 'p_plate', 'p_plate', 'p_plate', 'p_plate', 'p_plate'] },
-    sidearm: { name: 'SIDEARM', sides: 6, cost: 1, kind: 'battery', start: true,
-               faces: ['b_shot', 'b_shot', 'b_shot', 'p_plate', 'p_plate', 'p_plate'] },
-    /* SIX DICE, FOUR THROWS. With four dice and four throws — the Long Gun
-     * eating two — you simply threw everything you could afford every turn and
-     * the choice the whole format exists for did not appear until the rack grew.
-     * Two more starters, deliberately the weakest things you own, means from
-     * turn one you are leaving two dice on the table and deciding which. They
-     * are also the obvious first things to cut, which is the reward loop
-     * pointing at itself. */
-    carbine: { name: 'CARBINE', sides: 6, cost: 1, kind: 'battery', start: true,
-               faces: ['b_shot', 'b_shot', 'b_shot', 'b_shot', 'x_jam', 'x_jam'] },
-    buckler: { name: 'BUCKLER', sides: 6, cost: 1, kind: 'plate', start: true,
-               faces: ['p_plate', 'p_plate', 'p_plate', 'p_plate', 'x_jam', 'x_jam'] },
-    // --- acquirable. Every one of these is a ceiling with a bill attached ---
-    slug:    { name: 'SLUG THROWER', sides: 6, cost: 1, kind: 'battery',
-               faces: ['b_heavy', 'b_heavy', 'b_heavy', 'b_heavy', 'x_jam', 'x_jam'] },
-    bastion: { name: 'BASTION', sides: 6, cost: 1, kind: 'plate',
-               faces: ['p_bastion', 'p_bastion', 'p_bastion', 'p_bastion', 'x_jam', 'x_jam'] },
-    scatter: { name: 'SCATTERGUN', sides: 6, cost: 1, kind: 'battery',
-               faces: ['b_spray', 'b_spray', 'b_spray', 'b_spray', 'b_spray', 'x_jam'] },
-    hotbar:  { name: 'HOT BARREL', sides: 6, cost: 1, kind: 'battery',
-               faces: ['x_recoil', 'x_recoil', 'x_recoil', 'x_recoil', 'x_jam', 'x_jam'] },
-    revet:   { name: 'REVETMENT', sides: 6, cost: 1, kind: 'plate',
-               faces: ['x_brace', 'x_brace', 'x_brace', 'p_slab', 'p_slab', 'x_jam'] },
-    workshop:{ name: 'WORKSHOP', sides: 6, cost: 1, kind: 'plate',
-               faces: ['p_vent', 'p_vent', 'p_weave', 'p_weave', 'p_spike', 'p_spike'] },
-    twin:    { name: 'TWIN BARREL', sides: 6, cost: 1, kind: 'battery',
-               faces: ['b_burst', 'b_burst', 'b_burst', 'b_pierce', 'b_pierce', 'x_jam'] },
-    stimgun: { name: 'STIM GUN', sides: 6, cost: 1, kind: 'battery',
-               faces: ['b_stim', 'b_stim', 'b_stim', 'b_stim', 'b_stim', 'x_jam'] },
-  };
-  ns.diceKind = function (id) { return ns.DICE_KINDS[id] || null; };
-  ns.newThrowDie = function (id) {
-    var k = ns.DICE_KINDS[id]; if (!k) return null;
-    var d = { id: id, kind: k.kind || null, sides: k.sides, cost: k.cost, d20: !!k.d20, faces: {} };
-    if (k.faces) for (var f = 1; f <= k.sides; f++) d.faces[f] = k.faces[f - 1];
-    return d;
-  };
-  ns.newThrowDice = function () {
-    return Object.keys(ns.DICE_KINDS)
-      .filter(function (k) { return ns.DICE_KINDS[k].start; })
-      .map(function (k) { return ns.newThrowDie(k); });
-  };
-  // What a die will do, as a distribution — the thing you are actually choosing
-  // between. Returns [{ id, name, desc, n }] sorted by how often it comes up.
-  ns.throwSpread = function (die) {
-    if (!die || die.d20) return [];
-    var by = {}, out = [];
-    for (var f = 1; f <= die.sides; f++) {
-      var id = die.faces[f]; if (!id) id = 'x_jam';
-      if (!by[id]) { by[id] = { id: id, n: 0 }; out.push(by[id]); }
-      by[id].n++;
-    }
-    out.forEach(function (o) {
-      var g = ns.D6_AUGMENTS[o.id] || {};
-      o.name = g.name || '?'; o.desc = g.desc || ''; o.tier = g.tier || 0;
-    });
-    out.sort(function (a, b) { return b.n - a.n || b.tier - a.tier; });
-    return out;
-  };
-
   ns.DIE_REGION = { low: [2, 7], mid: [8, 14], high: [15, 20] };
   ns.dieRegionOf = function (face) {
     if (face <= 1) return 'misfire';

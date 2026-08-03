@@ -383,11 +383,12 @@ ok('a forged engraving survives the registry being dropped (the load path)', (fu
   var bad = 0, n = 0;
   Object.keys(VS.DIE_AUGMENTS).forEach(function (id) {
     var def = VS.DIE_AUGMENTS[id], base = VS.engravingSp(def);
-    /* The Arsenal's cuts are skipped: they are locked to the dice-builder trial
-     * class, which has no reforge table of its own, and several are a bare
-     * `special` with no numeric primary to rewrite — so reforging them against
-     * the other three classes' tables is not a case this test is about. */
-    if (def.cls === 'arsenal') return;
+    /* The Arsenal's wall cash-outs are a bare `special` with no magnitude —
+     * "consume all your Bulwark, deal that much" has no number to double,
+     * halve or split, so the lenses that bargain with one have nothing to
+     * offer and only the recast applies. Checked separately below. */
+    var prim0 = (def.fx || [])[0];
+    if (def.cls === 'arsenal' || !prim0 || prim0.v == null) return;
     var baseDesc = VS.reforgeDescribe(def.fx, { trigger: def.listen });
     ['common', 'vanguard', 'technomancer', 'voidadept'].forEach(function (c) {
       var os = VS.reforgeOptions(def, c), seen = {};
@@ -401,6 +402,16 @@ ok('a forged engraving survives the registry being dropped (the load path)', (fu
     });
   });
   ok('every engraving x every table x every lens is distinct and in budget (' + n + ' options)', bad === 0);
+  // ...and the valueless ones still offer the one lens that can work on them.
+  var vless = Object.keys(VS.DIE_AUGMENTS).filter(function (id) {
+    var f0 = (VS.DIE_AUGMENTS[id].fx || [])[0];
+    return !f0 || f0.v == null;
+  });
+  ok('a valueless engraving still offers the recast (' + vless.length + ' of them)',
+     vless.length > 0 && vless.every(function (id) {
+       var os = VS.reforgeOptions(VS.DIE_AUGMENTS[id], 'arsenal');
+       return os.length >= 1 && os.some(function (o) { return o.recast; });
+     }));
 })();
 
 /* 26c. THE DIE INVARIANT: no face may point at a root that is gone.
@@ -1193,15 +1204,14 @@ ok('no card summons a pet', !Object.keys(VS.CARDS).some(function (k) {
 ok('every remaining class has a die table', Object.keys(VS.BALANCE.classes).every(function (c) {
   return !!VS.BALANCE.dice.classes[c];
 }));
-/* A class either starts with cards or starts with dice. The Arsenal is the
- * second kind — its deck is deliberately empty and its hand is rebuilt from
- * run.dice every turn — so "has a starter deck" is now "has something to open
- * the fight with", which is the property that actually matters. */
+/* A class either opens with cards or opens with dice. The Arsenal is the
+ * second kind — no deck at all, its hand rebuilt from run.dice every turn — so
+ * the property that matters is "has something to open the fight with". */
 ok('every class opens with either a starter deck or a rack of dice',
   Object.keys(VS.BALANCE.classes).every(function (c) {
     var d = VS.STARTER_DECKS[c];
     if (d && d.length) return d.every(function (id) { return !!VS.CARDS[id]; });
-    return c === 'arsenal' && VS.newThrowDice().length > 0;
+    return c === 'arsenal' && (VS.BALANCE.dice.arsenalDice || 0) > 1;
   }));
 
 (function () {
@@ -2599,75 +2609,62 @@ ok('every class opens with either a starter deck or a rack of dice',
   E.run.phase = 'map';
 })();
 
-/* ---- THE ARSENAL: DICE IN HAND, NOT CARDS ------------------------------
- * The second trial. No deck at all — the hand is the rack, a turn is four
- * throws, and a die you have thrown is gone until next turn. Every one of
- * these was wrong at some point while it was being built. */
+/* ---- THE ARSENAL: THREE DICE, ONE ENGRAVING SYSTEM ---------------------
+ * No cards. Three complete d20s, a turn is three rolls spent across them, and
+ * which die a cut lands on is the deckbuilding. The point of these is that the
+ * three dice are REAL dice — same engravings, bands, seams, welds and taints
+ * as everyone else's — because two earlier attempts gave the extra dice their
+ * own private vocabulary, which was a second game bolted beside the first. */
 (function () {
   startFight('arsenal');
   var r = E.run, c = E.combat;
-  ok('the Arsenal starts with a rack, not a deck',
-     (r.dice || []).length === 6 && r.deck.length === 0);
-  ok('the first die is the Long Gun and it costs two throws',
-     r.dice[0].d20 === true && r.dice[0].cost === 2);
-  ok('the hand IS the rack', c.hand.length === r.dice.length);
-  ok('four throws a turn', c.energy === 4);
+  ok('the Arsenal carries three dice', (r.dice || []).length === 3);
+  ok('run.die points at one of them', r.dice.indexOf(r.die) >= 0);
+  ok('they share one core, so relics mount to the class not to a barrel',
+     r.dice[0].core === r.dice[1].core && r.dice[1].core === r.dice[2].core);
+  ok('they share one queue of earned engravings',
+     r.dice[0].pending === r.dice[2].pending);
+  ok('the hand is the dice', c.hand.length === 3 && c.hand.every(function (h) { return h.id === '_dieroll'; }));
+  ok('three rolls a turn', c.energy === 3);
 
-  // A thrown die leaves the hand — that is the one-throw-per-die rule, made
-  // physical rather than tracked in a side table.
+  // Rolling does NOT spend the die — with three of them, one-roll-each would
+  // just mean rolling all three every turn, which is no decision at all.
   bigEnemies();
-  var before = c.hand.length;
-  var bi = c.hand.findIndex(function (h) { return h.id === '_smalldie'; });
-  var bidx = c.hand[bi].dieIdx;
   E.events.length = 0;
-  E.playCard(bi, 0);
-  ok('throwing a die spends it from hand', c.hand.length === before - 1);
-  ok('the same die cannot be thrown twice in a turn',
-     !c.hand.some(function (h) { return h.dieIdx === bidx; }));
-  ok('a throw emits the face it landed on',
-     E.events.filter(function (e) { return e.type === 'throw'; }).length === 1);
-
-  E.endTurn();
-  while (E.run.phase === 'combat' && c.turn < 2) E.endTurn();
-  ok('every die comes back next turn', c.hand.length === r.dice.length);
-  ok('and there are no piles to draw from',
-     c.drawPile.length === 0 && c.discard.length === 0);
-
-  // The Long Gun resolves as a real card play, which is the whole reason it
-  // keeps bands, aim, steering, engravings and misfires for free.
-  c.energy = 9;
-  E.events.length = 0;
-  var li = c.hand.findIndex(function (h) { return h.id === '_longgun'; });
-  E.playCard(li, 0);
-  ok('the Long Gun rolls the d20',
+  E.playCard(0, 0);
+  ok('a roll costs a roll, not the die', c.hand.length === 3 && c.energy === 2);
+  ok('and it rolls the d20 proper',
      E.events.filter(function (e) { return e.type === 'roll'; }).length === 1);
+  E.playCard(0, 0);
+  ok('the same die can be rolled again', c.energy === 1);
 
-  // Cuts address a die by name now — a rack has no unique "the battery".
-  var pi = r.dice.findIndex(function (d) { return d.id === 'plate'; });
-  var bi2 = r.dice.findIndex(function (d) { return d.id === 'battery'; });
-  ok('a battery cut will not fit the plate die',
-     E.d6Take('b_heavy', pi, 1) !== null);
-  ok('it fits the battery', E.d6Take('b_heavy', bi2, 1) === null && r.dice[bi2].faces[1] === 'b_heavy');
-  ok('d6Fits only names dice that take the cut',
-     E.d6Fits('p_bastion').every(function (i) { return r.dice[i].kind === 'plate'; }));
-  ok('the Long Gun takes no small cuts', E.d6Fits('b_shot').indexOf(0) < 0);
+  // Rolling a die points run.die at it — that one assignment IS the whole
+  // multi-die implementation, and everything downstream reads run.die.
+  E.playCard(2, 0);
+  ok('rolling barrel 3 aims run.die at it', r.die === r.dice[2] && r.dieIdx === 2);
 
-  // A whole new die is the other reward currency.
-  var owned = r.dice.length;
-  var offer = E.diceOffer(2);
-  ok('a die offer names dice you do not own',
-     offer.length === 2 && offer.every(function (id) {
-       return !r.dice.some(function (d) { return d.id === id; });
-     }));
-  E.diceTake(offer[0]);
-  ok('taking one widens the rack', r.dice.length === owned + 1);
-  ok('you cannot carry the same die twice', E.diceTake(offer[0]) !== null);
+  /* SPECIALISING A BARREL. The user-facing promise: put every defensive
+   * engraving on one die and that die becomes your shield. */
+  E.run.phase = 'map';
+  startFight('arsenal');
+  r = E.run; c = E.combat; bigEnemies();
+  for (var f = 2; f <= VS.DIE.faces; f++) VS.dieEngrave(r.dice[1], 'arsenal_revetment', f);
+  var wall0 = c.player.statuses.bulwark || 0;
+  c.energy = 20;
+  for (var i = 0; i < 8; i++) E.playCard(0, 0);          // the bare barrel
+  var wallBare = (c.player.statuses.bulwark || 0) - wall0;
+  for (var j = 0; j < 8; j++) E.playCard(1, 0);          // the shield barrel
+  var wallShield = (c.player.statuses.bulwark || 0) - wall0 - wallBare;
+  ok('a bare barrel builds no wall', wallBare === 0);
+  ok('a barrel cut with shields does (' + wallShield + ')', wallShield > 0);
 
-  // The spread is what the player is actually choosing between.
-  var sp = VS.throwSpread(r.dice[bi2]);
-  var total = sp.reduce(function (a, x) { return a + x.n; }, 0);
-  ok('a spread accounts for every face (' + total + '/6)', total === 6);
-  ok('Jam is never offered as a cut', E.d6Offer(12).indexOf('x_jam') < 0);
+  // Save/load turns one shared object behind three references into three
+  // copies, so the relink has to put them back.
+  var snap = JSON.parse(JSON.stringify(r));
+  ok('a round trip through JSON breaks the sharing', snap.dice[0].core !== snap.dice[1].core);
+  E.diceRelink(snap);
+  ok('and diceRelink puts it back',
+     snap.dice[0].core === snap.dice[1].core && snap.die === snap.dice[snap.dieIdx]);
   E.run.phase = 'map';
 })();
 

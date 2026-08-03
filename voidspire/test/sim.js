@@ -24,6 +24,7 @@ var E = VS.engine;
 
 var RUNS = parseInt(process.argv[2] || '60', 10);
 var MAX_SECTOR = 10; // stop "endless" runs here for stats
+var rand = Math.random;
 
 /* ====================================================================
  * "Decent player" bot: estimates incoming damage, blocks when needed,
@@ -198,11 +199,31 @@ function botBestFace(id) {
   return best;
 }
 function botPlaceEngravings() {
-  var r = VS.engine.run, d = r && r.die; if (!d || !d.pending || !d.pending.length) return;
+  var E = VS.engine, r = E.run, d = r && r.die; if (!d || !d.pending || !d.pending.length) return;
   var left = [];
+  /* WHICH BARREL is the Arsenal's real decision, so the bot has to make it.
+   * It tries the cut on each die and keeps the one where it raises that die's
+   * expected roll the most — which naturally concentrates offence on one
+   * barrel and defence on another, because a defensive face is worth more on
+   * the die that is already the one you reach for when you are about to be
+   * hit. Placing every cut on barrel 1 would be a strictly worse player and
+   * would make the whole format unmeasurable. */
+  var dice = (r.dice && r.dice.length > 1) ? r.dice : [d];
   d.pending.forEach(function (id) {
-    var f = botBestFace(id);
-    if (f > 0) VS.dieEngrave(d, id, f); else left.push(id);
+    var bestD = null, bestF = 0, bestGain = -1e9;
+    dice.forEach(function (dd) {
+      var was = r.die; r.die = dd;                 // botBestFace reads run.die
+      var f = botBestFace(id);
+      r.die = was;
+      if (f <= 0) return;
+      var before = dieRollEV(dd, false, null);
+      var probe = { faces: {}, seams: dd.seams, welds: dd.welds };
+      for (var k in dd.faces) probe.faces[k] = dd.faces[k];
+      VS.dieEngrave(probe, id, f);
+      var gain = dieRollEV(probe, false, null) - before;
+      if (gain > bestGain) { bestGain = gain; bestD = dd; bestF = f; }
+    });
+    if (bestD) VS.dieEngrave(bestD, id, bestF); else left.push(id);
   });
   d.pending = left;
 }
@@ -273,59 +294,23 @@ function botCombat() {
     var hpDanger = E.run.hp < E.run.maxHp * 0.6 || needBlock >= E.run.hp * 0.25;
     var choice = -1, target = pickTarget();
 
-    /* THE THROW. A die is not a card and cannot be scored like one: its value
-     * is the EXPECTED value of six faces, not the printed number on one. The
-     * bot reads the spread, weights it by how often each face comes up, and
-     * spends its three throws on the best expectation per throw — switching to
-     * the defensive expectation when it is about to be hit hard. That is the
-     * closest thing to "a decent player" this format has, and it is what the
-     * draft gate is measured against. */
-    if (c.throwClass) {
-      /* ARMOUR IS ONLY WORTH WHAT IT WILL STOP. Bulwark does not expire, so
-       * valuing it flat made the bot bank a 43-point wall against enemies that
-       * were never going to hit it that hard — it won at full HP in seven turns
-       * and lost the runs where seven turns was too slow. A point of wall is
-       * worth a point of damage right up to the moment you have enough of it,
-       * and then it is worth almost nothing. `armoured` is that line. */
-      var wallHave = (c.player.statuses.bulwark || 0) + c.player.block;
-      var armoured = wallHave >= incoming * 2.5;
-      var wantBlock = !armoured && needBlock > 3 && (hpDanger || needBlock > 8);
-      var bestT = -1, bestV = -1;
-      playable.forEach(function (idx) {
-        var card = c.hand[idx];
-        var die = (E.run.dice || [])[card.dieIdx];
-        if (!die) return;
-        var cost = Math.max(1, E.cardInfo(card).cost), ev = 0;
-        if (die.d20) {
-          // the Long Gun's payload is its band, so its expectation is the card
-          // it resolves as, read through the class table
-          ev = estCardDamage(card, c.enemies[target], true);
-        } else {
-          VS.throwSpread(die).forEach(function (sp) {
-            var g = VS.D6_AUGMENTS[sp.id] || {}, v = 0;
-            /* BULWARK IS WORTH AS MUCH AS DAMAGE, ALWAYS. It does not expire,
-             * so a point of wall is a point of HP you keep — and the first
-             * version of this bot discounted it to 0.35 unless it was already
-             * in danger, threw damage every turn, and lost 62% of its runs in
-             * HALLWAY fights at 18% average low HP. Defence you can only buy
-             * reactively is defence you buy too late, and with dice you cannot
-             * buy it reliably at all: a plate die can still land on a Jam. */
-            (g.fx || []).forEach(function (f) {
-              if (f.k === 'dmg') v += f.v * (f.all ? Math.max(1, aliveIdx().length) : 1);
-              else if (f.k === 'block') v += f.v * (wantBlock ? 1.1 : 0.15);
-              else if (f.k === 'status' && f.s === 'bulwark') v += f.v * (armoured ? 0.12 : wantBlock ? 1.5 : 1.0);
-              else if (f.k === 'status') v += f.v * 2;
-              else if (f.k === 'draw') v += 3;
-              else if (f.k === 'energy') v += 6;
-              else if (f.k === 'hploss') v -= f.v * (E.run.hp < 30 ? 3 : 1);
-            });
-            ev += v * (sp.n / die.sides);
-          });
-        }
-        if (ev / cost > bestV) { bestV = ev / cost; bestT = idx; }
+    /* THREE BARRELS. There are no cards to score, so the bot scores DICE: the
+     * expected value of a roll is the base payload times the average band plus
+     * whatever the engraved faces do, weighted by how much of the die they
+     * cover. It then spends every roll on the best barrel for the situation —
+     * which is the whole decision this format creates, and the thing a
+     * randomly-rolling bot cannot do. */
+    if (c.rollClass) {
+      var wantD = needBlock > 3 && (hpDanger || needBlock > 8);
+      var bestR = -1, bestRV = -1e9;
+      c.hand.forEach(function (card, idx) {
+        if (!E.canPlay(idx)) return;
+        var die = (E.run.dice || [])[card.dieIdx]; if (!die) return;
+        var v = dieRollEV(die, wantD, target);
+        if (v > bestRV) { bestRV = v; bestR = idx; }
       });
-      if (bestT < 0 || bestV <= 0) { E.endTurn(); continue; }
-      if (!E.playCard(bestT, target)) E.endTurn();
+      if (bestR < 0) { E.endTurn(); continue; }
+      if (!E.playCard(bestR, target)) E.endTurn();
       continue;
     }
 
@@ -487,10 +472,6 @@ var PILOT = null;   // an ENGINES key — null = default greedy draft
  * build.
  * --------------------------------------------------------------------- */
 var RANDOM_DRAFT = !!process.env.VS_RANDOM_DRAFT;
-/* SPLIT PROBES. The Arsenal has two reward currencies, so "random drafting
- * wins" is not one finding until you know which currency it wins on. */
-var RANDOM_DICE = RANDOM_DRAFT || !!process.env.VS_RANDOM_DICE;
-var RANDOM_CUTS = RANDOM_DRAFT || !!process.env.VS_RANDOM_CUTS;
 var RANDOM_PLAY = !!process.env.VS_RANDOM_PLAY;
 /* VS_ALWAYS_TAKE isolates the two things the greedy arm was doing at once. It
  * picks the BEST of the three offered but never declines, so "random" vs
@@ -696,13 +677,7 @@ function step() {
       if (!node) node = find('treasure');          // free relics are great
       if (!node && hurt) node = reach.filter(function (n) { return n.type !== 'elite'; })[0]; // dodge elites when low
       if (!node) node = find('shop') || find('event');
-      /* probeRnd, NOT Math.random. This one line made the whole harness
-       * non-deterministic: the routing fallback fires on most map rows, so two
-       * invocations of the same seed took different paths and the same code
-       * measured 28.0%, 31.5%, 33.0% and 37.0% on four consecutive n=200 runs.
-       * That is wider than almost every effect this sim exists to detect, and
-       * it silently defeated the paired-seed design directly above. */
-      if (!node) node = reach[Math.floor(probeRnd() * reach.length)];
+      if (!node) node = reach[Math.floor(rand() * reach.length)];
       E.enterNode(node);
       break;
     }
@@ -715,54 +690,6 @@ function step() {
       break;
     case 'combat': botCombat(); break;
     case 'reward': {
-      /* THE ARSENAL DRAFTS DICE AND CUTS. Two currencies, so two decisions:
-       * a whole new die widens what it can throw, a cut sharpens a die it
-       * already throws. The bot values both the same way it plays them — by
-       * the EXPECTED value of the face spread, not by a printed number — and a
-       * cut only lands if it beats the face it would displace. */
-      if (r.cls === 'arsenal' && !r.reward.dicePicked && (r.reward.diceChoices || []).length) {
-        r.reward.dicePicked = true;
-        var dOffer = r.reward.diceChoices;
-        if (RANDOM_DICE) {
-          E.diceTake(dOffer[Math.floor(probeRnd() * dOffer.length)]);
-        } else {
-          var bestD = null, bestDV = dieEV(worstOwnedDie());   // only if it beats the bench
-          dOffer.forEach(function (id) {
-            var ev = dieEV(VS.newThrowDie(id));
-            if (ev > bestDV) { bestDV = ev; bestD = id; }
-          });
-          if (bestD) E.diceTake(bestD);
-        }
-      }
-      if (r.cls === 'arsenal' && !r.reward.d6Picked) {
-        r.reward.d6Picked = true;
-        var offer = r.reward.d6Choices || [];
-        /* VS_RANDOM_DRAFT reaches the dice too, and it has to — the whole point
-         * of the trial is whether picking well matters more here than it did
-         * with cards, and that is only answerable against a bot that picks
-         * badly. Random cut, random die it fits, random face. */
-        if (RANDOM_CUTS && offer.length) {
-          var rc = offer[Math.floor(probeRnd() * offer.length)];
-          var fits = E.d6Fits(rc);
-          if (fits.length) {
-            var rd = fits[Math.floor(probeRnd() * fits.length)];
-            E.d6Take(rc, rd, 1 + Math.floor(probeRnd() * (r.dice[rd].sides || 6)));
-          }
-        } else if (offer.length) {
-          var bestGain = 0, pick6 = null;
-          offer.forEach(function (id) {
-            var nv = faceEV(id);
-            E.d6Fits(id).forEach(function (di) {
-              var die = r.dice[di];
-              for (var f6 = 1; f6 <= (die.sides || 6); f6++) {
-                var gain = nv - faceEV(die.faces[f6]);
-                if (gain > bestGain) { bestGain = gain; pick6 = { id: id, di: di, f: f6 }; }
-              }
-            });
-          });
-          if (pick6) E.d6Take(pick6.id, pick6.di, pick6.f);
-        }
-      }
       if (r.reward.artifactChoices && r.reward.artifactChoices.length && !r.reward.artifactPicked) {
         var rp = bestRelic(r.reward.artifactChoices);
         if (rp.score > 0) E.takeRewardArtifact(rp.idx);
@@ -941,37 +868,46 @@ function sanity() {
   }
 }
 
-/* What a face is worth, and what a die is worth — one scale for drafting and
- * for playing, so the bot cannot value a die one way at the reward screen and
- * another way in the fight. Deliberately crude on purpose: it must be no
- * cleverer than the card bot it is measured against. */
-function faceEV(id) {
-  var g = VS.D6_AUGMENTS[id]; if (!g) return 0;
+/* What one roll of a barrel is worth. Deliberately crude — it must be no
+ * cleverer than the card bot it is measured against, or the draft gate stops
+ * comparing like with like. Bulwark counts nearly full because it does not
+ * expire; block only counts when a hit is actually coming. */
+function engFaceValue(g, wantD) {
+  if (!g) return 0;
   var v = 0;
   (g.fx || []).forEach(function (f) {
-    if (f.k === 'dmg') v += f.v * (f.all ? 1.6 : 1);
-    else if (f.k === 'block') v += f.v * 0.5;
-    else if (f.k === 'status' && f.s === 'bulwark') v += f.v * 1.0;
-    else if (f.k === 'status') v += f.v * 2;
+    if (f.k === 'dmg') v += (f.v || 0) * (f.all ? 1.6 : 1);
+    else if (f.k === 'block') v += (f.v || 0) * (wantD ? 1.1 : 0.2);
+    else if (f.k === 'status' && f.s === 'bulwark') v += (f.v || 0) * 0.95;
+    else if (f.k === 'status' && (f.s === 'vuln' || f.s === 'weak')) v += (f.v || 0) * 3;
+    else if (f.k === 'status' && f.who === 'self') v += (f.v || 0) * 2;
     else if (f.k === 'draw') v += 3;
-    else if (f.k === 'energy') v += 6;
-    else if (f.k === 'hploss') v -= f.v * 1.2;
+    else if (f.k === 'energy') v += 5;
+    else if (f.k === 'heal') v += (f.v || 0) * 0.8;
+    else if (f.k === 'hploss') v -= (f.v || 0) * 1.2;
+    else if (f.k === 'special') v += 6;      // cash-outs and wall tricks, unpriced
   });
   return v;
 }
-function dieEV(die) {
-  if (!die) return 0;
-  if (die.d20) return 99;                       // never benched
-  var t = 0;
-  for (var f = 1; f <= (die.sides || 6); f++) t += faceEV(die.faces[f]);
-  return t / (die.sides || 6) / Math.max(1, die.cost || 1);
-}
-// With three throws a turn and one throw per die, a new die is only worth
-// taking if it beats the die you would otherwise have thrown third.
-function worstOwnedDie() {
-  var ds = (VS.engine.run.dice || []).filter(function (d) { return !d.d20; });
-  if (ds.length < 3) return null;               // still short of a full turn
-  return ds.slice().sort(function (a, b) { return dieEV(a) - dieEV(b); })[0];
+function dieRollEV(die, wantD, target) {
+  var E = VS.engine, c = E.combat;
+  // base payload, read through the class table the same way the engine will.
+  // Also called from the reward screen, where there is no combat to read.
+  var dread = E.dieRead(E.run.cls) || {};
+  var bands = (dread.bands || []).slice();
+  var base = 5 + VS.engine.attr('might') + ((c && c.player.statuses.str) || 0);
+  var total = 0, n = VS.DIE.faces;
+  for (var f = 1; f <= n; f++) {
+    var mult = 1;
+    if (f === 1) mult = (dread.misfire && dread.misfire.mult) || 0.5;
+    else {
+      for (var i = 0; i < bands.length; i++) if (f >= bands[i].min) { mult = bands[i].mult; break; }
+    }
+    total += base * mult;
+    var slot = die.faces[f];
+    if (slot) total += engFaceValue(VS.dieEngraving(slot.id), wantD);
+  }
+  return total / n;
 }
 
 /* ---- one full bot run; returns the finished run state ------------------ */

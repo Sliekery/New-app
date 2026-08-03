@@ -61,12 +61,11 @@
   var uidCounter = 1;
 
   function mkCard(id, up) { return { uid: uidCounter++, id: id, up: !!up }; }
-  /* A die, dressed as a card so that hand rendering, targeting, cost checks
-   * and the whole play path need no special case. `dieIdx` points back into
-   * run.dice; the id is one of the two hidden defs nobody can ever draw. */
-  function mkDieCard(die, i) {
-    return { uid: uidCounter++, id: die.d20 ? '_longgun' : '_smalldie', up: false, dieIdx: i };
-  }
+  /* A die, dressed as a card so hand rendering, targeting, cost checks and the
+   * whole play path need no special case. `dieIdx` says which of the three you
+   * are rolling; the hidden `_dieroll` def carries the base payload the band
+   * multiplies, since there is no card to carry it any more. */
+  function mkDieCard(die, i) { return { uid: uidCounter++, id: '_dieroll', up: false, dieIdx: i }; }
 
   E.newRun = function (clsId) {
     ns.forgedClear();   // forged ids are per-run; a stale registry would resolve into the new one
@@ -82,15 +81,19 @@
       artifacts: [],
       pressure: E.nextPressure || 0,   // VOID PRESSURE rating for this run
       die: ns.newDie(),    // THE AUGMENTED DIE: faces / core / frame
-      /* THE ARSENAL carries two more. Kept as a SEPARATE array rather than
-       * generalising `run.die` because 86 sites in this file read that field
-       * directly — the trial is meant to answer a design question, not to
-       * bankroll a refactor before we know the answer. */
-      /* THE THROW. `dice` is the Arsenal's hand: every entry is a die it owns,
-       * rebuilt into c.hand at the start of every turn. The first entry is the
-       * Long Gun, which is `run.die` wearing a throwable jacket — its faces
-       * live where 86 other sites in this file already expect to find them. */
-      dice: (clsId === 'arsenal') ? ns.newThrowDice() : [],
+      /* THE ARSENAL ROLLS THREE. `dice` holds three complete d20s and `die` is
+       * a live POINTER at whichever one is resolving — which is why all 107
+       * sites that read run.die keep working untouched, and why the three dice
+       * get bands, seams, welds, taints and listeners for free instead of a
+       * second, simpler vocabulary of their own.
+       *
+       * core/vault/frame/pending are SHARED array objects across all three:
+       * relics mount to the Arsenal, not to one of its barrels, and an
+       * engraving you have earned can go on any of them. Nothing ever assigns
+       * those fields — only push and splice — so one object behind three
+       * references stays correct. */
+      dice: [],
+      dieIdx: 0,
       bossOrder: shuffle((ns.BOSSES[fac] || []).slice()),   // no sector boss repeats in a run
       relicOff: {},        // relics switched off (toggled on the star chart)
       relicUses: {},       // remaining durability for relics that have it
@@ -112,6 +115,21 @@
       phylacteryUsed: false, salvageKills: 0,
     };
     E.combat = null;
+    /* THE ARSENAL'S THREE BARRELS. Built here, after the run object exists, so
+     * they can share one core, one vault, one frame and one queue of earned
+     * engravings. run.die then points at the first of them and every existing
+     * reader carries on as if there were still only one. */
+    if (clsId === 'arsenal') {
+      var d0 = E.run.die;
+      d0.pending = d0.pending || [];
+      E.run.dice = [d0];
+      for (var dq = 1; dq < (B.dice.arsenalDice || 3); dq++) {
+        var dn = ns.newDie();
+        dn.core = d0.core; dn.vault = d0.vault; dn.frame = d0.frame; dn.pending = d0.pending;
+        E.run.dice.push(dn);
+      }
+      E.run.dieIdx = 0;
+    }
     if (E.CORNERSTONES !== false && CORNERSTONE_OF[clsId]) {   // grant the class Cornerstone
       E.run.cornerstone = { id: CORNERSTONE_OF[clsId], tier: 1 };
       E.run.artifacts.push(CORNERSTONE_OF[clsId]);
@@ -923,7 +941,7 @@
       turn: 0,
       energy: 0,
       hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
-      throwClass: !!(r.dice && r.dice.length),   // THE THROW: dice in hand, no deck
+      rollClass: !!(r.dice && r.dice.length > 1),   // no cards: the hand is the dice
       // Everyone rolls, so everyone gets some Aim to steer with. A class may
       // sight in further on top of that baseline — the Vanguard does, because he
       // is the marksman. The Voidadept pointedly does not: climbing the table is
@@ -1085,17 +1103,7 @@
   }
 
   /* ---------------- Combat: turn structure ------------------------------ */
-  /* FOUR THROWS, not three. A deck gets its per-turn volume from drawing five
-   * cards and picking the affordable ones; a rack of dice gets it only from
-   * throws, and at three the Arsenal put out about two thirds of the
-   * Vanguard's damage and won 0% of its runs. Four is also the better game:
-   * with one throw per die it means you commit four of your dice every turn,
-   * so the fourth-best die in the rack is a real decision rather than a bench
-   * warmer you never reach. */
-  function maxEnergy() {
-    var base = B.player.baseEnergy + (E.combat && E.combat.throwClass ? 1 : 0);
-    return base + art('energyEveryTurn') + (statN(E.combat.player, 'reactor'));
-  }
+  function maxEnergy() { return B.player.baseEnergy + art('energyEveryTurn') + (statN(E.combat.player, 'reactor')); }
   E.maxEnergy = function () { return E.combat ? maxEnergy() : (B.player.baseEnergy || 0); };
 
   var _inConduit = false;   // re-entrancy guard for the Disruption conduit hook
@@ -1365,14 +1373,23 @@
     var bg = art('burnGrow');
     if (bg > 0) c.enemies.forEach(function (en, i) { if (en.alive && statN(en, 'burn') > 0) { addStatus(en, 'burn', bg); emit('status', { who: 'enemy', idx: i, s: 'burn', v: bg }); } });
     var aoe = art('aoeTurnStart');
-    /* THE THROW: your hand IS your dice, every turn, all of them. There is no
-     * draw, no shuffle and no discard — the piles below are swept because a
-     * spent die is not a card going anywhere, it is a die you have already
-     * thrown this turn. That is the one-throw-per-die rule made physical:
-     * throwing removes it from hand, and the next turn hands it back. */
-    if (c.throwClass) {
+    /* THE HAND IS THE DICE. All three, every turn, and rolling one does not
+     * spend it — with only three of them a one-roll-per-die rule would just
+     * mean rolling all three every turn, which is no decision at all. The
+     * decision is how to ALLOCATE the turn's rolls: twice into the damage die
+     * and once into the shield die, or all three into one barrel. */
+    if (c.rollClass) {
       c.drawPile = []; c.discard = []; c.exhaust = [];
       c.hand = (E.run.dice || []).map(mkDieCard);
+      /* Aim tops back up every turn. It is the Arsenal's ammunition for
+       * steering, and steering is how a cut on one of sixty faces becomes a
+       * card you can actually draw. Topping up rather than adding means
+       * hoarding it across turns is not a strategy — spend it or lose it. */
+      var wantAim = B.dice.arsenalAim || 3;
+      if (statN(p, 'aim') < wantAim) {
+        addStatus(p, 'aim', wantAim - statN(p, 'aim'));
+        emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') });
+      }
     } else {
       var baseDraw = B.player.drawPerTurn;
       var draws = baseDraw + art('drawTurn') + (c.turn === 1 ? art('drawStart') : 0);
@@ -2583,42 +2600,13 @@
     return totalDealt;
   }
 
-  /* THROWING A SMALL DIE. Six faces, one happens, done — and deliberately
-   * none of the d20's surface area: no bands, no aim, no steering, no seams,
-   * no taints. That asymmetry IS the design. The Long Gun is the die you
-   * built and can bend; the small dice are the shape you chose and then have
-   * to live with. If both bent, choosing between them would be arithmetic. */
-  function throwSmall(handIdx, targetIdx) {
-    var c = E.combat, r = E.run, p = c.player;
-    var card = c.hand[handIdx];
-    var die = (r.dice || [])[card.dieIdx];
-    if (!die) return false;
-    var tgt = c.enemies[targetIdx];
-    if (!tgt || !tgt.alive) {
-      targetIdx = c.enemies.findIndex(function (e) { return e.alive; });
-      tgt = c.enemies[targetIdx];
-    }
-    c.energy -= (die.cost || 1);
-    c.hand.splice(handIdx, 1);          // spent for the turn; back next turn
-    c.cardsThisTurn = (c.cardsThisTurn || 0) + 1;
-    var face = 1 + Math.floor(rnd() * (die.sides || 6));
-    var cut = ns.D6_AUGMENTS[die.faces[face]] || null;
-    emit('throw', { die: die.id, idx: card.dieIdx, face: face,
-                    id: cut ? die.faces[face] : null, name: cut ? cut.name : 'Jam' });
-    if (cut && cut.fx && cut.fx.length) {
-      applyCardFx(cut.fx, { tgt: tgt, crit: false, roll: null, eff: face, misfire: false,
-                            bandMult: 1, blockBand: false, flags: {}, xval: 0, appliedBurn: false });
-    }
-    checkWin();
-    if (!c.over) E.save();
-    return true;
-  }
-
   E.playCard = function (handIdx, targetIdx) {
     var c = E.combat, r = E.run, p = c.player;
     if (!E.canPlay(handIdx)) return false;
     var card = c.hand[handIdx];
-    if (card && card.dieIdx != null && card.id === '_smalldie') return throwSmall(handIdx, targetIdx);
+    // Rolling one of the three: aim run.die at it and let the ordinary card
+    // path do every other thing it already does.
+    if (card && card.dieIdx != null) E.useDie(card.dieIdx);
     var def = ns.CARDS[card.id];
     var fx = ns.cardFx(def, card.up, card.vtouch);
     var cost = effCost(def, card.up, card);
@@ -2631,7 +2619,7 @@
     }
 
     c.energy -= cost;
-    c.hand.splice(handIdx, 1);
+    if (card.dieIdx == null) c.hand.splice(handIdx, 1);   // a die stays in hand; you may roll it again
 
     var xval = 0;
     if (def.xcost) { xval = c.energy; c.energy = 0; }
@@ -2924,6 +2912,7 @@
       c.consumed.push(card);
       lawTrigger('cardLeft');           // THE HUNGER
     }
+    else if (card.dieIdx != null) { /* a die goes nowhere — it is still in your hand */ }
     else if (def.exhaust || (def.type === 'skill' && statN(p, 'corruption') > 0)) exhaustCard(card);
     else c.discard.push(card);
 
@@ -3468,6 +3457,30 @@
   }
   E.randomEngravings = randomEngravings;
   // Queue an engraving for placement; the die screen asks which face.
+  /* Point run.die at one of the three. Everything downstream — bands, seams,
+   * welds, taints, listeners, steering, fireOneFace — reads run.die, so this
+   * one assignment is the entire multi-die implementation. */
+  E.useDie = function (i) {
+    var r = E.run;
+    if (!r || !r.dice || !r.dice.length) return;
+    r.dieIdx = Math.max(0, Math.min(r.dice.length - 1, i | 0));
+    r.die = r.dice[r.dieIdx];
+  };
+  // Re-link the shared arrays after a load, where JSON has turned one object
+  // behind three references into three separate copies.
+  function diceRelink(r) {
+    if (!r.dice || r.dice.length < 2) return;
+    var d0 = r.dice[0];
+    d0.pending = d0.pending || [];
+    r.dice.forEach(function (d) {
+      d.core = d0.core; d.vault = d0.vault; d.frame = d0.frame; d.pending = d0.pending;
+      d.coreSlots = d0.coreSlots;
+      d.seams = d.seams || {}; d.welds = d.welds || [];
+    });
+    r.die = r.dice[Math.max(0, Math.min(r.dice.length - 1, r.dieIdx || 0))];
+  }
+  E.diceRelink = diceRelink;
+
   E.takeEngraving = function (id) {
     var r = E.run; if (!r || !r.die) return false;
     if (!r.reward || r.reward.engPicked) return false;
@@ -3637,7 +3650,13 @@
     // Engravings drop from the fights that earn them; they queue up as `pending`
     // and the player picks the face on the die screen.
     var engChoices = [];
-    if (kind === 'elite' || kind === 'boss' || kind === 'beacon') engChoices = randomEngravings(2);
+    /* THE ARSENAL DRAFTS ENGRAVINGS THE WAY EVERYONE ELSE DRAFTS CARDS —
+     * three of them, every single fight. For a class with no deck they ARE the
+     * deck, and leaving them on the card-drop schedule (elites, bosses, and
+     * 22% of hallways) starved it to a 0% win rate: it reached sector 3 still
+     * rolling three nearly-bare dice. */
+    if (r.dice && r.dice.length > 1) engChoices = randomEngravings(3);
+    else if (kind === 'elite' || kind === 'boss' || kind === 'beacon') engChoices = randomEngravings(2);
     else if (rnd() < 0.22) engChoices = randomEngravings(2);
     var artifactDrop = null;   // no auto-grant; picked from artifactChoices
     // The Unmaker's Tithe: an extra relic from every elite & boss
@@ -3652,20 +3671,7 @@
     if (r.sector >= (B.dice.taintEliteFrom || 3) && (kind === 'elite' || kind === 'boss')) E.taintDie(1);
     else if (rnd() < E.taintChance()) E.taintDie(1);
 
-    /* THE ARSENAL'S REWARD. Every fight offers three cuts for its small dice —
-     * the trial's whole proposition, that "which of my six faces does this
-     * replace" is a better decision than "which of these three cards do I
-     * shuffle into a deck I will not draw". Every fight, because six faces per
-     * die is a small enough board that a cut every third fight would never
-     * finish building anything. */
-    /* Cuts most fights, a whole new die at the fights that earn one. Two
-     * reward currencies for one class is deliberate: a cut sharpens a die you
-     * already throw, a die widens what you can throw at all, and being asked
-     * which you want is the economy decision the first trial never had. */
-    var d6Choices = (r.cls === 'arsenal') ? E.d6Offer(3) : [];
-    var diceChoices = (r.cls === 'arsenal' && (kind === 'elite' || kind === 'boss' || kind === 'beacon'))
-                      ? E.diceOffer(2) : [];
-    r.reward = { credits: credits, cards: cards, artifact: artifactDrop, artifactChoices: artifactChoices, engChoices: engChoices, engPicked: false, artifactPicked: false, bonusArtifact: bonusArtifact, potion: potionDrop, potionTaken: false, cardTaken: false, kind: kind, d6Choices: d6Choices, d6Picked: false, diceChoices: diceChoices, dicePicked: false };
+    r.reward = { credits: credits, cards: cards, artifact: artifactDrop, artifactChoices: artifactChoices, engChoices: engChoices, engPicked: false, artifactPicked: false, bonusArtifact: bonusArtifact, potion: potionDrop, potionTaken: false, cardTaken: false, kind: kind };
     r.phase = 'reward';
     emit('win', { kind: kind, credits: credits });
     E.save();
@@ -3688,74 +3694,6 @@
     if (!id) return;
     r.deck.push(mkCard(id, false));
     r.reward.cardTaken = true;
-  };
-
-  /* ---- THE ARSENAL DRAFTS CUTS, NOT CARDS ---------------------------
-   * Its reward is three engravings for its small dice instead of three cards
-   * for a deck it does not really have. This is the trial's whole proposition:
-   * a card reward is three cards you cannot evaluate without knowing your
-   * draw; an engraving reward is "which of my six faces does this replace",
-   * which is a decision with geometry in it. */
-  /* Jam is never offered — it is a face you are given by a die, never one you
-   * would ever choose, and putting it in the offer would just be a dead pick. */
-  E.d6Offer = function (n) {
-    var r = E.run, out = [], bag = [];
-    Object.keys(ns.D6_AUGMENTS).forEach(function (k) {
-      if (k !== 'x_jam') bag.push(k);
-    });
-    var guard = 0;
-    while (out.length < (n || 3) && guard++ < 200) {
-      var pick0 = bag[Math.floor(rnd() * bag.length)];
-      if (out.indexOf(pick0) < 0) out.push(pick0);
-    }
-    return out;
-  };
-  /* Cut a face on one of the dice you own. The die is named explicitly now —
-   * with a rack of them, "the battery" is no longer a unique address. */
-  E.d6Take = function (id, dieIdx, face) {
-    var r = E.run, def = ns.d6Engraving(id);
-    if (!def || !r.dice) return 'no such cut';
-    var die = r.dice[dieIdx];
-    if (!die || die.d20) return 'that die takes no small cuts';
-    if (def.die !== 'any' && die.kind && def.die !== die.kind) return 'that cut does not fit this die';
-    if (face < 1 || face > (die.sides || 6)) return 'no such face';
-    die.faces[face] = id;
-    E.save();
-    return null;
-  };
-  // Which of your dice a given cut will fit — the first half of the decision.
-  E.d6Fits = function (id) {
-    var r = E.run, def = ns.d6Engraving(id), out = [];
-    if (!def || !r.dice) return out;
-    r.dice.forEach(function (d, i) {
-      if (d.d20) return;
-      if (def.die === 'any' || !d.kind || def.die === d.kind) out.push(i);
-    });
-    return out;
-  };
-  /* A WHOLE NEW DIE. The other half of the reward economy, and the half that
-   * makes the first half a choice: a cut sharpens what you have, a die widens
-   * what you can pick from. With three throws a turn and one throw per die,
-   * a fifth die is only worth taking if it beats the fourth-best thing you
-   * already own — which is exactly the diminishing return that stops
-   * collecting from being free. */
-  E.diceOffer = function (n) {
-    var r = E.run, have = {}, bag = [];
-    (r.dice || []).forEach(function (d) { have[d.id] = 1; });
-    Object.keys(ns.DICE_KINDS).forEach(function (k) {
-      var kk = ns.DICE_KINDS[k];
-      if (!kk.start && !kk.d20 && !have[k]) bag.push(k);
-    });
-    shuffle(bag);
-    return bag.slice(0, n || 2);
-  };
-  E.diceTake = function (id) {
-    var r = E.run, d = ns.newThrowDie(id);
-    if (!d) return 'no such die';
-    if ((r.dice || []).some(function (x) { return x.id === id; })) return 'you carry one already';
-    r.dice.push(d);
-    E.save();
-    return null;
   };
 
   E.finishReward = function () {
@@ -5402,6 +5340,8 @@
         E.run.die.welds = E.run.die.welds || [];
         dieRepair();
       }
+      // JSON turns one shared object behind three references into three copies
+      diceRelink(E.run);
       rngState = data.rng >>> 0;
       uidCounter = data.uid || 1000;
       E.combat = null;
