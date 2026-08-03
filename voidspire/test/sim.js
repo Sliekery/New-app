@@ -487,6 +487,10 @@ var PILOT = null;   // an ENGINES key — null = default greedy draft
  * build.
  * --------------------------------------------------------------------- */
 var RANDOM_DRAFT = !!process.env.VS_RANDOM_DRAFT;
+/* SPLIT PROBES. The Arsenal has two reward currencies, so "random drafting
+ * wins" is not one finding until you know which currency it wins on. */
+var RANDOM_DICE = RANDOM_DRAFT || !!process.env.VS_RANDOM_DICE;
+var RANDOM_CUTS = RANDOM_DRAFT || !!process.env.VS_RANDOM_CUTS;
 var RANDOM_PLAY = !!process.env.VS_RANDOM_PLAY;
 /* VS_ALWAYS_TAKE isolates the two things the greedy arm was doing at once. It
  * picks the BEST of the three offered but never declines, so "random" vs
@@ -719,7 +723,7 @@ function step() {
       if (r.cls === 'arsenal' && !r.reward.dicePicked && (r.reward.diceChoices || []).length) {
         r.reward.dicePicked = true;
         var dOffer = r.reward.diceChoices;
-        if (RANDOM_DRAFT) {
+        if (RANDOM_DICE) {
           E.diceTake(dOffer[Math.floor(probeRnd() * dOffer.length)]);
         } else {
           var bestD = null, bestDV = dieEV(worstOwnedDie());   // only if it beats the bench
@@ -737,7 +741,7 @@ function step() {
          * of the trial is whether picking well matters more here than it did
          * with cards, and that is only answerable against a bot that picks
          * badly. Random cut, random die it fits, random face. */
-        if (RANDOM_DRAFT && offer.length) {
+        if (RANDOM_CUTS && offer.length) {
           var rc = offer[Math.floor(probeRnd() * offer.length)];
           var fits = E.d6Fits(rc);
           if (fits.length) {
