@@ -109,10 +109,10 @@
       desc: 'Faces beside the one you roll fire at 75% instead of half.',
       art: { p: [[-0.86,-0.5, 0.86,0.3], [-0.86,-0.2, 0.86,0.6], [-0.7,-0.44, -0.66,-0.2], [-0.4,-0.3, -0.36,-0.06], [-0.1,-0.16, -0.06,0.08], [0.2,-0.02, 0.24,0.22], [0.5,0.12, 0.54,0.36]], e: [[-0.68,-0.32],[-0.38,-0.18],[-0.08,-0.04],[0.22,0.1],[0.52,0.24]] } },
     spent_brass: { name: 'Spent Brass', tier: 2, cls: 'vanguard', k: 'bankRoll', v: 1,
-      desc: 'Every roll banks its number. At end of turn, bank becomes that much Shield.',
+      desc: 'Every roll banks its number. At end of turn, bank becomes that much Bulwark.',
       art: { p: [[-0.5,0.6, -0.4,-0.2, -0.16,-0.5, 0.16,-0.5, 0.4,-0.2, 0.5,0.6, -0.5,0.6], [-0.46,0.2, 0.46,0.2], [-0.44,-0.05, 0.44,-0.05], [-0.16,-0.5, -0.16,-0.66, 0.16,-0.66, 0.16,-0.5], [-0.7,0.6, 0.7,0.6]], e: [[0,0.4],[0,0.08]] } },
     trench_ledger: { name: 'Trench Ledger', tier: 2, cls: 'vanguard', k: 'lowMight', v: 1,
-      desc: 'Every roll under 6 grants 1 Might for the rest of the combat.',
+      desc: 'Every roll under 6 grants 1 Stim.',
       art: { p: [[-0.4,-0.7, 0.4,-0.7, 0.5,-0.5, 0.5,0.6, -0.5,0.6, -0.5,-0.5, -0.4,-0.7], [-0.5,-0.36, 0.5,-0.36], [-0.34,-0.16, -0.34,0.16], [-0.18,-0.16, -0.18,0.16], [-0.02,-0.16, -0.02,0.16], [0.14,-0.16, 0.14,0.16], [-0.42,-0.2, 0.22,0.2], [-0.34,0.38, 0.34,0.38]], e: [[0,-0.82]] } },
     ranging_tables: { name: 'Ranging Tables', tier: 3, cls: 'vanguard', k: 'everyThird', v: 1,
       desc: 'Every third roll each combat is automatically a 20.',
@@ -230,7 +230,9 @@
       desc: 'Every 20% of Max HP you are missing shifts every band 2 lower. Ruin reads well.',
       art: { p: [[-0.7,0.45, -0.7,-0.5, -0.4,-0.15, -0.15,-0.6, 0.15,-0.15, 0.4,-0.6, 0.7,-0.15, 0.7,0.45, -0.7,0.45], [-0.7,0.2, 0.7,0.2], [-0.7,0.6, 0.7,0.6], [-0.35,0.3, -0.35,0.45], [0.35,0.3, 0.35,0.45]], e: [[0,0.34]] } },
 
-    cycling_breech:  { name: 'Cycling Breech',    tier: 2, cls: 'vanguard', k: 'momentumKeep', v: 1, desc: 'Your Momentum no longer resets at the start of your turn.',
+    /* Momentum is gone from the class, so this pointed at nothing. It holds
+     * the OTHER thing that burns off between turns instead. */
+    cycling_breech:  { name: 'Cycling Breech',    tier: 2, cls: 'vanguard', k: 'stimHold', v: 1, desc: 'Your Stim no longer burns off between turns.',
       art: { p: [[-0.7,-0.25, 0.7,-0.25], [-0.7,0.25, 0.7,0.25], [-0.7,-0.25, -0.7,0.25], [0.7,-0.25, 0.7,0.25], [-0.35,-0.25, -0.35,0.25], [0,-0.25, 0,0.25], [0.35,-0.25, 0.35,0.25], [0.5,-0.55, 0.8,-0.55, 0.8,-0.25], [-0.5,0.55, -0.8,0.55, -0.8,0.25]] } },
     thorn_husk:      { name: 'Thornmail Husk',    tier: 1, k: 'thorns',          v: 2,    desc: 'Attackers take 2 damage.',
       art: { p: [[0,-0.6, 0.6,0, 0,0.6, -0.6,0, 0,-0.6], [0,-0.6, 0,-1], [0.6,0, 1,0], [0,0.6, 0,1], [-0.6,0, -1,0]], e: [] } },

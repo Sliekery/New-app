@@ -1003,8 +1003,11 @@
     if (sw > 0) { addStatus(p, 'bulwark', wallGain(sw)); emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') }); }
     var bp = statN(p, 'bloodPact');   // BLOOD PACT: spilled HP feeds your Psi
     if (bp > 0) { addStatus(p, 'psiPow', bp); emit('status', { who: 'player', s: 'psiPow', v: bp }); }
-    var brg = statN(p, 'bloodrage');  // BLOOD RAGE: spending life stokes your Might (Bloodforge)
-    if (brg > 0) { addStatus(p, 'str', brg); emit('status', { who: 'player', s: 'str', v: brg }); }
+    /* STIM. Spending life stokes it, and it BURNS OFF — which is the whole
+     * difference from Might: you are buying a window, not a stat. Paying HP for
+     * something permanent would just be Might with a worse price. */
+    var brg = statN(p, 'bloodrage');
+    if (brg > 0) { addStatus(p, 'stim', brg); emit('status', { who: 'player', s: 'stim', v: statN(p, 'stim') }); }
     fireListeners('selfHp', {});
   }
 
@@ -1271,7 +1274,8 @@
     /* STIM BURNS OFF. It is bought with HP, so if it persisted it would just be
      * Might with a worse price. Decaying one a turn makes it a window you open
      * and have to use, which is what a stimulant is. FEVER stops the decay. */
-    if (p.statuses.stim > 0 && statN(p, 'stimHold') <= 0) {
+    // FEVER grants it as a status, CYCLING BREECH as a relic hook — both hold
+    if (p.statuses.stim > 0 && statN(p, 'stimHold') <= 0 && art('stimHold') <= 0) {
       addStatus(p, 'stim', -1);
       emit('status', { who: 'player', s: 'stim', v: statN(p, 'stim') });
     }
@@ -1291,6 +1295,8 @@
     if (padv > 0) { gainBlock(padv); addStatus(p, 'platedArmor', -1); } // Plated Armor: shield = stacks, then decays
     var spt = statN(p, 'strPerTurn');
     if (spt > 0) addStatus(p, 'str', spt);
+    // RUNNING ON EMPTY: the closer to the edge, the faster you dig
+    if (statN(p, 'runEmpty') > 0 && E.run.hp <= E.run.maxHp * 0.5) drawCards(statN(p, 'runEmpty'));
     var wpt = statN(p, 'wallPerTurn');  // CASEMATE: the wall builds itself
     if (wpt > 0) { addStatus(p, 'bulwark', wallGain(wpt)); emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') }); }
     var apt = statN(p, 'aimPerTurn');   // STEADY AIM: marksmanship sharpens every turn
@@ -1507,9 +1513,12 @@
     var p = E.combat.player;
     var mul = f.scaleMul || 1;
     var sc = resolveScale(f.scale);
-    // STIM is bought with HP and decays, so it is a burst stat rather than a
-    // permanent one — it adds like Might but you are paying for it in blood.
-    var v = statN(p, 'str') + statN(p, 'momentum') + statN(p, 'stim') + art('flatDmg') + (E.combat.momentum || 0);
+    /* STIM COUNTS DOUBLE. It is bought with HP and it burns off a point a turn,
+     * so at parity with Might it was strictly worse than Might in every way —
+     * you paid blood for a stat that then evaporated. Measured: a piloted Stim
+     * deck won 7.0% of runs against 22.0% for drafting at random. Two points of
+     * damage per Stim is what makes the trade worth making. */
+    var v = statN(p, 'str') + statN(p, 'momentum') + statN(p, 'stim') * 2 + art('flatDmg') + (E.combat.momentum || 0);
     if (sc === 'might') v += attr('might') * B.attrs.mightDmgPerPoint * mul;
     if (sc === 'tech') v += attr('tech') * mul;
     if (sc === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * mul + statN(p, 'psiPow');
@@ -2317,6 +2326,23 @@
               totalDealt += dealToEnemy(wdEn, c.enemies.indexOf(wdEn), (f.base || 0) + bonus + attackBonus(f),
                 { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
             }
+          } else if (f.id === 'stimScale') {
+            // RAVENING reads the window you bought with your own blood
+            var rvEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            if (rvEn) totalDealt += dealToEnemy(rvEn, c.enemies.indexOf(rvEn),
+              (f.base || 0) + statN(p, 'stim') * (f.v || 1) + attackBonus(f),
+              { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
+          } else if (f.id === 'lastRound') {
+            // LAST ROUND: the cliff edge, not a gradient — half HP or nothing
+            var lrEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            var lrD = (f.base || 0) + attackBonus(f);
+            if (E.run.hp <= E.run.maxHp * 0.5) lrD *= 2;
+            if (lrEn) totalDealt += dealToEnemy(lrEn, c.enemies.indexOf(lrEn), lrD,
+              { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
+          } else if (f.id === 'limitBreakStim') {
+            // LIMIT BREAK doubles the window rather than a permanent stat
+            var lbs = statN(p, 'stim');
+            if (lbs > 0) { addStatus(p, 'stim', lbs); emit('status', { who: 'player', s: 'stim', v: statN(p, 'stim') }); }
           } else if (f.id === 'stat') {
             /* A status the card's own TEXT explains, so the generated line
              * would only repeat it worse ("Gain 50 Barricade."). Sets the
@@ -2583,8 +2609,9 @@
     c.highFace = Math.max(c.highFace || 0, landed);                 // THE REDOUBT reads it at end of turn
     if (art('bankRoll') > 0) c.banked = (c.banked || 0) + roll;     // SPENT BRASS
     if (art('lowMight') > 0 && roll < 6) {                          // TRENCH LEDGER
-      addStatus(p, 'str', art('lowMight'));
-      emit('status', { who: 'player', s: 'str', v: statN(p, 'str') });
+      // the bottom of the die is Stim's territory now, not Might's
+      addStatus(p, 'stim', art('lowMight'));
+      emit('status', { who: 'player', s: 'stim', v: statN(p, 'stim') });
     }
     if (!bandsNow) {
       emit('roll', { roll: roll, eff: eff, crit: false, misfire: false, band: null });
@@ -2598,6 +2625,15 @@
       if (misfire) {   // MISFIRE PROTOCOL turns a jam into fuel
         // MISFIRE PROTOCOL pays in AIM now: a jam is the one roll steering
         // cannot save, so the compensation is ammunition for the next one.
+        /* THE RED HOUR: a jam is the one roll Marksmanship cannot save, so it
+         * is the roll Stim is paid for. The bottom of the Vanguard's table
+         * stops being waste and becomes an engine. */
+        var rh = statN(p, 'redHour');
+        if (rh > 0) {
+          addStatus(p, 'stim', rh);
+          emit('status', { who: 'player', s: 'stim', v: statN(p, 'stim') });
+          c.energy += 1;
+        }
         var mg = statN(p, 'misfireGuard');
         if (mg > 0) { addStatus(p, 'aim', mg); emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') }); c.energy += 1; }
         // TRIP COIL / SACRIFICIAL FUSE: a tripped breaker is never dead weight
@@ -2712,6 +2748,8 @@
         var bspec = (card.up && def.up && def.up.burst) ? def.up.burst : def.burst;
         if (bspec) {
           var bn = (bspec.n || 2) + statN(p, 'burstPlus');
+          // DEAD MAN'S TRIGGER: the wound widens the burst
+          if (statN(p, 'deadMan') > 0 && E.run.hp <= E.run.maxHp * 0.4) bn += 1;
           var bdir = bspec.dir || 1;
           var bmul = B.dice.burst || [1, 0.6, 0.35];
           var lp = statN(p, 'burstWall');      // LOOPHOLE: the burst builds the wall
@@ -2818,7 +2856,9 @@
 
     // SPENT BRASS cashes the numbers you rolled this turn in as plating
     if (art('bankRoll') > 0 && (c.banked || 0) > 0) {
-      gainBlock(c.banked);
+      // the Vanguard's defensive pool is the WALL now, and it does not expire
+      addStatus(c.player, 'bulwark', wallGain(c.banked));
+      emit('status', { who: 'player', s: 'bulwark', v: statN(c.player, 'bulwark') });
       emit('relic', { id: 'spent_brass', v: c.banked });
       c.banked = 0;
     }

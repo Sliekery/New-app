@@ -64,14 +64,15 @@
       /* BURST N fires the landing face and the next N-1 round the ring at these
        * fractions. The landing face still matters most; later faces are a bonus
        * that stacks with the 25% bleed and with welds. */
-      /* OPEN QUESTION, deliberately left at the designed values. Against what
-       * it competes with these look light: on a MEDIAN engraving of 8 a BURST 3
-       * adds 7.6 damage, and only if both faces past the landing one are cut,
-       * while two Pulse Rifles deal 12 for the same two energy. Raising them to
-       * 0.8/0.6 was tried and every arm moved DOWN about 5 points — which at
-       * n=200 is inside the noise and across three unpaired batches means
-       * nothing either way. It wants a paired test at n=600+ before it moves. */
-      burst: [1, 0.6, 0.35, 0.2, 0.12],
+      /* Raised from the designed 0.6/0.35 once Marksmanship had measured as the
+       * weakest of the three archetypes three separate times. The arithmetic
+       * was always against it: on a MEDIAN engraving of 8 a BURST 3 added 7.6
+       * damage, and only when both faces past the landing one were cut, while
+       * two Pulse Rifles deal 12 for the same two energy — the payoff sat below
+       * the filler. At these rates a BURST 3 adds 11.2 and a BURST 4 adds 14.8,
+       * so a dense run is worth building toward while a sparse die still makes
+       * these cards bad, which is the intended shape. */
+      burst: [1, 0.8, 0.6, 0.45, 0.3],
       /* THE WELD. Bleed across a chosen boundary between two DIFFERENT
        * engravings runs at full instead of `bleed`. Bought at the bench, and
        * hard-capped: on a dense die every engraving touches another, so an

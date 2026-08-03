@@ -56,21 +56,24 @@ function playId(id, tgt) {
 }
 function bigEnemies() { E.combat.enemies.forEach(function (e) { e.hp = 100; e.maxHp = 100; e.block = 0; }); }
 
-/* 1. Powers are consumed, not recycled (the reported bug) */
+/* 1. Powers are consumed, not recycled (the reported bug). Combat Stims used
+ *    to be the fixture; it is a SKILL now that the Vanguard buys a window
+ *    rather than a permanent stat, so this uses a power that still is one. */
 startFight('vanguard');
-setHand(['combat_stims']);
-playId('combat_stims');
-ok('power applies its effect', (E.combat.player.statuses.str || 0) > 0);
-ok('power does NOT go to discard', !E.combat.discard.some(function (c) { return c.id === 'combat_stims'; }));
-ok('power does NOT go to draw pile', !E.combat.drawPile.some(function (c) { return c.id === 'combat_stims'; }));
-ok('power goes to the consumed pile', E.combat.consumed.some(function (c) { return c.id === 'combat_stims'; }));
+setHand(['red_ledger']);
+playId('red_ledger');
+ok('power applies its effect', (E.combat.player.statuses.bloodrage || 0) > 0);
+ok('power does NOT go to discard', !E.combat.discard.some(function (c) { return c.id === 'red_ledger'; }));
+ok('power does NOT go to draw pile', !E.combat.drawPile.some(function (c) { return c.id === 'red_ledger'; }));
+ok('power goes to the consumed pile', E.combat.consumed.some(function (c) { return c.id === 'red_ledger'; }));
 
-/* 2. Limit Break doubles Might */
+/* 2. Limit Break doubles STIM — the Vanguard's scaling stat is the window he
+ *    bought with HP, not Might, so doubling Might would double nothing. */
 startFight('vanguard');
-E.combat.player.statuses.str = 4;
+E.combat.player.statuses.stim = 4;
 setHand(['limit_break']);
 playId('limit_break');
-ok('Limit Break doubles Might (4 -> 8)', E.combat.player.statuses.str === 8);
+ok('Limit Break doubles Stim (4 -> 8)', E.combat.player.statuses.stim === 8);
 
 /* 3. Catalyst doubles Burn */
 startFight('voidadept');
@@ -1561,19 +1564,21 @@ ok('every remaining class has a starter deck whose cards all exist',
   ok('Resonance Node banks Psi Focus before turn 1', atCombatStart('resonance_node', 'voidadept', 'psiPow') === 2);
 
   // Cycling Breech is a rule-bender, not a number — it has to survive a turn.
-  function momentumAfterTurn(withRelic) {
+  /* Momentum is gone from the Vanguard, so Cycling Breech holds the OTHER
+   * thing that burns off between turns: Stim. Same test, live mechanic. */
+  function stimAfterTurn(withRelic) {
     E.seed(4); E.newRun('vanguard'); E.takeFirstMark(0);
     if (withRelic) { E.run.artifacts.push('cycling_breech'); E.run.die.core.push('cycling_breech'); }
     E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
     E.startNode('fight');
-    E.combat.player.statuses.momentum = 5;
+    E.combat.player.statuses.stim = 5;
     E.endTurn();
-    var v = (E.combat.player.statuses || {}).momentum || 0;
+    var v = (E.combat.player.statuses || {}).stim || 0;
     E.run.phase = 'map';
     return v;
   }
-  ok('Momentum still resets without a Cycling Breech', momentumAfterTurn(false) === 0);
-  ok('and survives the turn with one', momentumAfterTurn(true) === 5);
+  ok('Stim still burns off without a Cycling Breech', stimAfterTurn(false) === 4);
+  ok('and holds with one', stimAfterTurn(true) === 5);
 
   // Salvage Burner is the Exhaust engine's only engravable face — it has to
   // actually move a card into exhaust, or it feeds nothing.

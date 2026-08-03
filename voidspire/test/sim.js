@@ -368,6 +368,14 @@ var ENGINES = {
                                      'barricade_protocol', 'riposte_protocol', 'set_against_it'],
              flex: ['pulse_rifle', 'combat_shield', 'brace', 'bayonet_charge', 'firing_step', 'loophole',
                     'sandbag', 'scar_tissue', 'blood_cement'] },
+  /* STIM: buy power with HP, and the bottom of the die — the jam Marksmanship
+   * cannot save — is what pays for it. */
+  stim: { cls: 'vanguard', core: ['whet_the_blade', 'crimson_pact', 'gutshot', 'overdose', 'field_amputation',
+                                  'adrenal_surge', 'combat_stims', 'red_ledger', 'blood_rage', 'executioner',
+                                  'last_round', 'running_on_empty', 'fever', 'heavy_ordnance', 'frenzy',
+                                  'limit_break', 'bloodlust', 'bloodbath', 'reckless_protocol', 'second_wind'],
+          flex: ['pulse_rifle', 'combat_shield', 'brace', 'bayonet_charge', 'mainline', 'steady_hands',
+                 'dead_mans_trigger', 'sandbag', 'scar_tissue'] },
   // kept as a NARROWER marksman pilot: the pure Aim line with no burst support,
   // so the two can be measured against each other
   marksman: { cls: 'vanguard', core: ['take_aim', 'boresight', 'steady_aim', 'sighting_round', 'ranging_shot',
