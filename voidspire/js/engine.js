@@ -1130,6 +1130,35 @@
   };
   // Called wherever a law can bite. Kept in one function so every law is
   // visible together rather than smeared across the engine.
+  /* ---- LAWS ARE A SHAPE, NOT A METER ---------------------------------
+   * Almost every law here is CUMULATIVE — Might per roll, Thorns per blow,
+   * healing per card, regeneration that doubles per quiet turn. That is fine
+   * in a four-turn fight and ruinous in a seven-turn one, and the combat clock
+   * retune just made every boss fight seven turns. Measured: with the laws
+   * silenced the game sits at 24.0% win, with them on 14.7% — they were worth
+   * -9.3 points, having been tuned when they barely fired.
+   *
+   * The fix is a ceiling on each accumulator rather than a smaller number per
+   * trigger. A law should state a rule you have to answer, reach its full
+   * expression in the first few turns, and then stop — so that fighting it for
+   * longer is a test of whether you solved it, not a countdown you lose by
+   * default. `lawCap` is the one place those ceilings live. ----------------- */
+  var LAW_CAP = {
+    mightTotal: { scrutiny: 6, tithe: 6, stare: 9 },   // cumulative Might a law may hand out
+    healPct:    { hunger: 0.30, hymn: 0.25 },          // ...healing, as a share of its own max HP
+    thorns:     { grudge: 5 },
+    litany:     2,                                     // doublings of its regeneration
+  };
+  // grant up to `cap` of `stat` over the whole fight, returning what was given
+  function lawGrant(en, id, stat, want, cap) {
+    var key = '_law_' + stat;
+    var had = en[key] || 0;
+    var give = Math.max(0, Math.min(want, cap - had));
+    if (give <= 0) return 0;
+    en[key] = had + give;
+    return give;
+  }
+
   function lawTrigger(kind, v, ctx) {
     var all = activeLaws(), ret = 0;
     function fired(l) { emit('bossLaw', { law: l.id, idx: E.combat.enemies.indexOf(l.en) }); }
@@ -1137,24 +1166,32 @@
       var l = all[i];
       /* ---- boss laws ---- */
       if (l.id === 'tithe' && kind === 'shieldGained' && v > 0) {
-        // CAPPED. Uncapped, a Technomancer gaining 30 Shield in a turn handed
-        // the boss +15 Might in one go — measured, the class lost 6.4 points to
-        // this law alone. A tithe is a tax, not a confiscation.
-        addStatus(l.en, 'str', Math.max(1, Math.min(2, Math.floor(v / 2))));
-        fired(l);
+        // CAPPED PER TRIGGER since a Technomancer gaining 30 Shield in a turn
+        // handed the boss +15 Might in one go, and CAPPED OVER THE FIGHT so a
+        // long one does not simply hand over more.
+        var tg = lawGrant(l.en, 'tithe', 'might', Math.max(1, Math.min(2, Math.floor(v / 2))), LAW_CAP.mightTotal.tithe);
+        if (tg > 0) { addStatus(l.en, 'str', tg); fired(l); }
       }
       if (l.id === 'hunger' && kind === 'cardLeft') {
-        l.en.hp = Math.min(l.en.maxHp, l.en.hp + 4); fired(l);
+        var hh = lawGrant(l.en, 'hunger', 'heal', 4, Math.round(l.en.maxHp * LAW_CAP.healPct.hunger));
+        if (hh > 0) { l.en.hp = Math.min(l.en.maxHp, l.en.hp + hh); fired(l); }
       }
-      if (l.id === 'scrutiny' && kind === 'roll' && v < 8) { addStatus(l.en, 'str', 2); fired(l); }
+      if (l.id === 'scrutiny' && kind === 'roll' && v < 8) {
+        var sg = lawGrant(l.en, 'scrutiny', 'might', 2, LAW_CAP.mightTotal.scrutiny);
+        if (sg > 0) { addStatus(l.en, 'str', sg); fired(l); }
+      }
       if (l.id === 'stillness' && kind === 'firstCardCost') ret += 1;
       if (l.id === 'weight' && kind === 'blockCarries') ret = -1;
 
       /* ---- elite signatures ---- */
       // THE HYMN: your Shield is the pack's medicine
       if (l.id === 'hymn' && kind === 'shieldGained' && v > 0) {
-        aliveEnemies().forEach(function (e2) { e2.hp = Math.min(e2.maxHp, e2.hp + 3); });
-        fired(l);
+        var sang = 0;
+        aliveEnemies().forEach(function (e2) {
+          var g = lawGrant(e2, 'hymn', 'heal', 3, Math.round(e2.maxHp * LAW_CAP.healPct.hymn));
+          if (g > 0) { e2.hp = Math.min(e2.maxHp, e2.hp + g); sang++; }
+        });
+        if (sang) fired(l);
       }
       // THE TAKING: it bills you for every landed hit
       if (l.id === 'tithe_coin' && kind === 'playerHit' && v > 0) {
@@ -1171,7 +1208,7 @@
       }
       // THE GRUDGE: what it has taken personally, it keeps
       if (l.id === 'grudge' && kind === 'struck' && ctx === l.en) {
-        l.en.grudge = (l.en.grudge || 0) + 1; fired(l);
+        if ((l.en.grudge || 0) < LAW_CAP.thorns.grudge) { l.en.grudge = (l.en.grudge || 0) + 1; fired(l); }
       }
     }
     return ret;
@@ -2719,7 +2756,7 @@
         /* THE LITANY compounds while it is left alone — which turns "chip it
          * later" into "you have already lost the race". */
         if (en.def.law === 'litany') {
-          en.litany = en.tookDamageThisTurn ? 0 : Math.min(3, (en.litany || 0) + 1);
+          en.litany = en.tookDamageThisTurn ? 0 : Math.min(LAW_CAP.litany, (en.litany || 0) + 1);
           rg = rg * Math.pow(2, en.litany);
           if (en.litany > 0) emit('bossLaw', { law: 'litany', idx: idx });
         }
@@ -2729,8 +2766,8 @@
       /* THE STARE reads the same silence the Litany does, and answers it with
        * Might rather than meat. */
       if (en.def.law === 'stare' && en.alive && !en.tookDamageThisTurn) {
-        addStatus(en, 'str', 3);
-        emit('bossLaw', { law: 'stare', idx: idx });
+        var stg = lawGrant(en, 'stare', 'might', 3, LAW_CAP.mightTotal.stare);
+        if (stg > 0) { addStatus(en, 'str', stg); emit('bossLaw', { law: 'stare', idx: idx }); }
       }
       // THE ETCHING: every third turn it reaches past you to the die itself
       if (en.def.law === 'etching' && en.alive) {

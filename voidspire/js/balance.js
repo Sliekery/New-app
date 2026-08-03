@@ -17,7 +17,12 @@
 
     /* ---- Classes ---------------------------------------------------- */
     classes: {
-      vanguard:  { hp: 80, might: 2, tech: 0, psi: 0 },
+      /* +20 with the combat clock. Longer fights mean more enemy turns per
+       * node and the same number of rests to recover between them, so the run
+       * bleeds faster even with per-turn damage cut. HP is the lever that pays
+       * for that without touching the shape of a fight. Vanguard only — he is
+       * the testing ground for the clock work. */
+      vanguard:  { hp: 100, might: 2, tech: 0, psi: 0 },
       technomancer: { hp: 68, might: 0, tech: 2, psi: 0 },
       voidadept: { hp: 80, might: 0, tech: 0, psi: 2 },
     },
@@ -181,7 +186,7 @@
      *
      * HP goes up and damage-per-turn comes down together, so the TOTAL damage
      * a fight deals is roughly preserved and the fight simply takes longer:
-     *   fight  2.2 x 0.42     elite  2.0 x 0.42     boss  2.4 x 0.38
+     *   fight  2.2 x 0.37     elite  2.4 x 0.37     boss  2.9 x 0.33
      *
      * The boss column is steeper on HP: a boss being 1.8x a trash fight is why
      * it never read as a different kind of event, and it is 2.3x now.
@@ -197,7 +202,7 @@
      * clock keeps its honest values and the laws are the next job. -------- */
     clock: {
       hp:  { fight: 2.2, elite: 2.4, boss: 2.9, beacon: 2.4, heart: 2.9 },
-      dmg: { fight: 0.45, elite: 0.45, boss: 0.40, beacon: 0.45, heart: 0.40 },
+      dmg: { fight: 0.37, elite: 0.37, boss: 0.33, beacon: 0.37, heart: 0.33 },
     },
 
     scaling: {
