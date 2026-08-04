@@ -49,7 +49,14 @@
      * design: three answers to the same question, not three sets of numbers.
      * ---------------------------------------------------------------- */
     dice: {
-      arsenalDice: 3,        // how many barrels the Arsenal rolls
+      /* THE RACK: one d20 and two d6. The big barrel is the lottery with room
+       * to build; the small ones are reliable and cannot be over-stuffed —
+       * six faces means every cut on one is worth more than three on the d20,
+       * so filling them is a commitment rather than a slow accumulation. */
+      arsenalSmall: [
+        { sides: 6, base: 'base_shot' },     // the gun
+        { sides: 6, base: 'base_guard' },    // the guard
+      ],
       arsenalAim: 3,         // Aim it tops back up to at the start of every turn
       // THE ROLL BLEEDS: a roll fires its face fully and the faces either side
       // at this fraction. It is what makes WHERE you cut matter as much as

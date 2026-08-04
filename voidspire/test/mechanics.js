@@ -1211,7 +1211,7 @@ ok('every class opens with either a starter deck or a rack of dice',
   Object.keys(VS.BALANCE.classes).every(function (c) {
     var d = VS.STARTER_DECKS[c];
     if (d && d.length) return d.every(function (id) { return !!VS.CARDS[id]; });
-    return c === 'arsenal' && (VS.BALANCE.dice.arsenalDice || 0) > 1;
+    return c === 'arsenal' && (VS.BALANCE.dice.arsenalSmall || []).length > 0;
   }));
 
 (function () {
@@ -2619,6 +2619,39 @@ ok('every class opens with either a starter deck or a rack of dice',
   startFight('arsenal');
   var r = E.run, c = E.combat;
   ok('the Arsenal carries three dice', (r.dice || []).length === 3);
+  ok('one d20 and two d6',
+     VS.dieSides(r.dice[0]) === 20 && VS.dieSides(r.dice[1]) === 6 && VS.dieSides(r.dice[2]) === 6);
+
+  /* THE BASE CARDS, CUT INTO FACES. The small barrels open with Pulse Rifle
+   * and Combat Shield on every face, so a fresh Arsenal is a working gun and a
+   * working guard rather than six blanks. */
+  function faceName(d, f) { var sl = d.faces[f]; return sl ? VS.dieEngraving(sl.id).name : null; }
+  var allGun = true, allGuard = true;
+  for (var q = 1; q <= 6; q++) {
+    if (faceName(r.dice[1], q) !== 'Pulse Rifle') allGun = false;
+    if (faceName(r.dice[2], q) !== 'Combat Shield') allGuard = false;
+  }
+  ok('the gun barrel opens with Pulse Rifle on every face', allGun);
+  ok('the guard barrel opens with Combat Shield on every face', allGuard);
+  ok('the big barrel opens bare', !r.dice[0].faces[10]);
+
+  /* A BASIC IS OVERWRITTEN, NOT SHARED. Without this the small barrels are
+   * permanently full — every face is the head of something, nothing can be
+   * placed, and the two dice you lean on can never improve. Measured: it was
+   * worth 11.7% -> 30.8% win. */
+  ok('a cut can land on top of a basic', !VS.dieCanEngrave(r.dice[1], 'arsenal_embrasure', 3));
+  VS.dieEngrave(r.dice[1], 'arsenal_embrasure', 3);
+  ok('and replaces it outright', faceName(r.dice[1], 3) === 'Embrasure');
+  ok('leaving no seam behind', !(r.dice[1].seams || {})[3]);
+  ok('its neighbours are untouched', faceName(r.dice[1], 2) === 'Pulse Rifle');
+  ok('but a real engraving still cannot be overwritten',
+     !!VS.dieCanEngrave(r.dice[1], 'arsenal_revetment', 3));
+
+  /* A SMALL BARREL DOES NOT JAM. Mapping a d6's face 1 onto the d20's face 1
+   * gave it a 1-in-6 misfire against the big die's 1-in-20. */
+  ok('a d6 face 1 reads as the bottom band, not the jam', VS.dieScale(r.dice[1], 1) === 2);
+  ok('a d6 top face still reaches the top of the table', VS.dieScale(r.dice[1], 6) === 20);
+  ok('a d20 face is its own number', VS.dieScale(r.dice[0], 13) === 13);
   ok('run.die points at one of them', r.dice.indexOf(r.die) >= 0);
   ok('they share one core, so relics mount to the class not to a barrel',
      r.dice[0].core === r.dice[1].core && r.dice[1].core === r.dice[2].core);

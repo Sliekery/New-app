@@ -2396,6 +2396,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .card.die-card .dk-row { font-size: 7.5px; line-height: 1.2; color: var(--text); }
 .card.die-card .dk-row b { color: var(--amber); }
 .card.die-card .dk-row.dk-more { color: var(--text-dim); font-style: italic; }
+.die-small-note { text-align: center; font-size: 11px; color: var(--text-dim); padding: 18px 10px 6px; }
 
 </style>
 </head>
@@ -2464,7 +2465,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
      * design: three answers to the same question, not three sets of numbers.
      * ---------------------------------------------------------------- */
     dice: {
-      arsenalDice: 3,        // how many barrels the Arsenal rolls
+      /* THE RACK: one d20 and two d6. The big barrel is the lottery with room
+       * to build; the small ones are reliable and cannot be over-stuffed —
+       * six faces means every cut on one is worth more than three on the d20,
+       * so filling them is a commitment rather than a slow accumulation. */
+      arsenalSmall: [
+        { sides: 6, base: 'base_shot' },     // the gun
+        { sides: 6, base: 'base_guard' },    // the guard
+      ],
       arsenalAim: 3,         // Aim it tops back up to at the start of every turn
       // THE ROLL BLEEDS: a roll fires its face fully and the faces either side
       // at this fraction. It is what makes WHERE you cut matter as much as
@@ -7887,6 +7895,36 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // clobbered by load order.
 
   // How many faces a die has, and how the core grows.
+  /* SIDES ARE PER-DIE NOW. `DIE.faces` is still 20 — it is the shape of a d20
+   * and of everything measured against one — but a die may carry its own
+   * `sides`, and the Arsenal's two small barrels carry 6. Everything that used
+   * to loop 1..DIE.faces asks the die instead.
+   *
+   * The engraving system does NOT change. A d6 runs the same engravings, the
+   * same bands, the same seams, welds and taints as the d20; it simply has six
+   * places to put them instead of twenty, which makes every face on it worth
+   * more than three times as much. That is the whole trade: the d20 is the
+   * lottery with room to build, the d6s are the reliable ones you cannot
+   * over-stuff. */
+  ns.dieSides = function (die) { return (die && die.sides) || ns.DIE.faces; };
+  /* Where a face sits on the d20 scale the class tables are written against.
+   * A d6's face 1 is still the jam and its 6 is still the top of the table —
+   * anything else would need a second set of bands per die size, which is the
+   * parallel-vocabulary mistake in a new hat. */
+  ns.dieScale = function (die, face) {
+    var n = ns.dieSides(die);
+    if (n === ns.DIE.faces) return face;
+    /* A SMALL BARREL DOES NOT JAM. Mapping a d6's face 1 onto the d20's face 1
+     * gave it a 1-in-6 misfire against the big die's 1-in-20 — three times the
+     * jam rate, on the dice you are meant to lean on. Measured, it cost the
+     * class two thirds of its win rate at every base payload I tried.
+     *
+     * So the bottom of a small die is the bottom BAND, not the jam. That is
+     * also the trade the rack is built on: the d20 is the lottery, swingy and
+     * with room to build; the d6s are the reliable ones. The top face still
+     * maps to 20, so a small barrel can still crit. */
+    return Math.round(2 + (face - 1) * (ns.DIE.faces - 2) / (n - 1));
+  };
   ns.DIE = {
     faces: 20,
     coreSlotsStart: 3,     // mounted Core Modules at the start of a run
@@ -8611,8 +8649,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // the one thing that did not, which is why a band could never be anchored
   // above face 18 and the top of every class table held fewer bands than it
   // looked like it did.
-  ns.dieStep = function (face, d) {
-    var n = ns.DIE.faces;
+  ns.dieStep = function (face, d, die) {
+    var n = ns.dieSides(die);
     return ((face - 1 + d) % n + n) % n + 1;
   };
 
@@ -8623,10 +8661,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
    * two you never pointed at, and the anchor could never be 19 or 20. The
    * anchor is now the MIDDLE of the cut and the span grows both ways, which is
    * what the die already looked like it was doing. Even spans lean high. */
-  ns.dieSpan = function (id, face) {
+  ns.dieSpan = function (id, face, die) {
     var d = ns.dieEngraving(id); if (!d) return [];
-    var s = d.span || 1, lo = -Math.floor((s - 1) / 2), out = [];
-    for (var i = 0; i < s; i++) out.push(ns.dieStep(face, lo + i));
+    /* A three-face band is 15% of a d20 and 50% of a d6. That asymmetry is
+     * wanted — a wide cut on a small barrel is a real commitment — but it is
+     * capped at half the die so a span can never swallow a d6 whole. */
+    var s = Math.min(d.span || 1, Math.max(1, Math.floor(ns.dieSides(die) / 2)));
+    var lo = -Math.floor((s - 1) / 2), out = [];
+    for (var i = 0; i < s; i++) out.push(ns.dieStep(face, lo + i, die));
     return out;
   };
 
@@ -8674,7 +8716,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   ns.dieTaintedRoots = function (die) {
     var out = [], seen = {};
     if (!die || !die.faces) return out;
-    for (var f = 1; f <= ns.DIE.faces; f++) {
+    for (var f = 1; f <= ns.dieSides(die); f++) {
       var slot = die.faces[f]; if (!slot || seen[slot.root]) continue;
       seen[slot.root] = 1;
       if (die.faces[slot.root] && die.faces[slot.root].taint) out.push(slot.root);
@@ -8687,7 +8729,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   ns.dieCleanRoots = function (die) {
     var out = [], seen = {};
     if (!die || !die.faces) return out;
-    for (var f = 1; f <= ns.DIE.faces; f++) {
+    for (var f = 1; f <= ns.dieSides(die); f++) {
       var slot = die.faces[f]; if (!slot || seen[slot.root]) continue;
       seen[slot.root] = 1;
       var rootSlot = die.faces[slot.root];
@@ -8752,6 +8794,25 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
    * one die and you have built a shield die, and you built it out of the
    * same parts everyone else is using.
    * ------------------------------------------------------------------ */
+  /* THE BASE CARDS, CUT INTO FACES. The Arsenal has no deck, so the two cards
+   * every other class opens with — Pulse Rifle and Combat Shield — are
+   * engravings instead, and its two small barrels start with them already on
+   * every face. That is what makes a fresh d6 a functioning weapon rather than
+   * six blanks: one barrel shoots, one barrel shields, and everything you cut
+   * from there on is you deciding what they become. */
+  ns.DIE_AUGMENTS.base_shot = {
+    name: 'Pulse Rifle', tier: 1, span: 1, cls: 'arsenal', basic: true,
+    fx: [{ k: 'dmg', v: 6, scale: 'might' }],
+    desc: 'Deal 6 damage.',
+    art: { p: [[-0.7,0.1, 0.3,0.1], [0.3,-0.1, 0.7,0], [0.3,0.3, 0.7,0], [-0.7,-0.1, -0.7,0.3]], e: [] },
+  };
+  ns.DIE_AUGMENTS.base_guard = {
+    name: 'Combat Shield', tier: 1, span: 1, cls: 'arsenal', basic: true,
+    fx: [{ k: 'block', v: 5, scale: 'pri' }],
+    desc: 'Gain 5 Block.',
+    art: { p: [[0,-0.7, 0.6,-0.4, 0.6,0.2, 0,0.7, -0.6,0.2, -0.6,-0.4, 0,-0.7]], e: [] },
+  };
+
   ns.DIE_AUGMENTS.arsenal_revetment = {
     name: 'Revetment', tier: 1, span: 1, cls: 'arsenal',
     fx: [{ k: 'special', id: 'wallFace' }],
@@ -8804,7 +8865,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // Faces either side of a root, for adjacency. The die is a RING: 20 is next
   // to 1, so a chain can close on the seam between the best face and the worst.
   ns.dieNeighbours = function (die, face) {
-    var n = ns.DIE.faces, out = [];
+    var n = ns.dieSides(die), out = [];
     [face - 1, face + 1].forEach(function (f) {
       if (f < 1) f = n; if (f > n) f = 1;
       // a span sits on several faces; its own body is not its neighbour
@@ -8861,7 +8922,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var out = { id: id, face: face, span: [], seam: null, seamWith: null, why: null, def: d };
     if (!d) { out.why = 'unknown engraving'; return out; }
     if (d.onlyFace && d.onlyFace !== face) { out.why = 'only fits face ' + d.onlyFace; return out; }
-    var span = out.span = ns.dieSpan(id, face);
+    var span = out.span = ns.dieSpan(id, face, die);
     if (span.length < (d.span || 1)) { out.why = 'does not fit'; return out; }
     if (d.band) {
       for (var s = 0; s < span.length; s++) {
@@ -8873,7 +8934,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
      * that already fires from anywhere, and nothing else about the die changes
      * to pay for it: two Called Shots simply doubled every crit. */
     if (d.listen || d.field) {
-      for (var q = 1; q <= ns.DIE.faces; q++) {
+      for (var q = 1; q <= ns.dieSides(die); q++) {
         if (ns.dieFaceId(die, q) === id || ns.dieSeamId(die, q) === id) {
           out.why = (d.listen ? 'that listener' : 'that field') + ' is already on the die';
           return out;
@@ -8886,7 +8947,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // A flaw is cut into the die BY the void, not placed by the player, and
       // it has no business buying a face at a discount.
       if (d.flaw) { out.why = 'face ' + f + ' is taken'; return out; }
+      /* A BASIC ENGRAVING IS OVERWRITTEN, NOT SHARED. The Arsenal's small
+       * barrels arrive with the base cards cut into every face, which under
+       * the old rule made them permanently full — every face was the head of
+       * something, so nothing could ever be placed and the two dice you lean
+       * on could never improve. Basics are the floor you build over: cutting
+       * on top of one REPLACES it outright rather than doubling with it. */
+      if (occ.root === f && (ns.dieEngraving(occ.id) || {}).basic && !d.basic) { out.replaces = true; continue; }
       if (occ.root === f) { out.why = 'face ' + f + ' is the head of ' + (ns.dieEngraving(occ.id) || {}).name; return out; }
+      if ((ns.dieEngraving(occ.id) || {}).basic) { out.replaces = true; continue; }
       if (ns.dieSeamAt(die, f)) { out.why = 'face ' + f + ' is already doubled'; return out; }
       if (out.seam != null) { out.why = 'that would double two faces — slide it'; return out; }
       out.seam = f;
@@ -8904,9 +8973,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (p.why) return p.why;
     if (!die.seams) die.seams = {};
     p.span.forEach(function (f) {
+      var occ = die.faces[f];
       // the incumbent yields the face to the newcomer and rides along as the
-      // passenger — it can never be a root, so nothing else has to be repointed
-      if (die.faces[f]) die.seams[f] = die.faces[f];
+      // passenger — it can never be a root, so nothing else has to be repointed.
+      // A BASIC is not a passenger: it is simply gone, replaced by the cut.
+      if (occ && !(ns.dieEngraving(occ.id) || {}).basic) die.seams[f] = occ;
       die.faces[f] = { id: id, root: face };
     });
     return null;
@@ -8939,7 +9010,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return ns.dieWelds(die).indexOf(ns.dieWeldKey(a, b)) >= 0;
   };
   ns.dieCanWeld = function (die, a, b) {
-    if (ns.dieStep(a, 1) !== b && ns.dieStep(b, 1) !== a) return 'those faces do not touch';
+    if (ns.dieStep(a, 1, die) !== b && ns.dieStep(b, 1, die) !== a) return 'those faces do not touch';
     var sa = die.faces[a], sb = die.faces[b];
     if (!sa || !sb) return 'both faces must be cut';
     if (sa.root === sb.root) return 'that is one engraving, not two';
@@ -12079,15 +12150,22 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
      * they can share one core, one vault, one frame and one queue of earned
      * engravings. run.die then points at the first of them and every existing
      * reader carries on as if there were still only one. */
+    /* ONE d20 AND TWO d6. The big barrel is bare and has twenty places to
+     * build; the two small ones open with the base cards already cut into
+     * every face — Pulse Rifle on one, Combat Shield on the other — so a fresh
+     * Arsenal is a working gun and a working guard from the first fight, and
+     * everything after that is you deciding what they become. */
     if (clsId === 'arsenal') {
       var d0 = E.run.die;
       d0.pending = d0.pending || [];
       E.run.dice = [d0];
-      for (var dq = 1; dq < (B.dice.arsenalDice || 3); dq++) {
+      (B.dice.arsenalSmall || []).forEach(function (spec) {
         var dn = ns.newDie();
+        dn.sides = spec.sides;
         dn.core = d0.core; dn.vault = d0.vault; dn.frame = d0.frame; dn.pending = d0.pending;
+        for (var f = 1; f <= dn.sides; f++) ns.dieEngrave(dn, spec.base, f);
         E.run.dice.push(dn);
-      }
+      });
       E.run.dieIdx = 0;
     }
     if (E.CORNERSTONES !== false && CORNERSTONE_OF[clsId]) {   // grant the class Cornerstone
@@ -12107,7 +12185,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           var fl = Object.keys(ns.DIE_FLAWS || {});
           for (var q = 0; q < (pm.startFlaw | 0) && fl.length; q++) {
             var free = [];
-            for (var f = 2; f <= ns.DIE.faces; f++) if (!d.faces[f]) free.push(f);
+            for (var f = 2; f <= ns.dieSides(d); f++) if (!d.faces[f]) free.push(f);
             if (!free.length) break;
             ns.dieEngrave(d, pick(fl), pick(free));
           }
@@ -12696,7 +12774,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // the taint that takes the choice away, so it must not be permanent.
     var d = E.run.die;
     if (d && d.faces) {
-      for (var f = 1; f <= ns.DIE.faces; f++) {
+      for (var f = 1; f <= ns.dieSides(d); f++) {
         if (d.faces[f] && d.faces[f].taint === 'cold_weld') d.faces[f].taint = 'rust';
       }
     }
@@ -12960,7 +13038,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var tm = art('taintMight');
     if (tm > 0 && r.die) {
       var scars = 0;
-      for (var tf = 1; tf <= ns.DIE.faces; tf++) {
+      for (var tf = 1; tf <= ns.dieSides(r.die); tf++) {
         var sl = r.die.faces[tf];
         if (sl && sl.root === tf && sl.taint) scars++;
       }
@@ -13063,6 +13141,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
 
   /* ---------------- Combat: turn structure ------------------------------ */
+  /* THREE ROLLS A TURN. Two was tried, and it lengthened the boss clock from
+   * four rounds to six — but cost half the win rate, because every point of
+   * output this class gives up comes straight off its ability to survive a
+   * boss. The clock and parity pull against each other here and parity wins;
+   * the short boss fight is recorded as open rather than papered over. */
   function maxEnergy() { return B.player.baseEnergy + art('energyEveryTurn') + (statN(E.combat.player, 'reactor')); }
   E.maxEnergy = function () { return E.combat ? maxEnergy() : (B.player.baseEnergy || 0); };
 
@@ -14130,7 +14213,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var span = bleed / 2;
       [-2, 2].forEach(function (d) {
         if (c.over) return;
-        var f2 = ((face - 1 + d + ns.DIE.faces) % ns.DIE.faces) + 1;
+        var _n2 = ns.dieSides(E.run.die); var f2 = ((face - 1 + d + _n2) % _n2) + 1;
         fireOneFace(f2, tgt, span, 'bleed', face);
       });
     }
@@ -14138,7 +14221,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (lit) {
       var self = ns.dieEngraving(ns.dieFaceId(r.die, face));
       if (self && self.field === 'opposite') {
-        var opp = ((face + 9) % ns.DIE.faces) + 1;
+        var _no = ns.dieSides(r.die); var opp = ((face - 1 + Math.floor(_no / 2)) % _no) + 1;
         fireOneFace(opp, tgt, 1, 'opposite', face);
       }
     }
@@ -14156,7 +14239,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (!r || !r.die || !c || c.over || !kind) return;
     if (_listenDepth >= (B.dice.chainDepth || 2)) return;
     var seen = {}, roots = [];
-    for (var f = 1; f <= ns.DIE.faces; f++) {
+    for (var f = 1; f <= ns.dieSides(r.die); f++) {
       var slot = r.die.faces[f]; if (!slot || seen[slot.root]) continue;
       var g = ns.dieEngraving(slot.id);
       if (!g || g.listen !== kind) continue;
@@ -14230,7 +14313,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   E.dieFieldCount = function (which) {
     var r = E.run; if (!r || !r.die) return 0;
     var seen = {}, n = 0;
-    for (var f = 1; f <= ns.DIE.faces; f++) {
+    for (var f = 1; f <= ns.dieSides(r.die); f++) {
       var slot = r.die.faces[f]; if (!slot || seen[slot.root]) continue;
       seen[slot.root] = 1;
       var g = ns.dieEngraving(slot.id);
@@ -14598,7 +14681,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var bandsNow = !!dread && (def.type === 'attack' || (dread.blocks && hasBlockFx(fx)));
     // THE AUGMENTED DIE: every card play rolls, so a skill/power deck still
     // engages the die even when its table has nothing to say about the card.
-    roll = FLAT_DIE ? ((c.flatRoll = ((c.flatRoll || 0) % ns.DIE.faces) + 1)) : d20();
+    /* ROLL THE DIE YOU PICKED UP. A d6 rolls 1-6 and then reads its face on
+     * the d20 scale the class tables are written against, so the same bands,
+     * the same misfire on a natural 1 and the same crit on the top face apply
+     * to every barrel. Six faces means each one is worth more than three of a
+     * d20's — that is the trade, not a different rule set. */
+    var _sides = ns.dieSides(r.die);
+    roll = FLAT_DIE ? ((c.flatRoll = ((c.flatRoll || 0) % _sides) + 1)) : ri(1, _sides);
     // ---- relics that shape the die itself, before anything reads it -------
     // These are the half of the marriage that was missing: 55 of 62 relics had
     // nothing to do with the die, so mounting one in it was fiction. A relic
@@ -14634,7 +14723,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         var hereBand = bandFor(dread, roll, roll);
         for (var st = 1; st <= capF; st++) {
           var sf = roll + (dive ? -st : st);
-          if (sf > ns.DIE.faces || sf < 2) break;
+          if (sf > ns.dieSides(r.die) || sf < 2) break;
           if (!ns.dieFaceId(r.die, sf)) continue;
           if (hereCut) {
             var thereBand = bandFor(dread, sf, sf);
@@ -14650,9 +14739,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       }
     }
     var landed = steered ? steered.face : roll;
+    var scaled = ns.dieScale(r.die, landed);          // where this face sits on the d20 table
     eff = (dread && dread.steer)
-      ? Math.min(20, landed + art('rollBonus'))
-      : Math.min(20, roll + statN(p, 'aim') + art('rollBonus'));
+      ? Math.min(20, scaled + art('rollBonus'))
+      : Math.min(20, scaled + statN(p, 'aim') + art('rollBonus'));
     c.highFace = Math.max(c.highFace || 0, landed);                 // THE REDOUBT reads it at end of turn
     if (art('bankRoll') > 0) c.banked = (c.banked || 0) + roll;     // SPENT BRASS
     if (art('lowMight') > 0 && roll < 6) {                          // TRENCH LEDGER
@@ -14663,8 +14753,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (!bandsNow) {
       emit('roll', { roll: roll, eff: eff, crit: false, misfire: false, band: null });
     } else {
-      misfire = roll <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden'));
-      crit = (roll === 20) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus') - art('critWiden'));
+      // read on the d20 scale, so a small barrel's bottom face is a bad band, not a jam
+      misfire = scaled <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden'));
+      crit = (roll === _sides) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus') - art('critWiden'));
       // THE DEVOURING: the Adept's table is a U, so his crit is too. The bottom
       // of the die bites as hard as the top — but only where it has not jammed.
       if (!misfire && art('lowCrit') > 0 && roll <= art('lowCrit')) crit = true;
@@ -14696,7 +14787,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // MACHINED BARREL / DUTY CYCLE / HOLLOW CROWN move where the bands begin,
       // REGULATOR CLAMP puts a floor under the read and WIDENING MAW pulls the
       // bottom band up into the middle — all of it in one reader.
-      else slot = bandFor(dread, eff, roll);
+      else slot = bandFor(dread, eff, scaled);
       if (slot) {
         bandMult = NO_DIE ? 1 : slot.mult;
         bandLabel = slot.label;
@@ -14815,7 +14906,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         // Reaching ACROSS the ring rather than along it. Both of these use
         // fireOneFace for the same reason Hot Barrel does: a relay upgrades the
         // charge on one more face, it does not start a second bleed.
-        var across = ((lands + 9) % ns.DIE.faces) + 1;
+        var _na = ns.dieSides(r.die); var across = ((lands - 1 + Math.floor(_na / 2)) % _na) + 1;
         if (art('evenMirror') > 0 && lands % 2 === 0 && !c.over) {          // PARITY PIN
           fireOneFace(across, tgt, Math.min(1, B.dice.bleed + art('bleedPct')), 'opposite', lands);
         }
@@ -17224,8 +17315,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   E.weldOptions = function () {
     var d = E.run && E.run.die, out = [];
     if (!d) return out;
-    for (var f = 1; f <= ns.DIE.faces; f++) {
-      var g = ns.dieStep(f, 1);
+    for (var f = 1; f <= ns.dieSides(d); f++) {
+      var g = ns.dieStep(f, 1, d);
       if (!ns.dieCanWeld(d, f, g)) out.push({ a: f, b: g });
     }
     return out;
@@ -21377,10 +21468,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // Face 1 and 20 are labelled in the CLASS's language — a Vanguard's MISFIRE is
   // a Technomancer's BREAKER and a Voidadept's RAVENOUS, and calling them all
   // "misfire" would be telling three classes the same lie.
-  function dieEndTag(cls, face, aim) {
+  /* `die` is optional and only matters for a barrel that is not a d20: a d6's
+   * face 3 is not the d20's face 3, it sits on the table where dieScale puts
+   * it. Without this a d6 read its bands off raw face numbers and told the
+   * player its 6 was a GRAZE when rolling it actually crits. */
+  function dieEndTag(cls, face, aim, die) {
     var t = ns.BALANCE.dice.classes[cls];
     if (!t) return null;
-    var slot = readRoll(t, face, aim || 0);
+    var slot = readRoll(t, die ? ns.dieScale(die, face) : face, aim || 0);
     if (!slot) return null;
     if (slot.label === 'CRIT') return { label: 'CRIT', crit: true };
     return { label: slot.label, crit: false, good: slot.mult > 1.02 };
@@ -21402,7 +21497,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       cls += ghost.why ? ' ghost bad' : ' ghost';
       if (ghost.seam === face) cls += ' ghost-seam';
     }
-    var et = dieEndTag(E.run && E.run.cls, face, aimNow);
+    var et = dieEndTag(E.run && E.run.cls, face, aimNow, die);
     var tag = et ? '<span class="df-tag' + (et.crit || et.good ? ' crit' : '') + '">' + esc(et.label) + '</span>' : '';
     // a scarred face has to look scarred in the list, not only when tapped
     var tt = ns.dieTaintAt(die, face);
@@ -21471,9 +21566,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var pick3 = el('div', 'barrel-row');
       r.dice.forEach(function (d, i) {
         var cut = 0;
-        for (var f = 1; f <= ns.DIE.faces; f++) if (d.faces[f]) cut++;
+        for (var f = 1; f <= ns.dieSides(d); f++) if (d.faces[f]) cut++;
         var b3 = el('div', 'barrel-tab' + (i === (r.dieIdx || 0) ? ' on' : ''),
-          '<b>BARREL ' + (i + 1) + '</b><span>' + cut + ' of ' + ns.DIE.faces + ' cut</span>');
+          '<b>BARREL ' + (i + 1) + '</b><span>d' + ns.dieSides(d) + ' · ' + cut + ' of ' + ns.dieSides(d) + ' cut</span>');
         b3.addEventListener('pointerdown', function (ev) {
           ev.stopPropagation();
           if (i === (r.dieIdx || 0)) return;
@@ -21500,6 +21595,15 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     cv.className = 'die-canvas';
     stage.appendChild(cv);
     pane.appendChild(stage);
+    /* The canvas is a vector icosahedron and it can only ever be one. Spinning
+     * a twenty-sided model to show you a d6's face 4 is a lie about the object
+     * in your hand, so a small barrel simply does not get it — its six faces
+     * are all listed anyway, which is the whole of what there is to know. */
+    if (ns.dieSides(die) !== ns.DIE.faces) {
+      stage.style.display = 'none';
+      pane.appendChild(el('div', 'die-small-note',
+        'A d' + ns.dieSides(die) + ' — six faces, and every one of them is above.'));
+    }
     var info = el('div', 'die-info');
     pane.appendChild(info);
     var read = el('div', 'die-read');
@@ -21606,7 +21710,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var ghost = (cut && preview) ? placementFor(cut, preview.face) : null;
       var fitFor = cut ? function (f) { return placementFor(cut, f).why; } : null;
       wrap.innerHTML = '';
-      [[1, 10], [11, 20]].forEach(function (rng) {
+      /* Two columns of however many faces this barrel has. A d6 was drawing
+       * twenty rows, fourteen of which were faces it does not own. */
+      var _sides = ns.dieSides(die), _half = Math.ceil(_sides / 2);
+      [[1, _half], [_half + 1, _sides]].forEach(function (rng) {
+        if (rng[0] > rng[1]) return;
         var col = el('div', 'die-col'), h = '';
         for (var f = rng[0]; f <= rng[1]; f++) h += dieFaceRowHTML(die, f, rc, fitFor, a, ghost, true);
         col.innerHTML = h;
@@ -21627,7 +21735,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
       // selected-face readout
       var id = ns.dieFaceId(die, sel), d = id ? ns.dieEngraving(id) : null;
-      var st = dieEndTag(r.cls, sel, a);
+      var st = dieEndTag(r.cls, sel, a, die);
       var tag = st ? ' <span class="di-tag' + (st.crit || st.good ? ' crit' : '') + '">' + esc(st.label) + '</span>' : '';
       var head = '<div class="di-head"><span class="di-face">' + sel + '</span>' + tag
                + '</div>';
@@ -21659,18 +21767,18 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
        * price of an engraving is computed from it. */
       if (ghost) {
         var pd = ghost.def || {};
-        var pct = Math.round(ghost.span.length / ns.DIE.faces * 100);
+        var pct = Math.round(ghost.span.length / ns.dieSides(die) * 100);
         var rf = regionFill(preview.face);
         var smD = ghost.seamWith ? ns.dieEngraving(ghost.seamWith) : null;
         var seamPct = Math.round((B.dice.seam || 0.6) * 100);
-        var bandTag = dieEndTag(r.cls, preview.face, a);
+        var bandTag = dieEndTag(r.cls, preview.face, a, die);
         var ph = '<div class="pv" ' + (ghost.why ? 'data-bad="1"' : '') + '>'
           + '<div class="pv-head">' + esc(cut.verb) + ' · ' + esc(pd.name || '') + '</div>'
           + '<div class="pv-desc">' + engTagHTML(pd) + esc(pd.desc || '') + '</div>'
           + '<div class="pv-row"><span class="pv-k">COVERS</span><span class="pv-v">'
           + ghost.span.map(function (f) { return f === preview.face ? '<b>' + f + '</b>' : f; }).join(' · ') + '</span></div>'
           + '<div class="pv-row"><span class="pv-k">FIRES ON</span><span class="pv-v">'
-          + ghost.span.length + '/' + ns.DIE.faces + ' FACES — ' + pct + '% OF ROLLS</span></div>'
+          + ghost.span.length + '/' + ns.dieSides(die) + ' FACES — ' + pct + '% OF ROLLS</span></div>'
           + (bandTag ? '<div class="pv-row"><span class="pv-k">ANCHOR</span><span class="pv-v">FACE '
               + preview.face + ' → ' + esc(bandTag.label) + '</span></div>' : '')
           + (rf ? '<div class="pv-row"><span class="pv-k">' + esc(rf.reg.toUpperCase()) + ' ' + rf.lo + '–' + rf.hi
@@ -21723,7 +21831,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         queue.forEach(function (pid, i) {
           var g = ns.dieEngraving(pid); if (!g) return;
           var fits = 0;
-          for (var pf = 1; pf <= ns.DIE.faces; pf++) if (!ns.dieCanEngrave(die, pid, pf)) fits++;
+          for (var pf = 1; pf <= ns.dieSides(die); pf++) if (!ns.dieCanEngrave(die, pid, pf)) fits++;
           h += '<button class="pend-it' + (armed === i ? ' arming' : '') + (fits ? '' : ' poor') + '" data-pend="' + i + '">'
             +  '<span class="bi-icon">' + artSVG(g.art, 'df-icon') + '</span>'
             +  '<span class="bi-body"><span class="bi-name">' + esc(g.name) + '</span>'
@@ -22869,7 +22977,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
          * the count is the part that matters — it is how much of the barrel
          * that engraving actually covers. */
         var seen = {}, tally = {}, order = [], nc = 0;
-        if (dd) for (var f = 1; f <= ns.DIE.faces; f++) {
+        if (dd) for (var f = 1; f <= ns.dieSides(dd); f++) {
           var slot = dd.faces[f]; if (!slot) continue;
           nc++;
           if (seen[slot.root]) continue;
@@ -22886,7 +22994,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           : '<div class="dk-row dk-more">bare — the band is all it does</div>';
         d.innerHTML = '<div class="dk-cost">' + info.cost + '</div>'
                     + '<div class="dk-name">BARREL ' + (card.dieIdx + 1) + '</div>'
-                    + '<div class="dk-sub">' + nc + '/' + ns.DIE.faces + ' faces cut</div>'
+                    + '<div class="dk-sub">d' + ns.dieSides(dd) + ' · ' + nc + '/' + ns.dieSides(dd) + ' faces cut</div>'
                     + '<div class="dk-faces">' + body + '</div>';
       } else {
         d.innerHTML = cardInner(info.name, info.xcost ? 'X' : info.cost, info.type, info.rarity, info.desc, info.unplayable, card.id);

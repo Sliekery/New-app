@@ -119,15 +119,22 @@
      * they can share one core, one vault, one frame and one queue of earned
      * engravings. run.die then points at the first of them and every existing
      * reader carries on as if there were still only one. */
+    /* ONE d20 AND TWO d6. The big barrel is bare and has twenty places to
+     * build; the two small ones open with the base cards already cut into
+     * every face — Pulse Rifle on one, Combat Shield on the other — so a fresh
+     * Arsenal is a working gun and a working guard from the first fight, and
+     * everything after that is you deciding what they become. */
     if (clsId === 'arsenal') {
       var d0 = E.run.die;
       d0.pending = d0.pending || [];
       E.run.dice = [d0];
-      for (var dq = 1; dq < (B.dice.arsenalDice || 3); dq++) {
+      (B.dice.arsenalSmall || []).forEach(function (spec) {
         var dn = ns.newDie();
+        dn.sides = spec.sides;
         dn.core = d0.core; dn.vault = d0.vault; dn.frame = d0.frame; dn.pending = d0.pending;
+        for (var f = 1; f <= dn.sides; f++) ns.dieEngrave(dn, spec.base, f);
         E.run.dice.push(dn);
-      }
+      });
       E.run.dieIdx = 0;
     }
     if (E.CORNERSTONES !== false && CORNERSTONE_OF[clsId]) {   // grant the class Cornerstone
@@ -147,7 +154,7 @@
           var fl = Object.keys(ns.DIE_FLAWS || {});
           for (var q = 0; q < (pm.startFlaw | 0) && fl.length; q++) {
             var free = [];
-            for (var f = 2; f <= ns.DIE.faces; f++) if (!d.faces[f]) free.push(f);
+            for (var f = 2; f <= ns.dieSides(d); f++) if (!d.faces[f]) free.push(f);
             if (!free.length) break;
             ns.dieEngrave(d, pick(fl), pick(free));
           }
@@ -736,7 +743,7 @@
     // the taint that takes the choice away, so it must not be permanent.
     var d = E.run.die;
     if (d && d.faces) {
-      for (var f = 1; f <= ns.DIE.faces; f++) {
+      for (var f = 1; f <= ns.dieSides(d); f++) {
         if (d.faces[f] && d.faces[f].taint === 'cold_weld') d.faces[f].taint = 'rust';
       }
     }
@@ -1000,7 +1007,7 @@
     var tm = art('taintMight');
     if (tm > 0 && r.die) {
       var scars = 0;
-      for (var tf = 1; tf <= ns.DIE.faces; tf++) {
+      for (var tf = 1; tf <= ns.dieSides(r.die); tf++) {
         var sl = r.die.faces[tf];
         if (sl && sl.root === tf && sl.taint) scars++;
       }
@@ -1103,6 +1110,11 @@
   }
 
   /* ---------------- Combat: turn structure ------------------------------ */
+  /* THREE ROLLS A TURN. Two was tried, and it lengthened the boss clock from
+   * four rounds to six — but cost half the win rate, because every point of
+   * output this class gives up comes straight off its ability to survive a
+   * boss. The clock and parity pull against each other here and parity wins;
+   * the short boss fight is recorded as open rather than papered over. */
   function maxEnergy() { return B.player.baseEnergy + art('energyEveryTurn') + (statN(E.combat.player, 'reactor')); }
   E.maxEnergy = function () { return E.combat ? maxEnergy() : (B.player.baseEnergy || 0); };
 
@@ -2170,7 +2182,7 @@
       var span = bleed / 2;
       [-2, 2].forEach(function (d) {
         if (c.over) return;
-        var f2 = ((face - 1 + d + ns.DIE.faces) % ns.DIE.faces) + 1;
+        var _n2 = ns.dieSides(E.run.die); var f2 = ((face - 1 + d + _n2) % _n2) + 1;
         fireOneFace(f2, tgt, span, 'bleed', face);
       });
     }
@@ -2178,7 +2190,7 @@
     if (lit) {
       var self = ns.dieEngraving(ns.dieFaceId(r.die, face));
       if (self && self.field === 'opposite') {
-        var opp = ((face + 9) % ns.DIE.faces) + 1;
+        var _no = ns.dieSides(r.die); var opp = ((face - 1 + Math.floor(_no / 2)) % _no) + 1;
         fireOneFace(opp, tgt, 1, 'opposite', face);
       }
     }
@@ -2196,7 +2208,7 @@
     if (!r || !r.die || !c || c.over || !kind) return;
     if (_listenDepth >= (B.dice.chainDepth || 2)) return;
     var seen = {}, roots = [];
-    for (var f = 1; f <= ns.DIE.faces; f++) {
+    for (var f = 1; f <= ns.dieSides(r.die); f++) {
       var slot = r.die.faces[f]; if (!slot || seen[slot.root]) continue;
       var g = ns.dieEngraving(slot.id);
       if (!g || g.listen !== kind) continue;
@@ -2270,7 +2282,7 @@
   E.dieFieldCount = function (which) {
     var r = E.run; if (!r || !r.die) return 0;
     var seen = {}, n = 0;
-    for (var f = 1; f <= ns.DIE.faces; f++) {
+    for (var f = 1; f <= ns.dieSides(r.die); f++) {
       var slot = r.die.faces[f]; if (!slot || seen[slot.root]) continue;
       seen[slot.root] = 1;
       var g = ns.dieEngraving(slot.id);
@@ -2638,7 +2650,13 @@
     var bandsNow = !!dread && (def.type === 'attack' || (dread.blocks && hasBlockFx(fx)));
     // THE AUGMENTED DIE: every card play rolls, so a skill/power deck still
     // engages the die even when its table has nothing to say about the card.
-    roll = FLAT_DIE ? ((c.flatRoll = ((c.flatRoll || 0) % ns.DIE.faces) + 1)) : d20();
+    /* ROLL THE DIE YOU PICKED UP. A d6 rolls 1-6 and then reads its face on
+     * the d20 scale the class tables are written against, so the same bands,
+     * the same misfire on a natural 1 and the same crit on the top face apply
+     * to every barrel. Six faces means each one is worth more than three of a
+     * d20's — that is the trade, not a different rule set. */
+    var _sides = ns.dieSides(r.die);
+    roll = FLAT_DIE ? ((c.flatRoll = ((c.flatRoll || 0) % _sides) + 1)) : ri(1, _sides);
     // ---- relics that shape the die itself, before anything reads it -------
     // These are the half of the marriage that was missing: 55 of 62 relics had
     // nothing to do with the die, so mounting one in it was fiction. A relic
@@ -2674,7 +2692,7 @@
         var hereBand = bandFor(dread, roll, roll);
         for (var st = 1; st <= capF; st++) {
           var sf = roll + (dive ? -st : st);
-          if (sf > ns.DIE.faces || sf < 2) break;
+          if (sf > ns.dieSides(r.die) || sf < 2) break;
           if (!ns.dieFaceId(r.die, sf)) continue;
           if (hereCut) {
             var thereBand = bandFor(dread, sf, sf);
@@ -2690,9 +2708,10 @@
       }
     }
     var landed = steered ? steered.face : roll;
+    var scaled = ns.dieScale(r.die, landed);          // where this face sits on the d20 table
     eff = (dread && dread.steer)
-      ? Math.min(20, landed + art('rollBonus'))
-      : Math.min(20, roll + statN(p, 'aim') + art('rollBonus'));
+      ? Math.min(20, scaled + art('rollBonus'))
+      : Math.min(20, scaled + statN(p, 'aim') + art('rollBonus'));
     c.highFace = Math.max(c.highFace || 0, landed);                 // THE REDOUBT reads it at end of turn
     if (art('bankRoll') > 0) c.banked = (c.banked || 0) + roll;     // SPENT BRASS
     if (art('lowMight') > 0 && roll < 6) {                          // TRENCH LEDGER
@@ -2703,8 +2722,9 @@
     if (!bandsNow) {
       emit('roll', { roll: roll, eff: eff, crit: false, misfire: false, band: null });
     } else {
-      misfire = roll <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden'));
-      crit = (roll === 20) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus') - art('critWiden'));
+      // read on the d20 scale, so a small barrel's bottom face is a bad band, not a jam
+      misfire = scaled <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden'));
+      crit = (roll === _sides) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus') - art('critWiden'));
       // THE DEVOURING: the Adept's table is a U, so his crit is too. The bottom
       // of the die bites as hard as the top — but only where it has not jammed.
       if (!misfire && art('lowCrit') > 0 && roll <= art('lowCrit')) crit = true;
@@ -2736,7 +2756,7 @@
       // MACHINED BARREL / DUTY CYCLE / HOLLOW CROWN move where the bands begin,
       // REGULATOR CLAMP puts a floor under the read and WIDENING MAW pulls the
       // bottom band up into the middle — all of it in one reader.
-      else slot = bandFor(dread, eff, roll);
+      else slot = bandFor(dread, eff, scaled);
       if (slot) {
         bandMult = NO_DIE ? 1 : slot.mult;
         bandLabel = slot.label;
@@ -2855,7 +2875,7 @@
         // Reaching ACROSS the ring rather than along it. Both of these use
         // fireOneFace for the same reason Hot Barrel does: a relay upgrades the
         // charge on one more face, it does not start a second bleed.
-        var across = ((lands + 9) % ns.DIE.faces) + 1;
+        var _na = ns.dieSides(r.die); var across = ((lands - 1 + Math.floor(_na / 2)) % _na) + 1;
         if (art('evenMirror') > 0 && lands % 2 === 0 && !c.over) {          // PARITY PIN
           fireOneFace(across, tgt, Math.min(1, B.dice.bleed + art('bleedPct')), 'opposite', lands);
         }
@@ -5264,8 +5284,8 @@
   E.weldOptions = function () {
     var d = E.run && E.run.die, out = [];
     if (!d) return out;
-    for (var f = 1; f <= ns.DIE.faces; f++) {
-      var g = ns.dieStep(f, 1);
+    for (var f = 1; f <= ns.dieSides(d); f++) {
+      var g = ns.dieStep(f, 1, d);
       if (!ns.dieCanWeld(d, f, g)) out.push({ a: f, b: g });
     }
     return out;

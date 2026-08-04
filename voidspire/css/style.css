@@ -2385,3 +2385,4 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .card.die-card .dk-row { font-size: 7.5px; line-height: 1.2; color: var(--text); }
 .card.die-card .dk-row b { color: var(--amber); }
 .card.die-card .dk-row.dk-more { color: var(--text-dim); font-style: italic; }
+.die-small-note { text-align: center; font-size: 11px; color: var(--text-dim); padding: 18px 10px 6px; }

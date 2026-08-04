@@ -1482,10 +1482,14 @@
   // Face 1 and 20 are labelled in the CLASS's language — a Vanguard's MISFIRE is
   // a Technomancer's BREAKER and a Voidadept's RAVENOUS, and calling them all
   // "misfire" would be telling three classes the same lie.
-  function dieEndTag(cls, face, aim) {
+  /* `die` is optional and only matters for a barrel that is not a d20: a d6's
+   * face 3 is not the d20's face 3, it sits on the table where dieScale puts
+   * it. Without this a d6 read its bands off raw face numbers and told the
+   * player its 6 was a GRAZE when rolling it actually crits. */
+  function dieEndTag(cls, face, aim, die) {
     var t = ns.BALANCE.dice.classes[cls];
     if (!t) return null;
-    var slot = readRoll(t, face, aim || 0);
+    var slot = readRoll(t, die ? ns.dieScale(die, face) : face, aim || 0);
     if (!slot) return null;
     if (slot.label === 'CRIT') return { label: 'CRIT', crit: true };
     return { label: slot.label, crit: false, good: slot.mult > 1.02 };
@@ -1507,7 +1511,7 @@
       cls += ghost.why ? ' ghost bad' : ' ghost';
       if (ghost.seam === face) cls += ' ghost-seam';
     }
-    var et = dieEndTag(E.run && E.run.cls, face, aimNow);
+    var et = dieEndTag(E.run && E.run.cls, face, aimNow, die);
     var tag = et ? '<span class="df-tag' + (et.crit || et.good ? ' crit' : '') + '">' + esc(et.label) + '</span>' : '';
     // a scarred face has to look scarred in the list, not only when tapped
     var tt = ns.dieTaintAt(die, face);
@@ -1576,9 +1580,9 @@
       var pick3 = el('div', 'barrel-row');
       r.dice.forEach(function (d, i) {
         var cut = 0;
-        for (var f = 1; f <= ns.DIE.faces; f++) if (d.faces[f]) cut++;
+        for (var f = 1; f <= ns.dieSides(d); f++) if (d.faces[f]) cut++;
         var b3 = el('div', 'barrel-tab' + (i === (r.dieIdx || 0) ? ' on' : ''),
-          '<b>BARREL ' + (i + 1) + '</b><span>' + cut + ' of ' + ns.DIE.faces + ' cut</span>');
+          '<b>BARREL ' + (i + 1) + '</b><span>d' + ns.dieSides(d) + ' · ' + cut + ' of ' + ns.dieSides(d) + ' cut</span>');
         b3.addEventListener('pointerdown', function (ev) {
           ev.stopPropagation();
           if (i === (r.dieIdx || 0)) return;
@@ -1605,6 +1609,15 @@
     cv.className = 'die-canvas';
     stage.appendChild(cv);
     pane.appendChild(stage);
+    /* The canvas is a vector icosahedron and it can only ever be one. Spinning
+     * a twenty-sided model to show you a d6's face 4 is a lie about the object
+     * in your hand, so a small barrel simply does not get it — its six faces
+     * are all listed anyway, which is the whole of what there is to know. */
+    if (ns.dieSides(die) !== ns.DIE.faces) {
+      stage.style.display = 'none';
+      pane.appendChild(el('div', 'die-small-note',
+        'A d' + ns.dieSides(die) + ' — six faces, and every one of them is above.'));
+    }
     var info = el('div', 'die-info');
     pane.appendChild(info);
     var read = el('div', 'die-read');
@@ -1711,7 +1724,11 @@
       var ghost = (cut && preview) ? placementFor(cut, preview.face) : null;
       var fitFor = cut ? function (f) { return placementFor(cut, f).why; } : null;
       wrap.innerHTML = '';
-      [[1, 10], [11, 20]].forEach(function (rng) {
+      /* Two columns of however many faces this barrel has. A d6 was drawing
+       * twenty rows, fourteen of which were faces it does not own. */
+      var _sides = ns.dieSides(die), _half = Math.ceil(_sides / 2);
+      [[1, _half], [_half + 1, _sides]].forEach(function (rng) {
+        if (rng[0] > rng[1]) return;
         var col = el('div', 'die-col'), h = '';
         for (var f = rng[0]; f <= rng[1]; f++) h += dieFaceRowHTML(die, f, rc, fitFor, a, ghost, true);
         col.innerHTML = h;
@@ -1732,7 +1749,7 @@
 
       // selected-face readout
       var id = ns.dieFaceId(die, sel), d = id ? ns.dieEngraving(id) : null;
-      var st = dieEndTag(r.cls, sel, a);
+      var st = dieEndTag(r.cls, sel, a, die);
       var tag = st ? ' <span class="di-tag' + (st.crit || st.good ? ' crit' : '') + '">' + esc(st.label) + '</span>' : '';
       var head = '<div class="di-head"><span class="di-face">' + sel + '</span>' + tag
                + '</div>';
@@ -1764,18 +1781,18 @@
        * price of an engraving is computed from it. */
       if (ghost) {
         var pd = ghost.def || {};
-        var pct = Math.round(ghost.span.length / ns.DIE.faces * 100);
+        var pct = Math.round(ghost.span.length / ns.dieSides(die) * 100);
         var rf = regionFill(preview.face);
         var smD = ghost.seamWith ? ns.dieEngraving(ghost.seamWith) : null;
         var seamPct = Math.round((B.dice.seam || 0.6) * 100);
-        var bandTag = dieEndTag(r.cls, preview.face, a);
+        var bandTag = dieEndTag(r.cls, preview.face, a, die);
         var ph = '<div class="pv" ' + (ghost.why ? 'data-bad="1"' : '') + '>'
           + '<div class="pv-head">' + esc(cut.verb) + ' · ' + esc(pd.name || '') + '</div>'
           + '<div class="pv-desc">' + engTagHTML(pd) + esc(pd.desc || '') + '</div>'
           + '<div class="pv-row"><span class="pv-k">COVERS</span><span class="pv-v">'
           + ghost.span.map(function (f) { return f === preview.face ? '<b>' + f + '</b>' : f; }).join(' · ') + '</span></div>'
           + '<div class="pv-row"><span class="pv-k">FIRES ON</span><span class="pv-v">'
-          + ghost.span.length + '/' + ns.DIE.faces + ' FACES — ' + pct + '% OF ROLLS</span></div>'
+          + ghost.span.length + '/' + ns.dieSides(die) + ' FACES — ' + pct + '% OF ROLLS</span></div>'
           + (bandTag ? '<div class="pv-row"><span class="pv-k">ANCHOR</span><span class="pv-v">FACE '
               + preview.face + ' → ' + esc(bandTag.label) + '</span></div>' : '')
           + (rf ? '<div class="pv-row"><span class="pv-k">' + esc(rf.reg.toUpperCase()) + ' ' + rf.lo + '–' + rf.hi
@@ -1828,7 +1845,7 @@
         queue.forEach(function (pid, i) {
           var g = ns.dieEngraving(pid); if (!g) return;
           var fits = 0;
-          for (var pf = 1; pf <= ns.DIE.faces; pf++) if (!ns.dieCanEngrave(die, pid, pf)) fits++;
+          for (var pf = 1; pf <= ns.dieSides(die); pf++) if (!ns.dieCanEngrave(die, pid, pf)) fits++;
           h += '<button class="pend-it' + (armed === i ? ' arming' : '') + (fits ? '' : ' poor') + '" data-pend="' + i + '">'
             +  '<span class="bi-icon">' + artSVG(g.art, 'df-icon') + '</span>'
             +  '<span class="bi-body"><span class="bi-name">' + esc(g.name) + '</span>'
@@ -2974,7 +2991,7 @@
          * the count is the part that matters — it is how much of the barrel
          * that engraving actually covers. */
         var seen = {}, tally = {}, order = [], nc = 0;
-        if (dd) for (var f = 1; f <= ns.DIE.faces; f++) {
+        if (dd) for (var f = 1; f <= ns.dieSides(dd); f++) {
           var slot = dd.faces[f]; if (!slot) continue;
           nc++;
           if (seen[slot.root]) continue;
@@ -2991,7 +3008,7 @@
           : '<div class="dk-row dk-more">bare — the band is all it does</div>';
         d.innerHTML = '<div class="dk-cost">' + info.cost + '</div>'
                     + '<div class="dk-name">BARREL ' + (card.dieIdx + 1) + '</div>'
-                    + '<div class="dk-sub">' + nc + '/' + ns.DIE.faces + ' faces cut</div>'
+                    + '<div class="dk-sub">d' + ns.dieSides(dd) + ' · ' + nc + '/' + ns.dieSides(dd) + ' faces cut</div>'
                     + '<div class="dk-faces">' + body + '</div>';
       } else {
         d.innerHTML = cardInner(info.name, info.xcost ? 'X' : info.cost, info.type, info.rarity, info.desc, info.unplayable, card.id);

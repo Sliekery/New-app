@@ -192,7 +192,7 @@ function botBestFace(id) {
   var g = VS.DIE_AUGMENTS[id];
   if (g && g.onlyFace) return VS.dieCanEngrave(VS.engine.run.die, id, g.onlyFace) ? -1 : g.onlyFace;
   var best = -1, bestS = -Infinity;
-  for (var f = 1; f <= VS.DIE.faces; f++) {
+  for (var f = 1; f <= VS.dieSides(VS.engine.run.die); f++) {
     var sc = botPlaceScore(id, f);
     if (sc != null && sc > bestS) { bestS = sc; best = f; }
   }
@@ -896,12 +896,13 @@ function dieRollEV(die, wantD, target) {
   var dread = E.dieRead(E.run.cls) || {};
   var bands = (dread.bands || []).slice();
   var base = 5 + VS.engine.attr('might') + ((c && c.player.statuses.str) || 0);
-  var total = 0, n = VS.DIE.faces;
+  // per-die: a d6 has six faces, read on the d20 scale the tables are written for
+  var total = 0, n = VS.dieSides(die);
   for (var f = 1; f <= n; f++) {
-    var mult = 1;
+    var sc = VS.dieScale(die, f), mult = 1;
     if (f === 1) mult = (dread.misfire && dread.misfire.mult) || 0.5;
     else {
-      for (var i = 0; i < bands.length; i++) if (f >= bands[i].min) { mult = bands[i].mult; break; }
+      for (var i = 0; i < bands.length; i++) if (sc >= bands[i].min) { mult = bands[i].mult; break; }
     }
     total += base * mult;
     var slot = die.faces[f];
