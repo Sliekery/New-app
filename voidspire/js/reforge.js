@@ -245,20 +245,6 @@
     var out = [];
     var pi = primaryIdx(def.fx), prim = def.fx[pi];
 
-    /* Some engravings are a bare `special` with no numeric value at all — the
-     * Arsenal's wall cash-outs are the whole of their effect and there is no
-     * magnitude to double or split. Every lens below multiplies prim.v, so
-     * they simply have nothing to offer here; the recast still applies. */
-    if (!prim || prim.v == null) {
-      out.push({
-        lens: 'recast', name: 'THE RECAST', from: def.name, recast: true,
-        fx: null, span: def.span || 1, tier: def.tier || 1, cls: def.cls || null,
-        desc: 'Scrapped, and cut again — a different engraving of the same tier, at random.',
-        note: 'There is no number in this one to bargain with.', sp: baseSp,
-      });
-      return out;
-    }
-
     // 1. throw it away and cut again — the engine rolls the replacement
     out.push({
       lens: 'recast', name: 'THE RECAST', from: def.name, recast: true,

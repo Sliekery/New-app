@@ -18,36 +18,6 @@
   // clobbered by load order.
 
   // How many faces a die has, and how the core grows.
-  /* SIDES ARE PER-DIE NOW. `DIE.faces` is still 20 — it is the shape of a d20
-   * and of everything measured against one — but a die may carry its own
-   * `sides`, and the Arsenal's two small barrels carry 6. Everything that used
-   * to loop 1..DIE.faces asks the die instead.
-   *
-   * The engraving system does NOT change. A d6 runs the same engravings, the
-   * same bands, the same seams, welds and taints as the d20; it simply has six
-   * places to put them instead of twenty, which makes every face on it worth
-   * more than three times as much. That is the whole trade: the d20 is the
-   * lottery with room to build, the d6s are the reliable ones you cannot
-   * over-stuff. */
-  ns.dieSides = function (die) { return (die && die.sides) || ns.DIE.faces; };
-  /* Where a face sits on the d20 scale the class tables are written against.
-   * A d6's face 1 is still the jam and its 6 is still the top of the table —
-   * anything else would need a second set of bands per die size, which is the
-   * parallel-vocabulary mistake in a new hat. */
-  ns.dieScale = function (die, face) {
-    var n = ns.dieSides(die);
-    if (n === ns.DIE.faces) return face;
-    /* A SMALL BARREL DOES NOT JAM. Mapping a d6's face 1 onto the d20's face 1
-     * gave it a 1-in-6 misfire against the big die's 1-in-20 — three times the
-     * jam rate, on the dice you are meant to lean on. Measured, it cost the
-     * class two thirds of its win rate at every base payload I tried.
-     *
-     * So the bottom of a small die is the bottom BAND, not the jam. That is
-     * also the trade the rack is built on: the d20 is the lottery, swingy and
-     * with room to build; the d6s are the reliable ones. The top face still
-     * maps to 20, so a small barrel can still crit. */
-    return Math.round(2 + (face - 1) * (ns.DIE.faces - 2) / (n - 1));
-  };
   ns.DIE = {
     faces: 20,
     coreSlotsStart: 3,     // mounted Core Modules at the start of a run
@@ -772,8 +742,8 @@
   // the one thing that did not, which is why a band could never be anchored
   // above face 18 and the top of every class table held fewer bands than it
   // looked like it did.
-  ns.dieStep = function (face, d, die) {
-    var n = ns.dieSides(die);
+  ns.dieStep = function (face, d) {
+    var n = ns.DIE.faces;
     return ((face - 1 + d) % n + n) % n + 1;
   };
 
@@ -784,14 +754,10 @@
    * two you never pointed at, and the anchor could never be 19 or 20. The
    * anchor is now the MIDDLE of the cut and the span grows both ways, which is
    * what the die already looked like it was doing. Even spans lean high. */
-  ns.dieSpan = function (id, face, die) {
+  ns.dieSpan = function (id, face) {
     var d = ns.dieEngraving(id); if (!d) return [];
-    /* A three-face band is 15% of a d20 and 50% of a d6. That asymmetry is
-     * wanted — a wide cut on a small barrel is a real commitment — but it is
-     * capped at half the die so a span can never swallow a d6 whole. */
-    var s = Math.min(d.span || 1, Math.max(1, Math.floor(ns.dieSides(die) / 2)));
-    var lo = -Math.floor((s - 1) / 2), out = [];
-    for (var i = 0; i < s; i++) out.push(ns.dieStep(face, lo + i, die));
+    var s = d.span || 1, lo = -Math.floor((s - 1) / 2), out = [];
+    for (var i = 0; i < s; i++) out.push(ns.dieStep(face, lo + i));
     return out;
   };
 
@@ -839,7 +805,7 @@
   ns.dieTaintedRoots = function (die) {
     var out = [], seen = {};
     if (!die || !die.faces) return out;
-    for (var f = 1; f <= ns.dieSides(die); f++) {
+    for (var f = 1; f <= ns.DIE.faces; f++) {
       var slot = die.faces[f]; if (!slot || seen[slot.root]) continue;
       seen[slot.root] = 1;
       if (die.faces[slot.root] && die.faces[slot.root].taint) out.push(slot.root);
@@ -852,7 +818,7 @@
   ns.dieCleanRoots = function (die) {
     var out = [], seen = {};
     if (!die || !die.faces) return out;
-    for (var f = 1; f <= ns.dieSides(die); f++) {
+    for (var f = 1; f <= ns.DIE.faces; f++) {
       var slot = die.faces[f]; if (!slot || seen[slot.root]) continue;
       seen[slot.root] = 1;
       var rootSlot = die.faces[slot.root];
@@ -874,104 +840,6 @@
     return true;
   };
 
-  /* =====================================================================
-   * THE ARSENAL — a DICE BUILDER trial
-   *
-   * The measurement that motivated this: with the die's variance flattened,
-   * drafting commons and drafting rares produced IDENTICAL win rates. The
-   * cards were never carrying the build; the die was. So this class drops the
-   * card layer to a fixed starting hand and makes the DICE the thing you
-   * build — three of them, engraved instead of drafted.
-   *
-   *   THE RIFLE    d20, mixed cuts. Twenty faces of range and dilution: a
-   *                given face fires 5% of the time, so it is where the big,
-   *                greedy engravings go.
-   *   THE BATTERY  d6, offensive. 16.7% a face — small, reliable, and cheap
-   *                to fill. This is the engine.
-   *   THE PLATE    d6, defensive. Same shape, the other job.
-   *
-   * ALL THREE ROLL ON EVERY CARD PLAY and every landed face fires. That is
-   * the whole feel: you are not drawing a hand, you are watching three
-   * machines you built go off at once. The d20 is the lottery, the d6s are
-   * the floor — which is exactly the consistency-versus-ceiling tension a
-   * deckbuilder normally gets from deck size, here from geometry.
-   *
-   * The d6s deliberately carry NONE of the d20's surface area: no bands, no
-   * seams, no welds, no taints, no listeners. Span-1 cuts only. Eleven
-   * subsystems on one die is what made Marksmanship fragile; the small dice
-   * are the argument that less machinery reads better.
-   * ================================================================== */
-  /* ==================================================================
-   * THE ARSENAL — three dice, one engraving system
-   * ==================================================================
-   * There are no cards. You own THREE d20s and a turn is three rolls spent
-   * across them; whichever you roll resolves exactly as the die has always
-   * resolved — bands, seams, welds, taints, listeners, the lot. Engravings
-   * are the deck, and WHICH DIE you cut one onto is the deckbuilding.
-   *
-   * Two earlier trials got this wrong in the same way, so it is worth
-   * stating plainly: the small dice had their own private vocabulary of
-   * faces, deliberately stripped of bands and seams to keep them legible.
-   * That was a second game bolted beside the first. One engraving system
-   * across three dice is the whole idea — put every defensive engraving on
-   * one die and you have built a shield die, and you built it out of the
-   * same parts everyone else is using.
-   * ------------------------------------------------------------------ */
-  /* THE BASE CARDS, CUT INTO FACES. The Arsenal has no deck, so the two cards
-   * every other class opens with — Pulse Rifle and Combat Shield — are
-   * engravings instead, and its two small barrels start with them already on
-   * every face. That is what makes a fresh d6 a functioning weapon rather than
-   * six blanks: one barrel shoots, one barrel shields, and everything you cut
-   * from there on is you deciding what they become. */
-  ns.DIE_AUGMENTS.base_shot = {
-    name: 'Pulse Rifle', tier: 1, span: 1, cls: 'arsenal', basic: true,
-    fx: [{ k: 'dmg', v: 6, scale: 'might' }],
-    desc: 'Deal 6 damage.',
-    art: { p: [[-0.7,0.1, 0.3,0.1], [0.3,-0.1, 0.7,0], [0.3,0.3, 0.7,0], [-0.7,-0.1, -0.7,0.3]], e: [] },
-  };
-  ns.DIE_AUGMENTS.base_guard = {
-    name: 'Combat Shield', tier: 1, span: 1, cls: 'arsenal', basic: true,
-    fx: [{ k: 'block', v: 5, scale: 'pri' }],
-    desc: 'Gain 5 Block.',
-    art: { p: [[0,-0.7, 0.6,-0.4, 0.6,0.2, 0,0.7, -0.6,0.2, -0.6,-0.4, 0,-0.7]], e: [] },
-  };
-
-  ns.DIE_AUGMENTS.arsenal_revetment = {
-    name: 'Revetment', tier: 1, span: 1, cls: 'arsenal',
-    fx: [{ k: 'special', id: 'wallFace' }],
-    desc: 'Gain Bulwark equal to this face.',
-    art: { p: [[-0.7,0.5, -0.7,-0.2, 0.7,-0.2, 0.7,0.5], [-0.7,0.15, 0.7,0.15], [-0.2,-0.2, -0.2,0.5], [0.2,-0.2, 0.2,0.5]], e: [] },
-  };
-  ns.DIE_AUGMENTS.arsenal_spall = {
-    name: 'Spall', tier: 2, span: 1, cls: 'arsenal',
-    fx: [{ k: 'special', id: 'spall', v: 0.5, cost: 1 }],
-    desc: 'Deal damage equal to half your Bulwark, and spend it.',
-    art: { p: [[-0.6,0.4, -0.4,-0.3, 0.1,-0.5], [0.1,-0.5, 0.5,0.1], [-0.2,-0.1, 0.3,0.45], [0.5,-0.4, 0.7,-0.2]], e: [[0.7,0.4]] },
-  };
-  ns.DIE_AUGMENTS.arsenal_breach = {
-    name: 'Breach the Wall', tier: 3, span: 1, cls: 'arsenal',
-    fx: [{ k: 'special', id: 'breachWall' }],
-    desc: 'Consume all your Bulwark: deal that much damage.',
-    art: { p: [[-0.75,0.5, -0.75,-0.3, 0.75,-0.3, 0.75,0.5], [-0.75,0.1, -0.2,0.1], [0.2,0.1, 0.75,0.1], [-0.2,-0.5, 0.1,0.3, -0.1,0.3, 0.2,0.7]], e: [] },
-  };
-  ns.DIE_AUGMENTS.arsenal_detonate = {
-    name: 'Detonate', tier: 3, span: 1, cls: 'arsenal',
-    fx: [{ k: 'special', id: 'detonate' }],
-    desc: 'Consume all your Bulwark: deal that much to ALL enemies.',
-    art: { p: [[0,-0.8, 0.25,-0.2, 0.8,0], [0.8,0, 0.25,0.2, 0,0.8], [0,0.8, -0.25,0.2, -0.8,0], [-0.8,0, -0.25,-0.2, 0,-0.8]], e: [[0,0]] },
-  };
-  ns.DIE_AUGMENTS.arsenal_embrasure = {
-    name: 'Embrasure', tier: 2, span: 1, cls: 'arsenal',
-    fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'special', id: 'wallDealt' }],
-    desc: 'Deal 6 damage. Gain Bulwark equal to the damage dealt.',
-    art: { p: [[-0.7,0.5, -0.7,-0.1, -0.25,-0.1, -0.25,0.5], [0.25,0.5, 0.25,-0.1, 0.7,-0.1, 0.7,0.5], [-0.7,0.5, 0.7,0.5], [-0.1,-0.4, 0.1,-0.4]], e: [[0,-0.15]] },
-  };
-  ns.DIE_AUGMENTS.arsenal_buttress = {
-    name: 'Buttress', tier: 2, span: 3, cls: 'arsenal',
-    fx: [{ k: 'status', s: 'bulwark', v: 5, who: 'self' }],
-    desc: 'Gain 5 Bulwark.',
-    art: { p: [[-0.6,0.6, -0.2,-0.5, 0.2,-0.5, 0.6,0.6], [-0.4,0.1, 0.4,0.1], [-0.5,0.35, 0.5,0.35]], e: [] },
-  };
   ns.DIE_REGION = { low: [2, 7], mid: [8, 14], high: [15, 20] };
   ns.dieRegionOf = function (face) {
     if (face <= 1) return 'misfire';
@@ -988,7 +856,7 @@
   // Faces either side of a root, for adjacency. The die is a RING: 20 is next
   // to 1, so a chain can close on the seam between the best face and the worst.
   ns.dieNeighbours = function (die, face) {
-    var n = ns.dieSides(die), out = [];
+    var n = ns.DIE.faces, out = [];
     [face - 1, face + 1].forEach(function (f) {
       if (f < 1) f = n; if (f > n) f = 1;
       // a span sits on several faces; its own body is not its neighbour
@@ -1045,7 +913,7 @@
     var out = { id: id, face: face, span: [], seam: null, seamWith: null, why: null, def: d };
     if (!d) { out.why = 'unknown engraving'; return out; }
     if (d.onlyFace && d.onlyFace !== face) { out.why = 'only fits face ' + d.onlyFace; return out; }
-    var span = out.span = ns.dieSpan(id, face, die);
+    var span = out.span = ns.dieSpan(id, face);
     if (span.length < (d.span || 1)) { out.why = 'does not fit'; return out; }
     if (d.band) {
       for (var s = 0; s < span.length; s++) {
@@ -1057,7 +925,7 @@
      * that already fires from anywhere, and nothing else about the die changes
      * to pay for it: two Called Shots simply doubled every crit. */
     if (d.listen || d.field) {
-      for (var q = 1; q <= ns.dieSides(die); q++) {
+      for (var q = 1; q <= ns.DIE.faces; q++) {
         if (ns.dieFaceId(die, q) === id || ns.dieSeamId(die, q) === id) {
           out.why = (d.listen ? 'that listener' : 'that field') + ' is already on the die';
           return out;
@@ -1070,15 +938,7 @@
       // A flaw is cut into the die BY the void, not placed by the player, and
       // it has no business buying a face at a discount.
       if (d.flaw) { out.why = 'face ' + f + ' is taken'; return out; }
-      /* A BASIC ENGRAVING IS OVERWRITTEN, NOT SHARED. The Arsenal's small
-       * barrels arrive with the base cards cut into every face, which under
-       * the old rule made them permanently full — every face was the head of
-       * something, so nothing could ever be placed and the two dice you lean
-       * on could never improve. Basics are the floor you build over: cutting
-       * on top of one REPLACES it outright rather than doubling with it. */
-      if (occ.root === f && (ns.dieEngraving(occ.id) || {}).basic && !d.basic) { out.replaces = true; continue; }
       if (occ.root === f) { out.why = 'face ' + f + ' is the head of ' + (ns.dieEngraving(occ.id) || {}).name; return out; }
-      if ((ns.dieEngraving(occ.id) || {}).basic) { out.replaces = true; continue; }
       if (ns.dieSeamAt(die, f)) { out.why = 'face ' + f + ' is already doubled'; return out; }
       if (out.seam != null) { out.why = 'that would double two faces — slide it'; return out; }
       out.seam = f;
@@ -1096,11 +956,9 @@
     if (p.why) return p.why;
     if (!die.seams) die.seams = {};
     p.span.forEach(function (f) {
-      var occ = die.faces[f];
       // the incumbent yields the face to the newcomer and rides along as the
-      // passenger — it can never be a root, so nothing else has to be repointed.
-      // A BASIC is not a passenger: it is simply gone, replaced by the cut.
-      if (occ && !(ns.dieEngraving(occ.id) || {}).basic) die.seams[f] = occ;
+      // passenger — it can never be a root, so nothing else has to be repointed
+      if (die.faces[f]) die.seams[f] = die.faces[f];
       die.faces[f] = { id: id, root: face };
     });
     return null;
@@ -1133,7 +991,7 @@
     return ns.dieWelds(die).indexOf(ns.dieWeldKey(a, b)) >= 0;
   };
   ns.dieCanWeld = function (die, a, b) {
-    if (ns.dieStep(a, 1, die) !== b && ns.dieStep(b, 1, die) !== a) return 'those faces do not touch';
+    if (ns.dieStep(a, 1) !== b && ns.dieStep(b, 1) !== a) return 'those faces do not touch';
     var sa = die.faces[a], sb = die.faces[b];
     if (!sa || !sb) return 'both faces must be cut';
     if (sa.root === sb.root) return 'that is one engraving, not two';
