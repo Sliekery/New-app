@@ -2434,6 +2434,107 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .panel-btn.kit-panel.sel .kit-cut { border-left-color: var(--amber); }
 .build-stamp { text-align: center; font-size: 9px; letter-spacing: .18em; color: var(--text-dim); opacity: .7; margin: -4px 0 10px; }
 
+/* ================= THE RIBBON =========================================
+ * The Arsenal's hand. Two dice unrolled into strips of faces, sitting where
+ * the card fan used to. Fixed to the dock's width rather than fanned, because
+ * a strip has a natural length and rotating it would be the same costume
+ * problem the cards had. */
+.rib-wrap {
+  /* Sits between the energy pip on the left and END TURN on the right rather
+     than centred on the frame, because a strip has a natural length and the
+     dock furniture does not move. */
+  position: absolute; left: 18px; right: 18px; bottom: 58px;
+  display: flex; flex-direction: column; gap: 3px;
+  pointer-events: auto;
+}
+.rib {
+  border: 1px solid var(--green-dim); border-radius: 4px;
+  background: linear-gradient(180deg, rgba(10,20,24,.92), rgba(4,8,10,.94));
+  padding: 2px 5px 4px; cursor: pointer;
+  transition: border-color .12s, box-shadow .12s, transform .12s;
+}
+.rib-attack { border-color: rgba(255,176,46,.55); }
+.rib-guard  { border-color: rgba(93,255,136,.5); }
+.rib:hover { transform: translateY(-1px); }
+.rib-attack:hover, .rib-attack.rib-armed { border-color: var(--amber); box-shadow: 0 0 10px rgba(255,176,46,.35); }
+.rib-guard:hover,  .rib-guard.rib-armed  { border-color: var(--green); box-shadow: 0 0 10px rgba(93,255,136,.3); }
+.rib.rib-spent { opacity: .38; cursor: default; }
+.rib.rib-spent:hover { transform: none; box-shadow: none; }
+
+.rib-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+.rib-top b { font-size: 9px; letter-spacing: .18em; }
+.rib-attack .rib-top b { color: var(--amber); text-shadow: var(--glow-a); }
+.rib-guard  .rib-top b { color: var(--green); text-shadow: var(--glow-g); }
+.rib-top span { font-size: 8px; color: var(--text-dim); letter-spacing: .06em; }
+.rib-top .rib-note { margin-left: auto; font-size: 8px; font-style: normal; color: var(--text-dim); letter-spacing: .06em; }
+
+.rib-track { position: relative; }
+.rib-bands { position: relative; height: 7px; margin-bottom: 1px; }
+.rib-band {
+  position: absolute; top: 0; height: 7px; font-size: 6px; line-height: 7px;
+  text-align: center; letter-spacing: .12em; overflow: hidden; white-space: nowrap;
+  border-right: 1px solid var(--bg);
+}
+.rib-band.t-jam  { background: rgba(255,74,94,.34); color: #ffd9de; }
+.rib-band.t-weak { background: rgba(94,138,108,.3);  color: var(--text-dim); }
+.rib-band.t-ok   { background: rgba(93,255,136,.24); color: #cfffdd; }
+.rib-band.t-hot  { background: rgba(255,176,46,.34); color: #ffe9c2; }
+
+.rib-cells { display: grid; gap: 1px; }
+.rib-cell {
+  min-height: 21px; border-radius: 2px; padding: 0 1px 1px;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  background: rgba(255,255,255,.02); border: 1px solid transparent;
+}
+.rib-cell i { font-style: normal; font-size: 8px; color: var(--text-dim); line-height: 1.1; }
+.rib-cell em {
+  font-style: normal; font-size: 6px; line-height: 1.02; text-align: center;
+  margin-top: 1px; overflow: hidden;
+  /* twenty cells across a 700px strip is ~33px each: let a long name break
+     anywhere rather than push a syllable onto its own line */
+  overflow-wrap: anywhere; hyphens: auto;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+}
+.rib-cell.bare { border-color: rgba(42,122,70,.28); }
+.rib-cell.cut  { background: rgba(255,255,255,.05); }
+.rib-attack .rib-cell.cut { border-color: rgba(255,176,46,.75); }
+.rib-attack .rib-cell.cut i, .rib-attack .rib-cell.cut em { color: var(--amber); }
+.rib-guard  .rib-cell.cut { border-color: rgba(93,255,136,.7); }
+.rib-guard  .rib-cell.cut i, .rib-guard .rib-cell.cut em { color: var(--green); }
+.rib-cell.cont em { display: none; }
+.rib-guard .rib-cell { min-height: 24px; }
+.rib-guard .rib-cell i { font-size: 10px; }
+.rib-guard .rib-cell em { font-size: 8px; }
+
+/* where the roll came to rest */
+.rib-mark { position: absolute; bottom: -3px; transform: translateX(-50%); pointer-events: none; }
+.rib-mark::before {
+  content: ''; display: block; margin: 0 auto;
+  border-left: 5px solid transparent; border-right: 5px solid transparent;
+  border-bottom: 6px solid var(--cyan);
+}
+.rib-mark span {
+  display: block; font-size: 8px; color: var(--cyan); text-shadow: var(--glow-c);
+  text-align: center; margin-top: -1px;
+}
+
+.rib-bar { display: flex; align-items: center; gap: 10px; }
+/* The wall is what the guard produces, so it is reported on the guard. */
+.rib-wallnote { display: flex; align-items: center; gap: 5px; }
+.rib-wallnote b { font-size: 11px; color: var(--green); text-shadow: var(--glow-g); font-weight: 500; }
+.rib-wallnote .rw-bar { display: block; width: 74px; height: 7px; border: 1px solid var(--green-dim); }
+.rib-wallnote .rw-bar i { display: block; height: 100%; background: var(--green); opacity: .6; }
+
+.rib-protos { display: flex; gap: 5px; margin-left: auto; }
+.rib-proto {
+  border: 1px solid var(--cyan); border-radius: 3px; padding: 2px 7px;
+  background: rgba(65,216,255,.07); cursor: pointer; text-align: center;
+}
+.rib-proto b { display: block; font-size: 8px; letter-spacing: .1em; color: var(--cyan); }
+.rib-proto span { font-size: 8px; color: var(--text-dim); }
+.rib-proto:hover { background: rgba(65,216,255,.16); }
+.rib-proto.off { opacity: .35; cursor: default; }
+
 </style>
 </head>
 <body>
@@ -2456,7 +2557,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
  * ========================================================================= */
 (function (ns) {
   // Replaced by test/bundle.js with the git short hash + date at build time.
-  ns.BUILD = '2026-08-06 4248d57';
+  ns.BUILD = '2026-08-06 98ab7bb';
 
   'use strict';
 
@@ -13607,6 +13708,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     c.cardsThisTurn = 0;
     c.enemies.forEach(function (e) { if (e.def.plated) e.platedReady = true; });   // Reactive Plating re-arms each turn
     c.nonAttacksThisTurn = 0;   // Recoilless Frame: per-turn non-attack limit
+    c.lastLand = null;          // the ribbon's landing marker is per-turn
     c.turnDamage = 0;           // class quest: damage dealt this turn
     c.momentum = 0;   // Momentum Engine resets each turn
     // Fusillade: Momentum is a per-turn combo — unless a Cycling Breech says
@@ -15059,6 +15161,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       }
     }
     var landed = steered ? steered.face : roll;
+    // The ribbon draws a marker where the roll came to rest, so it has to be
+    // told. Cleared at the start of each turn.
+    c.lastLand = { die: r.dieIdx || 0, face: landed, roll: roll };
     var scaled = ns.dieScale(r.die, landed);          // where this face sits on the d20 table
     eff = (dread && dread.steer)
       ? Math.min(20, scaled + art('rollBonus'))
@@ -17996,11 +18101,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var k = canvas.offsetHeight ? (cb.height / canvas.offsetHeight) : 1;
     if (!(k > 0.01)) k = 1;
     var base = layoutTop(canvas);
-    var cards = topEdge(base, k, cb, '#hand .card', true);
+    /* The Arsenal has no cards in hand — it has ribbons — so measuring only
+     * `.card` left the player figure and HP bar drawing straight through them.
+     * Whatever the hand happens to be made of, its top edge is the line the
+     * canvas has to stay above. */
+    var cards = Math.min(topEdge(base, k, cb, '#hand .card', true),
+                         topEdge(base, k, cb, '.rib-wrap', true));
     var dock = topEdge(base, k, cb, '#combat-dock');
     var left = Math.min(
       topEdge(base, k, cb, '#potion-belt'), topEdge(base, k, cb, '.belt-lbl'),
-      topEdge(base, k, cb, '#energy-pip'), topEdge(base, k, cb, '#draw-pile'), dock);
+      topEdge(base, k, cb, '#energy-pip'), topEdge(base, k, cb, '#draw-pile'),
+      topEdge(base, k, cb, '.rib-wrap'), dock);
     handY = Math.max(0, Math.min(H, Math.min(cards, dock)));
     leftY = Math.max(0, Math.min(H, left));
   }
@@ -23353,10 +23464,140 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
   U.fitHand = fitHand;
 
+  /* ================= THE RIBBON =================================
+   * The Arsenal's hand, and only the Arsenal's. Its dice are not cards and
+   * drawing them as cards hid the one thing every engraving decision is
+   * about: DENSITY — how much of a die actually does something, and where.
+   * That lived on a separate screen, so you built a machine you never saw
+   * while using it.
+   *
+   * Each die is unrolled into a strip of its faces. Cut faces are lit and
+   * named, bare faces are holes you can see. The band underlay is computed
+   * per face THROUGH the player's current Aim, so it moves when Aim moves —
+   * which also answers the quiet question nobody could answer before:
+   * what is a 14 actually worth?
+   *
+   * The guard gets no underlay on purpose. It is a skill, it reads no bands
+   * and cannot jam, and an empty strip says that better than a legend would.
+   * ============================================================== */
+  function bandTone(label) {
+    if (!label) return 'none';
+    if (label === 'CRIT' || label === 'SOLID') return 'hot';
+    if (label === 'MISFIRE') return 'jam';
+    if (label === 'HIT') return 'ok';
+    return 'weak';
+  }
+  function ribbonFor(die, dieIdx, handIdx) {
+    var c = E.combat, r = E.run;
+    var n = ns.dieSides(die);
+    var isGuard = die.role === 'defence';
+    var aimNow = statOf('aim');
+    var wrap = el('div', 'rib' + (isGuard ? ' rib-guard' : ' rib-attack') +
+                  (handIdx >= 0 && E.canPlay(handIdx) ? '' : ' rib-spent') +
+                  (handIdx === selected ? ' rib-armed' : ''));
+    wrap.dataset.hand = handIdx;
+
+    var cutN = 0;
+    for (var q = 1; q <= n; q++) if (die.faces[q]) cutN++;
+    wrap.appendChild(el('div', 'rib-top',
+      '<b>' + (isGuard ? 'GUARD' : 'ATTACK') + '</b>'
+      + '<span>d' + n + ' · ' + cutN + '/' + n + ' cut</span>'
+      + (isGuard
+          ? '<i class="rib-note rib-wallnote">WALL <b>' + statOf('bulwark') + '</b>'
+            + '<span class="rw-bar"><i style="width:' + Math.min(100, statOf('bulwark')) + '%"></i></span></i>'
+          : '<i class="rib-note">aim +' + aimNow + '</i>')));
+
+    var track = el('div', 'rib-track');
+    // band underlay: runs of equal band, so it reads as regions not stripes
+    if (!isGuard) {
+      var bands = el('div', 'rib-bands'), runStart = 1, runLabel = null;
+      for (var f = 1; f <= n + 1; f++) {
+        var tag = f <= n ? (dieEndTag(r.cls, f, aimNow, die) || {}).label : null;
+        if (f === 1) { runLabel = tag; continue; }
+        if (tag !== runLabel || f > n) {
+          var seg = el('div', 'rib-band t-' + bandTone(runLabel), esc(runLabel || ''));
+          seg.style.left = ((runStart - 1) / n * 100) + '%';
+          seg.style.width = ((f - runStart) / n * 100) + '%';
+          bands.appendChild(seg);
+          runStart = f; runLabel = tag;
+        }
+      }
+      track.appendChild(bands);
+    }
+
+    var cells = el('div', 'rib-cells');
+    cells.style.gridTemplateColumns = 'repeat(' + n + ', 1fr)';
+    for (var i = 1; i <= n; i++) {
+      var slot = die.faces[i], g = slot ? ns.dieEngraving(slot.id) : null;
+      var cont = slot && slot.root !== i;
+      var cell = el('div', 'rib-cell' + (g ? ' cut' : ' bare') + (cont ? ' cont' : ''),
+        '<i>' + i + '</i>' + (g && !cont ? '<em>' + esc(g.name) + '</em>' : ''));
+      if (g) cell.title = g.name + ' — ' + g.desc;
+      cells.appendChild(cell);
+    }
+    track.appendChild(cells);
+
+    if (c.lastLand && c.lastLand.die === dieIdx) {
+      var mk = el('div', 'rib-mark', '<span>' + c.lastLand.face + '</span>');
+      mk.style.left = ((c.lastLand.face - 0.5) / n * 100) + '%';
+      track.appendChild(mk);
+    }
+    wrap.appendChild(track);
+
+    if (handIdx >= 0) {
+      wrap.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation();
+        if (locked || !E.canPlay(handIdx)) { SFX.tap(); return; }
+        SFX.tap();
+        var sole = soleEnemyIdx();
+        if (sole >= 0) { selected = -1; setTargeting(false); playCardAt(handIdx, sole); return; }
+        // more than one target: arm it, then tap the enemy (onFieldTap fires it)
+        selected = (selected === handIdx) ? -1 : handIdx;
+        setTargeting(selected >= 0);
+        renderHand();
+      });
+    }
+    return wrap;
+  }
+  function statOf(s) {
+    var c = E.combat;
+    return (c && c.player && c.player.statuses[s]) || 0;
+  }
+  function renderRibbonHand() {
+    var c = E.combat, r = E.run;
+    var host = el('div', 'rib-wrap');
+    (r.dice || []).forEach(function (die, di) {
+      var hi = c.hand.findIndex(function (h) { return h.dieIdx === di; });
+      host.appendChild(ribbonFor(die, di, hi));
+    });
+
+    var bar = el('div', 'rib-bar');
+    var protos = el('div', 'rib-protos');
+    c.hand.forEach(function (card, i) {
+      if (!card.protoId) return;
+      var pd = ns.protocol(card.protoId) || {};
+      var left = (c.protoLeft || [])[card.protoIdx] || 0;
+      var b = el('div', 'rib-proto' + (E.canPlay(i) ? '' : ' off'),
+        '<b>' + esc(pd.name || '?') + '</b><span>' + left + '</span>');
+      b.title = pd.desc || '';
+      b.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation();
+        if (locked || !E.canPlay(i)) return;
+        SFX.tap();
+        playCardAt(i, Math.max(0, soleEnemyIdx()));
+      });
+      protos.appendChild(b);
+    });
+    bar.appendChild(protos);
+    host.appendChild(bar);
+    $hand.appendChild(host);
+  }
+
   function renderHand(deal) {
     $hand.innerHTML = '';
     var c = E.combat;
     if (!c) return;
+    if (c.rollClass) { renderRibbonHand(); return; }
     var n = c.hand.length, mid = (n - 1) / 2;
     var spread = n > 1 ? Math.min(4.2, 26 / n) : 0; // degrees between cards
     c.hand.forEach(function (card, i) {
