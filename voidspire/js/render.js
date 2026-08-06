@@ -137,17 +137,11 @@
     var k = canvas.offsetHeight ? (cb.height / canvas.offsetHeight) : 1;
     if (!(k > 0.01)) k = 1;
     var base = layoutTop(canvas);
-    /* The Arsenal has no cards in hand — it has ribbons — so measuring only
-     * `.card` left the player figure and HP bar drawing straight through them.
-     * Whatever the hand happens to be made of, its top edge is the line the
-     * canvas has to stay above. */
-    var cards = Math.min(topEdge(base, k, cb, '#hand .card', true),
-                         topEdge(base, k, cb, '.rib-wrap', true));
+    var cards = topEdge(base, k, cb, '#hand .card', true);
     var dock = topEdge(base, k, cb, '#combat-dock');
     var left = Math.min(
       topEdge(base, k, cb, '#potion-belt'), topEdge(base, k, cb, '.belt-lbl'),
-      topEdge(base, k, cb, '#energy-pip'), topEdge(base, k, cb, '#draw-pile'),
-      topEdge(base, k, cb, '.rib-wrap'), dock);
+      topEdge(base, k, cb, '#energy-pip'), topEdge(base, k, cb, '#draw-pile'), dock);
     handY = Math.max(0, Math.min(H, Math.min(cards, dock)));
     leftY = Math.max(0, Math.min(H, left));
   }
