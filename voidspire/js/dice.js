@@ -938,6 +938,84 @@
    * alone does nothing at all; it only shapes a roll. The payload is in the
    * dice and the dice need the setup.
    * ------------------------------------------------------------------ */
+  /* ==================================================================
+   * OPENING KITS — you do not start vanilla
+   * ==================================================================
+   * A bare d20 and a half-cut guard is a machine with nothing to say, and the
+   * first two or three fights of a run were exactly that: roll, take the base
+   * number, repeat. The die only becomes interesting once enough is cut into
+   * it that the faces disagree with each other, and that used to take until
+   * sector 2.
+   *
+   * So a run opens with a choice of three KITS — three engravings each,
+   * already placed. Two are archetypes with a stated plan, one is a random
+   * handful. You get an identity on turn one and something to build toward,
+   * and the run's first real decision happens before the first fight rather
+   * than after it.
+   *
+   * Faces are chosen, not random: attack cuts go high where Aim steers, guard
+   * cuts go on the bare faces (2, 4, 6) so nothing is wasted overwriting Brace.
+   * ------------------------------------------------------------------ */
+  ns.ARSENAL_KITS = {
+    breacher: {
+      name: 'THE BREACHER', cls: 'arsenal',
+      plan: 'Bank the wall, then spend it all at once.',
+      cuts: [
+        { id: 'arsenal_buttress',  die: 1, face: 3 },
+        { id: 'arsenal_revetment', die: 1, face: 6 },
+        { id: 'arsenal_breach',    die: 0, face: 18 },
+      ],
+    },
+    marksman: {
+      name: 'THE MARKSMAN', cls: 'arsenal',
+      plan: 'Climb the table. Everything good lives at the top.',
+      cuts: [
+        { id: 'executioners_mark', die: 0, face: 19 },
+        { id: 'aim_assist',        die: 0, face: 16 },
+        { id: 'targeting_spike',   die: 0, face: 13 },
+      ],
+    },
+    demolition: {
+      name: 'DEMOLITION', cls: 'arsenal',
+      plan: 'Wall as ammunition, spread across the whole room.',
+      cuts: [
+        { id: 'arsenal_detonate', die: 0, face: 18 },
+        { id: 'arsenal_spall',    die: 0, face: 12 },
+        { id: 'arsenal_buttress', die: 1, face: 3 },
+      ],
+    },
+    armourer: {
+      name: 'THE ARMOURER', cls: 'arsenal',
+      plan: 'Every hit you take makes the next one cheaper.',
+      cuts: [
+        { id: 'plate_layer',       die: 1, face: 3 },
+        { id: 'kinetic_buffer',    die: 1, face: 6 },
+        { id: 'arsenal_embrasure', die: 0, face: 17 },
+      ],
+    },
+    incendiary: {
+      name: 'INCENDIARY', cls: 'arsenal',
+      plan: 'Light them and let the fire do the arithmetic.',
+      cuts: [
+        { id: 'ignition_coil',     die: 0, face: 18 },
+        { id: 'static_discharge',  die: 0, face: 15 },
+        { id: 'arsenal_embrasure', die: 0, face: 11 },
+      ],
+    },
+    holdfast: {
+      name: 'HOLDFAST', cls: 'arsenal',
+      plan: 'A guard that never gives you nothing.',
+      cuts: [
+        { id: 'arsenal_revetment', die: 1, face: 2 },
+        { id: 'arsenal_revetment', die: 1, face: 4 },
+        { id: 'arsenal_buttress',  die: 0, face: 6 },
+      ],
+    },
+  };
+  // Faces a random kit is allowed to use — high on the attack die where Aim
+  // reaches, and the guard's three bare faces.
+  ns.KIT_FACES = { attack: [19, 17, 15, 13, 11], guard: [2, 4, 6] };
+
   ns.PROTOCOLS = {
     sight: {
       name: 'SIGHT', charges: 2, tier: 1,
@@ -998,17 +1076,26 @@
    * defended with expiring Block bled out in HALLWAY fights. */
   ns.DIE_AUGMENTS.base_brace = {
     name: 'Brace', tier: 1, span: 1, cls: 'arsenal', basic: true,
-    /* SIXTEEN, not five. A probe swept the guard's face value against how often
-     * the bot ever chose to roll it: at 5 and at 10 wall it banked on 0.1% and
-     * 0.3% of rolls — i.e. never. Banking only becomes correct at ~16, where
-     * the guard out-rates the attack die about 2:1.
+    /* THIRTY, and the number was swept for rather than chosen. Instrumenting
+     * how often the bot ever ELECTS to roll the guard, against what a Brace
+     * face is worth:
      *
-     * That ratio is the real finding. A point of wall is worth about HALF a
-     * point of damage, because damage is permanent progress and wall only ever
-     * prevents a subset of what is coming. Defence has to be priced that way
-     * or the allocation is not a decision at all. */
-    fx: [{ k: 'status', s: 'bulwark', v: 16, who: 'self' }],
-    desc: 'Gain 16 Bulwark.',
+     *     5 -> 0.1%    10 -> 0.3%    16 -> 0.7%    24 -> 4.0%    30 -> 7.1%
+     *
+     * Below ~24 it simply never banks: a dead enemy deals no damage, so
+     * attacking is also the best defence. Raising enemy damage 2.2x did not
+     * move it either — pressure is not the lever, price is.
+     *
+     * The ratio is the transferable finding. A point of wall is worth about
+     * HALF a point of damage, because damage is permanent progress and wall
+     * only ever prevents a subset of what is coming. Defence has to be priced
+     * accordingly or the allocation is not a decision at all.
+     *
+     * Chunky on purpose: with three faces of six cut, the guard either banks
+     * a real slab or hands you the roll's base. A die that returns the same
+     * number every time is a button, not a die. */
+    fx: [{ k: 'status', s: 'bulwark', v: 30, who: 'self' }],
+    desc: 'Gain 30 Bulwark.',
     art: { p: [[0,-0.7, 0.6,-0.4, 0.6,0.2, 0,0.7, -0.6,0.2, -0.6,-0.4, 0,-0.7]], e: [] },
   };
 

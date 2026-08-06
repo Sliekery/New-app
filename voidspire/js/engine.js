@@ -139,18 +139,25 @@
         dn.sides = spec.sides;
         dn.role = spec.role || 'defence';
         dn.core = d0.core; dn.vault = d0.vault; dn.frame = d0.frame; dn.pending = d0.pending;
-        for (var f = 1; f <= dn.sides; f++) ns.dieEngrave(dn, spec.base, f);
+        /* HALF THE GUARD IS BARE ON PURPOSE. Six identical faces is not a die,
+         * it is a button — every roll banked the same number and there was
+         * nothing to build toward. Bare faces still bank the roll's base, so a
+         * guard roll is now 10 or 26 rather than always the same, and there is
+         * room for what you cut to change the shape. */
+        for (var f = 1; f <= dn.sides; f += 2) ns.dieEngrave(dn, spec.base, f);
         E.run.dice.push(dn);
       });
       E.run.dieIdx = 0;
       E.run.protocols = (B.dice.arsenalProtocols || ['sight', 'vent', 'overclock']).slice();
+      E.run.kitOffer = rollKits(3);
     }
     if (E.CORNERSTONES !== false && CORNERSTONE_OF[clsId]) {   // grant the class Cornerstone
       E.run.cornerstone = { id: CORNERSTONE_OF[clsId], tier: 1 };
       E.run.artifacts.push(CORNERSTONE_OF[clsId]);
     }
     E.run.map = generateMap(1);
-    E.run.phase = 'map';
+    // A run that opens with a kit choice stops at that choice first.
+    E.run.phase = (E.run.kitOffer && E.run.kitOffer.length) ? 'kit' : 'map';
     // VOID PRESSURE: the frame buckles (fewer core slots) and HULL BREACH
     // launches you with a Flaw already cut into the die.
     (function () {
@@ -2176,6 +2183,13 @@
     // profile moved (median sector 4 -> 7 in simulation).
     if (!lit) return;
     if (ns.dieTaintAt(r.die, face) === 'dead_short') return;   // the seam is broken
+    /* A SMALL DIE DOES NOT BLEED. The splash reaches a fixed NUMBER of faces,
+     * which is 10% of a d20 and 33% of a d6 — so on the guard every roll fired
+     * its face plus both neighbours, and with six identical faces that came out
+     * as the same 34 wall every single time. Deterministic and inflated at
+     * once. The chain is a d20 mechanic because only a d20 has the room for
+     * "where you cut" to mean anything. */
+    if (ns.dieSides(r.die) < ns.DIE.faces) return;
     var bleed = Math.min(1, B.dice.bleed + art('bleedPct'));
     if (art('relayAll') > 0) bleed = 1;                            // DISTRIBUTION FRAME
     if (art('bleedEnds') > 0 && faceAtEnd(face)) bleed = 1;        // SECOND MOUTH
@@ -3561,6 +3575,72 @@
   /* Point run.die at one of the three. Everything downstream — bands, seams,
    * welds, taints, listeners, steering, fireOneFace — reads run.die, so this
    * one assignment is the entire multi-die implementation. */
+  /* THE OPENING KIT. Two archetypes and one random handful, so the choice is
+   * between plans rather than between three piles of the same thing. */
+  function rollKits(n) {
+    var ids = Object.keys(ns.ARSENAL_KITS);
+    shuffle(ids);
+    var out = ids.slice(0, Math.max(0, (n || 3) - 1));
+    out.push('_random');
+    return out;
+  }
+  // A random kit is rolled fresh each time it is inspected, so the panel and
+  // the thing you take are the same three cuts.
+  function randomKitCuts() {
+    var pool = Object.keys(ns.DIE_AUGMENTS).filter(function (k) {
+      var g = ns.DIE_AUGMENTS[k];
+      if (g.flaw || g.basic || g.onlyFace) return false;
+      if (g.cls && g.cls !== 'arsenal') return false;
+      /* A card-shaped engraving is dead weight for a class with no deck —
+       * drawing and exhausting do nothing when the hand is two dice and a
+       * loadout, and "gain Energy" is a roll, which is fine. */
+      var j = JSON.stringify(g.fx || []);
+      if (/"k":"draw"/.test(j)) return false;
+      if (/dieExhaustDraw|dieTutor|dieDiscover/.test(j)) return false;
+      return true;
+    });
+    shuffle(pool);
+    var atk = ns.KIT_FACES.attack.slice(), gd = ns.KIT_FACES.guard.slice(), cuts = [];
+    for (var i = 0; i < pool.length && cuts.length < 3; i++) {
+      var g = ns.DIE_AUGMENTS[pool[i]];
+      // wall, shield, plating and healing go on the guard; hits go up the table
+      var j2 = JSON.stringify(g.fx || []);
+      var defensive = /"s":"bulwark"|"k":"block"|"s":"plate"|"k":"heal"|"s":"thorns"/.test(j2);
+      if (defensive && gd.length) cuts.push({ id: pool[i], die: 1, face: gd.shift() });
+      else if (!defensive && atk.length) cuts.push({ id: pool[i], die: 0, face: atk.shift() });
+    }
+    return cuts;
+  }
+  E.kitCuts = function (id) {
+    if (id === '_random') {
+      var r = E.run;
+      if (!r._randomKit) r._randomKit = randomKitCuts();
+      return r._randomKit;
+    }
+    return ((ns.ARSENAL_KITS[id] || {}).cuts || []);
+  };
+  E.kitInfo = function (id) {
+    if (id === '_random') return { name: 'SALVAGE', plan: 'Three cuts off the rack. No plan, just parts.' };
+    return ns.ARSENAL_KITS[id] || { name: '?', plan: '' };
+  };
+  E.takeKit = function (id) {
+    var r = E.run; if (!r || r.phase !== 'kit') return false;
+    E.kitCuts(id).forEach(function (cut) {
+      var die = r.dice[cut.die]; if (!die) return;
+      // slide off anything that will not take the cut rather than dropping it
+      for (var k = 0; k < ns.dieSides(die); k++) {
+        var f = ns.dieStep(cut.face, k, die);
+        if (!ns.dieCanEngrave(die, cut.id, f)) { ns.dieEngrave(die, cut.id, f); return; }
+      }
+    });
+    r.kitTaken = id;
+    r.kitOffer = null;
+    r._randomKit = null;
+    r.phase = 'map';
+    E.save();
+    return true;
+  };
+
   E.useDie = function (i) {
     var r = E.run;
     if (!r || !r.dice || !r.dice.length) return;

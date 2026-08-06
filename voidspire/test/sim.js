@@ -870,6 +870,38 @@ function step() {
     }
     // THE FIRST MARK: cycle the three offers across runs so a batch measures
     // all of them, not whichever one the bot happens to like.
+    /* THE OPENING KIT. Scored the same way the bot scores everything else on
+     * this class — expected value of a roll — so the kit it opens with is the
+     * one that most improves the dice it will actually be rolling. Under
+     * VS_RANDOM_DRAFT it takes one blind, which is what makes the opening
+     * choice measurable rather than assumed. */
+    case 'kit': {
+      var offer = E.run.kitOffer || [];
+      if (!offer.length) { E.run.phase = 'map'; break; }
+      var pickK = offer[0];
+      if (RANDOM_DRAFT) {
+        pickK = offer[Math.floor(probeRnd() * offer.length)];
+      } else {
+        var bestK = -1e9;
+        offer.forEach(function (kid) {
+          var probe = E.run.dice.map(function (d) {
+            return { sides: d.sides, role: d.role, faces: JSON.parse(JSON.stringify(d.faces)),
+                     seams: d.seams, welds: d.welds };
+          });
+          E.kitCuts(kid).forEach(function (c) {
+            var pd = probe[c.die]; if (!pd) return;
+            for (var k = 0; k < VS.dieSides(pd); k++) {
+              var f = VS.dieStep(c.face, k, pd);
+              if (!VS.dieCanEngrave(pd, c.id, f)) { VS.dieEngrave(pd, c.id, f); return; }
+            }
+          });
+          var v = probe.reduce(function (a, pd) { return a + dieRollEV(pd, false, null); }, 0);
+          if (v > bestK) { bestK = v; pickK = kid; }
+        });
+      }
+      E.takeKit(pickK);
+      break;
+    }
     case 'first-mark': E.takeFirstMark(FIRST_MARK_PICK % Math.max(1, E.firstMarkOffers().length)); break;
     case 'sector-intro': E.beginSector(); break;
     /* Victory ENDS the run now — one ladder, climbed by starting again. The bot

@@ -2622,12 +2622,17 @@ ok('every class opens with either a starter deck or a rack of dice',
   ok('they share one core and one engraving queue',
      r.dice[0].core === r.dice[1].core && r.dice[0].pending === r.dice[1].pending);
 
-  ok('the guard opens with Brace on every face', (function () {
+  /* HALF THE GUARD IS BARE ON PURPOSE. Six identical faces is a button, not a
+   * die — every roll banked the same number, and with the neighbour bleed also
+   * firing it banked exactly 34 every single time. Bare faces still bank the
+   * roll's base, so the guard now reads 10 or 40 and there is room to build. */
+  ok('the guard opens half cut and half bare', (function () {
+    var cut = 0, bare = 0;
     for (var f = 1; f <= 6; f++) {
       var sl = r.dice[1].faces[f];
-      if (!sl || VS.dieEngraving(sl.id).name !== 'Brace') return false;
+      if (sl && VS.dieEngraving(sl.id).name === 'Brace') cut++; else if (!sl) bare++;
     }
-    return true;
+    return cut === 3 && bare === 3;
   })());
   ok('the attack die opens bare', !r.dice[0].faces[10]);
 
@@ -2686,6 +2691,25 @@ ok('every class opens with either a starter deck or a rack of dice',
   startFight('arsenal');
   ok('charges refill next fight',
      E.combat.hand.some(function (h) { return h.protoId === 'vent'; }));
+
+  /* A SMALL DIE DOES NOT BLEED. The neighbour splash reaches a fixed NUMBER of
+   * faces, which is 10% of a d20 and 33% of a d6 — so on the guard every roll
+   * used to fire its face plus both neighbours, and with the faces it had that
+   * came out as exactly 34 wall every single time. Deterministic and inflated
+   * at once. Own fight, because this burns a lot of rolls. */
+  (function () {
+    var c2 = E.combat; bigEnemies();
+    var seen = {};
+    for (var k = 0; k < 40; k++) {
+      c2.energy = 30;
+      var w0 = c2.player.statuses.bulwark || 0;
+      E.playCard(c2.hand.findIndex(function (h) { return h.dieIdx === 1; }), 0);
+      seen[(c2.player.statuses.bulwark || 0) - w0] = 1;
+    }
+    var outcomes = Object.keys(seen);
+    ok('a guard roll has more than one outcome (' + outcomes.sort(function (x, y) { return x - y; }).join(' / ') + ')',
+       outcomes.length > 1);
+  })();
   E.run.phase = 'map';
 })();
 

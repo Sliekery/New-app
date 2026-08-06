@@ -495,6 +495,7 @@
       case 'forge': return showForge();
       case 'rift': return showRift();
       case 'boss-artifact': return showBossArtifact();
+      case 'kit': return showKitPick();
       case 'first-mark': return showFirstMark();
       case 'cutscene': return showCutscene();
       case 'sector-intro': return showSectorIntro();
@@ -5814,6 +5815,38 @@
    * of names. The face is NOT chosen here: the engraving lands pending and the
    * die screen asks where, so the choice stays open while you learn the table.
    * ==================================================================== */
+  /* THE OPENING KIT. Three engravings, already placed, chosen before the first
+   * fight. A bare die has nothing to say and the first two fights were exactly
+   * that — roll, take the base number, repeat — so the run's first real
+   * decision now happens before it starts rather than three fights in. */
+  function showKitPick() {
+    var r = E.run; if (!r || !r.kitOffer) return;
+    var s = overlayScreen();
+    s.appendChild(el('h2', 'screen-title', 'Cut The First Faces'));
+    s.appendChild(el('div', 'screen-sub', 'THREE ENGRAVINGS, ALREADY PLACED · THIS IS THE SHAPE YOU START WITH'));
+    var bar = makeConfirmBar();
+    r.kitOffer.forEach(function (kid) {
+      var info = E.kitInfo(kid), cuts = E.kitCuts(kid);
+      var rows = cuts.map(function (c) {
+        var g = ns.dieEngraving(c.id); if (!g) return '';
+        var die = r.dice[c.die];
+        var where = (c.die === 0 ? 'ATTACK' : 'GUARD') + ' · face ' + c.face
+                  + ((g.span || 1) > 1 ? ' (+' + (Math.min(g.span, Math.floor(ns.dieSides(die) / 2)) - 1) + ')' : '');
+        return '<div class="kit-cut"><b>' + esc(g.name) + '</b>'
+             + '<span class="kit-where">' + where + '</span>'
+             + '<div class="kit-desc">' + esc(g.desc) + '</div></div>';
+      }).join('');
+      var pb = el('div', 'panel-btn kit-panel',
+        '<div class="pb-title">' + esc(info.name) + '</div>'
+        + '<div class="pb-desc">' + esc(info.plan) + '</div>'
+        + '<div class="kit-cuts">' + rows + '</div>');
+      s.appendChild(pb);
+      selectConfirm(s, pb, bar, 'Open with <b>' + esc(info.name) + '</b>?<span class="cb-note">' + esc(info.plan) + '</span>',
+        function () { SFX.coin(); E.takeKit(kid); U.refresh(); }, 'amber');
+    });
+    s.appendChild(bar.el);
+  }
+
   function showFirstMark() {
     combatChrome(false);
     $hud.innerHTML = ''; setHud(false);
