@@ -2424,6 +2424,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .kit-cut .kit-where { font-size: 9px; letter-spacing: .08em; color: var(--amber); margin-left: 7px; }
 .kit-cut .kit-desc { font-size: 10px; line-height: 1.3; color: var(--text-dim); }
 .panel-btn.kit-panel.sel .kit-cut { border-left-color: var(--amber); }
+.build-stamp { text-align: center; font-size: 9px; letter-spacing: .18em; color: var(--text-dim); opacity: .7; margin: -4px 0 10px; }
 
 </style>
 </head>
@@ -2446,6 +2447,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
  * Every tunable number in the game lives here. Tweak freely.
  * ========================================================================= */
 (function (ns) {
+  // Replaced by test/bundle.js with the git short hash + date at build time.
+  ns.BUILD = '2026-08-06 93c8a39';
+
   'use strict';
 
   ns.BALANCE = {
@@ -17777,6 +17781,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       }
       // JSON turns one shared object behind three references into three copies
       diceRelink(E.run);
+      /* MIGRATION. A run started before opening kits existed can never be
+       * offered one, because the offer is made in newRun and that already
+       * happened. An Arsenal save that has not cleared a node yet is close
+       * enough to the start to hand it the choice now; a deeper one is left
+       * alone rather than given a free spike three sectors in. */
+      var _r = E.run;
+      if (_r.dice && _r.dice.length > 1 && !_r.kitTaken && !_r.kitOffer &&
+          !(_r.nodesCleared > 0) && _r.phase !== 'combat') {
+        _r.kitOffer = rollKits(3);
+        _r.phase = 'kit';
+      }
       rngState = data.rng >>> 0;
       uidCounter = data.uid || 1000;
       E.combat = null;
@@ -22423,6 +22438,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var s = overlayScreen();
     s.appendChild(el('div', 'title-logo', 'VOIDSPIRE'));
     s.appendChild(el('div', 'subtitle', ns.EPIGRAPH ? ns.EPIGRAPH.toUpperCase() : 'AN ENDLESS DESCENT'));
+    /* THE BUILD STAMP. Twice now a report of "this feature is missing" has cost
+     * a round trip to establish that the page was a cached older build. One
+     * line on the title screen settles it in a glance. Stamped by the bundler
+     * from git; reads "dev" when running unbundled. */
+    s.appendChild(el('div', 'build-stamp', 'BUILD ' + (ns.BUILD || 'dev')));
 
     if (E.hasSave()) {
       var cont = el('div', 'panel-btn', '<div class="pb-title">▶ CONTINUE RUN</div><div class="pb-sub">Resume your descent</div>');
