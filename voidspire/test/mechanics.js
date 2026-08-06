@@ -2686,6 +2686,20 @@ ok('every class opens with either a starter deck or a rack of dice',
   ok('a spent protocol leaves the hand',
      !c.hand.some(function (h) { return h.protoId === 'vent'; }));
 
+  /* THE BASICS ARE A FLOOR, NOT A REWARD. Brace is what the guard arrives
+   * wearing so a fresh barrel is not six blanks; it is the thing your drafted
+   * cuts replace. It was being offered back as a pick — at 30 Bulwark a face,
+   * which is a tier-3 payload on a tier-1 slot. */
+  (function () {
+    var bad = 0, n = 0;
+    for (var i = 0; i < 200; i++) {
+      E.randomEngravings(3).forEach(function (id) {
+        n++; if ((VS.DIE_AUGMENTS[id] || {}).basic) bad++;
+      });
+    }
+    ok('a basic is never offered as a reward engraving (' + n + ' picks)', bad === 0);
+  })();
+
   // charges refill each fight
   E.run.phase = 'map';
   startFight('arsenal');
