@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#04080a">
+<title>Ten ways to show the dice — VOIDSPIRE</title>
+</head>
+<body>
+<style>
+  /* The game's own tokens, not a new palette. Precedence: the project's
+     system first. Single theme on purpose — this is a phosphor CRT, and a
+     light mode would be a different game. */
+  :root {
+    --bg:      #04080a;
+    --panel:   #0a1418;
+    --panel2:  #0e1c22;
+    --green:   #5dff88;
+    --grn-dim: #2a7a46;
+    --cyan:    #41d8ff;
+    --amber:   #ffb02e;
+    --red:     #ff4a5e;
+    --text:    #b8e6c4;
+    --dim:     #5e8a6c;
+    --glow-g:  0 0 6px rgba(93,255,136,.55);
+    --glow-c:  0 0 6px rgba(65,216,255,.55);
+    --glow-a:  0 0 6px rgba(255,176,46,.55);
+    --mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: var(--mono); font-size: 14px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* faint scanline wash, the same trick the game uses */
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 99;
+    background: repeating-linear-gradient(180deg, rgba(0,0,0,0) 0 2px, rgba(0,0,0,.22) 2px 3px);
+    opacity: .5;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 48px 22px 90px; }
+
+  header { border-bottom: 1px solid var(--grn-dim); padding-bottom: 26px; margin-bottom: 34px; }
+  .eyebrow { font-size: 11px; letter-spacing: .28em; color: var(--dim); }
+  h1 {
+    font-size: clamp(26px, 4.6vw, 46px); letter-spacing: .16em; font-weight: 500;
+    margin: 12px 0 14px; color: var(--green); text-shadow: var(--glow-g);
+    text-wrap: balance;
+  }
+  .lede { max-width: 66ch; color: var(--text); margin: 0 0 16px; }
+  .lede b { color: var(--amber); font-weight: 500; }
+  .state {
+    display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 20px;
+    font-size: 11.5px; letter-spacing: .1em; color: var(--dim);
+  }
+  .state span b { color: var(--cyan); font-weight: 500; }
+
+  h2 {
+    font-size: 12px; letter-spacing: .26em; color: var(--dim); font-weight: 500;
+    margin: 52px 0 4px; padding-bottom: 8px; border-bottom: 1px dashed rgba(42,122,70,.5);
+  }
+  h2 + .grouping { color: var(--dim); font-size: 12.5px; margin: 10px 0 22px; max-width: 62ch; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(430px, 1fr)); gap: 22px; }
+  @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+
+  .mock {
+    background: var(--panel); border: 1px solid var(--grn-dim); border-radius: 4px;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .mock .art { background: var(--bg); border-bottom: 1px solid rgba(42,122,70,.45); overflow-x: auto; }
+  .mock svg { display: block; width: 100%; height: auto; }
+  .mock .body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 9px; }
+  .mock h3 {
+    margin: 0; font-size: 14px; letter-spacing: .17em; font-weight: 500;
+    color: var(--amber); text-shadow: var(--glow-a);
+  }
+  .mock .thesis { margin: 0; font-size: 13px; color: var(--text); }
+  .mock dl { margin: 4px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: 12px; }
+  .mock dt { color: var(--dim); letter-spacing: .1em; }
+  .mock dd { margin: 0; color: var(--text); }
+  .mock dd.cost { color: var(--red); }
+
+  .verdict { margin-top: 56px; border: 1px solid var(--amber); border-radius: 4px; padding: 22px 24px; background: rgba(255,176,46,.05); }
+  .verdict h2 { margin-top: 0; border: 0; color: var(--amber); }
+  .verdict p { max-width: 66ch; }
+  .verdict ol { max-width: 66ch; padding-left: 20px; }
+  .verdict li { margin-bottom: 9px; }
+  .verdict b { color: var(--amber); font-weight: 500; }
+
+  text { font-family: var(--mono); }
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">VOIDSPIRE · THE ARSENAL · UI EXPLORATION</div>
+  <h1>Ten ways to show the dice</h1>
+  <p class="lede">
+    The prototype currently draws its dice as <b>cards in a fan</b>, because that is the
+    furniture the engine already had. It works, and it is the one thing in the design that
+    still says "deckbuilder" out loud — a die dressed as a card is a costume, not a shape.
+  </p>
+  <p class="lede">
+    Every mock below shows the <b>same turn</b>, so the difference you are looking at is
+    presentation and nothing else.
+  </p>
+  <div class="state">
+    <span>ROLLS <b>3</b></span>
+    <span>ATTACK <b>d20</b> · Executioner's Mark @19 · Breach @18</span>
+    <span>GUARD <b>d6</b> · Brace on 1·3·5</span>
+    <span>WALL <b>40</b></span>
+    <span>PROTOCOLS <b>SIGHT · VENT · OVERCLOCK</b></span>
+  </div>
+</header>
+
+<h2>ORGANISED AS A HAND</h2>
+<p class="grouping">Things you hold and choose between. Familiar, thumb-friendly, and inherently
+card-shaped — which is the tension, since these are dice.</p>
+
+<div class="grid">
+
+  <!-- 1 THE FAN -->
+  <div class="mock">
+    <div class="art">
+      <svg viewBox="0 0 640 300" role="img" aria-label="Cards fanned along the bottom of the screen">
+        <rect width="640" height="300" fill="#04080a"/>
+        <line x1="0" y1="196" x2="640" y2="196" stroke="#2a7a46" stroke-width="1" opacity=".5"/>
+        <text x="20" y="34" fill="#5e8a6c" font-size="11" letter-spacing="2">ENEMY</text>
+        <polygon points="300,60 322,96 278,96" fill="none" stroke="#c86bff" stroke-width="1.5"/>
+        <rect x="262" y="108" width="76" height="4" fill="#c86bff"/>
+        <text x="288" y="128" fill="#5e8a6c" font-size="10">48/48</text>
+        <g font-size="9" letter-spacing="1">
+          <g transform="translate(150,208) rotate(-9)">
+            <rect width="88" height="84" rx="3" fill="#0e1c22" stroke="#ffb02e"/>
+            <text x="7" y="16" fill="#ffb02e" font-size="12">1</text>
+            <text x="24" y="16" fill="#ffb02e">ATTACK</text>
+            <text x="7" y="32" fill="#5e8a6c" font-size="8">d20 · 2/20 cut</text>
+            <text x="7" y="48" fill="#b8e6c4" font-size="8">Exec. Mark</text>
+            <text x="7" y="60" fill="#b8e6c4" font-size="8">Breach</text>
+          </g>
+          <g transform="translate(246,202) rotate(-3)">
+            <rect width="88" height="84" rx="3" fill="#0e1c22" stroke="#5dff88"/>
+            <text x="7" y="16" fill="#5dff88" font-size="12">1</text>
+            <text x="26" y="16" fill="#5dff88">GUARD</text>
+            <text x="7" y="32" fill="#5e8a6c" font-size="8">d6 · 3/6 cut</text>
+            <text x="7" y="48" fill="#b8e6c4" font-size="8">Brace x3</text>
+          </g>
+          <g transform="translate(342,202) rotate(3)">
+            <rect width="88" height="84" rx="3" fill="#0e1c22" stroke="#41d8ff"/>
+            <text x="7" y="16" fill="#41d8ff" font-size="12">2</text>
+            <text x="26" y="16" fill="#41d8ff">SIGHT</text>
+            <text x="7" y="36" fill="#b8e6c4" font-size="8">Next roll reads</text>
+            <text x="7" y="47" fill="#b8e6c4" font-size="8">3 higher.</text>
+          </g>
+          <g transform="translate(438,208) rotate(9)">
+            <rect width="88" height="84" rx="3" fill="#0e1c22" stroke="#41d8ff"/>
+            <text x="7" y="16" fill="#41d8ff" font-size="12">1</text>
+            <text x="26" y="16" fill="#41d8ff">VENT</text>
+            <text x="7" y="36" fill="#b8e6c4" font-size="8">Spend the wall</text>
+            <text x="7" y="47" fill="#b8e6c4" font-size="8">as damage.</text>
+          </g>
+        </g>
+        <g transform="translate(40,232)">
+          <polygon points="14,0 26,10 22,24 6,24 2,10" fill="none" stroke="#41d8ff" stroke-width="1.5"/>
+          <text x="38" y="20" fill="#b8e6c4" font-size="19">3</text>
+          <text x="52" y="20" fill="#5e8a6c" font-size="11">/3</text>
+        </g>
+        <g transform="translate(40,178)">
+          <rect width="90" height="10" fill="none" stroke="#5dff88"/>
+          <rect width="72" height="10" fill="#5dff88" opacity=".65"/>
+          <text x="98" y="9" fill="#5dff88" font-size="10">WALL 40</text>
+        </g>
+      </svg>
+    </div>
+    <div class="body">
+      <h3>THE FAN <span style="color:var(--dim);font-size:10px;letter-spacing:.1em">— WHAT WE HAVE</span></h3>
+      <p class="thesis">Dice and protocols as cards in an arc. Everything the engine already knows how to draw.</p>
+      <dl>
+        <dt>READS</dt><dd>Instantly. Everyone knows a hand.</dd>
+        <dt>COSTS</dt><dd class="cost">It is a lie about the object. Nothing here rolls.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- 2 THE RACK -->
+  <div class="mock">
+    <div class="art">
+      <svg viewBox="0 0 640 300" role="img" aria-label="Dice as cartridges seated in an ammunition belt">
+        <rect width="640" height="300" fill="#04080a"/>
+        <text x="20" y="34" fill="#5e8a6c" font-size="11" letter-spacing="2">THE RACK</text>
+        <rect x="60" y="150" width="520" height="106" fill="#0a1418" stroke="#2a7a46"/>
+        <g stroke="#2a7a46" opacity=".55">
+          <line x1="60" y1="176" x2="580" y2="176"/><line x1="60" y1="232" x2="580" y2="232"/>
+        </g>
+        <!-- cartridges -->
+        <g>
+          <g transform="translate(92,140)">
+            <path d="M0 26 L0 116 L52 116 L52 26 L26 4 Z" fill="#0e1c22" stroke="#ffb02e" stroke-width="1.6"/>
+            <text x="26" y="44" fill="#ffb02e" font-size="10" text-anchor="middle" letter-spacing="1">ATK</text>
+            <text x="26" y="62" fill="#ffb02e" font-size="18" text-anchor="middle">20</text>
+            <text x="26" y="80" fill="#5e8a6c" font-size="8" text-anchor="middle">2 cut</text>
+            <rect x="8" y="90" width="36" height="4" fill="#ffb02e" opacity=".8"/>
+            <rect x="8" y="98" width="14" height="4" fill="#ffb02e" opacity=".45"/>
+          </g>
+          <g transform="translate(168,140)">
+            <path d="M0 26 L0 116 L52 116 L52 26 L26 4 Z" fill="#0e1c22" stroke="#5dff88" stroke-width="1.6"/>
+            <text x="26" y="44" fill="#5dff88" font-size="10" text-anchor="middle" letter-spacing="1">GRD</text>
+            <text x="26" y="62" fill="#5dff88" font-size="18" text-anchor="middle">6</text>
+            <text x="26" y="80" fill="#5e8a6c" font-size="8" text-anchor="middle">3 cut</text>
+            <rect x="8" y="90" width="26" height="4" fill="#5dff88" opacity=".8"/>
+          </g>
+        </g>
+        <!-- protocol clips -->
+        <g transform="translate(280,166)">
+          <text x="0" y="-8" fill="#5e8a6c" font-size="9" letter-spacing="2">CLIPPED</text>
+          <g>
+            <rect x="0" y="0" width="86" height="26" rx="2" fill="#0e1c22" stroke="#41d8ff"/>
+            <text x="8" y="17" fill="#41d8ff" font-size="10">SIGHT</text>
+            <circle cx="70" cy="13" r="3" fill="#41d8ff"/><circle cx="79" cy="13" r="3" fill="#41d8ff"/>
+          </g>
+          <g transform="translate(0,32)">
+            <rect x="0" y="0" width="86" height="26" rx="2" fill="#0e1c22" stroke="#41d8ff"/>
+            <text x="8" y="17" fill="#41d8ff" font-size="10">VENT</text>
+            <circle cx="79" cy="13" r="3" fill="#41d8ff"/>
+          </g>
+          <g transform="translate(0,64)">
+            <rect x="0" y="0" width="86" height="26" rx="2" fill="#0e1c22" stroke="#41d8ff"/>
+            <text x="8" y="17" fill="#41d8ff" font-size="10">O'CLOCK</text>
+            <circle cx="79" cy="13" r="3" fill="#41d8ff"/>
+          </g>
+        </g>
+        <!-- rolls as loose rounds -->
+        <g transform="translate(400,176)">
+          <text x="0" y="-10" fill="#5e8a6c" font-size="9" letter-spacing="2">ROLLS</text>
+          <g fill="#ffb02e">
+            <rect x="0" y="0" width="12" height="30" rx="6"/>
+            <rect x="20" y="0" width="12" height="30" rx="6"/>
+            <rect x="40" y="0" width="12" height="30" rx="6"/>
+          </g>
+          <g transform="translate(0,46)">
+            <rect width="120" height="12" fill="none" stroke="#5dff88"/>
+            <rect width="96" height="12" fill="#5dff88" opacity=".6"/>
+            <text x="0" y="30" fill="#5dff88" font-size="10">WALL 40 BANKED</text>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <div class="body">
+      <h3>THE RACK</h3>
+      <p class="thesis">Dice seated as cartridges in a belt; protocols clip on beside them. Rolls are loose rounds you spend.</p>
+      <dl>
+        <dt>READS</dt><dd>Ammunition. Fits "Arsenal" better than anything else here.</dd>
+        <dt>COSTS</dt><dd class="cost">Face tables have nowhere to live — needs a second screen.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- 3 THUMB ARC -->
+  <div class="mock">
+    <div class="art">
+      <svg viewBox="0 0 640 300" role="img" aria-label="Radial thumb-reach control in the bottom corner">
+        <rect width="640" height="300" fill="#04080a"/>
+        <text x="20" y="34" fill="#5e8a6c" font-size="11" letter-spacing="2">THUMB ARC · PHONE</text>
+        <rect x="222" y="16" width="196" height="268" rx="14" fill="#0a1418" stroke="#2a7a46"/>
+        <text x="320" y="60" fill="#5e8a6c" font-size="10" text-anchor="middle">SCRAP HOUND 26</text>
+        <rect x="268" y="70" width="104" height="5" fill="#c86bff"/>
+        <path d="M410 284 A190 190 0 0 1 236 122" fill="none" stroke="#2a7a46" stroke-dasharray="3 4"/>
+        <g>
+          <circle cx="398" cy="196" r="25" fill="#0e1c22" stroke="#ffb02e" stroke-width="1.6"/>
+          <text x="398" y="194" fill="#ffb02e" font-size="10" text-anchor="middle">ATK</text>
+          <text x="398" y="207" fill="#5e8a6c" font-size="8" text-anchor="middle">d20</text>
+          <circle cx="352" cy="146" r="25" fill="#0e1c22" stroke="#5dff88" stroke-width="1.6"/>
+          <text x="352" y="144" fill="#5dff88" font-size="10" text-anchor="middle">GRD</text>
+          <text x="352" y="157" fill="#5e8a6c" font-size="8" text-anchor="middle">d6</text>
+          <circle cx="286" cy="118" r="19" fill="#0e1c22" stroke="#41d8ff"/>
+          <text x="286" y="122" fill="#41d8ff" font-size="8" text-anchor="middle">SIGHT</text>
+          <circle cx="242" cy="160" r="19" fill="#0e1c22" stroke="#41d8ff"/>
+          <text x="242" y="164" fill="#41d8ff" font-size="8" text-anchor="middle">VENT</text>
+        </g>
+        <g transform="translate(238,236)">
+          <circle cx="0" cy="0" r="22" fill="none" stroke="#5dff88" stroke-width="3" opacity=".28"/>
+          <path d="M0 -22 A22 22 0 0 1 19 11" fill="none" stroke="#5dff88" stroke-width="3"/>
+          <text x="0" y="4" fill="#5dff88" font-size="12" text-anchor="middle">40</text>
+        </g>
+        <g fill="#ffb02e" transform="translate(390,262)">
+          <circle cx="0" cy="0" r="4"/><circle cx="12" cy="0" r="4"/><circle cx="24" cy="0" r="4"/>
+        </g>
+        <text x="470" y="150" fill="#5e8a6c" font-size="10">everything within</text>
+        <text x="470" y="166" fill="#5e8a6c" font-size="10">one thumb sweep</text>
+        <text x="470" y="188" fill="#5dff88" font-size="10">wall = ring gauge</text>
+        <text x="470" y="204" fill="#ffb02e" font-size="10">rolls = three pips</text>
+      </svg>
+    </div>
+    <div class="body">
+      <h3>THUMB ARC</h3>
+      <p class="thesis">Everything on one swept arc in the corner. Wall is a ring gauge, rolls are three pips.</p>
+      <dl>
+        <dt>READS</dt><dd>Best one-handed play of the ten. Nothing is ever occluded.</dd>
+        <dt>COSTS</dt><dd class="cost">Only fits ~6 things. The rack cannot grow.</dd>
+      </dl>
+    </div>
+  </div>
+</div>
+
+<h2>ORGANISED AS THE DIE'S GEOMETRY</h2>
+<p class="grouping">The face table <em>is</em> the interface. These make where-you-cut visible during the
+fight rather than on a separate screen — which is the one thing the current UI cannot do at all.</p>
+
+<div class="grid">
+
+  <!-- 4 THE RIBBON -->
+  <div class="mock">
+    <div class="art">
+      <svg viewBox="0 0 640 300" role="img" aria-label="The die unrolled into a horizontal strip of twenty faces">
+        <rect width="640" height="300" fill="#04080a"/>
+        <text x="20" y="30" fill="#ffb02e" font-size="11" letter-spacing="2">ATTACK · UNROLLED</text>
+        <g>
+          <!-- band underlay -->
+          <rect x="20" y="46" width="88" height="6" fill="#ff4a5e" opacity=".55"/>
+          <rect x="108" y="46" width="150" height="6" fill="#5e8a6c" opacity=".55"/>
+          <rect x="258" y="46" width="180" height="6" fill="#5dff88" opacity=".45"/>
+          <rect x="438" y="46" width="180" height="6" fill="#ffb02e" opacity=".6"/>
+          <text x="24" y="42" fill="#ff4a5e" font-size="8">JAM</text>
+          <text x="112" y="42" fill="#5e8a6c" font-size="8">SCRAPE</text>
+          <text x="262" y="42" fill="#5dff88" font-size="8">HIT</text>
+          <text x="442" y="42" fill="#ffb02e" font-size="8">SOLID</text>
+        </g>
+        <!-- 20 cells drawn explicitly -->
+        <g font-size="9" text-anchor="middle">
+          <g><rect x="20" y="58" width="28" height="46" fill="#0e1c22" stroke="#2a7a46"/><text x="34" y="86" fill="#5e8a6c">1</text></g>
+          <g><rect x="50" y="58" width="28" height="46" fill="#0e1c22" stroke="#2a7a46"/><text x="64" y="86" fill="#5e8a6c">2</text></g>
+          <g><rect x="80" y="58" width="28" height="46" fill="#0e1c22" stroke="#2a7a46"/><text x="94" y="86" fill="#5e8a6c">3</text></g>
+          <g><rect x="110" y="58" width="28" height="46" fill="#0e1c22" stroke="#2a7a46"/><text x="124" y="86" fill="#5e8a6c">4</text></g>
+          <g><rect x="140" y="58" width="28" height="46" fill="#0e1c22" stroke="#2a7a46"/><text x="154" y="86" fill="#5e8a6c">5</text></g>
+          <g><rect x="170" y="58" width="28" height="46" fill="#0e1c22" stroke="#2a7a46"/><text x="184" y="86" fill="#5e8a6c">6</text></g>
+          <g><rect x="200" y="58" width="28" height="46" fill="#0e1c22" stroke="#2a7a46"/><text x="214" y="86" fill="#5e8a6c">7</text></g>
+          <g><rect x="230" y="58" width="28" height="46" fill="#0e1c22" stroke="#2a7a46"/><text x="244" y="86" fill="#5e8a6c">8</text></g>
+          <g><rect x="260" y="58" width="28" height="46" fill="#0e1c22" stroke="#2a7a46"/><text x="274" y="86" fill="#5e8a6c">9</text></g>
+          <g><rect x="290" y="58" width="28" height="46" fill="#0e1c22" stroke="#2a7a46"/><text x="304" y="86" fill="#5e8a6c">10</text></g>
+          <g><rect x="320" y="58" width="28" height="46" fill="#0e1c22" stroke="#2a7a46"/><text x="334" y="86" fill="#5e8a6c">11</text></g>
+          <g><rect x="350" y="58" width="28" height="46" fill="#0e1c22" stroke="#2a7a46"/><text x="364" y="86" fill="#5e8a6c">12</text></g>
+          <g><rect x="380" y="58" width="28" height="46" fill="#0e1c22" stroke="#2a7a46"/><text x="394" y="86" fill="#5e8a6c">13</text></g>
+          <g><rect x="410" y="58" width="28" height="46" fill="#0e1c22" stroke="#2a7a46"/><text x="424" y="86" fill="#5e8a6c">14</text></g>
+          <g><rect x="440" y="58" width="28" height="46" fill="#0e1c22" stroke="#2a7a46"/><text x="454" y="86" fill="#5e8a6c">15</text></g>
+          <g><rect x="470" y="58" width="28" height="46" fill="#0e1c22" stroke="#2a7a46"/><text x="484" y="86" fill="#5e8a6c">16</text></g>
+          <g><rect x="500" y="58" width="28" height="46" fill="#0e1c22" stroke="#2a7a46"/><text x="514" y="86" fill="#5e8a6c">17</text></g>
+          <g><rect x="530" y="58" width="28" height="46" fill="#1a1206" stroke="#ffb02e" stroke-width="1.6"/><text x="544" y="80" fill="#ffb02e">18</text><text x="544" y="96" fill="#ffb02e" font-size="7">BRCH</text></g>
+          <g><rect x="560" y="58" width="28" height="46" fill="#1a1206" stroke="#ffb02e" stroke-width="1.6"/><text x="574" y="80" fill="#ffb02e">19</text><text x="574" y="96" fill="#ffb02e" font-size="7">EXEC</text></g>
+          <g><rect x="590" y="58" width="28" height="46" fill="#0e1c22" stroke="#2a7a46"/><text x="604" y="86" fill="#5e8a6c">20</text></g>
+        </g>
+        <!-- last landing -->
+        <polygon points="424,112 418,124 430,124" fill="#41d8ff"/>
+        <text x="424" y="140" fill="#41d8ff" font-size="9" text-anchor="middle">LANDED 14</text>
+        <text x="20" y="180" fill="#5dff88" font-size="11" letter-spacing="2">GUARD · UNROLLED</text>
+        <g font-size="10" text-anchor="middle">
+          <g><rect x="20" y="192" width="52" height="44" fill="#05170c" stroke="#5dff88" stroke-width="1.6"/><text x="46" y="214" fill="#5dff88">1</text><text x="46" y="228" fill="#5dff88" font-size="7">BRACE</text></g>
+          <g><rect x="76" y="192" width="52" height="44" fill="#0e1c22" stroke="#2a7a46"/><text x="102" y="218" fill="#5e8a6c">2</text></g>
+          <g><rect x="132" y="192" width="52" height="44" fill="#05170c" stroke="#5dff88" stroke-width="1.6"/><text x="158" y="214" fill="#5dff88">3</text><text x="158" y="228" fill="#5dff88" font-size="7">BRACE</text></g>
+          <g><rect x="188" y="192" width="52" height="44" fill="#0e1c22" stroke="#2a7a46"/><text x="214" y="218" fill="#5e8a6c">4</text></g>
+          <g><rect x="244" y="192" width="52" height="44" fill="#05170c" stroke="#5dff88" stroke-width="1.6"/><text x="270" y="214" fill="#5dff88">5</text><text x="270" y="228" fill="#5dff88" font-size="7">BRACE</text></g>
+          <g><rect x="300" y="192" width="52" height="44" fill="#0e1c22" stroke="#2a7a46"/><text x="326" y="218" fill="#5e8a6c">6</text></g>
+        </g>
+        <g transform="translate(390,196)">
+          <rect width="150" height="14" fill="none" stroke="#5dff88"/>
+          <rect width="120" height="14" fill="#5dff88" opacity=".55"/>
+          <text x="0" y="32" fill="#5dff88" font-size="11">WALL 40 BANKED</text>
+        </g>
+        <g fill="#ffb02e" transform="translate(390,254)">
+          <circle cx="6" cy="0" r="5"/><circle cx="24" cy="0" r="5"/><circle cx="42" cy="0" r="5"/>
+          <text x="60" y="4" fill="#5e8a6c" font-size="10">ROLLS</text>
+        </g>
+      </svg>
+    </div>
+    <div class="body">
+      <h3>THE RIBBON</h3>
+      <p class="thesis">Both dice unrolled into strips. Bands are a coloured underlay; cut faces glow; a marker shows where you landed.</p>
+      <dl>
+        <dt>READS</dt><dd>Your build, during the fight. The only mock that shows density.</dd>
+        <dt>COSTS</dt><dd class="cost">Wide. Eats the bottom third and fights the enemy art.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- 5 THE ROTOR -->
+  <div class="mock">
+    <div class="art">
+      <svg viewBox="0 0 640 300" role="img" aria-label="A marker travelling around a ring of twenty faces">
+        <rect width="640" height="300" fill="#04080a"/>
+        <text x="20" y="30" fill="#5e8a6c" font-size="11" letter-spacing="2">THE ROTOR · POSITION, NOT OUTCOME</text>
+        <g transform="translate(200,168)">
+          <circle r="104" fill="none" stroke="#2a7a46"/>
+          <circle r="86" fill="none" stroke="#2a7a46" opacity=".45"/>
+          <!-- travel arc from 8 to 14 -->
+          <path d="M -95.6 41.1 A 104 104 0 0 1 -32.1 -99.0" fill="none" stroke="#41d8ff" stroke-width="7" opacity=".35"/>
+          <g stroke="#2a7a46">
+            <line x1="0" y1="-104" x2="0" y2="-90"/><line x1="32.1" y1="-99" x2="27.8" y2="-85.7"/>
+            <line x1="61.1" y1="-84.1" x2="52.9" y2="-72.9"/><line x1="83.9" y1="-61.1" x2="72.7" y2="-52.9"/>
+            <line x1="98.9" y1="-32.1" x2="85.7" y2="-27.8"/><line x1="104" y1="0" x2="90" y2="0"/>
+            <line x1="98.9" y1="32.1" x2="85.7" y2="27.8"/><line x1="83.9" y1="61.1" x2="72.7" y2="52.9"/>
+            <line x1="61.1" y1="84.1" x2="52.9" y2="72.9"/><line x1="32.1" y1="99" x2="27.8" y2="85.7"/>
+            <line x1="0" y1="104" x2="0" y2="90"/><line x1="-32.1" y1="99" x2="-27.8" y2="85.7"/>
+            <line x1="-61.1" y1="84.1" x2="-52.9" y2="72.9"/><line x1="-83.9" y1="61.1" x2="-72.7" y2="52.9"/>
+            <line x1="-98.9" y1="32.1" x2="-85.7" y2="27.8"/><line x1="-104" y1="0" x2="-90" y2="0"/>
+            <line x1="-98.9" y1="-32.1" x2="-85.7" y2="-27.8"/><line x1="-83.9" y1="-61.1" x2="-72.7" y2="-52.9"/>
+            <line x1="-61.1" y1="-84.1" x2="-52.9" y2="-72.9"/><line x1="-32.1" y1="-99" x2="-27.8" y2="-85.7"/>
+          </g>
+          <!-- engraved faces -->
+          <circle cx="27.8" cy="-85.7" r="6" fill="#ffb02e"/>
+          <circle cx="52.9" cy="-72.9" r="6" fill="#ffb02e"/>
+          <text x="40" y="-104" fill="#ffb02e" font-size="9" text-anchor="middle">18 · 19</text>
+          <!-- pointer -->
+          <line x1="0" y1="0" x2="-32.1" y2="-99" stroke="#41d8ff" stroke-width="2"/>
+          <circle r="6" fill="#41d8ff"/>
+          <text x="-56" y="-108" fill="#41d8ff" font-size="10">HERE 14</text>
+          <text x="-116" y="52" fill="#5e8a6c" font-size="9">was 8</text>
+        </g>
+        <g transform="translate(360,86)">
+          <text x="0" y="0" fill="#b8e6c4" font-size="12">You do not roll fresh.</text>
+          <text x="0" y="20" fill="#b8e6c4" font-size="12">You roll how FAR you</text>
+          <text x="0" y="40" fill="#b8e6c4" font-size="12">travel, and everything</text>
+          <text x="0" y="60" fill="#b8e6c4" font-size="12">you cross fires.</text>
+          <text x="0" y="92" fill="#41d8ff" font-size="11">rolled 6 · crossed 9→14</text>
+          <text x="0" y="110" fill="#5e8a6c" font-size="11">2 engraved faces hit</text>
+        </g>
+        <g transform="translate(360,204)">
+          <rect width="150" height="14" fill="none" stroke="#5dff88"/>
+          <rect width="120" height="14" fill="#5dff88" opacity=".55"/>
+          <text x="0" y="32" fill="#5dff88" font-size="11">WALL 40</text>
+          <g fill="#ffb02e" transform="translate(6,52)">
+            <circle cx="0" cy="0" r="5"/><circle cx="18" cy="0" r="5"/><circle cx="36" cy="0" r="5"/>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <div class="body">
+      <h3>THE ROTOR</h3>
+      <p class="thesis">A marker lives on the ring. You roll how far it travels, and everything it crosses fires.</p>
+      <dl>
+        <dt>READS</dt><dd>You always know where you start, so density becomes strategy.</dd>
+        <dt>COSTS</dt><dd class="cost">A rules change, not a reskin. Biggest build on this page.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- 6 THE WHEEL -->
+  <div class="mock">
+    <div class="art">
+      <svg viewBox="0 0 640 300" role="img" aria-label="A roulette-style wheel of faces coloured by band">
+        <rect width="640" height="300" fill="#04080a"/>
+        <text x="20" y="30" fill="#5e8a6c" font-size="11" letter-spacing="2">THE WHEEL</text>
+        <g transform="translate(180,166)">
+          <circle r="116" fill="#0a1418" stroke="#2a7a46"/>
+          <!-- band wedges -->
+          <path d="M0 0 L 0 -116 A116 116 0 0 1 110.3 -35.8 Z" fill="#ffb02e" opacity=".22"/>
+          <path d="M0 0 L 110.3 -35.8 A116 116 0 0 1 68.2 93.8 Z" fill="#5dff88" opacity=".18"/>
+          <path d="M0 0 L 68.2 93.8 A116 116 0 0 1 -68.2 93.8 Z" fill="#5e8a6c" opacity=".18"/>
+          <path d="M0 0 L -68.2 93.8 A116 116 0 0 1 -110.3 -35.8 Z" fill="#5e8a6c" opacity=".1"/>
+          <path d="M0 0 L -110.3 -35.8 A116 116 0 0 1 0 -116 Z" fill="#ff4a5e" opacity=".2"/>
+          <circle r="72" fill="#04080a" stroke="#2a7a46"/>
+          <text y="-6" fill="#ffb02e" font-size="30" text-anchor="middle">19</text>
+          <text y="14" fill="#ffb02e" font-size="10" text-anchor="middle" letter-spacing="1">SOLID</text>
+          <text y="32" fill="#b8e6c4" font-size="9" text-anchor="middle">Executioner's Mark</text>
+          <g font-size="10" fill="#5e8a6c" text-anchor="middle">
+            <text x="0" y="-96">20</text><text x="60" y="-72">2</text><text x="94" y="-24">5</text>
+            <text x="90" y="38">8</text><text x="52" y="82">11</text><text x="0" y="102">13</text>
+            <text x="-52" y="82">15</text><text x="-90" y="38">16</text><text x="-94" y="-24">17</text>
+            <text x="-60" y="-72">18</text>
+          </g>
+          <circle cx="27.8" cy="-85.7" r="5" fill="#ffb02e"/>
+          <circle cx="-27.8" cy="-85.7" r="5" fill="#ffb02e"/>
+          <polygon points="0,-128 -8,-142 8,-142" fill="#41d8ff"/>
+        </g>
+        <g transform="translate(340,96)">
+          <text fill="#5dff88" font-size="11" letter-spacing="2">GUARD</text>
+          <g transform="translate(0,14)">
+            <circle cx="26" cy="26" r="26" fill="#0a1418" stroke="#5dff88"/>
+            <text x="26" y="24" fill="#5dff88" font-size="18" text-anchor="middle">3</text>
+            <text x="26" y="38" fill="#5dff88" font-size="7" text-anchor="middle">BRACE</text>
+          </g>
+          <text x="70" y="46" fill="#5e8a6c" font-size="10">3 of 6 cut</text>
+        </g>
+        <g transform="translate(340,190)">
+          <rect width="160" height="16" fill="none" stroke="#5dff88"/>
+          <rect width="128" height="16" fill="#5dff88" opacity=".55"/>
+          <text x="0" y="34" fill="#5dff88" font-size="11">WALL 40 · VENT READY</text>
+          <g fill="#ffb02e" transform="translate(6,56)">
+            <circle cx="0" cy="0" r="5"/><circle cx="18" cy="0" r="5"/><circle cx="36" cy="0" r="5"/>
+            <text x="56" y="4" fill="#5e8a6c" font-size="10">ROLLS</text>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <div class="body">
+      <h3>THE WHEEL</h3>
+      <p class="thesis">The face table as a wheel, wedged by band. The centre reads out what you landed on.</p>
+      <dl>
+        <dt>READS</dt><dd>Bands become spatial — you feel the odds instead of learning them.</dd>
+        <dt>COSTS</dt><dd class="cost">Circles are expensive on screen. Two of them is most of a phone.</dd>
+      </dl>
+    </div>
+  </div>
+</div>
+
+<h2>ORGANISED AS A MACHINE</h2>
+<p class="grouping">The fiction does the work. You are not holding a hand, you are operating a weapon —
+which is what the class is actually called.</p>
+
+<div class="grid">
+
+  <!-- 7 GUN SCHEMATIC -->
+  <div class="mock">
+    <div class="art">
+      <svg viewBox="0 0 640 300" role="img" aria-label="Exploded weapon schematic with dice as components">
+        <rect width="640" height="300" fill="#04080a"/>
+        <text x="20" y="30" fill="#5e8a6c" font-size="11" letter-spacing="2">SCHEMATIC · FIG. 1</text>
+        <g stroke="#2a7a46" opacity=".3">
+          <line x1="0" y1="150" x2="640" y2="150" stroke-dasharray="2 8"/>
+        </g>
+        <!-- barrel = attack die -->
+        <g transform="translate(120,110)">
+          <rect width="300" height="34" fill="#0e1c22" stroke="#ffb02e" stroke-width="1.6"/>
+          <rect x="300" width="52" height="34" fill="#0e1c22" stroke="#ffb02e" stroke-width="1.6"/>
+          <g stroke="#2a7a46">
+            <line x1="30" y1="0" x2="30" y2="34"/><line x1="60" y1="0" x2="60" y2="34"/>
+            <line x1="90" y1="0" x2="90" y2="34"/><line x1="120" y1="0" x2="120" y2="34"/>
+            <line x1="150" y1="0" x2="150" y2="34"/><line x1="180" y1="0" x2="180" y2="34"/>
+            <line x1="210" y1="0" x2="210" y2="34"/><line x1="240" y1="0" x2="240" y2="34"/>
+            <line x1="270" y1="0" x2="270" y2="34"/>
+          </g>
+          <rect x="240" y="2" width="30" height="30" fill="#ffb02e" opacity=".35"/>
+          <rect x="270" y="2" width="30" height="30" fill="#ffb02e" opacity=".5"/>
+          <text x="-8" y="22" fill="#ffb02e" font-size="10" text-anchor="end">ATTACK</text>
+          <line x1="255" y1="0" x2="255" y2="-26" stroke="#ffb02e"/>
+          <text x="255" y="-32" fill="#ffb02e" font-size="9" text-anchor="middle">BREACH · 18</text>
+          <line x1="285" y1="34" x2="285" y2="60" stroke="#ffb02e"/>
+          <text x="285" y="72" fill="#ffb02e" font-size="9" text-anchor="middle">EXEC. MARK · 19</text>
+        </g>
+        <!-- plate = guard -->
+        <g transform="translate(120,186)">
+          <path d="M0 0 L120 0 L132 17 L120 34 L0 34 Z" fill="#0e1c22" stroke="#5dff88" stroke-width="1.6"/>
+          <g stroke="#5dff88" opacity=".8"><rect x="8" y="6" width="16" height="22"/><rect x="48" y="6" width="16" height="22"/><rect x="88" y="6" width="16" height="22"/></g>
+          <g stroke="#2a7a46"><rect x="28" y="6" width="16" height="22"/><rect x="68" y="6" width="16" height="22"/><rect x="108" y="6" width="16" height="22"/></g>
+          <text x="-8" y="22" fill="#5dff88" font-size="10" text-anchor="end">GUARD</text>
+          <text x="146" y="22" fill="#5dff88" font-size="10">WALL 40</text>
+        </g>
+        <!-- rail attachments -->
+        <g transform="translate(430,110)">
+          <text x="0" y="-10" fill="#41d8ff" font-size="9" letter-spacing="2">RAIL</text>
+          <g><rect width="72" height="22" fill="#0e1c22" stroke="#41d8ff"/><text x="6" y="15" fill="#41d8ff" font-size="9">SIGHT ··</text></g>
+          <g transform="translate(0,28)"><rect width="72" height="22" fill="#0e1c22" stroke="#41d8ff"/><text x="6" y="15" fill="#41d8ff" font-size="9">VENT ·</text></g>
+          <g transform="translate(0,56)"><rect width="72" height="22" fill="#0e1c22" stroke="#41d8ff"/><text x="6" y="15" fill="#41d8ff" font-size="9">O'CLK ·</text></g>
+        </g>
+        <g transform="translate(524,110)">
+          <text x="0" y="-10" fill="#5e8a6c" font-size="9" letter-spacing="2">CHARGE</text>
+          <rect width="26" height="78" fill="none" stroke="#ffb02e"/>
+          <rect y="26" width="26" height="52" fill="#ffb02e" opacity=".55"/>
+          <text x="13" y="96" fill="#ffb02e" font-size="11" text-anchor="middle">3</text>
+        </g>
+      </svg>
+    </div>
+    <div class="body">
+      <h3>GUN SCHEMATIC</h3>
+      <p class="thesis">Barrel is the d20, its cut faces marked along the bore. Guard is a plate. Protocols clip to a rail.</p>
+      <dl>
+        <dt>READS</dt><dd>Strongest fiction of the ten. Engraving becomes gunsmithing, literally.</dd>
+        <dt>COSTS</dt><dd class="cost">A 20-segment bore is small. Cramped below tablet size.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- 8 THE CONSOLE -->
+  <div class="mock">
+    <div class="art">
+      <svg viewBox="0 0 640 300" role="img" aria-label="Instrument panel with gauges and toggles">
+        <rect width="640" height="300" fill="#04080a"/>
+        <rect x="16" y="52" width="608" height="228" rx="3" fill="#0a1418" stroke="#2a7a46"/>
+        <text x="20" y="34" fill="#5e8a6c" font-size="11" letter-spacing="2">CONSOLE</text>
+        <!-- attack gauge -->
+        <g transform="translate(112,150)">
+          <circle r="58" fill="#04080a" stroke="#ffb02e"/>
+          <path d="M -41 41 A58 58 0 1 1 41 41" fill="none" stroke="#2a7a46" stroke-width="6"/>
+          <path d="M -41 41 A58 58 0 0 1 -14 -56" fill="none" stroke="#ffb02e" stroke-width="6"/>
+          <line x1="0" y1="0" x2="34" y2="-46" stroke="#41d8ff" stroke-width="2"/>
+          <circle r="4" fill="#41d8ff"/>
+          <text y="34" fill="#ffb02e" font-size="10" text-anchor="middle">ATTACK d20</text>
+          <text y="-24" fill="#5e8a6c" font-size="8" text-anchor="middle">2 CUT</text>
+        </g>
+        <!-- guard gauge -->
+        <g transform="translate(250,150)">
+          <circle r="46" fill="#04080a" stroke="#5dff88"/>
+          <path d="M -32.5 32.5 A46 46 0 1 1 32.5 32.5" fill="none" stroke="#2a7a46" stroke-width="6"/>
+          <path d="M -32.5 32.5 A46 46 0 0 1 6 -45.6" fill="none" stroke="#5dff88" stroke-width="6"/>
+          <line x1="0" y1="0" x2="-24" y2="-34" stroke="#41d8ff" stroke-width="2"/>
+          <circle r="3.5" fill="#41d8ff"/>
+          <text y="30" fill="#5dff88" font-size="10" text-anchor="middle">GUARD d6</text>
+        </g>
+        <!-- wall pressure -->
+        <g transform="translate(330,92)">
+          <text x="0" y="0" fill="#5dff88" font-size="9" letter-spacing="2">WALL PRESSURE</text>
+          <rect y="8" width="180" height="20" fill="none" stroke="#5dff88"/>
+          <rect y="8" width="144" height="20" fill="#5dff88" opacity=".5"/>
+          <g stroke="#04080a"><line x1="36" y1="8" x2="36" y2="28"/><line x1="72" y1="8" x2="72" y2="28"/><line x1="108" y1="8" x2="108" y2="28"/><line x1="144" y1="8" x2="144" y2="28"/></g>
+          <text x="188" y="24" fill="#5dff88" font-size="13">40</text>
+        </g>
+        <!-- toggles -->
+        <g transform="translate(330,140)">
+          <text x="0" y="0" fill="#41d8ff" font-size="9" letter-spacing="2">PROTOCOL</text>
+          <g transform="translate(0,10)">
+            <rect width="60" height="30" rx="2" fill="#0e1c22" stroke="#41d8ff"/>
+            <rect x="4" y="4" width="24" height="22" fill="#41d8ff" opacity=".7"/>
+            <text x="6" y="44" fill="#41d8ff" font-size="8">SIGHT 2</text>
+          </g>
+          <g transform="translate(70,10)">
+            <rect width="60" height="30" rx="2" fill="#0e1c22" stroke="#41d8ff"/>
+            <rect x="4" y="4" width="24" height="22" fill="#41d8ff" opacity=".7"/>
+            <text x="6" y="44" fill="#41d8ff" font-size="8">VENT 1</text>
+          </g>
+          <g transform="translate(140,10)">
+            <rect width="60" height="30" rx="2" fill="#0e1c22" stroke="#41d8ff"/>
+            <rect x="4" y="4" width="24" height="22" fill="#41d8ff" opacity=".7"/>
+            <text x="6" y="44" fill="#41d8ff" font-size="8">O'CLK 1</text>
+          </g>
+        </g>
+        <!-- roll counter as segments -->
+        <g transform="translate(330,214)">
+          <text x="0" y="0" fill="#ffb02e" font-size="9" letter-spacing="2">ROLLS</text>
+          <g fill="#ffb02e">
+            <rect y="8" width="26" height="34"/><rect x="34" y="8" width="26" height="34"/><rect x="68" y="8" width="26" height="34"/>
+          </g>
+          <rect x="102" y="8" width="26" height="34" fill="none" stroke="#2a7a46"/>
+        </g>
+        <g transform="translate(520,150)">
+          <circle r="34" fill="#0e1c22" stroke="#ff4a5e"/>
+          <text y="-2" fill="#ff4a5e" font-size="11" text-anchor="middle">END</text>
+          <text y="12" fill="#ff4a5e" font-size="11" text-anchor="middle">TURN</text>
+        </g>
+      </svg>
+    </div>
+    <div class="body">
+      <h3>THE CONSOLE</h3>
+      <p class="thesis">Gauges, a pressure bar and physical toggles. Every value has a dial instead of a number.</p>
+      <dl>
+        <dt>READS</dt><dd>State at a glance. Wall as pressure is the best metaphor here.</dd>
+        <dt>COSTS</dt><dd class="cost">Cold. You are reading instruments, not making a decision.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- 9 THE BENCH -->
+  <div class="mock">
+    <div class="art">
+      <svg viewBox="0 0 640 300" role="img" aria-label="Top-down workbench with dice and their blueprints">
+        <rect width="640" height="300" fill="#04080a"/>
+        <rect x="16" y="44" width="608" height="240" fill="#07100e" stroke="#2a7a46"/>
+        <g stroke="#2a7a46" opacity=".22">
+          <line x1="16" y1="104" x2="624" y2="104"/><line x1="16" y1="164" x2="624" y2="164"/>
+          <line x1="16" y1="224" x2="624" y2="224"/><line x1="200" y1="44" x2="200" y2="284"/>
+          <line x1="420" y1="44" x2="420" y2="284"/>
+        </g>
+        <text x="20" y="34" fill="#5e8a6c" font-size="11" letter-spacing="2">THE BENCH · TOP DOWN</text>
+        <!-- attack die object -->
+        <g transform="translate(104,142)">
+          <polygon points="0,-46 40,-23 40,23 0,46 -40,23 -40,-23" fill="#0e1c22" stroke="#ffb02e" stroke-width="1.6"/>
+          <polygon points="0,-46 40,23 -40,23" fill="none" stroke="#ffb02e" opacity=".5"/>
+          <text y="6" fill="#ffb02e" font-size="17" text-anchor="middle">d20</text>
+          <text y="66" fill="#ffb02e" font-size="10" text-anchor="middle" letter-spacing="1">ATTACK</text>
+        </g>
+        <!-- its blueprint -->
+        <g transform="translate(212,86)" font-size="9">
+          <text fill="#5e8a6c" letter-spacing="2">FACES CUT</text>
+          <g transform="translate(0,12)">
+            <rect width="180" height="22" fill="none" stroke="#2a7a46"/>
+            <text x="6" y="15" fill="#ffb02e">18 · BREACH</text>
+            <text x="118" y="15" fill="#5e8a6c">spend wall</text>
+          </g>
+          <g transform="translate(0,38)">
+            <rect width="180" height="22" fill="none" stroke="#2a7a46"/>
+            <text x="6" y="15" fill="#ffb02e">19 · EXEC MARK</text>
+          </g>
+          <g transform="translate(0,64)">
+            <rect width="180" height="22" fill="none" stroke="#2a7a46" stroke-dasharray="3 3"/>
+            <text x="6" y="15" fill="#5e8a6c">18 bare faces</text>
+          </g>
+        </g>
+        <!-- guard die object -->
+        <g transform="translate(104,232)">
+          <rect x="-30" y="-30" width="60" height="60" rx="6" fill="#0e1c22" stroke="#5dff88" stroke-width="1.6"/>
+          <g fill="#5dff88"><circle cx="-13" cy="-13" r="4"/><circle cx="13" cy="-13" r="4"/><circle cx="0" cy="0" r="4"/><circle cx="-13" cy="13" r="4"/><circle cx="13" cy="13" r="4"/></g>
+          <text y="48" fill="#5dff88" font-size="10" text-anchor="middle" letter-spacing="1">GUARD</text>
+        </g>
+        <g transform="translate(212,206)" font-size="9">
+          <text fill="#5e8a6c" letter-spacing="2">FACES CUT</text>
+          <g transform="translate(0,12)">
+            <rect width="180" height="22" fill="none" stroke="#2a7a46"/>
+            <text x="6" y="15" fill="#5dff88">1 · 3 · 5  BRACE</text>
+            <text x="126" y="15" fill="#5e8a6c">+30 wall</text>
+          </g>
+          <g transform="translate(0,38)">
+            <rect width="180" height="22" fill="none" stroke="#2a7a46" stroke-dasharray="3 3"/>
+            <text x="6" y="15" fill="#5e8a6c">2 · 4 · 6  bare</text>
+          </g>
+        </g>
+        <!-- tools -->
+        <g transform="translate(438,86)">
+          <text fill="#41d8ff" font-size="9" letter-spacing="2">TOOLS</text>
+          <g transform="translate(0,14)"><rect width="20" height="54" rx="3" fill="#0e1c22" stroke="#41d8ff"/><text x="10" y="32" fill="#41d8ff" font-size="8" text-anchor="middle" transform="rotate(-90 10 32)">SIGHT</text></g>
+          <g transform="translate(28,14)"><rect width="20" height="54" rx="3" fill="#0e1c22" stroke="#41d8ff"/><text x="10" y="32" fill="#41d8ff" font-size="8" text-anchor="middle" transform="rotate(-90 10 32)">VENT</text></g>
+          <g transform="translate(56,14)"><rect width="20" height="54" rx="3" fill="#0e1c22" stroke="#41d8ff"/><text x="10" y="32" fill="#41d8ff" font-size="8" text-anchor="middle" transform="rotate(-90 10 32)">O'CLK</text></g>
+        </g>
+        <g transform="translate(438,196)">
+          <text fill="#5dff88" font-size="9" letter-spacing="2">BANKED</text>
+          <rect y="10" width="150" height="18" fill="none" stroke="#5dff88"/>
+          <rect y="10" width="120" height="18" fill="#5dff88" opacity=".5"/>
+          <text x="0" y="46" fill="#5dff88" font-size="12">WALL 40</text>
+          <g fill="#ffb02e" transform="translate(6,64)">
+            <circle cx="0" cy="0" r="5"/><circle cx="18" cy="0" r="5"/><circle cx="36" cy="0" r="5"/>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <div class="body">
+      <h3>THE BENCH</h3>
+      <p class="thesis">Top-down. Real objects on a work surface, each with its face table written out beside it like a spec sheet.</p>
+      <dl>
+        <dt>READS</dt><dd>Calm and complete. Nothing hidden behind a second screen.</dd>
+        <dt>COSTS</dt><dd class="cost">Static. It looks like an inventory, not a fight.</dd>
+      </dl>
+    </div>
+  </div>
+
+  <!-- 10 THE TRAY -->
+  <div class="mock">
+    <div class="art">
+      <svg viewBox="0 0 640 300" role="img" aria-label="Physical dice sitting in a felt tray at the bottom of the screen">
+        <rect width="640" height="300" fill="#04080a"/>
+        <text x="20" y="30" fill="#5e8a6c" font-size="11" letter-spacing="2">THE TRAY</text>
+        <polygon points="300,58 322,94 278,94" fill="none" stroke="#c86bff" stroke-width="1.5"/>
+        <rect x="262" y="104" width="76" height="4" fill="#c86bff"/>
+        <!-- tray -->
+        <path d="M60 300 L96 176 L544 176 L580 300 Z" fill="#07120f" stroke="#2a7a46"/>
+        <path d="M96 176 L544 176" stroke="#2a7a46" opacity=".5"/>
+        <text x="320" y="196" fill="#5e8a6c" font-size="9" text-anchor="middle" letter-spacing="3">LIFT AND THROW</text>
+        <!-- attack d20 -->
+        <g transform="translate(216,250)">
+          <polygon points="0,-42 36,-21 36,21 0,42 -36,21 -36,-21" fill="#12100a" stroke="#ffb02e" stroke-width="2"/>
+          <polygon points="0,-42 36,21 -36,21" fill="#ffb02e" fill-opacity=".1" stroke="#ffb02e" stroke-opacity=".55"/>
+          <text y="8" fill="#ffb02e" font-size="24" text-anchor="middle">19</text>
+          <text y="60" fill="#ffb02e" font-size="9" text-anchor="middle" letter-spacing="1">ATTACK</text>
+        </g>
+        <!-- guard d6 -->
+        <g transform="translate(360,254)">
+          <rect x="-32" y="-32" width="64" height="64" rx="7" fill="#08150d" stroke="#5dff88" stroke-width="2"/>
+          <g fill="#5dff88"><circle cx="-14" cy="-14" r="4.5"/><circle cx="14" cy="14" r="4.5"/><circle cx="0" cy="0" r="4.5"/></g>
+          <text y="54" fill="#5dff88" font-size="9" text-anchor="middle" letter-spacing="1">GUARD</text>
+        </g>
+        <!-- protocol chips -->
+        <g transform="translate(452,232)">
+          <g><ellipse cx="0" cy="0" rx="26" ry="9" fill="#0e1c22" stroke="#41d8ff"/><text y="3" fill="#41d8ff" font-size="8" text-anchor="middle">SIGHT</text></g>
+          <g transform="translate(0,16)"><ellipse cx="0" cy="0" rx="26" ry="9" fill="#0e1c22" stroke="#41d8ff"/><text y="3" fill="#41d8ff" font-size="8" text-anchor="middle">VENT</text></g>
+          <g transform="translate(0,32)"><ellipse cx="0" cy="0" rx="26" ry="9" fill="#0e1c22" stroke="#41d8ff"/><text y="3" fill="#41d8ff" font-size="8" text-anchor="middle">O'CLK</text></g>
+        </g>
+        <!-- wall as stacked chips -->
+        <g transform="translate(128,236)">
+          <g stroke="#5dff88" fill="#0e1c22">
+            <ellipse cx="0" cy="34" rx="24" ry="8"/><ellipse cx="0" cy="26" rx="24" ry="8"/>
+            <ellipse cx="0" cy="18" rx="24" ry="8"/><ellipse cx="0" cy="10" rx="24" ry="8"/>
+          </g>
+          <text y="-4" fill="#5dff88" font-size="10" text-anchor="middle">WALL 40</text>
+        </g>
+        <g fill="#ffb02e" transform="translate(520,214)">
+          <circle cx="0" cy="0" r="5"/><circle cx="0" cy="16" r="5"/><circle cx="0" cy="32" r="5"/>
+          <text x="-16" y="-12" fill="#5e8a6c" font-size="9">ROLLS</text>
+        </g>
+      </svg>
+    </div>
+    <div class="body">
+      <h3>THE TRAY</h3>
+      <p class="thesis">Actual dice in a felt tray. Wall stacks as chips, protocols are tokens, rolls are three markers.</p>
+      <dl>
+        <dt>READS</dt><dd>Tactile. The only one where throwing feels like throwing.</dd>
+        <dt>COSTS</dt><dd class="cost">A d20 showing one face hides the nineteen that matter.</dd>
+      </dl>
+    </div>
+  </div>
+</div>
+
+<div class="verdict">
+  <h2>WHAT I'D ACTUALLY DO</h2>
+  <p>The ten sort into one real question: <b>does the face table live in the fight, or on a separate screen?</b>
+  Right now it lives on a separate screen, and that is why the dice feel like cards — you build a
+  thing you never see while using it.</p>
+  <ol>
+    <li><b>THE RIBBON</b> for the build. It is the only mock where you can see density — the thing every
+      engraving decision is actually about — without leaving combat. Bands as a coloured underlay solve
+      the other quiet problem: nobody currently knows what a 14 is worth without counting.</li>
+    <li><b>GUN SCHEMATIC</b> for the identity. It costs nothing mechanically and it makes engraving read
+      as gunsmithing, which is what the class has always been about. The ribbon can <em>be</em> the bore.</li>
+    <li><b>THE ROTOR</b> if you want to change the game rather than the picture. It is the only one here
+      that alters what a roll means, and it is the one that would make a dense die feel earned.</li>
+  </ol>
+  <p>The combination I'd build: a schematic frame, with each die's faces drawn as a ribbon along it, and
+  the wall as a pressure bar borrowed from the console. Protocols stay clipped to a rail. Nothing in the
+  fight is a card any more.</p>
+</div>
+
+</div>
+
+</body>
+</html>
