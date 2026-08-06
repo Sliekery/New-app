@@ -25,6 +25,10 @@
       vanguard:  { hp: 100, might: 2, tech: 0, psi: 0 },
       technomancer: { hp: 68, might: 0, tech: 2, psi: 0 },
       voidadept: { hp: 80, might: 0, tech: 0, psi: 2 },
+      /* THE ARSENAL — no cards, three dice. Vanguard stats on purpose: the
+       * class exists to test the FORMAT, so anything it measures differently
+       * has to come from the format and not from a better statline. */
+      arsenal:   { hp: 100, might: 2, tech: 0, psi: 0 },
     },
 
     /* ---- Attribute scaling ------------------------------------------ */
@@ -45,6 +49,26 @@
      * design: three answers to the same question, not three sets of numbers.
      * ---------------------------------------------------------------- */
     dice: {
+      /* THE RACK: one d20 and two d6. The big barrel is the lottery with room
+       * to build; the small ones are reliable and cannot be over-stuffed —
+       * six faces means every cut on one is worth more than three on the d20,
+       * so filling them is a commitment rather than a slow accumulation. */
+      /* TWO DICE, AND THEY ARE DIFFERENT SHAPES FOR A REASON. Failing to kill
+       * is a delay; failing to block is a disaster. So ATTACK is the d20 —
+       * the lottery, twenty faces of room to build, jams on a 1 — and DEFENCE
+       * is a d6: six faces, no jam, reliable. Variance belongs where the
+       * downside is recoverable. */
+      arsenalSmall: [
+        { sides: 6, base: 'base_brace', role: 'defence' },   // DEFENCE — banks the wall
+      ],
+      arsenalRolls: 3,       // rolls a turn, allocated across the two dice however you like
+      arsenalProtocols: ['sight', 'vent', 'overclock'],   // the opening loadout
+      /* THE CASH-OUT RATE, and this class balances on it. Below 1:1 on
+       * purpose: converting has to be a LOSS you accept for tempo, or banking
+       * then venting simply beats attacking and the allocation collapses the
+       * other way. */
+      arsenalVent: 0.6,
+      arsenalAim: 3,         // Aim it tops back up to at the start of every turn
       // THE ROLL BLEEDS: a roll fires its face fully and the faces either side
       // at this fraction. It is what makes WHERE you cut matter as much as
       // WHAT, and it turns a filled die from a dead end into the payoff.
@@ -152,6 +176,32 @@
          * who pays. The bottom of the die is STRONGER than the middle and bills
          * you in HP, so Aim is a genuine trade for the Voidadept: climb the
          * table and you starve the blood engines that feed on the bottom. */
+        /* THE ARSENAL reads its own table because the die IS the attack now —
+         * there is no card underneath carrying the number, so the band spread
+         * has to be wide enough to make a good roll feel like a good roll and
+         * a bad one hurt. Wider than the Vanguard's on purpose. */
+        arsenal: {
+          name: 'THREE BARRELS',
+          read: 'Three dice, one system. Roll any of them; AIM walks the roll up to the nearest thing you cut.',
+          /* THE ARSENAL STEERS, and it has to. Sixty faces across three dice
+           * means a single cut fires on about one roll in sixty — engravings
+           * cannot be your deck at that dilution, and the class measured 14%
+           * against the Vanguard's 32.5% while rolling almost entirely bare
+           * faces. Steering is the answer the die system already had: Aim
+           * climbs the table to the nearest ENGRAVED face, so cutting five
+           * good faces high on a barrel means most rolls of it find one.
+           * That makes WHERE you cut the skill, which is the whole point. */
+          steer: true,
+          aim: 2,
+          misfire: { mult: 0.4, label: 'MISFIRE' },
+          bands: [
+            { min: 17, mult: 1.7, label: 'SOLID' },
+            { min: 11, mult: 1.25, label: 'HIT' },
+            { min: 5,  mult: 0.9, label: 'GRAZE' },
+            { min: 2,  mult: 0.6, label: 'SCRAPE' },
+          ],
+        },
+
         voidadept: {
           name: 'THE HUNGER',
           read: 'The bottom of the die hits HARDER than the middle — and bills you in HP.',

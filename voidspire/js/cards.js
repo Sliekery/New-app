@@ -122,6 +122,34 @@
   ns.CARDS = {
 
     /* ---------------- Starters ---------------- */
+    /* THE ROLL. The Arsenal has no cards, but rolling a die wants every single
+     * thing a card play already does — bands, aim, steering, engravings, seams,
+     * welds, taints, misfires, crit relics, listeners. So a roll IS a play, of
+     * this card, which nobody can ever draw. It carries only the base payload
+     * the band multiplies; everything interesting comes off the face you land
+     * on, which is the entire point of building the dice. */
+    _dieroll: {
+      name: 'ROLL', cls: 'arsenal', type: 'attack', rarity: 0, cost: 1, pool: 'die',
+      fx: [{ k: 'dmg', v: 9, scale: 'might' }],
+      desc: 'Roll this die. Its band is the shot; its face is the rest.',
+    },
+    /* The DEFENCE die's base payload. A skill, not an attack, which is what
+     * makes the small barrel reliable in the engine as well as on paper: no
+     * bands, no crit and — the part that matters — no misfire. Failing to
+     * block is a disaster, so the defence die is not allowed to jam. Its
+     * variation comes from the faces you cut into it, not from the table. */
+    _rolldefend: {
+      name: 'GUARD', cls: 'arsenal', type: 'skill', rarity: 0, cost: 1, pool: 'die',
+      fx: [{ k: 'status', s: 'bulwark', v: 10, who: 'self' }],
+      desc: 'Roll the guard. Bank what it lands on.',
+    },
+    /* A PROTOCOL, dressed as a card so the hand, the tap-to-play path and the
+     * targeting all need no special case. It costs no roll: a protocol is not
+     * an action, it is a modifier on one. */
+    _protocol: {
+      name: 'PROTOCOL', cls: 'arsenal', type: 'skill', rarity: 0, cost: 0, pool: 'die',
+      fx: [], desc: 'Aim the next roll.',
+    },
     pulse_rifle: {
       name: 'Pulse Rifle', cls: 'any', type: 'attack', rarity: 0, cost: 1,
       fx: [{ k: 'dmg', v: 6, scale: 'might' }],
@@ -1460,6 +1488,7 @@
   ns.CLASS_INFO = {
     vanguard: { name: 'VANGUARD', tag: 'Shock trooper of the 9th Voidborne', desc: 'High HP. Brutal weapons that scale with MIGHT. Hits first, asks never.' },
     technomancer: { name: 'TECHNOMANCER', tag: 'Machine-priest of the Forge Choir', desc: 'Shields, turrets and reactors that scale with TECH. Out-build the enemy.' },
+    arsenal: { name: 'THE ARSENAL', tag: 'Gunsmith of the 9th — no cards, three dice', desc: 'No deck at all. You carry three d20s and a turn is three rolls spent across them. Engravings are your cards: cut them onto whichever die you like, and put every shield on one barrel if that is the gun you want.' },
     voidadept: { name: 'VOID ADEPT', tag: 'Sanctioned psyker, mostly stable', desc: 'Burns, hexes and psionic blasts that scale with PSI. The void answers.' },
   };
 
@@ -1469,6 +1498,8 @@
                    'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'bayonet_charge'],
     technomancer: ['pulse_rifle', 'pulse_rifle', 'pulse_rifle', 'pulse_rifle',
                    'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield', 'overshield'],
+    // THE ARSENAL HAS NO DECK. Its hand is its three dice, rebuilt each turn.
+    arsenal:      [],
     voidadept:    ['pulse_rifle', 'pulse_rifle',
                    'combat_shield', 'combat_shield', 'combat_shield', 'combat_shield',
                    'mind_spike', 'mind_spike', 'mind_spike', 'mind_spike'],

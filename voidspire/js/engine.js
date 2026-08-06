@@ -61,6 +61,14 @@
   var uidCounter = 1;
 
   function mkCard(id, up) { return { uid: uidCounter++, id: id, up: !!up }; }
+  /* A die, dressed as a card so hand rendering, targeting, cost checks and the
+   * whole play path need no special case. `dieIdx` says which of the three you
+   * are rolling; the hidden `_dieroll` def carries the base payload the band
+   * multiplies, since there is no card to carry it any more. */
+  function mkDieCard(die, i) {
+    return { uid: uidCounter++, id: die.role === 'defence' ? '_rolldefend' : '_dieroll', up: false, dieIdx: i };
+  }
+  function mkProtoCard(pid, i) { return { uid: uidCounter++, id: '_protocol', up: false, protoIdx: i, protoId: pid }; }
 
   E.newRun = function (clsId) {
     ns.forgedClear();   // forged ids are per-run; a stale registry would resolve into the new one
@@ -76,6 +84,21 @@
       artifacts: [],
       pressure: E.nextPressure || 0,   // VOID PRESSURE rating for this run
       die: ns.newDie(),    // THE AUGMENTED DIE: faces / core / frame
+      /* THE ARSENAL ROLLS THREE. `dice` holds three complete d20s and `die` is
+       * a live POINTER at whichever one is resolving — which is why all 107
+       * sites that read run.die keep working untouched, and why the three dice
+       * get bands, seams, welds, taints and listeners for free instead of a
+       * second, simpler vocabulary of their own.
+       *
+       * core/vault/frame/pending are SHARED array objects across all three:
+       * relics mount to the Arsenal, not to one of its barrels, and an
+       * engraving you have earned can go on any of them. Nothing ever assigns
+       * those fields — only push and splice — so one object behind three
+       * references stays correct. */
+      dice: [],
+      dieIdx: 0,
+      // PROTOCOLS: the loadout. Always visible, charges refill each fight.
+      protocols: [],
       bossOrder: shuffle((ns.BOSSES[fac] || []).slice()),   // no sector boss repeats in a run
       relicOff: {},        // relics switched off (toggled on the star chart)
       relicUses: {},       // remaining durability for relics that have it
@@ -97,6 +120,31 @@
       phylacteryUsed: false, salvageKills: 0,
     };
     E.combat = null;
+    /* THE ARSENAL'S THREE BARRELS. Built here, after the run object exists, so
+     * they can share one core, one vault, one frame and one queue of earned
+     * engravings. run.die then points at the first of them and every existing
+     * reader carries on as if there were still only one. */
+    /* ONE d20 AND TWO d6. The big barrel is bare and has twenty places to
+     * build; the two small ones open with the base cards already cut into
+     * every face — Pulse Rifle on one, Combat Shield on the other — so a fresh
+     * Arsenal is a working gun and a working guard from the first fight, and
+     * everything after that is you deciding what they become. */
+    if (clsId === 'arsenal') {
+      var d0 = E.run.die;
+      d0.pending = d0.pending || [];
+      E.run.dice = [d0];
+      E.run.die.role = 'attack';
+      (B.dice.arsenalSmall || []).forEach(function (spec) {
+        var dn = ns.newDie();
+        dn.sides = spec.sides;
+        dn.role = spec.role || 'defence';
+        dn.core = d0.core; dn.vault = d0.vault; dn.frame = d0.frame; dn.pending = d0.pending;
+        for (var f = 1; f <= dn.sides; f++) ns.dieEngrave(dn, spec.base, f);
+        E.run.dice.push(dn);
+      });
+      E.run.dieIdx = 0;
+      E.run.protocols = (B.dice.arsenalProtocols || ['sight', 'vent', 'overclock']).slice();
+    }
     if (E.CORNERSTONES !== false && CORNERSTONE_OF[clsId]) {   // grant the class Cornerstone
       E.run.cornerstone = { id: CORNERSTONE_OF[clsId], tier: 1 };
       E.run.artifacts.push(CORNERSTONE_OF[clsId]);
@@ -114,7 +162,7 @@
           var fl = Object.keys(ns.DIE_FLAWS || {});
           for (var q = 0; q < (pm.startFlaw | 0) && fl.length; q++) {
             var free = [];
-            for (var f = 2; f <= ns.DIE.faces; f++) if (!d.faces[f]) free.push(f);
+            for (var f = 2; f <= ns.dieSides(d); f++) if (!d.faces[f]) free.push(f);
             if (!free.length) break;
             ns.dieEngrave(d, pick(fl), pick(free));
           }
@@ -703,7 +751,7 @@
     // the taint that takes the choice away, so it must not be permanent.
     var d = E.run.die;
     if (d && d.faces) {
-      for (var f = 1; f <= ns.DIE.faces; f++) {
+      for (var f = 1; f <= ns.dieSides(d); f++) {
         if (d.faces[f] && d.faces[f].taint === 'cold_weld') d.faces[f].taint = 'rust';
       }
     }
@@ -908,6 +956,9 @@
       turn: 0,
       energy: 0,
       hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
+      rollClass: !!(r.dice && r.dice.length > 1),   // no cards: the hand is the dice
+      protoLeft: (r.protocols || []).map(function (pid) { return (ns.protocol(pid) || {}).charges || 1; }),
+      pendShift: 0, pendFloor: 0, pendRelay: 0, pendTwice: 0,   // protocol effects awaiting a roll
       // Everyone rolls, so everyone gets some Aim to steer with. A class may
       // sight in further on top of that baseline — the Vanguard does, because he
       // is the marksman. The Voidadept pointedly does not: climbing the table is
@@ -966,7 +1017,7 @@
     var tm = art('taintMight');
     if (tm > 0 && r.die) {
       var scars = 0;
-      for (var tf = 1; tf <= ns.DIE.faces; tf++) {
+      for (var tf = 1; tf <= ns.dieSides(r.die); tf++) {
         var sl = r.die.faces[tf];
         if (sl && sl.root === tf && sl.taint) scars++;
       }
@@ -1069,6 +1120,11 @@
   }
 
   /* ---------------- Combat: turn structure ------------------------------ */
+  /* THREE ROLLS A TURN. Two was tried, and it lengthened the boss clock from
+   * four rounds to six — but cost half the win rate, because every point of
+   * output this class gives up comes straight off its ability to survive a
+   * boss. The clock and parity pull against each other here and parity wins;
+   * the short boss fight is recorded as open rather than papered over. */
   function maxEnergy() { return B.player.baseEnergy + art('energyEveryTurn') + (statN(E.combat.player, 'reactor')); }
   E.maxEnergy = function () { return E.combat ? maxEnergy() : (B.player.baseEnergy || 0); };
 
@@ -1339,9 +1395,36 @@
     var bg = art('burnGrow');
     if (bg > 0) c.enemies.forEach(function (en, i) { if (en.alive && statN(en, 'burn') > 0) { addStatus(en, 'burn', bg); emit('status', { who: 'enemy', idx: i, s: 'burn', v: bg }); } });
     var aoe = art('aoeTurnStart');
-    var baseDraw = B.player.drawPerTurn;
-    var draws = baseDraw + art('drawTurn') + (c.turn === 1 ? art('drawStart') : 0);
-    drawCards(draws);
+    /* THE HAND IS THE DICE. All three, every turn, and rolling one does not
+     * spend it — with only three of them a one-roll-per-die rule would just
+     * mean rolling all three every turn, which is no decision at all. The
+     * decision is how to ALLOCATE the turn's rolls: twice into the damage die
+     * and once into the shield die, or all three into one barrel. */
+    if (c.rollClass) {
+      c.drawPile = []; c.discard = []; c.exhaust = [];
+      c.hand = (E.run.dice || []).map(mkDieCard);
+      /* Protocols sit in hand beside the dice. They cost no roll — a protocol
+       * is not an action, it is a modifier on one — so playing one never eats
+       * the turn's allocation. They leave the hand when their charges are out. */
+      (E.run.protocols || []).forEach(function (pid, i) {
+        if ((c.protoLeft[i] == null ? (ns.protocol(pid) || {}).charges || 1 : c.protoLeft[i]) > 0) {
+          c.hand.push(mkProtoCard(pid, i));
+        }
+      });
+      /* Aim tops back up every turn. It is the Arsenal's ammunition for
+       * steering, and steering is how a cut on one of sixty faces becomes a
+       * card you can actually draw. Topping up rather than adding means
+       * hoarding it across turns is not a strategy — spend it or lose it. */
+      var wantAim = B.dice.arsenalAim || 3;
+      if (statN(p, 'aim') < wantAim) {
+        addStatus(p, 'aim', wantAim - statN(p, 'aim'));
+        emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') });
+      }
+    } else {
+      var baseDraw = B.player.drawPerTurn;
+      var draws = baseDraw + art('drawTurn') + (c.turn === 1 ? art('drawStart') : 0);
+      drawCards(draws);
+    }
     c.echoReady = statN(p, 'echo') > 0;   // Echo Core: first attack each turn plays twice
     emit('turnStart', { turn: c.turn });
     if (aoe > 0) {
@@ -2117,7 +2200,7 @@
       var span = bleed / 2;
       [-2, 2].forEach(function (d) {
         if (c.over) return;
-        var f2 = ((face - 1 + d + ns.DIE.faces) % ns.DIE.faces) + 1;
+        var _n2 = ns.dieSides(E.run.die); var f2 = ((face - 1 + d + _n2) % _n2) + 1;
         fireOneFace(f2, tgt, span, 'bleed', face);
       });
     }
@@ -2125,7 +2208,7 @@
     if (lit) {
       var self = ns.dieEngraving(ns.dieFaceId(r.die, face));
       if (self && self.field === 'opposite') {
-        var opp = ((face + 9) % ns.DIE.faces) + 1;
+        var _no = ns.dieSides(r.die); var opp = ((face - 1 + Math.floor(_no / 2)) % _no) + 1;
         fireOneFace(opp, tgt, 1, 'opposite', face);
       }
     }
@@ -2143,7 +2226,7 @@
     if (!r || !r.die || !c || c.over || !kind) return;
     if (_listenDepth >= (B.dice.chainDepth || 2)) return;
     var seen = {}, roots = [];
-    for (var f = 1; f <= ns.DIE.faces; f++) {
+    for (var f = 1; f <= ns.dieSides(r.die); f++) {
       var slot = r.die.faces[f]; if (!slot || seen[slot.root]) continue;
       var g = ns.dieEngraving(slot.id);
       if (!g || g.listen !== kind) continue;
@@ -2217,7 +2300,7 @@
   E.dieFieldCount = function (which) {
     var r = E.run; if (!r || !r.die) return 0;
     var seen = {}, n = 0;
-    for (var f = 1; f <= ns.DIE.faces; f++) {
+    for (var f = 1; f <= ns.dieSides(r.die); f++) {
       var slot = r.die.faces[f]; if (!slot || seen[slot.root]) continue;
       seen[slot.root] = 1;
       var g = ns.dieEngraving(slot.id);
@@ -2547,10 +2630,58 @@
     return totalDealt;
   }
 
+  /* SPENDING A PROTOCOL. None of these deal damage on their own — VENT is the
+   * exception and it only spends a wall you already built. Everything else
+   * arms a modifier that the NEXT roll picks up, which is the whole reason a
+   * protocol cannot end a fight by itself: it aims, the dice fire. */
+  function useProtocol(handIdx, targetIdx) {
+    var c = E.combat, r = E.run, p = c.player;
+    var card = c.hand[handIdx];
+    var def = ns.protocol(card.protoId); if (!def) return false;
+    var tgt = c.enemies[targetIdx];
+    if (!tgt || !tgt.alive) tgt = aliveEnemies()[0];
+
+    switch (card.protoId) {
+      case 'sight':     c.pendShift = (c.pendShift || 0) + 3; break;
+      case 'steady':    c.pendFloor = Math.max(c.pendFloor || 0, 8); break;
+      case 'relay':     c.pendRelay = 1; break;
+      case 'doubletap': c.pendTwice = 1; break;
+      case 'overclock': c.energy += 1; break;
+      case 'lockdown':  addStatus(p, 'wallLock', 1); break;
+      case 'recoup': {
+        var half = Math.floor((c.turnDamage || 0) / 2);
+        if (half > 0) { addStatus(p, 'bulwark', half); emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') }); }
+        break;
+      }
+      case 'vent': {
+        // THE CASH-OUT. The wall is ammunition, not just armour — this is the
+        // one line that stops "roll defence" from being a pure hedge, and the
+        // rate on it is the dial this whole class balances on.
+        var w = statN(p, 'bulwark');
+        if (w > 0) {
+          addStatus(p, 'bulwark', -w);
+          emit('status', { who: 'player', s: 'bulwark', v: 0 });
+          var dmg = Math.round(w * (B.dice.arsenalVent || 1));
+          if (tgt) dealToEnemy(tgt, c.enemies.indexOf(tgt), dmg, { noCrit: true });
+        }
+        break;
+      }
+    }
+    emit('protocol', { id: card.protoId, name: def.name });
+    c.protoLeft[card.protoIdx] = (c.protoLeft[card.protoIdx] || 0) - 1;
+    if (c.protoLeft[card.protoIdx] <= 0) c.hand.splice(handIdx, 1);
+    checkWin();
+    return true;
+  }
+
   E.playCard = function (handIdx, targetIdx) {
     var c = E.combat, r = E.run, p = c.player;
     if (!E.canPlay(handIdx)) return false;
     var card = c.hand[handIdx];
+    if (card && card.protoId) return useProtocol(handIdx, targetIdx);
+    // Rolling one of the three: aim run.die at it and let the ordinary card
+    // path do every other thing it already does.
+    if (card && card.dieIdx != null) E.useDie(card.dieIdx);
     var def = ns.CARDS[card.id];
     var fx = ns.cardFx(def, card.up, card.vtouch);
     var cost = effCost(def, card.up, card);
@@ -2563,7 +2694,7 @@
     }
 
     c.energy -= cost;
-    c.hand.splice(handIdx, 1);
+    if (card.dieIdx == null) c.hand.splice(handIdx, 1);   // a die stays in hand; you may roll it again
 
     var xval = 0;
     if (def.xcost) { xval = c.energy; c.energy = 0; }
@@ -2582,7 +2713,26 @@
     var bandsNow = !!dread && (def.type === 'attack' || (dread.blocks && hasBlockFx(fx)));
     // THE AUGMENTED DIE: every card play rolls, so a skill/power deck still
     // engages the die even when its table has nothing to say about the card.
-    roll = FLAT_DIE ? ((c.flatRoll = ((c.flatRoll || 0) % ns.DIE.faces) + 1)) : d20();
+    /* ROLL THE DIE YOU PICKED UP. A d6 rolls 1-6 and then reads its face on
+     * the d20 scale the class tables are written against, so the same bands,
+     * the same misfire on a natural 1 and the same crit on the top face apply
+     * to every barrel. Six faces means each one is worth more than three of a
+     * d20's — that is the trade, not a different rule set. */
+    var _sides = ns.dieSides(r.die);
+    roll = FLAT_DIE ? ((c.flatRoll = ((c.flatRoll || 0) % _sides) + 1)) : ri(1, _sides);
+    /* PROTOCOLS LAND HERE. STEADY puts a floor under the roll, SIGHT pushes it
+     * up the table. Both are consumed by the first roll that uses them — they
+     * are aim, not a stance. */
+    if (c.pendFloor > 0) {
+      var flr = Math.max(1, Math.round(c.pendFloor * _sides / ns.DIE.faces));
+      if (roll < flr) roll = flr;
+      c.pendFloor = 0;
+    }
+    if (c.pendShift > 0) {
+      var shf = Math.max(1, Math.round(c.pendShift * _sides / ns.DIE.faces));
+      roll = Math.min(_sides, roll + shf);
+      c.pendShift = 0;
+    }
     // ---- relics that shape the die itself, before anything reads it -------
     // These are the half of the marriage that was missing: 55 of 62 relics had
     // nothing to do with the die, so mounting one in it was fiction. A relic
@@ -2618,7 +2768,7 @@
         var hereBand = bandFor(dread, roll, roll);
         for (var st = 1; st <= capF; st++) {
           var sf = roll + (dive ? -st : st);
-          if (sf > ns.DIE.faces || sf < 2) break;
+          if (sf > ns.dieSides(r.die) || sf < 2) break;
           if (!ns.dieFaceId(r.die, sf)) continue;
           if (hereCut) {
             var thereBand = bandFor(dread, sf, sf);
@@ -2634,9 +2784,10 @@
       }
     }
     var landed = steered ? steered.face : roll;
+    var scaled = ns.dieScale(r.die, landed);          // where this face sits on the d20 table
     eff = (dread && dread.steer)
-      ? Math.min(20, landed + art('rollBonus'))
-      : Math.min(20, roll + statN(p, 'aim') + art('rollBonus'));
+      ? Math.min(20, scaled + art('rollBonus'))
+      : Math.min(20, scaled + statN(p, 'aim') + art('rollBonus'));
     c.highFace = Math.max(c.highFace || 0, landed);                 // THE REDOUBT reads it at end of turn
     if (art('bankRoll') > 0) c.banked = (c.banked || 0) + roll;     // SPENT BRASS
     if (art('lowMight') > 0 && roll < 6) {                          // TRENCH LEDGER
@@ -2647,8 +2798,9 @@
     if (!bandsNow) {
       emit('roll', { roll: roll, eff: eff, crit: false, misfire: false, band: null });
     } else {
-      misfire = roll <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden'));
-      crit = (roll === 20) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus') - art('critWiden'));
+      // read on the d20 scale, so a small barrel's bottom face is a bad band, not a jam
+      misfire = scaled <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden'));
+      crit = (roll === _sides) || (roll > 1 && eff >= B.dice.critThreshold - art('critBonus') - art('critWiden'));
       // THE DEVOURING: the Adept's table is a U, so his crit is too. The bottom
       // of the die bites as hard as the top — but only where it has not jammed.
       if (!misfire && art('lowCrit') > 0 && roll <= art('lowCrit')) crit = true;
@@ -2680,7 +2832,7 @@
       // MACHINED BARREL / DUTY CYCLE / HOLLOW CROWN move where the bands begin,
       // REGULATOR CLAMP puts a floor under the read and WIDENING MAW pulls the
       // bottom band up into the middle — all of it in one reader.
-      else slot = bandFor(dread, eff, roll);
+      else slot = bandFor(dread, eff, scaled);
       if (slot) {
         bandMult = NO_DIE ? 1 : slot.mult;
         bandLabel = slot.label;
@@ -2792,6 +2944,11 @@
           }
           if (lp > 0 && bn > 1) emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') });
         }
+        // RELAY (protocol): this roll catches both neighbours
+        if (c.pendRelay > 0) {
+          c.pendRelay = 0;
+          ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) fireOneFace(nf, tgt, 1, 'relay', lands); });
+        }
         // TWINNED FIRING PIN: the opening roll of a combat catches both sides
         if (art('firstSplash') > 0 && c.rollNo === 1) {
           ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) fireOneFace(nf, tgt, 1, 'relay', lands); });
@@ -2799,7 +2956,7 @@
         // Reaching ACROSS the ring rather than along it. Both of these use
         // fireOneFace for the same reason Hot Barrel does: a relay upgrades the
         // charge on one more face, it does not start a second bleed.
-        var across = ((lands + 9) % ns.DIE.faces) + 1;
+        var _na = ns.dieSides(r.die); var across = ((lands - 1 + Math.floor(_na / 2)) % _na) + 1;
         if (art('evenMirror') > 0 && lands % 2 === 0 && !c.over) {          // PARITY PIN
           fireOneFace(across, tgt, Math.min(1, B.dice.bleed + art('bleedPct')), 'opposite', lands);
         }
@@ -2856,6 +3013,7 @@
       c.consumed.push(card);
       lawTrigger('cardLeft');           // THE HUNGER
     }
+    else if (card.dieIdx != null) { /* a die goes nowhere — it is still in your hand */ }
     else if (def.exhaust || (def.type === 'skill' && statN(p, 'corruption') > 0)) exhaustCard(card);
     else c.discard.push(card);
 
@@ -3400,6 +3558,30 @@
   }
   E.randomEngravings = randomEngravings;
   // Queue an engraving for placement; the die screen asks which face.
+  /* Point run.die at one of the three. Everything downstream — bands, seams,
+   * welds, taints, listeners, steering, fireOneFace — reads run.die, so this
+   * one assignment is the entire multi-die implementation. */
+  E.useDie = function (i) {
+    var r = E.run;
+    if (!r || !r.dice || !r.dice.length) return;
+    r.dieIdx = Math.max(0, Math.min(r.dice.length - 1, i | 0));
+    r.die = r.dice[r.dieIdx];
+  };
+  // Re-link the shared arrays after a load, where JSON has turned one object
+  // behind three references into three separate copies.
+  function diceRelink(r) {
+    if (!r.dice || r.dice.length < 2) return;
+    var d0 = r.dice[0];
+    d0.pending = d0.pending || [];
+    r.dice.forEach(function (d) {
+      d.core = d0.core; d.vault = d0.vault; d.frame = d0.frame; d.pending = d0.pending;
+      d.coreSlots = d0.coreSlots;
+      d.seams = d.seams || {}; d.welds = d.welds || [];
+    });
+    r.die = r.dice[Math.max(0, Math.min(r.dice.length - 1, r.dieIdx || 0))];
+  }
+  E.diceRelink = diceRelink;
+
   E.takeEngraving = function (id) {
     var r = E.run; if (!r || !r.die) return false;
     if (!r.reward || r.reward.engPicked) return false;
@@ -3569,7 +3751,13 @@
     // Engravings drop from the fights that earn them; they queue up as `pending`
     // and the player picks the face on the die screen.
     var engChoices = [];
-    if (kind === 'elite' || kind === 'boss' || kind === 'beacon') engChoices = randomEngravings(2);
+    /* THE ARSENAL DRAFTS ENGRAVINGS THE WAY EVERYONE ELSE DRAFTS CARDS —
+     * three of them, every single fight. For a class with no deck they ARE the
+     * deck, and leaving them on the card-drop schedule (elites, bosses, and
+     * 22% of hallways) starved it to a 0% win rate: it reached sector 3 still
+     * rolling three nearly-bare dice. */
+    if (r.dice && r.dice.length > 1) engChoices = randomEngravings(3);
+    else if (kind === 'elite' || kind === 'boss' || kind === 'beacon') engChoices = randomEngravings(2);
     else if (rnd() < 0.22) engChoices = randomEngravings(2);
     var artifactDrop = null;   // no auto-grant; picked from artifactChoices
     // The Unmaker's Tithe: an extra relic from every elite & boss
@@ -5177,8 +5365,8 @@
   E.weldOptions = function () {
     var d = E.run && E.run.die, out = [];
     if (!d) return out;
-    for (var f = 1; f <= ns.DIE.faces; f++) {
-      var g = ns.dieStep(f, 1);
+    for (var f = 1; f <= ns.dieSides(d); f++) {
+      var g = ns.dieStep(f, 1, d);
       if (!ns.dieCanWeld(d, f, g)) out.push({ a: f, b: g });
     }
     return out;
@@ -5253,6 +5441,8 @@
         E.run.die.welds = E.run.die.welds || [];
         dieRepair();
       }
+      // JSON turns one shared object behind three references into three copies
+      diceRelink(E.run);
       rngState = data.rng >>> 0;
       uidCounter = data.uid || 1000;
       E.combat = null;

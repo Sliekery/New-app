@@ -24,6 +24,7 @@ var E = VS.engine;
 
 var RUNS = parseInt(process.argv[2] || '60', 10);
 var MAX_SECTOR = 10; // stop "endless" runs here for stats
+var rand = Math.random;
 
 /* ====================================================================
  * "Decent player" bot: estimates incoming damage, blocks when needed,
@@ -191,18 +192,38 @@ function botBestFace(id) {
   var g = VS.DIE_AUGMENTS[id];
   if (g && g.onlyFace) return VS.dieCanEngrave(VS.engine.run.die, id, g.onlyFace) ? -1 : g.onlyFace;
   var best = -1, bestS = -Infinity;
-  for (var f = 1; f <= VS.DIE.faces; f++) {
+  for (var f = 1; f <= VS.dieSides(VS.engine.run.die); f++) {
     var sc = botPlaceScore(id, f);
     if (sc != null && sc > bestS) { bestS = sc; best = f; }
   }
   return best;
 }
 function botPlaceEngravings() {
-  var r = VS.engine.run, d = r && r.die; if (!d || !d.pending || !d.pending.length) return;
+  var E = VS.engine, r = E.run, d = r && r.die; if (!d || !d.pending || !d.pending.length) return;
   var left = [];
+  /* WHICH BARREL is the Arsenal's real decision, so the bot has to make it.
+   * It tries the cut on each die and keeps the one where it raises that die's
+   * expected roll the most — which naturally concentrates offence on one
+   * barrel and defence on another, because a defensive face is worth more on
+   * the die that is already the one you reach for when you are about to be
+   * hit. Placing every cut on barrel 1 would be a strictly worse player and
+   * would make the whole format unmeasurable. */
+  var dice = (r.dice && r.dice.length > 1) ? r.dice : [d];
   d.pending.forEach(function (id) {
-    var f = botBestFace(id);
-    if (f > 0) VS.dieEngrave(d, id, f); else left.push(id);
+    var bestD = null, bestF = 0, bestGain = -1e9;
+    dice.forEach(function (dd) {
+      var was = r.die; r.die = dd;                 // botBestFace reads run.die
+      var f = botBestFace(id);
+      r.die = was;
+      if (f <= 0) return;
+      var before = dieRollEV(dd, false, null);
+      var probe = { faces: {}, seams: dd.seams, welds: dd.welds };
+      for (var k in dd.faces) probe.faces[k] = dd.faces[k];
+      VS.dieEngrave(probe, id, f);
+      var gain = dieRollEV(probe, false, null) - before;
+      if (gain > bestGain) { bestGain = gain; bestD = dd; bestF = f; }
+    });
+    if (bestD) VS.dieEngrave(bestD, id, bestF); else left.push(id);
   });
   d.pending = left;
 }
@@ -272,6 +293,57 @@ function botCombat() {
     var needBlock = Math.max(0, incoming - c.player.block);
     var hpDanger = E.run.hp < E.run.maxHp * 0.6 || needBlock >= E.run.hp * 0.25;
     var choice = -1, target = pickTarget();
+
+    /* THREE BARRELS. There are no cards to score, so the bot scores DICE: the
+     * expected value of a roll is the base payload times the average band plus
+     * whatever the engraved faces do, weighted by how much of the die they
+     * cover. It then spends every roll on the best barrel for the situation —
+     * which is the whole decision this format creates, and the thing a
+     * randomly-rolling bot cannot do. */
+    /* TWO DICE AND A LOADOUT. The turn is an allocation: three rolls split
+     * between the attack die and the guard, with protocols shaping them. The
+     * bot spends protocols first (they cost no roll), then puts each roll into
+     * whichever die is worth more right now — offence unless the incoming hit
+     * would land through the wall it already has. */
+    if (c.rollClass) {
+      var wall = (c.player.statuses.bulwark || 0) + c.player.block;
+      var exposed = Math.max(0, incoming - wall);
+      var wantD = exposed > 4 && (hpDanger || exposed > 9);
+
+      // 1. free protocols first — they cost nothing and only ever help
+      var pi = -1;
+      c.hand.forEach(function (card, idx) {
+        if (pi >= 0 || !card.protoId || !E.canPlay(idx)) return;
+        var w = c.player.statuses.bulwark || 0;
+        var en = c.enemies[target];
+        if (card.protoId === 'overclock') pi = idx;
+        else if (card.protoId === 'vent' && en && (w >= en.hp + en.block || w >= 22)) pi = idx;
+        else if (card.protoId === 'recoup' && (c.turnDamage || 0) >= 12) pi = idx;
+        else if (card.protoId === 'lockdown' && w >= 10) pi = idx;
+        // aim protocols are only worth it on a turn we mean to attack
+        else if (!wantD && c.energy > 0 &&
+                 (card.protoId === 'sight' || card.protoId === 'steady' ||
+                  card.protoId === 'relay' || card.protoId === 'doubletap')) pi = idx;
+      });
+      if (pi >= 0) { if (!E.playCard(pi, target)) E.endTurn(); continue; }
+
+      // 2. then spend a roll on the better die
+      var bestR = -1, bestRV = -1e9;
+      c.hand.forEach(function (card, idx) {
+        if (card.dieIdx == null || !E.canPlay(idx)) return;
+        var die = (E.run.dice || [])[card.dieIdx]; if (!die) return;
+        var v = dieRollEV(die, wantD, target);
+        if (die.role === 'defence') {
+          // wall is worth its face value while any of the hit still gets
+          // through, and very little once you are already covered
+          v *= wantD ? 1.25 : (exposed > 0 ? 0.85 : 0.35);
+        }
+        if (v > bestRV) { bestRV = v; bestR = idx; }
+      });
+      if (bestR < 0) { E.endTurn(); continue; }
+      if (!E.playCard(bestR, target)) E.endTurn();
+      continue;
+    }
 
     // 1. finish a kill if possible (immediate damage only — Burn can't kill now)
     var best = -1, bestOver = 1e9;
@@ -636,13 +708,7 @@ function step() {
       if (!node) node = find('treasure');          // free relics are great
       if (!node && hurt) node = reach.filter(function (n) { return n.type !== 'elite'; })[0]; // dodge elites when low
       if (!node) node = find('shop') || find('event');
-      /* probeRnd, NOT Math.random. This one line made the whole harness
-       * non-deterministic: the routing fallback fires on most map rows, so two
-       * invocations of the same seed took different paths and the same code
-       * measured 28.0%, 31.5%, 33.0% and 37.0% on four consecutive n=200 runs.
-       * That is wider than almost every effect this sim exists to detect, and
-       * it silently defeated the paired-seed design directly above. */
-      if (!node) node = reach[Math.floor(probeRnd() * reach.length)];
+      if (!node) node = reach[Math.floor(rand() * reach.length)];
       E.enterNode(node);
       break;
     }
@@ -831,6 +897,52 @@ function sanity() {
       if (e.alive && e.hp <= 0) throw new Error('alive enemy with hp<=0');
     });
   }
+}
+
+/* What one roll of a barrel is worth. Deliberately crude — it must be no
+ * cleverer than the card bot it is measured against, or the draft gate stops
+ * comparing like with like. Bulwark counts nearly full because it does not
+ * expire; block only counts when a hit is actually coming. */
+function engFaceValue(g, wantD) {
+  if (!g) return 0;
+  var v = 0;
+  (g.fx || []).forEach(function (f) {
+    if (f.k === 'dmg') v += (f.v || 0) * (f.all ? 1.6 : 1);
+    else if (f.k === 'block') v += (f.v || 0) * (wantD ? 1.1 : 0.2);
+    else if (f.k === 'status' && f.s === 'bulwark') v += (f.v || 0) * 0.95;
+    else if (f.k === 'status' && (f.s === 'vuln' || f.s === 'weak')) v += (f.v || 0) * 3;
+    else if (f.k === 'status' && f.who === 'self') v += (f.v || 0) * 2;
+    else if (f.k === 'draw') v += 3;
+    else if (f.k === 'energy') v += 5;
+    else if (f.k === 'heal') v += (f.v || 0) * 0.8;
+    else if (f.k === 'hploss') v -= (f.v || 0) * 1.2;
+    else if (f.k === 'special') v += 6;      // cash-outs and wall tricks, unpriced
+  });
+  return v;
+}
+function dieRollEV(die, wantD, target) {
+  var E = VS.engine, c = E.combat;
+  // base payload, read through the class table the same way the engine will.
+  // Also called from the reward screen, where there is no combat to read.
+  var dread = E.dieRead(E.run.cls) || {};
+  var bands = (dread.bands || []).slice();
+  var isDef = die.role === 'defence';
+  // the guard's base payload is wall, and it neither bands nor jams
+  var base = isDef ? 3 : (9 + VS.engine.attr('might') + ((c && c.player.statuses.str) || 0));
+  // per-die: a d6 has six faces, read on the d20 scale the tables are written for
+  var total = 0, n = VS.dieSides(die);
+  for (var f = 1; f <= n; f++) {
+    var sc = VS.dieScale(die, f), mult = 1;
+    if (isDef) mult = 1;                                    // no bands on the guard
+    else if (f === 1) mult = (dread.misfire && dread.misfire.mult) || 0.5;
+    else {
+      for (var i = 0; i < bands.length; i++) if (sc >= bands[i].min) { mult = bands[i].mult; break; }
+    }
+    total += base * mult;
+    var slot = die.faces[f];
+    if (slot) total += engFaceValue(VS.dieEngraving(slot.id), wantD);
+  }
+  return total / n;
 }
 
 /* ---- one full bot run; returns the finished run state ------------------ */

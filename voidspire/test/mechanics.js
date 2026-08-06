@@ -383,6 +383,12 @@ ok('a forged engraving survives the registry being dropped (the load path)', (fu
   var bad = 0, n = 0;
   Object.keys(VS.DIE_AUGMENTS).forEach(function (id) {
     var def = VS.DIE_AUGMENTS[id], base = VS.engravingSp(def);
+    /* The Arsenal's wall cash-outs are a bare `special` with no magnitude —
+     * "consume all your Bulwark, deal that much" has no number to double,
+     * halve or split, so the lenses that bargain with one have nothing to
+     * offer and only the recast applies. Checked separately below. */
+    var prim0 = (def.fx || [])[0];
+    if (def.cls === 'arsenal' || !prim0 || prim0.v == null) return;
     var baseDesc = VS.reforgeDescribe(def.fx, { trigger: def.listen });
     ['common', 'vanguard', 'technomancer', 'voidadept'].forEach(function (c) {
       var os = VS.reforgeOptions(def, c), seen = {};
@@ -396,6 +402,16 @@ ok('a forged engraving survives the registry being dropped (the load path)', (fu
     });
   });
   ok('every engraving x every table x every lens is distinct and in budget (' + n + ' options)', bad === 0);
+  // ...and the valueless ones still offer the one lens that can work on them.
+  var vless = Object.keys(VS.DIE_AUGMENTS).filter(function (id) {
+    var f0 = (VS.DIE_AUGMENTS[id].fx || [])[0];
+    return !f0 || f0.v == null;
+  });
+  ok('a valueless engraving still offers the recast (' + vless.length + ' of them)',
+     vless.length > 0 && vless.every(function (id) {
+       var os = VS.reforgeOptions(VS.DIE_AUGMENTS[id], 'arsenal');
+       return os.length >= 1 && os.some(function (o) { return o.recast; });
+     }));
 })();
 
 /* 26c. THE DIE INVARIANT: no face may point at a root that is gone.
@@ -1188,10 +1204,14 @@ ok('no card summons a pet', !Object.keys(VS.CARDS).some(function (k) {
 ok('every remaining class has a die table', Object.keys(VS.BALANCE.classes).every(function (c) {
   return !!VS.BALANCE.dice.classes[c];
 }));
-ok('every remaining class has a starter deck whose cards all exist',
+/* A class either opens with cards or opens with dice. The Arsenal is the
+ * second kind — no deck at all, its hand rebuilt from run.dice every turn — so
+ * the property that matters is "has something to open the fight with". */
+ok('every class opens with either a starter deck or a rack of dice',
   Object.keys(VS.BALANCE.classes).every(function (c) {
     var d = VS.STARTER_DECKS[c];
-    return d && d.length && d.every(function (id) { return !!VS.CARDS[id]; });
+    if (d && d.length) return d.every(function (id) { return !!VS.CARDS[id]; });
+    return c === 'arsenal' && (VS.BALANCE.dice.arsenalSmall || []).length > 0;
   }));
 
 (function () {
@@ -2586,6 +2606,86 @@ ok('every remaining class has a starter deck whose cards all exist',
   var plain = burstWidth(null), pinned = burstWidth('twinned_pin');
   ok('Twinned Firing Pin walks the burst further (' + plain + ' -> ' + pinned + ')', pinned > plain);
   delete VS.CARDS._t_b;
+  E.run.phase = 'map';
+})();
+
+/* ---- THE ARSENAL: TWO DICE, A LOADOUT, AND A WALL YOU SPEND -------------
+ * No cards and no deck. An ATTACK d20 and a GUARD d6, three rolls a turn
+ * allocated between them, and five protocol slots that aim rather than hit.
+ * The guard banks a persistent wall; the attack die and VENT spend it. */
+(function () {
+  startFight('arsenal');
+  var r = E.run, c = E.combat;
+  ok('two dice: an attack d20 and a guard d6',
+     r.dice.length === 2 && VS.dieSides(r.dice[0]) === 20 && VS.dieSides(r.dice[1]) === 6);
+  ok('they carry roles', r.dice[0].role === 'attack' && r.dice[1].role === 'defence');
+  ok('they share one core and one engraving queue',
+     r.dice[0].core === r.dice[1].core && r.dice[0].pending === r.dice[1].pending);
+
+  ok('the guard opens with Brace on every face', (function () {
+    for (var f = 1; f <= 6; f++) {
+      var sl = r.dice[1].faces[f];
+      if (!sl || VS.dieEngraving(sl.id).name !== 'Brace') return false;
+    }
+    return true;
+  })());
+  ok('the attack die opens bare', !r.dice[0].faces[10]);
+
+  ok('the hand is both dice plus the loadout',
+     c.hand.filter(function (h) { return h.dieIdx != null; }).length === 2 &&
+     c.hand.filter(function (h) { return h.protoId; }).length === r.protocols.length);
+  ok('three rolls a turn', c.energy === 3);
+
+  /* THE GUARD BANKS AND DOES NOT HIT. Its base payload is wall, it is a skill
+   * rather than an attack, so it reads no bands and — the part that matters —
+   * cannot misfire. Failing to block is a disaster; the guard is not allowed
+   * to jam. */
+  bigEnemies();
+  var hp0 = c.enemies[0].hp;
+  var gi = c.hand.findIndex(function (h) { return h.dieIdx === 1; });
+  E.playCard(gi, 0);
+  var wall = c.player.statuses.bulwark || 0;
+  ok('rolling the guard banks a wall (' + wall + ')', wall > 0);
+  ok('and deals no damage', c.enemies[0].hp === hp0);
+  ok('it costs a roll', c.energy === 2);
+  ok('but the die stays in hand', c.hand.filter(function (h) { return h.dieIdx === 1; }).length === 1);
+
+  var ai = c.hand.findIndex(function (h) { return h.dieIdx === 0; });
+  E.playCard(ai, 0);
+  ok('rolling attack hits', c.enemies[0].hp < hp0);
+
+  /* PROTOCOLS COST NO ROLL. A protocol is not an action, it is a modifier on
+   * one — so spending one never eats the turn's allocation. That is also why
+   * a protocol alone can never end a fight: it aims, the dice fire. */
+  c.energy = 3;
+  var si = c.hand.findIndex(function (h) { return h.protoId === 'sight'; });
+  ok('SIGHT is in the opening loadout', si >= 0);
+  E.playCard(si, 0);
+  ok('spending it costs no roll', c.energy === 3);
+  ok('and it arms a shift for the next roll', c.pendShift === 3);
+  E.playCard(c.hand.findIndex(function (h) { return h.dieIdx === 0; }), 0);
+  ok('which the next roll consumes', c.pendShift === 0);
+
+  /* THE CASH-OUT. The wall is ammunition as well as armour — this is the one
+   * rule that stops "roll the guard" from being a pure hedge, and the rate on
+   * it is deliberately below 1:1 so converting is a loss you accept for tempo
+   * rather than a strictly better way to attack. */
+  c.player.statuses.bulwark = 40;
+  var hp1 = c.enemies[0].hp;
+  var vi = c.hand.findIndex(function (h) { return h.protoId === 'vent'; });
+  E.playCard(vi, 0);
+  ok('VENT spends the whole wall', (c.player.statuses.bulwark || 0) === 0);
+  var dealt = hp1 - c.enemies[0].hp;
+  ok('converting it deals less than the wall was worth (' + dealt + ' from 40)',
+     dealt > 0 && dealt < 40);
+  ok('a spent protocol leaves the hand',
+     !c.hand.some(function (h) { return h.protoId === 'vent'; }));
+
+  // charges refill each fight
+  E.run.phase = 'map';
+  startFight('arsenal');
+  ok('charges refill next fight',
+     E.combat.hand.some(function (h) { return h.protoId === 'vent'; }));
   E.run.phase = 'map';
 })();
 
