@@ -5528,6 +5528,17 @@
       }
       // JSON turns one shared object behind three references into three copies
       diceRelink(E.run);
+      /* MIGRATION. A run started before opening kits existed can never be
+       * offered one, because the offer is made in newRun and that already
+       * happened. An Arsenal save that has not cleared a node yet is close
+       * enough to the start to hand it the choice now; a deeper one is left
+       * alone rather than given a free spike three sectors in. */
+      var _r = E.run;
+      if (_r.dice && _r.dice.length > 1 && !_r.kitTaken && !_r.kitOffer &&
+          !(_r.nodesCleared > 0) && _r.phase !== 'combat') {
+        _r.kitOffer = rollKits(3);
+        _r.phase = 'kit';
+      }
       rngState = data.rng >>> 0;
       uidCounter = data.uid || 1000;
       E.combat = null;

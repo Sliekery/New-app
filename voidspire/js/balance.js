@@ -3,6 +3,9 @@
  * Every tunable number in the game lives here. Tweak freely.
  * ========================================================================= */
 (function (ns) {
+  // Replaced by test/bundle.js with the git short hash + date at build time.
+  ns.BUILD = '__BUILD__';
+
   'use strict';
 
   ns.BALANCE = {

@@ -2413,3 +2413,4 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .kit-cut .kit-where { font-size: 9px; letter-spacing: .08em; color: var(--amber); margin-left: 7px; }
 .kit-cut .kit-desc { font-size: 10px; line-height: 1.3; color: var(--text-dim); }
 .panel-btn.kit-panel.sel .kit-cut { border-left-color: var(--amber); }
+.build-stamp { text-align: center; font-size: 9px; letter-spacing: .18em; color: var(--text-dim); opacity: .7; margin: -4px 0 10px; }

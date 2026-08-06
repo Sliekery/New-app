@@ -2053,6 +2053,11 @@
     var s = overlayScreen();
     s.appendChild(el('div', 'title-logo', 'VOIDSPIRE'));
     s.appendChild(el('div', 'subtitle', ns.EPIGRAPH ? ns.EPIGRAPH.toUpperCase() : 'AN ENDLESS DESCENT'));
+    /* THE BUILD STAMP. Twice now a report of "this feature is missing" has cost
+     * a round trip to establish that the page was a cached older build. One
+     * line on the title screen settles it in a glance. Stamped by the bundler
+     * from git; reads "dev" when running unbundled. */
+    s.appendChild(el('div', 'build-stamp', 'BUILD ' + (ns.BUILD || 'dev')));
 
     if (E.hasSave()) {
       var cont = el('div', 'panel-btn', '<div class="pb-title">▶ CONTINUE RUN</div><div class="pb-sub">Resume your descent</div>');
