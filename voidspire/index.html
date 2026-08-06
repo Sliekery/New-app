@@ -2415,6 +2415,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .card.die-card.die-guard { background: linear-gradient(180deg, rgba(93,255,136,.10), rgba(4,8,10,.92)); }
 .card.die-card.die-guard .dk-name { color: var(--green); text-shadow: var(--glow-g); }
 
+/* ---- THE OPENING KIT ----------------------------------------------------
+ * Each panel has to show three engravings AND where each one lands, because
+ * where is half the decision. Indented rows under the plan, not a paragraph. */
+.kit-panel .kit-cuts { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+.kit-cut { border-left: 2px solid var(--green-dim); padding: 1px 0 1px 7px; }
+.kit-cut b { font-size: 11px; color: var(--cyan); }
+.kit-cut .kit-where { font-size: 9px; letter-spacing: .08em; color: var(--amber); margin-left: 7px; }
+.kit-cut .kit-desc { font-size: 10px; line-height: 1.3; color: var(--text-dim); }
+.panel-btn.kit-panel.sel .kit-cut { border-left-color: var(--amber); }
+
 </style>
 </head>
 <body>
@@ -8860,6 +8870,84 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
    * alone does nothing at all; it only shapes a roll. The payload is in the
    * dice and the dice need the setup.
    * ------------------------------------------------------------------ */
+  /* ==================================================================
+   * OPENING KITS — you do not start vanilla
+   * ==================================================================
+   * A bare d20 and a half-cut guard is a machine with nothing to say, and the
+   * first two or three fights of a run were exactly that: roll, take the base
+   * number, repeat. The die only becomes interesting once enough is cut into
+   * it that the faces disagree with each other, and that used to take until
+   * sector 2.
+   *
+   * So a run opens with a choice of three KITS — three engravings each,
+   * already placed. Two are archetypes with a stated plan, one is a random
+   * handful. You get an identity on turn one and something to build toward,
+   * and the run's first real decision happens before the first fight rather
+   * than after it.
+   *
+   * Faces are chosen, not random: attack cuts go high where Aim steers, guard
+   * cuts go on the bare faces (2, 4, 6) so nothing is wasted overwriting Brace.
+   * ------------------------------------------------------------------ */
+  ns.ARSENAL_KITS = {
+    breacher: {
+      name: 'THE BREACHER', cls: 'arsenal',
+      plan: 'Bank the wall, then spend it all at once.',
+      cuts: [
+        { id: 'arsenal_buttress',  die: 1, face: 3 },
+        { id: 'arsenal_revetment', die: 1, face: 6 },
+        { id: 'arsenal_breach',    die: 0, face: 18 },
+      ],
+    },
+    marksman: {
+      name: 'THE MARKSMAN', cls: 'arsenal',
+      plan: 'Climb the table. Everything good lives at the top.',
+      cuts: [
+        { id: 'executioners_mark', die: 0, face: 19 },
+        { id: 'aim_assist',        die: 0, face: 16 },
+        { id: 'targeting_spike',   die: 0, face: 13 },
+      ],
+    },
+    demolition: {
+      name: 'DEMOLITION', cls: 'arsenal',
+      plan: 'Wall as ammunition, spread across the whole room.',
+      cuts: [
+        { id: 'arsenal_detonate', die: 0, face: 18 },
+        { id: 'arsenal_spall',    die: 0, face: 12 },
+        { id: 'arsenal_buttress', die: 1, face: 3 },
+      ],
+    },
+    armourer: {
+      name: 'THE ARMOURER', cls: 'arsenal',
+      plan: 'Every hit you take makes the next one cheaper.',
+      cuts: [
+        { id: 'plate_layer',       die: 1, face: 3 },
+        { id: 'kinetic_buffer',    die: 1, face: 6 },
+        { id: 'arsenal_embrasure', die: 0, face: 17 },
+      ],
+    },
+    incendiary: {
+      name: 'INCENDIARY', cls: 'arsenal',
+      plan: 'Light them and let the fire do the arithmetic.',
+      cuts: [
+        { id: 'ignition_coil',     die: 0, face: 18 },
+        { id: 'static_discharge',  die: 0, face: 15 },
+        { id: 'arsenal_embrasure', die: 0, face: 11 },
+      ],
+    },
+    holdfast: {
+      name: 'HOLDFAST', cls: 'arsenal',
+      plan: 'A guard that never gives you nothing.',
+      cuts: [
+        { id: 'arsenal_revetment', die: 1, face: 2 },
+        { id: 'arsenal_revetment', die: 1, face: 4 },
+        { id: 'arsenal_buttress',  die: 0, face: 6 },
+      ],
+    },
+  };
+  // Faces a random kit is allowed to use — high on the attack die where Aim
+  // reaches, and the guard's three bare faces.
+  ns.KIT_FACES = { attack: [19, 17, 15, 13, 11], guard: [2, 4, 6] };
+
   ns.PROTOCOLS = {
     sight: {
       name: 'SIGHT', charges: 2, tier: 1,
@@ -8920,17 +9008,26 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
    * defended with expiring Block bled out in HALLWAY fights. */
   ns.DIE_AUGMENTS.base_brace = {
     name: 'Brace', tier: 1, span: 1, cls: 'arsenal', basic: true,
-    /* SIXTEEN, not five. A probe swept the guard's face value against how often
-     * the bot ever chose to roll it: at 5 and at 10 wall it banked on 0.1% and
-     * 0.3% of rolls — i.e. never. Banking only becomes correct at ~16, where
-     * the guard out-rates the attack die about 2:1.
+    /* THIRTY, and the number was swept for rather than chosen. Instrumenting
+     * how often the bot ever ELECTS to roll the guard, against what a Brace
+     * face is worth:
      *
-     * That ratio is the real finding. A point of wall is worth about HALF a
-     * point of damage, because damage is permanent progress and wall only ever
-     * prevents a subset of what is coming. Defence has to be priced that way
-     * or the allocation is not a decision at all. */
-    fx: [{ k: 'status', s: 'bulwark', v: 16, who: 'self' }],
-    desc: 'Gain 16 Bulwark.',
+     *     5 -> 0.1%    10 -> 0.3%    16 -> 0.7%    24 -> 4.0%    30 -> 7.1%
+     *
+     * Below ~24 it simply never banks: a dead enemy deals no damage, so
+     * attacking is also the best defence. Raising enemy damage 2.2x did not
+     * move it either — pressure is not the lever, price is.
+     *
+     * The ratio is the transferable finding. A point of wall is worth about
+     * HALF a point of damage, because damage is permanent progress and wall
+     * only ever prevents a subset of what is coming. Defence has to be priced
+     * accordingly or the allocation is not a decision at all.
+     *
+     * Chunky on purpose: with three faces of six cut, the guard either banks
+     * a real slab or hands you the roll's base. A die that returns the same
+     * number every time is a button, not a die. */
+    fx: [{ k: 'status', s: 'bulwark', v: 30, who: 'self' }],
+    desc: 'Gain 30 Bulwark.',
     art: { p: [[0,-0.7, 0.6,-0.4, 0.6,0.2, 0,0.7, -0.6,0.2, -0.6,-0.4, 0,-0.7]], e: [] },
   };
 
@@ -12291,18 +12388,25 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         dn.sides = spec.sides;
         dn.role = spec.role || 'defence';
         dn.core = d0.core; dn.vault = d0.vault; dn.frame = d0.frame; dn.pending = d0.pending;
-        for (var f = 1; f <= dn.sides; f++) ns.dieEngrave(dn, spec.base, f);
+        /* HALF THE GUARD IS BARE ON PURPOSE. Six identical faces is not a die,
+         * it is a button — every roll banked the same number and there was
+         * nothing to build toward. Bare faces still bank the roll's base, so a
+         * guard roll is now 10 or 26 rather than always the same, and there is
+         * room for what you cut to change the shape. */
+        for (var f = 1; f <= dn.sides; f += 2) ns.dieEngrave(dn, spec.base, f);
         E.run.dice.push(dn);
       });
       E.run.dieIdx = 0;
       E.run.protocols = (B.dice.arsenalProtocols || ['sight', 'vent', 'overclock']).slice();
+      E.run.kitOffer = rollKits(3);
     }
     if (E.CORNERSTONES !== false && CORNERSTONE_OF[clsId]) {   // grant the class Cornerstone
       E.run.cornerstone = { id: CORNERSTONE_OF[clsId], tier: 1 };
       E.run.artifacts.push(CORNERSTONE_OF[clsId]);
     }
     E.run.map = generateMap(1);
-    E.run.phase = 'map';
+    // A run that opens with a kit choice stops at that choice first.
+    E.run.phase = (E.run.kitOffer && E.run.kitOffer.length) ? 'kit' : 'map';
     // VOID PRESSURE: the frame buckles (fewer core slots) and HULL BREACH
     // launches you with a Flaw already cut into the die.
     (function () {
@@ -14328,6 +14432,13 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // profile moved (median sector 4 -> 7 in simulation).
     if (!lit) return;
     if (ns.dieTaintAt(r.die, face) === 'dead_short') return;   // the seam is broken
+    /* A SMALL DIE DOES NOT BLEED. The splash reaches a fixed NUMBER of faces,
+     * which is 10% of a d20 and 33% of a d6 — so on the guard every roll fired
+     * its face plus both neighbours, and with six identical faces that came out
+     * as the same 34 wall every single time. Deterministic and inflated at
+     * once. The chain is a d20 mechanic because only a d20 has the room for
+     * "where you cut" to mean anything. */
+    if (ns.dieSides(r.die) < ns.DIE.faces) return;
     var bleed = Math.min(1, B.dice.bleed + art('bleedPct'));
     if (art('relayAll') > 0) bleed = 1;                            // DISTRIBUTION FRAME
     if (art('bleedEnds') > 0 && faceAtEnd(face)) bleed = 1;        // SECOND MOUTH
@@ -15713,6 +15824,72 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   /* Point run.die at one of the three. Everything downstream — bands, seams,
    * welds, taints, listeners, steering, fireOneFace — reads run.die, so this
    * one assignment is the entire multi-die implementation. */
+  /* THE OPENING KIT. Two archetypes and one random handful, so the choice is
+   * between plans rather than between three piles of the same thing. */
+  function rollKits(n) {
+    var ids = Object.keys(ns.ARSENAL_KITS);
+    shuffle(ids);
+    var out = ids.slice(0, Math.max(0, (n || 3) - 1));
+    out.push('_random');
+    return out;
+  }
+  // A random kit is rolled fresh each time it is inspected, so the panel and
+  // the thing you take are the same three cuts.
+  function randomKitCuts() {
+    var pool = Object.keys(ns.DIE_AUGMENTS).filter(function (k) {
+      var g = ns.DIE_AUGMENTS[k];
+      if (g.flaw || g.basic || g.onlyFace) return false;
+      if (g.cls && g.cls !== 'arsenal') return false;
+      /* A card-shaped engraving is dead weight for a class with no deck —
+       * drawing and exhausting do nothing when the hand is two dice and a
+       * loadout, and "gain Energy" is a roll, which is fine. */
+      var j = JSON.stringify(g.fx || []);
+      if (/"k":"draw"/.test(j)) return false;
+      if (/dieExhaustDraw|dieTutor|dieDiscover/.test(j)) return false;
+      return true;
+    });
+    shuffle(pool);
+    var atk = ns.KIT_FACES.attack.slice(), gd = ns.KIT_FACES.guard.slice(), cuts = [];
+    for (var i = 0; i < pool.length && cuts.length < 3; i++) {
+      var g = ns.DIE_AUGMENTS[pool[i]];
+      // wall, shield, plating and healing go on the guard; hits go up the table
+      var j2 = JSON.stringify(g.fx || []);
+      var defensive = /"s":"bulwark"|"k":"block"|"s":"plate"|"k":"heal"|"s":"thorns"/.test(j2);
+      if (defensive && gd.length) cuts.push({ id: pool[i], die: 1, face: gd.shift() });
+      else if (!defensive && atk.length) cuts.push({ id: pool[i], die: 0, face: atk.shift() });
+    }
+    return cuts;
+  }
+  E.kitCuts = function (id) {
+    if (id === '_random') {
+      var r = E.run;
+      if (!r._randomKit) r._randomKit = randomKitCuts();
+      return r._randomKit;
+    }
+    return ((ns.ARSENAL_KITS[id] || {}).cuts || []);
+  };
+  E.kitInfo = function (id) {
+    if (id === '_random') return { name: 'SALVAGE', plan: 'Three cuts off the rack. No plan, just parts.' };
+    return ns.ARSENAL_KITS[id] || { name: '?', plan: '' };
+  };
+  E.takeKit = function (id) {
+    var r = E.run; if (!r || r.phase !== 'kit') return false;
+    E.kitCuts(id).forEach(function (cut) {
+      var die = r.dice[cut.die]; if (!die) return;
+      // slide off anything that will not take the cut rather than dropping it
+      for (var k = 0; k < ns.dieSides(die); k++) {
+        var f = ns.dieStep(cut.face, k, die);
+        if (!ns.dieCanEngrave(die, cut.id, f)) { ns.dieEngrave(die, cut.id, f); return; }
+      }
+    });
+    r.kitTaken = id;
+    r.kitOffer = null;
+    r._randomKit = null;
+    r.phase = 'map';
+    E.save();
+    return true;
+  };
+
   E.useDie = function (i) {
     var r = E.run;
     if (!r || !r.dice || !r.dice.length) return;
@@ -20683,6 +20860,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       case 'forge': return showForge();
       case 'rift': return showRift();
       case 'boss-artifact': return showBossArtifact();
+      case 'kit': return showKitPick();
       case 'first-mark': return showFirstMark();
       case 'cutscene': return showCutscene();
       case 'sector-intro': return showSectorIntro();
@@ -26002,6 +26180,38 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
    * of names. The face is NOT chosen here: the engraving lands pending and the
    * die screen asks where, so the choice stays open while you learn the table.
    * ==================================================================== */
+  /* THE OPENING KIT. Three engravings, already placed, chosen before the first
+   * fight. A bare die has nothing to say and the first two fights were exactly
+   * that — roll, take the base number, repeat — so the run's first real
+   * decision now happens before it starts rather than three fights in. */
+  function showKitPick() {
+    var r = E.run; if (!r || !r.kitOffer) return;
+    var s = overlayScreen();
+    s.appendChild(el('h2', 'screen-title', 'Cut The First Faces'));
+    s.appendChild(el('div', 'screen-sub', 'THREE ENGRAVINGS, ALREADY PLACED · THIS IS THE SHAPE YOU START WITH'));
+    var bar = makeConfirmBar();
+    r.kitOffer.forEach(function (kid) {
+      var info = E.kitInfo(kid), cuts = E.kitCuts(kid);
+      var rows = cuts.map(function (c) {
+        var g = ns.dieEngraving(c.id); if (!g) return '';
+        var die = r.dice[c.die];
+        var where = (c.die === 0 ? 'ATTACK' : 'GUARD') + ' · face ' + c.face
+                  + ((g.span || 1) > 1 ? ' (+' + (Math.min(g.span, Math.floor(ns.dieSides(die) / 2)) - 1) + ')' : '');
+        return '<div class="kit-cut"><b>' + esc(g.name) + '</b>'
+             + '<span class="kit-where">' + where + '</span>'
+             + '<div class="kit-desc">' + esc(g.desc) + '</div></div>';
+      }).join('');
+      var pb = el('div', 'panel-btn kit-panel',
+        '<div class="pb-title">' + esc(info.name) + '</div>'
+        + '<div class="pb-desc">' + esc(info.plan) + '</div>'
+        + '<div class="kit-cuts">' + rows + '</div>');
+      s.appendChild(pb);
+      selectConfirm(s, pb, bar, 'Open with <b>' + esc(info.name) + '</b>?<span class="cb-note">' + esc(info.plan) + '</span>',
+        function () { SFX.coin(); E.takeKit(kid); U.refresh(); }, 'amber');
+    });
+    s.appendChild(bar.el);
+  }
+
   function showFirstMark() {
     combatChrome(false);
     $hud.innerHTML = ''; setHud(false);
