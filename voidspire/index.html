@@ -15807,6 +15807,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // priced as a declaration of intent, not as a drop, so they never appear
       // in a reward or on a bench — including for the class they belong to.
       if (ns.DIE_AUGMENTS[k].startOnly) return;
+      /* A BASIC IS A FLOOR, NOT A REWARD. Brace and Pulse Rifle are what the
+       * dice arrive wearing so a fresh barrel is not six blanks — they are the
+       * thing your drafted cuts REPLACE. Offering one back as a pick is both
+       * nonsense and, at 30 Bulwark a face, wildly overpriced for a tier-1. */
+      if (ns.DIE_AUGMENTS[k].basic) return;
       // A class set only drops for its class — the Vanguard's listeners key off
       // Momentum and Parry, which the other two barely touch.
       var ec = ns.DIE_AUGMENTS[k].cls;
