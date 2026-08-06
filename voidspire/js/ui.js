@@ -2960,10 +2960,140 @@
   }
   U.fitHand = fitHand;
 
+  /* ================= THE RIBBON =================================
+   * The Arsenal's hand, and only the Arsenal's. Its dice are not cards and
+   * drawing them as cards hid the one thing every engraving decision is
+   * about: DENSITY — how much of a die actually does something, and where.
+   * That lived on a separate screen, so you built a machine you never saw
+   * while using it.
+   *
+   * Each die is unrolled into a strip of its faces. Cut faces are lit and
+   * named, bare faces are holes you can see. The band underlay is computed
+   * per face THROUGH the player's current Aim, so it moves when Aim moves —
+   * which also answers the quiet question nobody could answer before:
+   * what is a 14 actually worth?
+   *
+   * The guard gets no underlay on purpose. It is a skill, it reads no bands
+   * and cannot jam, and an empty strip says that better than a legend would.
+   * ============================================================== */
+  function bandTone(label) {
+    if (!label) return 'none';
+    if (label === 'CRIT' || label === 'SOLID') return 'hot';
+    if (label === 'MISFIRE') return 'jam';
+    if (label === 'HIT') return 'ok';
+    return 'weak';
+  }
+  function ribbonFor(die, dieIdx, handIdx) {
+    var c = E.combat, r = E.run;
+    var n = ns.dieSides(die);
+    var isGuard = die.role === 'defence';
+    var aimNow = statOf('aim');
+    var wrap = el('div', 'rib' + (isGuard ? ' rib-guard' : ' rib-attack') +
+                  (handIdx >= 0 && E.canPlay(handIdx) ? '' : ' rib-spent') +
+                  (handIdx === selected ? ' rib-armed' : ''));
+    wrap.dataset.hand = handIdx;
+
+    var cutN = 0;
+    for (var q = 1; q <= n; q++) if (die.faces[q]) cutN++;
+    wrap.appendChild(el('div', 'rib-top',
+      '<b>' + (isGuard ? 'GUARD' : 'ATTACK') + '</b>'
+      + '<span>d' + n + ' · ' + cutN + '/' + n + ' cut</span>'
+      + (isGuard
+          ? '<i class="rib-note rib-wallnote">WALL <b>' + statOf('bulwark') + '</b>'
+            + '<span class="rw-bar"><i style="width:' + Math.min(100, statOf('bulwark')) + '%"></i></span></i>'
+          : '<i class="rib-note">aim +' + aimNow + '</i>')));
+
+    var track = el('div', 'rib-track');
+    // band underlay: runs of equal band, so it reads as regions not stripes
+    if (!isGuard) {
+      var bands = el('div', 'rib-bands'), runStart = 1, runLabel = null;
+      for (var f = 1; f <= n + 1; f++) {
+        var tag = f <= n ? (dieEndTag(r.cls, f, aimNow, die) || {}).label : null;
+        if (f === 1) { runLabel = tag; continue; }
+        if (tag !== runLabel || f > n) {
+          var seg = el('div', 'rib-band t-' + bandTone(runLabel), esc(runLabel || ''));
+          seg.style.left = ((runStart - 1) / n * 100) + '%';
+          seg.style.width = ((f - runStart) / n * 100) + '%';
+          bands.appendChild(seg);
+          runStart = f; runLabel = tag;
+        }
+      }
+      track.appendChild(bands);
+    }
+
+    var cells = el('div', 'rib-cells');
+    cells.style.gridTemplateColumns = 'repeat(' + n + ', 1fr)';
+    for (var i = 1; i <= n; i++) {
+      var slot = die.faces[i], g = slot ? ns.dieEngraving(slot.id) : null;
+      var cont = slot && slot.root !== i;
+      var cell = el('div', 'rib-cell' + (g ? ' cut' : ' bare') + (cont ? ' cont' : ''),
+        '<i>' + i + '</i>' + (g && !cont ? '<em>' + esc(g.name) + '</em>' : ''));
+      if (g) cell.title = g.name + ' — ' + g.desc;
+      cells.appendChild(cell);
+    }
+    track.appendChild(cells);
+
+    if (c.lastLand && c.lastLand.die === dieIdx) {
+      var mk = el('div', 'rib-mark', '<span>' + c.lastLand.face + '</span>');
+      mk.style.left = ((c.lastLand.face - 0.5) / n * 100) + '%';
+      track.appendChild(mk);
+    }
+    wrap.appendChild(track);
+
+    if (handIdx >= 0) {
+      wrap.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation();
+        if (locked || !E.canPlay(handIdx)) { SFX.tap(); return; }
+        SFX.tap();
+        var sole = soleEnemyIdx();
+        if (sole >= 0) { selected = -1; setTargeting(false); playCardAt(handIdx, sole); return; }
+        // more than one target: arm it, then tap the enemy (onFieldTap fires it)
+        selected = (selected === handIdx) ? -1 : handIdx;
+        setTargeting(selected >= 0);
+        renderHand();
+      });
+    }
+    return wrap;
+  }
+  function statOf(s) {
+    var c = E.combat;
+    return (c && c.player && c.player.statuses[s]) || 0;
+  }
+  function renderRibbonHand() {
+    var c = E.combat, r = E.run;
+    var host = el('div', 'rib-wrap');
+    (r.dice || []).forEach(function (die, di) {
+      var hi = c.hand.findIndex(function (h) { return h.dieIdx === di; });
+      host.appendChild(ribbonFor(die, di, hi));
+    });
+
+    var bar = el('div', 'rib-bar');
+    var protos = el('div', 'rib-protos');
+    c.hand.forEach(function (card, i) {
+      if (!card.protoId) return;
+      var pd = ns.protocol(card.protoId) || {};
+      var left = (c.protoLeft || [])[card.protoIdx] || 0;
+      var b = el('div', 'rib-proto' + (E.canPlay(i) ? '' : ' off'),
+        '<b>' + esc(pd.name || '?') + '</b><span>' + left + '</span>');
+      b.title = pd.desc || '';
+      b.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation();
+        if (locked || !E.canPlay(i)) return;
+        SFX.tap();
+        playCardAt(i, Math.max(0, soleEnemyIdx()));
+      });
+      protos.appendChild(b);
+    });
+    bar.appendChild(protos);
+    host.appendChild(bar);
+    $hand.appendChild(host);
+  }
+
   function renderHand(deal) {
     $hand.innerHTML = '';
     var c = E.combat;
     if (!c) return;
+    if (c.rollClass) { renderRibbonHand(); return; }
     var n = c.hand.length, mid = (n - 1) / 2;
     var spread = n > 1 ? Math.min(4.2, 26 / n) : 0; // degrees between cards
     c.hand.forEach(function (card, i) {

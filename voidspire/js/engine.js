@@ -1346,6 +1346,7 @@
     c.cardsThisTurn = 0;
     c.enemies.forEach(function (e) { if (e.def.plated) e.platedReady = true; });   // Reactive Plating re-arms each turn
     c.nonAttacksThisTurn = 0;   // Recoilless Frame: per-turn non-attack limit
+    c.lastLand = null;          // the ribbon's landing marker is per-turn
     c.turnDamage = 0;           // class quest: damage dealt this turn
     c.momentum = 0;   // Momentum Engine resets each turn
     // Fusillade: Momentum is a per-turn combo — unless a Cycling Breech says
@@ -2798,6 +2799,9 @@
       }
     }
     var landed = steered ? steered.face : roll;
+    // The ribbon draws a marker where the roll came to rest, so it has to be
+    // told. Cleared at the start of each turn.
+    c.lastLand = { die: r.dieIdx || 0, face: landed, roll: roll };
     var scaled = ns.dieScale(r.die, landed);          // where this face sits on the d20 table
     eff = (dread && dread.steer)
       ? Math.min(20, scaled + art('rollBonus'))
