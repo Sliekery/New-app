@@ -12,16 +12,18 @@ html = html.replace(/<link rel="stylesheet" href="css\/style\.css">/,
 html = html.replace(/<script src="(js\/[^"]+)"><\/script>/g,
   (_, src) => '<script>\n' + fs.readFileSync(path.join(root, src), 'utf8') + '\n</script>');
 
-// Stamp the build so a cached page is identifiable at a glance rather than
-// after two rounds of "are you sure you reloaded".
-let stamp = 'dev';
+/* Stamp the build from the CONTENT, not from git HEAD. Reading HEAD meant the
+ * stamp was whatever had been committed when the bundle happened — so bundling
+ * before committing (which is the natural order, since the bundle is what gets
+ * committed) left it pointing one commit back. It drifted twice before this.
+ * A hash of the assembled page cannot drift: identical output, identical stamp,
+ * and it names the build rather than a commit that may not contain it. */
+var stamp;
 try {
-  const cp = require('child_process');
-  const sha = cp.execSync('git rev-parse --short HEAD', { cwd: root }).toString().trim();
-  const day = new Date(parseInt(cp.execSync('git log -1 --format=%ct', { cwd: root }).toString().trim(), 10) * 1000)
-    .toISOString().slice(0, 10);
-  stamp = day + ' ' + sha;
-} catch (e) { /* not a git checkout; leave it as dev */ }
+  var crypto = require('crypto');
+  var day = new Date().toISOString().slice(0, 10);
+  stamp = day + ' ' + crypto.createHash('md5').update(html).digest('hex').slice(0, 7);
+} catch (e) { stamp = 'dev'; }
 html = html.replace('__BUILD__', stamp);
 
 fs.writeFileSync(path.join(root, 'voidspire.html'), html);
