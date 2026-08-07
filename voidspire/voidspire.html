@@ -2423,16 +2423,66 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .card.die-card.die-guard { background: linear-gradient(180deg, rgba(93,255,136,.10), rgba(4,8,10,.92)); }
 .card.die-card.die-guard .dk-name { color: var(--green); text-shadow: var(--glow-g); }
 
-/* ---- THE OPENING KIT ----------------------------------------------------
- * Each panel has to show three engravings AND where each one lands, because
- * where is half the decision. Indented rows under the plan, not a paragraph. */
-.kit-panel .kit-cuts { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
-.kit-cut { border-left: 2px solid var(--green-dim); padding: 1px 0 1px 7px; }
-.kit-cut b { font-size: 11px; color: var(--cyan); }
-.kit-cut .kit-where { font-size: 9px; letter-spacing: .08em; color: var(--amber); margin-left: 7px; }
-.kit-cut .kit-desc { font-size: 10px; line-height: 1.3; color: var(--text-dim); }
-.panel-btn.kit-panel.sel .kit-cut { border-left-color: var(--amber); }
 .build-stamp { text-align: center; font-size: 9px; letter-spacing: .18em; color: var(--text-dim); opacity: .7; margin: -4px 0 10px; }
+
+/* ================= THE ARENA =========================================
+ * Thirteen picks of three, and every one is placed by hand. The grid is the
+ * important half: it has to show what is already cut, where the new cut
+ * lands, and — because the die bleeds 25% into both neighbours — which faces
+ * will catch a quarter of every roll that lands next door. */
+.ar-pips { display: flex; gap: 4px; justify-content: center; margin: 2px 0 12px; }
+.ar-pip { width: 16px; height: 4px; background: var(--green-dim); opacity: .45; border-radius: 1px; }
+.ar-pip.gd { background: var(--green); opacity: .3; }
+.ar-pip.done { opacity: 1; background: var(--amber); }
+.ar-pip.gd.done { background: var(--green); opacity: 1; }
+.ar-pip.now { opacity: 1; background: var(--cyan); box-shadow: 0 0 6px rgba(65,216,255,.7); }
+.ar-body { width: 100%; max-width: 900px; margin: 0 auto; }
+.ar-step { margin-bottom: 8px; }
+
+.ar-offers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+@media (max-width: 620px) { .ar-offers { grid-template-columns: 1fr; } }
+.ar-offer {
+  border: 1px solid var(--green-dim); border-radius: 4px; padding: 10px 11px 12px;
+  background: rgba(255,255,255,.02); cursor: pointer; text-align: left;
+  transition: border-color .12s, background .12s, transform .1s;
+}
+.ar-offer:hover { transform: translateY(-2px); background: rgba(255,255,255,.05); }
+.ar-offer.t2 { border-color: rgba(65,216,255,.6); }
+.ar-offer.t3 { border-color: rgba(255,176,46,.75); background: rgba(255,176,46,.05); }
+.ar-offer .ao-name { font-size: 13px; letter-spacing: .06em; color: var(--text); margin-bottom: 5px; }
+.ar-offer.t2 .ao-name { color: var(--cyan); text-shadow: var(--glow-c); }
+.ar-offer.t3 .ao-name { color: var(--amber); text-shadow: var(--glow-a); }
+.ar-offer .ao-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; min-height: 12px; }
+.ar-offer .ao-tags span {
+  font-size: 7.5px; letter-spacing: .12em; padding: 1px 5px;
+  border: 1px solid var(--green-dim); color: var(--text-dim); border-radius: 2px;
+}
+.ar-offer .ao-desc { font-size: 11px; line-height: 1.35; color: var(--text-dim); }
+
+.ar-note { text-align: center; font-size: 11px; color: var(--text-dim); margin-bottom: 10px; }
+.ar-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
+.ar-grid.ar-grid-6 { grid-template-columns: repeat(6, 1fr); }
+.ar-cell {
+  border: 1px solid var(--green-dim); border-radius: 3px; padding: 4px 2px 5px;
+  text-align: center; min-height: 44px; background: rgba(255,255,255,.02);
+  transition: background .1s, border-color .1s, transform .1s;
+}
+.ar-cell i { font-style: normal; display: block; font-size: 11px; color: var(--text-dim); }
+.ar-cell em { font-style: normal; display: block; font-size: 7.5px; line-height: 1.1; margin-top: 2px; overflow-wrap: anywhere; }
+.ar-cell em.free { color: rgba(94,138,108,.6); }
+.ar-cell.taken em { color: var(--text); }
+.ar-cell.ok { cursor: pointer; }
+.ar-cell.ok:hover { border-color: var(--cyan); background: rgba(65,216,255,.12); transform: translateY(-1px); }
+.ar-cell.bad { opacity: .3; border-style: dashed; }
+.ar-cell.in-span { border-color: var(--cyan); background: rgba(65,216,255,.18); }
+.ar-cell.in-nb { border-color: rgba(255,176,46,.7); background: rgba(255,176,46,.1); }
+
+.ar-legend { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+  font-size: 9.5px; color: var(--text-dim); margin: 10px 0 4px; letter-spacing: .06em; }
+.ar-legend span { display: inline-block; width: 10px; height: 10px; border: 1px solid; margin-right: 5px; vertical-align: -1px; }
+.ar-legend .lg-span { border-color: var(--cyan); background: rgba(65,216,255,.18); }
+.ar-legend .lg-nb { border-color: rgba(255,176,46,.7); background: rgba(255,176,46,.1); }
+.ar-legend .lg-bad { border-color: var(--green-dim); border-style: dashed; }
 
 </style>
 </head>
@@ -2456,7 +2506,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
  * ========================================================================= */
 (function (ns) {
   // Replaced by test/bundle.js with the git short hash + date at build time.
-  ns.BUILD = '2026-08-06 00d5e49';
+  ns.BUILD = '2026-08-06 d0a45be';
 
   'use strict';
 
@@ -2517,6 +2567,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         { sides: 6, base: 'base_brace', role: 'defence' },   // DEFENCE — banks the wall
       ],
       arsenalRolls: 3,       // rolls a turn, allocated across the two dice however you like
+      arenaAttackPicks: 10,   // picks of three for the d20
+      arenaGuardPicks: 3,     // picks of three for the guard
       arsenalProtocols: ['sight', 'vent', 'overclock'],   // the opening loadout
       /* THE CASH-OUT RATE, and this class balances on it. Below 1:1 on
        * purpose: converting has to be a LOSS you accept for tempo, or banking
@@ -3051,7 +3103,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
      * on, which is the entire point of building the dice. */
     _dieroll: {
       name: 'ROLL', cls: 'arsenal', type: 'attack', rarity: 0, cost: 1, pool: 'die',
-      fx: [{ k: 'dmg', v: 9, scale: 'might' }],
+      fx: [{ k: 'dmg', v: 3, scale: 'might' }],
       desc: 'Roll this die. Its band is the shot; its face is the rest.',
     },
     /* The DEFENCE die's base payload. A skill, not an attack, which is what
@@ -8960,6 +9012,138 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // reaches, and the guard's three bare faces.
   ns.KIT_FACES = { attack: [19, 17, 15, 13, 11], guard: [2, 4, 6] };
 
+  /* ==================================================================
+   * THE ARENA POOL — what the opening draft offers
+   * ==================================================================
+   * Ten picks of three for the d20, three picks of three for the guard, and
+   * you place every one yourself. Which means the pool has to reward WHERE,
+   * not just WHAT — otherwise placement is a chore between real decisions.
+   *
+   * The die already bleeds: a roll fires its face at full and both neighbours
+   * at 25%. Everything below is designed against that one fact.
+   *
+   *   SPINE      flat damage, still worth something at a quarter strength.
+   *              These are the faces you pack around your payoffs.
+   *   PACKED     pays FOR its neighbours being cut. The loud version of the
+   *              quiet truth that density is correct.
+   *   RELAY      makes its neighbours fire at FULL instead of a quarter. The
+   *              keystone piece — build a block around one and the block goes
+   *              off together.
+   *   LISTENERS  fire on a trigger rather than on a landing, so they pay from
+   *              anywhere on the die and reward a theme rather than a spot.
+   *   BAND-LOCKED  only cut into the low, middle or high third. These are how
+   *              a table gets a shape: the top of the die is where Aim takes
+   *              you, the bottom is where misfires live.
+   *   RAMP       small permanent gains. A face you land on 5% of rolls that
+   *              grants +1 of something is a slow curve, and a slow curve is
+   *              exactly what this class did not have.
+   *
+   * Translated from the Vanguard wherever a card had a one-shot body. Powers
+   * mostly could not come across — a face fires every time you land on it —
+   * so the ones that did become either listeners or small ramp.
+   * ------------------------------------------------------------------ */
+  function ar(name, tier, fx, desc, opt) {
+    var o = { name: name, tier: tier, span: 1, cls: 'arsenal', arena: true, fx: fx, desc: desc,
+              art: { p: [[-0.5,0.4, 0.5,-0.4], [-0.2,-0.4, 0.5,-0.4], [0.5,-0.4, 0.5,0.1]], e: [] } };
+    for (var k in (opt || {})) o[k] = opt[k];
+    return o;
+  }
+  var A = ns.DIE_AUGMENTS;
+
+  /* ---- SPINE: flat hits that survive the 25% bleed ------------------- */
+  A.ar_shot      = ar('Pulse Shot',   1, [{ k:'dmg', v:4,  scale:'might' }], 'Deal 4 damage.');
+  A.ar_bayonet   = ar('Bayonet',      1, [{ k:'dmg', v:3,  scale:'might' }, { k:'status', s:'vuln', v:1, who:'target' }], 'Deal 3 damage. Apply 1 Vulnerable.');
+  A.ar_raking    = ar('Raking Fire',  2, [{ k:'dmg', v:4,  scale:'might' }, { k:'status', s:'weak', v:1, who:'target' }], 'Deal 4 damage. Apply 1 Weak.');
+  A.ar_heavy     = ar('Heavy Round',  2, [{ k:'dmg', v:6, scale:'might' }], 'Deal 6 damage.');
+  A.ar_frag      = ar('Frag Grenade', 2, [{ k:'dmg', v:3, all:true, scale:'might' }, { k:'status', s:'vuln', v:1, who:'target' }], 'Deal 3 damage to ALL enemies. Apply 1 Vulnerable.');
+  A.ar_slug      = ar('Siege Slug',   3, [{ k:'dmg', v:10, scale:'might' }], 'Deal 10 damage.');
+  A.ar_orbital   = ar('Orbital Strike',3,[{ k:'dmg', v:6, all:true, scale:'might' }, { k:'status', s:'vuln', v:2, who:'target' }], 'Deal 6 damage to ALL enemies. Apply 2 Vulnerable.');
+
+  /* ---- PACKED: paid for by the faces either side --------------------- */
+  A.ar_packed    = ar('Powder Train', 2, [{ k:'special', id:'denseFace', v:2, per:4 }], 'Deal 2 damage, +4 for each neighbouring face that is cut.');
+  A.ar_packwall  = ar('Sandbag Line', 2, [{ k:'special', id:'packedWall', v:2, per:4 }], 'Gain 2 Bulwark, +4 for each neighbouring face that is cut.');
+  A.ar_crossfire = ar('Crossfire',    3, [{ k:'special', id:'denseFace', v:3, per:6 }], 'Deal 3 damage, +6 for each neighbouring face that is cut.');
+
+  /* ---- RELAY: the keystone. Neighbours fire at FULL ------------------- */
+  A.ar_relay     = ar('Relay Coil',   2, [{ k:'dmg', v:2, scale:'might' }], 'Deal 2 damage. The faces either side of this one fire at FULL strength.', { field:'relay' });
+  A.ar_relaywall = ar('Bus Bar',      3, [{ k:'status', s:'bulwark', v:2, who:'self' }], 'Gain 2 Bulwark. The faces either side of this one fire at FULL strength.', { field:'relay' });
+
+  /* ---- BAND-LOCKED: the shape of the table --------------------------- */
+  A.ar_killshot  = ar('Killshot',     3, [{ k:'dmg', v:12, scale:'might' }], 'Deal 12 damage. Only cuts into the TOP of the die.', { band:'high' });
+  A.ar_calledhi  = ar('Called High',  2, [{ k:'dmg', v:4, scale:'might' }, { k:'status', s:'aim', v:2, who:'self' }], 'Deal 4 damage. Gain 2 Aim. Only cuts into the TOP of the die.', { band:'high' });
+  A.ar_execute   = ar('Executioner',  3, [{ k:'special', id:'dieExecute', v:13 }], 'Deal 13 damage, doubled if the target is below 30% HP. Only cuts into the TOP of the die.', { band:'high' });
+  A.ar_ricochet  = ar('Ricochet',     2, [{ k:'dmg', v:3, scale:'might' }, { k:'dmg', v:3, scale:'might' }], 'Deal 3 damage twice. Only cuts into the MIDDLE of the die.', { band:'mid' });
+  A.ar_firingstep= ar('Firing Step',  2, [{ k:'dmg', v:3, scale:'might' }, { k:'status', s:'bulwark', v:2, who:'self' }], 'Deal 3 damage. Gain 2 Bulwark. Only cuts into the MIDDLE of the die.', { band:'mid' });
+  A.ar_misfire   = ar('Misfire Protocol', 2, [{ k:'status', s:'aim', v:3, who:'self' }, { k:'energy', v:1 }], 'Gain 3 Aim and 1 Roll. Only cuts into the BOTTOM of the die.', { band:'low' });
+  A.ar_redhour   = ar('The Red Hour', 3, [{ k:'status', s:'stim', v:5, who:'self' }, { k:'energy', v:1 }], 'Gain 5 Stim and 1 Roll. Only cuts into the BOTTOM of the die.', { band:'low' });
+  A.ar_scrapheap = ar('Scrap Heap',   1, [{ k:'status', s:'bulwark', v:3, who:'self' }], 'Gain 3 Bulwark. Only cuts into the BOTTOM of the die.', { band:'low' });
+
+  /* ---- THE WALL: bank it, then spend it ------------------------------ */
+  A.ar_revetment = ar('Revetment',    1, [{ k:'special', id:'wallFace' }], 'Gain Bulwark equal to the face you landed on.');
+  A.ar_buttress  = ar('Buttress',     1, [{ k:'status', s:'bulwark', v:3, who:'self' }], 'Gain 3 Bulwark.');
+  A.ar_rampart   = ar('Rampart',      2, [{ k:'status', s:'bulwark', v:5, who:'self' }], 'Gain 5 Bulwark.', { span:3 });
+  A.ar_spiked    = ar('Spiked Bulwark',2,[{ k:'status', s:'bulwark', v:2, who:'self' }, { k:'status', s:'thorns', v:1, who:'self' }], 'Gain 2 Bulwark and 1 Thorns.');
+  A.ar_embrasure = ar('Embrasure',    2, [{ k:'dmg', v:4, scale:'might' }, { k:'special', id:'wallDealt' }], 'Deal 4 damage. Gain Bulwark equal to the damage dealt.');
+  A.ar_spall     = ar('Spall',        2, [{ k:'special', id:'spall', v:0.5, cost:1 }], 'Deal damage equal to half your Bulwark, and spend that half.');
+  A.ar_breach    = ar('Breach the Wall',3,[{ k:'special', id:'breachWall' }], 'Consume all your Bulwark: deal that much damage.');
+  A.ar_detonate  = ar('Detonate',     3, [{ k:'special', id:'detonate' }], 'Consume all your Bulwark: deal that much to ALL enemies.');
+  A.ar_sandbag   = ar('Sandbag',      1, [{ k:'hploss', v:4 }, { k:'status', s:'bulwark', v:5, who:'self' }], 'Lose 4 HP. Gain 5 Bulwark.');
+
+  /* ---- AIM: climb the table ------------------------------------------ */
+  A.ar_takeaim   = ar('Take Aim',     1, [{ k:'status', s:'aim', v:3, who:'self' }], 'Gain 3 Aim.');
+  A.ar_ranging   = ar('Ranging Shot', 1, [{ k:'dmg', v:3, scale:'might' }, { k:'status', s:'aim', v:1, who:'self' }], 'Deal 3 damage. Gain 1 Aim.');
+  A.ar_boresight = ar('Boresight',    2, [{ k:'status', s:'aim', v:4, who:'self' }, { k:'energy', v:1 }], 'Gain 4 Aim and 1 Roll.');
+  A.ar_steadyaim = ar('Steady Aim',   2, [{ k:'status', s:'aimPerTurn', v:1, who:'self' }], 'Gain 1 more Aim at the start of every turn, for the rest of the fight.');
+
+  /* ---- STIM: buy power with blood ------------------------------------ */
+  A.ar_whet      = ar('Whet the Blade',1,[{ k:'hploss', v:2 }, { k:'status', s:'stim', v:3, who:'self' }], 'Lose 2 HP. Gain 3 Stim.');
+  A.ar_overdose  = ar('Overdose',     2, [{ k:'hploss', v:4 }, { k:'status', s:'stim', v:7, who:'self' }], 'Lose 4 HP. Gain 7 Stim.');
+  A.ar_gutshot   = ar('Gutshot',      2, [{ k:'dmg', v:4, scale:'might' }, { k:'status', s:'stim', v:2, who:'self' }, { k:'heal', v:2 }], 'Deal 4 damage. Gain 2 Stim and heal 2.');
+  A.ar_ravening  = ar('Ravening',     3, [{ k:'dmg', v:4, scale:'might', scaleStim:true }, { k:'heal', v:3 }], 'Deal 4 damage, plus 2 per Stim. Heal 3.');
+  A.ar_secondwind= ar('Second Wind',  1, [{ k:'heal', v:7 }, { k:'status', s:'stim', v:2, who:'self' }], 'Heal 7 HP. Gain 2 Stim.');
+
+  /* ---- LISTENERS: pay from anywhere on the die ----------------------- */
+  A.ar_lis_crit  = ar('Killing Rage', 2, [{ k:'status', s:'str', v:1, who:'self' }], 'WHEN YOU CRIT: gain 2 Might.', { listen:'crit' });
+  A.ar_lis_shield= ar('Scar Tissue',  2, [{ k:'status', s:'bulwark', v:2, who:'self' }], 'WHEN YOU GAIN SHIELD: gain 5 Bulwark.', { listen:'shield' });
+  A.ar_lis_hurt  = ar('Blood Debt',   2, [{ k:'status', s:'stim', v:2, who:'self' }], 'WHEN YOU SPEND HP: gain 2 Stim.', { listen:'selfHp' });
+  A.ar_lis_nb    = ar('Sympathetic Det.',3,[{ k:'dmg', v:2, scale:'might' }], 'WHEN A NEIGHBOURING FACE FIRES: deal 2 damage.', { listen:'neighbour' });
+
+  /* ---- RAMP: the slow curve ------------------------------------------ */
+  A.ar_casemate  = ar('Casemate',     2, [{ k:'status', s:'wallPerTurn', v:1, who:'self' }], 'Gain 1 Bulwark at the start of every turn, for the rest of the fight.');
+  A.ar_might     = ar('Whetstone',    2, [{ k:'status', s:'str', v:1, who:'self' }], 'Gain 1 Might for the rest of the fight.');
+  A.ar_reactive  = ar('Reactive Plating',2,[{ k:'status', s:'wallThorns', v:1, who:'self' }], 'Your wall hits back for 1 more, for the rest of the fight.');
+  A.ar_overflow  = ar('Overflow Cell',3, [{ k:'energy', v:2 }], 'Gain 2 Rolls.');
+
+  /* ---- THE GUARD POOL: six faces, so every one is worth three ---------
+   * Priced against the d6, where a face is 16.7% of the die rather than 5%,
+   * and against the measured ratio that a point of wall is worth about half a
+   * point of damage. */
+  function gd(name, tier, fx, desc, opt) {
+    var o = ar(name, tier, fx, desc, opt); o.guard = true; return o;
+  }
+  A.gd_brace     = gd('Brace',        1, [{ k:'status', s:'bulwark', v:9, who:'self' }], 'Gain 9 Bulwark.');
+  A.gd_bunker    = gd('Bunker Down',  2, [{ k:'status', s:'bulwark', v:7, who:'self' }, { k:'status', s:'wallPerTurn', v:1, who:'self' }], 'Gain 7 Bulwark, and 1 more at the start of every turn.');
+  A.gd_riot      = gd('Riot Shield',  1, [{ k:'status', s:'bulwark', v:6, who:'self' }, { k:'status', s:'thorns', v:2, who:'self' }], 'Gain 6 Bulwark and 2 Thorns.');
+  A.gd_sandbag   = gd('Sandbag',      2, [{ k:'hploss', v:4 }, { k:'status', s:'bulwark', v:14, who:'self' }], 'Lose 4 HP. Gain 14 Bulwark.');
+  A.gd_loophole  = gd('Loophole',     2, [{ k:'status', s:'bulwark', v:5, who:'self' }, { k:'dmg', v:4, scale:'might' }], 'Gain 5 Bulwark and deal 4 damage.');
+  A.gd_revet     = gd('Revetment',    1, [{ k:'special', id:'wallFace' }, { k:'status', s:'bulwark', v:7, who:'self' }], 'Gain 7 Bulwark, plus the face you landed on.');
+  A.gd_embrasure = gd('Embrasure',    2, [{ k:'dmg', v:7, scale:'might' }, { k:'special', id:'wallDealt' }], 'Deal 7 damage. Gain Bulwark equal to the damage dealt.');
+  A.gd_spall     = gd('Spall',        2, [{ k:'special', id:'spall', v:0.5, cost:1 }, { k:'status', s:'bulwark', v:4, who:'self' }], 'Deal half your Bulwark and spend it, then bank 4.');
+  A.gd_breach    = gd('Breach',       3, [{ k:'special', id:'breachWall' }], 'Consume all your Bulwark: deal that much damage.');
+  A.gd_casemate  = gd('Casemate',     3, [{ k:'status', s:'wallPerTurn', v:2, who:'self' }, { k:'status', s:'bulwark', v:4, who:'self' }], 'Gain 4 Bulwark, and 2 more at the start of every turn.');
+  A.gd_stim      = gd('Field Stims',  2, [{ k:'status', s:'bulwark', v:5, who:'self' }, { k:'status', s:'stim', v:3, who:'self' }], 'Gain 5 Bulwark and 3 Stim.');
+  A.gd_vent      = gd('Pressure Vent',2, [{ k:'status', s:'bulwark', v:6, who:'self' }, { k:'energy', v:1 }], 'Gain 6 Bulwark and 1 Roll.');
+  A.gd_barricade = gd('Barricade',    3, [{ k:'status', s:'bulwark', v:6, who:'self' }, { k:'status', s:'wallThorns', v:2, who:'self' }], 'Gain 6 Bulwark. Your wall hits back for 2 more.');
+  A.gd_reload    = gd('Reload',       1, [{ k:'status', s:'bulwark', v:4, who:'self' }, { k:'status', s:'aim', v:2, who:'self' }], 'Gain 4 Bulwark and 2 Aim.');
+
+  // Everything the arena may offer, split by which die it belongs to.
+  ns.arenaPool = function (guard) {
+    return Object.keys(A).filter(function (k) {
+      var g = A[k];
+      return g.arena && !!g.guard === !!guard;
+    });
+  };
+
   ns.PROTOCOLS = {
     sight: {
       name: 'SIGHT', charges: 2, tier: 1,
@@ -12410,15 +12594,16 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       });
       E.run.dieIdx = 0;
       E.run.protocols = (B.dice.arsenalProtocols || ['sight', 'vent', 'overclock']).slice();
-      E.run.kitOffer = rollKits(3);
     }
     if (E.CORNERSTONES !== false && CORNERSTONE_OF[clsId]) {   // grant the class Cornerstone
       E.run.cornerstone = { id: CORNERSTONE_OF[clsId], tier: 1 };
       E.run.artifacts.push(CORNERSTONE_OF[clsId]);
     }
     E.run.map = generateMap(1);
-    // A run that opens with a kit choice stops at that choice first.
-    E.run.phase = (E.run.kitOffer && E.run.kitOffer.length) ? 'kit' : 'map';
+    E.run.phase = 'map';
+    // A die you author before the first fight, rather than a blank one and
+    // three fights of nothing.
+    if (clsId === 'arsenal') E.arenaBegin();
     // VOID PRESSURE: the frame buckles (fewer core slots) and HULL BREACH
     // launches you with a Flaw already cut into the die.
     (function () {
@@ -13393,7 +13578,21 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
    * output this class gives up comes straight off its ability to survive a
    * boss. The clock and parity pull against each other here and parity wins;
    * the short boss fight is recorded as open rather than papered over. */
-  function maxEnergy() { return B.player.baseEnergy + art('energyEveryTurn') + (statN(E.combat.player, 'reactor')); }
+  /* TWO ROLLS A TURN for a roll class, not three. A drafted die is dense —
+   * ten cuts on a d20 and every roll bleeding into both neighbours means two
+   * or three engravings fire per roll from the very first fight, where the
+   * card classes start with a starter deck and ramp. At three rolls the
+   * Arsenal won 66% of its runs and killed hallway packs in a single turn.
+   *
+   * Scaling the pool's numbers did almost nothing — 0.5x damage, 0.3x wall
+   * and 0.4x ramp still measured 56%, because the advantage is DENSITY rather
+   * than magnitude. Taking a roll away is the lever that fits the cause, and
+   * it makes the allocation sharper: two rolls across two dice is a real
+   * choice every single turn. */
+  function maxEnergy() {
+    var base = B.player.baseEnergy - (E.combat && E.combat.rollClass ? 1 : 0);
+    return base + art('energyEveryTurn') + (statN(E.combat.player, 'reactor'));
+  }
   E.maxEnergy = function () { return E.combat ? maxEnergy() : (B.player.baseEnergy || 0); };
 
   var _inConduit = false;   // re-entrancy guard for the Disruption conduit hook
@@ -14802,6 +15001,24 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           } else if (f.id === 'dieEnemyStr') {
             var esPool = aliveEnemies();
             if (esPool.length) { var esE = pick(esPool); addStatus(esE, 'str', f.v || 1); emit('status', { who: 'enemy', idx: c.enemies.indexOf(esE), s: 'str', v: statN(esE, 'str') }); }
+          } else if (f.id === 'denseFace') {
+            /* PACKED — pays for the faces AROUND it. The die already bleeds
+             * 25% into both neighbours, so cutting densely is quietly correct;
+             * this makes it loud. It is the engraving that turns "where" from
+             * a footnote into the decision, and it is why the draft asks you
+             * to place every pick yourself. */
+            var dn = 0, dd = E.run.die, dcf = eff || roll;
+            ns.dieNeighbours(dd, dcf).forEach(function (nf) { if (ns.dieFaceId(dd, nf)) dn++; });
+            var dEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            var dAmt = (f.v || 4) + (f.per || 5) * dn;
+            if (dEn) totalDealt += dealToEnemy(dEn, c.enemies.indexOf(dEn), dAmt, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
+          } else if (f.id === 'packedWall') {
+            // the defensive twin: a wall that grows with how tightly you cut
+            var pn = 0, pd = E.run.die, pcf = eff || roll;
+            ns.dieNeighbours(pd, pcf).forEach(function (nf) { if (ns.dieFaceId(pd, nf)) pn++; });
+            var pAmt = (f.v || 4) + (f.per || 5) * pn;
+            addStatus(p, 'bulwark', wallGain(pAmt));
+            emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') });
           } else if (f.id === 'dieExecute') {
             var xeT = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             if (xeT) totalDealt += dealToEnemy(xeT, c.enemies.indexOf(xeT), f.v || 8, { execute: true, noCrit: true });
@@ -15841,70 +16058,94 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   /* Point run.die at one of the three. Everything downstream — bands, seams,
    * welds, taints, listeners, steering, fireOneFace — reads run.die, so this
    * one assignment is the entire multi-die implementation. */
-  /* THE OPENING KIT. Two archetypes and one random handful, so the choice is
-   * between plans rather than between three piles of the same thing. */
-  function rollKits(n) {
-    var ids = Object.keys(ns.ARSENAL_KITS);
-    shuffle(ids);
-    var out = ids.slice(0, Math.max(0, (n || 3) - 1));
-    out.push('_random');
-    return out;
-  }
-  // A random kit is rolled fresh each time it is inspected, so the panel and
-  // the thing you take are the same three cuts.
-  function randomKitCuts() {
-    var pool = Object.keys(ns.DIE_AUGMENTS).filter(function (k) {
-      var g = ns.DIE_AUGMENTS[k];
-      if (g.flaw || g.basic || g.onlyFace) return false;
-      if (g.cls && g.cls !== 'arsenal') return false;
-      /* A card-shaped engraving is dead weight for a class with no deck —
-       * drawing and exhausting do nothing when the hand is two dice and a
-       * loadout, and "gain Energy" is a roll, which is fine. */
-      var j = JSON.stringify(g.fx || []);
-      if (/"k":"draw"/.test(j)) return false;
-      if (/dieExhaustDraw|dieTutor|dieDiscover/.test(j)) return false;
-      return true;
+  /* ==================================================================
+   * THE ARENA DRAFT
+   * ==================================================================
+   * Ten picks of three for the d20, then three of three for the guard, and
+   * you place every single one yourself. Nothing is auto-placed, because
+   * WHERE is half the decision: the die bleeds 25% into both neighbours, so
+   * a Relay Coil wants a block built around it, Powder Train wants to be
+   * boxed in, and a band-locked cut can only go where its band allows.
+   *
+   * You arrive at the first fight with a die you authored rather than a
+   * blank one and three fights of nothing. That was the whole complaint.
+   * ------------------------------------------------------------------ */
+  function arenaRound(n) {
+    var r = E.run;
+    var guard = n >= (B.dice.arenaAttackPicks || 10);
+    var pool = ns.arenaPool(guard).filter(function (id) {
+      // do not offer a cut that has nowhere legal left to go
+      var die = r.dice[guard ? 1 : 0];
+      for (var f = 1; f <= ns.dieSides(die); f++) if (!ns.dieCanEngrave(die, id, f)) return true;
+      return false;
     });
     shuffle(pool);
-    var atk = ns.KIT_FACES.attack.slice(), gd = ns.KIT_FACES.guard.slice(), cuts = [];
-    for (var i = 0; i < pool.length && cuts.length < 3; i++) {
-      var g = ns.DIE_AUGMENTS[pool[i]];
-      // wall, shield, plating and healing go on the guard; hits go up the table
-      var j2 = JSON.stringify(g.fx || []);
-      var defensive = /"s":"bulwark"|"k":"block"|"s":"plate"|"k":"heal"|"s":"thorns"/.test(j2);
-      if (defensive && gd.length) cuts.push({ id: pool[i], die: 1, face: gd.shift() });
-      else if (!defensive && atk.length) cuts.push({ id: pool[i], die: 0, face: atk.shift() });
+    /* Weighted so the common spine turns up more than the bombs — an arena
+     * where every offer is a rare is an arena with no decisions in it. */
+    var out = [], seen = {}, guardN = 0;
+    while (out.length < 3 && guardN++ < 400) {
+      var pickI = pool[Math.floor(rnd() * pool.length)];
+      if (!pickI || seen[pickI]) continue;
+      var t = (ns.DIE_AUGMENTS[pickI] || {}).tier || 1;
+      if (t === 3 && rnd() > 0.34) continue;      // bombs are rarer
+      if (t === 2 && rnd() > 0.72) continue;
+      seen[pickI] = 1; out.push(pickI);
     }
-    return cuts;
+    // if the filters starved it, top up with anything legal
+    for (var q = 0; out.length < 3 && q < pool.length; q++) {
+      if (!seen[pool[q]]) { seen[pool[q]] = 1; out.push(pool[q]); }
+    }
+    return out;
   }
-  E.kitCuts = function (id) {
-    if (id === '_random') {
-      var r = E.run;
-      if (!r._randomKit) r._randomKit = randomKitCuts();
-      return r._randomKit;
-    }
-    return ((ns.ARSENAL_KITS[id] || {}).cuts || []);
+  E.arenaState = function () {
+    var r = E.run;
+    if (!r || !r.arena) return null;
+    var atk = B.dice.arenaAttackPicks || 10, gd = B.dice.arenaGuardPicks || 3;
+    return {
+      round: r.arena.round, total: atk + gd,
+      guard: r.arena.round >= atk,
+      dieIdx: r.arena.round >= atk ? 1 : 0,
+      offer: r.arena.offer,
+      picked: r.arena.picked || null,
+    };
   };
-  E.kitInfo = function (id) {
-    if (id === '_random') return { name: 'SALVAGE', plan: 'Three cuts off the rack. No plan, just parts.' };
-    return ns.ARSENAL_KITS[id] || { name: '?', plan: '' };
-  };
-  E.takeKit = function (id) {
-    var r = E.run; if (!r || r.phase !== 'kit') return false;
-    E.kitCuts(id).forEach(function (cut) {
-      var die = r.dice[cut.die]; if (!die) return;
-      // slide off anything that will not take the cut rather than dropping it
-      for (var k = 0; k < ns.dieSides(die); k++) {
-        var f = ns.dieStep(cut.face, k, die);
-        if (!ns.dieCanEngrave(die, cut.id, f)) { ns.dieEngrave(die, cut.id, f); return; }
-      }
-    });
-    r.kitTaken = id;
-    r.kitOffer = null;
-    r._randomKit = null;
-    r.phase = 'map';
-    E.save();
+  // Step one: choose which of the three you want.
+  E.arenaPick = function (id) {
+    var r = E.run;
+    if (!r || !r.arena || r.arena.picked) return false;
+    if ((r.arena.offer || []).indexOf(id) < 0) return false;
+    r.arena.picked = id;
     return true;
+  };
+  E.arenaUnpick = function () {
+    var r = E.run; if (!r || !r.arena) return false;
+    r.arena.picked = null; return true;
+  };
+  // Step two: say where it goes. This is the half that makes the draft a draft.
+  E.arenaPlace = function (face) {
+    var r = E.run;
+    if (!r || !r.arena || !r.arena.picked) return 'nothing picked';
+    var st = E.arenaState();
+    var die = r.dice[st.dieIdx];
+    var why = ns.dieCanEngrave(die, r.arena.picked, face);
+    if (why) return why;
+    ns.dieEngrave(die, r.arena.picked, face);
+    r.arena.round++;
+    r.arena.picked = null;
+    if (r.arena.round >= st.total) {
+      r.arena = null;
+      r.phase = 'map';
+    } else {
+      r.arena.offer = arenaRound(r.arena.round);
+    }
+    E.save();
+    return null;
+  };
+  E.arenaBegin = function () {
+    var r = E.run;
+    r.arena = { round: 0, picked: null, offer: [] };
+    r.arena.offer = arenaRound(0);
+    r.phase = 'arena';
   };
 
   E.useDie = function (i) {
@@ -17789,17 +18030,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       }
       // JSON turns one shared object behind three references into three copies
       diceRelink(E.run);
-      /* MIGRATION. A run started before opening kits existed can never be
-       * offered one, because the offer is made in newRun and that already
-       * happened. An Arsenal save that has not cleared a node yet is close
-       * enough to the start to hand it the choice now; a deeper one is left
-       * alone rather than given a free spike three sectors in. */
-      var _r = E.run;
-      if (_r.dice && _r.dice.length > 1 && !_r.kitTaken && !_r.kitOffer &&
-          !(_r.nodesCleared > 0) && _r.phase !== 'combat') {
-        _r.kitOffer = rollKits(3);
-        _r.phase = 'kit';
-      }
       rngState = data.rng >>> 0;
       uidCounter = data.uid || 1000;
       E.combat = null;
@@ -20888,7 +21118,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       case 'forge': return showForge();
       case 'rift': return showRift();
       case 'boss-artifact': return showBossArtifact();
-      case 'kit': return showKitPick();
+      case 'arena': return showArena();
       case 'first-mark': return showFirstMark();
       case 'cutscene': return showCutscene();
       case 'sector-intro': return showSectorIntro();
@@ -26213,36 +26443,137 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
    * of names. The face is NOT chosen here: the engraving lands pending and the
    * die screen asks where, so the choice stays open while you learn the table.
    * ==================================================================== */
-  /* THE OPENING KIT. Three engravings, already placed, chosen before the first
-   * fight. A bare die has nothing to say and the first two fights were exactly
-   * that — roll, take the base number, repeat — so the run's first real
-   * decision now happens before it starts rather than three fights in. */
-  function showKitPick() {
-    var r = E.run; if (!r || !r.kitOffer) return;
+  /* ==================================================================
+   * THE ARENA
+   * ==================================================================
+   * Thirteen picks of three, and you place every one yourself. Two steps a
+   * round: choose the cut, then choose its face.
+   *
+   * The face grid is the important half. The die bleeds 25% into both
+   * neighbours, so it draws what is already cut, marks the neighbours of the
+   * face you are hovering, and greys anything the cut cannot legally take —
+   * a band-locked engraving simply has fewer places to go, and you should be
+   * able to see that rather than discover it by being refused.
+   * ================================================================== */
+  function showArena() {
+    var r = E.run, st = E.arenaState();
+    if (!st) return;
     var s = overlayScreen();
-    s.appendChild(el('h2', 'screen-title', 'Cut The First Faces'));
-    s.appendChild(el('div', 'screen-sub', 'THREE ENGRAVINGS, ALREADY PLACED · THIS IS THE SHAPE YOU START WITH'));
-    var bar = makeConfirmBar();
-    r.kitOffer.forEach(function (kid) {
-      var info = E.kitInfo(kid), cuts = E.kitCuts(kid);
-      var rows = cuts.map(function (c) {
-        var g = ns.dieEngraving(c.id); if (!g) return '';
-        var die = r.dice[c.die];
-        var where = (c.die === 0 ? 'ATTACK' : 'GUARD') + ' · face ' + c.face
-                  + ((g.span || 1) > 1 ? ' (+' + (Math.min(g.span, Math.floor(ns.dieSides(die) / 2)) - 1) + ')' : '');
-        return '<div class="kit-cut"><b>' + esc(g.name) + '</b>'
-             + '<span class="kit-where">' + where + '</span>'
-             + '<div class="kit-desc">' + esc(g.desc) + '</div></div>';
-      }).join('');
-      var pb = el('div', 'panel-btn kit-panel',
-        '<div class="pb-title">' + esc(info.name) + '</div>'
-        + '<div class="pb-desc">' + esc(info.plan) + '</div>'
-        + '<div class="kit-cuts">' + rows + '</div>');
-      s.appendChild(pb);
-      selectConfirm(s, pb, bar, 'Open with <b>' + esc(info.name) + '</b>?<span class="cb-note">' + esc(info.plan) + '</span>',
-        function () { SFX.coin(); E.takeKit(kid); U.refresh(); }, 'amber');
-    });
-    s.appendChild(bar.el);
+    var die = r.dice[st.dieIdx];
+    var hover = null;
+
+    s.appendChild(el('h2', 'screen-title', 'The Arena'));
+    var sub = el('div', 'screen-sub',
+      'PICK ' + (st.round + 1) + ' OF ' + st.total + ' · ' +
+      (st.guard ? 'THE GUARD d6' : 'THE ATTACK d20'));
+    s.appendChild(sub);
+
+    var pips = el('div', 'ar-pips');
+    for (var q = 0; q < st.total; q++) {
+      pips.appendChild(el('div', 'ar-pip' + (q < st.round ? ' done' : q === st.round ? ' now' : '') +
+                          (q >= (ns.BALANCE.dice.arenaAttackPicks || 10) ? ' gd' : '')));
+    }
+    s.appendChild(pips);
+
+    var body = el('div', 'ar-body');
+    s.appendChild(body);
+
+    function draw() {
+      body.innerHTML = '';
+      st = E.arenaState();
+      if (!st) { U.refresh(); return; }
+      die = r.dice[st.dieIdx];
+
+      if (!st.picked) {
+        body.appendChild(el('div', 'screen-sub ar-step', 'CHOOSE A CUT'));
+        var row = el('div', 'ar-offers');
+        st.offer.forEach(function (id) {
+          var g = ns.dieEngraving(id); if (!g) return;
+          var tags = [];
+          if (g.band) tags.push(ns.dieRegionLabel ? ns.dieRegionLabel(g.band) : g.band.toUpperCase());
+          if ((g.span || 1) > 1) tags.push(g.span + ' FACES');
+          if (g.field === 'relay') tags.push('RELAY');
+          if (g.listen) tags.push('LISTENER');
+          var b = el('div', 'ar-offer t' + (g.tier || 1),
+            '<div class="ao-name">' + esc(g.name) + '</div>'
+            + '<div class="ao-tags">' + tags.map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('') + '</div>'
+            + '<div class="ao-desc">' + esc(g.desc) + '</div>');
+          b.addEventListener('pointerdown', function (ev) {
+            ev.stopPropagation(); SFX.tap(); E.arenaPick(id); draw();
+          });
+          row.appendChild(b);
+        });
+        body.appendChild(row);
+        return;
+      }
+
+      // ---- step two: where does it go
+      var g2 = ns.dieEngraving(st.picked);
+      body.appendChild(el('div', 'screen-sub ar-step',
+        'WHERE DOES ' + esc((g2.name || '').toUpperCase()) + ' GO?'));
+      var note = el('div', 'ar-note', esc(g2.desc));
+      body.appendChild(note);
+
+      var grid = el('div', 'ar-grid' + (st.guard ? ' ar-grid-6' : ''));
+      var n = ns.dieSides(die);
+      for (var f = 1; f <= n; f++) {
+        (function (face) {
+          var why = ns.dieCanEngrave(die, st.picked, face);
+          var slot = die.faces[face], had = slot ? ns.dieEngraving(slot.id) : null;
+          var span = ns.dieSpan(st.picked, face, die);
+          var cell = el('div', 'ar-cell' + (why ? ' bad' : ' ok') + (had ? ' taken' : ''),
+            '<i>' + face + '</i>'
+            + (had ? '<em>' + esc(had.name) + '</em>' : '<em class="free">bare</em>'));
+          if (why) cell.title = why;
+          cell.dataset.face = face;
+          if (!why) {
+            cell.addEventListener('pointerenter', function () {
+              hover = face;
+              grid.querySelectorAll('.ar-cell').forEach(function (c2) { c2.classList.remove('in-span', 'in-nb'); });
+              span.forEach(function (sf) {
+                var c3 = grid.querySelector('.ar-cell[data-face="' + sf + '"]');
+                if (c3) c3.classList.add('in-span');
+              });
+              ns.dieNeighbours(die, face).forEach(function (nf) {
+                if (span.indexOf(nf) >= 0) return;
+                var c4 = grid.querySelector('.ar-cell[data-face="' + nf + '"]');
+                if (c4) c4.classList.add('in-nb');
+              });
+            });
+            cell.addEventListener('pointerdown', function (ev) {
+              ev.stopPropagation();
+              var w = E.arenaPlace(face);
+              if (w) { toast(w.toUpperCase(), 1600); return; }
+              SFX.coin();
+              if (E.run.phase !== 'arena') { U.refresh(); return; }
+              draw();
+              // the header counts up with the picks
+              var st2 = E.arenaState();
+              sub.textContent = 'PICK ' + (st2.round + 1) + ' OF ' + st2.total + ' · ' +
+                (st2.guard ? 'THE GUARD d6' : 'THE ATTACK d20');
+              var ps = pips.children;
+              for (var z = 0; z < ps.length; z++) {
+                ps[z].className = 'ar-pip' + (z < st2.round ? ' done' : z === st2.round ? ' now' : '') +
+                  (z >= (ns.BALANCE.dice.arenaAttackPicks || 10) ? ' gd' : '');
+              }
+            });
+          }
+          grid.appendChild(cell);
+        })(f);
+      }
+      body.appendChild(grid);
+
+      var legend = el('div', 'ar-legend',
+        '<span class="lg-span"></span> where it lands'
+        + '<span class="lg-nb"></span> catches 25% of every roll here'
+        + '<span class="lg-bad"></span> will not take it');
+      body.appendChild(legend);
+
+      var back = el('button', 'btn dim small', '◀ PICK SOMETHING ELSE');
+      back.addEventListener('pointerdown', function () { SFX.tap(); E.arenaUnpick(); draw(); });
+      body.appendChild(back);
+    }
+    draw();
   }
 
   function showFirstMark() {

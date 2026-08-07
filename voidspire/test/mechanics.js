@@ -403,9 +403,13 @@ ok('a forged engraving survives the registry being dropped (the load path)', (fu
   });
   ok('every engraving x every table x every lens is distinct and in budget (' + n + ' options)', bad === 0);
   // ...and the valueless ones still offer the one lens that can work on them.
+  /* Valueless means NO effect on it carries a number — not merely that the
+   * first one does not. An engraving whose second effect has a magnitude
+   * (Revetment banks a flat wall as well as the face) still has something for
+   * the lenses to bargain with, and reforge correctly takes the numeric path. */
   var vless = Object.keys(VS.DIE_AUGMENTS).filter(function (id) {
-    var f0 = (VS.DIE_AUGMENTS[id].fx || [])[0];
-    return !f0 || f0.v == null;
+    var fx = VS.DIE_AUGMENTS[id].fx || [];
+    return !fx.length || fx.every(function (f) { return f.v == null; });
   });
   ok('a valueless engraving still offers the recast (' + vless.length + ' of them)',
      vless.length > 0 && vless.every(function (id) {
@@ -2639,7 +2643,9 @@ ok('every class opens with either a starter deck or a rack of dice',
   ok('the hand is both dice plus the loadout',
      c.hand.filter(function (h) { return h.dieIdx != null; }).length === 2 &&
      c.hand.filter(function (h) { return h.protoId; }).length === r.protocols.length);
-  ok('three rolls a turn', c.energy === 3);
+  /* TWO rolls a turn, not three. A drafted die is dense enough that three
+   * rolls killed hallway packs in one turn and won 66% of runs. */
+  ok('two rolls a turn', c.energy === 2);
 
   /* THE GUARD BANKS AND DOES NOT HIT. Its base payload is wall, it is a skill
    * rather than an attack, so it reads no bands and — the part that matters —
@@ -2652,7 +2658,7 @@ ok('every class opens with either a starter deck or a rack of dice',
   var wall = c.player.statuses.bulwark || 0;
   ok('rolling the guard banks a wall (' + wall + ')', wall > 0);
   ok('and deals no damage', c.enemies[0].hp === hp0);
-  ok('it costs a roll', c.energy === 2);
+  ok('it costs a roll', c.energy === 1);
   ok('but the die stays in hand', c.hand.filter(function (h) { return h.dieIdx === 1; }).length === 1);
 
   var ai = c.hand.findIndex(function (h) { return h.dieIdx === 0; });
@@ -2662,11 +2668,11 @@ ok('every class opens with either a starter deck or a rack of dice',
   /* PROTOCOLS COST NO ROLL. A protocol is not an action, it is a modifier on
    * one — so spending one never eats the turn's allocation. That is also why
    * a protocol alone can never end a fight: it aims, the dice fire. */
-  c.energy = 3;
+  c.energy = 2;
   var si = c.hand.findIndex(function (h) { return h.protoId === 'sight'; });
   ok('SIGHT is in the opening loadout', si >= 0);
   E.playCard(si, 0);
-  ok('spending it costs no roll', c.energy === 3);
+  ok('spending it costs no roll', c.energy === 2);
   ok('and it arms a shift for the next roll', c.pendShift === 3);
   E.playCard(c.hand.findIndex(function (h) { return h.dieIdx === 0; }), 0);
   ok('which the next roll consumes', c.pendShift === 0);
@@ -2724,6 +2730,60 @@ ok('every class opens with either a starter deck or a rack of dice',
     ok('a guard roll has more than one outcome (' + outcomes.sort(function (x, y) { return x - y; }).join(' / ') + ')',
        outcomes.length > 1);
   })();
+  E.run.phase = 'map';
+})();
+
+/* ---- THE ARENA DRAFT ----------------------------------------------------
+ * Ten picks of three for the d20, three for the guard, every one placed by
+ * hand. Two steps a round, and the placement half is the point: the die
+ * bleeds 25% into both neighbours, so WHERE is half the decision. */
+(function () {
+  E.seed(31); E.newRun('arsenal');
+  var r = E.run;
+  ok('a run opens in the arena', r.phase === 'arena');
+  var st = E.arenaState();
+  ok('thirteen picks, ten of them for the attack die', st.total === 13 && !st.guard);
+  ok('three on offer', (st.offer || []).length === 3);
+  ok('and they are all real engravings', st.offer.every(function (id) { return !!VS.dieEngraving(id); }));
+
+  ok('you cannot place before you pick', typeof E.arenaPlace(5) === 'string');
+  E.arenaPick(st.offer[0]);
+  ok('picking arms it', E.arenaState().picked === st.offer[0]);
+  ok('placing it advances the round', E.arenaPlace(5) === null && E.arenaState().round === 1);
+  ok('and it is actually cut into the die', !!r.dice[0].faces[5]);
+
+  // band-locked cuts must be refusable, or "where" is not a real constraint
+  var banded = VS.arenaPool(false).filter(function (id) { return VS.DIE_AUGMENTS[id].band === 'high'; })[0];
+  ok('a high-band engraving refuses a low face',
+     !!VS.dieCanEngrave(r.dice[0], banded, 3) && !VS.dieCanEngrave(r.dice[0], banded, 18));
+
+  // walk the rest of the draft
+  var guardBefore = 0;
+  for (var g = 0; g < 60 && E.run.phase === 'arena'; g++) {
+    var s2 = E.arenaState();
+    if (!s2.picked) E.arenaPick(s2.offer[0]);
+    var die = r.dice[s2.dieIdx];
+    for (var f = 1; f <= VS.dieSides(die); f++) if (!E.arenaPlace(f)) break;
+  }
+  ok('the draft terminates into the map', E.run.phase === 'map');
+  var cut = 0; for (var q = 1; q <= 20; q++) if (r.dice[0].faces[q]) cut++;
+  ok('ten faces of the d20 are cut (' + cut + ')', cut === 10);
+  ok('the guard was drafted too', (function () {
+    var n = 0; for (var f2 = 1; f2 <= 6; f2++) if (r.dice[1].faces[f2]) n++; return n >= 4;
+  })());
+
+  /* THE POOL. Every offer has to actually do something when it fires — a
+   * dead engraving in a draft is a wasted pick you cannot take back. */
+  var pool = VS.arenaPool(false).concat(VS.arenaPool(true));
+  ok('the pool is deep enough to draft from (' + pool.length + ')', pool.length >= 50);
+  ok('every arena engraving has a description that names its numbers', pool.every(function (id) {
+    var gg = VS.DIE_AUGMENTS[id], nums = (gg.desc.match(/\d+/g) || []).map(Number), okd = true;
+    (gg.fx || []).forEach(function (f) {
+      if (f.v != null && f.v > 2 && nums.indexOf(f.v) < 0) okd = false;
+      if (f.per != null && f.per > 2 && nums.indexOf(f.per) < 0) okd = false;
+    });
+    return okd;
+  }));
   E.run.phase = 'map';
 })();
 

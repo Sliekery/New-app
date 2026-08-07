@@ -2404,13 +2404,63 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .card.die-card.die-guard { background: linear-gradient(180deg, rgba(93,255,136,.10), rgba(4,8,10,.92)); }
 .card.die-card.die-guard .dk-name { color: var(--green); text-shadow: var(--glow-g); }
 
-/* ---- THE OPENING KIT ----------------------------------------------------
- * Each panel has to show three engravings AND where each one lands, because
- * where is half the decision. Indented rows under the plan, not a paragraph. */
-.kit-panel .kit-cuts { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
-.kit-cut { border-left: 2px solid var(--green-dim); padding: 1px 0 1px 7px; }
-.kit-cut b { font-size: 11px; color: var(--cyan); }
-.kit-cut .kit-where { font-size: 9px; letter-spacing: .08em; color: var(--amber); margin-left: 7px; }
-.kit-cut .kit-desc { font-size: 10px; line-height: 1.3; color: var(--text-dim); }
-.panel-btn.kit-panel.sel .kit-cut { border-left-color: var(--amber); }
 .build-stamp { text-align: center; font-size: 9px; letter-spacing: .18em; color: var(--text-dim); opacity: .7; margin: -4px 0 10px; }
+
+/* ================= THE ARENA =========================================
+ * Thirteen picks of three, and every one is placed by hand. The grid is the
+ * important half: it has to show what is already cut, where the new cut
+ * lands, and — because the die bleeds 25% into both neighbours — which faces
+ * will catch a quarter of every roll that lands next door. */
+.ar-pips { display: flex; gap: 4px; justify-content: center; margin: 2px 0 12px; }
+.ar-pip { width: 16px; height: 4px; background: var(--green-dim); opacity: .45; border-radius: 1px; }
+.ar-pip.gd { background: var(--green); opacity: .3; }
+.ar-pip.done { opacity: 1; background: var(--amber); }
+.ar-pip.gd.done { background: var(--green); opacity: 1; }
+.ar-pip.now { opacity: 1; background: var(--cyan); box-shadow: 0 0 6px rgba(65,216,255,.7); }
+.ar-body { width: 100%; max-width: 900px; margin: 0 auto; }
+.ar-step { margin-bottom: 8px; }
+
+.ar-offers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+@media (max-width: 620px) { .ar-offers { grid-template-columns: 1fr; } }
+.ar-offer {
+  border: 1px solid var(--green-dim); border-radius: 4px; padding: 10px 11px 12px;
+  background: rgba(255,255,255,.02); cursor: pointer; text-align: left;
+  transition: border-color .12s, background .12s, transform .1s;
+}
+.ar-offer:hover { transform: translateY(-2px); background: rgba(255,255,255,.05); }
+.ar-offer.t2 { border-color: rgba(65,216,255,.6); }
+.ar-offer.t3 { border-color: rgba(255,176,46,.75); background: rgba(255,176,46,.05); }
+.ar-offer .ao-name { font-size: 13px; letter-spacing: .06em; color: var(--text); margin-bottom: 5px; }
+.ar-offer.t2 .ao-name { color: var(--cyan); text-shadow: var(--glow-c); }
+.ar-offer.t3 .ao-name { color: var(--amber); text-shadow: var(--glow-a); }
+.ar-offer .ao-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; min-height: 12px; }
+.ar-offer .ao-tags span {
+  font-size: 7.5px; letter-spacing: .12em; padding: 1px 5px;
+  border: 1px solid var(--green-dim); color: var(--text-dim); border-radius: 2px;
+}
+.ar-offer .ao-desc { font-size: 11px; line-height: 1.35; color: var(--text-dim); }
+
+.ar-note { text-align: center; font-size: 11px; color: var(--text-dim); margin-bottom: 10px; }
+.ar-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
+.ar-grid.ar-grid-6 { grid-template-columns: repeat(6, 1fr); }
+.ar-cell {
+  border: 1px solid var(--green-dim); border-radius: 3px; padding: 4px 2px 5px;
+  text-align: center; min-height: 44px; background: rgba(255,255,255,.02);
+  transition: background .1s, border-color .1s, transform .1s;
+}
+.ar-cell i { font-style: normal; display: block; font-size: 11px; color: var(--text-dim); }
+.ar-cell em { font-style: normal; display: block; font-size: 7.5px; line-height: 1.1; margin-top: 2px; overflow-wrap: anywhere; }
+.ar-cell em.free { color: rgba(94,138,108,.6); }
+.ar-cell.taken em { color: var(--text); }
+.ar-cell.ok { cursor: pointer; }
+.ar-cell.ok:hover { border-color: var(--cyan); background: rgba(65,216,255,.12); transform: translateY(-1px); }
+.ar-cell.bad { opacity: .3; border-style: dashed; }
+.ar-cell.in-span { border-color: var(--cyan); background: rgba(65,216,255,.18); }
+.ar-cell.in-nb { border-color: rgba(255,176,46,.7); background: rgba(255,176,46,.1); }
+
+.ar-legend { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+  font-size: 9.5px; color: var(--text-dim); margin: 10px 0 4px; letter-spacing: .06em; }
+.ar-legend span { display: inline-block; width: 10px; height: 10px; border: 1px solid; margin-right: 5px; vertical-align: -1px; }
+.ar-legend .lg-span { border-color: var(--cyan); background: rgba(65,216,255,.18); }
+.ar-legend .lg-nb { border-color: rgba(255,176,46,.7); background: rgba(255,176,46,.1); }
+.ar-legend .lg-bad { border-color: var(--green-dim); border-style: dashed; }

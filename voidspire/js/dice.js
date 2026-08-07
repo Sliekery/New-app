@@ -1016,6 +1016,138 @@
   // reaches, and the guard's three bare faces.
   ns.KIT_FACES = { attack: [19, 17, 15, 13, 11], guard: [2, 4, 6] };
 
+  /* ==================================================================
+   * THE ARENA POOL — what the opening draft offers
+   * ==================================================================
+   * Ten picks of three for the d20, three picks of three for the guard, and
+   * you place every one yourself. Which means the pool has to reward WHERE,
+   * not just WHAT — otherwise placement is a chore between real decisions.
+   *
+   * The die already bleeds: a roll fires its face at full and both neighbours
+   * at 25%. Everything below is designed against that one fact.
+   *
+   *   SPINE      flat damage, still worth something at a quarter strength.
+   *              These are the faces you pack around your payoffs.
+   *   PACKED     pays FOR its neighbours being cut. The loud version of the
+   *              quiet truth that density is correct.
+   *   RELAY      makes its neighbours fire at FULL instead of a quarter. The
+   *              keystone piece — build a block around one and the block goes
+   *              off together.
+   *   LISTENERS  fire on a trigger rather than on a landing, so they pay from
+   *              anywhere on the die and reward a theme rather than a spot.
+   *   BAND-LOCKED  only cut into the low, middle or high third. These are how
+   *              a table gets a shape: the top of the die is where Aim takes
+   *              you, the bottom is where misfires live.
+   *   RAMP       small permanent gains. A face you land on 5% of rolls that
+   *              grants +1 of something is a slow curve, and a slow curve is
+   *              exactly what this class did not have.
+   *
+   * Translated from the Vanguard wherever a card had a one-shot body. Powers
+   * mostly could not come across — a face fires every time you land on it —
+   * so the ones that did become either listeners or small ramp.
+   * ------------------------------------------------------------------ */
+  function ar(name, tier, fx, desc, opt) {
+    var o = { name: name, tier: tier, span: 1, cls: 'arsenal', arena: true, fx: fx, desc: desc,
+              art: { p: [[-0.5,0.4, 0.5,-0.4], [-0.2,-0.4, 0.5,-0.4], [0.5,-0.4, 0.5,0.1]], e: [] } };
+    for (var k in (opt || {})) o[k] = opt[k];
+    return o;
+  }
+  var A = ns.DIE_AUGMENTS;
+
+  /* ---- SPINE: flat hits that survive the 25% bleed ------------------- */
+  A.ar_shot      = ar('Pulse Shot',   1, [{ k:'dmg', v:4,  scale:'might' }], 'Deal 4 damage.');
+  A.ar_bayonet   = ar('Bayonet',      1, [{ k:'dmg', v:3,  scale:'might' }, { k:'status', s:'vuln', v:1, who:'target' }], 'Deal 3 damage. Apply 1 Vulnerable.');
+  A.ar_raking    = ar('Raking Fire',  2, [{ k:'dmg', v:4,  scale:'might' }, { k:'status', s:'weak', v:1, who:'target' }], 'Deal 4 damage. Apply 1 Weak.');
+  A.ar_heavy     = ar('Heavy Round',  2, [{ k:'dmg', v:6, scale:'might' }], 'Deal 6 damage.');
+  A.ar_frag      = ar('Frag Grenade', 2, [{ k:'dmg', v:3, all:true, scale:'might' }, { k:'status', s:'vuln', v:1, who:'target' }], 'Deal 3 damage to ALL enemies. Apply 1 Vulnerable.');
+  A.ar_slug      = ar('Siege Slug',   3, [{ k:'dmg', v:10, scale:'might' }], 'Deal 10 damage.');
+  A.ar_orbital   = ar('Orbital Strike',3,[{ k:'dmg', v:6, all:true, scale:'might' }, { k:'status', s:'vuln', v:2, who:'target' }], 'Deal 6 damage to ALL enemies. Apply 2 Vulnerable.');
+
+  /* ---- PACKED: paid for by the faces either side --------------------- */
+  A.ar_packed    = ar('Powder Train', 2, [{ k:'special', id:'denseFace', v:2, per:4 }], 'Deal 2 damage, +4 for each neighbouring face that is cut.');
+  A.ar_packwall  = ar('Sandbag Line', 2, [{ k:'special', id:'packedWall', v:2, per:4 }], 'Gain 2 Bulwark, +4 for each neighbouring face that is cut.');
+  A.ar_crossfire = ar('Crossfire',    3, [{ k:'special', id:'denseFace', v:3, per:6 }], 'Deal 3 damage, +6 for each neighbouring face that is cut.');
+
+  /* ---- RELAY: the keystone. Neighbours fire at FULL ------------------- */
+  A.ar_relay     = ar('Relay Coil',   2, [{ k:'dmg', v:2, scale:'might' }], 'Deal 2 damage. The faces either side of this one fire at FULL strength.', { field:'relay' });
+  A.ar_relaywall = ar('Bus Bar',      3, [{ k:'status', s:'bulwark', v:2, who:'self' }], 'Gain 2 Bulwark. The faces either side of this one fire at FULL strength.', { field:'relay' });
+
+  /* ---- BAND-LOCKED: the shape of the table --------------------------- */
+  A.ar_killshot  = ar('Killshot',     3, [{ k:'dmg', v:12, scale:'might' }], 'Deal 12 damage. Only cuts into the TOP of the die.', { band:'high' });
+  A.ar_calledhi  = ar('Called High',  2, [{ k:'dmg', v:4, scale:'might' }, { k:'status', s:'aim', v:2, who:'self' }], 'Deal 4 damage. Gain 2 Aim. Only cuts into the TOP of the die.', { band:'high' });
+  A.ar_execute   = ar('Executioner',  3, [{ k:'special', id:'dieExecute', v:13 }], 'Deal 13 damage, doubled if the target is below 30% HP. Only cuts into the TOP of the die.', { band:'high' });
+  A.ar_ricochet  = ar('Ricochet',     2, [{ k:'dmg', v:3, scale:'might' }, { k:'dmg', v:3, scale:'might' }], 'Deal 3 damage twice. Only cuts into the MIDDLE of the die.', { band:'mid' });
+  A.ar_firingstep= ar('Firing Step',  2, [{ k:'dmg', v:3, scale:'might' }, { k:'status', s:'bulwark', v:2, who:'self' }], 'Deal 3 damage. Gain 2 Bulwark. Only cuts into the MIDDLE of the die.', { band:'mid' });
+  A.ar_misfire   = ar('Misfire Protocol', 2, [{ k:'status', s:'aim', v:3, who:'self' }, { k:'energy', v:1 }], 'Gain 3 Aim and 1 Roll. Only cuts into the BOTTOM of the die.', { band:'low' });
+  A.ar_redhour   = ar('The Red Hour', 3, [{ k:'status', s:'stim', v:5, who:'self' }, { k:'energy', v:1 }], 'Gain 5 Stim and 1 Roll. Only cuts into the BOTTOM of the die.', { band:'low' });
+  A.ar_scrapheap = ar('Scrap Heap',   1, [{ k:'status', s:'bulwark', v:3, who:'self' }], 'Gain 3 Bulwark. Only cuts into the BOTTOM of the die.', { band:'low' });
+
+  /* ---- THE WALL: bank it, then spend it ------------------------------ */
+  A.ar_revetment = ar('Revetment',    1, [{ k:'special', id:'wallFace' }], 'Gain Bulwark equal to the face you landed on.');
+  A.ar_buttress  = ar('Buttress',     1, [{ k:'status', s:'bulwark', v:3, who:'self' }], 'Gain 3 Bulwark.');
+  A.ar_rampart   = ar('Rampart',      2, [{ k:'status', s:'bulwark', v:5, who:'self' }], 'Gain 5 Bulwark.', { span:3 });
+  A.ar_spiked    = ar('Spiked Bulwark',2,[{ k:'status', s:'bulwark', v:2, who:'self' }, { k:'status', s:'thorns', v:1, who:'self' }], 'Gain 2 Bulwark and 1 Thorns.');
+  A.ar_embrasure = ar('Embrasure',    2, [{ k:'dmg', v:4, scale:'might' }, { k:'special', id:'wallDealt' }], 'Deal 4 damage. Gain Bulwark equal to the damage dealt.');
+  A.ar_spall     = ar('Spall',        2, [{ k:'special', id:'spall', v:0.5, cost:1 }], 'Deal damage equal to half your Bulwark, and spend that half.');
+  A.ar_breach    = ar('Breach the Wall',3,[{ k:'special', id:'breachWall' }], 'Consume all your Bulwark: deal that much damage.');
+  A.ar_detonate  = ar('Detonate',     3, [{ k:'special', id:'detonate' }], 'Consume all your Bulwark: deal that much to ALL enemies.');
+  A.ar_sandbag   = ar('Sandbag',      1, [{ k:'hploss', v:4 }, { k:'status', s:'bulwark', v:5, who:'self' }], 'Lose 4 HP. Gain 5 Bulwark.');
+
+  /* ---- AIM: climb the table ------------------------------------------ */
+  A.ar_takeaim   = ar('Take Aim',     1, [{ k:'status', s:'aim', v:3, who:'self' }], 'Gain 3 Aim.');
+  A.ar_ranging   = ar('Ranging Shot', 1, [{ k:'dmg', v:3, scale:'might' }, { k:'status', s:'aim', v:1, who:'self' }], 'Deal 3 damage. Gain 1 Aim.');
+  A.ar_boresight = ar('Boresight',    2, [{ k:'status', s:'aim', v:4, who:'self' }, { k:'energy', v:1 }], 'Gain 4 Aim and 1 Roll.');
+  A.ar_steadyaim = ar('Steady Aim',   2, [{ k:'status', s:'aimPerTurn', v:1, who:'self' }], 'Gain 1 more Aim at the start of every turn, for the rest of the fight.');
+
+  /* ---- STIM: buy power with blood ------------------------------------ */
+  A.ar_whet      = ar('Whet the Blade',1,[{ k:'hploss', v:2 }, { k:'status', s:'stim', v:3, who:'self' }], 'Lose 2 HP. Gain 3 Stim.');
+  A.ar_overdose  = ar('Overdose',     2, [{ k:'hploss', v:4 }, { k:'status', s:'stim', v:7, who:'self' }], 'Lose 4 HP. Gain 7 Stim.');
+  A.ar_gutshot   = ar('Gutshot',      2, [{ k:'dmg', v:4, scale:'might' }, { k:'status', s:'stim', v:2, who:'self' }, { k:'heal', v:2 }], 'Deal 4 damage. Gain 2 Stim and heal 2.');
+  A.ar_ravening  = ar('Ravening',     3, [{ k:'dmg', v:4, scale:'might', scaleStim:true }, { k:'heal', v:3 }], 'Deal 4 damage, plus 2 per Stim. Heal 3.');
+  A.ar_secondwind= ar('Second Wind',  1, [{ k:'heal', v:7 }, { k:'status', s:'stim', v:2, who:'self' }], 'Heal 7 HP. Gain 2 Stim.');
+
+  /* ---- LISTENERS: pay from anywhere on the die ----------------------- */
+  A.ar_lis_crit  = ar('Killing Rage', 2, [{ k:'status', s:'str', v:1, who:'self' }], 'WHEN YOU CRIT: gain 2 Might.', { listen:'crit' });
+  A.ar_lis_shield= ar('Scar Tissue',  2, [{ k:'status', s:'bulwark', v:2, who:'self' }], 'WHEN YOU GAIN SHIELD: gain 5 Bulwark.', { listen:'shield' });
+  A.ar_lis_hurt  = ar('Blood Debt',   2, [{ k:'status', s:'stim', v:2, who:'self' }], 'WHEN YOU SPEND HP: gain 2 Stim.', { listen:'selfHp' });
+  A.ar_lis_nb    = ar('Sympathetic Det.',3,[{ k:'dmg', v:2, scale:'might' }], 'WHEN A NEIGHBOURING FACE FIRES: deal 2 damage.', { listen:'neighbour' });
+
+  /* ---- RAMP: the slow curve ------------------------------------------ */
+  A.ar_casemate  = ar('Casemate',     2, [{ k:'status', s:'wallPerTurn', v:1, who:'self' }], 'Gain 1 Bulwark at the start of every turn, for the rest of the fight.');
+  A.ar_might     = ar('Whetstone',    2, [{ k:'status', s:'str', v:1, who:'self' }], 'Gain 1 Might for the rest of the fight.');
+  A.ar_reactive  = ar('Reactive Plating',2,[{ k:'status', s:'wallThorns', v:1, who:'self' }], 'Your wall hits back for 1 more, for the rest of the fight.');
+  A.ar_overflow  = ar('Overflow Cell',3, [{ k:'energy', v:2 }], 'Gain 2 Rolls.');
+
+  /* ---- THE GUARD POOL: six faces, so every one is worth three ---------
+   * Priced against the d6, where a face is 16.7% of the die rather than 5%,
+   * and against the measured ratio that a point of wall is worth about half a
+   * point of damage. */
+  function gd(name, tier, fx, desc, opt) {
+    var o = ar(name, tier, fx, desc, opt); o.guard = true; return o;
+  }
+  A.gd_brace     = gd('Brace',        1, [{ k:'status', s:'bulwark', v:9, who:'self' }], 'Gain 9 Bulwark.');
+  A.gd_bunker    = gd('Bunker Down',  2, [{ k:'status', s:'bulwark', v:7, who:'self' }, { k:'status', s:'wallPerTurn', v:1, who:'self' }], 'Gain 7 Bulwark, and 1 more at the start of every turn.');
+  A.gd_riot      = gd('Riot Shield',  1, [{ k:'status', s:'bulwark', v:6, who:'self' }, { k:'status', s:'thorns', v:2, who:'self' }], 'Gain 6 Bulwark and 2 Thorns.');
+  A.gd_sandbag   = gd('Sandbag',      2, [{ k:'hploss', v:4 }, { k:'status', s:'bulwark', v:14, who:'self' }], 'Lose 4 HP. Gain 14 Bulwark.');
+  A.gd_loophole  = gd('Loophole',     2, [{ k:'status', s:'bulwark', v:5, who:'self' }, { k:'dmg', v:4, scale:'might' }], 'Gain 5 Bulwark and deal 4 damage.');
+  A.gd_revet     = gd('Revetment',    1, [{ k:'special', id:'wallFace' }, { k:'status', s:'bulwark', v:7, who:'self' }], 'Gain 7 Bulwark, plus the face you landed on.');
+  A.gd_embrasure = gd('Embrasure',    2, [{ k:'dmg', v:7, scale:'might' }, { k:'special', id:'wallDealt' }], 'Deal 7 damage. Gain Bulwark equal to the damage dealt.');
+  A.gd_spall     = gd('Spall',        2, [{ k:'special', id:'spall', v:0.5, cost:1 }, { k:'status', s:'bulwark', v:4, who:'self' }], 'Deal half your Bulwark and spend it, then bank 4.');
+  A.gd_breach    = gd('Breach',       3, [{ k:'special', id:'breachWall' }], 'Consume all your Bulwark: deal that much damage.');
+  A.gd_casemate  = gd('Casemate',     3, [{ k:'status', s:'wallPerTurn', v:2, who:'self' }, { k:'status', s:'bulwark', v:4, who:'self' }], 'Gain 4 Bulwark, and 2 more at the start of every turn.');
+  A.gd_stim      = gd('Field Stims',  2, [{ k:'status', s:'bulwark', v:5, who:'self' }, { k:'status', s:'stim', v:3, who:'self' }], 'Gain 5 Bulwark and 3 Stim.');
+  A.gd_vent      = gd('Pressure Vent',2, [{ k:'status', s:'bulwark', v:6, who:'self' }, { k:'energy', v:1 }], 'Gain 6 Bulwark and 1 Roll.');
+  A.gd_barricade = gd('Barricade',    3, [{ k:'status', s:'bulwark', v:6, who:'self' }, { k:'status', s:'wallThorns', v:2, who:'self' }], 'Gain 6 Bulwark. Your wall hits back for 2 more.');
+  A.gd_reload    = gd('Reload',       1, [{ k:'status', s:'bulwark', v:4, who:'self' }, { k:'status', s:'aim', v:2, who:'self' }], 'Gain 4 Bulwark and 2 Aim.');
+
+  // Everything the arena may offer, split by which die it belongs to.
+  ns.arenaPool = function (guard) {
+    return Object.keys(A).filter(function (k) {
+      var g = A[k];
+      return g.arena && !!g.guard === !!guard;
+    });
+  };
+
   ns.PROTOCOLS = {
     sight: {
       name: 'SIGHT', charges: 2, tier: 1,

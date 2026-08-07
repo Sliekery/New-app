@@ -149,15 +149,16 @@
       });
       E.run.dieIdx = 0;
       E.run.protocols = (B.dice.arsenalProtocols || ['sight', 'vent', 'overclock']).slice();
-      E.run.kitOffer = rollKits(3);
     }
     if (E.CORNERSTONES !== false && CORNERSTONE_OF[clsId]) {   // grant the class Cornerstone
       E.run.cornerstone = { id: CORNERSTONE_OF[clsId], tier: 1 };
       E.run.artifacts.push(CORNERSTONE_OF[clsId]);
     }
     E.run.map = generateMap(1);
-    // A run that opens with a kit choice stops at that choice first.
-    E.run.phase = (E.run.kitOffer && E.run.kitOffer.length) ? 'kit' : 'map';
+    E.run.phase = 'map';
+    // A die you author before the first fight, rather than a blank one and
+    // three fights of nothing.
+    if (clsId === 'arsenal') E.arenaBegin();
     // VOID PRESSURE: the frame buckles (fewer core slots) and HULL BREACH
     // launches you with a Flaw already cut into the die.
     (function () {
@@ -1132,7 +1133,21 @@
    * output this class gives up comes straight off its ability to survive a
    * boss. The clock and parity pull against each other here and parity wins;
    * the short boss fight is recorded as open rather than papered over. */
-  function maxEnergy() { return B.player.baseEnergy + art('energyEveryTurn') + (statN(E.combat.player, 'reactor')); }
+  /* TWO ROLLS A TURN for a roll class, not three. A drafted die is dense —
+   * ten cuts on a d20 and every roll bleeding into both neighbours means two
+   * or three engravings fire per roll from the very first fight, where the
+   * card classes start with a starter deck and ramp. At three rolls the
+   * Arsenal won 66% of its runs and killed hallway packs in a single turn.
+   *
+   * Scaling the pool's numbers did almost nothing — 0.5x damage, 0.3x wall
+   * and 0.4x ramp still measured 56%, because the advantage is DENSITY rather
+   * than magnitude. Taking a roll away is the lever that fits the cause, and
+   * it makes the allocation sharper: two rolls across two dice is a real
+   * choice every single turn. */
+  function maxEnergy() {
+    var base = B.player.baseEnergy - (E.combat && E.combat.rollClass ? 1 : 0);
+    return base + art('energyEveryTurn') + (statN(E.combat.player, 'reactor'));
+  }
   E.maxEnergy = function () { return E.combat ? maxEnergy() : (B.player.baseEnergy || 0); };
 
   var _inConduit = false;   // re-entrancy guard for the Disruption conduit hook
@@ -2541,6 +2556,24 @@
           } else if (f.id === 'dieEnemyStr') {
             var esPool = aliveEnemies();
             if (esPool.length) { var esE = pick(esPool); addStatus(esE, 'str', f.v || 1); emit('status', { who: 'enemy', idx: c.enemies.indexOf(esE), s: 'str', v: statN(esE, 'str') }); }
+          } else if (f.id === 'denseFace') {
+            /* PACKED — pays for the faces AROUND it. The die already bleeds
+             * 25% into both neighbours, so cutting densely is quietly correct;
+             * this makes it loud. It is the engraving that turns "where" from
+             * a footnote into the decision, and it is why the draft asks you
+             * to place every pick yourself. */
+            var dn = 0, dd = E.run.die, dcf = eff || roll;
+            ns.dieNeighbours(dd, dcf).forEach(function (nf) { if (ns.dieFaceId(dd, nf)) dn++; });
+            var dEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            var dAmt = (f.v || 4) + (f.per || 5) * dn;
+            if (dEn) totalDealt += dealToEnemy(dEn, c.enemies.indexOf(dEn), dAmt, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
+          } else if (f.id === 'packedWall') {
+            // the defensive twin: a wall that grows with how tightly you cut
+            var pn = 0, pd = E.run.die, pcf = eff || roll;
+            ns.dieNeighbours(pd, pcf).forEach(function (nf) { if (ns.dieFaceId(pd, nf)) pn++; });
+            var pAmt = (f.v || 4) + (f.per || 5) * pn;
+            addStatus(p, 'bulwark', wallGain(pAmt));
+            emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') });
           } else if (f.id === 'dieExecute') {
             var xeT = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             if (xeT) totalDealt += dealToEnemy(xeT, c.enemies.indexOf(xeT), f.v || 8, { execute: true, noCrit: true });
@@ -3580,70 +3613,94 @@
   /* Point run.die at one of the three. Everything downstream — bands, seams,
    * welds, taints, listeners, steering, fireOneFace — reads run.die, so this
    * one assignment is the entire multi-die implementation. */
-  /* THE OPENING KIT. Two archetypes and one random handful, so the choice is
-   * between plans rather than between three piles of the same thing. */
-  function rollKits(n) {
-    var ids = Object.keys(ns.ARSENAL_KITS);
-    shuffle(ids);
-    var out = ids.slice(0, Math.max(0, (n || 3) - 1));
-    out.push('_random');
-    return out;
-  }
-  // A random kit is rolled fresh each time it is inspected, so the panel and
-  // the thing you take are the same three cuts.
-  function randomKitCuts() {
-    var pool = Object.keys(ns.DIE_AUGMENTS).filter(function (k) {
-      var g = ns.DIE_AUGMENTS[k];
-      if (g.flaw || g.basic || g.onlyFace) return false;
-      if (g.cls && g.cls !== 'arsenal') return false;
-      /* A card-shaped engraving is dead weight for a class with no deck —
-       * drawing and exhausting do nothing when the hand is two dice and a
-       * loadout, and "gain Energy" is a roll, which is fine. */
-      var j = JSON.stringify(g.fx || []);
-      if (/"k":"draw"/.test(j)) return false;
-      if (/dieExhaustDraw|dieTutor|dieDiscover/.test(j)) return false;
-      return true;
+  /* ==================================================================
+   * THE ARENA DRAFT
+   * ==================================================================
+   * Ten picks of three for the d20, then three of three for the guard, and
+   * you place every single one yourself. Nothing is auto-placed, because
+   * WHERE is half the decision: the die bleeds 25% into both neighbours, so
+   * a Relay Coil wants a block built around it, Powder Train wants to be
+   * boxed in, and a band-locked cut can only go where its band allows.
+   *
+   * You arrive at the first fight with a die you authored rather than a
+   * blank one and three fights of nothing. That was the whole complaint.
+   * ------------------------------------------------------------------ */
+  function arenaRound(n) {
+    var r = E.run;
+    var guard = n >= (B.dice.arenaAttackPicks || 10);
+    var pool = ns.arenaPool(guard).filter(function (id) {
+      // do not offer a cut that has nowhere legal left to go
+      var die = r.dice[guard ? 1 : 0];
+      for (var f = 1; f <= ns.dieSides(die); f++) if (!ns.dieCanEngrave(die, id, f)) return true;
+      return false;
     });
     shuffle(pool);
-    var atk = ns.KIT_FACES.attack.slice(), gd = ns.KIT_FACES.guard.slice(), cuts = [];
-    for (var i = 0; i < pool.length && cuts.length < 3; i++) {
-      var g = ns.DIE_AUGMENTS[pool[i]];
-      // wall, shield, plating and healing go on the guard; hits go up the table
-      var j2 = JSON.stringify(g.fx || []);
-      var defensive = /"s":"bulwark"|"k":"block"|"s":"plate"|"k":"heal"|"s":"thorns"/.test(j2);
-      if (defensive && gd.length) cuts.push({ id: pool[i], die: 1, face: gd.shift() });
-      else if (!defensive && atk.length) cuts.push({ id: pool[i], die: 0, face: atk.shift() });
+    /* Weighted so the common spine turns up more than the bombs — an arena
+     * where every offer is a rare is an arena with no decisions in it. */
+    var out = [], seen = {}, guardN = 0;
+    while (out.length < 3 && guardN++ < 400) {
+      var pickI = pool[Math.floor(rnd() * pool.length)];
+      if (!pickI || seen[pickI]) continue;
+      var t = (ns.DIE_AUGMENTS[pickI] || {}).tier || 1;
+      if (t === 3 && rnd() > 0.34) continue;      // bombs are rarer
+      if (t === 2 && rnd() > 0.72) continue;
+      seen[pickI] = 1; out.push(pickI);
     }
-    return cuts;
+    // if the filters starved it, top up with anything legal
+    for (var q = 0; out.length < 3 && q < pool.length; q++) {
+      if (!seen[pool[q]]) { seen[pool[q]] = 1; out.push(pool[q]); }
+    }
+    return out;
   }
-  E.kitCuts = function (id) {
-    if (id === '_random') {
-      var r = E.run;
-      if (!r._randomKit) r._randomKit = randomKitCuts();
-      return r._randomKit;
-    }
-    return ((ns.ARSENAL_KITS[id] || {}).cuts || []);
+  E.arenaState = function () {
+    var r = E.run;
+    if (!r || !r.arena) return null;
+    var atk = B.dice.arenaAttackPicks || 10, gd = B.dice.arenaGuardPicks || 3;
+    return {
+      round: r.arena.round, total: atk + gd,
+      guard: r.arena.round >= atk,
+      dieIdx: r.arena.round >= atk ? 1 : 0,
+      offer: r.arena.offer,
+      picked: r.arena.picked || null,
+    };
   };
-  E.kitInfo = function (id) {
-    if (id === '_random') return { name: 'SALVAGE', plan: 'Three cuts off the rack. No plan, just parts.' };
-    return ns.ARSENAL_KITS[id] || { name: '?', plan: '' };
-  };
-  E.takeKit = function (id) {
-    var r = E.run; if (!r || r.phase !== 'kit') return false;
-    E.kitCuts(id).forEach(function (cut) {
-      var die = r.dice[cut.die]; if (!die) return;
-      // slide off anything that will not take the cut rather than dropping it
-      for (var k = 0; k < ns.dieSides(die); k++) {
-        var f = ns.dieStep(cut.face, k, die);
-        if (!ns.dieCanEngrave(die, cut.id, f)) { ns.dieEngrave(die, cut.id, f); return; }
-      }
-    });
-    r.kitTaken = id;
-    r.kitOffer = null;
-    r._randomKit = null;
-    r.phase = 'map';
-    E.save();
+  // Step one: choose which of the three you want.
+  E.arenaPick = function (id) {
+    var r = E.run;
+    if (!r || !r.arena || r.arena.picked) return false;
+    if ((r.arena.offer || []).indexOf(id) < 0) return false;
+    r.arena.picked = id;
     return true;
+  };
+  E.arenaUnpick = function () {
+    var r = E.run; if (!r || !r.arena) return false;
+    r.arena.picked = null; return true;
+  };
+  // Step two: say where it goes. This is the half that makes the draft a draft.
+  E.arenaPlace = function (face) {
+    var r = E.run;
+    if (!r || !r.arena || !r.arena.picked) return 'nothing picked';
+    var st = E.arenaState();
+    var die = r.dice[st.dieIdx];
+    var why = ns.dieCanEngrave(die, r.arena.picked, face);
+    if (why) return why;
+    ns.dieEngrave(die, r.arena.picked, face);
+    r.arena.round++;
+    r.arena.picked = null;
+    if (r.arena.round >= st.total) {
+      r.arena = null;
+      r.phase = 'map';
+    } else {
+      r.arena.offer = arenaRound(r.arena.round);
+    }
+    E.save();
+    return null;
+  };
+  E.arenaBegin = function () {
+    var r = E.run;
+    r.arena = { round: 0, picked: null, offer: [] };
+    r.arena.offer = arenaRound(0);
+    r.phase = 'arena';
   };
 
   E.useDie = function (i) {
@@ -5528,17 +5585,6 @@
       }
       // JSON turns one shared object behind three references into three copies
       diceRelink(E.run);
-      /* MIGRATION. A run started before opening kits existed can never be
-       * offered one, because the offer is made in newRun and that already
-       * happened. An Arsenal save that has not cleared a node yet is close
-       * enough to the start to hand it the choice now; a deeper one is left
-       * alone rather than given a free spike three sectors in. */
-      var _r = E.run;
-      if (_r.dice && _r.dice.length > 1 && !_r.kitTaken && !_r.kitOffer &&
-          !(_r.nodesCleared > 0) && _r.phase !== 'combat') {
-        _r.kitOffer = rollKits(3);
-        _r.phase = 'kit';
-      }
       rngState = data.rng >>> 0;
       uidCounter = data.uid || 1000;
       E.combat = null;

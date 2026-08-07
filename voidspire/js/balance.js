@@ -65,6 +65,8 @@
         { sides: 6, base: 'base_brace', role: 'defence' },   // DEFENCE — banks the wall
       ],
       arsenalRolls: 3,       // rolls a turn, allocated across the two dice however you like
+      arenaAttackPicks: 10,   // picks of three for the d20
+      arenaGuardPicks: 3,     // picks of three for the guard
       arsenalProtocols: ['sight', 'vent', 'overclock'],   // the opening loadout
       /* THE CASH-OUT RATE, and this class balances on it. Below 1:1 on
        * purpose: converting has to be a LOSS you accept for tempo, or banking

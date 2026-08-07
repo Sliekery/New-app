@@ -495,7 +495,7 @@
       case 'forge': return showForge();
       case 'rift': return showRift();
       case 'boss-artifact': return showBossArtifact();
-      case 'kit': return showKitPick();
+      case 'arena': return showArena();
       case 'first-mark': return showFirstMark();
       case 'cutscene': return showCutscene();
       case 'sector-intro': return showSectorIntro();
@@ -5820,36 +5820,137 @@
    * of names. The face is NOT chosen here: the engraving lands pending and the
    * die screen asks where, so the choice stays open while you learn the table.
    * ==================================================================== */
-  /* THE OPENING KIT. Three engravings, already placed, chosen before the first
-   * fight. A bare die has nothing to say and the first two fights were exactly
-   * that — roll, take the base number, repeat — so the run's first real
-   * decision now happens before it starts rather than three fights in. */
-  function showKitPick() {
-    var r = E.run; if (!r || !r.kitOffer) return;
+  /* ==================================================================
+   * THE ARENA
+   * ==================================================================
+   * Thirteen picks of three, and you place every one yourself. Two steps a
+   * round: choose the cut, then choose its face.
+   *
+   * The face grid is the important half. The die bleeds 25% into both
+   * neighbours, so it draws what is already cut, marks the neighbours of the
+   * face you are hovering, and greys anything the cut cannot legally take —
+   * a band-locked engraving simply has fewer places to go, and you should be
+   * able to see that rather than discover it by being refused.
+   * ================================================================== */
+  function showArena() {
+    var r = E.run, st = E.arenaState();
+    if (!st) return;
     var s = overlayScreen();
-    s.appendChild(el('h2', 'screen-title', 'Cut The First Faces'));
-    s.appendChild(el('div', 'screen-sub', 'THREE ENGRAVINGS, ALREADY PLACED · THIS IS THE SHAPE YOU START WITH'));
-    var bar = makeConfirmBar();
-    r.kitOffer.forEach(function (kid) {
-      var info = E.kitInfo(kid), cuts = E.kitCuts(kid);
-      var rows = cuts.map(function (c) {
-        var g = ns.dieEngraving(c.id); if (!g) return '';
-        var die = r.dice[c.die];
-        var where = (c.die === 0 ? 'ATTACK' : 'GUARD') + ' · face ' + c.face
-                  + ((g.span || 1) > 1 ? ' (+' + (Math.min(g.span, Math.floor(ns.dieSides(die) / 2)) - 1) + ')' : '');
-        return '<div class="kit-cut"><b>' + esc(g.name) + '</b>'
-             + '<span class="kit-where">' + where + '</span>'
-             + '<div class="kit-desc">' + esc(g.desc) + '</div></div>';
-      }).join('');
-      var pb = el('div', 'panel-btn kit-panel',
-        '<div class="pb-title">' + esc(info.name) + '</div>'
-        + '<div class="pb-desc">' + esc(info.plan) + '</div>'
-        + '<div class="kit-cuts">' + rows + '</div>');
-      s.appendChild(pb);
-      selectConfirm(s, pb, bar, 'Open with <b>' + esc(info.name) + '</b>?<span class="cb-note">' + esc(info.plan) + '</span>',
-        function () { SFX.coin(); E.takeKit(kid); U.refresh(); }, 'amber');
-    });
-    s.appendChild(bar.el);
+    var die = r.dice[st.dieIdx];
+    var hover = null;
+
+    s.appendChild(el('h2', 'screen-title', 'The Arena'));
+    var sub = el('div', 'screen-sub',
+      'PICK ' + (st.round + 1) + ' OF ' + st.total + ' · ' +
+      (st.guard ? 'THE GUARD d6' : 'THE ATTACK d20'));
+    s.appendChild(sub);
+
+    var pips = el('div', 'ar-pips');
+    for (var q = 0; q < st.total; q++) {
+      pips.appendChild(el('div', 'ar-pip' + (q < st.round ? ' done' : q === st.round ? ' now' : '') +
+                          (q >= (ns.BALANCE.dice.arenaAttackPicks || 10) ? ' gd' : '')));
+    }
+    s.appendChild(pips);
+
+    var body = el('div', 'ar-body');
+    s.appendChild(body);
+
+    function draw() {
+      body.innerHTML = '';
+      st = E.arenaState();
+      if (!st) { U.refresh(); return; }
+      die = r.dice[st.dieIdx];
+
+      if (!st.picked) {
+        body.appendChild(el('div', 'screen-sub ar-step', 'CHOOSE A CUT'));
+        var row = el('div', 'ar-offers');
+        st.offer.forEach(function (id) {
+          var g = ns.dieEngraving(id); if (!g) return;
+          var tags = [];
+          if (g.band) tags.push(ns.dieRegionLabel ? ns.dieRegionLabel(g.band) : g.band.toUpperCase());
+          if ((g.span || 1) > 1) tags.push(g.span + ' FACES');
+          if (g.field === 'relay') tags.push('RELAY');
+          if (g.listen) tags.push('LISTENER');
+          var b = el('div', 'ar-offer t' + (g.tier || 1),
+            '<div class="ao-name">' + esc(g.name) + '</div>'
+            + '<div class="ao-tags">' + tags.map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('') + '</div>'
+            + '<div class="ao-desc">' + esc(g.desc) + '</div>');
+          b.addEventListener('pointerdown', function (ev) {
+            ev.stopPropagation(); SFX.tap(); E.arenaPick(id); draw();
+          });
+          row.appendChild(b);
+        });
+        body.appendChild(row);
+        return;
+      }
+
+      // ---- step two: where does it go
+      var g2 = ns.dieEngraving(st.picked);
+      body.appendChild(el('div', 'screen-sub ar-step',
+        'WHERE DOES ' + esc((g2.name || '').toUpperCase()) + ' GO?'));
+      var note = el('div', 'ar-note', esc(g2.desc));
+      body.appendChild(note);
+
+      var grid = el('div', 'ar-grid' + (st.guard ? ' ar-grid-6' : ''));
+      var n = ns.dieSides(die);
+      for (var f = 1; f <= n; f++) {
+        (function (face) {
+          var why = ns.dieCanEngrave(die, st.picked, face);
+          var slot = die.faces[face], had = slot ? ns.dieEngraving(slot.id) : null;
+          var span = ns.dieSpan(st.picked, face, die);
+          var cell = el('div', 'ar-cell' + (why ? ' bad' : ' ok') + (had ? ' taken' : ''),
+            '<i>' + face + '</i>'
+            + (had ? '<em>' + esc(had.name) + '</em>' : '<em class="free">bare</em>'));
+          if (why) cell.title = why;
+          cell.dataset.face = face;
+          if (!why) {
+            cell.addEventListener('pointerenter', function () {
+              hover = face;
+              grid.querySelectorAll('.ar-cell').forEach(function (c2) { c2.classList.remove('in-span', 'in-nb'); });
+              span.forEach(function (sf) {
+                var c3 = grid.querySelector('.ar-cell[data-face="' + sf + '"]');
+                if (c3) c3.classList.add('in-span');
+              });
+              ns.dieNeighbours(die, face).forEach(function (nf) {
+                if (span.indexOf(nf) >= 0) return;
+                var c4 = grid.querySelector('.ar-cell[data-face="' + nf + '"]');
+                if (c4) c4.classList.add('in-nb');
+              });
+            });
+            cell.addEventListener('pointerdown', function (ev) {
+              ev.stopPropagation();
+              var w = E.arenaPlace(face);
+              if (w) { toast(w.toUpperCase(), 1600); return; }
+              SFX.coin();
+              if (E.run.phase !== 'arena') { U.refresh(); return; }
+              draw();
+              // the header counts up with the picks
+              var st2 = E.arenaState();
+              sub.textContent = 'PICK ' + (st2.round + 1) + ' OF ' + st2.total + ' · ' +
+                (st2.guard ? 'THE GUARD d6' : 'THE ATTACK d20');
+              var ps = pips.children;
+              for (var z = 0; z < ps.length; z++) {
+                ps[z].className = 'ar-pip' + (z < st2.round ? ' done' : z === st2.round ? ' now' : '') +
+                  (z >= (ns.BALANCE.dice.arenaAttackPicks || 10) ? ' gd' : '');
+              }
+            });
+          }
+          grid.appendChild(cell);
+        })(f);
+      }
+      body.appendChild(grid);
+
+      var legend = el('div', 'ar-legend',
+        '<span class="lg-span"></span> where it lands'
+        + '<span class="lg-nb"></span> catches 25% of every roll here'
+        + '<span class="lg-bad"></span> will not take it');
+      body.appendChild(legend);
+
+      var back = el('button', 'btn dim small', '◀ PICK SOMETHING ELSE');
+      back.addEventListener('pointerdown', function () { SFX.tap(); E.arenaUnpick(); draw(); });
+      body.appendChild(back);
+    }
+    draw();
   }
 
   function showFirstMark() {

@@ -130,7 +130,7 @@
      * on, which is the entire point of building the dice. */
     _dieroll: {
       name: 'ROLL', cls: 'arsenal', type: 'attack', rarity: 0, cost: 1, pool: 'die',
-      fx: [{ k: 'dmg', v: 9, scale: 'might' }],
+      fx: [{ k: 'dmg', v: 3, scale: 'might' }],
       desc: 'Roll this die. Its band is the shot; its face is the rest.',
     },
     /* The DEFENCE die's base payload. A skill, not an attack, which is what

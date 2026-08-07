@@ -875,31 +875,45 @@ function step() {
      * one that most improves the dice it will actually be rolling. Under
      * VS_RANDOM_DRAFT it takes one blind, which is what makes the opening
      * choice measurable rather than assumed. */
-    case 'kit': {
-      var offer = E.run.kitOffer || [];
-      if (!offer.length) { E.run.phase = 'map'; break; }
-      var pickK = offer[0];
+    /* THE ARENA. Thirteen picks of three, each placed by hand — so the bot
+     * has to do both halves. It scores a cut by how much it raises the die's
+     * expected roll AT THE FACE IT WOULD GO ON, which is the only way to make
+     * adjacency count: a Relay Coil is worth little on a bare stretch and a
+     * lot boxed in, and the score sees the difference because it measures the
+     * whole die before and after. Under VS_RANDOM_DRAFT it picks and places
+     * blind, which is what makes the draft measurable at all. */
+    case 'arena': {
+      var ast = E.arenaState();
+      if (!ast) { E.run.phase = 'map'; break; }
+      var adie = E.run.dice[ast.dieIdx];
       if (RANDOM_DRAFT) {
-        pickK = offer[Math.floor(probeRnd() * offer.length)];
-      } else {
-        var bestK = -1e9;
-        offer.forEach(function (kid) {
-          var probe = E.run.dice.map(function (d) {
-            return { sides: d.sides, role: d.role, faces: JSON.parse(JSON.stringify(d.faces)),
-                     seams: d.seams, welds: d.welds };
-          });
-          E.kitCuts(kid).forEach(function (c) {
-            var pd = probe[c.die]; if (!pd) return;
-            for (var k = 0; k < VS.dieSides(pd); k++) {
-              var f = VS.dieStep(c.face, k, pd);
-              if (!VS.dieCanEngrave(pd, c.id, f)) { VS.dieEngrave(pd, c.id, f); return; }
-            }
-          });
-          var v = probe.reduce(function (a, pd) { return a + dieRollEV(pd, false, null); }, 0);
-          if (v > bestK) { bestK = v; pickK = kid; }
-        });
+        var rid = ast.offer[Math.floor(probeRnd() * ast.offer.length)];
+        E.arenaPick(rid);
+        var legal = [];
+        for (var rf = 1; rf <= VS.dieSides(adie); rf++) if (!VS.dieCanEngrave(adie, rid, rf)) legal.push(rf);
+        if (!legal.length) { E.arenaUnpick(); E.arenaPick(ast.offer[0]); legal = [1]; }
+        E.arenaPlace(legal[Math.floor(probeRnd() * legal.length)]);
+        break;
       }
-      E.takeKit(pickK);
+      var before = dieRollEV(adie, false, null);
+      var bestId = null, bestFace = 0, bestGain = -1e9;
+      ast.offer.forEach(function (id) {
+        for (var f = 1; f <= VS.dieSides(adie); f++) {
+          if (VS.dieCanEngrave(adie, id, f)) continue;
+          var probe = { sides: adie.sides, role: adie.role, seams: adie.seams, welds: adie.welds,
+                        faces: JSON.parse(JSON.stringify(adie.faces)) };
+          VS.dieEngrave(probe, id, f);
+          var gain = dieRollEV(probe, false, null) - before;
+          if (gain > bestGain) { bestGain = gain; bestId = id; bestFace = f; }
+        }
+      });
+      if (bestId == null) { bestId = ast.offer[0]; bestFace = 1; }
+      E.arenaPick(bestId);
+      if (E.arenaPlace(bestFace)) {           // refused: fall back to any legal face
+        for (var ff = 1; ff <= VS.dieSides(adie); ff++) {
+          if (!VS.dieCanEngrave(adie, bestId, ff) && !E.arenaPlace(ff)) break;
+        }
+      }
       break;
     }
     case 'first-mark': E.takeFirstMark(FIRST_MARK_PICK % Math.max(1, E.firstMarkOffers().length)); break;
