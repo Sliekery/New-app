@@ -2747,9 +2747,21 @@ ok('every class opens with either a starter deck or a rack of dice',
   ok('and they are all real engravings', st.offer.every(function (id) { return !!VS.dieEngraving(id); }));
 
   ok('you cannot place before you pick', typeof E.arenaPlace(5) === 'string');
-  E.arenaPick(st.offer[0]);
-  ok('picking arms it', E.arenaState().picked === st.offer[0]);
-  ok('placing it advances the round', E.arenaPlace(5) === null && E.arenaState().round === 1);
+  ok('nor hold before you pick', typeof E.arenaHold() === 'string');
+
+  /* HOLDING. Combos live in adjacency, and adjacency cannot be planned if
+   * every pick must be committed the instant it is made — so a pick can go
+   * into the die's pending queue instead and be cut later, on the die screen,
+   * as a block. Same queue a mid-run engraving reward uses. */
+  var heldBefore = (r.dice[0].pending || []).length;
+  E.arenaPick(E.arenaState().offer[0]);
+  ok('holding banks it instead of cutting it', E.arenaHold() === null &&
+     (r.dice[0].pending || []).length === heldBefore + 1);
+  ok('and it still advances the draft', E.arenaState().round === 1);
+  var st2 = E.arenaState();
+  E.arenaPick(st2.offer[0]);
+  ok('picking arms it', E.arenaState().picked === st2.offer[0]);
+  ok('placing it advances the round', E.arenaPlace(5) === null && E.arenaState().round === 2);
   ok('and it is actually cut into the die', !!r.dice[0].faces[5]);
 
   // band-locked cuts must be refusable, or "where" is not a real constraint
@@ -2766,8 +2778,11 @@ ok('every class opens with either a starter deck or a rack of dice',
     for (var f = 1; f <= VS.dieSides(die); f++) if (!E.arenaPlace(f)) break;
   }
   ok('the draft terminates into the map', E.run.phase === 'map');
+  /* Ten picks, all accounted for: on the die, or still in hand. A held pick
+   * is not a lost one — it is waiting for a face worth cutting it onto. */
   var cut = 0; for (var q = 1; q <= 20; q++) if (r.dice[0].faces[q]) cut++;
-  ok('ten faces of the d20 are cut (' + cut + ')', cut === 10);
+  var held = (r.dice[0].pending || []).length;
+  ok('ten attack picks are cut or held (' + cut + ' cut, ' + held + ' held)', cut + held === 10);
   ok('the guard was drafted too', (function () {
     var n = 0; for (var f2 = 1; f2 <= 6; f2++) if (r.dice[1].faces[f2]) n++; return n >= 4;
   })());

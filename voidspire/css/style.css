@@ -2464,3 +2464,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .ar-legend .lg-span { border-color: var(--cyan); background: rgba(65,216,255,.18); }
 .ar-legend .lg-nb { border-color: rgba(255,176,46,.7); background: rgba(255,176,46,.1); }
 .ar-legend .lg-bad { border-color: var(--green-dim); border-style: dashed; }
+
+.ar-acts { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+.ar-open { margin-top: 12px; }

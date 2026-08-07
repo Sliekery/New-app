@@ -3696,6 +3696,25 @@
     E.save();
     return null;
   };
+  /* HOLD IT. A pick you do not place yet goes into the die's pending queue —
+   * the same queue a mid-run engraving reward uses — so you can bank three
+   * offers and then cut them as a block once you can see what you are
+   * building. Combos live in adjacency, and adjacency is impossible to plan
+   * if every pick has to be committed the instant you make it. */
+  E.arenaHold = function () {
+    var r = E.run;
+    if (!r || !r.arena || !r.arena.picked) return 'nothing picked';
+    var st = E.arenaState();
+    var die = r.dice[st.dieIdx];
+    die.pending = die.pending || [];
+    die.pending.push(r.arena.picked);
+    r.arena.round++;
+    r.arena.picked = null;
+    if (r.arena.round >= st.total) { r.arena = null; r.phase = 'map'; }
+    else r.arena.offer = arenaRound(r.arena.round);
+    E.save();
+    return null;
+  };
   E.arenaBegin = function () {
     var r = E.run;
     r.arena = { round: 0, picked: null, offer: [] };

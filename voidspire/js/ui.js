@@ -5855,11 +5855,39 @@
     var body = el('div', 'ar-body');
     s.appendChild(body);
 
+    // the header counts up with the picks, however the pick was spent
+    function syncHead() {
+      var st2 = E.arenaState(); if (!st2) return;
+      sub.textContent = 'PICK ' + (st2.round + 1) + ' OF ' + st2.total + ' · ' +
+        (st2.guard ? 'THE GUARD d6' : 'THE ATTACK d20');
+      var ps = pips.children;
+      for (var z = 0; z < ps.length; z++) {
+        ps[z].className = 'ar-pip' + (z < st2.round ? ' done' : z === st2.round ? ' now' : '') +
+          (z >= (ns.BALANCE.dice.arenaAttackPicks || 10) ? ' gd' : '');
+      }
+    }
+
     function draw() {
       body.innerHTML = '';
       st = E.arenaState();
       if (!st) { U.refresh(); return; }
       die = r.dice[st.dieIdx];
+
+      /* The arena's own grid is compact but flat. The die screen is the better
+       * instrument — bands, spans, seams, the spinning face readout — so the
+       * draft lends it out rather than reproducing it badly. Anything held is
+       * placed there, which is also where a mid-run reward gets cut. */
+      function dieButton() {
+        var held = (die.pending || []).length;
+        var b2 = el('button', 'btn small ar-open',
+          'OPEN THE DIE ▸' + (held ? '  ·  ' + held + ' HELD' : ''));
+        b2.addEventListener('pointerdown', function (ev) {
+          ev.stopPropagation(); SFX.tap();
+          E.useDie(st.dieIdx);
+          U.showDie({ back: function () { showArena(); } });
+        });
+        return b2;
+      }
 
       if (!st.picked) {
         body.appendChild(el('div', 'screen-sub ar-step', 'CHOOSE A CUT'));
@@ -5881,6 +5909,7 @@
           row.appendChild(b);
         });
         body.appendChild(row);
+        body.appendChild(dieButton());
         return;
       }
 
@@ -5923,16 +5952,7 @@
               if (w) { toast(w.toUpperCase(), 1600); return; }
               SFX.coin();
               if (E.run.phase !== 'arena') { U.refresh(); return; }
-              draw();
-              // the header counts up with the picks
-              var st2 = E.arenaState();
-              sub.textContent = 'PICK ' + (st2.round + 1) + ' OF ' + st2.total + ' · ' +
-                (st2.guard ? 'THE GUARD d6' : 'THE ATTACK d20');
-              var ps = pips.children;
-              for (var z = 0; z < ps.length; z++) {
-                ps[z].className = 'ar-pip' + (z < st2.round ? ' done' : z === st2.round ? ' now' : '') +
-                  (z >= (ns.BALANCE.dice.arenaAttackPicks || 10) ? ' gd' : '');
-              }
+              draw(); syncHead();
             });
           }
           grid.appendChild(cell);
@@ -5946,9 +5966,22 @@
         + '<span class="lg-bad"></span> will not take it');
       body.appendChild(legend);
 
+      var acts = el('div', 'ar-acts');
+      var hold = el('button', 'btn small', 'HOLD IT · CUT IT LATER');
+      hold.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation();
+        var w = E.arenaHold();
+        if (w) { toast(w.toUpperCase(), 1500); return; }
+        SFX.coin();
+        if (E.run.phase !== 'arena') { U.refresh(); return; }
+        draw(); syncHead();
+      });
+      acts.appendChild(hold);
+      acts.appendChild(dieButton());
       var back = el('button', 'btn dim small', '◀ PICK SOMETHING ELSE');
       back.addEventListener('pointerdown', function () { SFX.tap(); E.arenaUnpick(); draw(); });
-      body.appendChild(back);
+      acts.appendChild(back);
+      body.appendChild(acts);
     }
     draw();
   }

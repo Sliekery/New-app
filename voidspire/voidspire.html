@@ -2484,6 +2484,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 .ar-legend .lg-nb { border-color: rgba(255,176,46,.7); background: rgba(255,176,46,.1); }
 .ar-legend .lg-bad { border-color: var(--green-dim); border-style: dashed; }
 
+.ar-acts { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+.ar-open { margin-top: 12px; }
+
 </style>
 </head>
 <body>
@@ -2506,7 +2509,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
  * ========================================================================= */
 (function (ns) {
   // Replaced by test/bundle.js with the git short hash + date at build time.
-  ns.BUILD = '2026-08-07 b00c608';
+  ns.BUILD = '2026-08-07 a11869d';
 
   'use strict';
 
@@ -16141,6 +16144,25 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     E.save();
     return null;
   };
+  /* HOLD IT. A pick you do not place yet goes into the die's pending queue —
+   * the same queue a mid-run engraving reward uses — so you can bank three
+   * offers and then cut them as a block once you can see what you are
+   * building. Combos live in adjacency, and adjacency is impossible to plan
+   * if every pick has to be committed the instant you make it. */
+  E.arenaHold = function () {
+    var r = E.run;
+    if (!r || !r.arena || !r.arena.picked) return 'nothing picked';
+    var st = E.arenaState();
+    var die = r.dice[st.dieIdx];
+    die.pending = die.pending || [];
+    die.pending.push(r.arena.picked);
+    r.arena.round++;
+    r.arena.picked = null;
+    if (r.arena.round >= st.total) { r.arena = null; r.phase = 'map'; }
+    else r.arena.offer = arenaRound(r.arena.round);
+    E.save();
+    return null;
+  };
   E.arenaBegin = function () {
     var r = E.run;
     r.arena = { round: 0, picked: null, offer: [] };
@@ -26478,11 +26500,39 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var body = el('div', 'ar-body');
     s.appendChild(body);
 
+    // the header counts up with the picks, however the pick was spent
+    function syncHead() {
+      var st2 = E.arenaState(); if (!st2) return;
+      sub.textContent = 'PICK ' + (st2.round + 1) + ' OF ' + st2.total + ' · ' +
+        (st2.guard ? 'THE GUARD d6' : 'THE ATTACK d20');
+      var ps = pips.children;
+      for (var z = 0; z < ps.length; z++) {
+        ps[z].className = 'ar-pip' + (z < st2.round ? ' done' : z === st2.round ? ' now' : '') +
+          (z >= (ns.BALANCE.dice.arenaAttackPicks || 10) ? ' gd' : '');
+      }
+    }
+
     function draw() {
       body.innerHTML = '';
       st = E.arenaState();
       if (!st) { U.refresh(); return; }
       die = r.dice[st.dieIdx];
+
+      /* The arena's own grid is compact but flat. The die screen is the better
+       * instrument — bands, spans, seams, the spinning face readout — so the
+       * draft lends it out rather than reproducing it badly. Anything held is
+       * placed there, which is also where a mid-run reward gets cut. */
+      function dieButton() {
+        var held = (die.pending || []).length;
+        var b2 = el('button', 'btn small ar-open',
+          'OPEN THE DIE ▸' + (held ? '  ·  ' + held + ' HELD' : ''));
+        b2.addEventListener('pointerdown', function (ev) {
+          ev.stopPropagation(); SFX.tap();
+          E.useDie(st.dieIdx);
+          U.showDie({ back: function () { showArena(); } });
+        });
+        return b2;
+      }
 
       if (!st.picked) {
         body.appendChild(el('div', 'screen-sub ar-step', 'CHOOSE A CUT'));
@@ -26504,6 +26554,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
           row.appendChild(b);
         });
         body.appendChild(row);
+        body.appendChild(dieButton());
         return;
       }
 
@@ -26546,16 +26597,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
               if (w) { toast(w.toUpperCase(), 1600); return; }
               SFX.coin();
               if (E.run.phase !== 'arena') { U.refresh(); return; }
-              draw();
-              // the header counts up with the picks
-              var st2 = E.arenaState();
-              sub.textContent = 'PICK ' + (st2.round + 1) + ' OF ' + st2.total + ' · ' +
-                (st2.guard ? 'THE GUARD d6' : 'THE ATTACK d20');
-              var ps = pips.children;
-              for (var z = 0; z < ps.length; z++) {
-                ps[z].className = 'ar-pip' + (z < st2.round ? ' done' : z === st2.round ? ' now' : '') +
-                  (z >= (ns.BALANCE.dice.arenaAttackPicks || 10) ? ' gd' : '');
-              }
+              draw(); syncHead();
             });
           }
           grid.appendChild(cell);
@@ -26569,9 +26611,22 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
         + '<span class="lg-bad"></span> will not take it');
       body.appendChild(legend);
 
+      var acts = el('div', 'ar-acts');
+      var hold = el('button', 'btn small', 'HOLD IT · CUT IT LATER');
+      hold.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation();
+        var w = E.arenaHold();
+        if (w) { toast(w.toUpperCase(), 1500); return; }
+        SFX.coin();
+        if (E.run.phase !== 'arena') { U.refresh(); return; }
+        draw(); syncHead();
+      });
+      acts.appendChild(hold);
+      acts.appendChild(dieButton());
       var back = el('button', 'btn dim small', '◀ PICK SOMETHING ELSE');
       back.addEventListener('pointerdown', function () { SFX.tap(); E.arenaUnpick(); draw(); });
-      body.appendChild(back);
+      acts.appendChild(back);
+      body.appendChild(acts);
     }
     draw();
   }
