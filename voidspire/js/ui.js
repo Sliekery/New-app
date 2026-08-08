@@ -482,7 +482,6 @@
       case 'forge': return showForge();
       case 'rift': return showRift();
       case 'boss-artifact': return showBossArtifact();
-      case 'arena': return showArena();
       case 'first-mark': return showFirstMark();
       case 'cutscene': return showCutscene();
       case 'sector-intro': return showSectorIntro();
@@ -589,12 +588,8 @@
     $energy.style.display = on ? 'flex' : 'none';   // energy lives in the bottom dock now
     if ($die) $die.style.display = on ? 'block' : 'none';
     $counts.style.display = 'none';
-    /* No piles for a class with no deck. Its hand is its dice, rebuilt every
-     * turn — two counters pinned at zero all fight read as a bug, not as an
-     * absence. */
-    var noPiles = !!(E.combat && E.combat.rollClass);
-    $drawPile.style.display = (on && !noPiles) ? 'block' : 'none';   // piles ride the dock corners (per-class art)
-    $discardPile.style.display = (on && !noPiles) ? 'block' : 'none';
+    $drawPile.style.display = on ? 'block' : 'none';   // piles ride the dock corners (per-class art)
+    $discardPile.style.display = on ? 'block' : 'none';
     if (!on && $rail) { $rail.style.display = 'none'; closeRail(); }
     $potions.style.display = on ? 'flex' : 'none';
     if (!on) { $hint.style.display = 'none'; onPotionCancel(); hidePotionTip(); }
@@ -1555,31 +1550,9 @@
     var wasCombat = r.phase === 'combat';
     var sel = 20, pickOpen = false;
     var s = overlayScreen();
-    s.appendChild(el('h2', 'screen-title', bench ? 'The Bench' : (r.dice && r.dice.length > 1) ? 'The Barrels' : 'The Die'));
+    s.appendChild(el('h2', 'screen-title', bench ? 'The Bench' : 'The Die'));
     var sub = el('div', 'screen-sub', '');
     s.appendChild(sub);
-
-    /* THE BARREL SWITCHER. With three dice the whole screen is already correct
-     * — every reader below goes through run.die — so choosing which barrel you
-     * are looking at is the same act as choosing which one a cut lands on.
-     * That is the deckbuilding: not "where on the die" but "on which die". */
-    if (r.dice && r.dice.length > 1 && !bench) {
-      var pick3 = el('div', 'barrel-row');
-      r.dice.forEach(function (d, i) {
-        var cut = 0;
-        for (var f = 1; f <= ns.dieSides(d); f++) if (d.faces[f]) cut++;
-        var b3 = el('div', 'barrel-tab' + (i === (r.dieIdx || 0) ? ' on' : ''),
-          '<b>' + (d.role === 'defence' ? 'GUARD' : 'ATTACK') + '</b><span>d' + ns.dieSides(d) + ' · ' + cut + ' of ' + ns.dieSides(d) + ' cut</span>');
-        b3.addEventListener('pointerdown', function (ev) {
-          ev.stopPropagation();
-          if (i === (r.dieIdx || 0)) return;
-          SFX.tap(); E.useDie(i); E.save();
-          showDieScreen(opts);            // rebuild against the barrel you chose
-        });
-        pick3.appendChild(b3);
-      });
-      s.appendChild(pick3);
-    }
 
     /* SIDE BY SIDE, not stacked. Measured on landscape: the die stage was 137px
      * and the twenty-face list 187px, one above the other, and the screen ran
@@ -2978,51 +2951,7 @@
       var ty = Math.abs(off) * Math.abs(off) * 1.5;
       d.style.setProperty('--fan', 'rotate(' + rot.toFixed(2) + 'deg) translateY(' + ty.toFixed(1) + 'px)');
       d.dataset.cid = card.id; if (card.up) d.dataset.up = '1'; if (info.vtouch) d.dataset.vt = '1';
-      /* A DIE IN HAND IS NOT A CARD. There is no printed number to read — what
-       * you are choosing between is what each barrel has been cut with, so the
-       * tile lists that. Twenty faces will not fit, so it shows the engravings
-       * by name and how much of the die they cover. */
-      if (card.protoId) {
-        /* A PROTOCOL TILE. No cost pip — a protocol never spends a roll — and
-         * the charge count is the whole of its economy, so it is the number
-         * that gets the space. */
-        var pd = ns.protocol(card.protoId) || {};
-        var left = (E.combat.protoLeft || [])[card.protoIdx] || 0;
-        d.classList.add('proto-card');
-        d.innerHTML = '<div class="pk-ch">' + left + '</div>'
-                    + '<div class="pk-name">' + esc(pd.name || '?') + '</div>'
-                    + '<div class="pk-desc">' + esc(pd.desc || '') + '</div>';
-      } else if (card.dieIdx != null) {
-        var dd = (E.run.dice || [])[card.dieIdx];
-        d.classList.add('die-card');
-        if (dd && dd.role === 'defence') d.classList.add('die-guard');
-        /* Grouped by name with a count. Five lines reading "Revetment" told you
-         * nothing you could not get from one line reading "Revetment x5", and
-         * the count is the part that matters — it is how much of the barrel
-         * that engraving actually covers. */
-        var seen = {}, tally = {}, order = [], nc = 0;
-        if (dd) for (var f = 1; f <= ns.dieSides(dd); f++) {
-          var slot = dd.faces[f]; if (!slot) continue;
-          nc++;
-          if (seen[slot.root]) continue;
-          seen[slot.root] = 1;
-          var g = ns.dieEngraving(slot.id); if (!g) continue;
-          if (!tally[g.name]) { tally[g.name] = 0; order.push(g.name); }
-          tally[g.name]++;
-        }
-        var body = order.length
-          ? order.slice(0, 4).map(function (n) {
-              return '<div class="dk-row">' + esc(n) + (tally[n] > 1 ? ' <b>x' + tally[n] + '</b>' : '') + '</div>';
-            }).join('')
-            + (order.length > 4 ? '<div class="dk-row dk-more">+' + (order.length - 4) + ' more</div>' : '')
-          : '<div class="dk-row dk-more">bare — the band is all it does</div>';
-        d.innerHTML = '<div class="dk-cost">' + info.cost + '</div>'
-                    + '<div class="dk-name">' + (dd && dd.role === 'defence' ? 'GUARD' : 'ATTACK') + '</div>'
-                    + '<div class="dk-sub">d' + ns.dieSides(dd) + ' · ' + nc + '/' + ns.dieSides(dd) + ' faces cut</div>'
-                    + '<div class="dk-faces">' + body + '</div>';
-      } else {
-        d.innerHTML = cardInner(info.name, info.xcost ? 'X' : info.cost, info.type, info.rarity, info.desc, info.unplayable, card.id);
-      }
+      d.innerHTML = cardInner(info.name, info.xcost ? 'X' : info.cost, info.type, info.rarity, info.desc, info.unplayable, card.id);
       d.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation();
         startCardDrag(d, i, ev);
@@ -5817,172 +5746,6 @@
    * of names. The face is NOT chosen here: the engraving lands pending and the
    * die screen asks where, so the choice stays open while you learn the table.
    * ==================================================================== */
-  /* ==================================================================
-   * THE ARENA
-   * ==================================================================
-   * Thirteen picks of three, and you place every one yourself. Two steps a
-   * round: choose the cut, then choose its face.
-   *
-   * The face grid is the important half. The die bleeds 25% into both
-   * neighbours, so it draws what is already cut, marks the neighbours of the
-   * face you are hovering, and greys anything the cut cannot legally take —
-   * a band-locked engraving simply has fewer places to go, and you should be
-   * able to see that rather than discover it by being refused.
-   * ================================================================== */
-  function showArena() {
-    var r = E.run, st = E.arenaState();
-    if (!st) return;
-    var s = overlayScreen();
-    var die = r.dice[st.dieIdx];
-    var hover = null;
-
-    s.appendChild(el('h2', 'screen-title', 'The Arena'));
-    var sub = el('div', 'screen-sub',
-      'PICK ' + (st.round + 1) + ' OF ' + st.total + ' · ' +
-      (st.guard ? 'THE GUARD d6' : 'THE ATTACK d20'));
-    s.appendChild(sub);
-
-    var pips = el('div', 'ar-pips');
-    for (var q = 0; q < st.total; q++) {
-      pips.appendChild(el('div', 'ar-pip' + (q < st.round ? ' done' : q === st.round ? ' now' : '') +
-                          (q >= (ns.BALANCE.dice.arenaAttackPicks || 10) ? ' gd' : '')));
-    }
-    s.appendChild(pips);
-
-    var body = el('div', 'ar-body');
-    s.appendChild(body);
-
-    // the header counts up with the picks, however the pick was spent
-    function syncHead() {
-      var st2 = E.arenaState(); if (!st2) return;
-      sub.textContent = 'PICK ' + (st2.round + 1) + ' OF ' + st2.total + ' · ' +
-        (st2.guard ? 'THE GUARD d6' : 'THE ATTACK d20');
-      var ps = pips.children;
-      for (var z = 0; z < ps.length; z++) {
-        ps[z].className = 'ar-pip' + (z < st2.round ? ' done' : z === st2.round ? ' now' : '') +
-          (z >= (ns.BALANCE.dice.arenaAttackPicks || 10) ? ' gd' : '');
-      }
-    }
-
-    function draw() {
-      body.innerHTML = '';
-      st = E.arenaState();
-      if (!st) { U.refresh(); return; }
-      die = r.dice[st.dieIdx];
-
-      /* The arena's own grid is compact but flat. The die screen is the better
-       * instrument — bands, spans, seams, the spinning face readout — so the
-       * draft lends it out rather than reproducing it badly. Anything held is
-       * placed there, which is also where a mid-run reward gets cut. */
-      function dieButton() {
-        var held = (die.pending || []).length;
-        var b2 = el('button', 'btn small ar-open',
-          'OPEN THE DIE ▸' + (held ? '  ·  ' + held + ' HELD' : ''));
-        b2.addEventListener('pointerdown', function (ev) {
-          ev.stopPropagation(); SFX.tap();
-          E.useDie(st.dieIdx);
-          U.showDie({ back: function () { showArena(); } });
-        });
-        return b2;
-      }
-
-      if (!st.picked) {
-        body.appendChild(el('div', 'screen-sub ar-step', 'CHOOSE A CUT'));
-        var row = el('div', 'ar-offers');
-        st.offer.forEach(function (id) {
-          var g = ns.dieEngraving(id); if (!g) return;
-          var tags = [];
-          if (g.band) tags.push(ns.dieRegionLabel ? ns.dieRegionLabel(g.band) : g.band.toUpperCase());
-          if ((g.span || 1) > 1) tags.push(g.span + ' FACES');
-          if (g.field === 'relay') tags.push('RELAY');
-          if (g.listen) tags.push('LISTENER');
-          var b = el('div', 'ar-offer t' + (g.tier || 1),
-            '<div class="ao-name">' + esc(g.name) + '</div>'
-            + '<div class="ao-tags">' + tags.map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('') + '</div>'
-            + '<div class="ao-desc">' + esc(g.desc) + '</div>');
-          b.addEventListener('pointerdown', function (ev) {
-            ev.stopPropagation(); SFX.tap(); E.arenaPick(id); draw();
-          });
-          row.appendChild(b);
-        });
-        body.appendChild(row);
-        body.appendChild(dieButton());
-        return;
-      }
-
-      // ---- step two: where does it go
-      var g2 = ns.dieEngraving(st.picked);
-      body.appendChild(el('div', 'screen-sub ar-step',
-        'WHERE DOES ' + esc((g2.name || '').toUpperCase()) + ' GO?'));
-      var note = el('div', 'ar-note', esc(g2.desc));
-      body.appendChild(note);
-
-      var grid = el('div', 'ar-grid' + (st.guard ? ' ar-grid-6' : ''));
-      var n = ns.dieSides(die);
-      for (var f = 1; f <= n; f++) {
-        (function (face) {
-          var why = ns.dieCanEngrave(die, st.picked, face);
-          var slot = die.faces[face], had = slot ? ns.dieEngraving(slot.id) : null;
-          var span = ns.dieSpan(st.picked, face, die);
-          var cell = el('div', 'ar-cell' + (why ? ' bad' : ' ok') + (had ? ' taken' : ''),
-            '<i>' + face + '</i>'
-            + (had ? '<em>' + esc(had.name) + '</em>' : '<em class="free">bare</em>'));
-          if (why) cell.title = why;
-          cell.dataset.face = face;
-          if (!why) {
-            cell.addEventListener('pointerenter', function () {
-              hover = face;
-              grid.querySelectorAll('.ar-cell').forEach(function (c2) { c2.classList.remove('in-span', 'in-nb'); });
-              span.forEach(function (sf) {
-                var c3 = grid.querySelector('.ar-cell[data-face="' + sf + '"]');
-                if (c3) c3.classList.add('in-span');
-              });
-              ns.dieNeighbours(die, face).forEach(function (nf) {
-                if (span.indexOf(nf) >= 0) return;
-                var c4 = grid.querySelector('.ar-cell[data-face="' + nf + '"]');
-                if (c4) c4.classList.add('in-nb');
-              });
-            });
-            cell.addEventListener('pointerdown', function (ev) {
-              ev.stopPropagation();
-              var w = E.arenaPlace(face);
-              if (w) { toast(w.toUpperCase(), 1600); return; }
-              SFX.coin();
-              if (E.run.phase !== 'arena') { U.refresh(); return; }
-              draw(); syncHead();
-            });
-          }
-          grid.appendChild(cell);
-        })(f);
-      }
-      body.appendChild(grid);
-
-      var legend = el('div', 'ar-legend',
-        '<span class="lg-span"></span> where it lands'
-        + '<span class="lg-nb"></span> catches 25% of every roll here'
-        + '<span class="lg-bad"></span> will not take it');
-      body.appendChild(legend);
-
-      var acts = el('div', 'ar-acts');
-      var hold = el('button', 'btn small', 'HOLD IT · CUT IT LATER');
-      hold.addEventListener('pointerdown', function (ev) {
-        ev.stopPropagation();
-        var w = E.arenaHold();
-        if (w) { toast(w.toUpperCase(), 1500); return; }
-        SFX.coin();
-        if (E.run.phase !== 'arena') { U.refresh(); return; }
-        draw(); syncHead();
-      });
-      acts.appendChild(hold);
-      acts.appendChild(dieButton());
-      var back = el('button', 'btn dim small', '◀ PICK SOMETHING ELSE');
-      back.addEventListener('pointerdown', function () { SFX.tap(); E.arenaUnpick(); draw(); });
-      acts.appendChild(back);
-      body.appendChild(acts);
-    }
-    draw();
-  }
-
   function showFirstMark() {
     combatChrome(false);
     $hud.innerHTML = ''; setHud(false);

@@ -245,10 +245,12 @@
     var out = [];
     var pi = primaryIdx(def.fx), prim = def.fx[pi];
 
-    /* Some engravings are a bare `special` with no numeric value at all — the
-     * Arsenal's wall cash-outs are the whole of their effect and there is no
-     * magnitude to double or split. Every lens below multiplies prim.v, so
-     * they simply have nothing to offer here; the recast still applies. */
+    /* An engraving can be a bare `special` with no numeric value at all, where
+     * the effect IS the whole of it and there is no magnitude to double or
+     * split. Every lens below multiplies prim.v, so they have nothing to offer
+     * here; the recast still applies. The pool has none right now — they were
+     * all Arsenal wall cash-outs — but the path is tested, because the next
+     * one written this way will hit it with no warning. */
     if (!prim || prim.v == null) {
       out.push({
         lens: 'recast', name: 'THE RECAST', from: def.name, recast: true,

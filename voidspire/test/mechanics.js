@@ -371,12 +371,12 @@ ok('a forged engraving survives the registry being dropped (the load path)', (fu
   var bad = 0, n = 0;
   Object.keys(VS.DIE_AUGMENTS).forEach(function (id) {
     var def = VS.DIE_AUGMENTS[id], base = VS.engravingSp(def);
-    /* The Arsenal's wall cash-outs are a bare `special` with no magnitude —
+    /* Some engravings are a bare `special` with no magnitude —
      * "consume all your Bulwark, deal that much" has no number to double,
      * halve or split, so the lenses that bargain with one have nothing to
      * offer and only the recast applies. Checked separately below. */
     var prim0 = (def.fx || [])[0];
-    if (def.cls === 'arsenal' || !prim0 || prim0.v == null) return;
+    if (!prim0 || prim0.v == null) return;
     var baseDesc = VS.reforgeDescribe(def.fx, { trigger: def.listen });
     ['common', 'vanguard', 'technomancer', 'voidadept'].forEach(function (c) {
       var os = VS.reforgeOptions(def, c), seen = {};
@@ -399,11 +399,21 @@ ok('a forged engraving survives the registry being dropped (the load path)', (fu
     var fx = VS.DIE_AUGMENTS[id].fx || [];
     return !fx.length || fx.every(function (f) { return f.v == null; });
   });
-  ok('a valueless engraving still offers the recast (' + vless.length + ' of them)',
-     vless.length > 0 && vless.every(function (id) {
-       var os = VS.reforgeOptions(VS.DIE_AUGMENTS[id], 'arsenal');
+  ok('any valueless engraving still offers the recast (' + vless.length + ' of them)',
+     vless.every(function (id) {
+       var os = VS.reforgeOptions(VS.DIE_AUGMENTS[id], 'vanguard');
        return os.length >= 1 && os.some(function (o) { return o.recast; });
      }));
+  /* The pool currently has none — every one of them was an Arsenal wall
+   * cash-out and went with the class — so the sweep above proves nothing on
+   * its own. Reforge still has to survive one, because the next engraving
+   * written as a bare `special` will hit this path with no warning. */
+  ok('reforge survives a valueless engraving it has never seen',
+     (function () {
+       var os = VS.reforgeOptions({ name: 'Test Cutout', tier: 1, span: 1,
+                                    fx: [{ k: 'special', id: 'breachWall' }], desc: 'Spend it all.' }, 'vanguard');
+       return os.length >= 1 && os.some(function (o) { return o.recast; });
+     })());
 })();
 
 /* 26c. THE DIE INVARIANT: no face may point at a root that is gone.
@@ -1196,14 +1206,12 @@ ok('no card summons a pet', !Object.keys(VS.CARDS).some(function (k) {
 ok('every remaining class has a die table', Object.keys(VS.BALANCE.classes).every(function (c) {
   return !!VS.BALANCE.dice.classes[c];
 }));
-/* A class either opens with cards or opens with dice. The Arsenal is the
- * second kind — no deck at all, its hand rebuilt from run.dice every turn — so
- * the property that matters is "has something to open the fight with". */
-ok('every class opens with either a starter deck or a rack of dice',
+/* Every class opens with a real starter deck of real cards. The deckless
+ * variant that made this a two-way test has been cut. */
+ok('every class opens with a starter deck of real cards',
   Object.keys(VS.BALANCE.classes).every(function (c) {
     var d = VS.STARTER_DECKS[c];
-    if (d && d.length) return d.every(function (id) { return !!VS.CARDS[id]; });
-    return c === 'arsenal' && (VS.BALANCE.dice.arsenalSmall || []).length > 0;
+    return d && d.length && d.every(function (id) { return !!VS.CARDS[id]; });
   }));
 
 (function () {
@@ -2612,194 +2620,25 @@ ok('every class opens with either a starter deck or a rack of dice',
   E.run.phase = 'map';
 })();
 
-/* ---- THE ARSENAL: TWO DICE, A LOADOUT, AND A WALL YOU SPEND -------------
- * No cards and no deck. An ATTACK d20 and a GUARD d6, three rolls a turn
- * allocated between them, and five protocol slots that aim rather than hit.
- * The guard banks a persistent wall; the attack die and VENT spend it. */
-(function () {
-  startFight('arsenal');
-  var r = E.run, c = E.combat;
-  ok('two dice: an attack d20 and a guard d6',
-     r.dice.length === 2 && VS.dieSides(r.dice[0]) === 20 && VS.dieSides(r.dice[1]) === 6);
-  ok('they carry roles', r.dice[0].role === 'attack' && r.dice[1].role === 'defence');
-  ok('they share one core and one engraving queue',
-     r.dice[0].core === r.dice[1].core && r.dice[0].pending === r.dice[1].pending);
-
-  /* HALF THE GUARD IS BARE ON PURPOSE. Six identical faces is a button, not a
-   * die — every roll banked the same number, and with the neighbour bleed also
-   * firing it banked exactly 34 every single time. Bare faces still bank the
-   * roll's base, so the guard now reads 10 or 40 and there is room to build. */
-  ok('the guard opens half cut and half bare', (function () {
-    var cut = 0, bare = 0;
-    for (var f = 1; f <= 6; f++) {
-      var sl = r.dice[1].faces[f];
-      if (sl && VS.dieEngraving(sl.id).name === 'Brace') cut++; else if (!sl) bare++;
-    }
-    return cut === 3 && bare === 3;
-  })());
-  ok('the attack die opens bare', !r.dice[0].faces[10]);
-
-  ok('the hand is both dice plus the loadout',
-     c.hand.filter(function (h) { return h.dieIdx != null; }).length === 2 &&
-     c.hand.filter(function (h) { return h.protoId; }).length === r.protocols.length);
-  /* TWO rolls a turn, not three. A drafted die is dense enough that three
-   * rolls killed hallway packs in one turn and won 66% of runs. */
-  ok('two rolls a turn', c.energy === 2);
-
-  /* THE GUARD BANKS AND DOES NOT HIT. Its base payload is wall, it is a skill
-   * rather than an attack, so it reads no bands and — the part that matters —
-   * cannot misfire. Failing to block is a disaster; the guard is not allowed
-   * to jam. */
-  bigEnemies();
-  var hp0 = c.enemies[0].hp;
-  var gi = c.hand.findIndex(function (h) { return h.dieIdx === 1; });
-  E.playCard(gi, 0);
-  var wall = c.player.statuses.bulwark || 0;
-  ok('rolling the guard banks a wall (' + wall + ')', wall > 0);
-  ok('and deals no damage', c.enemies[0].hp === hp0);
-  ok('it costs a roll', c.energy === 1);
-  ok('but the die stays in hand', c.hand.filter(function (h) { return h.dieIdx === 1; }).length === 1);
-
-  var ai = c.hand.findIndex(function (h) { return h.dieIdx === 0; });
-  E.playCard(ai, 0);
-  ok('rolling attack hits', c.enemies[0].hp < hp0);
-
-  /* PROTOCOLS COST NO ROLL. A protocol is not an action, it is a modifier on
-   * one — so spending one never eats the turn's allocation. That is also why
-   * a protocol alone can never end a fight: it aims, the dice fire. */
-  c.energy = 2;
-  var si = c.hand.findIndex(function (h) { return h.protoId === 'sight'; });
-  ok('SIGHT is in the opening loadout', si >= 0);
-  E.playCard(si, 0);
-  ok('spending it costs no roll', c.energy === 2);
-  ok('and it arms a shift for the next roll', c.pendShift === 3);
-  E.playCard(c.hand.findIndex(function (h) { return h.dieIdx === 0; }), 0);
-  ok('which the next roll consumes', c.pendShift === 0);
-
-  /* THE CASH-OUT. The wall is ammunition as well as armour — this is the one
-   * rule that stops "roll the guard" from being a pure hedge, and the rate on
-   * it is deliberately below 1:1 so converting is a loss you accept for tempo
-   * rather than a strictly better way to attack. */
-  c.player.statuses.bulwark = 40;
-  var hp1 = c.enemies[0].hp;
-  var vi = c.hand.findIndex(function (h) { return h.protoId === 'vent'; });
-  E.playCard(vi, 0);
-  ok('VENT spends the whole wall', (c.player.statuses.bulwark || 0) === 0);
-  var dealt = hp1 - c.enemies[0].hp;
-  ok('converting it deals less than the wall was worth (' + dealt + ' from 40)',
-     dealt > 0 && dealt < 40);
-  ok('a spent protocol leaves the hand',
-     !c.hand.some(function (h) { return h.protoId === 'vent'; }));
-
-  /* THE BASICS ARE A FLOOR, NOT A REWARD. Brace is what the guard arrives
-   * wearing so a fresh barrel is not six blanks; it is the thing your drafted
-   * cuts replace. It was being offered back as a pick — at 30 Bulwark a face,
-   * which is a tier-3 payload on a tier-1 slot. */
-  (function () {
-    var bad = 0, n = 0;
-    for (var i = 0; i < 200; i++) {
-      E.randomEngravings(3).forEach(function (id) {
-        n++; if ((VS.DIE_AUGMENTS[id] || {}).basic) bad++;
-      });
-    }
-    ok('a basic is never offered as a reward engraving (' + n + ' picks)', bad === 0);
-  })();
-
-  // charges refill each fight
-  E.run.phase = 'map';
-  startFight('arsenal');
-  ok('charges refill next fight',
-     E.combat.hand.some(function (h) { return h.protoId === 'vent'; }));
-
-  /* A SMALL DIE DOES NOT BLEED. The neighbour splash reaches a fixed NUMBER of
-   * faces, which is 10% of a d20 and 33% of a d6 — so on the guard every roll
-   * used to fire its face plus both neighbours, and with the faces it had that
-   * came out as exactly 34 wall every single time. Deterministic and inflated
-   * at once. Own fight, because this burns a lot of rolls. */
-  (function () {
-    var c2 = E.combat; bigEnemies();
-    var seen = {};
-    for (var k = 0; k < 40; k++) {
-      c2.energy = 30;
-      var w0 = c2.player.statuses.bulwark || 0;
-      E.playCard(c2.hand.findIndex(function (h) { return h.dieIdx === 1; }), 0);
-      seen[(c2.player.statuses.bulwark || 0) - w0] = 1;
-    }
-    var outcomes = Object.keys(seen);
-    ok('a guard roll has more than one outcome (' + outcomes.sort(function (x, y) { return x - y; }).join(' / ') + ')',
-       outcomes.length > 1);
-  })();
-  E.run.phase = 'map';
-})();
-
-/* ---- THE ARENA DRAFT ----------------------------------------------------
- * Ten picks of three for the d20, three for the guard, every one placed by
- * hand. Two steps a round, and the placement half is the point: the die
- * bleeds 25% into both neighbours, so WHERE is half the decision. */
-(function () {
-  E.seed(31); E.newRun('arsenal');
-  var r = E.run;
-  ok('a run opens in the arena', r.phase === 'arena');
-  var st = E.arenaState();
-  ok('thirteen picks, ten of them for the attack die', st.total === 13 && !st.guard);
-  ok('three on offer', (st.offer || []).length === 3);
-  ok('and they are all real engravings', st.offer.every(function (id) { return !!VS.dieEngraving(id); }));
-
-  ok('you cannot place before you pick', typeof E.arenaPlace(5) === 'string');
-  ok('nor hold before you pick', typeof E.arenaHold() === 'string');
-
-  /* HOLDING. Combos live in adjacency, and adjacency cannot be planned if
-   * every pick must be committed the instant it is made — so a pick can go
-   * into the die's pending queue instead and be cut later, on the die screen,
-   * as a block. Same queue a mid-run engraving reward uses. */
-  var heldBefore = (r.dice[0].pending || []).length;
-  E.arenaPick(E.arenaState().offer[0]);
-  ok('holding banks it instead of cutting it', E.arenaHold() === null &&
-     (r.dice[0].pending || []).length === heldBefore + 1);
-  ok('and it still advances the draft', E.arenaState().round === 1);
-  var st2 = E.arenaState();
-  E.arenaPick(st2.offer[0]);
-  ok('picking arms it', E.arenaState().picked === st2.offer[0]);
-  ok('placing it advances the round', E.arenaPlace(5) === null && E.arenaState().round === 2);
-  ok('and it is actually cut into the die', !!r.dice[0].faces[5]);
-
-  // band-locked cuts must be refusable, or "where" is not a real constraint
-  var banded = VS.arenaPool(false).filter(function (id) { return VS.DIE_AUGMENTS[id].band === 'high'; })[0];
-  ok('a high-band engraving refuses a low face',
-     !!VS.dieCanEngrave(r.dice[0], banded, 3) && !VS.dieCanEngrave(r.dice[0], banded, 18));
-
-  // walk the rest of the draft
-  var guardBefore = 0;
-  for (var g = 0; g < 60 && E.run.phase === 'arena'; g++) {
-    var s2 = E.arenaState();
-    if (!s2.picked) E.arenaPick(s2.offer[0]);
-    var die = r.dice[s2.dieIdx];
-    for (var f = 1; f <= VS.dieSides(die); f++) if (!E.arenaPlace(f)) break;
-  }
-  ok('the draft terminates into the map', E.run.phase === 'map');
-  /* Ten picks, all accounted for: on the die, or still in hand. A held pick
-   * is not a lost one — it is waiting for a face worth cutting it onto. */
-  var cut = 0; for (var q = 1; q <= 20; q++) if (r.dice[0].faces[q]) cut++;
-  var held = (r.dice[0].pending || []).length;
-  ok('ten attack picks are cut or held (' + cut + ' cut, ' + held + ' held)', cut + held === 10);
-  ok('the guard was drafted too', (function () {
-    var n = 0; for (var f2 = 1; f2 <= 6; f2++) if (r.dice[1].faces[f2]) n++; return n >= 4;
-  })());
-
-  /* THE POOL. Every offer has to actually do something when it fires — a
-   * dead engraving in a draft is a wasted pick you cannot take back. */
-  var pool = VS.arenaPool(false).concat(VS.arenaPool(true));
-  ok('the pool is deep enough to draft from (' + pool.length + ')', pool.length >= 50);
-  ok('every arena engraving has a description that names its numbers', pool.every(function (id) {
-    var gg = VS.DIE_AUGMENTS[id], nums = (gg.desc.match(/\d+/g) || []).map(Number), okd = true;
-    (gg.fx || []).forEach(function (f) {
-      if (f.v != null && f.v > 2 && nums.indexOf(f.v) < 0) okd = false;
-      if (f.per != null && f.per > 2 && nums.indexOf(f.per) < 0) okd = false;
-    });
-    return okd;
-  }));
-  E.run.phase = 'map';
-})();
+/* ---- THE ARSENAL IS GONE ------------------------------------------------
+ * A fourth class with no deck at all — an attack d20 and a guard d6, rolls
+ * allocated between them, a PROTOCOL loadout instead of a hand, and a
+ * thirteen-pick arena draft to open the run. It measured 8% against 26-36%
+ * for the other three and was cut, along with everything only it used.
+ * These assert it stayed cut rather than leaving a half-wired fourth class
+ * in the pickers and the sim's parity table.
+ * -------------------------------------------------------------------- */
+ok('the Arsenal is not a class any more',
+   !VS.BALANCE.classes.arsenal && !VS.CLASS_INFO.arsenal && !VS.STARTER_DECKS.arsenal);
+ok('nor a die table', !VS.BALANCE.dice.classes.arsenal);
+ok('the arena draft is gone with it',
+   typeof E.arenaBegin !== 'function' && typeof E.arenaState !== 'function' && !VS.arenaPool);
+ok('so is the protocol loadout', !VS.PROTOCOLS && typeof VS.protocol !== 'function');
+ok('so is the multi-die rack', typeof E.useDie !== 'function' && typeof E.diceRelink !== 'function');
+ok('and no engraving is keyed to it',
+   !Object.keys(VS.DIE_AUGMENTS).some(function (id) { return VS.DIE_AUGMENTS[id].cls === 'arsenal'; }));
+ok('and no card is either',
+   !Object.keys(VS.CARDS).some(function (id) { return VS.CARDS[id].cls === 'arsenal'; }));
 
 /* ============================================================================
  * THE DIE AS AN OBJECT — the nineteen relics that read the die's LAYOUT, its
@@ -2819,9 +2658,9 @@ ok('every class opens with either a starter deck or a rack of dice',
     E.newRun(opts.cls || 'vanguard');
     var die = E.run.die;
     die.faces = {}; die.seams = {}; die.welds = [];
-    if (opts.only != null) VS.dieEngrave(die, opts.eng || 'ar_shot', opts.only);
+    if (opts.only != null) VS.dieEngrave(die, opts.eng || 'bracket_fire', opts.only);
     else if (!opts.bare) {
-      for (var f = 1; f <= VS.dieSides(die); f++) VS.dieEngrave(die, opts.eng || 'ar_shot', f);
+      for (var f = 1; f <= VS.dieSides(die); f++) VS.dieEngrave(die, opts.eng || 'bracket_fire', f);
     }
     (opts.relics || []).forEach(giveRelic);
     E.run.faction = 'hierarchy'; E.run.nodeIdx = 0; E.startNode('fight');
@@ -2983,7 +2822,7 @@ ok('every class opens with either a starter deck or a rack of dice',
    * the top. What it rescues is the roll that lands on a bare high face with
    * everything you own engraved down at the other end of the ring. */
   dieRig({ relics: ['overrun_cam'], seed: 5, bare: true });
-  for (var lowf = 2; lowf <= 6; lowf++) VS.dieEngrave(E.run.die, 'ar_shot', lowf);
+  for (var lowf = 2; lowf <= 6; lowf++) VS.dieEngrave(E.run.die, 'bracket_fire', lowf);
   E.combat.player.statuses.aim = 30;
   var oc = volley('pulse_rifle', 120).filter(function (e) { return e.type === 'steer'; });
   ok('Overrun Cam steers off the top and round to the bottom',

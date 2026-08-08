@@ -61,14 +61,6 @@
   var uidCounter = 1;
 
   function mkCard(id, up) { return { uid: uidCounter++, id: id, up: !!up }; }
-  /* A die, dressed as a card so hand rendering, targeting, cost checks and the
-   * whole play path need no special case. `dieIdx` says which of the three you
-   * are rolling; the hidden `_dieroll` def carries the base payload the band
-   * multiplies, since there is no card to carry it any more. */
-  function mkDieCard(die, i) {
-    return { uid: uidCounter++, id: die.role === 'defence' ? '_rolldefend' : '_dieroll', up: false, dieIdx: i };
-  }
-  function mkProtoCard(pid, i) { return { uid: uidCounter++, id: '_protocol', up: false, protoIdx: i, protoId: pid }; }
 
   E.newRun = function (clsId) {
     ns.forgedClear();   // forged ids are per-run; a stale registry would resolve into the new one
@@ -84,21 +76,6 @@
       artifacts: [],
       pressure: E.nextPressure || 0,   // VOID PRESSURE rating for this run
       die: ns.newDie(),    // THE AUGMENTED DIE: faces / core / frame
-      /* THE ARSENAL ROLLS THREE. `dice` holds three complete d20s and `die` is
-       * a live POINTER at whichever one is resolving — which is why all 107
-       * sites that read run.die keep working untouched, and why the three dice
-       * get bands, seams, welds, taints and listeners for free instead of a
-       * second, simpler vocabulary of their own.
-       *
-       * core/vault/frame/pending are SHARED array objects across all three:
-       * relics mount to the Arsenal, not to one of its barrels, and an
-       * engraving you have earned can go on any of them. Nothing ever assigns
-       * those fields — only push and splice — so one object behind three
-       * references stays correct. */
-      dice: [],
-      dieIdx: 0,
-      // PROTOCOLS: the loadout. Always visible, charges refill each fight.
-      protocols: [],
       bossOrder: shuffle((ns.BOSSES[fac] || []).slice()),   // no sector boss repeats in a run
       relicOff: {},        // relics switched off (toggled on the star chart)
       relicUses: {},       // remaining durability for relics that have it
@@ -119,45 +96,12 @@
       phylacteryUsed: false, salvageKills: 0,
     };
     E.combat = null;
-    /* THE ARSENAL'S THREE BARRELS. Built here, after the run object exists, so
-     * they can share one core, one vault, one frame and one queue of earned
-     * engravings. run.die then points at the first of them and every existing
-     * reader carries on as if there were still only one. */
-    /* ONE d20 AND TWO d6. The big barrel is bare and has twenty places to
-     * build; the two small ones open with the base cards already cut into
-     * every face — Pulse Rifle on one, Combat Shield on the other — so a fresh
-     * Arsenal is a working gun and a working guard from the first fight, and
-     * everything after that is you deciding what they become. */
-    if (clsId === 'arsenal') {
-      var d0 = E.run.die;
-      d0.pending = d0.pending || [];
-      E.run.dice = [d0];
-      E.run.die.role = 'attack';
-      (B.dice.arsenalSmall || []).forEach(function (spec) {
-        var dn = ns.newDie();
-        dn.sides = spec.sides;
-        dn.role = spec.role || 'defence';
-        dn.core = d0.core; dn.vault = d0.vault; dn.frame = d0.frame; dn.pending = d0.pending;
-        /* HALF THE GUARD IS BARE ON PURPOSE. Six identical faces is not a die,
-         * it is a button — every roll banked the same number and there was
-         * nothing to build toward. Bare faces still bank the roll's base, so a
-         * guard roll is now 10 or 26 rather than always the same, and there is
-         * room for what you cut to change the shape. */
-        for (var f = 1; f <= dn.sides; f += 2) ns.dieEngrave(dn, spec.base, f);
-        E.run.dice.push(dn);
-      });
-      E.run.dieIdx = 0;
-      E.run.protocols = (B.dice.arsenalProtocols || ['sight', 'vent', 'overclock']).slice();
-    }
     if (E.CORNERSTONES !== false && CORNERSTONE_OF[clsId]) {   // grant the class Cornerstone
       E.run.cornerstone = { id: CORNERSTONE_OF[clsId], tier: 1 };
       E.run.artifacts.push(CORNERSTONE_OF[clsId]);
     }
     E.run.map = generateMap(1);
     E.run.phase = 'map';
-    // A die you author before the first fight, rather than a blank one and
-    // three fights of nothing.
-    if (clsId === 'arsenal') E.arenaBegin();
     // VOID PRESSURE: the frame buckles (fewer core slots) and HULL BREACH
     // launches you with a Flaw already cut into the die.
     (function () {
@@ -936,9 +880,6 @@
       turn: 0,
       energy: 0,
       hand: [], drawPile: shuffle(r.deck.slice()), discard: [], exhaust: [], consumed: [],
-      rollClass: !!(r.dice && r.dice.length > 1),   // no cards: the hand is the dice
-      protoLeft: (r.protocols || []).map(function (pid) { return (ns.protocol(pid) || {}).charges || 1; }),
-      pendShift: 0, pendFloor: 0, pendRelay: 0, pendTwice: 0,   // protocol effects awaiting a roll
       // Everyone rolls, so everyone gets some Aim to steer with. A class may
       // sight in further on top of that baseline — the Vanguard does, because he
       // is the marksman. The Voidadept pointedly does not: climbing the table is
@@ -1107,24 +1048,8 @@
   }
 
   /* ---------------- Combat: turn structure ------------------------------ */
-  /* THREE ROLLS A TURN. Two was tried, and it lengthened the boss clock from
-   * four rounds to six — but cost half the win rate, because every point of
-   * output this class gives up comes straight off its ability to survive a
-   * boss. The clock and parity pull against each other here and parity wins;
-   * the short boss fight is recorded as open rather than papered over. */
-  /* TWO ROLLS A TURN for a roll class, not three. A drafted die is dense —
-   * ten cuts on a d20 and every roll bleeding into both neighbours means two
-   * or three engravings fire per roll from the very first fight, where the
-   * card classes start with a starter deck and ramp. At three rolls the
-   * Arsenal won 66% of its runs and killed hallway packs in a single turn.
-   *
-   * Scaling the pool's numbers did almost nothing — 0.5x damage, 0.3x wall
-   * and 0.4x ramp still measured 56%, because the advantage is DENSITY rather
-   * than magnitude. Taking a roll away is the lever that fits the cause, and
-   * it makes the allocation sharper: two rolls across two dice is a real
-   * choice every single turn. */
   function maxEnergy() {
-    var base = B.player.baseEnergy - (E.combat && E.combat.rollClass ? 1 : 0);
+    var base = B.player.baseEnergy;
     return base + art('energyEveryTurn') + (statN(E.combat.player, 'reactor'));
   }
   E.maxEnergy = function () { return E.combat ? maxEnergy() : (B.player.baseEnergy || 0); };
@@ -1398,36 +1323,9 @@
     var bg = art('burnGrow');
     if (bg > 0) c.enemies.forEach(function (en, i) { if (en.alive && statN(en, 'burn') > 0) { addStatus(en, 'burn', bg); emit('status', { who: 'enemy', idx: i, s: 'burn', v: bg }); } });
     var aoe = art('aoeTurnStart');
-    /* THE HAND IS THE DICE. All three, every turn, and rolling one does not
-     * spend it — with only three of them a one-roll-per-die rule would just
-     * mean rolling all three every turn, which is no decision at all. The
-     * decision is how to ALLOCATE the turn's rolls: twice into the damage die
-     * and once into the shield die, or all three into one barrel. */
-    if (c.rollClass) {
-      c.drawPile = []; c.discard = []; c.exhaust = [];
-      c.hand = (E.run.dice || []).map(mkDieCard);
-      /* Protocols sit in hand beside the dice. They cost no roll — a protocol
-       * is not an action, it is a modifier on one — so playing one never eats
-       * the turn's allocation. They leave the hand when their charges are out. */
-      (E.run.protocols || []).forEach(function (pid, i) {
-        if ((c.protoLeft[i] == null ? (ns.protocol(pid) || {}).charges || 1 : c.protoLeft[i]) > 0) {
-          c.hand.push(mkProtoCard(pid, i));
-        }
-      });
-      /* Aim tops back up every turn. It is the Arsenal's ammunition for
-       * steering, and steering is how a cut on one of sixty faces becomes a
-       * card you can actually draw. Topping up rather than adding means
-       * hoarding it across turns is not a strategy — spend it or lose it. */
-      var wantAim = B.dice.arsenalAim || 3;
-      if (statN(p, 'aim') < wantAim) {
-        addStatus(p, 'aim', wantAim - statN(p, 'aim'));
-        emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') });
-      }
-    } else {
-      var baseDraw = B.player.drawPerTurn;
-      var draws = baseDraw + art('drawTurn') + (c.turn === 1 ? art('drawStart') : 0);
-      drawCards(draws);
-    }
+    var baseDraw = B.player.drawPerTurn;
+    var draws = baseDraw + art('drawTurn') + (c.turn === 1 ? art('drawStart') : 0);
+    drawCards(draws);
     c.echoReady = statN(p, 'echo') > 0;   // Echo Core: first attack each turn plays twice
     emit('turnStart', { turn: c.turn });
     if (aoe > 0) {
@@ -2786,58 +2684,10 @@
     return totalDealt;
   }
 
-  /* SPENDING A PROTOCOL. None of these deal damage on their own — VENT is the
-   * exception and it only spends a wall you already built. Everything else
-   * arms a modifier that the NEXT roll picks up, which is the whole reason a
-   * protocol cannot end a fight by itself: it aims, the dice fire. */
-  function useProtocol(handIdx, targetIdx) {
-    var c = E.combat, r = E.run, p = c.player;
-    var card = c.hand[handIdx];
-    var def = ns.protocol(card.protoId); if (!def) return false;
-    var tgt = c.enemies[targetIdx];
-    if (!tgt || !tgt.alive) tgt = aliveEnemies()[0];
-
-    switch (card.protoId) {
-      case 'sight':     c.pendShift = (c.pendShift || 0) + 3; break;
-      case 'steady':    c.pendFloor = Math.max(c.pendFloor || 0, 8); break;
-      case 'relay':     c.pendRelay = 1; break;
-      case 'doubletap': c.pendTwice = 1; break;
-      case 'overclock': c.energy += 1; break;
-      case 'lockdown':  addStatus(p, 'wallLock', 1); break;
-      case 'recoup': {
-        var half = Math.floor((c.turnDamage || 0) / 2);
-        if (half > 0) { addStatus(p, 'bulwark', half); emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') }); }
-        break;
-      }
-      case 'vent': {
-        // THE CASH-OUT. The wall is ammunition, not just armour — this is the
-        // one line that stops "roll defence" from being a pure hedge, and the
-        // rate on it is the dial this whole class balances on.
-        var w = statN(p, 'bulwark');
-        if (w > 0) {
-          addStatus(p, 'bulwark', -w);
-          emit('status', { who: 'player', s: 'bulwark', v: 0 });
-          var dmg = Math.round(w * (B.dice.arsenalVent || 1));
-          if (tgt) dealToEnemy(tgt, c.enemies.indexOf(tgt), dmg, { noCrit: true });
-        }
-        break;
-      }
-    }
-    emit('protocol', { id: card.protoId, name: def.name });
-    c.protoLeft[card.protoIdx] = (c.protoLeft[card.protoIdx] || 0) - 1;
-    if (c.protoLeft[card.protoIdx] <= 0) c.hand.splice(handIdx, 1);
-    checkWin();
-    return true;
-  }
-
   E.playCard = function (handIdx, targetIdx) {
     var c = E.combat, r = E.run, p = c.player;
     if (!E.canPlay(handIdx)) return false;
     var card = c.hand[handIdx];
-    if (card && card.protoId) return useProtocol(handIdx, targetIdx);
-    // Rolling one of the three: aim run.die at it and let the ordinary card
-    // path do every other thing it already does.
-    if (card && card.dieIdx != null) E.useDie(card.dieIdx);
     var def = ns.CARDS[card.id];
     var fx = ns.cardFx(def, card.up, card.vtouch);
     var cost = effCost(def, card.up, card);
@@ -2850,7 +2700,7 @@
     }
 
     c.energy -= cost;
-    if (card.dieIdx == null) c.hand.splice(handIdx, 1);   // a die stays in hand; you may roll it again
+    c.hand.splice(handIdx, 1);
 
     var xval = 0;
     if (def.xcost) { xval = c.energy; c.energy = 0; }
@@ -2876,9 +2726,6 @@
      * d20's — that is the trade, not a different rule set. */
     var _sides = ns.dieSides(r.die);
     roll = FLAT_DIE ? ((c.flatRoll = ((c.flatRoll || 0) % _sides) + 1)) : ri(1, _sides);
-    /* PROTOCOLS LAND HERE. STEADY puts a floor under the roll, SIGHT pushes it
-     * up the table. Both are consumed by the first roll that uses them — they
-     * are aim, not a stance. */
     /* BALLISTIC COMPUTER. The number is drawn one roll EARLY and shown above
      * the die, so the card you pick is a response to the die instead of a bid
      * against it. That is the whole relic — it adds no damage at all, and it
@@ -2889,16 +2736,6 @@
       c.nextRoll = ri(1, _sides);
       emit('foresee', { roll: c.nextRoll });
     } else if (c.nextRoll != null) c.nextRoll = null;
-    if (c.pendFloor > 0) {
-      var flr = Math.max(1, Math.round(c.pendFloor * _sides / ns.DIE.faces));
-      if (roll < flr) roll = flr;
-      c.pendFloor = 0;
-    }
-    if (c.pendShift > 0) {
-      var shf = Math.max(1, Math.round(c.pendShift * _sides / ns.DIE.faces));
-      roll = Math.min(_sides, roll + shf);
-      c.pendShift = 0;
-    }
     // ---- relics that shape the die itself, before anything reads it -------
     // These are the half of the marriage that was missing: 55 of 62 relics had
     // nothing to do with the die, so mounting one in it was fiction. A relic
@@ -3183,11 +3020,6 @@
           }
           if (lp > 0 && bn > 1) emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') });
         }
-        // RELAY (protocol): this roll catches both neighbours
-        if (c.pendRelay > 0) {
-          c.pendRelay = 0;
-          ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) fireOneFace(nf, tgt, 1, 'relay', lands); });
-        }
         // TWINNED FIRING PIN: the opening roll of a combat catches both sides
         if (art('firstSplash') > 0 && c.rollNo === 1) {
           ns.dieNeighbours(r.die, lands).forEach(function (nf) { if (!c.over) fireOneFace(nf, tgt, 1, 'relay', lands); });
@@ -3252,7 +3084,6 @@
       c.consumed.push(card);
       lawTrigger('cardLeft');           // THE HUNGER
     }
-    else if (card.dieIdx != null) { /* a die goes nowhere — it is still in your hand */ }
     else if (def.exhaust || (def.type === 'skill' && statN(p, 'corruption') > 0)) exhaustCard(card);
     else c.discard.push(card);
 
@@ -3802,139 +3633,13 @@
   }
   E.randomEngravings = randomEngravings;
   // Queue an engraving for placement; the die screen asks which face.
-  /* Point run.die at one of the three. Everything downstream — bands, seams,
-   * welds, taints, listeners, steering, fireOneFace — reads run.die, so this
-   * one assignment is the entire multi-die implementation. */
-  /* ==================================================================
-   * THE ARENA DRAFT
-   * ==================================================================
-   * Ten picks of three for the d20, then three of three for the guard, and
-   * you place every single one yourself. Nothing is auto-placed, because
-   * WHERE is half the decision: the die bleeds 25% into both neighbours, so
-   * a Relay Coil wants a block built around it, Powder Train wants to be
-   * boxed in, and a band-locked cut can only go where its band allows.
-   *
-   * You arrive at the first fight with a die you authored rather than a
-   * blank one and three fights of nothing. That was the whole complaint.
-   * ------------------------------------------------------------------ */
-  function arenaRound(n) {
-    var r = E.run;
-    var guard = n >= (B.dice.arenaAttackPicks || 10);
-    var pool = ns.arenaPool(guard).filter(function (id) {
-      // do not offer a cut that has nowhere legal left to go
-      var die = r.dice[guard ? 1 : 0];
-      for (var f = 1; f <= ns.dieSides(die); f++) if (!ns.dieCanEngrave(die, id, f)) return true;
-      return false;
-    });
-    shuffle(pool);
-    /* Weighted so the common spine turns up more than the bombs — an arena
-     * where every offer is a rare is an arena with no decisions in it. */
-    var out = [], seen = {}, guardN = 0;
-    while (out.length < 3 && guardN++ < 400) {
-      var pickI = pool[Math.floor(rnd() * pool.length)];
-      if (!pickI || seen[pickI]) continue;
-      var t = (ns.DIE_AUGMENTS[pickI] || {}).tier || 1;
-      if (t === 3 && rnd() > 0.34) continue;      // bombs are rarer
-      if (t === 2 && rnd() > 0.72) continue;
-      seen[pickI] = 1; out.push(pickI);
-    }
-    // if the filters starved it, top up with anything legal
-    for (var q = 0; out.length < 3 && q < pool.length; q++) {
-      if (!seen[pool[q]]) { seen[pool[q]] = 1; out.push(pool[q]); }
-    }
-    return out;
-  }
-  E.arenaState = function () {
-    var r = E.run;
-    if (!r || !r.arena) return null;
-    var atk = B.dice.arenaAttackPicks || 10, gd = B.dice.arenaGuardPicks || 3;
-    return {
-      round: r.arena.round, total: atk + gd,
-      guard: r.arena.round >= atk,
-      dieIdx: r.arena.round >= atk ? 1 : 0,
-      offer: r.arena.offer,
-      picked: r.arena.picked || null,
-    };
-  };
-  // Step one: choose which of the three you want.
-  E.arenaPick = function (id) {
-    var r = E.run;
-    if (!r || !r.arena || r.arena.picked) return false;
-    if ((r.arena.offer || []).indexOf(id) < 0) return false;
-    r.arena.picked = id;
-    return true;
-  };
-  E.arenaUnpick = function () {
-    var r = E.run; if (!r || !r.arena) return false;
-    r.arena.picked = null; return true;
-  };
-  // Step two: say where it goes. This is the half that makes the draft a draft.
-  E.arenaPlace = function (face) {
-    var r = E.run;
-    if (!r || !r.arena || !r.arena.picked) return 'nothing picked';
-    var st = E.arenaState();
-    var die = r.dice[st.dieIdx];
-    var why = ns.dieCanEngrave(die, r.arena.picked, face);
-    if (why) return why;
-    ns.dieEngrave(die, r.arena.picked, face);
-    r.arena.round++;
-    r.arena.picked = null;
-    if (r.arena.round >= st.total) {
-      r.arena = null;
-      r.phase = 'map';
-    } else {
-      r.arena.offer = arenaRound(r.arena.round);
-    }
-    E.save();
-    return null;
-  };
-  /* HOLD IT. A pick you do not place yet goes into the die's pending queue —
-   * the same queue a mid-run engraving reward uses — so you can bank three
-   * offers and then cut them as a block once you can see what you are
-   * building. Combos live in adjacency, and adjacency is impossible to plan
-   * if every pick has to be committed the instant you make it. */
-  E.arenaHold = function () {
-    var r = E.run;
-    if (!r || !r.arena || !r.arena.picked) return 'nothing picked';
-    var st = E.arenaState();
-    var die = r.dice[st.dieIdx];
-    die.pending = die.pending || [];
-    die.pending.push(r.arena.picked);
-    r.arena.round++;
-    r.arena.picked = null;
-    if (r.arena.round >= st.total) { r.arena = null; r.phase = 'map'; }
-    else r.arena.offer = arenaRound(r.arena.round);
-    E.save();
-    return null;
-  };
-  E.arenaBegin = function () {
-    var r = E.run;
-    r.arena = { round: 0, picked: null, offer: [] };
-    r.arena.offer = arenaRound(0);
-    r.phase = 'arena';
-  };
-
-  E.useDie = function (i) {
-    var r = E.run;
-    if (!r || !r.dice || !r.dice.length) return;
-    r.dieIdx = Math.max(0, Math.min(r.dice.length - 1, i | 0));
-    r.die = r.dice[r.dieIdx];
-  };
-  // Re-link the shared arrays after a load, where JSON has turned one object
-  // behind three references into three separate copies.
-  function diceRelink(r) {
-    if (!r.dice || r.dice.length < 2) return;
-    var d0 = r.dice[0];
-    d0.pending = d0.pending || [];
-    r.dice.forEach(function (d) {
-      d.core = d0.core; d.vault = d0.vault; d.frame = d0.frame; d.pending = d0.pending;
-      d.coreSlots = d0.coreSlots;
-      d.seams = d.seams || {}; d.welds = d.welds || [];
-    });
-    r.die = r.dice[Math.max(0, Math.min(r.dice.length - 1, r.dieIdx || 0))];
-  }
-  E.diceRelink = diceRelink;
-
+  /* ---- REMOVED: the arena draft and the multi-die rack -----------------
+   * Ten picks of three, placed by hand, across a d20 and a d6 — built for the
+   * Arsenal and reachable by nothing else once that class was cut. The rack
+   * itself went with it: `run.dice`, `run.dieIdx`, useDie() and diceRelink().
+   * `run.die` is the one die again, which is what every other reader in this
+   * file always assumed it was.
+   * -------------------------------------------------------------------- */
   E.takeEngraving = function (id) {
     var r = E.run; if (!r || !r.die) return false;
     if (!r.reward || r.reward.engPicked) return false;
@@ -3967,10 +3672,7 @@
    * the relic is the act, not a passive. */
   function syncDieSides() {
     var r = E.run;
-    // `run.dice` only exists for a rack; every other class has the one die.
-    // Either way it is the FIRST barrel that grows — a guard d6 is small on
-    // purpose and grinding faces into it would undo the trade it exists for.
-    var d0 = (r && r.dice && r.dice[0]) || (r && r.die);
+    var d0 = r && r.die;
     if (!d0) return;
     var want = ns.DIE.faces + art('extraFaces');
     if (want > ns.dieSides(d0)) { d0.sides = want; emit('dieGrew', { sides: want }); }
@@ -4120,13 +3822,7 @@
     // Engravings drop from the fights that earn them; they queue up as `pending`
     // and the player picks the face on the die screen.
     var engChoices = [];
-    /* THE ARSENAL DRAFTS ENGRAVINGS THE WAY EVERYONE ELSE DRAFTS CARDS —
-     * three of them, every single fight. For a class with no deck they ARE the
-     * deck, and leaving them on the card-drop schedule (elites, bosses, and
-     * 22% of hallways) starved it to a 0% win rate: it reached sector 3 still
-     * rolling three nearly-bare dice. */
-    if (r.dice && r.dice.length > 1) engChoices = randomEngravings(3);
-    else if (kind === 'elite' || kind === 'boss' || kind === 'beacon') engChoices = randomEngravings(2);
+    if (kind === 'elite' || kind === 'boss' || kind === 'beacon') engChoices = randomEngravings(2);
     /* HALLWAYS DROP ENGRAVINGS MUCH MORE OFTEN NOW. The die's share of damage
      * was cut from 43% to 25% at sector 4, which was the point — but it also
      * made cutting faces feel like it was going nowhere, because the supply
@@ -5305,7 +5001,7 @@
 
   E.eventAddCard = function (cid) { E.run.deck.push(mkCard(cid, false)); E.run.pendingAddCard = null; };
 
-  // A relic offered by an event: take it into the arsenal, or leave it behind.
+  // A relic offered by an event: take it, or leave it behind.
   E.takeEventRelic = function () {
     var r = E.run;
     if (r.pendingRelic) { addArtifact(r.pendingRelic); r.pendingRelic = null; E.save(); }
@@ -5827,8 +5523,6 @@
         E.run.die.welds = E.run.die.welds || [];
         dieRepair();
       }
-      // JSON turns one shared object behind three references into three copies
-      diceRelink(E.run);
       rngState = data.rng >>> 0;
       uidCounter = data.uid || 1000;
       E.combat = null;

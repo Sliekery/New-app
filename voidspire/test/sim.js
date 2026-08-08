@@ -201,14 +201,7 @@ function botBestFace(id) {
 function botPlaceEngravings() {
   var E = VS.engine, r = E.run, d = r && r.die; if (!d || !d.pending || !d.pending.length) return;
   var left = [];
-  /* WHICH BARREL is the Arsenal's real decision, so the bot has to make it.
-   * It tries the cut on each die and keeps the one where it raises that die's
-   * expected roll the most — which naturally concentrates offence on one
-   * barrel and defence on another, because a defensive face is worth more on
-   * the die that is already the one you reach for when you are about to be
-   * hit. Placing every cut on barrel 1 would be a strictly worse player and
-   * would make the whole format unmeasurable. */
-  var dice = (r.dice && r.dice.length > 1) ? r.dice : [d];
+  var dice = [d];
   d.pending.forEach(function (id) {
     var bestD = null, bestF = 0, bestGain = -1e9;
     dice.forEach(function (dd) {
@@ -293,57 +286,6 @@ function botCombat() {
     var needBlock = Math.max(0, incoming - c.player.block);
     var hpDanger = E.run.hp < E.run.maxHp * 0.6 || needBlock >= E.run.hp * 0.25;
     var choice = -1, target = pickTarget();
-
-    /* THREE BARRELS. There are no cards to score, so the bot scores DICE: the
-     * expected value of a roll is the base payload times the average band plus
-     * whatever the engraved faces do, weighted by how much of the die they
-     * cover. It then spends every roll on the best barrel for the situation —
-     * which is the whole decision this format creates, and the thing a
-     * randomly-rolling bot cannot do. */
-    /* TWO DICE AND A LOADOUT. The turn is an allocation: three rolls split
-     * between the attack die and the guard, with protocols shaping them. The
-     * bot spends protocols first (they cost no roll), then puts each roll into
-     * whichever die is worth more right now — offence unless the incoming hit
-     * would land through the wall it already has. */
-    if (c.rollClass) {
-      var wall = (c.player.statuses.bulwark || 0) + c.player.block;
-      var exposed = Math.max(0, incoming - wall);
-      var wantD = exposed > 4 && (hpDanger || exposed > 9);
-
-      // 1. free protocols first — they cost nothing and only ever help
-      var pi = -1;
-      c.hand.forEach(function (card, idx) {
-        if (pi >= 0 || !card.protoId || !E.canPlay(idx)) return;
-        var w = c.player.statuses.bulwark || 0;
-        var en = c.enemies[target];
-        if (card.protoId === 'overclock') pi = idx;
-        else if (card.protoId === 'vent' && en && (w >= en.hp + en.block || w >= 22)) pi = idx;
-        else if (card.protoId === 'recoup' && (c.turnDamage || 0) >= 12) pi = idx;
-        else if (card.protoId === 'lockdown' && w >= 10) pi = idx;
-        // aim protocols are only worth it on a turn we mean to attack
-        else if (!wantD && c.energy > 0 &&
-                 (card.protoId === 'sight' || card.protoId === 'steady' ||
-                  card.protoId === 'relay' || card.protoId === 'doubletap')) pi = idx;
-      });
-      if (pi >= 0) { if (!E.playCard(pi, target)) E.endTurn(); continue; }
-
-      // 2. then spend a roll on the better die
-      var bestR = -1, bestRV = -1e9;
-      c.hand.forEach(function (card, idx) {
-        if (card.dieIdx == null || !E.canPlay(idx)) return;
-        var die = (E.run.dice || [])[card.dieIdx]; if (!die) return;
-        var v = dieRollEV(die, wantD, target);
-        if (die.role === 'defence') {
-          // wall is worth its face value while any of the hit still gets
-          // through, and very little once you are already covered
-          v *= wantD ? 1.25 : (exposed > 0 ? 0.85 : 0.35);
-        }
-        if (v > bestRV) { bestRV = v; bestR = idx; }
-      });
-      if (bestR < 0) { E.endTurn(); continue; }
-      if (!E.playCard(bestR, target)) E.endTurn();
-      continue;
-    }
 
     // 1. finish a kill if possible (immediate damage only — Burn can't kill now)
     var best = -1, bestOver = 1e9;
@@ -875,47 +817,6 @@ function step() {
      * one that most improves the dice it will actually be rolling. Under
      * VS_RANDOM_DRAFT it takes one blind, which is what makes the opening
      * choice measurable rather than assumed. */
-    /* THE ARENA. Thirteen picks of three, each placed by hand — so the bot
-     * has to do both halves. It scores a cut by how much it raises the die's
-     * expected roll AT THE FACE IT WOULD GO ON, which is the only way to make
-     * adjacency count: a Relay Coil is worth little on a bare stretch and a
-     * lot boxed in, and the score sees the difference because it measures the
-     * whole die before and after. Under VS_RANDOM_DRAFT it picks and places
-     * blind, which is what makes the draft measurable at all. */
-    case 'arena': {
-      var ast = E.arenaState();
-      if (!ast) { E.run.phase = 'map'; break; }
-      var adie = E.run.dice[ast.dieIdx];
-      if (RANDOM_DRAFT) {
-        var rid = ast.offer[Math.floor(probeRnd() * ast.offer.length)];
-        E.arenaPick(rid);
-        var legal = [];
-        for (var rf = 1; rf <= VS.dieSides(adie); rf++) if (!VS.dieCanEngrave(adie, rid, rf)) legal.push(rf);
-        if (!legal.length) { E.arenaUnpick(); E.arenaPick(ast.offer[0]); legal = [1]; }
-        E.arenaPlace(legal[Math.floor(probeRnd() * legal.length)]);
-        break;
-      }
-      var before = dieRollEV(adie, false, null);
-      var bestId = null, bestFace = 0, bestGain = -1e9;
-      ast.offer.forEach(function (id) {
-        for (var f = 1; f <= VS.dieSides(adie); f++) {
-          if (VS.dieCanEngrave(adie, id, f)) continue;
-          var probe = { sides: adie.sides, role: adie.role, seams: adie.seams, welds: adie.welds,
-                        faces: JSON.parse(JSON.stringify(adie.faces)) };
-          VS.dieEngrave(probe, id, f);
-          var gain = dieRollEV(probe, false, null) - before;
-          if (gain > bestGain) { bestGain = gain; bestId = id; bestFace = f; }
-        }
-      });
-      if (bestId == null) { bestId = ast.offer[0]; bestFace = 1; }
-      E.arenaPick(bestId);
-      if (E.arenaPlace(bestFace)) {           // refused: fall back to any legal face
-        for (var ff = 1; ff <= VS.dieSides(adie); ff++) {
-          if (!VS.dieCanEngrave(adie, bestId, ff) && !E.arenaPlace(ff)) break;
-        }
-      }
-      break;
-    }
     case 'first-mark': E.takeFirstMark(FIRST_MARK_PICK % Math.max(1, E.firstMarkOffers().length)); break;
     case 'sector-intro': E.beginSector(); break;
     /* Victory ENDS the run now — one ladder, climbed by starting again. The bot
