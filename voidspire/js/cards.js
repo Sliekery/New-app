@@ -1447,9 +1447,20 @@
       name: 'Recurring Dread', cls: 'curse', type: 'curse', rarity: -1, cost: 0, unplayable: true, retain: true,
       fx: [], text: 'Unplayable. A fragment of the loop, lodged in your mind.',
     },
+    /* THE ONE CURSE YOU CAN SWAT. Every other curse here is unplayable and
+     * that is fine, because none of them stops you playing anything else.
+     * This one gags both its neighbours, and unplayable + gagging is a hand
+     * that can lock solid: three of them in a five-card hand disables all
+     * five, and there is no card you can play to get out of it. Worse, the
+     * Void Drone SPAWNS these on an overkill, so the state compounds.
+     *
+     * So it costs a real Energy and exhausts. The threat is intact — a swarm
+     * still eats a card slot and a third of your turn — but there is always
+     * an out, and the out is the one thing a curse must never take away. */
     void_swarm: {
-      name: 'Void Swarm', cls: 'curse', type: 'curse', rarity: -1, cost: 0, unplayable: true, disableNeighbors: true,
-      fx: [], text: 'Unplayable. Its neighbours in hand cannot be played.',
+      name: 'Void Swarm', cls: 'curse', type: 'curse', rarity: -1, cost: 1,
+      exhaust: true, disableNeighbors: true,
+      fx: [], text: 'Its neighbours in hand cannot be played. Play it to swat it.',
     },
   };
 

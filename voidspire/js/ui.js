@@ -6235,7 +6235,7 @@
         E2('Retain', 'The card stays in your hand between turns instead of being discarded.'),
         E2('X-Cost', 'Spends ALL your Energy; the effect scales with how much you spent.'),
         E2('Void-Touched', 'An empowered card that also costs ' + vh + ' HP each time you play it. Power at a price.', 'bad'),
-        E2('Curse', 'An unplayable card clogging your hand. Enemy curses last the combat; event curses are permanent until purged.', 'bad'),
+        E2('Curse', 'A card clogging your hand — most are unplayable; a Void Swarm you can pay to swat. Enemy curses last the combat; event curses are permanent until purged.', 'bad'),
       ] },
       { cat: 'Augments', intro: 'Your Powers and positive statuses — shown on the battlefield gauge. Amber = offense, cyan = defense, magenta = engine.', entries: [
         E2('Might (Strength)', '+1 damage to every attack, per stack.', 'off'),

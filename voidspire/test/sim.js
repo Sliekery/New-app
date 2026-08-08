@@ -325,6 +325,20 @@ function botCombat() {
       });
       if (ba >= 0) choice = ba;
     }
+    /* SWAT A SWARM that is actually gagging something. Void Swarm is playable
+     * now precisely so a hand can never lock, and a bot that only ever reached
+     * one through the last-resort fallback below would under-measure the fix —
+     * it would play filler while a real card sat gagged next door. */
+    if (choice < 0) {
+      var sw = playable.filter(function (idx) {
+        if (!VS.CARDS[c.hand[idx].id].disableNeighbors) return false;
+        return [idx - 1, idx + 1].some(function (n) {
+          return c.hand[n] && !VS.CARDS[c.hand[n].id].disableNeighbors
+                 && E.whyCantPlay(n) === 'VOID SWARM — ITS NEIGHBOURS IN HAND ARE GAGGED';
+        });
+      });
+      if (sw.length) choice = sw[0];
+    }
     if (choice < 0) {
       // avoid pointless self-damage cards when low
       var safe = playable.filter(function (idx) {

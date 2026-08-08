@@ -1760,6 +1760,12 @@
   // Void Swarm: a curse that disables the hand cards immediately left and right.
   function swarmDisabled(handIdx) {
     var c = E.combat; if (!c) return false;
+    var here = c.hand[handIdx];
+    /* A SWARM IS NEVER GAGGED, INCLUDING BY ANOTHER SWARM. Two of them side by
+     * side gagged each other, so neither could be swatted and the pair sat
+     * there permanently — the same lock, one step further in. The thing that
+     * clears the gag has to be the one thing the gag cannot touch. */
+    if (here && ns.CARDS[here.id] && ns.CARDS[here.id].disableNeighbors) return false;
     var L = c.hand[handIdx - 1], R = c.hand[handIdx + 1];
     return !!((L && ns.CARDS[L.id].disableNeighbors) || (R && ns.CARDS[R.id].disableNeighbors));
   }
@@ -2717,6 +2723,12 @@
     // A class whose table also scales Shield reads the die on defensive turns
     // too, so its skills band as well as its attacks.
     var bandsNow = !!dread && (def.type === 'attack' || (dread.blocks && hasBlockFx(fx)));
+    /* A CURSE DOES NOT ROLL. Every other card play turns the die, which is the
+     * point of the whole system — but a playable curse turning it would make
+     * Void Swarm a free trigger for your engravings, so the punishment would
+     * read as a reward on any die worth building. Swatting a swarm buys you
+     * nothing but the removal of the swarm. */
+    var noRoll = def.type === 'curse';
     // THE AUGMENTED DIE: every card play rolls, so a skill/power deck still
     // engages the die even when its table has nothing to say about the card.
     /* ROLL THE DIE YOU PICKED UP. A d6 rolls 1-6 and then reads its face on
@@ -2725,6 +2737,7 @@
      * to every barrel. Six faces means each one is worth more than three of a
      * d20's — that is the trade, not a different rule set. */
     var _sides = ns.dieSides(r.die);
+    if (!noRoll) {
     roll = FLAT_DIE ? ((c.flatRoll = ((c.flatRoll || 0) % _sides) + 1)) : ri(1, _sides);
     /* BALLISTIC COMPUTER. The number is drawn one roll EARLY and shown above
      * the die, so the card you pick is a response to the die instead of a bid
@@ -2911,6 +2924,7 @@
       emit('roll', { roll: roll, eff: eff, crit: crit, misfire: misfire, band: bandLabel, tone: rollTone, cost: rollCost, gain: rollGain });
       lawTrigger('roll', roll);        // THE SCRUTINY
     }
+    }   // end of `if (!noRoll)` — a curse turns nothing
 
     var ctx = { tgt: tgt, crit: crit, roll: roll, eff: eff, misfire: misfire, bandMult: bandMult, bandLabel: bandLabel, blockBand: !!(dread && dread.blocks), flags: flags, xval: xval, appliedBurn: false };
     var times = 1;

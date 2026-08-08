@@ -901,6 +901,41 @@ ok('Void Swarm disables the card to its right', !E.canPlay(2));
 setHand(['pulse_rifle', 'combat_shield', 'void_swarm']);
 ok('a non-adjacent card stays playable', E.canPlay(0));
 
+/* ---- AND YOU CAN ALWAYS SWAT IT ----------------------------------------
+ * Unplayable plus gagging is a hand that locks solid. Three swarms in a
+ * five-card hand disabled all five and there was no card left to play; the
+ * Void Drone spawns these on an overkill, so it compounds on its own. The
+ * whole point of the fix is that the out can never be taken away.
+ * -------------------------------------------------------------------- */
+E.combat.energy = 5;
+setHand(['void_swarm', 'pulse_rifle', 'void_swarm', 'combat_shield', 'void_swarm']);
+ok('the hand that used to lock solid now has an out',
+   [0, 1, 2, 3, 4].some(function (i) { return E.canPlay(i); }));
+ok('...and the out is every swarm in it',
+   E.canPlay(0) && E.canPlay(2) && E.canPlay(4));
+ok('the real cards it is gripping are still gagged', !E.canPlay(1) && !E.canPlay(3));
+
+// two side by side used to gag EACH OTHER, which is the same lock one step in
+setHand(['void_swarm', 'void_swarm']);
+ok('a swarm is never gagged by another swarm', E.canPlay(0) && E.canPlay(1));
+
+// swatting one costs a real Energy, exhausts it, and turns the die for nothing
+E.combat.energy = 3;
+E.combat.discard = []; E.combat.exhaust = [];   // the Void Drone test above left one in the discard
+setHand(['void_swarm', 'pulse_rifle']);
+E.events = [];
+ok('a swarm can be played', E.playCard(0, 0) === true);
+ok('...it exhausts rather than cycling back',
+   E.combat.exhaust.some(function (c) { return c.id === 'void_swarm'; })
+   && !E.combat.discard.some(function (c) { return c.id === 'void_swarm'; }));
+ok('...it costs a real Energy', E.combat.energy === 2);
+/* A CURSE MUST NOT TURN THE DIE. Every other play rolls, so a playable curse
+ * would be a free trigger for your engravings — the punishment would read as
+ * a reward on any die worth building. */
+ok('...and it does not roll the die',
+   !E.events.some(function (e) { return e.type === 'roll' || e.type === 'dieFace'; }));
+ok('...so the card it was gripping is free now', E.canPlay(0));
+
 /* Siege Walker: charges a megahit; damage during the wind-up reduces it */
 var oldRust = VS.PACKS.rust;
 VS.PACKS.rust = [['siege_walker']];
