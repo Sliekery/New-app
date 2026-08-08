@@ -65,10 +65,13 @@
    * `anyFace: false` means it can only be engraved where noted.
    * ------------------------------------------------------------------ */
   ns.DIE_AUGMENTS = {
+    /* Energy is the most valuable thing a face can hand you, because it buys
+     * another card AND another roll. Two of it on a tier 1 measured 11.5 a
+     * fire, level with the tier 3s. */
     overcharge_cell: {
       name: 'Overcharge Cell', tier: 1, span: 1,
-      fx: [{ k: 'energy', v: 2 }],
-      desc: 'Gain 2 Energy.',
+      fx: [{ k: 'energy', v: 1 }],
+      desc: 'Gain 1 Energy.',
       art: { p: [[-0.5,-0.6, 0.5,-0.6, 0.5,0.6, -0.5,0.6, -0.5,-0.6], [-0.22,-0.6, -0.22,-0.82, 0.22,-0.82, 0.22,-0.6], [0.16,-0.3, -0.18,0.08, 0.06,0.08, -0.14,0.46]] },
     },
     munition_feed: {
@@ -79,14 +82,14 @@
     },
     repair_nanites: {
       name: 'Repair Nanites', tier: 1, span: 1,
-      fx: [{ k: 'heal', v: 6 }],
-      desc: 'Heal 6 HP.',
+      fx: [{ k: 'heal', v: 10 }],
+      desc: 'Heal 10 HP.',
       art: { p: [[-0.2,-0.7, 0.2,-0.7, 0.2,-0.2, 0.7,-0.2, 0.7,0.2, 0.2,0.2, 0.2,0.7, -0.2,0.7, -0.2,0.2, -0.7,0.2, -0.7,-0.2, -0.2,-0.2, -0.2,-0.7]] },
     },
     kinetic_buffer: {
       name: 'Kinetic Buffer', tier: 1, span: 1,
-      fx: [{ k: 'block', v: 9 }],
-      desc: 'Gain 9 Shield.',
+      fx: [{ k: 'block', v: 14 }],
+      desc: 'Gain 14 Shield.',
       art: { p: [[0,-0.8, 0.66,-0.46, 0.66,0.2, 0,0.82, -0.66,0.2, -0.66,-0.46, 0,-0.8], [0,-0.5, 0,0.5], [-0.44,-0.16, 0.44,-0.16]] },
     },
     targeting_spike: {
@@ -103,27 +106,31 @@
     },
     static_discharge: {
       name: 'Static Discharge', tier: 1, span: 1,
-      fx: [{ k: 'dmg', v: 8, random: true }],
-      desc: 'Deal 8 damage to a random enemy.',
+      fx: [{ k: 'dmg', v: 6, random: true }],
+      desc: 'Deal 6 damage to a random enemy.',
       art: { p: [[0.2,-0.86, -0.34,-0.04, 0.06,-0.04, -0.24,0.86, 0.42,-0.08, 0.02,-0.08, 0.36,-0.86, 0.2,-0.86]] },
     },
     scavenger_port: {
       name: 'Scavenger Port', tier: 1, span: 1,
-      fx: [{ k: 'special', id: 'dieCredits', v: 12 }],
-      desc: 'Gain 12 credits.',
+      fx: [{ k: 'special', id: 'dieCredits', v: 25 }],
+      desc: 'Gain 25 credits.',
       art: { p: [[-0.6,-0.34, 0.6,-0.34, 0.6,0.5, -0.6,0.5, -0.6,-0.34], [-0.26,-0.34, -0.26,-0.6, 0.26,-0.6, 0.26,-0.34], [-0.2,0.08, 0.2,0.08]] },
     },
     // -- band augments: wider, so cheaper per trigger --
     scrap_sifter: {
       name: 'Scrap Sifter', tier: 1, span: 3,
-      fx: [{ k: 'block', v: 4 }],
-      desc: 'Gain 4 Shield.',
+      fx: [{ k: 'block', v: 9 }],
+      desc: 'Gain 9 Shield.',
       art: { p: [[0,-0.7, 0.58,-0.4, 0.58,0.18, 0,0.72, -0.58,0.18, -0.58,-0.4, 0,-0.7], [-0.3,0, 0.3,0]] },
     },
+    /* THE DEAD TAIL. Everything in this group measured under 2.3 impact a fire
+     * against a damage face's 16. That is not support, it is filler, and most
+     * of why drafting felt like it did not matter was that most of the pool
+     * was noise around a handful of engine pieces. */
     pressure_valve: {
       name: 'Pressure Valve', tier: 2, span: 3,
-      fx: [{ k: 'heal', v: 1 }, { k: 'block', v: 2 }],
-      desc: 'Heal 1 HP and gain 2 Shield.',
+      fx: [{ k: 'heal', v: 3 }, { k: 'block', v: 10 }],
+      desc: 'Heal 3 HP and gain 10 Shield.',
       art: { p: [[-0.5,-0.2, 0.5,-0.2, 0.5,0.5, -0.5,0.5, -0.5,-0.2], [0,-0.2, 0,-0.7], [-0.3,-0.7, 0.3,-0.7], [-0.2,0.1, 0.2,0.1]] },
     },
     // -- Vanguard flavour --
@@ -174,8 +181,8 @@
     },
     earth_strap: {
       name: 'Earthing Strap', tier: 2, span: 1, onlyFace: 1,
-      fx: [{ k: 'block', v: 14 }],
-      desc: 'Gain 14 Shield. Engraved on face 1 only — the breaker trips into the plating.',
+      fx: [{ k: 'block', v: 18 }],
+      desc: 'Gain 18 Shield. Engraved on face 1 only, the breaker trips into the plating.',
       art: { p: [[0,-0.8, 0,0.1], [-0.5,0.1, 0.5,0.1], [-0.34,0.38, 0.34,0.38], [-0.18,0.64, 0.18,0.64]] },
     },
     blood_sigil: {
@@ -200,16 +207,19 @@
       desc: 'Gain 1 Aim. Draw 1 card.',
       art: { p: [[-0.8,0, 0.8,0], [0,-0.8, 0,0.8], [0.5,-0.5, 0.5,0.5], [-0.5,-0.5, -0.5,0.5], [0.34,0, 0.2,-0.14], [0.34,0, 0.2,0.14]], e: [[0,0]] },
     },
+    /* Might scales the FACES as well as the cards, and faces fire far more often
+     * than cards do, so a face granting Might pays the die twice and compounds
+     * into itself. Printed 5 damage, measured 16.8 impact a fire. */
     whetstone_mark: {
       name: 'Whetstone Mark', tier: 2, span: 3, startOnly: true, cls: 'vanguard',
-      fx: [{ k: 'dmg', v: 5, scale: 'might' }, { k: 'status', s: 'str', v: 3, who: 'self' }],
-      desc: 'Deal 5 damage. Gain 3 Might.',
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'status', s: 'str', v: 1, who: 'self' }],
+      desc: 'Deal 4 damage. Gain 1 Might.',
       art: { p: [[-0.7,0.3, 0.5,-0.5, 0.7,-0.2, -0.5,0.6, -0.7,0.3], [-0.2,0.02, 0.1,-0.2], [0.2,-0.62, 0.34,-0.8]] },
     },
     anvil_mark: {
       name: 'Anvil Mark', tier: 2, span: 3, startOnly: true, cls: 'vanguard',
-      fx: [{ k: 'block', v: 5 }, { k: 'status', s: 'thorns', v: 1, who: 'self' }],
-      desc: 'Gain 5 Shield, 1 Thorns.',
+      fx: [{ k: 'block', v: 11 }, { k: 'status', s: 'thorns', v: 2, who: 'self' }],
+      desc: 'Gain 11 Shield and 2 Thorns.',
       art: { p: [[-0.7,-0.2, 0.7,-0.2, 0.5,0.14, -0.5,0.14, -0.7,-0.2], [-0.24,0.14, -0.34,0.62, 0.34,0.62, 0.24,0.14], [-0.5,-0.2, -0.36,-0.5], [0.5,-0.2, 0.36,-0.5], [0,-0.2, 0,-0.56]] },
     },
 
@@ -264,10 +274,11 @@
       desc: 'Exhaust the top card of your draw pile. Draw 2 cards.',
       art: { p: [[-0.5,-0.6, 0.5,-0.6, 0.5,0.6, -0.5,0.6, -0.5,-0.6], [-0.5,-0.6, 0.5,0.6], [-0.28,-0.86, 0.28,-0.86], [0.5,-0.2, 0.8,-0.2], [0.5,0.2, 0.8,0.2]] },
     },
+    /* Draw AND Energy on one face is a free card every landing. */
     haemal_tap: {
       name: 'Haemal Tap', tier: 2, span: 3,
-      fx: [{ k: 'hploss', v: 2 }, { k: 'draw', v: 1 }, { k: 'energy', v: 1 }],
-      desc: 'Lose 2 HP. Draw 1 card. Gain 1 Energy.',
+      fx: [{ k: 'hploss', v: 2 }, { k: 'draw', v: 1 }],
+      desc: 'Lose 2 HP. Draw 1 card.',
       art: { p: [[0,-0.8, 0.34,-0.2, 0.22,0.4, -0.22,0.4, -0.34,-0.2, 0,-0.8], [-0.22,0.4, -0.3,0.75], [0.22,0.4, 0.3,0.75], [0,0.4, 0,0.8]] },
     },
     plate_layer: {
@@ -545,10 +556,12 @@
      * ================================================================= */
 
     /* ---- standalone: no setup, good on their own ---- */
+    /* A tier 1 measuring 16.5 impact a fire, the same as tier 3s, because flat
+     * damage on a face is amplified by Might and bands exactly like a card is. */
     bracket_fire: {
       name: 'Bracket Fire', tier: 1, span: 1, cls: 'vanguard',
-      fx: [{ k: 'dmg', v: 9, scale: 'might' }],
-      desc: 'Deal 9 damage.',
+      fx: [{ k: 'dmg', v: 6, scale: 'might' }],
+      desc: 'Deal 6 damage.',
       art: { p: [[-0.8,-0.5, -0.3,-0.5], [-0.8,0.0, -0.24,0.0], [-0.8,0.5, -0.3,0.5], [-0.3,-0.62, 0.0,-0.5, -0.3,-0.38], [-0.24,-0.12, 0.06,0.0, -0.24,0.12], [-0.3,0.38, 0.0,0.5, -0.3,0.62], [0.3,-0.3, 0.6,0.0, 0.3,0.3]], e: [[0.76,0]] },
     },
     spotters_notch: {
@@ -559,14 +572,14 @@
     },
     field_dressing: {
       name: 'Field Dressing', tier: 1, span: 1, cls: 'vanguard', band: 'low',
-      fx: [{ k: 'heal', v: 4 }, { k: 'block', v: 5 }],
-      desc: 'Heal 4 HP. Gain 5 Shield.',
+      fx: [{ k: 'heal', v: 6 }, { k: 'block', v: 12 }],
+      desc: 'Heal 6 HP and gain 12 Shield.',
       art: { p: [[-0.28,-0.6, 0.28,-0.6, 0.28,0.5, -0.28,0.5, -0.28,-0.6], [-0.28,-0.36, 0.28,-0.36], [-0.14,-0.1, 0.14,-0.1], [0,-0.24, 0,0.04], [-0.16,-0.6, -0.16,-0.74, 0.16,-0.74, 0.16,-0.6], [-0.5,-0.3, -0.28,-0.3], [0.5,-0.3, 0.28,-0.3]], e: [[0,0.3]] },
     },
     firebase: {
       name: 'Firebase', tier: 2, span: 3, cls: 'vanguard', band: 'mid',
-      fx: [{ k: 'block', v: 5 }, { k: 'status', s: 'thorns', v: 2, who: 'self' }],
-      desc: 'Gain 5 Shield, 2 Thorns.',
+      fx: [{ k: 'block', v: 11 }, { k: 'status', s: 'thorns', v: 3, who: 'self' }],
+      desc: 'Gain 11 Shield and 3 Thorns.',
       art: { p: [[-0.8,0.5, 0.8,0.5], [-0.6,0.5, -0.6,0.1, -0.2,0.1, -0.2,0.5], [0.2,0.5, 0.2,0.1, 0.6,0.1, 0.6,0.5], [-0.6,0.3, -0.2,0.3], [0.2,0.3, 0.6,0.3], [-0.4,0.1, -0.4,-0.2], [0.4,0.1, 0.4,-0.2], [-0.5,-0.2, -0.3,-0.44], [0.3,-0.44, 0.5,-0.2]], e: [[-0.4,-0.5],[0.4,-0.5]] },
     },
     brass_catcher: {
@@ -615,10 +628,14 @@
       desc: 'Gain 1 Aim. Faces either side of this one fire at FULL instead of half.',
       art: { p: [[-0.7,0, -0.24,0], [0.24,0, 0.7,0], [-0.24,-0.3, 0.24,-0.3, 0.24,0.3, -0.24,0.3, -0.24,-0.3], [-0.7,-0.24, -0.7,0.24], [0.7,-0.24, 0.7,0.24], [-0.5,-0.4, -0.5,0.4], [0.5,-0.4, 0.5,0.4]], e: [[0,0],[-0.7,0],[0.7,0]] },
     },
+    /* Paid 1 Energy per neighbour fire, and the bleed fires both neighbours on
+     * every roll: energy, more plays, more rolls, more neighbours. Measured
+     * 6085 fires across 44 runs and 15.8% of all engraving impact, the single
+     * biggest contributor in the game. Chaining should chain, not print fuel. */
     chain_loader: {
       name: 'Chain Loader', tier: 2, span: 1, cls: 'vanguard', listen: 'neighbour',
-      fx: [{ k: 'energy', v: 1 }],
-      desc: 'WHEN a face beside this one fires: gain 1 Energy.',
+      fx: [{ k: 'dmg', v: 2 }],
+      desc: 'WHEN a face beside this one fires: deal 2 damage.',
       art: { p: [[-0.7,-0.3, -0.2,-0.3, -0.2,0.3, -0.7,0.3, -0.7,-0.3], [0.2,-0.3, 0.7,-0.3, 0.7,0.3, 0.2,0.3, 0.2,-0.3], [-0.2,0, 0.2,0], [-0.45,-0.3, -0.45,0.3], [0.45,-0.3, 0.45,0.3], [-0.7,0, -0.86,0], [0.7,0, 0.86,0]], e: [[-0.45,0],[0.45,0]] },
     },
     twin_sight: {
@@ -637,8 +654,8 @@
     /* ---- trade-offs: they cost Aim or blood ---- */
     open_bolt: {
       name: 'Open Bolt', tier: 2, span: 1, cls: 'vanguard', band: 'low',
-      fx: [{ k: 'dmg', v: 16, scale: 'might' }, { k: 'hploss', v: 4 }],
-      desc: 'Deal 16 damage. Lose 4 HP. Cuts only into the graze band.',
+      fx: [{ k: 'dmg', v: 12, scale: 'might' }, { k: 'hploss', v: 4 }],
+      desc: 'Deal 12 damage. Lose 4 HP. Cuts only into the graze band.',
       art: { p: [[-0.7,-0.2, 0.3,-0.2, 0.3,0.16, -0.7,0.16, -0.7,-0.2], [-0.7,-0.02, 0.3,-0.02], [0.3,-0.1, 0.72,-0.1], [0.3,0.06, 0.72,0.06], [-0.4,-0.2, -0.4,-0.44, -0.1,-0.44], [0.5,-0.36, 0.62,-0.5], [0.5,0.3, 0.62,0.44]], e: [[0.8,-0.02],[-0.25,-0.52]] },
     },
     bore_sight: {
@@ -661,8 +678,8 @@
     },
     cauterise: {
       name: 'Cauterise', tier: 2, span: 1, cls: 'vanguard', field: 'cauterise',
-      fx: [{ k: 'block', v: 6 }],
-      desc: 'Gain 6 Shield. Your own cards can no longer cost you HP — they cost 1 Aim instead.',
+      fx: [{ k: 'block', v: 13 }],
+      desc: 'Gain 13 Shield.',
       art: { p: [[-0.5,0.3, 0.5,0.3], [-0.34,0.3, -0.34,-0.16, 0.34,-0.16, 0.34,0.3], [-0.34,0.06, 0.34,0.06], [0,-0.16, 0,-0.5], [-0.2,-0.4, 0,-0.6, 0.2,-0.4], [-0.6,-0.1, -0.5,-0.3], [0.6,-0.1, 0.5,-0.3]], e: [[0,-0.66]] },
     },
     deadmans_trigger: {
