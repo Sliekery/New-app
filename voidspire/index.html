@@ -2509,7 +2509,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
  * ========================================================================= */
 (function (ns) {
   // Replaced by test/bundle.js with the git short hash + date at build time.
-  ns.BUILD = '2026-08-08 e0bf4af';
+  ns.BUILD = '2026-08-08 45072c7';
 
   'use strict';
 
@@ -7741,9 +7741,18 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     shock_couplers: { name: 'Shock Couplers', tier: 2, k: 'bleedReach', v: 1,
       desc: 'Every card carries one step further into the die. A 1-cost now shakes a neighbour; a 2-cost shakes both.',
       art: { p: [[-0.7,0.2, -0.3,-0.3], [-0.3,-0.3, 0.1,0.3], [0.1,0.3, 0.5,-0.3], [0.5,-0.3, 0.8,0.1]], e: [[-0.7,0.2],[0.8,0.1]] } },
-    resonance_cascade: { name: 'Resonance Cascade', tier: 3,
+    /* TIER 2, not 3. Eleven tier-3 relics exist and NONE of them drop — normal
+     * rewards only ever offer tier 1 and 2 — so the pre-existing chain relic
+     * (Distribution Frame) turned up in 0 of 250 runs and this one would have
+     * too. A payoff on an unreachable relic is a payoff nowhere.
+     *
+     * It also had to get much bigger. A neighbour fires at 25% of a face, and
+     * the die is only ~20% of your damage now, so widening the spread was worth
+     * 0.8 points of face share — nothing. Now that the big chains live here,
+     * they have to actually be big: this doubles what every step lands for. */
+    resonance_cascade: { name: 'Resonance Cascade', tier: 2,
       hooks: [{ k: 'bleedReach', v: 1 }, { k: 'bleedPct', v: 0.35 }],
-      desc: 'Every card carries one step further into the die, and each step lands far harder.',
+      desc: 'Every card carries one step further into the die, and every step lands more than twice as hard.',
       art: { p: [[-0.8,0, -0.5,-0.4], [-0.5,-0.4, -0.2,0.4], [-0.2,0.4, 0.1,-0.5], [0.1,-0.5, 0.4,0.5], [0.4,0.5, 0.7,-0.3], [0.7,-0.3, 0.9,0.1]], e: [[-0.8,0],[0.9,0.1]] } },
     counterweight: { name: 'Counterweight', tier: 2, cls: 'vanguard', k: 'rerollOnes', v: 1,
       desc: 'A natural 1 is rerolled once. Turns off anything you built on face 1.',
