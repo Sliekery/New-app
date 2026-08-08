@@ -197,7 +197,6 @@ html, body {
   border: 1px solid var(--amber); color: var(--amber); text-shadow: var(--glow-a);
   background: rgba(35, 25, 5, 0.7); cursor: pointer;
 }
-/* quest relic: dashed border while in progress, glowing when complete */
 #hud .status-row { margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap; }
 .status-chip {
   font-size: 9px; letter-spacing: 1px; padding: 2px 5px;
@@ -2325,11 +2324,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   border: 1px solid rgba(200,107,255,0.5); border-radius: 2px; padding: 1px 4px; font-style: normal;
 }
 .bay-tag.done { color: #5dff88; border-color: rgba(93,255,136,0.6); }
-/* what a quest relic is still waiting for — its only home now the HUD chip is gone */
-.bay-quest {
-  margin-top: 3px; font: 700 8px/1.4 ui-monospace, monospace; letter-spacing: .1em;
-  color: #ffd48a; text-transform: uppercase;
-}
 .bay-rack { display: grid; gap: 4px; }
 .bay-rt {
   font: 700 9.5px/1.4 ui-monospace, monospace; letter-spacing: .18em; color: #61776c;
@@ -2509,7 +2503,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
  * ========================================================================= */
 (function (ns) {
   // Replaced by test/bundle.js with the git short hash + date at build time.
-  ns.BUILD = '2026-08-08 45072c7';
+  ns.BUILD = '2026-08-08 8e6734e';
 
   'use strict';
 
@@ -7944,7 +7938,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       desc: 'The first Power you play each combat, draw a card.',
       art: { p: [[-0.7,0, -0.5,-0.4, -0.1,-0.4, 0.1,0, -0.1,0.4, -0.5,0.4, -0.7,0, 0.7,0], [0.7,0, 0.5,-0.35, 0.2,-0.35]], e: [[-0.3,0]] } },
 
-    /* ============ Class-specific relics (earned via the class quest chain) ============ */
+    /* ============ Class-specific relics ============ */
     recoilless_frame: { name: 'Recoilless Frame', tier: 1, rarity: 'class', cls: 'vanguard', 
       hooks: [{ k: 'flatDmg', v: 5 }, { k: 'maxNonAttack', v: 1 }],
       desc: 'Your attacks deal +5 — but you may play at most 1 non-attack card per turn. Toggle it off on the star chart when you need to set up.',
@@ -7964,43 +7958,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     void_conduit: { name: 'Void Conduit', tier: 1, rarity: 'class', cls: 'voidadept', k: 'firstPowerFree', v: 1,
       desc: 'The first Power you play each combat costs 0.',
       art: { p: [[0,-0.85, 0.4,-0.05, 0.18,0.85, -0.18,0.65, -0.4,-0.15, 0,-0.85], [0,-0.55, 0.05,0.5]], e: [[0,-0.15]] } },
-    /* ============ Quest relics (complete the task → unlock the reward) ============ */
-    offline_shield: { name: 'Offline Shield', tier: 2,
-      quest: { track: 'noShieldWin', goal: 3, label: 'Win 3 combats without gaining any Shield' },
-      done: { k: 'platedArmorStart', v: 7 },
-      doneDesc: 'Start each combat with 7 Plated Armor (each turn gain Shield equal to it, then it drops by 1).',
-      desc: 'QUEST — Win 3 combats without gaining any Shield. → Start each combat with 7 Plated Armor.',
-      art: { p: [[0,-0.85, 0.7,-0.45, 0.7,0.35, 0,0.85, -0.7,0.35, -0.7,-0.45, 0,-0.85], [0,-0.5, 0,-0.08], [-0.28,-0.05, -0.32,0.28, 0,0.45, 0.32,0.28, 0.28,-0.05]], e: [] } },
-    berserker_pact: { name: "Berserker's Pact", tier: 1,
-      quest: { track: 'kills', goal: 15, label: 'Kill 15 enemies' },
-      done: { k: 'strStart', v: 2 },
-      doneDesc: 'Start each combat with 2 Might.',
-      desc: 'QUEST — Kill 15 enemies. → Start each combat with 2 Might.',
-      art: { p: [[0,-0.72, 0,0.72], [0,-0.62, 0.52,-0.72, 0.62,-0.2, 0.0,-0.1], [0,-0.62, -0.52,-0.72, -0.62,-0.2, 0.0,-0.1]], e: [] } },
-    pacifist_doctrine: { name: 'Pacifist Doctrine', tier: 1,
-      quest: { track: 'rewardSkip', goal: 3, label: 'Skip 3 card rewards' },
-      done: { k: 'drawTurn', v: 1 },
-      doneDesc: 'Draw 1 additional card each turn.',
-      desc: 'QUEST — Skip 3 card rewards. → Draw 1 extra card every turn.',
-      art: { p: [[0,0.7, 0,-0.7], [0,-0.7, -0.5,-0.3, -0.55,0.2], [0,-0.7, 0.5,-0.3, 0.55,0.2], [-0.3,-0.45, -0.45,-0.1], [0.3,-0.45, 0.45,-0.1]], e: [] } },
-    flawless_protocol: { name: 'Flawless Protocol', tier: 2,
-      quest: { track: 'flawlessWin', goal: 2, label: 'Win 2 combats without losing any HP' },
-      done: { k: 'blockStart', v: 12 },
-      doneDesc: 'Start each combat with 12 Shield.',
-      desc: 'QUEST — Win 2 combats without losing any HP. → Start each combat with 12 Shield.',
-      art: { p: [[0,-0.7, 0.6,-0.2, 0,0.8, -0.6,-0.2, 0,-0.7], [-0.6,-0.2, 0.6,-0.2], [-0.3,-0.7, -0.2,-0.2, 0,0.8], [0.3,-0.7, 0.2,-0.2, 0,0.8], [0,-0.7, 0,-0.2]], e: [] } },
-    soul_ledger: { name: 'Soul Ledger', tier: 2,
-      quest: { track: 'burnTotal', goal: 60, label: 'Apply 60 Burn to enemies' },
-      done: { k: 'burnGrow', v: 1 },
-      doneDesc: 'At the start of your turn, all Burn on enemies grows by 1.',
-      desc: 'QUEST — Apply 60 Burn to enemies. → Each turn, all enemy Burn grows by 1.',
-      art: { p: [[0,0.6, -0.45,0.2, -0.28,-0.22, 0.02,0.1, 0.12,-0.55, 0.32,-0.1, 0.42,0.25, 0,0.6], [-0.52,0.55, -0.52,-0.6], [-0.68,0.42, -0.68,-0.45]], e: [] } },
-    war_chest: { name: 'War Chest', tier: 1,
-      quest: { track: 'creditsAtOnce', goal: 220, label: 'Hold 220 credits at once' },
-      done: { k: 'energyEveryTurn', v: 1 },
-      doneDesc: '+1 Energy every turn.',
-      desc: 'QUEST — Hold 220 credits at once. → +1 Energy every turn.',
-      art: { p: [[-0.6,-0.05, 0.6,-0.05, 0.6,0.55, -0.6,0.55, -0.6,-0.05], [-0.6,-0.05, -0.5,-0.45, 0.5,-0.45, 0.6,-0.05], [-0.12,0.12, 0.12,0.12, 0.12,0.32, -0.12,0.32, -0.12,0.12], [0,-0.72, 0.18,-0.57, 0,-0.42, -0.18,-0.57, 0,-0.72]], e: [[0,-0.57]] } },
   };
 
   // Sum of v over owned artifacts matching hook k.
@@ -12605,7 +12562,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       pendingPick: null, pendingAddCard: null,
       pendingFace: null, pendingReforge: null, pendingOp: null, pendingOffer: null,
       forged: {}, forgeSeq: 0, faceFired: {}, eventRolled: 0,
-      quests: {}, questDone: {},
       potions: [], won: false,
       inHeart: false, heartOpen: false,
       phylacteryUsed: false, salvageKills: 0,
@@ -12758,8 +12714,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // Depth is simply the sector. It used to add cleared Recurrence loops on top,
   // which is exactly the second difficulty axis that has been removed.
   E.depth = function () { return E.run.sector; };
-  // Sum of hook k over owned artifacts, including quest "done" hooks once the
-  // artifact's quest has been completed, plus EQUIPPED echoes.
+  // Sum of hook k over owned artifacts, plus EQUIPPED echoes.
   function art(k) {
     var t = 0, owned = E.run.artifacts;
     for (var i = 0; i < owned.length; i++) {
@@ -12767,7 +12722,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var a = ns.ARTIFACTS[owned[i]];
       if (a.k === k) t += a.v;
       if (a.hooks) for (var hh = 0; hh < a.hooks.length; hh++) if (a.hooks[hh].k === k) t += a.hooks[hh].v;  // multi-effect / tradeoff relics
-      if (a.done && a.done.k === k && E.run.questDone && E.run.questDone[owned[i]]) t += a.done.v;
     }
     /* The second pass over an equipped Echo loadout is gone with the Recurrence.
      * Pacts are merged into ARTIFACTS at load carrying the same hooks, so the
@@ -12778,31 +12732,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return t;
   }
   E.art = art;
-
-  /* ---------------- Quest artifacts ------------------------------------ */
-  function questProgress(track, amount) {
-    var r = E.run;
-    if (!r.quests) return;
-    Object.keys(r.quests).forEach(function (id) {
-      var a = ns.ARTIFACTS[id];
-      if (!a || !a.quest || a.quest.track !== track || r.questDone[id]) return;
-      if (track === 'creditsAtOnce') r.quests[id] = Math.max(r.quests[id], amount);
-      else r.quests[id] += amount;
-      if (r.quests[id] >= a.quest.goal) {
-        r.quests[id] = a.quest.goal;
-        r.questDone[id] = true;
-        // some completed quests apply a one-time max-HP change
-        if (a.done && a.done.k === 'maxHp') { r.maxHp += a.done.v; r.hp += a.done.v; }
-        emit('questDone', { id: id });
-      }
-    });
-  }
-  E.questProgress = questProgress;
-  E.questState = function (id) {
-    var a = ns.ARTIFACTS[id];
-    if (!a || !a.quest) return null;
-    return { goal: a.quest.goal, progress: (E.run.quests && E.run.quests[id]) || 0, done: !!(E.run.questDone && E.run.questDone[id]) };
-  };
 
   /* ---- REMOVED: relics you had to EARN --------------------------------
    * Six relics used to be locked behind an in-run deed ("kill 8 enemies",
@@ -13579,9 +13508,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
 
   // All player Shield gains route through here so relics that react to gaining
-  // Shield (and the "no Shield" quest) see every source.
-  // played = the Shield came from a card the player chose to play (so passive
-  // relic/plate/trigger Shield does NOT count against the "no Shield" quest).
+  // Shield see every source.
+  // played = the Shield came from a card the player chose to play, which some
+  // listeners care about and passive relic/plate Shield must not fake.
   var _inBlockListen = false;
   function gainBlock(n, played) {
     if (n > 0 && E.combat && !E.combat.over && !_inBlockListen) {
@@ -13852,7 +13781,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     c.cardsThisTurn = 0;
     c.enemies.forEach(function (e) { if (e.def.plated) e.platedReady = true; });   // Reactive Plating re-arms each turn
     c.nonAttacksThisTurn = 0;   // Recoilless Frame: per-turn non-attack limit
-    c.turnDamage = 0;           // class quest: damage dealt this turn
+    c.turnDamage = 0;           // damage dealt this turn
     c.momentum = 0;   // Momentum Engine resets each turn
     // Fusillade: Momentum is a per-turn combo — unless a Cycling Breech says
     // otherwise, which is the whole point of that relic.
@@ -14234,7 +14163,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (en.hp <= 0 && en.alive) {
       en.alive = false;
       E.run.kills++;
-      questProgress('kills', 1);
       var hk = art('healOnKill'); if (hk > 0) heal(hk);
       var sk = art('strOnKill'); if (sk > 0) { addStatus(c.player, 'str', sk); emit('status', { who: 'player', s: 'str', v: sk }); }
       var kd = art('killDraw'); if (kd > 0) drawCards(kd);
@@ -14432,8 +14360,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return true;
   }
 
-  // Burn applied to an enemy by the player (for the Burn quest).
-  function trackBurn(n) { questProgress('burnTotal', n); }
+  // Burn applied to an enemy by the player. Nothing tracks it any more.
+  function trackBurn(n) { }
 
   /* ---- Colorless tech: in-combat choices (Scry / Tutor / Discover) ----------
    * These set c.pending and wait for a UI pick. Headless (E.interactive false,
@@ -16099,7 +16027,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (!a || a.tier !== tier) return false;
     if (E.run.artifacts.indexOf(k) >= 0) return false;            // already owned
     if (a.cls && a.cls !== E.run.cls) return false;               // class-locked: only its class
-    if (a.questOnly || a.cornerstone) return false;               // cornerstone relics never drop
+    if (a.cornerstone) return false;                              // cornerstone relics never drop
     return true;
   }
   /* A class relic is worth several colourless ones in the draw. Without this
@@ -16343,7 +16271,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var cut = Math.round(r.maxHp * Math.abs(h.v));
       r.maxHp = Math.max(1, r.maxHp - cut); r.hp = Math.min(r.hp, r.maxHp);
     });
-    if (a.quest && !r.questDone[id]) r.quests[id] = r.quests[id] || 0;
     // slot it into the die straight away if the core has room; otherwise it waits
     // in the vault and the player chooses what to swap out.
     var d = r.die;
@@ -16370,11 +16297,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   }
   E.removeArtifact = removeArtifact;
 
-  // Relics a player may trade away: plain, non-quest, non-class, side-effect-free.
+  // Relics a player may trade away: plain, non-class, side-effect-free.
   function tradeableRelics() {
     return E.run.artifacts.filter(function (k) {
       var a = ns.ARTIFACTS[k];
-      return a && !a.questOnly && !a.cls && !a.special;
+      return a && !a.cls && !a.special;
     });
   }
   E.tradeableRelics = tradeableRelics;
@@ -16389,9 +16316,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       r.cornerstone.tier = (r.cornerstone.tier || 1) + 1;
     }
     tickRelicDurability();   // active durability relics burn a charge per fight
-    // quest credit: combats won without ever gaining Shield / without losing HP
-    if (!cc.playedShield) questProgress('noShieldWin', 1);
-    if (r.hp >= cc.startHp) questProgress('flawlessWin', 1);
 
     // The finale: beating THE UNMAKER wins the run and clears the rating.
     if (cc.isFinal) {
@@ -16415,7 +16339,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var credits = creditRange(kind);
     if (art('noCredits') > 0) credits = 0;   // Famine Engine: no salvage
     r.credits += credits;
-    questProgress('creditsAtOnce', r.credits);
     var hb = art('healAfterCombat');
     if (hb > 0) heal(hb);
     var eliteTier = (kind === 'elite' || kind === 'boss' || kind === 'beacon');
@@ -16503,7 +16426,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   E.finishReward = function () {
     var r = E.run;
-    if (r.reward && !r.reward.cardTaken) questProgress('rewardSkip', 1);
     r.reward = null;
     E.combat = null;
     nodeComplete();
@@ -17560,7 +17482,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (fx.fightElite) { r.forcedFight = 'elite'; gained.push('It is already moving'); }
     if (fx.credits) {
       r.credits = Math.max(0, r.credits + fx.credits);
-      if (fx.credits > 0) questProgress('creditsAtOnce', r.credits);
       gained.push((fx.credits > 0 ? '+' : '') + fx.credits + ' credits');
     }
     if (fx.maxhp) {
@@ -21090,14 +21011,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     loadOrient();
     applyOrient();
 
-    // global listener for quest completions (can fire any time)
-    E.onEvent = function (e) {
-      if (e.type === 'questDone') {
-        var a = ns.ARTIFACTS[e.id];
-        toast('QUEST COMPLETE — ' + a.name.toUpperCase() + '!  ' + a.doneDesc, 3400);
-        SFX.win();
-      }
-    };
     U.refresh();
   };
 
@@ -21201,14 +21114,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return b;
   }
 
-  // Tooltip text for an artifact chip, including live quest progress.
+  // Tooltip text for an artifact chip.
   function artifactTip(id) {
     var a = ns.ARTIFACTS[id];
-    if (a.quest) {
-      var qs = E.questState(id);
-      if (qs.done) return a.name + ' ✓ COMPLETE — ' + a.doneDesc;
-      return a.name + ' — QUEST ' + qs.progress + '/' + qs.goal + ': ' + a.quest.label;
-    }
     return a.name + ' — ' + a.desc;
   }
 
@@ -22101,17 +22009,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       var a = ns.ARTIFACTS[id];
       if (!a) return '';
       var uses = E.relicUsesLeft && E.relicUsesLeft(id);
-      /* Quest progress used to live ONLY on the HUD chip, as a dashed border
-       * and a tooltip. With the chip row gone this is the only place it can be
-       * read, so it is a line of text here rather than a border state there. */
-      var qs = a.quest ? E.questState(id) : null;
       return '<div class="bay-nm" style="color:' + col + '">' + esc(a.name)
         + (a.pact ? ' <span class="bay-tag">PACT</span>' : '')
-        + (qs ? ' <span class="bay-tag' + (qs.done ? ' done' : '') + '">'
-              + (qs.done ? 'COMPLETE' : 'QUEST ' + qs.progress + '/' + qs.goal) + '</span>' : '')
         + (uses != null ? ' <span class="bay-tag">' + uses + ' LEFT</span>' : '') + '</div>'
-        + '<div class="bay-ds">' + esc((qs && qs.done ? a.doneDesc : a.desc) || '') + '</div>'
-        + (qs && !qs.done ? '<div class="bay-quest">' + esc(a.quest.label) + '</div>' : '');
+        + '<div class="bay-ds">' + esc(a.desc || '') + '</div>';
     }
 
     function paint(seatIdx, ejectIdx) {

@@ -350,14 +350,6 @@
     loadOrient();
     applyOrient();
 
-    // global listener for quest completions (can fire any time)
-    E.onEvent = function (e) {
-      if (e.type === 'questDone') {
-        var a = ns.ARTIFACTS[e.id];
-        toast('QUEST COMPLETE — ' + a.name.toUpperCase() + '!  ' + a.doneDesc, 3400);
-        SFX.win();
-      }
-    };
     U.refresh();
   };
 
@@ -461,14 +453,9 @@
     return b;
   }
 
-  // Tooltip text for an artifact chip, including live quest progress.
+  // Tooltip text for an artifact chip.
   function artifactTip(id) {
     var a = ns.ARTIFACTS[id];
-    if (a.quest) {
-      var qs = E.questState(id);
-      if (qs.done) return a.name + ' ✓ COMPLETE — ' + a.doneDesc;
-      return a.name + ' — QUEST ' + qs.progress + '/' + qs.goal + ': ' + a.quest.label;
-    }
     return a.name + ' — ' + a.desc;
   }
 
@@ -1361,17 +1348,10 @@
       var a = ns.ARTIFACTS[id];
       if (!a) return '';
       var uses = E.relicUsesLeft && E.relicUsesLeft(id);
-      /* Quest progress used to live ONLY on the HUD chip, as a dashed border
-       * and a tooltip. With the chip row gone this is the only place it can be
-       * read, so it is a line of text here rather than a border state there. */
-      var qs = a.quest ? E.questState(id) : null;
       return '<div class="bay-nm" style="color:' + col + '">' + esc(a.name)
         + (a.pact ? ' <span class="bay-tag">PACT</span>' : '')
-        + (qs ? ' <span class="bay-tag' + (qs.done ? ' done' : '') + '">'
-              + (qs.done ? 'COMPLETE' : 'QUEST ' + qs.progress + '/' + qs.goal) + '</span>' : '')
         + (uses != null ? ' <span class="bay-tag">' + uses + ' LEFT</span>' : '') + '</div>'
-        + '<div class="bay-ds">' + esc((qs && qs.done ? a.doneDesc : a.desc) || '') + '</div>'
-        + (qs && !qs.done ? '<div class="bay-quest">' + esc(a.quest.label) + '</div>' : '');
+        + '<div class="bay-ds">' + esc(a.desc || '') + '</div>';
     }
 
     function paint(seatIdx, ejectIdx) {

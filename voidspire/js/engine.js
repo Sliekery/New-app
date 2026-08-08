@@ -114,7 +114,6 @@
       pendingPick: null, pendingAddCard: null,
       pendingFace: null, pendingReforge: null, pendingOp: null, pendingOffer: null,
       forged: {}, forgeSeq: 0, faceFired: {}, eventRolled: 0,
-      quests: {}, questDone: {},
       potions: [], won: false,
       inHeart: false, heartOpen: false,
       phylacteryUsed: false, salvageKills: 0,
@@ -267,8 +266,7 @@
   // Depth is simply the sector. It used to add cleared Recurrence loops on top,
   // which is exactly the second difficulty axis that has been removed.
   E.depth = function () { return E.run.sector; };
-  // Sum of hook k over owned artifacts, including quest "done" hooks once the
-  // artifact's quest has been completed, plus EQUIPPED echoes.
+  // Sum of hook k over owned artifacts, plus EQUIPPED echoes.
   function art(k) {
     var t = 0, owned = E.run.artifacts;
     for (var i = 0; i < owned.length; i++) {
@@ -276,7 +274,6 @@
       var a = ns.ARTIFACTS[owned[i]];
       if (a.k === k) t += a.v;
       if (a.hooks) for (var hh = 0; hh < a.hooks.length; hh++) if (a.hooks[hh].k === k) t += a.hooks[hh].v;  // multi-effect / tradeoff relics
-      if (a.done && a.done.k === k && E.run.questDone && E.run.questDone[owned[i]]) t += a.done.v;
     }
     /* The second pass over an equipped Echo loadout is gone with the Recurrence.
      * Pacts are merged into ARTIFACTS at load carrying the same hooks, so the
@@ -287,31 +284,6 @@
     return t;
   }
   E.art = art;
-
-  /* ---------------- Quest artifacts ------------------------------------ */
-  function questProgress(track, amount) {
-    var r = E.run;
-    if (!r.quests) return;
-    Object.keys(r.quests).forEach(function (id) {
-      var a = ns.ARTIFACTS[id];
-      if (!a || !a.quest || a.quest.track !== track || r.questDone[id]) return;
-      if (track === 'creditsAtOnce') r.quests[id] = Math.max(r.quests[id], amount);
-      else r.quests[id] += amount;
-      if (r.quests[id] >= a.quest.goal) {
-        r.quests[id] = a.quest.goal;
-        r.questDone[id] = true;
-        // some completed quests apply a one-time max-HP change
-        if (a.done && a.done.k === 'maxHp') { r.maxHp += a.done.v; r.hp += a.done.v; }
-        emit('questDone', { id: id });
-      }
-    });
-  }
-  E.questProgress = questProgress;
-  E.questState = function (id) {
-    var a = ns.ARTIFACTS[id];
-    if (!a || !a.quest) return null;
-    return { goal: a.quest.goal, progress: (E.run.quests && E.run.quests[id]) || 0, done: !!(E.run.questDone && E.run.questDone[id]) };
-  };
 
   /* ---- REMOVED: relics you had to EARN --------------------------------
    * Six relics used to be locked behind an in-run deed ("kill 8 enemies",
@@ -1088,9 +1060,9 @@
   }
 
   // All player Shield gains route through here so relics that react to gaining
-  // Shield (and the "no Shield" quest) see every source.
-  // played = the Shield came from a card the player chose to play (so passive
-  // relic/plate/trigger Shield does NOT count against the "no Shield" quest).
+  // Shield see every source.
+  // played = the Shield came from a card the player chose to play, which some
+  // listeners care about and passive relic/plate Shield must not fake.
   var _inBlockListen = false;
   function gainBlock(n, played) {
     if (n > 0 && E.combat && !E.combat.over && !_inBlockListen) {
@@ -1361,7 +1333,7 @@
     c.cardsThisTurn = 0;
     c.enemies.forEach(function (e) { if (e.def.plated) e.platedReady = true; });   // Reactive Plating re-arms each turn
     c.nonAttacksThisTurn = 0;   // Recoilless Frame: per-turn non-attack limit
-    c.turnDamage = 0;           // class quest: damage dealt this turn
+    c.turnDamage = 0;           // damage dealt this turn
     c.momentum = 0;   // Momentum Engine resets each turn
     // Fusillade: Momentum is a per-turn combo — unless a Cycling Breech says
     // otherwise, which is the whole point of that relic.
@@ -1743,7 +1715,6 @@
     if (en.hp <= 0 && en.alive) {
       en.alive = false;
       E.run.kills++;
-      questProgress('kills', 1);
       var hk = art('healOnKill'); if (hk > 0) heal(hk);
       var sk = art('strOnKill'); if (sk > 0) { addStatus(c.player, 'str', sk); emit('status', { who: 'player', s: 'str', v: sk }); }
       var kd = art('killDraw'); if (kd > 0) drawCards(kd);
@@ -1941,8 +1912,8 @@
     return true;
   }
 
-  // Burn applied to an enemy by the player (for the Burn quest).
-  function trackBurn(n) { questProgress('burnTotal', n); }
+  // Burn applied to an enemy by the player. Nothing tracks it any more.
+  function trackBurn(n) { }
 
   /* ---- Colorless tech: in-combat choices (Scry / Tutor / Discover) ----------
    * These set c.pending and wait for a UI pick. Headless (E.interactive false,
@@ -3608,7 +3579,7 @@
     if (!a || a.tier !== tier) return false;
     if (E.run.artifacts.indexOf(k) >= 0) return false;            // already owned
     if (a.cls && a.cls !== E.run.cls) return false;               // class-locked: only its class
-    if (a.questOnly || a.cornerstone) return false;               // cornerstone relics never drop
+    if (a.cornerstone) return false;                              // cornerstone relics never drop
     return true;
   }
   /* A class relic is worth several colourless ones in the draw. Without this
@@ -3852,7 +3823,6 @@
       var cut = Math.round(r.maxHp * Math.abs(h.v));
       r.maxHp = Math.max(1, r.maxHp - cut); r.hp = Math.min(r.hp, r.maxHp);
     });
-    if (a.quest && !r.questDone[id]) r.quests[id] = r.quests[id] || 0;
     // slot it into the die straight away if the core has room; otherwise it waits
     // in the vault and the player chooses what to swap out.
     var d = r.die;
@@ -3879,11 +3849,11 @@
   }
   E.removeArtifact = removeArtifact;
 
-  // Relics a player may trade away: plain, non-quest, non-class, side-effect-free.
+  // Relics a player may trade away: plain, non-class, side-effect-free.
   function tradeableRelics() {
     return E.run.artifacts.filter(function (k) {
       var a = ns.ARTIFACTS[k];
-      return a && !a.questOnly && !a.cls && !a.special;
+      return a && !a.cls && !a.special;
     });
   }
   E.tradeableRelics = tradeableRelics;
@@ -3898,9 +3868,6 @@
       r.cornerstone.tier = (r.cornerstone.tier || 1) + 1;
     }
     tickRelicDurability();   // active durability relics burn a charge per fight
-    // quest credit: combats won without ever gaining Shield / without losing HP
-    if (!cc.playedShield) questProgress('noShieldWin', 1);
-    if (r.hp >= cc.startHp) questProgress('flawlessWin', 1);
 
     // The finale: beating THE UNMAKER wins the run and clears the rating.
     if (cc.isFinal) {
@@ -3924,7 +3891,6 @@
     var credits = creditRange(kind);
     if (art('noCredits') > 0) credits = 0;   // Famine Engine: no salvage
     r.credits += credits;
-    questProgress('creditsAtOnce', r.credits);
     var hb = art('healAfterCombat');
     if (hb > 0) heal(hb);
     var eliteTier = (kind === 'elite' || kind === 'boss' || kind === 'beacon');
@@ -4012,7 +3978,6 @@
 
   E.finishReward = function () {
     var r = E.run;
-    if (r.reward && !r.reward.cardTaken) questProgress('rewardSkip', 1);
     r.reward = null;
     E.combat = null;
     nodeComplete();
@@ -5069,7 +5034,6 @@
     if (fx.fightElite) { r.forcedFight = 'elite'; gained.push('It is already moving'); }
     if (fx.credits) {
       r.credits = Math.max(0, r.credits + fx.credits);
-      if (fx.credits > 0) questProgress('creditsAtOnce', r.credits);
       gained.push((fx.credits > 0 ? '+' : '') + fx.credits + ' credits');
     }
     if (fx.maxhp) {

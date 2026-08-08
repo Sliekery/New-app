@@ -184,31 +184,15 @@ setHand(['pulse_rifle']);
 playId('pulse_rifle', 0);
 ok('Reaper Protocol heals on kill', E.run.hp > 30);
 
-/* 13. Quest: Berserker's Pact completes after 15 kills, then grants Might */
+/* 13. Glass Cannon reduces max HP on pickup and boosts damage */
 startFight('vanguard');
-E.run.artifacts = []; E.run.quests = {}; E.run.questDone = {};
-E.addArtifact('berserker_pact');
-for (var q = 0; q < 15; q++) E.questProgress('kills', 1);
-ok("Berserker's Pact quest completes at 15 kills", E.questState('berserker_pact').done);
-ok("completed quest grants its hook (strStart)", E.art('strStart') === 2);
-
-/* 14. Quest: Glass Cannon reduces max HP on pickup and boosts damage */
-startFight('vanguard');
-E.run.artifacts = []; E.run.quests = {}; E.run.questDone = {};
+E.run.artifacts = [];
 var maxBefore = E.run.maxHp;
 E.addArtifact('glass_cannon');
 ok('Glass Cannon cuts Max HP by ~25%', E.run.maxHp < maxBefore);
 ok('Glass Cannon boosts damage (dmgMult)', E.art('dmgMult') === 0.5);
 
-/* 15. Quest progress: Offline Shield only counts shieldless wins */
-startFight('vanguard');
-E.run.artifacts = []; E.run.quests = {}; E.run.questDone = {};
-E.addArtifact('offline_shield');
-E.questProgress('noShieldWin', 1);
-ok('Offline Shield advances on a shieldless win', E.questState('offline_shield').progress === 1);
-
-/* 15b. PASSIVE shield (relic/plate) does NOT break the no-Shield quest,
- * but PLAYED shield (a card) does */
+/* 14b. PASSIVE shield (relic/plate) does not read as PLAYED shield; a card does */
 startFight('vanguard');
 giveRelic('armor_weave'); // plate 2 each turn (passive)
 E.combat.playedShield = false;
@@ -221,12 +205,16 @@ setHand(['combat_shield']); // a shield CARD
 playId('combat_shield');
 ok('playing a Shield card DOES set playedShield', E.combat.playedShield === true);
 
-/* ---- the earned-relic system is GONE -----------------------------------
- * Six relics used to be locked behind an in-run deed and granted the moment you
- * met it, with the progress shown nowhere at all — so they materialised
- * mid-fight and read as random. The feature was cut; these assert it stayed cut
- * and that the six became ordinary drops rather than becoming unreachable.
+/* ---- no relic asks you to do homework ----------------------------------
+ * Two separate attempts at deed-locked relics have been cut: the old "unlock"
+ * system, and the six QUEST relics ("win 3 combats without gaining Shield").
+ * Both failed the same way — the deed steered play away from your own deck for
+ * a payoff that arrived unannounced mid-fight. These assert both stayed cut.
  * -------------------------------------------------------------------- */
+ok('no relic is locked behind a quest any more',
+   !Object.keys(VS.ARTIFACTS).some(function (id) { return !!VS.ARTIFACTS[id].quest; }));
+ok('the engine no longer exposes the quest API',
+   typeof E.questProgress !== 'function' && typeof E.questState !== 'function');
 ok('no relic is locked behind a hidden deed any more',
    !Object.keys(VS.ARTIFACTS).some(function (id) { return !!VS.ARTIFACTS[id].unlock; }));
 ok('the engine no longer exposes the earned-relic API',
@@ -650,12 +638,12 @@ ok('Soul Pyre applies Burn on attack', (E.combat.enemies[0].statuses.burn || 0) 
   var byHook = {}, dups = [];
   Object.keys(VS.ARTIFACTS).forEach(function (id) {
     var a = VS.ARTIFACTS[id];
-    if (!a.k || a.quest) return;
+    if (!a.k) return;
     var key = a.k + ':' + (a.a || '');   // attr:might / attr:tech / attr:psi stay distinct
     (byHook[key] = byHook[key] || []).push(id);
   });
   Object.keys(byHook).forEach(function (k) { if (byHook[k].length > 1) dups.push(k + ' -> ' + byHook[k].join(',')); });
-  ok('no two non-quest relics share an effect' + (dups.length ? ' [' + dups.join(' | ') + ']' : ''), dups.length === 0);
+  ok('no two relics share an effect' + (dups.length ? ' [' + dups.join(' | ') + ']' : ''), dups.length === 0);
 })();
 
 /* 44. Event relic offered as a take/skip choice */

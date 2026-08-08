@@ -178,7 +178,6 @@ html, body {
   border: 1px solid var(--amber); color: var(--amber); text-shadow: var(--glow-a);
   background: rgba(35, 25, 5, 0.7); cursor: pointer;
 }
-/* quest relic: dashed border while in progress, glowing when complete */
 #hud .status-row { margin-top: 4px; display: flex; gap: 4px; flex-wrap: wrap; }
 .status-chip {
   font-size: 9px; letter-spacing: 1px; padding: 2px 5px;
@@ -2306,11 +2305,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   border: 1px solid rgba(200,107,255,0.5); border-radius: 2px; padding: 1px 4px; font-style: normal;
 }
 .bay-tag.done { color: #5dff88; border-color: rgba(93,255,136,0.6); }
-/* what a quest relic is still waiting for — its only home now the HUD chip is gone */
-.bay-quest {
-  margin-top: 3px; font: 700 8px/1.4 ui-monospace, monospace; letter-spacing: .1em;
-  color: #ffd48a; text-transform: uppercase;
-}
 .bay-rack { display: grid; gap: 4px; }
 .bay-rt {
   font: 700 9.5px/1.4 ui-monospace, monospace; letter-spacing: .18em; color: #61776c;
