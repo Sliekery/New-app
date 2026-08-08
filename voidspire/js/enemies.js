@@ -603,10 +603,10 @@
 
   /* ---- RUST ---- */
   ns.ENEMIES.overseer_prime = {
-    name: 'OVERSEER PRIME', faction: 'rust', hp: 96, size: 1.35, boss: true, grounded: true, ai: 'cycle',
+    name: 'OVERSEER PRIME', faction: 'rust', hp: 68, size: 1.35, boss: true, grounded: true, ai: 'cycle',
     plated: true,                              // soaks the first hit each turn
     moves: [
-      { t: 'block', b: 16 }, { t: 'attack', d: 14 },
+      { t: 'block', b: 10 }, { t: 'attack', d: 14 },
       { t: 'summon', id: 'scrap_hound', n: 1 }, { t: 'attack', d: 8, hits: 2 },
       { t: 'debuff', s: 'weak', v: 2 }, { t: 'attack', d: 20 },
     ],
@@ -662,14 +662,20 @@
   };
 
   /* ---- VOIDSPAWN ---- */
+  /* THE MAW and OVERSEER PRIME both SUMMON, and a summoning boss is a
+   * treadmill: the adds soak the damage while the boss drains or blocks it
+   * back. That was survivable while the die supplied 43% of your damage; once
+   * that fell to 25% these two ran 16-18 turns against every other boss's 8-10
+   * (p90 of 33 and 29). Trimming their own HP is the honest fix, because the
+   * length was never coming from the boss's bar. */
   ns.ENEMIES.the_maw = {
-    name: 'THE MAW', faction: 'voidspawn', hp: 86, size: 1.35, boss: true, ai: 'cycle',
+    name: 'THE MAW', faction: 'voidspawn', hp: 62, size: 1.35, boss: true, ai: 'cycle',
     absorb: { threshold: 14, card: 'void_swarm' },   // caps big hits and jams your deck
     regen: 3,
     moves: [
-      { t: 'drain', d: 11 }, { t: 'attack', d: 8, hits: 2 },
+      { t: 'drain', d: 8 }, { t: 'attack', d: 8, hits: 2 },
       { t: 'debuff', s: 'vuln', v: 2 }, { t: 'attack', d: 16 },
-      { t: 'summon', id: 'void_larva', n: 2 },
+      { t: 'summon', id: 'void_larva', n: 1 },
     ],
     art: { p: [[0,-0.8, 0.56,-0.4, 0.7,0.2, 0.36,0.74, -0.36,0.74, -0.7,0.2, -0.56,-0.4, 0,-0.8],
                [-0.42,-0.1, 0.42,-0.1], [-0.34,0.16, 0.34,0.16], [-0.24,0.42, 0.24,0.42],

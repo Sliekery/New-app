@@ -3966,7 +3966,12 @@
      * rolling three nearly-bare dice. */
     if (r.dice && r.dice.length > 1) engChoices = randomEngravings(3);
     else if (kind === 'elite' || kind === 'boss' || kind === 'beacon') engChoices = randomEngravings(2);
-    else if (rnd() < 0.22) engChoices = randomEngravings(2);
+    /* HALLWAYS DROP ENGRAVINGS MUCH MORE OFTEN NOW. The die's share of damage
+     * was cut from 43% to 25% at sector 4, which was the point — but it also
+     * made cutting faces feel like it was going nowhere, because the supply
+     * was priced for a die that ran away on its own. If the die is a slow,
+     * deliberate build now, you have to actually be given the parts. */
+    else if (rnd() < 0.45) engChoices = randomEngravings(2);
     var artifactDrop = null;   // no auto-grant; picked from artifactChoices
     // The Unmaker's Tithe: an extra relic from every elite & boss
     var bonusArtifact = null;
