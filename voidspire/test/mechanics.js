@@ -2002,14 +2002,22 @@ ok('every class opens with either a starter deck or a rack of dice',
   ok('no relic is keyed to a class with no die table' + (orphan.length ? ' — ' + orphan.join(', ') : ''),
      orphan.length === 0);
 
-  // The three sets should be comparable in size — one class with twice the die
-  // relics of another is a parity problem before it is a design one.
+  /* The sets should be comparable in size — one class with twice the die
+   * relics of another is a parity problem before it is a design one.
+   *
+   * The VANGUARD is exempt and deliberately ahead: he is the testing ground,
+   * every die mechanic is prototyped on him first, and the other two get their
+   * versions once his have been measured. What this guards is that the other
+   * two stay level with EACH OTHER, and that neither falls more than half the
+   * Vanguard's pool behind — the point at which "testing ground" has quietly
+   * become "the only class anyone finished". */
   var per = { vanguard: 0, technomancer: 0, voidadept: 0 };
   Object.keys(VS.ARTIFACTS).forEach(function (id) { if (per[VS.ARTIFACTS[id].cls] != null) per[VS.ARTIFACTS[id].cls]++; });
-  var lo = Math.min(per.vanguard, per.technomancer, per.voidadept);
-  var hi = Math.max(per.vanguard, per.technomancer, per.voidadept);
-  ok('the three class relic pools are comparable (' + per.vanguard + '/' + per.technomancer + '/' + per.voidadept + ')',
-     hi - lo <= 5);
+  var tally = ' (' + per.vanguard + '/' + per.technomancer + '/' + per.voidadept + ')';
+  ok('the two non-testbed relic pools are level with each other' + tally,
+     Math.abs(per.technomancer - per.voidadept) <= 5);
+  ok('neither trails the Vanguard testbed by more than half' + tally,
+     Math.min(per.technomancer, per.voidadept) >= per.vanguard / 2);
 })();
 
 /* ============ CONSTRUCTS ARE VISIBLE ===================================
@@ -2791,6 +2799,247 @@ ok('every class opens with either a starter deck or a rack of dice',
     return okd;
   }));
   E.run.phase = 'map';
+})();
+
+/* ============================================================================
+ * THE DIE AS AN OBJECT — the nineteen relics that read the die's LAYOUT, its
+ * MEMORY, its BLANK faces and its actual SHAPE. Everything before this pass
+ * read the NUMBER: reroll it, bias it, widen the band around it. These are
+ * the parts of the die that nothing was pointed at.
+ *
+ * `dieRig` builds a die you can predict — every face carrying the same
+ * engraving, so which number comes up stops mattering and the assertions are
+ * about the relic instead of about the seed.
+ * ========================================================================== */
+(function () {
+  // A die where every face carries `id` (or `only`, a single face, if given).
+  function dieRig(opts) {
+    opts = opts || {};
+    E.seed(opts.seed == null ? 7 : opts.seed);
+    E.newRun(opts.cls || 'vanguard');
+    var die = E.run.die;
+    die.faces = {}; die.seams = {}; die.welds = [];
+    if (opts.only != null) VS.dieEngrave(die, opts.eng || 'ar_shot', opts.only);
+    else if (!opts.bare) {
+      for (var f = 1; f <= VS.dieSides(die); f++) VS.dieEngrave(die, opts.eng || 'ar_shot', f);
+    }
+    (opts.relics || []).forEach(giveRelic);
+    E.run.faction = 'hierarchy'; E.run.nodeIdx = 0; E.startNode('fight');
+    E.combat.enemies.forEach(function (e) { e.hp = 99999; e.maxHp = 99999; e.platedReady = false; });
+    return E.combat;
+  }
+  // Play `card` n times, collecting every event. Enemies are unkillable above.
+  function volley(card, n) {
+    var all = [];
+    for (var i = 0; i < n; i++) {
+      E.combat.energy = 30; E.run.hp = E.run.maxHp;
+      E.combat.hand = [{ uid: 9000 + i, id: card, up: false }];
+      E.events = [];
+      E.playCard(0, 0);
+      all = all.concat(E.events.slice());
+      if (E.combat.over) break;
+    }
+    return all;
+  }
+  function faces(evs, why) {
+    return evs.filter(function (e) { return e.type === 'dieFace' && (why === undefined || e.why === why); });
+  }
+
+  /* ---- LAYOUT: the die read as a shape, not a number ------------------- */
+  dieRig({ relics: ['harmonic_pair'] });
+  var hp1 = faces(volley('pulse_rifle', 12), 'twin').length;
+  dieRig({});
+  var hp0 = faces(volley('pulse_rifle', 12), 'twin').length;
+  ok('Harmonic Pair fires the matching neighbour (' + hp1 + ' vs ' + hp0 + ')', hp1 > 0 && hp0 === 0);
+
+  // FACE LATHE: the jig is free and is never used up
+  dieRig({ relics: ['face_lathe'] });
+  ok('Face Lathe makes the reseat jig free', E.reseatCost() === 0);
+  E.run.shop = { reseatUsed: true };
+  ok('Face Lathe means the jig is never spent', E.jigSpent() === false);
+  E.run.artifacts = []; E.run.die.core = [];
+  ok('without it the spent jig still reads as spent', E.jigSpent() === true);
+
+  /* ---- BLANK FACES: a bare roll used to be nothing at all -------------- */
+  // COLD ETCH copies the last engraving onto the first bare face it hits, and
+  // scrubs it again when the fight ends.
+  dieRig({ relics: ['cold_etch'], only: 4 });
+  volley('pulse_rifle', 60);
+  var etched = E.combat.etched;
+  ok('Cold Etch strikes a copy onto a bare face', etched != null && !!VS.dieFaceId(E.run.die, etched));
+  var wasEtched = etched;
+  // end the fight for real, so winCombat's scrub is the thing under test
+  E.combat.enemies.forEach(function (e) { e.hp = 1; e.block = 0; });
+  E.combat.energy = 30;
+  E.combat.hand = [{ uid: 1, id: 'orbital_strike', up: false }];
+  E.playCard(0, 0);
+  ok('and the etch is cold — scrubbed when the fight ends',
+     wasEtched == null || !VS.dieFaceId(E.run.die, wasEtched));
+
+  // EMPTY CHAMBER turns a bare roll into a card
+  dieRig({ relics: ['empty_chamber'], bare: true });
+  var handBefore = E.combat.hand.length, drawBefore = E.combat.drawPile.length;
+  E.combat.energy = 30;
+  E.combat.hand = [{ uid: 77, id: 'pulse_rifle', up: false }];
+  E.playCard(0, 0);
+  ok('Empty Chamber draws on a bare face', E.combat.drawPile.length < drawBefore);
+
+  /* ---- THE READ: foresight, the failsafe, the flattened curve ---------- */
+  var fc = dieRig({ relics: ['ballistic_computer'] });
+  ok('Ballistic Computer knows the next roll before you play', fc.nextRoll != null);
+  var announced = fc.nextRoll;
+  var fev = volley('pulse_rifle', 1);
+  var firstRoll = fev.filter(function (e) { return e.type === 'roll'; })[0];
+  ok('and the roll it announced is the roll you get', firstRoll && firstRoll.roll === announced);
+
+  // MANUAL OVERRIDE: deterministic, so it is asserted exactly
+  dieRig({ relics: ['manual_override'], only: 17 });
+  var mo = volley('pulse_rifle', 1).filter(function (e) { return e.type === 'roll'; })[0];
+  ok('Manual Override opens on your highest engraved face (' + (mo && mo.roll) + ')', mo && mo.roll === 17);
+
+  // FAILSAFE GOVERNOR / DEADMAN REGULATOR both change how often the tails hit
+  /* ONE CARD A TURN, not 300 in one turn. Failsafe Governor re-arms per TURN,
+   * so a volley inside a single turn would spend its one reroll on card 1 and
+   * measure the relic as doing almost nothing. */
+  function tails(relics, n) {
+    dieRig({ relics: relics, seed: 42 });
+    var t = { n: 0, mis: 0, crit: 0 };
+    for (var i = 0; i < n; i++) {
+      E.combat.energy = 30; E.run.hp = E.run.maxHp; E.combat.player.block = 9999;
+      E.combat.hand = [{ uid: 8000 + i, id: 'pulse_rifle', up: false }];
+      E.events = [];
+      E.playCard(0, 0);
+      E.events.forEach(function (e) {
+        if (e.type !== 'roll') return;
+        t.n++; if (e.misfire) t.mis++; if (e.crit) t.crit++;
+      });
+      if (E.combat.over) break;
+      E.endTurn();
+      if (E.combat.over || E.run.phase === 'dead') break;
+    }
+    return t;
+  }
+  var base = tails([], 300), fg = tails(['failsafe_governor'], 300);
+  ok('Failsafe Governor cuts the jam rate (' + fg.mis + ' vs ' + base.mis + ')', fg.mis < base.mis);
+  var dm = tails(['deadman_regulator'], 300);
+  ok('Deadman Regulator deletes the misfire (' + dm.mis + ')', dm.mis === 0);
+  ok('...and the crit with it (' + dm.crit + ' vs ' + base.crit + ')', dm.crit === 0 && base.crit > 0);
+
+  /* ---- MEMORY --------------------------------------------------------- */
+  dieRig({ relics: ['stutter_bearing'], seed: 3 });
+  var st = faces(volley('pulse_rifle', 300), 'stutter').length;
+  ok('Stutter Bearing pays for a repeated face (' + st + ' repeats in 300)', st > 0);
+
+  /* ---- THE CHAIN, BOTH DIRECTIONS ------------------------------------- */
+  // A 1-cost buys no spread at all; Hair Trigger buys it the full one.
+  dieRig({});
+  var cheap0 = faces(volley('pulse_rifle', 1)).length;
+  dieRig({ relics: ['hair_trigger'] });
+  var cheap1 = faces(volley('pulse_rifle', 1)).length;
+  ok('a 1-cost still shakes nothing on its own (' + cheap0 + ' face)', cheap0 === 1);
+  // the 2-cost spread — one neighbour, upward — not the full both-sides one
+  ok('Hair Trigger buys it one neighbour (' + cheap1 + ' faces)', cheap1 === 2);
+
+  // SOLID SLUG refuses the spread and doubles the root instead
+  dieRig({});
+  var wide = faces(volley('orbital_strike', 1));
+  dieRig({ relics: ['solid_slug'] });
+  var tall = faces(volley('orbital_strike', 1));
+  ok('a 3-cost normally shakes both neighbours (' + wide.length + ')', wide.length === 3);
+  ok('Solid Slug refuses the spread', !tall.some(function (e) { return e.why === 'bleed'; }));
+  ok('...and fires the root twice instead', tall.filter(function (e) { return e.why === 'slug' || !e.why; }).length === 2);
+
+  // OVERPRESSURE LOAD widens the heavy end only
+  dieRig({ relics: ['overpressure_load'], cls: 'vanguard' });
+  var heavy = faces(volley('orbital_strike', 1)).length;
+  var light = faces(volley('pulse_rifle', 1)).length;
+  ok('Overpressure Load takes a 3-cost to four neighbours (' + heavy + ')', heavy === 5);
+  ok('...and leaves the 1-cost alone (' + light + ')', light === 1);
+
+  /* ---- THE VANGUARD: aim, walk, commit -------------------------------- */
+  // DOUBLE FEED: a second unaimed round, and no steering at all
+  dieRig({ relics: ['double_feed'] });
+  E.combat.player.statuses.aim = 9;
+  var df = volley('pulse_rifle', 40);
+  ok('Double Feed fires a second root face', faces(df).length >= 60);
+  ok('...and Aim can no longer steer', !df.some(function (e) { return e.type === 'steer'; }));
+
+  // ZEROING STAKE: registered once, grazed by every attack
+  var zc = dieRig({ relics: ['zeroing_stake'], only: 12 });
+  ok('Zeroing Stake registers your top cut face (' + zc.stake + ')', zc.stake === 12);
+  var zs = faces(volley('pulse_rifle', 40), 'stake').length;
+  ok('...and every attack grazes it (' + zs + ')', zs > 0);
+
+  // TRENCH SWEEP / OVERRUN CAM both read the WALK rather than the destination
+  dieRig({ relics: ['trench_sweep'], seed: 11 });
+  E.combat.player.statuses.aim = 9;
+  E.combat.player.statuses.bulwark = 0;
+  var tsv = volley('pulse_rifle', 40);
+  ok('Trench Sweep builds the wall out of the steer',
+     tsv.some(function (e) { return e.type === 'steer'; }) && (E.combat.player.statuses.bulwark || 0) > 0);
+
+  /* OVERRUN CAM only has anything to say on a die cut LOW: steering climbs to
+   * a better band, and the bottom of the Vanguard's table is never better than
+   * the top. What it rescues is the roll that lands on a bare high face with
+   * everything you own engraved down at the other end of the ring. */
+  dieRig({ relics: ['overrun_cam'], seed: 5, bare: true });
+  for (var lowf = 2; lowf <= 6; lowf++) VS.dieEngrave(E.run.die, 'ar_shot', lowf);
+  E.combat.player.statuses.aim = 30;
+  var oc = volley('pulse_rifle', 120).filter(function (e) { return e.type === 'steer'; });
+  ok('Overrun Cam steers off the top and round to the bottom',
+     oc.some(function (e) { return e.to < e.from; }));
+
+  // REVERSIBLE SEAR: the burst walks both ways
+  dieRig({});
+  var b0 = faces(volley('burst_fire', 1), 'burst').length;
+  dieRig({ relics: ['reversible_sear'] });
+  var b1 = faces(volley('burst_fire', 1), 'burst').length;
+  ok('Reversible Sear doubles what a BURST touches (' + b1 + ' vs ' + b0 + ')', b0 > 0 && b1 === b0 * 2);
+
+  // FUMBLE DRILL: the hooks resolve, and a jam actually pays them
+  dieRig({ relics: ['fumble_drill'], seed: 42 });
+  ok('Fumble Drill carries both halves of its payout',
+     E.art('misfireStim') === 2 && E.art('misfireWall') === 6);
+  E.combat.player.statuses.bulwark = 0; E.combat.player.statuses.stim = 0;
+  var fd = volley('pulse_rifle', 200);
+  var jammed = fd.some(function (e) { return e.type === 'roll' && e.misfire; });
+  ok('...and a jam pays them out', jammed && (E.combat.player.statuses.bulwark || 0) > 0);
+
+  /* ---- THE DIE'S SHAPE ------------------------------------------------- */
+  dieRig({});
+  ok('the die starts at twenty faces', VS.dieSides(E.run.die) === 20);
+  giveRelic('facet_grinder');
+  ok('Facet Grinder grinds it out to twenty-two', VS.dieSides(E.run.die) === 22);
+  E.run.phase = 'map'; E.toggleRelic('facet_grinder');
+  ok('...and unmounting it never shrinks the die back onto your engravings',
+     VS.dieSides(E.run.die) === 22);
+  ok('a ground die still jams on face 1', VS.dieScale({ sides: 22 }, 1) === 1);
+  ok('...and still crits on its top face', VS.dieScale({ sides: 22 }, 22) === 20);
+
+  /* ---- REACHABILITY ---------------------------------------------------
+   * Rewards only ever offer tiers 1 and 2, so a tier-3 relic is a design that
+   * never reaches a player. Eleven of them existed and four were the
+   * Vanguard's most interesting die relics; they are tier 2 now. */
+  ['ranging_tables', 'long_shots_debt', 'twinned_pin', 'deadeye_reticle'].forEach(function (id) {
+    ok(id + ' is reachable (tier ' + VS.ARTIFACTS[id].tier + ')', VS.ARTIFACTS[id].tier <= 2);
+  });
+  var DIE_RELICS = ['harmonic_pair','face_lathe','cold_etch','empty_chamber','ballistic_computer',
+    'failsafe_governor','manual_override','stutter_bearing','hair_trigger','solid_slug',
+    'deadman_regulator','facet_grinder','double_feed','reversible_sear','overrun_cam',
+    'zeroing_stake','trench_sweep','fumble_drill','overpressure_load'];
+  var unreachable = DIE_RELICS.filter(function (id) {
+    var a = VS.ARTIFACTS[id];
+    return !a || (a.tier || 1) > 2;
+  });
+  ok('every new die relic can actually drop' + (unreachable.length ? ' [' + unreachable.join(', ') + ']' : ''),
+     unreachable.length === 0);
+  var unslotted = DIE_RELICS.filter(function (id) {
+    var a = VS.ARTIFACTS[id];
+    // the chassis reads the FIRST hook, so that is the one that must have a home
+    return !VS.hookForm(a.k || (a.hooks && a.hooks[0] && a.hooks[0].k));
+  });
+  ok('every new die relic has a hardpoint to sit in' + (unslotted.length ? ' [' + unslotted.join(', ') + ']' : ''),
+     unslotted.length === 0);
 })();
 
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));

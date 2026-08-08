@@ -974,6 +974,13 @@
     if (es > 0) c.player.statuses.echo = es;
     var vstart = art('vulnStart');
     if (vstart > 0) c.player.statuses.vuln = vstart;
+    /* ZEROING STAKE registers the top face you have actually cut, once, at the
+     * start of the fight. BALLISTIC COMPUTER draws the first number early so
+     * the readout has something to show before the first card is played. */
+    if (art('stakeFace') > 0 && r.die) {
+      for (var zf = ns.dieSides(r.die); zf > 1; zf--) if (ns.dieFaceId(r.die, zf)) { c.stake = zf; break; }
+    }
+    if (art('foresight') > 0 && r.die) c.nextRoll = ri(1, ns.dieSides(r.die));
     var aimS = art('aimStart');                       // RANGING WEDGE
     if (aimS > 0) addStatus(c.player, 'aim', aimS);
     var pa = art('platedArmorStart');
@@ -1331,6 +1338,8 @@
     c.turn++;
     c._cardsLastTurn = c.cardsThisTurn || 0;   // THE CLEAVER reads a slow turn
     c.cardsThisTurn = 0;
+    c.failsafeUsed = false;      // FAILSAFE GOVERNOR re-arms each turn
+    c.stakeUsed = false;         // ZEROING STAKE fires on the first attack only
     c.enemies.forEach(function (e) { if (e.def.plated) e.platedReady = true; });   // Reactive Plating re-arms each turn
     c.nonAttacksThisTurn = 0;   // Recoilless Frame: per-turn non-attack limit
     c.turnDamage = 0;           // damage dealt this turn
@@ -2127,6 +2136,7 @@
      * not be attributed back. `ev` is pushed by reference and the UI drains
      * after the whole card resolves, so filling it in below needs no second
      * event and cannot arrive out of order. */
+    c.lastFired = id;                       // COLD ETCH copies whatever went last
     var ev = { face: face, id: id, name: aug.name, flaw: !!aug.flaw, bleed: k < 1,
                why: why || null, taint: taint || null, seam: !!ns.dieSeamAt(r.die, face) };
     emit('dieFace', ev);
@@ -2143,6 +2153,23 @@
      * as normal, so a defensive turn still engages the die and a defensive
      * build is still worth cutting. It simply cannot attack for you. */
     var fxNow = k < 1 ? scaleFx(aug.fx, k) : aug.fx;
+    /* DOUBLE FEED's second round is a SHOT, not a trigger — the exact inverse
+     * of the skill rule below. It deals damage and nothing else.
+     *
+     * This is the third attempt at pricing it and the first that holds. Halving
+     * the effects did almost nothing (scaleFx floors every value at 1 and never
+     * touches Might). Cutting the spread did not hold either: measured at 1.62x
+     * total damage, because the faces this die is cut with hand out Stim and
+     * Aim, and the Vanguard's damage SCALES on Stim. A second roll every attack
+     * was not adding a face — it was compounding the stat that multiplies every
+     * face after it. Damage only breaks the loop and leaves the relic doing the
+     * one thing its name promises. */
+    if (c.twinFeed) {
+      fxNow = fxNow.filter(function (f) {
+        return f.k === 'dmg' || (f.k === 'special' && DMG_SPECIALS[f.id]);
+      });
+      if (!fxNow.length) return false;
+    }
     if (c.faceNoDmg) {
       // the damaging SPECIALS count too — a Shield card should not be
       // detonating your wall into the room either
@@ -2176,10 +2203,21 @@
   function fireDieFace(face, tgt) {
     var r = E.run, c = E.combat;
     if (!r || !r.die || !c || c.over) return;
+    /* COLD ETCH: the die finishes itself. The first bare face you roll each
+     * combat takes a copy of whatever fired last, which turns a half-cut die
+     * from a run that went badly into a build you can lean on. Cold, not
+     * struck: it is scrubbed again when the fight ends. */
+    if (art('coldEtch') > 0 && c.etched == null && c.lastFired && !ns.dieFaceId(r.die, face)
+        && !ns.dieCanEngrave(r.die, c.lastFired, face)) {
+      ns.dieEngrave(r.die, c.lastFired, face);
+      c.etched = face;
+      emit('relic', { id: 'cold_etch', v: face });
+    }
     // DISTRIBUTION FRAME routes the charge past the face you rolled
     var lit = fireOneFace(face, tgt, art('rootHalf') > 0 ? 0.5 : 1);
     // SUBSTATION remembers the first face to fire this turn and re-fires it later
     if (lit && art('faceEcho') > 0 && c.echoFace == null) c.echoFace = face;
+    if (!lit && art('blankDraw') > 0) drawCards(art('blankDraw'));      // EMPTY CHAMBER
     if (!lit && art('bareRefund') > 0) {                                // DRY FIRE
       c.energy += art('bareRefund');
       addStatus(c.player, 'stim', art('bareRefund'));
@@ -2191,6 +2229,46 @@
     // profile moved (median sector 4 -> 7 in simulation).
     if (!lit) return;
     if (ns.dieTaintAt(r.die, face) === 'dead_short') return;   // the seam is broken
+    // DOUBLE FEED's second round does not chain either — see fireSlot above.
+    if (c.twinFeed) return;
+    /* STUTTER BEARING. Nothing in the pool rewarded the flat middle of the
+     * curve — every die relic paid at the tails. A die worn into a groove
+     * pays for repetition instead, which is the one thing a d20 does not
+     * normally give you a reason to want. */
+    if (art('stutter') > 0 && c.lastLanded === face) fireOneFace(face, tgt, 1, 'stutter');
+    c.lastLanded = face;
+    /* HARMONIC PAIR. The first relic that reads the LAYOUT rather than the
+     * roll: two of the same engraving side by side answer each other. It costs
+     * you a face to build and it cannot be lucked into. */
+    var twinned = false;
+    if (art('twinFire') > 0) {
+      var myId = ns.dieFaceId(r.die, face);
+      if (myId) ns.dieNeighbours(r.die, face).forEach(function (nf) {
+        if (c.over || ns.dieFaceId(r.die, nf) !== myId) return;
+        fireOneFace(nf, tgt, 1, 'twin', face);
+        twinned = true;
+      });
+    }
+    /* A MATCHED PAIR CONSUMES THE CHAIN. Twinning on top of the ordinary spread
+     * measured 2.05x total damage on a die cut entirely in pairs — against 1.51x
+     * for Resonance Cascade on the same die, and Cascade is this pool's
+     * deliberate ceiling. Firing a whole second face at FULL is already worth
+     * four neighbours at the quarter-strength bleed, so it should be instead of
+     * the spread rather than as well as. */
+    if (twinned) return;
+    /* SOLID SLUG. Everything into one face. Deliberately the rival of
+     * Resonance Cascade rather than a companion to it — a tall die against a
+     * wide one, and mounting both gets you the tall one only. */
+    if (art('noSpreadDouble') > 0) {
+      /* Only for a card that HAD a spread to give up. Firing the root twice on
+       * a 1-cost was a free extra face rather than a trade — measured 1.28x
+       * total damage, above the deliberately-large Resonance Cascade at 1.24x
+       * — because a cheap card never spreads in the first place. */
+      if ((c.lastPlayCost == null ? 3 : c.lastPlayCost) + art('bleedReach') >= 2) {
+        fireOneFace(face, tgt, 1, 'slug');
+      }
+      return;
+    }
     /* A SMALL DIE DOES NOT BLEED. The splash reaches a fixed NUMBER of faces,
      * which is 10% of a d20 and 33% of a d6 — so on the guard every roll fired
      * its face plus both neighbours, and with six identical faces that came out
@@ -2223,6 +2301,11 @@
     var spread = ns.dieNeighbours(r.die, face);
     var costNow = c.lastPlayCost == null ? 3 : c.lastPlayCost;
     var reach = costNow + art('bleedReach');
+    // HAIR TRIGGER. The 2-cost spread (one neighbour, upward) rather than the
+    // 3-cost one: handing a 1-cost the full both-sides splash measured 1.29x
+    // total damage off a single hardpoint, which is a chain relic pretending
+    // to be a floor-raiser.
+    if (art('cheapReach') > 0 && costNow <= 1) reach = 2 + art('bleedReach');
     if (reach <= 1) return;
     if (reach === 2) spread = [ns.dieStep(face, 1, r.die)];
     spread.forEach(function (f) {
@@ -2238,6 +2321,16 @@
       fireOneFace(f, tgt, k, weld ? 'weld' : 'bleed', face);
       fireListeners('neighbour', { face: f, tgt: tgt });
     });
+    /* OVERPRESSURE LOAD: a heavy round shakes the whole neighbourhood at the
+     * ordinary bleed, not the half-strength spill Cascade Coupler gives. It
+     * only ever reads the top of the cost curve, which is the half of the
+     * deck that cost-bought spread was meant to make worth playing. */
+    if (art('heavyReach') > 0 && costNow >= 3) {
+      [-2, 2].forEach(function (d) {
+        if (c.over) return;
+        fireOneFace(ns.dieStep(face, d, r.die), tgt, bleed, 'bleed', face);
+      });
+    }
     // CASCADE COUPLER: the surge carries one ring further out, at half again.
     // Deliberately NOT a listener trigger — the outer pair is spill, not contact,
     // and letting it ring `neighbour` would double every adjacency build.
@@ -2786,6 +2879,16 @@
     /* PROTOCOLS LAND HERE. STEADY puts a floor under the roll, SIGHT pushes it
      * up the table. Both are consumed by the first roll that uses them — they
      * are aim, not a stance. */
+    /* BALLISTIC COMPUTER. The number is drawn one roll EARLY and shown above
+     * the die, so the card you pick is a response to the die instead of a bid
+     * against it. That is the whole relic — it adds no damage at all, and it
+     * is the most direct answer there is to a die that had started playing the
+     * deck for you. */
+    if (art('foresight') > 0 && !FLAT_DIE) {
+      if (c.nextRoll != null) roll = Math.min(_sides, c.nextRoll);
+      c.nextRoll = ri(1, _sides);
+      emit('foresee', { roll: c.nextRoll });
+    } else if (c.nextRoll != null) c.nextRoll = null;
     if (c.pendFloor > 0) {
       var flr = Math.max(1, Math.round(c.pendFloor * _sides / ns.DIE.faces));
       if (roll < flr) roll = flr;
@@ -2804,8 +2907,21 @@
     if (roll === 1 && art('rerollOnes') > 0) roll = d20();          // COUNTERWEIGHT
     if (art('rollAdv') > 0) roll = Math.max(roll, d20());           // DEADEYE RETICLE
     if (roll < 8 && art('rerollSag') > 0) roll = d20();             // HOT SPARE
+    // FAILSAFE GOVERNOR: one jam a turn is a mistake, two is the die talking
+    if (art('misfireReroll') > 0 && !c.failsafeUsed
+        && ns.dieScale(r.die, roll) <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden'))) {
+      roll = ri(1, _sides);
+      c.failsafeUsed = true;
+      emit('relic', { id: 'failsafe_governor', v: roll });
+    }
     c.rollNo = (c.rollNo || 0) + 1;
     if (art('everyThird') > 0 && c.rollNo % 3 === 0) roll = 20;     // RANGING TABLES
+    /* MANUAL OVERRIDE: the opening roll of a combat is not a roll. It lands on
+     * the top face you have actually cut, which makes "cut high" a plan rather
+     * than a hope and gives every fight a guaranteed first beat. */
+    if (art('openHigh') > 0 && c.rollNo === 1) {
+      for (var ohf = _sides; ohf > 1; ohf--) if (ns.dieFaceId(r.die, ohf)) { roll = ohf; break; }
+    }
     /* MARKSMANSHIP STEERS. For a class whose table says `steer`, Aim is not
      * added to the roll — it MOVES the die. It climbs (or dives, under Steady
      * Hands) to the furthest ENGRAVED face it can reach, spends 1 Aim a face,
@@ -2829,21 +2945,31 @@
          * magazine for the cashout. */
         var hereCut = !!ns.dieFaceId(r.die, roll);
         var hereBand = bandFor(dread, roll, roll);
+        // OVERRUN CAM is the one thing allowed to break the no-wrap rule above
+        var wrapOK = art('wrapSteer') > 0;
         for (var st = 1; st <= capF; st++) {
-          var sf = roll + (dive ? -st : st);
-          if (sf > ns.dieSides(r.die) || sf < 2) break;
+          var sf = wrapOK ? ns.dieStep(roll, dive ? -st : st, r.die) : roll + (dive ? -st : st);
+          if (wrapOK) { if (sf === 1) continue; }          // never steer onto the jam
+          else if (sf > ns.dieSides(r.die) || sf < 2) break;
           if (!ns.dieFaceId(r.die, sf)) continue;
           if (hereCut) {
             var thereBand = bandFor(dread, sf, sf);
             if (!thereBand || !hereBand || thereBand.mult <= hereBand.mult) continue;
           }
-          steered = { face: sf, spent: st };
+          steered = { face: sf, spent: st, over: wrapOK && (dive ? sf > roll : sf < roll) };
         }
       }
       if (steered) {
         addStatus(p, 'aim', -steered.spent);
         emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') });
         emit('steer', { from: roll, to: steered.face, spent: steered.spent });
+        // OVERRUN CAM: you went over the top, so the top fires on the way past
+        if (steered.over) c.overrunFace = dive ? 2 : ns.dieSides(r.die);
+        // TRENCH SWEEP: the wall is built by the walk, not by the destination
+        if (art('steerWall') > 0) {
+          addStatus(p, 'bulwark', wallGain(steered.spent * art('steerWall')));
+          emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') });
+        }
       }
     }
     var landed = steered ? steered.face : roll;
@@ -2867,6 +2993,11 @@
       // THE DEVOURING: the Adept's table is a U, so his crit is too. The bottom
       // of the die bites as hard as the top — but only where it has not jammed.
       if (!misfire && art('lowCrit') > 0 && roll <= art('lowCrit')) crit = true;
+      /* DEADMAN REGULATOR takes BOTH tails off the table. A relic that only
+       * deleted the misfire would be a strict upgrade and therefore not a
+       * decision; giving up the crit is what makes flattening the curve a
+       * build for a deck that would rather be reliable than lucky. */
+      if (art('noTails') > 0) { misfire = false; crit = false; }
       if (misfire && art('critDie1Energy') > 0) c.energy += art('critDie1Energy');   // Misfire Capacitor
       if (misfire) {   // MISFIRE PROTOCOL turns a jam into fuel
         // MISFIRE PROTOCOL pays in AIM now: a jam is the one roll steering
@@ -2885,6 +3016,15 @@
         // TRIP COIL / SACRIFICIAL FUSE: a tripped breaker is never dead weight
         if (art('breakerBlock') > 0) gainBlock(art('breakerBlock'));
         if (art('breakerEnergy') > 0) c.energy += art('breakerEnergy');
+        // FUMBLE DRILL: the Vanguard's worst roll, drilled into a routine
+        if (art('misfireStim') > 0) {
+          addStatus(p, 'stim', art('misfireStim'));
+          emit('status', { who: 'player', s: 'stim', v: statN(p, 'stim') });
+        }
+        if (art('misfireWall') > 0) {
+          addStatus(p, 'bulwark', wallGain(art('misfireWall')));
+          emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') });
+        }
       }
       // The bottom of the table is where the classes part ways: a misfire is the
       // Vanguard's wasted shot, the Technomancer's tripped breaker and the
@@ -2987,6 +3127,38 @@
         c.faceNoDmg = (def.type !== 'attack');   // only an attack lets a face hit
         c.lastPlayCost = cost;                   // and the cost buys the spread
         if (!NO_DIE) fireDieFace(lands, tgt);
+        // OVERRUN CAM: the steer went over the top, so the top fired on the way
+        if (c.overrunFace != null) {
+          if (!c.over) fireOneFace(c.overrunFace, tgt, 1, 'relay', lands);
+          c.overrunFace = null;
+        }
+        /* ZEROING STAKE: a face registered before the fight starts, grazed by
+         * every attack wherever you actually land. It is the Vanguard's answer
+         * to a die he cannot always reach — you pick the target once and the
+         * die stops being the only thing that decides. */
+        if (art('stakeFace') > 0 && def.type === 'attack' && c.stake && c.stake !== lands
+            && !c.stakeUsed && !c.over) {
+          /* THE FIRST attack each turn, not every one. Grazing the top face on
+           * every card measured 1.45x total damage, because the stake is by
+           * definition the biggest engraving you own and a 1-cost normally
+           * reaches nothing at all. Once a turn it is a plan; once a card it
+           * is a second die. */
+          c.stakeUsed = true;
+          fireOneFace(c.stake, tgt, Math.min(1, B.dice.bleed + art('bleedPct')), 'stake', lands);
+        }
+        /* DOUBLE FEED: a second, unaimed round. It trades away steering — the
+         * class's whole verb — for volume, which is the kind of relic a
+         * three-slot loadout is for. */
+        if (art('twinRoll') > 0 && def.type === 'attack' && !NO_DIE && !c.over) {
+          /* The second round does not chain — see fireDieFace. A full second
+           * roll measured 1.50x total damage off one hardpoint, half again as
+           * much as Resonance Cascade, which is this pool's deliberate ceiling. */
+          var second = ri(1, ns.dieSides(r.die));
+          emit('relic', { id: 'double_feed', v: second });
+          c.twinFeed = true;
+          fireDieFace(second, tgt);
+          c.twinFeed = false;
+        }
         /* BURST N — the multi-shot. The card fires the face it landed on and
          * the next N-1 round the ring, decaying, in the direction the CARD
          * states. Unlike steering this DOES wrap, because a burst is adjacency
@@ -3003,8 +3175,10 @@
           var lp = statN(p, 'burstWall');      // LOOPHOLE: the burst builds the wall
           for (var bi = 1; bi < bn; bi++) {
             if (c.over) break;
-            fireOneFace(ns.dieStep(lands, bdir * bi), tgt,
-                        bmul[Math.min(bi, bmul.length - 1)] * (1 + art('burstBoost')), 'burst', lands);
+            var bk = bmul[Math.min(bi, bmul.length - 1)] * (1 + art('burstBoost'));
+            fireOneFace(ns.dieStep(lands, bdir * bi), tgt, bk, 'burst', lands);
+            // REVERSIBLE SEAR: the burst walks both ways round the ring at once
+            if (art('burstBack') > 0 && !c.over) fireOneFace(ns.dieStep(lands, -bdir * bi), tgt, bk, 'burst', lands);
             if (lp > 0) addStatus(p, 'bulwark', wallGain(lp));
           }
           if (lp > 0 && bn > 1) emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') });
@@ -3786,6 +3960,23 @@
   E.randomArtifact = randomArtifact;
 
   // Flip a relic on/off — only allowed between fights, on the star chart.
+  /* FACET GRINDER grows the die. GROWTH ONLY, deliberately: unmounting it
+   * would otherwise strand whatever you had engraved on the new faces, and a
+   * relic that silently destroys your build when you swap loadouts is a trap.
+   * So the grind is permanent and the hardpoint is yours again afterwards —
+   * the relic is the act, not a passive. */
+  function syncDieSides() {
+    var r = E.run;
+    // `run.dice` only exists for a rack; every other class has the one die.
+    // Either way it is the FIRST barrel that grows — a guard d6 is small on
+    // purpose and grinding faces into it would undo the trade it exists for.
+    var d0 = (r && r.dice && r.dice[0]) || (r && r.die);
+    if (!d0) return;
+    var want = ns.DIE.faces + art('extraFaces');
+    if (want > ns.dieSides(d0)) { d0.sides = want; emit('dieGrew', { sides: want }); }
+  }
+  E.syncDieSides = syncDieSides;
+
   E.toggleRelic = function (id) {
     var r = E.run;
     if (!r || r.phase !== 'map') return false;
@@ -3793,6 +3984,7 @@
     if (r.relicUses && r.relicUses[id] != null && r.relicUses[id] <= 0) return false; // spent: can't re-enable
     r.relicOff = r.relicOff || {};
     r.relicOff[id] = !r.relicOff[id];
+    E.syncDieSides();
     E.save();
     return true;
   };
@@ -3831,6 +4023,7 @@
       if (isFrame) { if (d.frame.indexOf(id) < 0) d.frame.push(id); }
       else if (d.core.indexOf(id) < 0 && d.core.length < (d.coreSlots || ns.DIE.coreSlotsStart)) d.core.push(id);
     }
+    E.syncDieSides();          // FACET GRINDER cuts the moment it is mounted
     emit('artifact', { id: id });
   }
   E.addArtifact = addArtifact;
@@ -3860,6 +4053,8 @@
 
   function winCombat() {
     var r = E.run, kind = E.combat.kind, cc = E.combat;
+    // COLD ETCH is cold: the copy it struck lasts the fight and no longer
+    if (cc.etched != null && r.die) { ns.dieScrub(r.die, cc.etched); cc.etched = null; }
     /* THE CORNERSTONE forged a tier per Recurrence loop cleared, which with the
      * loop gone would mean it never forged at all. It grows per SECTOR BOSS
      * felled now, so it still reaches tier 4 — inside a single run, where the
@@ -5460,7 +5655,16 @@
    * ---------------------------------------------------------------------- */
   E.benchOpen = function () { var r = E.run; return !!(r && r.shop && r.phase === 'shop'); };
   E.grindCost = function () { var r = E.run; return (r && r.grindCost != null) ? r.grindCost : B.dieShop.grindCost; };
-  E.reseatCost = function () { return Math.round(B.dieShop.reseatCost * (E.pressureMods().shopCost || 1)); };
+  E.reseatCost = function () {
+    if (art('freeReseat') > 0) return 0;             // FACE LATHE
+    return Math.round(B.dieShop.reseatCost * (E.pressureMods().shopCost || 1));
+  };
+  // Whether the one-per-shop jig has been used up. FACE LATHE never spends it,
+  // so every reader has to ask this rather than the raw flag.
+  E.jigSpent = function () {
+    var r = E.run;
+    return !!(r && r.shop && r.shop.reseatUsed) && art('freeReseat') <= 0;
+  };
 
   // Buy engraving `i` and cut it straight into `face`. Returns null on success,
   // else a reason string (the UI toasts it verbatim).
@@ -5506,10 +5710,15 @@
   E.shopReseat = function (from, to) {
     var r = E.run;
     if (!E.benchOpen()) return 'the bench is closed';
-    if (r.shop.reseatUsed) return 'the jig is already reset';
+    // FACE LATHE: the jig is free and never spent, so a misplaced engraving
+    // stops being permanent. Reseating was the one die operation you could do
+    // exactly once a shop, which made every draft pick a guess you had to live
+    // with for the rest of the run.
+    var lathe = art('freeReseat') > 0;
+    if (!lathe && r.shop.reseatUsed) return 'the jig is already reset';
     var slot = r.die && r.die.faces[from];
     if (!slot) return 'that face is bare';
-    var cost = E.reseatCost();
+    var cost = lathe ? 0 : E.reseatCost();
     if (r.credits < cost) return 'not enough credits';
     var id = slot.id, root = slot.root;
     if (to === root) return 'already seated there';
@@ -5526,7 +5735,7 @@
       return why;
     }
     r.credits -= cost;
-    r.shop.reseatUsed = true;
+    if (!lathe) r.shop.reseatUsed = true;
     E.save();
     return null;
   };

@@ -968,6 +968,12 @@
       // Statuses (buffs/powers/debuffs) now live on the on-figure Dual-Rail bar.
       // The HUD only keeps Fusion-Charge timers, which aren't stack statuses.
       var chips = '';
+      /* BALLISTIC COMPUTER. The relic's entire effect is this chip: it prints
+       * the number BEFORE you choose a card, so the choice is a response to
+       * the die instead of a bid against it. Nothing else about it exists. */
+      if (c.nextRoll != null) {
+        chips += '<span class="status-chip primed" title="Ballistic Computer — your next roll">◈ NEXT ' + c.nextRoll + '</span>';
+      }
       (c.primed || []).forEach(function (pr) {   // armed delayed detonations (Fusion Charge)
         chips += '<span class="status-chip primed">⏱ ' + pr.dmg + ' in ' + pr.turns + '</span>';
       });
@@ -1596,8 +1602,11 @@
      * are all listed anyway, which is the whole of what there is to know. */
     if (ns.dieSides(die) !== ns.DIE.faces) {
       stage.style.display = 'none';
+      var _sd = ns.dieSides(die);
       pane.appendChild(el('div', 'die-small-note',
-        'A d' + ns.dieSides(die) + ' — six faces, and every one of them is above.'));
+        _sd < ns.DIE.faces
+          ? 'A d' + _sd + ' — ' + _sd + ' faces, and every one of them is above.'
+          : 'GROUND OUT TO ' + _sd + ' FACES — past what an icosahedron can be. Every face is listed above.'));
     }
     var info = el('div', 'die-info');
     pane.appendChild(info);
@@ -1867,8 +1876,12 @@
           h += '<span class="ws-hint">' + flaws.length + ' FLAW' + (flaws.length > 1 ? 'S' : '') + ' ON THE DIE — SELECT ONE TO GRIND IT OUT</span>';
         }
         if (d) {
-          h += '<button class="ws-btn wide' + (r.shop.reseatUsed || r.credits < E.reseatCost() ? ' bad' : '') + (moving != null ? ' arming' : '') + '" data-move="' + root + '">'
-            +  (r.shop.reseatUsed ? 'JIG RESET' : moving != null ? 'CANCEL MOVE' : 'RESEAT · ¢' + E.reseatCost()) + '</button>';
+          // FACE LATHE makes the jig free and unspendable, so both the cost and
+          // the spent state have to come from the engine rather than the flag.
+          var jigOut = E.jigSpent();
+          h += '<button class="ws-btn wide' + (jigOut || r.credits < E.reseatCost() ? ' bad' : '') + (moving != null ? ' arming' : '') + '" data-move="' + root + '">'
+            +  (jigOut ? 'JIG RESET' : moving != null ? 'CANCEL MOVE'
+                : 'RESEAT' + (E.reseatCost() ? ' · ¢' + E.reseatCost() : ' · LATHE')) + '</button>';
         }
         h += '</div>';
         if (!d && !flaws.length) h += '<div class="ws-hint">SELECT AN ENGRAVED FACE FOR THE GRINDER OR THE JIG.</div>';
@@ -1962,7 +1975,7 @@
       var mb = shop.querySelector('[data-move]');
       if (mb) mb.addEventListener('pointerdown', function (ev) {
         ev.stopPropagation(); SFX.tap();
-        if (r.shop.reseatUsed) { toast('THE JIG IS ALREADY RESET', 1600); return; }
+        if (E.jigSpent()) { toast('THE JIG IS ALREADY RESET', 1600); return; }
         if (r.credits < E.reseatCost()) { toast('NOT ENOUGH CREDITS', 1400); return; }
         moving = (moving != null) ? null : +mb.dataset.move; buying = null;
         renderAll(false, false);
@@ -4335,6 +4348,10 @@
           })(e, delay);
           delay += 90;
           break;
+        case 'foresee':
+          // the Ballistic Computer has drawn the NEXT number; repaint the chip
+          setTimeout(function () { updateHUD(); }, delay);
+          break;
         case 'roll':
           /* THE SOLID LANDS HERE, not on `cardPlayed`. `cardPlayed` is processed
            * at delay 0 while the chain links start ~90ms later, so a landing
@@ -5135,7 +5152,7 @@
       go.textContent = sel == null ? '' : 'CONFIRM FACE ' + sel;
     }
 
-    for (var f = 1; f <= 20; f++) {
+    for (var f = 1; f <= ns.dieSides(r.die); f++) {
       (function (face) {
         var slot = r.die.faces[face];
         var def = slot ? ns.dieEngraving(r.die.faces[slot.root].id) : null;
@@ -5194,7 +5211,7 @@
       });
     } else {
       var grid = el('div', 'face-grid bet-grid');
-      for (var f = 1; f <= 20; f++) {
+      for (var f = 1; f <= ns.dieSides(r.die); f++) {
         (function (face) {
           var cell = el('div', 'fc can');
           cell.innerHTML = '<span class="fc-n">' + face + '</span>';
@@ -5409,7 +5426,7 @@
     var svc = [];
     if (stock.length) svc.push(stock.length + ' ENGRAVING' + (stock.length > 1 ? 'S' : '') + ' IN THE CASE');
     if (dieFlaws && !sh.grindUsed) svc.push('GRIND OUT A FLAW · ¢' + E.grindCost());
-    if (!sh.reseatUsed) svc.push('RESEAT ONE · ¢' + E.reseatCost());
+    if (!E.jigSpent()) svc.push(E.reseatCost() ? 'RESEAT ONE · ¢' + E.reseatCost() : 'RESEAT FREELY · FACE LATHE');
     var bb = el('div', 'panel-btn green', '<div class="pb-title"><span class="pb-icon">' + dieChipSVG() + '</span>THE BENCH</div>'
       + '<div class="pb-desc">' + esc(svc.join(' · ') || 'Nothing on offer for the die.') + '</div>');
     bb.addEventListener('pointerdown', function (ev) {
@@ -6269,6 +6286,8 @@
     var who = function (w, idx) { return w === 'player' ? 'YOU' : enemyName(idx); };
     switch (r.t) {
       case 'turnStart': return { cls: 'lg-turn', s: '── TURN ' + r.turn + ' ──' };
+      case 'foresee': return { cls: 'lg-roll', s: 'NEXT ROLL WILL BE ' + r.roll };
+      case 'dieGrew':  return { cls: 'lg-roll', s: 'THE DIE IS GROUND OUT TO ' + r.sides + ' FACES' };
       case 'roll': {
         var bits = 'ROLL ' + r.roll;
         if (r.eff !== r.roll) bits += ' (+' + (r.eff - r.roll) + ' aim → ' + r.eff + ')';

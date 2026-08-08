@@ -37,6 +37,15 @@
   ns.dieScale = function (die, face) {
     var n = ns.dieSides(die);
     if (n === ns.DIE.faces) return face;
+    /* A GROUND DIE STILL JAMS. FACET GRINDER adds faces, and the small-barrel
+     * formula below maps face 1 onto 2 — which would have quietly deleted the
+     * misfire as a side effect of buying more room to cut. A bigger die is the
+     * same table stretched, not a safer one: face 1 is still the jam, the top
+     * face is still 20, and every face you already owned is now a slightly
+     * narrower slice of the roll. That last part is the cost. */
+    if (n > ns.DIE.faces) {
+      return Math.min(ns.DIE.faces, Math.max(1, Math.round(1 + (face - 1) * (ns.DIE.faces - 1) / (n - 1))));
+    }
     /* A SMALL BARREL DOES NOT JAM. Mapping a d6's face 1 onto the d20's face 1
      * gave it a 1-in-6 misfire against the big die's 1-in-20 — three times the
      * jam rate, on the dice you are meant to lean on. Measured, it cost the

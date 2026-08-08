@@ -127,6 +127,58 @@
       hooks: [{ k: 'bleedReach', v: 1 }, { k: 'bleedPct', v: 0.35 }],
       desc: 'Every card carries one step further into the die, and every step lands more than twice as hard.',
       art: { p: [[-0.8,0, -0.5,-0.4], [-0.5,-0.4, -0.2,0.4], [-0.2,0.4, 0.1,-0.5], [0.1,-0.5, 0.4,0.5], [0.4,0.5, 0.7,-0.3], [0.7,-0.3, 0.9,0.1]], e: [[-0.8,0],[0.9,0.1]] } },
+    /* ============ THE DIE AS AN OBJECT ============
+     * Twenty-odd relics already touch ROLLING (reroll, advantage, bonuses) and
+     * BANDS (crit and misfire windows). Three parts of the die had nothing at
+     * all: the LAYOUT (what sits next to what), the die's MEMORY (it never
+     * cared what you rolled last) and BLANK faces (a dead roll, so there was
+     * never a reason to run a sparse die). These are those three.
+     *
+     * All tier 2 or 1 on purpose. Rewards only ever offer tiers 1-2, so a
+     * tier-3 die relic is a design that never reaches a player. */
+    harmonic_pair: { name: 'Harmonic Pair', tier: 2, k: 'twinFire', v: 1,
+      desc: 'If two neighbouring faces carry the same engraving, rolling either fires both at full — but that roll does not spread.',
+      art: { p: [[-0.55,-0.6, -0.15,-0.6, -0.15,0.6, -0.55,0.6, -0.55,-0.6], [0.15,-0.6, 0.55,-0.6, 0.55,0.6, 0.15,0.6, 0.15,-0.6], [-0.15,-0.25, 0.15,-0.25], [-0.15,0.25, 0.15,0.25]], e: [[-0.35,0],[0.35,0]] } },
+    face_lathe: { name: 'Face Lathe', tier: 1, k: 'freeReseat', v: 1,
+      desc: 'The reseat jig at the bench is free and never spent. Move engravings as often as you like.',
+      art: { p: [[-0.8,0.45, 0.8,0.45], [-0.5,0.45, -0.5,-0.2, 0.1,-0.2, 0.1,0.45], [0.35,-0.5, 0.75,-0.5, 0.75,0.1, 0.35,0.1, 0.35,-0.5], [0.1,-0.2, 0.35,-0.2], [-0.2,-0.5, -0.2,-0.2]], e: [[-0.2,-0.58],[0.55,-0.2]] } },
+    cold_etch: { name: 'Cold Etch', tier: 2, k: 'coldEtch', v: 1,
+      desc: 'The first bare face you roll each combat takes a copy of the last engraving that fired, until the fight ends.',
+      art: { p: [[0,-0.75, 0,0.35], [-0.3,-0.45, 0,-0.75, 0.3,-0.45], [-0.5,0.35, 0.5,0.35], [-0.35,0.6, 0.35,0.6], [-0.62,-0.15, -0.42,-0.15], [0.42,-0.15, 0.62,-0.15]], e: [[0,0.35]] } },
+    empty_chamber: { name: 'Empty Chamber', tier: 2, k: 'blankDraw', v: 1,
+      desc: 'Rolling a bare face draws a card. An empty die is a hand instead of a wasted roll.',
+      art: { p: [[0,-0.7, 0.6,-0.35, 0.6,0.35, 0,0.7, -0.6,0.35, -0.6,-0.35, 0,-0.7], [-0.26,-0.26, 0.26,0.26], [0.26,-0.26, -0.26,0.26]], e: [] } },
+    ballistic_computer: { name: 'Ballistic Computer', tier: 2, k: 'foresight', v: 1,
+      desc: 'You always know what your next roll will be. It is printed above the die.',
+      art: { p: [[-0.7,-0.55, 0.7,-0.55, 0.7,0.3, -0.7,0.3, -0.7,-0.55], [-0.45,0.55, 0.45,0.55], [-0.3,0.3, -0.3,0.55], [0.3,0.3, 0.3,0.55], [-0.45,-0.3, -0.05,-0.3], [-0.25,-0.3, -0.25,0.05], [0.1,-0.3, 0.45,-0.3, 0.45,0.05, 0.1,0.05, 0.1,-0.3]], e: [] } },
+    failsafe_governor: { name: 'Failsafe Governor', tier: 2, k: 'misfireReroll', v: 1,
+      desc: 'The first roll each turn that would jam is rerolled once. The second one stands.',
+      art: { p: [[0,-0.62, 0.44,-0.36, 0.44,0.16, 0,0.42, -0.44,0.16, -0.44,-0.36, 0,-0.62], [0,-0.62, 0,-0.86], [-0.2,-0.78, 0,-0.86, 0.1,-0.66], [-0.6,0.5, 0.6,0.5], [-0.44,0.16, -0.6,0.5], [0.44,0.16, 0.6,0.5]], e: [[0,-0.1]] } },
+    manual_override: { name: 'Manual Override', tier: 2, k: 'openHigh', v: 1,
+      desc: 'The opening roll of every combat is not rolled — it lands on your highest engraved face.',
+      art: { p: [[-0.15,0.7, -0.15,-0.2, -0.4,-0.2, 0,-0.7, 0.4,-0.2, 0.15,-0.2, 0.15,0.7], [-0.65,0.7, 0.65,0.7]], e: [[0,-0.7]] } },
+    stutter_bearing: { name: 'Stutter Bearing', tier: 2, k: 'stutter', v: 1,
+      desc: 'Roll the same face twice in a row and it fires a third time, free.',
+      art: { p: [[0,-0.6, 0.52,-0.3, 0.52,0.3, 0,0.6, -0.52,0.3, -0.52,-0.3, 0,-0.6], [-0.22,-0.22, 0.22,-0.22, 0.22,0.22, -0.22,0.22, -0.22,-0.22], [-0.8,-0.15, -0.62,-0.15], [0.62,-0.15, 0.8,-0.15], [-0.8,0.15, -0.62,0.15], [0.62,0.15, 0.8,0.15]], e: [[0,0]] } },
+    /* THE CHAIN, BOTH DIRECTIONS. The spread is bought with the card's cost
+     * now, so these are the two ways to argue with that: pay the floor up, or
+     * refuse the spread entirely and put everything into one face. They are
+     * deliberately incompatible builds. */
+    hair_trigger: { name: 'Hair Trigger', tier: 2, k: 'cheapReach', v: 1,
+      desc: 'Your 0- and 1-cost cards spread as though they cost 2 — one neighbour, upward. Cheap decks chain again.',
+      art: { p: [[-0.6,0.35, -0.15,0.35, -0.15,-0.15, 0.25,-0.15], [-0.15,-0.15, -0.42,-0.5], [0.25,-0.15, 0.6,-0.15, 0.6,0.35], [-0.75,0.6, 0.75,0.6]], e: [[-0.42,-0.5],[0.6,0.35]] } },
+    solid_slug: { name: 'Solid Slug', tier: 2, k: 'noSpreadDouble', v: 1,
+      desc: 'Any roll that would spread does not — the face you land on fires twice instead. A tall die, not a wide one.',
+      art: { p: [[-0.3,0.65, -0.3,-0.15, 0,-0.6, 0.3,-0.15, 0.3,0.65, -0.3,0.65], [-0.3,0.3, 0.3,0.3], [-0.72,0.1, -0.52,0.1], [0.52,0.1, 0.72,0.1]], e: [[0,-0.6]] } },
+    deadman_regulator: { name: 'Deadman Regulator', tier: 2, k: 'noTails', v: 1,
+      desc: 'You can no longer misfire — and you can no longer crit. Both tails come off the table.',
+      art: { p: [[-0.8,0.3, -0.4,0.3, -0.15,-0.3, 0.15,-0.3, 0.4,0.3, 0.8,0.3], [-0.8,-0.5, -0.55,-0.5], [0.55,-0.5, 0.8,-0.5], [-0.68,-0.62, -0.68,-0.38], [0.68,-0.62, 0.68,-0.38]], e: [] } },
+    /* THE ONE THAT CHANGES THE DIE'S SHAPE. Growth only: toggling it off would
+     * otherwise strand whatever you had engraved on the new faces, so the grind
+     * is permanent and the slot is yours again afterwards. */
+    facet_grinder: { name: 'Facet Grinder', tier: 2, k: 'extraFaces', v: 2,
+      desc: 'Grinds two new bare faces into your die, permanently. More room to cut — and longer odds on every face you own.',
+      art: { p: [[0,-0.8, 0.55,-0.5, 0.7,0.1, 0.3,0.62, -0.3,0.62, -0.7,0.1, -0.55,-0.5, 0,-0.8], [-0.3,-0.3, 0.3,-0.3, 0.42,0.2, 0,0.45, -0.42,0.2, -0.3,-0.3], [0.55,-0.5, 0.3,-0.3], [-0.55,-0.5, -0.3,-0.3], [0.7,0.1, 0.42,0.2]], e: [[0.62,-0.68],[-0.62,-0.68]] } },
     counterweight: { name: 'Counterweight', tier: 2, cls: 'vanguard', k: 'rerollOnes', v: 1,
       desc: 'A natural 1 is rerolled once. Turns off anything you built on face 1.',
       art: { p: [[0,-0.7, 0.2,-0.3, 0,0.1, -0.2,-0.3, 0,-0.7], [-0.5,0.1, 0.5,0.1, 0.36,0.6, -0.36,0.6, -0.5,0.1], [-0.42,0.35, 0.42,0.35], [0,-0.7, 0,-0.86], [-0.66,0.1, -0.5,0.1], [0.66,0.1, 0.5,0.1]], e: [[0,-0.3],[0,0.48]] } },
@@ -139,13 +191,13 @@
     trench_ledger: { name: 'Trench Ledger', tier: 2, cls: 'vanguard', k: 'lowMight', v: 1,
       desc: 'Every roll under 6 grants 1 Stim.',
       art: { p: [[-0.4,-0.7, 0.4,-0.7, 0.5,-0.5, 0.5,0.6, -0.5,0.6, -0.5,-0.5, -0.4,-0.7], [-0.5,-0.36, 0.5,-0.36], [-0.34,-0.16, -0.34,0.16], [-0.18,-0.16, -0.18,0.16], [-0.02,-0.16, -0.02,0.16], [0.14,-0.16, 0.14,0.16], [-0.42,-0.2, 0.22,0.2], [-0.34,0.38, 0.34,0.38]], e: [[0,-0.82]] } },
-    ranging_tables: { name: 'Ranging Tables', tier: 3, cls: 'vanguard', k: 'everyThird', v: 1,
+    ranging_tables: { name: 'Ranging Tables', tier: 2, cls: 'vanguard', k: 'everyThird', v: 1,
       desc: 'Every third roll each combat is automatically a 20.',
       art: { p: [[-0.6,-0.6, 0.6,-0.6, 0.6,0.6, -0.6,0.6, -0.6,-0.6], [-0.6,-0.3, 0.6,-0.3], [-0.6,0.0, 0.6,0.0], [-0.6,0.3, 0.6,0.3], [-0.2,-0.6, -0.2,0.6], [0.2,-0.6, 0.2,0.6], [-0.86,-0.44, -0.6,-0.44], [0.86,0.44, 0.6,0.44]], e: [[0.4,0.45],[0.4,-0.15]] } },
     /* `rollBonus` added to the effective roll, which under steering IS the
      * landed face — so it moved your band without moving your die, and read as
      * a rule that contradicted the class. It buys travel now. */
-    long_shots_debt: { name: "The Long Shot's Debt", tier: 3, cls: 'vanguard',
+    long_shots_debt: { name: "The Long Shot's Debt", tier: 2, cls: 'vanguard',
       hooks: [{ k: 'steerCap', v: 2 }, { k: 'misfireWiden', v: 2 }],
       desc: 'Your Aim steers 2 faces further — but a misfire now triggers on 1-3.',
       art: { p: [[-0.86,0.3, 0.3,-0.4], [0.3,-0.4, 0.1,-0.36], [0.3,-0.4, 0.26,-0.2], [-0.5,-0.5, -0.5,-0.14], [-0.5,-0.5, -0.14,-0.5], [0.66,0.5, 0.66,0.14], [0.66,0.5, 0.3,0.5], [-0.3,0.5, 0.0,0.5]], e: [[0.5,-0.55],[-0.7,0.6]] } },
@@ -153,13 +205,41 @@
       hooks: [{ k: 'critWiden', v: 1 }, { k: 'bandShift', v: -1 }],
       desc: 'Crit on 19 as well as 20 — but every other band triggers 1 higher.',
       art: { p: [[-0.7,-0.3, 0.7,-0.3], [-0.7,0.2, 0.7,0.2], [-0.7,-0.3, -0.7,0.2], [0.7,-0.3, 0.7,0.2], [-0.5,-0.3, -0.34,0.2], [-0.1,-0.3, 0.06,0.2], [0.3,-0.3, 0.46,0.2], [0.7,-0.05, 0.86,-0.05]], e: [[0.9,-0.05]] } },
-    twinned_pin: { name: 'Twinned Firing Pin', tier: 3, cls: 'vanguard', k: 'burstPlusRelic', v: 2,
+    twinned_pin: { name: 'Twinned Firing Pin', tier: 2, cls: 'vanguard', k: 'burstPlusRelic', v: 2,
       desc: 'Your BURSTs walk 2 faces further.',
       art: { p: [[-0.24,-0.7, -0.24,0.4], [0.24,-0.7, 0.24,0.4], [-0.24,0.4, -0.16,0.66, 0.16,0.66, 0.24,0.4], [-0.4,-0.7, -0.08,-0.7], [0.08,-0.7, 0.4,-0.7], [-0.66,-0.1, -0.4,-0.1], [0.66,-0.1, 0.4,-0.1]], e: [[0,0.66],[-0.72,-0.1],[0.72,-0.1]] } },
-    deadeye_reticle: { name: 'Deadeye Reticle', tier: 3, cls: 'vanguard',
+    deadeye_reticle: { name: 'Deadeye Reticle', tier: 2, cls: 'vanguard',
       hooks: [{ k: 'rollAdv', v: 1 }, { k: 'maxHpPct', v: 0.15 }],
       desc: 'Roll twice and take the higher — paid for out of your Max HP.',
       art: { p: [[0,-0.86, 0,-0.4], [0,0.86, 0,0.4], [-0.86,0, -0.4,0], [0.86,0, 0.4,0], [-0.4,-0.4, 0.4,-0.4, 0.4,0.4, -0.4,0.4, -0.4,-0.4], [-0.16,-0.16, 0.16,-0.16, 0.16,0.16, -0.16,0.16, -0.16,-0.16], [-0.56,-0.56, -0.4,-0.4], [0.56,0.56, 0.4,0.4]], e: [[0,0]] } },
+
+    /* ---- VANGUARD: aim, walk, commit --------------------------------
+     * His verb is STEERING — the die moves, the number does not. So his die
+     * relics are about what the walk costs, how far it reaches, and what you
+     * get for giving it up entirely. */
+    double_feed: { name: 'Double Feed', tier: 2, cls: 'vanguard',
+      hooks: [{ k: 'twinRoll', v: 1 }, { k: 'steerCap', v: -99 }],
+      desc: 'Every attack rolls a second time. The second round deals damage only — it does not chain — and your Aim can no longer steer.',
+      art: { p: [[-0.35,-0.7, -0.35,0.5], [0.35,-0.7, 0.35,0.5], [-0.55,0.5, -0.15,0.5, -0.15,0.72, -0.55,0.72, -0.55,0.5], [0.15,0.5, 0.55,0.5, 0.55,0.72, 0.15,0.72, 0.15,0.5], [-0.35,-0.7, -0.62,-0.4], [0.35,-0.7, 0.62,-0.4]], e: [[-0.35,-0.7],[0.35,-0.7]] } },
+    reversible_sear: { name: 'Reversible Sear', tier: 2, cls: 'vanguard', k: 'burstBack', v: 1,
+      desc: 'Your BURSTs walk both ways around the die at once, not just forward.',
+      art: { p: [[-0.75,0, 0.75,0], [-0.75,0, -0.45,-0.28], [-0.75,0, -0.45,0.28], [0.75,0, 0.45,-0.28], [0.75,0, 0.45,0.28], [0,-0.55, 0,0.55]], e: [[0,-0.55],[0,0.55]] } },
+    overrun_cam: { name: 'Overrun Cam', tier: 2, cls: 'vanguard', k: 'wrapSteer', v: 1,
+      desc: 'Steering off the top of the die wraps around to the bottom — and the face you went over fires too.',
+      art: { p: [[0,-0.65, 0.56,-0.32, 0.56,0.32, 0,0.65, -0.56,0.32, -0.56,-0.32, 0,-0.65], [0,-0.86, 0.3,-0.6], [0,-0.86, -0.02,-0.5], [-0.25,0.15, 0.25,-0.15]], e: [[-0.25,0.15],[0.25,-0.15]] } },
+    zeroing_stake: { name: 'Zeroing Stake', tier: 2, cls: 'vanguard', k: 'stakeFace', v: 1,
+      desc: 'Your highest engraved face is staked at the start of each combat. Your first attack each turn grazes it, wherever you actually land.',
+      art: { p: [[0,0.75, 0,-0.45], [0,-0.45, 0.5,-0.6, 0.5,-0.15, 0,-0.3], [-0.4,0.75, 0.4,0.75], [-0.62,-0.6, -0.42,-0.6], [-0.62,-0.3, -0.42,-0.3]], e: [[0,-0.45]] } },
+    trench_sweep: { name: 'Trench Sweep', tier: 1, cls: 'vanguard', k: 'steerWall', v: 1,
+      desc: 'Every face your steer walks over grants 1 Bulwark. A long climb builds the wall on the way.',
+      art: { p: [[-0.85,0.45, -0.5,0.45, -0.5,0.05, -0.15,0.05, -0.15,-0.3, 0.2,-0.3, 0.2,-0.6, 0.85,-0.6], [-0.85,0.68, 0.85,0.68]], e: [[-0.5,0.45],[-0.15,0.05],[0.2,-0.3]] } },
+    fumble_drill: { name: 'Fumble Drill', tier: 1, cls: 'vanguard',
+      hooks: [{ k: 'misfireStim', v: 2 }, { k: 'misfireWall', v: 6 }],
+      desc: 'A jam grants 2 Stim and 6 Bulwark. The worst roll on the die becomes the one you drilled for.',
+      art: { p: [[-0.6,-0.55, 0.6,-0.55, 0.6,0.15, 0,0.65, -0.6,0.15, -0.6,-0.55], [-0.35,-0.3, 0.35,-0.3], [-0.2,-0.05, 0.2,-0.05], [-0.6,-0.75, 0.6,-0.75]], e: [[0,0.65]] } },
+    overpressure_load: { name: 'Overpressure Load', tier: 2, cls: 'vanguard', k: 'heavyReach', v: 1,
+      desc: 'Your 3-cost cards shake four faces instead of two. The heaviest rounds finally earn their price.',
+      art: { p: [[0,-0.5, 0,0.5], [-0.28,-0.42, -0.28,0.42], [0.28,-0.42, 0.28,0.42], [-0.56,-0.28, -0.56,0.28], [0.56,-0.28, 0.56,0.28], [-0.8,0.62, 0.8,0.62]], e: [[0,-0.5],[-0.56,-0.28],[0.56,-0.28],[-0.28,-0.42],[0.28,-0.42]] } },
 
     /* ---- TECHNOMANCER: relics that shape the die ---------------------
      * His table is LOAD BALANCE — the widest spread of the three, it scales

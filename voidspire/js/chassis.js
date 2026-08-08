@@ -215,6 +215,14 @@
     lowWiden:'governor', bleedSpan:'governor', bleedPct:'governor', bleedEnds:'governor',
     relayAll:'governor', bleedReach:'governor', extremeRelay:'governor', faceEcho:'governor', evenMirror:'governor',
     bankRoll:'governor', bareRefund:'governor', lowMight:'governor', everyThird:'governor',
+    // the die as an OBJECT: layout, memory, blank faces and its actual shape
+    twinFire:'governor', stutter:'governor', coldEtch:'governor', blankDraw:'governor',
+    noSpreadDouble:'governor', cheapReach:'governor', heavyReach:'governor', extraFaces:'governor',
+    freeReseat:'governor', stakeFace:'governor', twinRoll:'governor', burstBack:'governor',
+    wrapSteer:'governor', steerWall:'governor',
+    // the read: foresight, the failsafe and the flattened curve
+    foresight:'optic', misfireReroll:'ward', openHigh:'optic', noTails:'optic',
+    misfireStim:'ward', misfireWall:'ward',
     // blood
     hplossDmg:'phial', hplossPsi:'phial', lifestealPct:'phial', bloodrageStart:'phial',
     lowHeal:'phial', healOnKill:'phial', sectorHeal:'phial',
@@ -247,6 +255,10 @@
     }
     return FORMS[HOOK_FORM[k]] || FORMS.plate;
   };
+  // Which hardpoint a hook belongs to, or null if it has never been assigned
+  // one. Exported so the suite can assert that a new relic was actually given
+  // a home rather than silently falling through to the default plate.
+  ns.hookForm = function (k) { return HOOK_FORM[k] || null; };
 
   /* ====================== THE CHASSIS ================================= */
   function buildRifle() {
