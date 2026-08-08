@@ -107,6 +107,17 @@
     machined_barrel: { name: 'Sapper Charge', tier: 2, cls: 'vanguard', k: 'wallBurst', v: 1,
       desc: 'Detonating your Bulwark also stuns: all enemies gain 2 Vulnerable.',
       art: { p: [[-0.86,-0.2, 0.5,-0.2], [-0.86,0.1, 0.5,0.1], [-0.86,-0.2, -0.86,0.1], [-0.5,-0.2, -0.5,0.1], [-0.1,-0.2, -0.1,0.1], [0.3,-0.2, 0.3,0.1], [0.5,-0.3, 0.86,-0.3, 0.86,0.2, 0.5,0.2], [0.68,-0.3, 0.68,0.2], [-0.7,0.1, -0.7,0.5], [-0.3,0.1, -0.3,0.5], [-0.86,0.5, -0.14,0.5]], e: [[0.9,-0.05]] } },
+    /* THE SPREAD IS BOUGHT WITH COST NOW, so widening it is what a chain relic
+     * is FOR. The neighbour bleed used to be free, universal and the biggest
+     * multiplier in the game — moving the big chains here makes "ping ping
+     * ping" something you assemble rather than the background hum. */
+    shock_couplers: { name: 'Shock Couplers', tier: 2, k: 'bleedReach', v: 1,
+      desc: 'Every card carries one step further into the die. A 1-cost now shakes a neighbour; a 2-cost shakes both.',
+      art: { p: [[-0.7,0.2, -0.3,-0.3], [-0.3,-0.3, 0.1,0.3], [0.1,0.3, 0.5,-0.3], [0.5,-0.3, 0.8,0.1]], e: [[-0.7,0.2],[0.8,0.1]] } },
+    resonance_cascade: { name: 'Resonance Cascade', tier: 3,
+      hooks: [{ k: 'bleedReach', v: 1 }, { k: 'bleedPct', v: 0.35 }],
+      desc: 'Every card carries one step further into the die, and each step lands far harder.',
+      art: { p: [[-0.8,0, -0.5,-0.4], [-0.5,-0.4, -0.2,0.4], [-0.2,0.4, 0.1,-0.5], [0.1,-0.5, 0.4,0.5], [0.4,0.5, 0.7,-0.3], [0.7,-0.3, 0.9,0.1]], e: [[-0.8,0],[0.9,0.1]] } },
     counterweight: { name: 'Counterweight', tier: 2, cls: 'vanguard', k: 'rerollOnes', v: 1,
       desc: 'A natural 1 is rerolled once. Turns off anything you built on face 1.',
       art: { p: [[0,-0.7, 0.2,-0.3, 0,0.1, -0.2,-0.3, 0,-0.7], [-0.5,0.1, 0.5,0.1, 0.36,0.6, -0.36,0.6, -0.5,0.1], [-0.42,0.35, 0.42,0.35], [0,-0.7, 0,-0.86], [-0.66,0.1, -0.5,0.1], [0.66,0.1, 0.5,0.1]], e: [[0,-0.3],[0,0.48]] } },

@@ -2136,6 +2136,8 @@
     }
     return lit;
   }
+  // face effects that put damage on the board, by any route
+  var DMG_SPECIALS = { dieExecute:1, spall:1, breachWall:1, detonate:1, denseFace:1 };
   function fireSlot(face, slot, tgt, k, why) {
     var r = E.run, c = E.combat;
     var id = slot && slot.id;
@@ -2159,7 +2161,27 @@
     emit('dieFace', ev);
     var dread0 = E.dieRead(r.cls);
     var b0 = c.player.block, en0 = c.energy;
-    ev.dealt = applyCardFx(k < 1 ? scaleFx(aug.fx, k) : aug.fx,
+    /* A FACE ONLY DEALS DAMAGE WHEN AN ATTACK TRIGGERED IT. A Shield card
+     * landing on "deal 9 damage" never made sense, and mechanically it was
+     * most of why cards degraded into dice triggers: a 0-cost skill fired the
+     * same payload as a 3-cost bomb, so the optimal line was to spam the
+     * cheapest thing in hand fishing for procs. Measured, skills and powers
+     * were 44% of all face damage across 10,498 non-attack plays.
+     *
+     * The face still FIRES on a skill — shield, Aim, healing and draw all land
+     * as normal, so a defensive turn still engages the die and a defensive
+     * build is still worth cutting. It simply cannot attack for you. */
+    var fxNow = k < 1 ? scaleFx(aug.fx, k) : aug.fx;
+    if (c.faceNoDmg) {
+      // the damaging SPECIALS count too — a Shield card should not be
+      // detonating your wall into the room either
+      var kept = fxNow.filter(function (f) {
+        if (f.k === 'dmg') return false;
+        return !(f.k === 'special' && DMG_SPECIALS[f.id]);
+      });
+      if (kept.length !== fxNow.length) fxNow = kept;
+    }
+    ev.dealt = applyCardFx(fxNow,
       { tgt: tgt, crit: false, roll: null, eff: face, misfire: false,
         bandMult: faceBandMult(face), blockBand: !!(dread0 && dread0.blocks),
         flags: {}, xval: 0, appliedBurn: false });
@@ -2209,7 +2231,30 @@
     if (art('relayAll') > 0) bleed = 1;                            // DISTRIBUTION FRAME
     if (art('bleedEnds') > 0 && faceAtEnd(face)) bleed = 1;        // SECOND MOUTH
     if (bleed <= 0) return;
-    ns.dieNeighbours(r.die, face).forEach(function (f) {
+    /* THE SPREAD IS BOUGHT WITH THE CARD'S COST. A cheap card shakes one face;
+     * a heavy one shakes the whole neighbourhood.
+     *
+     *    0-1 cost   no spread at all
+     *    2 cost     one neighbour, UPWARD
+     *    3+ cost    both neighbours
+     *
+     * The bleed used to be free and universal, which made it the biggest
+     * multiplier in the game and one nobody chose — the die's share of damage
+     * climbed 15% -> 43% across a run on the back of it. Tying it to cost
+     * makes the cascade belong to the CARD, kills the spam-the-cheapest-thing
+     * line, and finally gives expensive cards a reason to exist (they measured
+     * 27% of the pool against a 45% target).
+     *
+     * Upward rather than random on purpose: you cut a combo deliberately, and
+     * a coin flip over which side of it fires punishes exactly the planning
+     * the system is asking for. Climbing also stacks with Aim. Relics widen
+     * the spread from here — that is where the big chains should be bought. */
+    var spread = ns.dieNeighbours(r.die, face);
+    var costNow = c.lastPlayCost == null ? 3 : c.lastPlayCost;
+    var reach = costNow + art('bleedReach');
+    if (reach <= 1) return;
+    if (reach === 2) spread = [ns.dieStep(face, 1, r.die)];
+    spread.forEach(function (f) {
       if (c.over) return;
       var nid = ns.dieFaceId(r.die, f); if (!nid) return;
       // RELAY MARK hands its neighbours the full effect instead of the half
@@ -2968,6 +3013,8 @@
          * Voidadept still starves his bottom-band blood engines by climbing,
          * because the BAND is what he is climbing out of. */
         var lands = roll <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden')) ? 1 : landed;
+        c.faceNoDmg = (def.type !== 'attack');   // only an attack lets a face hit
+        c.lastPlayCost = cost;                   // and the cost buys the spread
         if (!NO_DIE) fireDieFace(lands, tgt);
         /* BURST N — the multi-shot. The card fires the face it landed on and
          * the next N-1 round the ring, decaying, in the direction the CARD

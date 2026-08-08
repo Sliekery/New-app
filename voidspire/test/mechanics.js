@@ -2097,7 +2097,10 @@ ok('every class opens with either a starter deck or a rack of dice',
     E.combat.enemies.forEach(function (e) { e.hp = 99999; e.maxHp = 99999; e.platedReady = false; });
     for (var k = 0; k < (seedTries || 60); k++) {
       E.combat.energy = 30; E.run.hp = E.run.maxHp;
-      E.combat.hand = [{ uid: 4400 + k, id: 'pulse_rifle', up: false }];
+      /* A 3-COST, because the spread is bought with the card's cost now:
+       * 0-1 shakes nothing, 2 shakes one neighbour upward, 3+ shakes both.
+       * Pulse Rifle is a 1 and correctly produces no chain at all. */
+      E.combat.hand = [{ uid: 4400 + k, id: 'orbital_strike', up: false }];
       E.events = [];
       E.playCard(0, 0);
       var links = E.events.filter(function (ev) { return ev.type === 'dieFace'; });

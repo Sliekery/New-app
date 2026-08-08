@@ -213,7 +213,7 @@
     // the die's own geography
     bandShift:'governor', bandFloor:'governor', parityBand:'governor', hpBand:'governor',
     lowWiden:'governor', bleedSpan:'governor', bleedPct:'governor', bleedEnds:'governor',
-    relayAll:'governor', extremeRelay:'governor', faceEcho:'governor', evenMirror:'governor',
+    relayAll:'governor', bleedReach:'governor', extremeRelay:'governor', faceEcho:'governor', evenMirror:'governor',
     bankRoll:'governor', bareRefund:'governor', lowMight:'governor', everyThird:'governor',
     // blood
     hplossDmg:'phial', hplossPsi:'phial', lifestealPct:'phial', bloodrageStart:'phial',

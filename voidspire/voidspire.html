@@ -2509,7 +2509,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
  * ========================================================================= */
 (function (ns) {
   // Replaced by test/bundle.js with the git short hash + date at build time.
-  ns.BUILD = '2026-08-08 cb3b1f5';
+  ns.BUILD = '2026-08-08 ff0a3ad';
 
   'use strict';
 
@@ -7734,6 +7734,17 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     machined_barrel: { name: 'Sapper Charge', tier: 2, cls: 'vanguard', k: 'wallBurst', v: 1,
       desc: 'Detonating your Bulwark also stuns: all enemies gain 2 Vulnerable.',
       art: { p: [[-0.86,-0.2, 0.5,-0.2], [-0.86,0.1, 0.5,0.1], [-0.86,-0.2, -0.86,0.1], [-0.5,-0.2, -0.5,0.1], [-0.1,-0.2, -0.1,0.1], [0.3,-0.2, 0.3,0.1], [0.5,-0.3, 0.86,-0.3, 0.86,0.2, 0.5,0.2], [0.68,-0.3, 0.68,0.2], [-0.7,0.1, -0.7,0.5], [-0.3,0.1, -0.3,0.5], [-0.86,0.5, -0.14,0.5]], e: [[0.9,-0.05]] } },
+    /* THE SPREAD IS BOUGHT WITH COST NOW, so widening it is what a chain relic
+     * is FOR. The neighbour bleed used to be free, universal and the biggest
+     * multiplier in the game — moving the big chains here makes "ping ping
+     * ping" something you assemble rather than the background hum. */
+    shock_couplers: { name: 'Shock Couplers', tier: 2, k: 'bleedReach', v: 1,
+      desc: 'Every card carries one step further into the die. A 1-cost now shakes a neighbour; a 2-cost shakes both.',
+      art: { p: [[-0.7,0.2, -0.3,-0.3], [-0.3,-0.3, 0.1,0.3], [0.1,0.3, 0.5,-0.3], [0.5,-0.3, 0.8,0.1]], e: [[-0.7,0.2],[0.8,0.1]] } },
+    resonance_cascade: { name: 'Resonance Cascade', tier: 3,
+      hooks: [{ k: 'bleedReach', v: 1 }, { k: 'bleedPct', v: 0.35 }],
+      desc: 'Every card carries one step further into the die, and each step lands far harder.',
+      art: { p: [[-0.8,0, -0.5,-0.4], [-0.5,-0.4, -0.2,0.4], [-0.2,0.4, 0.1,-0.5], [0.1,-0.5, 0.4,0.5], [0.4,0.5, 0.7,-0.3], [0.7,-0.3, 0.9,0.1]], e: [[-0.8,0],[0.9,0.1]] } },
     counterweight: { name: 'Counterweight', tier: 2, cls: 'vanguard', k: 'rerollOnes', v: 1,
       desc: 'A natural 1 is rerolled once. Turns off anything you built on face 1.',
       art: { p: [[0,-0.7, 0.2,-0.3, 0,0.1, -0.2,-0.3, 0,-0.7], [-0.5,0.1, 0.5,0.1, 0.36,0.6, -0.36,0.6, -0.5,0.1], [-0.42,0.35, 0.42,0.35], [0,-0.7, 0,-0.86], [-0.66,0.1, -0.5,0.1], [0.66,0.1, 0.5,0.1]], e: [[0,-0.3],[0,0.48]] } },
@@ -10413,7 +10424,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     // the die's own geography
     bandShift:'governor', bandFloor:'governor', parityBand:'governor', hpBand:'governor',
     lowWiden:'governor', bleedSpan:'governor', bleedPct:'governor', bleedEnds:'governor',
-    relayAll:'governor', extremeRelay:'governor', faceEcho:'governor', evenMirror:'governor',
+    relayAll:'governor', bleedReach:'governor', extremeRelay:'governor', faceEcho:'governor', evenMirror:'governor',
     bankRoll:'governor', bareRefund:'governor', lowMight:'governor', everyThird:'governor',
     // blood
     hplossDmg:'phial', hplossPsi:'phial', lifestealPct:'phial', bloodrageStart:'phial',
@@ -14601,6 +14612,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     }
     return lit;
   }
+  // face effects that put damage on the board, by any route
+  var DMG_SPECIALS = { dieExecute:1, spall:1, breachWall:1, detonate:1, denseFace:1 };
   function fireSlot(face, slot, tgt, k, why) {
     var r = E.run, c = E.combat;
     var id = slot && slot.id;
@@ -14624,7 +14637,27 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     emit('dieFace', ev);
     var dread0 = E.dieRead(r.cls);
     var b0 = c.player.block, en0 = c.energy;
-    ev.dealt = applyCardFx(k < 1 ? scaleFx(aug.fx, k) : aug.fx,
+    /* A FACE ONLY DEALS DAMAGE WHEN AN ATTACK TRIGGERED IT. A Shield card
+     * landing on "deal 9 damage" never made sense, and mechanically it was
+     * most of why cards degraded into dice triggers: a 0-cost skill fired the
+     * same payload as a 3-cost bomb, so the optimal line was to spam the
+     * cheapest thing in hand fishing for procs. Measured, skills and powers
+     * were 44% of all face damage across 10,498 non-attack plays.
+     *
+     * The face still FIRES on a skill — shield, Aim, healing and draw all land
+     * as normal, so a defensive turn still engages the die and a defensive
+     * build is still worth cutting. It simply cannot attack for you. */
+    var fxNow = k < 1 ? scaleFx(aug.fx, k) : aug.fx;
+    if (c.faceNoDmg) {
+      // the damaging SPECIALS count too — a Shield card should not be
+      // detonating your wall into the room either
+      var kept = fxNow.filter(function (f) {
+        if (f.k === 'dmg') return false;
+        return !(f.k === 'special' && DMG_SPECIALS[f.id]);
+      });
+      if (kept.length !== fxNow.length) fxNow = kept;
+    }
+    ev.dealt = applyCardFx(fxNow,
       { tgt: tgt, crit: false, roll: null, eff: face, misfire: false,
         bandMult: faceBandMult(face), blockBand: !!(dread0 && dread0.blocks),
         flags: {}, xval: 0, appliedBurn: false });
@@ -14674,7 +14707,30 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (art('relayAll') > 0) bleed = 1;                            // DISTRIBUTION FRAME
     if (art('bleedEnds') > 0 && faceAtEnd(face)) bleed = 1;        // SECOND MOUTH
     if (bleed <= 0) return;
-    ns.dieNeighbours(r.die, face).forEach(function (f) {
+    /* THE SPREAD IS BOUGHT WITH THE CARD'S COST. A cheap card shakes one face;
+     * a heavy one shakes the whole neighbourhood.
+     *
+     *    0-1 cost   no spread at all
+     *    2 cost     one neighbour, UPWARD
+     *    3+ cost    both neighbours
+     *
+     * The bleed used to be free and universal, which made it the biggest
+     * multiplier in the game and one nobody chose — the die's share of damage
+     * climbed 15% -> 43% across a run on the back of it. Tying it to cost
+     * makes the cascade belong to the CARD, kills the spam-the-cheapest-thing
+     * line, and finally gives expensive cards a reason to exist (they measured
+     * 27% of the pool against a 45% target).
+     *
+     * Upward rather than random on purpose: you cut a combo deliberately, and
+     * a coin flip over which side of it fires punishes exactly the planning
+     * the system is asking for. Climbing also stacks with Aim. Relics widen
+     * the spread from here — that is where the big chains should be bought. */
+    var spread = ns.dieNeighbours(r.die, face);
+    var costNow = c.lastPlayCost == null ? 3 : c.lastPlayCost;
+    var reach = costNow + art('bleedReach');
+    if (reach <= 1) return;
+    if (reach === 2) spread = [ns.dieStep(face, 1, r.die)];
+    spread.forEach(function (f) {
       if (c.over) return;
       var nid = ns.dieFaceId(r.die, f); if (!nid) return;
       // RELAY MARK hands its neighbours the full effect instead of the half
@@ -15433,6 +15489,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
          * Voidadept still starves his bottom-band blood engines by climbing,
          * because the BAND is what he is climbing out of. */
         var lands = roll <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden')) ? 1 : landed;
+        c.faceNoDmg = (def.type !== 'attack');   // only an attack lets a face hit
+        c.lastPlayCost = cost;                   // and the cost buys the spread
         if (!NO_DIE) fireDieFace(lands, tgt);
         /* BURST N — the multi-shot. The card fires the face it landed on and
          * the next N-1 round the ring, decaying, in the direction the CARD
