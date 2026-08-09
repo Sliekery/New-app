@@ -96,6 +96,26 @@ var SCREENS = {
     VS.ui.refresh(); VS.ui.showDie();
   },
   sector: function () { var E = VS.engine; E.seed(5); E.newRun('vanguard'); E.run.sector = 2; E.run.phase = 'sector-intro'; VS.ui.refresh(); },
+  /* THE INSTABILITY, all three stages. The cull grid is the densest thing on
+   * the screen — twenty faces, each with a name, a burning state and a scar
+   * marker — and it had never been covered by a fit fixture. */
+  unstable: function () {
+    var E = VS.engine; E.seed(9); E.newRun('vanguard');
+    var pool = ['bracket_fire', 'static_discharge'];
+    for (var f = 1; f <= 14; f++) VS.dieEngrave(E.run.die, pool[f % 2], f);
+    E.run.bossArtifacts = []; E.takeBossArtifact(0);
+    VS.ui.refresh();
+  },
+  'unstable-pick': function () {
+    var E = VS.engine; E.seed(9); E.newRun('vanguard');
+    var pool = ['bracket_fire', 'static_discharge'];
+    for (var f = 1; f <= 14; f++) VS.dieEngrave(E.run.die, pool[f % 2], f);
+    E.run.bossArtifacts = []; E.takeBossArtifact(0);
+    var st = E.instabilityState();
+    for (var i = 0; i < st.required + 4; i++) E.instabilityToggle(st.roots[i]);
+    E.instabilityCommit();
+    VS.ui.refresh();
+  },
   // turn zero: three offers, each an engraving beside a full-size card
   mark: function () { var E = VS.engine; E.seed(5); E.newRun('technomancer'); VS.ui.refresh(); },
   // the widest panel in the game, and the longest single line of prose

@@ -916,6 +916,108 @@
    * instead: only attacks let a face deal damage, and the card's COST buys
    * the chain. Those shipped; this did not.
    * ------------------------------------------------------------------- */
+  /* ==================================================================
+   * PERMANENTS — what the instability leaves behind
+   * ==================================================================
+   * At the end of a sector the die cannot hold what you have cut into it. You
+   * give back at least half of your engravings and it fuses one of these into
+   * the face you choose. It cannot be reforged, scrubbed, reseated or fed to
+   * the next instability. It is the one part of the die that is finished.
+   *
+   * WHY THEY FIRE ON EVERY ROLL, which is the whole of their identity:
+   *
+   * An ordinary engraving fires on its own face — 5% of rolls on a d20 — plus
+   * a quarter-strength bleed off each neighbour, so call it 7.5% of rolls in
+   * effect. Halving the die costs a measured 30% of total output, so a single
+   * permanent has to be worth two or three ordinary cuts or the ritual is a
+   * tax with a souvenir. Scaling one face's NUMBERS to cover that would print
+   * a 20-damage face, which reads as a stat stick and does nothing the pool
+   * cannot already do.
+   *
+   * Firing on every roll is the qualitative version of the same power. It is
+   * worth roughly 3x an ordinary cut without a single inflated number on it,
+   * it is instantly legible ("this one always goes off"), and it is the only
+   * thing on the die that does not care what you rolled — which is exactly
+   * what "welded into the structure" should mean.
+   *
+   * They still respect the two rules that keep the die honest: a non-attack
+   * cannot make one deal damage, and Double Feed's second round does not fire
+   * them twice.
+   * ================================================================== */
+  function perm(tier, name, fx, desc, art) {
+    return { name: name, tier: tier, span: 1, permanent: tier, everyRoll: true,
+             fx: fx, desc: desc, art: art };
+  }
+  var P = ns.DIE_AUGMENTS;
+
+  /* ---- TIER 1: the minimum bid ------------------------------------- */
+  /* THE DAMAGE PERMANENTS ARE PRICED LOW ON PURPOSE. A permanent fires on
+   * 100% of rolls against an ordinary cut's ~7.5% (its own face, plus a
+   * quarter-strength bleed off each neighbour), so it is worth thirteen of
+   * them in FREQUENCY before a single number is compared. Printed at 3/6/9
+   * they measured x1.29/x1.41/x1.57 total damage and took the die's share of
+   * damage from 30% to 45-55% — which is the eclipse this game already fixed
+   * once, arriving back through a different door.
+   *
+   * So the damaging ones are small, and the pool leans on defence, resource
+   * and rule-changing instead. A permanent should be felt because it never
+   * stops, not because the number on it is large. */
+  P.perm_anchor = perm(1, 'Sunk Anchor',
+    [{ k: 'dmg', v: 2, scale: 'might' }],
+    'PERMANENT. Every roll deals 2 damage, wherever it lands.',
+    { p: [[0,-0.8, 0,0.4], [-0.45,0.1, 0,0.4, 0.45,0.1], [-0.3,-0.6, 0.3,-0.6]], e: [[0,0.4]] });
+  P.perm_plate = perm(1, 'Standing Plate',
+    [{ k: 'block', v: 3, scale: 'pri' }],
+    'PERMANENT. Every roll grants 3 Shield, wherever it lands.',
+    { p: [[0,-0.75, 0.6,-0.4, 0.6,0.3, 0,0.75, -0.6,0.3, -0.6,-0.4, 0,-0.75], [-0.6,-0.05, 0.6,-0.05]], e: [] });
+  /* NOTHING THAT ACCUMULATES. This was 1 Stim a roll and it measured x3.96
+   * total damage — four times — because Stim SCALES the Vanguard's damage, so
+   * a permanent handing him one every roll is not adding a face, it is
+   * compounding the multiplier on every face after it. The same trap Double
+   * Feed fell into earlier.
+   *
+   * At 100% frequency the rule is absolute: a permanent may deal flat damage,
+   * grant flat Shield or change a rule. It may never hand out a scaling stat,
+   * Energy or a card, because thirty-odd rolls a fight turns any of those into
+   * a different game. */
+  P.perm_feed = perm(1, 'Feed Line',
+    [{ k: 'dmg', v: 1, all: true, scale: 'might' }],
+    'PERMANENT. Every roll deals 1 damage to EVERY enemy.',
+    { p: [[-0.75,0.2, -0.25,0.2, -0.25,-0.3, 0.25,-0.3, 0.25,0.2, 0.75,0.2], [-0.5,0.45, 0.5,0.45]], e: [[-0.75,0.2],[0.75,0.2]] });
+
+  /* ---- TIER 2: fed beyond the half --------------------------------- */
+  P.perm_groove = perm(2, 'Deep Groove',
+    [{ k: 'dmg', v: 4, scale: 'might' }],
+    'PERMANENT. Every roll deals 4 damage, wherever it lands.',
+    { p: [[-0.7,-0.4, 0.7,-0.4], [-0.7,0, 0.7,0], [-0.7,0.4, 0.7,0.4], [-0.35,-0.6, -0.35,0.6], [0.35,-0.6, 0.35,0.6]], e: [] });
+  P.perm_bearing = perm(2, 'Load Bearing',
+    [{ k: 'status', s: 'bulwark', v: 5, who: 'self' }],
+    'PERMANENT. Every roll banks 5 Bulwark, wherever it lands.',
+    { p: [[-0.65,0.55, -0.65,-0.2, 0.65,-0.2, 0.65,0.55], [-0.65,0.15, 0.65,0.15], [-0.3,-0.2, -0.3,0.55], [0.3,-0.2, 0.3,0.55], [-0.8,-0.45, 0.8,-0.45]], e: [] });
+  P.perm_weld = perm(2, 'Blood Weld',
+    [{ k: 'dmg', v: 3, scale: 'might' }, { k: 'heal', v: 1 }],
+    'PERMANENT. Every roll deals 3 damage and heals you 1.',
+    { p: [[0,0.6, -0.45,0.15, -0.28,-0.3, 0.02,0.05, 0.12,-0.6, 0.4,-0.1, 0.45,0.2, 0,0.6], [-0.7,-0.55, 0.7,-0.55]], e: [[0.12,-0.6]] });
+
+  /* ---- TIER 3: fed most of the die --------------------------------- */
+  P.perm_core = perm(3, 'The Fused Core',
+    [{ k: 'special', id: 'permOpposite' }],
+    'PERMANENT. Every roll also fires the face OPPOSITE the one it landed on, at full.',
+    { p: [[0,-0.8, 0.7,-0.4, 0.7,0.4, 0,0.8, -0.7,0.4, -0.7,-0.4, 0,-0.8], [0,-0.45, 0,0.45], [-0.38,-0.22, 0.38,0.22], [0.38,-0.22, -0.38,0.22], [-0.2,0, 0.2,0]], e: [[0,0]] });
+  P.perm_reckoning = perm(3, 'Dead Reckoning',
+    [{ k: 'dmg', v: 6, scale: 'might' }],
+    'PERMANENT. Every roll deals 6 damage, wherever it lands.',
+    { p: [[0,-0.85, 0,-0.35], [0,0.85, 0,0.35], [-0.85,0, -0.35,0], [0.85,0, 0.35,0], [-0.35,-0.35, 0.35,-0.35, 0.35,0.35, -0.35,0.35, -0.35,-0.35], [-0.14,-0.14, 0.14,0.14], [0.14,-0.14, -0.14,0.14]], e: [[0,0]] });
+  P.perm_ledger = perm(3, 'The Standing Ledger',
+    [{ k: 'dmg', v: 3, scale: 'might' }, { k: 'status', s: 'bulwark', v: 5, who: 'self' }],
+    'PERMANENT. Every roll deals 3 damage AND banks 5 Bulwark.',
+    { p: [[-0.6,-0.7, -0.6,0.7], [0.6,-0.7, 0.6,0.7], [-0.6,0, 0.6,0], [-0.35,-0.45, -0.35,-0.15], [0.35,0.15, 0.35,0.45], [-0.6,-0.7, 0.6,-0.7], [-0.6,0.7, 0.6,0.7]], e: [[-0.6,0],[0.6,0]] });
+
+  // Everything the instability may offer, at the tier the bid earned.
+  ns.permanentPool = function (tier) {
+    return Object.keys(P).filter(function (k) { return P[k].permanent === tier; });
+  };
+
   ns.DIE_REGION = { low: [2, 7], mid: [8, 14], high: [15, 20] };
   ns.dieRegionOf = function (face) {
     if (face <= 1) return 'misfire';

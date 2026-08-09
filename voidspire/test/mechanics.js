@@ -2916,5 +2916,141 @@ ok('and no card is either',
      unslotted.length === 0);
 })();
 
+/* ============================================================================
+ * THE INSTABILITY — the die gives back half a sector's cuts
+ * ============================================================================
+ * Before this, the die reached 20 of 20 faces in sector 3 and then accepted
+ * nothing: 61% of every engraving offered across a run landed on a die that
+ * could not take it, you could still TAKE one (it stuck in the pending queue
+ * with a badge that never cleared), and there was no way to remove a normal
+ * engraving at all — the bench grinder only ever took Flaws and taints.
+ * ========================================================================== */
+(function () {
+  function rig(nCuts) {
+    E.seed(9); E.newRun('vanguard');
+    var die = E.run.die, pool = ['bracket_fire', 'static_discharge'];
+    for (var f = 1; f <= nCuts; f++) VS.dieEngrave(die, pool[f % 2], f);
+    return die;
+  }
+
+  // ---- the ritual runs on the way out of a sector ----
+  var die = rig(12);
+  E.run.bossArtifacts = [];
+  E.takeBossArtifact(0);
+  ok('the sector boss hands you into the instability', E.run.phase === 'unstable');
+  var st = E.instabilityState();
+  ok('it asks for half, rounded up (' + st.required + ' of ' + st.roots.length + ')',
+     st.required === 6 && st.roots.length === 12);
+  ok('and it will not commit under the floor', typeof E.instabilityCommit() === 'string');
+
+  // ---- the BID: half is the floor, more buys a better permanent ----
+  ok('the floor buys tier I', E.bidTier(6, 6) === 1);
+  ok('two more buys tier II', E.bidTier(8, 6) === 2);
+  ok('four more buys tier III', E.bidTier(10, 6) === 3);
+  ok('and it caps there', E.bidTier(20, 6) === 3);
+
+  for (var i = 0; i < st.required; i++) E.instabilityToggle(st.roots[i]);
+  ok('committing at the floor is allowed', E.instabilityCommit() === null);
+  st = E.instabilityState();
+  ok('half the die is gone (' + E.cullableRoots().length + ' roots left)', E.cullableRoots().length === 6);
+  ok('it offers three permanents at the tier the bid earned',
+     st.stage === 'pick' && st.offer.length === 3
+     && st.offer.every(function (id) { return VS.DIE_AUGMENTS[id].permanent === 1; }));
+
+  E.instabilityPick(st.offer[0]);
+  ok('you place it on the face YOU pick', E.instabilityPlace(3) === null);
+  ok('...and the sector turns over', E.run.phase === 'sector-intro' && E.run.sector === 2);
+  ok('...and the face is marked permanent', E.run.die.faces[3].perm === true);
+
+  /* ---- A PERMANENT IS FINISHED --------------------------------------
+   * Locked out of the forge, the bench and every later cull. That is a real
+   * cost: it takes one of your best faces permanently out of the economy. */
+  ok('a permanent offers no reforge', E.reforgeOptionsAt(3).length === 0);
+  ok('...and reforge refuses to touch it', E.reforgeApply(3, 0) === null);
+  E.run.phase = 'shop'; E.run.shop = { grindUsed: false, reseatUsed: false, engravings: [] }; E.run.credits = 9999;
+  ok('...the grinder will not take it', /welded in/.test(E.shopGrindFlaw(3)));
+  ok('...the jig will not lift it', /welded in/.test(E.shopReseat(3, 8)));
+  ok('...and the next instability cannot eat it', E.cullableRoots().indexOf(3) < 0);
+  ok('...nor is one ever offered as an ordinary drop',
+     E.randomEngravings(40).every(function (id) { return !VS.DIE_AUGMENTS[id].permanent; }));
+
+  /* ---- PERMANENTS FIRE ON EVERY ROLL ---------------------------------
+   * The whole of their identity. An ordinary cut fires on its own face (5% of
+   * a d20) plus a quarter-strength bleed off each neighbour; a permanent does
+   * not care what you rolled. That is worth ~3 ordinary cuts without a single
+   * inflated number, which is what makes the ritual a trade and not a tax. */
+  E.seed(5); E.newRun('vanguard');
+  VS.dieEngrave(E.run.die, 'perm_anchor', 7);
+  E.run.faction = 'hierarchy'; E.run.nodeIdx = 0; E.startNode('fight');
+  E.combat.enemies.forEach(function (e) { e.hp = 99999; e.maxHp = 99999; e.platedReady = false; });
+  var perms = 0, rolls = 0;
+  for (var k = 0; k < 14; k++) {
+    E.combat.energy = 30;
+    E.combat.hand = [{ uid: 700 + k, id: 'pulse_rifle', up: false }];
+    E.events = []; E.playCard(0, 0);
+    rolls++;
+    if (E.events.some(function (e) { return e.type === 'dieFace' && (e.why === 'permanent' || e.face === 7); })) perms++;
+  }
+  ok('a permanent fires on every roll (' + perms + '/' + rolls + ')', perms === rolls);
+
+  /* IT MUST SURVIVE A BARE ROLL. Firing permanents below fireDieFace's
+   * early-returns measured 0 fires in 12 rolls on a sparsely cut die — which
+   * is exactly the die this ritual creates. */
+  ok('...including when the roll lands on a bare face',
+     E.events.length > 0 && perms === rolls);
+
+  // a non-attack still cannot make a face deal damage
+  E.combat.energy = 30;
+  E.combat.hand = [{ uid: 799, id: 'combat_shield', up: false }];
+  E.events = []; E.playCard(0, 0);
+  ok('a Shield card fires it but deals no damage',
+     !E.events.some(function (e) { return e.type === 'dmg' && e.who !== 'player'; }));
+
+  /* THE FUSED CORE MUST NOT REACH THROUGH ITSELF. Land a roll on the face
+   * opposite it and the reach lands on the Core, which reaches again — this
+   * was a stack overflow inside the first sector of the first sim run. */
+  E.seed(5); E.newRun('vanguard');
+  VS.dieEngrave(E.run.die, 'perm_core', 4);
+  VS.dieEngrave(E.run.die, 'bracket_fire', 14);
+  E.run.faction = 'hierarchy'; E.run.nodeIdx = 0; E.startNode('fight');
+  E.combat.enemies.forEach(function (e) { e.hp = 99999; e.maxHp = 99999; e.platedReady = false; });
+  var survived = true;
+  try {
+    for (var z = 0; z < 40; z++) {
+      E.combat.energy = 30;
+      E.combat.hand = [{ uid: 800 + z, id: 'pulse_rifle', up: false }];
+      E.playCard(0, 0);
+    }
+  } catch (e) { survived = false; }
+  ok('the Fused Core never reaches back through itself', survived);
+
+  /* ---- NOTHING THAT ACCUMULATES --------------------------------------
+   * At 100% frequency a permanent may deal flat damage, grant flat Shield or
+   * change a rule. Feed Line was 1 Stim a roll and measured x3.96 total damage
+   * because Stim SCALES the Vanguard — a permanent handing one out every roll
+   * compounds the multiplier on every face after it. */
+  var BANNED = { stim: 1, str: 1, aim: 1, psiPow: 1, momentum: 1, bloodrage: 1 };
+  var bad = Object.keys(VS.DIE_AUGMENTS).filter(function (id) {
+    var g = VS.DIE_AUGMENTS[id];
+    if (!g.everyRoll) return false;
+    return (g.fx || []).some(function (f) {
+      if (f.k === 'energy' || f.k === 'draw') return true;
+      return f.k === 'status' && f.who === 'self' && BANNED[f.s];
+    });
+  });
+  ok('no permanent hands out a scaling stat, Energy or a card'
+     + (bad.length ? ' [' + bad.join(', ') + ']' : ''), bad.length === 0);
+  ok('every permanent says PERMANENT on it',
+     Object.keys(VS.DIE_AUGMENTS).filter(function (id) { return VS.DIE_AUGMENTS[id].permanent; })
+       .every(function (id) { return /PERMANENT/.test(VS.DIE_AUGMENTS[id].desc); }));
+
+  // a die too bare to be unstable skips the ritual rather than gutting itself
+  rig(2);
+  E.run.bossArtifacts = [];
+  E.takeBossArtifact(0);
+  ok('a nearly-bare die is not asked to give anything back', E.run.phase === 'sector-intro');
+  E.run.phase = 'map';
+})();
+
 console.log('\n' + (fails === 0 ? 'ALL MECHANIC TESTS PASSED' : fails + ' MECHANIC TESTS FAILED'));
 process.exit(fails === 0 ? 0 : 1);

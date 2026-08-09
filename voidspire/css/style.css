@@ -2356,3 +2356,47 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 }
 
 .build-stamp { text-align: center; font-size: 9px; letter-spacing: .18em; color: var(--text-dim); opacity: .7; margin: -4px 0 10px; }
+
+/* ================= THE INSTABILITY ===================================
+ * The bid has to be legible BEFORE you commit — the count and the tier it
+ * currently earns sit above the grid and move as you choose, because if you
+ * cannot see what one more engraving buys you there is nothing to decide. */
+.un-body { width: 100%; max-width: 900px; margin: 0 auto; }
+.un-bid {
+  display: flex; gap: 14px; align-items: baseline; justify-content: center;
+  flex-wrap: wrap; margin: 4px 0 10px;
+}
+.un-count {
+  font: 700 20px/1 ui-monospace, monospace; color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.un-count.ok { color: var(--green); text-shadow: var(--glow-g); }
+.un-tier { font: 700 11px/1 ui-monospace, monospace; letter-spacing: .16em; color: var(--text); }
+.un-tier.t2 { color: var(--cyan); text-shadow: var(--glow-c); }
+.un-tier.t3 { color: var(--amber); text-shadow: var(--glow-a); }
+.un-hint { font: 600 9.5px/1.3 ui-monospace, monospace; letter-spacing: .08em; color: var(--text-dim); }
+/* burning reads RED — this is the one grid where selecting a face destroys it,
+   and the green "chosen" used everywhere else would say the opposite */
+.fc.burning {
+  background: rgba(255,74,94,0.16); border-color: #ff4a5e;
+  box-shadow: inset 0 0 12px rgba(255,74,94,0.22);
+}
+.fc.permanent { border-color: rgba(255,176,46,0.55); opacity: 1; }
+.un-acts { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+.un-offers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 6px; }
+@media (max-width: 620px) { .un-offers { grid-template-columns: 1fr; } }
+.un-offer {
+  border: 1px solid var(--green-dim); border-radius: 4px; padding: 11px 12px 13px;
+  background: rgba(255,255,255,0.02); cursor: pointer; text-align: left;
+  transition: border-color .12s, background .12s, transform .1s;
+}
+.un-offer:hover { transform: translateY(-2px); background: rgba(255,255,255,0.05); }
+.un-offer.t2 { border-color: rgba(65,216,255,0.6); }
+.un-offer.t3 { border-color: rgba(255,176,46,0.75); background: rgba(255,176,46,0.05); }
+.un-offer .uo-name { font-size: 13px; letter-spacing: .06em; color: var(--text); margin-bottom: 5px; }
+.un-offer.t2 .uo-name { color: var(--cyan); text-shadow: var(--glow-c); }
+.un-offer.t3 .uo-name { color: var(--amber); text-shadow: var(--glow-a); }
+.un-offer .uo-desc { font-size: 11px; line-height: 1.35; color: var(--text-dim); }
+/* a permanent in the face list: welded in, and outside every economy */
+.df.permface { border-left: 2px solid var(--amber); }
+.df-perm { color: var(--amber); font-size: 10px; text-shadow: var(--glow-a); margin-left: 3px; }

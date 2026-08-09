@@ -484,6 +484,7 @@
       case 'boss-artifact': return showBossArtifact();
       case 'first-mark': return showFirstMark();
       case 'cutscene': return showCutscene();
+      case 'unstable': return showInstability();
       case 'sector-intro': return showSectorIntro();
       case 'victory': return showVictory();
       case 'dead': return showGameOver();
@@ -1499,6 +1500,11 @@
     var tt = ns.dieTaintAt(die, face);
     if (tt) cls += ' tainted';
     if (sm) cls += ' seamed';
+    /* A WELDED-IN PERMANENT HAS TO LOOK IT. It is locked out of the forge, the
+     * bench and every later instability, so a player who cannot see that will
+     * tap it, get refused, and read the refusal as a bug. */
+    var isPerm = !!(slot && die.faces[slot.root] && die.faces[slot.root].perm);
+    if (isPerm) cls += ' permface';
     var scar = tt ? '<span class="df-scar" title="' + esc((ns.DIE_TAINTS[tt] || {}).name || tt) + '">✖</span>' : '';
     var body = d
       ? (cont ? '<span class="df-cont">— ' + esc(d.name) + '</span>' + scar
@@ -1507,6 +1513,7 @@
     if (smD) body += '<span class="df-seam" title="shared face">+ ' + esc(smD.name) + '</span>';
     // a welded boundary is drawn ON the face that owns its upper edge
     var wl = (welds && ns.dieWelded(die, face, ns.dieStep(face, 1))) ? '<span class="df-weld" title="welded seam">=</span>' : '';
+    if (isPerm && !cont) wl += '<span class="df-perm" title="welded in by the instability — it cannot be changed">◆</span>';
     return '<div class="' + cls + '" data-face="' + face + '"><span class="df-n">' + face + '</span>' + body + tag + wl + '</div>';
   }
   var dieView = null;
@@ -5869,6 +5876,133 @@
     s.addEventListener('pointerdown', function (ev) {
       if (typing()) { finish(); ev.stopPropagation(); }
     }, true);
+  }
+
+  /* ==================================================================
+   * THE INSTABILITY
+   * ==================================================================
+   * Three steps on one screen, because they are one decision: choose what
+   * burns, see what the bid earned, choose where the permanent welds in.
+   *
+   * The count and the TIER are live on the header while you are choosing, so
+   * the bid is legible before you commit rather than after. That is the whole
+   * reason this is a bid and not a tax — if you cannot see what one more
+   * engraving buys you, there is nothing to decide.
+   * ================================================================== */
+  function showInstability() {
+    combatChrome(false);
+    $hud.innerHTML = ''; setHud(false);
+    var r = E.run;
+    var s = overlayScreen();
+    s.classList.add('unstable-screen');
+    s.appendChild(el('h2', 'screen-title', 'The Die Destabilises'));
+    var sub = el('div', 'screen-sub', '');
+    s.appendChild(sub);
+    var body = el('div', 'un-body');
+    s.appendChild(body);
+    var acts = el('div', 'un-acts');
+    s.appendChild(acts);
+
+    function tierName(t) { return t === 3 ? 'TIER III' : t === 2 ? 'TIER II' : 'TIER I'; }
+
+    function draw() {
+      var st = E.instabilityState();
+      if (!st) { U.refresh(); return; }
+      body.innerHTML = ''; acts.innerHTML = '';
+
+      if (st.stage === 'cull') {
+        sub.textContent = 'IT CANNOT HOLD WHAT YOU CUT INTO IT · GIVE BACK ' + st.required + ' OF ' + st.roots.length;
+        var over = st.chosen.length - st.required;
+        body.appendChild(el('div', 'un-bid',
+          '<span class="un-count' + (st.ready ? ' ok' : '') + '">' + st.chosen.length + ' / ' + st.required + '</span>'
+          + '<span class="un-tier t' + st.tier + '">' + tierName(st.tier) + ' PERMANENT</span>'
+          + '<span class="un-hint">' + (over >= 4 ? 'the fire is fed'
+              : 'feed it ' + (2 - (Math.max(0, over) % 2)) + ' more for the next tier') + '</span>'));
+
+        var grid = el('div', 'face-grid');
+        for (var f = 1; f <= ns.dieSides(r.die); f++) {
+          (function (face) {
+            var slot = r.die.faces[face];
+            var isRoot = slot && slot.root === face;
+            var g = slot ? ns.dieEngraving(r.die.faces[slot.root].id) : null;
+            var perm = !!(slot && slot.perm);
+            var can = isRoot && !perm;
+            var taint = ns.dieTaintAt(r.die, face);
+            var cell = el('div', 'fc' + (can ? ' can' : '')
+              + (st.chosen.indexOf(face) >= 0 ? ' burning' : '')
+              + (perm ? ' permanent' : '')
+              + (!slot ? ' blank' : '')
+              + ((g && g.flaw) || taint ? ' scarred' : ''),
+              '<span class="fc-n">' + face + '</span>'
+              + '<span class="fc-name">' + esc(g ? g.name : '—') + '</span>'
+              + (perm ? '<span class="fc-scar" style="color:#ffb02e">WELDED</span>' : '')
+              + (g && g.flaw ? '<span class="fc-scar">FLAW</span>' : ''));
+            if (can) cell.addEventListener('pointerdown', function (ev) {
+              ev.stopPropagation(); SFX.tap(); E.instabilityToggle(face); draw();
+            });
+            grid.appendChild(cell);
+          })(f);
+        }
+        body.appendChild(grid);
+
+        var go = el('button', 'btn' + (st.ready ? '' : ' dim'), 'BURN ' + st.chosen.length + ' · TAKE A ' + tierName(st.tier));
+        go.addEventListener('pointerdown', function (ev) {
+          ev.stopPropagation();
+          var why = E.instabilityCommit();
+          if (why) { toast(why.toUpperCase(), 2000); return; }
+          SFX.win(); draw();
+        });
+        acts.appendChild(go);
+        return;
+      }
+
+      if (st.stage === 'pick') {
+        sub.textContent = 'IT FUSES ONE OF THESE INTO THE DIE · IT CAN NEVER BE CHANGED';
+        var offers = el('div', 'un-offers');
+        (st.offer || []).forEach(function (id) {
+          var g = ns.DIE_AUGMENTS[id];
+          var card = el('div', 'un-offer t' + (g.tier || 1),
+            '<div class="uo-name">' + esc(g.name) + '</div>'
+            + '<div class="uo-desc">' + esc(g.desc) + '</div>');
+          card.addEventListener('pointerdown', function (ev) {
+            ev.stopPropagation(); SFX.tap(); E.instabilityPick(id); draw();
+          });
+          offers.appendChild(card);
+        });
+        body.appendChild(offers);
+        return;
+      }
+
+      // place
+      var pg = ns.DIE_AUGMENTS[st.picked];
+      sub.textContent = 'WHERE DOES ' + (pg.name || '').toUpperCase() + ' WELD IN?';
+      var grid2 = el('div', 'face-grid');
+      for (var f2 = 1; f2 <= ns.dieSides(r.die); f2++) {
+        (function (face) {
+          var legal = !ns.dieCanEngrave(r.die, st.picked, face);
+          var slot = r.die.faces[face];
+          var g2 = slot ? ns.dieEngraving(r.die.faces[slot.root].id) : null;
+          var cell = el('div', 'fc' + (legal ? ' can' : '') + (!slot ? ' blank' : '')
+            + (slot && slot.perm ? ' permanent' : ''),
+            '<span class="fc-n">' + face + '</span>'
+            + '<span class="fc-name">' + esc(g2 ? g2.name : '—') + '</span>');
+          if (legal) cell.addEventListener('pointerdown', function (ev) {
+            ev.stopPropagation();
+            var why = E.instabilityPlace(face);
+            if (why) { toast(why.toUpperCase(), 2000); return; }
+            SFX.win(); U.refresh();
+          });
+          grid2.appendChild(cell);
+        })(f2);
+      }
+      body.appendChild(grid2);
+      var back = el('button', 'btn dim small', 'CHOOSE A DIFFERENT ONE');
+      back.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation(); SFX.tap(); E.instabilityUnpick(); draw();
+      });
+      acts.appendChild(back);
+    }
+    draw();
   }
 
   function showSectorIntro() {

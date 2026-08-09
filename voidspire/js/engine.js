@@ -654,7 +654,161 @@
     var r = E.run;
     if (r.bossArtifacts[i]) addArtifact(r.bossArtifacts[i]);
     r.bossArtifacts = null;
+    // the sector is over, so the die gives back half of what you cut into it
+    E.instabilityBegin();
+  };
+
+  /* ==================================================================
+   * THE INSTABILITY — the die cannot hold a sector's worth of cuts
+   * ==================================================================
+   * At the end of every sector you give back at least HALF of what you have
+   * engraved, and the die fuses one PERMANENT into a face you choose.
+   *
+   * WHY THIS EXISTS. Measured before it: the die reached 20 of 20 faces in
+   * sector 3 and then accepted nothing at all, so 61% of every engraving the
+   * game offered across a run landed on a die that could not take it — and
+   * you could still TAKE one, whereupon it sat in the pending queue with a
+   * badge that never cleared. There was no way to remove a normal engraving
+   * either; the bench grinder only ever took Flaws and taints. The back half
+   * of a run had no die decisions left in it.
+   *
+   * The ritual converges on its own: you gain nine or ten engravings a sector
+   * and give back half, so the die settles at ten to twelve occupied faces and
+   * never fills again. Halving costs a measured 30% of total output, which is
+   * what the permanents have to be worth.
+   *
+   * IT IS A BID, NOT A TAX. Half is the floor; feed it more and the permanent
+   * comes out a tier higher. That is the difference between the game taking
+   * your things on a schedule and you deciding how much to burn — and it lets
+   * a sector that went badly be converted into something rather than merely
+   * halved.
+   *
+   * The rules, decided deliberately:
+   *   - FLAWS COUNT toward the half. The void cuts them into your die; letting
+   *     you feed them back makes the ritual clean as well as cost, and it is
+   *     the first thing anyone will reach for.
+   *   - A SEAMED FACE IS ONE. Both engravings on it go together — it is one
+   *     face, and charging two for it would punish the player for having used
+   *     a mechanic the die encourages.
+   *   - WELDS ARE LOST, no refund. You paid to say which adjacency mattered;
+   *     if you sacrifice one end of it, that statement is gone with it.
+   *   - PERMANENTS ARE EXEMPT, from this and from everything else. They cannot
+   *     be culled, reforged, reseated or scrubbed. They are the part of the
+   *     die that is finished.
+   * ================================================================== */
+  // Every root the instability is allowed to take: a permanent is not one.
+  function cullableRoots() {
+    var r = E.run, d = r && r.die, out = [];
+    if (!d) return out;
+    for (var f = 1; f <= ns.dieSides(d); f++) {
+      var slot = d.faces[f];
+      if (!slot || slot.root !== f || slot.perm) continue;
+      out.push(f);
+    }
+    return out;
+  }
+  E.cullableRoots = cullableRoots;
+
+  // What the current bid earns. The floor buys tier 1; every two engravings
+  // past it buys the next tier, capped at the top of the pool.
+  function bidTier(chosen, required) {
+    var over = Math.max(0, chosen - required);
+    return Math.max(1, Math.min(3, 1 + Math.floor(over / 2)));
+  }
+  E.bidTier = bidTier;
+
+  E.instabilityBegin = function () {
+    var r = E.run;
+    var roots = cullableRoots();
+    // Nothing to give and nothing to gain — a die this bare is not unstable.
+    if (roots.length < B.dice.unstableMin) { newSector(); return false; }
+    r.unstable = {
+      stage: 'cull',
+      required: Math.ceil(roots.length / 2),
+      chosen: [],
+      offer: null,
+      picked: null,
+    };
+    r.phase = 'unstable';
+    E.save();
+    return true;
+  };
+
+  E.instabilityState = function () {
+    var r = E.run, u = r && r.unstable;
+    if (!u) return null;
+    var roots = cullableRoots();
+    return {
+      stage: u.stage,
+      required: u.required,
+      chosen: u.chosen.slice(),
+      roots: roots,
+      tier: bidTier(u.chosen.length, u.required),
+      ready: u.chosen.length >= u.required,
+      offer: u.offer,
+      picked: u.picked,
+    };
+  };
+
+  // Mark or unmark one root for the fire. Only roots, never a permanent.
+  E.instabilityToggle = function (face) {
+    var r = E.run, u = r && r.unstable;
+    if (!u || u.stage !== 'cull') return false;
+    var slot = r.die.faces[face];
+    if (!slot || slot.root !== face || slot.perm) return false;
+    var i = u.chosen.indexOf(face);
+    if (i >= 0) u.chosen.splice(i, 1); else u.chosen.push(face);
+    E.save();
+    return true;
+  };
+
+  // Commit the bid: everything chosen burns, and the offer is drawn at the
+  // tier the bid earned.
+  E.instabilityCommit = function () {
+    var r = E.run, u = r && r.unstable;
+    if (!u || u.stage !== 'cull') return 'nothing to commit';
+    if (u.chosen.length < u.required) return 'the die needs ' + u.required + ' of them';
+    var tier = bidTier(u.chosen.length, u.required);
+    u.chosen.forEach(function (f) { ns.dieScrub(r.die, f); });
+    ns.dieWeldPrune(r.die);
+    var pool = ns.permanentPool(tier);
+    shuffle(pool);
+    u.offer = pool.slice(0, 3);
+    u.tierEarned = tier;
+    u.stage = 'pick';
+    emit('unstable', { burned: u.chosen.length, tier: tier });
+    E.save();
+    return null;
+  };
+
+  E.instabilityPick = function (id) {
+    var r = E.run, u = r && r.unstable;
+    if (!u || u.stage !== 'pick') return false;
+    if ((u.offer || []).indexOf(id) < 0) return false;
+    u.picked = id;
+    u.stage = 'place';
+    E.save();
+    return true;
+  };
+  E.instabilityUnpick = function () {
+    var u = E.run && E.run.unstable;
+    if (!u || u.stage !== 'place') return false;
+    u.picked = null; u.stage = 'pick'; E.save(); return true;
+  };
+
+  // Weld it into the face the player chose, and the sector turns over.
+  E.instabilityPlace = function (face) {
+    var r = E.run, u = r && r.unstable;
+    if (!u || u.stage !== 'place' || !u.picked) return 'nothing picked';
+    var why = ns.dieCanEngrave(r.die, u.picked, face);
+    if (why) return why;
+    ns.dieEngrave(r.die, u.picked, face);
+    // the mark that locks it out of the forge, the bench and every later fire
+    var slot = r.die.faces[face];
+    if (slot) slot.perm = true;
+    r.unstable = null;
     newSector();
+    return null;
   };
 
   function newSector() {
@@ -2096,6 +2250,24 @@
     return true;
   }
 
+  // Every permanent welded into the die, fired once per roll. `from` is the
+  // face the roll actually landed on, so a permanent never re-fires itself
+  // when the roll happens to land on the face it is welded to.
+  function firePermanents(landedFace, tgt) {
+    var r = E.run, c = E.combat;
+    if (!r || !r.die || !c || c.over) return;
+    c.permLanded = landedFace;      // THE FUSED CORE reaches across from HERE
+    for (var f = 1; f <= ns.dieSides(r.die); f++) {
+      if (c.over) break;
+      if (f === landedFace) continue;              // already fired as the root
+      var slot = r.die.faces[f];
+      if (!slot || slot.root !== f) continue;
+      var g = ns.dieEngraving(slot.id);
+      if (!g || !g.everyRoll) continue;
+      fireOneFace(f, tgt, 1, 'permanent', landedFace);
+    }
+  }
+
   /* THE ROLL BLEEDS. A roll no longer fires one face in isolation — it also
    * catches the faces either side of it at half strength. Two consequences,
    * both deliberate:
@@ -2117,6 +2289,18 @@
       c.etched = face;
       emit('relic', { id: 'cold_etch', v: face });
     }
+    /* PERMANENTS FIRE ON EVERY ROLL, and that has to happen HERE — above the
+     * early returns, not below them. An ordinary cut waits to be landed on; a
+     * permanent is welded into the structure and goes off regardless, which
+     * means it must survive the roll landing on a bare face, on a dead-shorted
+     * seam, or on a small barrel that does not bleed. Firing them lower down
+     * measured 0 fires in 12 rolls on a sparsely cut die, which is precisely
+     * the die this ritual creates.
+     *
+     * The PRIMARY roll only — Double Feed's unaimed second round does not get
+     * them twice — and they still obey the rule that a non-attack cannot make
+     * a face deal damage. */
+    if (!c.twinFeed) firePermanents(face, tgt);
     // DISTRIBUTION FRAME routes the charge past the face you rolled
     var lit = fireOneFace(face, tgt, art('rootHalf') > 0 ? 0.5 : 1);
     // SUBSTATION remembers the first face to fire this turn and re-fires it later
@@ -2353,6 +2537,7 @@
 
   // Resolve a card's effects once. Echo can call this twice. ctx carries the
   // shared roll/crit/target and an appliedBurn flag for Contagion.
+  var _inPermReach = false;   // THE FUSED CORE must never reach through itself
   function applyCardFx(fx, ctx) {
     var c = E.combat, p = c.player;
     var tgt = ctx.tgt, crit = ctx.crit, roll = ctx.roll, flags = ctx.flags;
@@ -2441,7 +2626,28 @@
            * Four verbs, and the tension between them is the archetype: the
            * wall is both your armour and your ammunition, so every detonation
            * is a decision to stand naked for a turn. */
-          if (f.id === 'wallFace') {
+          if (f.id === 'permOpposite') {
+            /* IT MUST NOT REACH BACK AT ITSELF. `eff` is the face this
+             * engraving sits on. Land a roll on the face opposite the Core and
+             * the reach lands on the Core, which reaches again — a stack
+             * overflow inside the first sector of the first sim run. The guard
+             * below is the fix; the re-entrancy flag is the belt to its
+             * braces, because two Cores welded opposite each other would
+             * ping-pong the same way. */
+            /* THE FUSED CORE. Reaches across the ring rather than along it, at
+             * full charge, on every single roll. fireOneFace and not
+             * fireDieFace on purpose: the far face fires, it does not start a
+             * second bleed of its own — the same rule Hot Barrel and Parity
+             * Pin follow, and the reason a relay cannot cascade. */
+            var _pn = ns.dieSides(E.run.die);
+            var _pl = E.combat.permLanded || eff || 1;
+            var _pa = ((_pl - 1 + Math.floor(_pn / 2)) % _pn) + 1;
+            if (!E.combat.over && _pa !== eff && !_inPermReach) {
+              _inPermReach = true;
+              try { fireOneFace(_pa, tgt, 1, 'opposite', _pl); }
+              finally { _inPermReach = false; }
+            }
+          } else if (f.id === 'wallFace') {
             // REVETMENT: the face you landed on IS the wall you build. `eff`
             // IS the landed face for a steering class, which is the only class
             // these cards belong to.
@@ -3633,6 +3839,10 @@
        * thing your drafted cuts REPLACE. Offering one back as a pick is both
        * nonsense and, at 30 Bulwark a face, wildly overpriced for a tier-1. */
       if (ns.DIE_AUGMENTS[k].basic) return;
+      // A PERMANENT is only ever handed out by the instability. Offering one as
+      // an ordinary drop would let you take the ritual's payout without paying
+      // the ritual's price.
+      if (ns.DIE_AUGMENTS[k].permanent) return;
       // A class set only drops for its class — the Vanguard's listeners key off
       // Momentum and Parry, which the other two barely touch.
       var ec = ns.DIE_AUGMENTS[k].cls;
@@ -4295,6 +4505,10 @@
   E.reforgeOptionsAt = function (face) {
     var r = E.run, slot = r.die.faces[face];
     if (!slot) return [];
+    // A PERMANENT IS FINISHED. It is welded in by the instability and locked
+    // out of the forge, the bench and every later cull — which is a real cost,
+    // because it takes one of your best faces permanently out of the economy.
+    if (slot.perm) return [];
     var def = ns.dieEngraving(r.die.faces[slot.root].id);
     if (!def) return [];
     return ns.reforgeOptions(def, r.cls);
@@ -4302,7 +4516,7 @@
   // Commit one of them.
   E.reforgeApply = function (face, optIdx) {
     var r = E.run, slot = r.die.faces[face];
-    if (!slot) return null;
+    if (!slot || slot.perm) return null;
     var root = slot.root;
     var opts = E.reforgeOptionsAt(root);
     var opt = opts[optIdx];
@@ -5398,6 +5612,8 @@
     var r = E.run;
     if (!E.benchOpen()) return 'the bench is closed';
     if (r.shop.grindUsed) return 'the grinder is spent';
+    var pslot = r.die && r.die.faces[face];
+    if (pslot && pslot.perm) return 'it is welded in — the grinder will not touch it';
     var id = r.die && ns.dieFaceId(r.die, face);
     var g = id ? ns.dieEngraving(id) : null;
     var taint = ns.dieTaintAt(r.die, face);
@@ -5428,6 +5644,7 @@
     if (!lathe && r.shop.reseatUsed) return 'the jig is already reset';
     var slot = r.die && r.die.faces[from];
     if (!slot) return 'that face is bare';
+    if (slot.perm) return 'it is welded in — the jig will not lift it';
     var cost = lathe ? 0 : E.reseatCost();
     if (r.credits < cost) return 'not enough credits';
     var id = slot.id, root = slot.root;

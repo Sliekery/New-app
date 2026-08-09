@@ -831,6 +831,57 @@ function step() {
      * one that most improves the dice it will actually be rolling. Under
      * VS_RANDOM_DRAFT it takes one blind, which is what makes the opening
      * choice measurable rather than assumed. */
+    /* THE INSTABILITY. Two decisions the bot has to actually make: WHICH
+     * engravings to give back, and HOW MANY — the bid buys a better permanent,
+     * so a bot that always paid the floor would measure the ritual as a pure
+     * tax and never see the interesting half of it.
+     *
+     * It burns worst-first by the same expected-roll score it uses everywhere
+     * else, and it keeps bidding past the floor while the next engraving it
+     * would give up is worth less than the tier it buys. Under VS_RANDOM_DRAFT
+     * it burns blind, which is what makes the choice measurable at all. */
+    case 'unstable': {
+      var ust = E.instabilityState();
+      if (!ust) { break; }
+      if (ust.stage === 'cull') {
+        var ranked = ust.roots.slice();
+        if (RANDOM_DRAFT) {
+          ranked.sort(function () { return probeRnd() - 0.5; });
+        } else {
+          ranked.sort(function (a, b) { return faceWorth(a) - faceWorth(b); });
+        }
+        // the floor, then keep feeding while the next one up is cheap
+        var take = ust.required;
+        while (take + 2 <= ranked.length && faceWorth(ranked[take]) + faceWorth(ranked[take + 1]) < BID_STEP) take += 2;
+        for (var ui = 0; ui < take; ui++) E.instabilityToggle(ranked[ui]);
+        var uwhy = E.instabilityCommit();
+        if (uwhy) {          // under-bid somehow: top up to the floor and retry
+          var st2 = E.instabilityState();
+          for (var uj = 0; uj < st2.roots.length && E.instabilityState().chosen.length < st2.required; uj++) {
+            E.instabilityToggle(st2.roots[uj]);
+          }
+          E.instabilityCommit();
+        }
+        break;
+      }
+      if (ust.stage === 'pick') {
+        E.instabilityPick(RANDOM_DRAFT
+          ? ust.offer[Math.floor(probeRnd() * ust.offer.length)]
+          : ust.offer[0]);
+        break;
+      }
+      // place it: the highest legal face, where a steering class will reach it
+      var placed = false;
+      for (var uf = VS.dieSides(E.run.die); uf >= 1; uf--) {
+        if (!VS.dieCanEngrave(E.run.die, ust.picked, uf) && !E.instabilityPlace(uf)) { placed = true; break; }
+      }
+      if (!placed) {   // nowhere legal at all: scrub a face to make room
+        var rr = E.cullableRoots();
+        if (rr.length) { VS.dieScrub(E.run.die, rr[0]); }
+        else { E.run.unstable = null; E.run.phase = 'sector-intro'; }
+      }
+      break;
+    }
     case 'first-mark': E.takeFirstMark(FIRST_MARK_PICK % Math.max(1, E.firstMarkOffers().length)); break;
     case 'sector-intro': E.beginSector(); break;
     /* Victory ENDS the run now — one ladder, climbed by starting again. The bot
@@ -881,6 +932,21 @@ function engFaceValue(g, wantD) {
   });
   return v;
 }
+/* What one engraved ROOT is worth, for the instability's burn-worst-first.
+ * Scored as the drop in the die's expected roll if that face went away, which
+ * counts the bleed it feeds its neighbours as well as the face itself. */
+function faceWorth(face) {
+  var die = E.run.die, slot = die.faces[face];
+  if (!slot) return 0;
+  var before = dieRollEV(die, false, null);
+  var probe = { sides: die.sides, role: die.role, seams: JSON.parse(JSON.stringify(die.seams || {})),
+                welds: (die.welds || []).slice(), faces: JSON.parse(JSON.stringify(die.faces)) };
+  VS.dieScrub(probe, face);
+  return before - dieRollEV(probe, false, null);
+}
+// How much expected roll the bot will give up to climb one permanent tier.
+var BID_STEP = 3.5;
+
 function dieRollEV(die, wantD, target) {
   var E = VS.engine, c = E.combat;
   // base payload, read through the class table the same way the engine will.

@@ -52,6 +52,10 @@
       // at this fraction. It is what makes WHERE you cut matter as much as
       // WHAT, and it turns a filled die from a dead end into the payoff.
       bleed: 0.25,
+      /* THE INSTABILITY. Below this many cullable roots the ritual is skipped
+       * entirely — a die with three cuts on it has nothing to give back, and
+       * halving it would cost more than the permanent could return. */
+      unstableMin: 4,
       /* THE SEAM. Two engravings may share ONE face. Neither is destroyed and
        * neither wins: on the shared face both fire at this fraction. The die's
        * scarce resource is faces, not power, so a seam BUYS BACK a face and
