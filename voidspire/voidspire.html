@@ -2419,6 +2419,12 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 /* a permanent in the face list: welded in, and outside every economy */
 .df.permface { border-left: 2px solid var(--amber); }
 .df-perm { color: var(--amber); font-size: 10px; text-shadow: var(--glow-a); margin-left: 3px; }
+/* The cull grid lists every face by name, and an engraving name is longer than
+ * a face-picker's ("Static Discharge" at four columns on a phone). Let it wrap
+ * rather than clip — shrinking the type instead would take it under the 8.4px
+ * floor this file already documents as the readability limit. */
+.unstable-screen .fc { min-height: 62px; }
+.unstable-screen .fc-name { white-space: normal; overflow: visible; overflow-wrap: anywhere; line-height: 1.2; }
 
 </style>
 </head>
@@ -2442,7 +2448,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
  * ========================================================================= */
 (function (ns) {
   // Replaced by test/bundle.js with the git short hash + date at build time.
-  ns.BUILD = '2026-08-09 cda1a67';
+  ns.BUILD = '2026-08-09 09cd04c';
 
   'use strict';
 
