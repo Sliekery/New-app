@@ -2376,6 +2376,56 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
 .build-stamp { text-align: center; font-size: 9px; letter-spacing: .18em; color: var(--text-dim); opacity: .7; margin: -4px 0 10px; }
 
+/* ================= THE INSTABILITY ===================================
+ * The bid has to be legible BEFORE you commit — the count and the tier it
+ * currently earns sit above the grid and move as you choose, because if you
+ * cannot see what one more engraving buys you there is nothing to decide. */
+.un-body { width: 100%; max-width: 900px; margin: 0 auto; }
+.un-bid {
+  display: flex; gap: 14px; align-items: baseline; justify-content: center;
+  flex-wrap: wrap; margin: 4px 0 10px;
+}
+.un-count {
+  font: 700 20px/1 ui-monospace, monospace; color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.un-count.ok { color: var(--green); text-shadow: var(--glow-g); }
+.un-tier { font: 700 11px/1 ui-monospace, monospace; letter-spacing: .16em; color: var(--text); }
+.un-tier.t2 { color: var(--cyan); text-shadow: var(--glow-c); }
+.un-tier.t3 { color: var(--amber); text-shadow: var(--glow-a); }
+.un-hint { font: 600 9.5px/1.3 ui-monospace, monospace; letter-spacing: .08em; color: var(--text-dim); }
+/* burning reads RED — this is the one grid where selecting a face destroys it,
+   and the green "chosen" used everywhere else would say the opposite */
+.fc.burning {
+  background: rgba(255,74,94,0.16); border-color: #ff4a5e;
+  box-shadow: inset 0 0 12px rgba(255,74,94,0.22);
+}
+.fc.permanent { border-color: rgba(255,176,46,0.55); opacity: 1; }
+.un-acts { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+.un-offers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 6px; }
+@media (max-width: 620px) { .un-offers { grid-template-columns: 1fr; } }
+.un-offer {
+  border: 1px solid var(--green-dim); border-radius: 4px; padding: 11px 12px 13px;
+  background: rgba(255,255,255,0.02); cursor: pointer; text-align: left;
+  transition: border-color .12s, background .12s, transform .1s;
+}
+.un-offer:hover { transform: translateY(-2px); background: rgba(255,255,255,0.05); }
+.un-offer.t2 { border-color: rgba(65,216,255,0.6); }
+.un-offer.t3 { border-color: rgba(255,176,46,0.75); background: rgba(255,176,46,0.05); }
+.un-offer .uo-name { font-size: 13px; letter-spacing: .06em; color: var(--text); margin-bottom: 5px; }
+.un-offer.t2 .uo-name { color: var(--cyan); text-shadow: var(--glow-c); }
+.un-offer.t3 .uo-name { color: var(--amber); text-shadow: var(--glow-a); }
+.un-offer .uo-desc { font-size: 11px; line-height: 1.35; color: var(--text-dim); }
+/* a permanent in the face list: welded in, and outside every economy */
+.df.permface { border-left: 2px solid var(--amber); }
+.df-perm { color: var(--amber); font-size: 10px; text-shadow: var(--glow-a); margin-left: 3px; }
+/* The cull grid lists every face by name, and an engraving name is longer than
+ * a face-picker's ("Static Discharge" at four columns on a phone). Let it wrap
+ * rather than clip — shrinking the type instead would take it under the 8.4px
+ * floor this file already documents as the readability limit. */
+.unstable-screen .fc { min-height: 62px; }
+.unstable-screen .fc-name { white-space: normal; overflow: visible; overflow-wrap: anywhere; line-height: 1.2; }
+
 </style>
 </head>
 <body>
@@ -2398,7 +2448,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
  * ========================================================================= */
 (function (ns) {
   // Replaced by test/bundle.js with the git short hash + date at build time.
-  ns.BUILD = '2026-08-08 c80d77f';
+  ns.BUILD = '2026-08-09 09cd04c';
 
   'use strict';
 
@@ -2446,6 +2496,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       // at this fraction. It is what makes WHERE you cut matter as much as
       // WHAT, and it turns a filled die from a dead end into the payoff.
       bleed: 0.25,
+      /* THE INSTABILITY. Below this many cullable roots the ritual is skipped
+       * entirely — a die with three cuts on it has nothing to give back, and
+       * halving it would cost more than the permanent could return. */
+      unstableMin: 4,
       /* THE SEAM. Two engravings may share ONE face. Neither is destroyed and
        * neither wins: on the shared face both fire at this fraction. The die's
        * scarce resource is faces, not power, so a seam BUYS BACK a face and
@@ -8795,6 +8849,108 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
    * instead: only attacks let a face deal damage, and the card's COST buys
    * the chain. Those shipped; this did not.
    * ------------------------------------------------------------------- */
+  /* ==================================================================
+   * PERMANENTS — what the instability leaves behind
+   * ==================================================================
+   * At the end of a sector the die cannot hold what you have cut into it. You
+   * give back at least half of your engravings and it fuses one of these into
+   * the face you choose. It cannot be reforged, scrubbed, reseated or fed to
+   * the next instability. It is the one part of the die that is finished.
+   *
+   * WHY THEY FIRE ON EVERY ROLL, which is the whole of their identity:
+   *
+   * An ordinary engraving fires on its own face — 5% of rolls on a d20 — plus
+   * a quarter-strength bleed off each neighbour, so call it 7.5% of rolls in
+   * effect. Halving the die costs a measured 30% of total output, so a single
+   * permanent has to be worth two or three ordinary cuts or the ritual is a
+   * tax with a souvenir. Scaling one face's NUMBERS to cover that would print
+   * a 20-damage face, which reads as a stat stick and does nothing the pool
+   * cannot already do.
+   *
+   * Firing on every roll is the qualitative version of the same power. It is
+   * worth roughly 3x an ordinary cut without a single inflated number on it,
+   * it is instantly legible ("this one always goes off"), and it is the only
+   * thing on the die that does not care what you rolled — which is exactly
+   * what "welded into the structure" should mean.
+   *
+   * They still respect the two rules that keep the die honest: a non-attack
+   * cannot make one deal damage, and Double Feed's second round does not fire
+   * them twice.
+   * ================================================================== */
+  function perm(tier, name, fx, desc, art) {
+    return { name: name, tier: tier, span: 1, permanent: tier, everyRoll: true,
+             fx: fx, desc: desc, art: art };
+  }
+  var P = ns.DIE_AUGMENTS;
+
+  /* ---- TIER 1: the minimum bid ------------------------------------- */
+  /* THE DAMAGE PERMANENTS ARE PRICED LOW ON PURPOSE. A permanent fires on
+   * 100% of rolls against an ordinary cut's ~7.5% (its own face, plus a
+   * quarter-strength bleed off each neighbour), so it is worth thirteen of
+   * them in FREQUENCY before a single number is compared. Printed at 3/6/9
+   * they measured x1.29/x1.41/x1.57 total damage and took the die's share of
+   * damage from 30% to 45-55% — which is the eclipse this game already fixed
+   * once, arriving back through a different door.
+   *
+   * So the damaging ones are small, and the pool leans on defence, resource
+   * and rule-changing instead. A permanent should be felt because it never
+   * stops, not because the number on it is large. */
+  P.perm_anchor = perm(1, 'Sunk Anchor',
+    [{ k: 'dmg', v: 2, scale: 'might' }],
+    'PERMANENT. Every roll deals 2 damage, wherever it lands.',
+    { p: [[0,-0.8, 0,0.4], [-0.45,0.1, 0,0.4, 0.45,0.1], [-0.3,-0.6, 0.3,-0.6]], e: [[0,0.4]] });
+  P.perm_plate = perm(1, 'Standing Plate',
+    [{ k: 'block', v: 3, scale: 'pri' }],
+    'PERMANENT. Every roll grants 3 Shield, wherever it lands.',
+    { p: [[0,-0.75, 0.6,-0.4, 0.6,0.3, 0,0.75, -0.6,0.3, -0.6,-0.4, 0,-0.75], [-0.6,-0.05, 0.6,-0.05]], e: [] });
+  /* NOTHING THAT ACCUMULATES. This was 1 Stim a roll and it measured x3.96
+   * total damage — four times — because Stim SCALES the Vanguard's damage, so
+   * a permanent handing him one every roll is not adding a face, it is
+   * compounding the multiplier on every face after it. The same trap Double
+   * Feed fell into earlier.
+   *
+   * At 100% frequency the rule is absolute: a permanent may deal flat damage,
+   * grant flat Shield or change a rule. It may never hand out a scaling stat,
+   * Energy or a card, because thirty-odd rolls a fight turns any of those into
+   * a different game. */
+  P.perm_feed = perm(1, 'Feed Line',
+    [{ k: 'dmg', v: 1, all: true, scale: 'might' }],
+    'PERMANENT. Every roll deals 1 damage to EVERY enemy.',
+    { p: [[-0.75,0.2, -0.25,0.2, -0.25,-0.3, 0.25,-0.3, 0.25,0.2, 0.75,0.2], [-0.5,0.45, 0.5,0.45]], e: [[-0.75,0.2],[0.75,0.2]] });
+
+  /* ---- TIER 2: fed beyond the half --------------------------------- */
+  P.perm_groove = perm(2, 'Deep Groove',
+    [{ k: 'dmg', v: 4, scale: 'might' }],
+    'PERMANENT. Every roll deals 4 damage, wherever it lands.',
+    { p: [[-0.7,-0.4, 0.7,-0.4], [-0.7,0, 0.7,0], [-0.7,0.4, 0.7,0.4], [-0.35,-0.6, -0.35,0.6], [0.35,-0.6, 0.35,0.6]], e: [] });
+  P.perm_bearing = perm(2, 'Load Bearing',
+    [{ k: 'status', s: 'bulwark', v: 5, who: 'self' }],
+    'PERMANENT. Every roll banks 5 Bulwark, wherever it lands.',
+    { p: [[-0.65,0.55, -0.65,-0.2, 0.65,-0.2, 0.65,0.55], [-0.65,0.15, 0.65,0.15], [-0.3,-0.2, -0.3,0.55], [0.3,-0.2, 0.3,0.55], [-0.8,-0.45, 0.8,-0.45]], e: [] });
+  P.perm_weld = perm(2, 'Blood Weld',
+    [{ k: 'dmg', v: 3, scale: 'might' }, { k: 'heal', v: 1 }],
+    'PERMANENT. Every roll deals 3 damage and heals you 1.',
+    { p: [[0,0.6, -0.45,0.15, -0.28,-0.3, 0.02,0.05, 0.12,-0.6, 0.4,-0.1, 0.45,0.2, 0,0.6], [-0.7,-0.55, 0.7,-0.55]], e: [[0.12,-0.6]] });
+
+  /* ---- TIER 3: fed most of the die --------------------------------- */
+  P.perm_core = perm(3, 'The Fused Core',
+    [{ k: 'special', id: 'permOpposite' }],
+    'PERMANENT. Every roll also fires the face OPPOSITE the one it landed on, at full.',
+    { p: [[0,-0.8, 0.7,-0.4, 0.7,0.4, 0,0.8, -0.7,0.4, -0.7,-0.4, 0,-0.8], [0,-0.45, 0,0.45], [-0.38,-0.22, 0.38,0.22], [0.38,-0.22, -0.38,0.22], [-0.2,0, 0.2,0]], e: [[0,0]] });
+  P.perm_reckoning = perm(3, 'Dead Reckoning',
+    [{ k: 'dmg', v: 6, scale: 'might' }],
+    'PERMANENT. Every roll deals 6 damage, wherever it lands.',
+    { p: [[0,-0.85, 0,-0.35], [0,0.85, 0,0.35], [-0.85,0, -0.35,0], [0.85,0, 0.35,0], [-0.35,-0.35, 0.35,-0.35, 0.35,0.35, -0.35,0.35, -0.35,-0.35], [-0.14,-0.14, 0.14,0.14], [0.14,-0.14, -0.14,0.14]], e: [[0,0]] });
+  P.perm_ledger = perm(3, 'The Standing Ledger',
+    [{ k: 'dmg', v: 3, scale: 'might' }, { k: 'status', s: 'bulwark', v: 5, who: 'self' }],
+    'PERMANENT. Every roll deals 3 damage AND banks 5 Bulwark.',
+    { p: [[-0.6,-0.7, -0.6,0.7], [0.6,-0.7, 0.6,0.7], [-0.6,0, 0.6,0], [-0.35,-0.45, -0.35,-0.15], [0.35,0.15, 0.35,0.45], [-0.6,-0.7, 0.6,-0.7], [-0.6,0.7, 0.6,0.7]], e: [[-0.6,0],[0.6,0]] });
+
+  // Everything the instability may offer, at the tier the bid earned.
+  ns.permanentPool = function (tier) {
+    return Object.keys(P).filter(function (k) { return P[k].permanent === tier; });
+  };
+
   ns.DIE_REGION = { low: [2, 7], mid: [8, 14], high: [15, 20] };
   ns.dieRegionOf = function (face) {
     if (face <= 1) return 'misfire';
@@ -12651,7 +12807,161 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var r = E.run;
     if (r.bossArtifacts[i]) addArtifact(r.bossArtifacts[i]);
     r.bossArtifacts = null;
+    // the sector is over, so the die gives back half of what you cut into it
+    E.instabilityBegin();
+  };
+
+  /* ==================================================================
+   * THE INSTABILITY — the die cannot hold a sector's worth of cuts
+   * ==================================================================
+   * At the end of every sector you give back at least HALF of what you have
+   * engraved, and the die fuses one PERMANENT into a face you choose.
+   *
+   * WHY THIS EXISTS. Measured before it: the die reached 20 of 20 faces in
+   * sector 3 and then accepted nothing at all, so 61% of every engraving the
+   * game offered across a run landed on a die that could not take it — and
+   * you could still TAKE one, whereupon it sat in the pending queue with a
+   * badge that never cleared. There was no way to remove a normal engraving
+   * either; the bench grinder only ever took Flaws and taints. The back half
+   * of a run had no die decisions left in it.
+   *
+   * The ritual converges on its own: you gain nine or ten engravings a sector
+   * and give back half, so the die settles at ten to twelve occupied faces and
+   * never fills again. Halving costs a measured 30% of total output, which is
+   * what the permanents have to be worth.
+   *
+   * IT IS A BID, NOT A TAX. Half is the floor; feed it more and the permanent
+   * comes out a tier higher. That is the difference between the game taking
+   * your things on a schedule and you deciding how much to burn — and it lets
+   * a sector that went badly be converted into something rather than merely
+   * halved.
+   *
+   * The rules, decided deliberately:
+   *   - FLAWS COUNT toward the half. The void cuts them into your die; letting
+   *     you feed them back makes the ritual clean as well as cost, and it is
+   *     the first thing anyone will reach for.
+   *   - A SEAMED FACE IS ONE. Both engravings on it go together — it is one
+   *     face, and charging two for it would punish the player for having used
+   *     a mechanic the die encourages.
+   *   - WELDS ARE LOST, no refund. You paid to say which adjacency mattered;
+   *     if you sacrifice one end of it, that statement is gone with it.
+   *   - PERMANENTS ARE EXEMPT, from this and from everything else. They cannot
+   *     be culled, reforged, reseated or scrubbed. They are the part of the
+   *     die that is finished.
+   * ================================================================== */
+  // Every root the instability is allowed to take: a permanent is not one.
+  function cullableRoots() {
+    var r = E.run, d = r && r.die, out = [];
+    if (!d) return out;
+    for (var f = 1; f <= ns.dieSides(d); f++) {
+      var slot = d.faces[f];
+      if (!slot || slot.root !== f || slot.perm) continue;
+      out.push(f);
+    }
+    return out;
+  }
+  E.cullableRoots = cullableRoots;
+
+  // What the current bid earns. The floor buys tier 1; every two engravings
+  // past it buys the next tier, capped at the top of the pool.
+  function bidTier(chosen, required) {
+    var over = Math.max(0, chosen - required);
+    return Math.max(1, Math.min(3, 1 + Math.floor(over / 2)));
+  }
+  E.bidTier = bidTier;
+
+  E.instabilityBegin = function () {
+    var r = E.run;
+    var roots = cullableRoots();
+    // Nothing to give and nothing to gain — a die this bare is not unstable.
+    if (roots.length < B.dice.unstableMin) { newSector(); return false; }
+    r.unstable = {
+      stage: 'cull',
+      required: Math.ceil(roots.length / 2),
+      chosen: [],
+      offer: null,
+      picked: null,
+    };
+    r.phase = 'unstable';
+    E.save();
+    return true;
+  };
+
+  E.instabilityState = function () {
+    var r = E.run, u = r && r.unstable;
+    if (!u) return null;
+    var roots = cullableRoots();
+    return {
+      stage: u.stage,
+      required: u.required,
+      chosen: u.chosen.slice(),
+      roots: roots,
+      tier: bidTier(u.chosen.length, u.required),
+      ready: u.chosen.length >= u.required,
+      offer: u.offer,
+      picked: u.picked,
+    };
+  };
+
+  // Mark or unmark one root for the fire. Only roots, never a permanent.
+  E.instabilityToggle = function (face) {
+    var r = E.run, u = r && r.unstable;
+    if (!u || u.stage !== 'cull') return false;
+    var slot = r.die.faces[face];
+    if (!slot || slot.root !== face || slot.perm) return false;
+    var i = u.chosen.indexOf(face);
+    if (i >= 0) u.chosen.splice(i, 1); else u.chosen.push(face);
+    E.save();
+    return true;
+  };
+
+  // Commit the bid: everything chosen burns, and the offer is drawn at the
+  // tier the bid earned.
+  E.instabilityCommit = function () {
+    var r = E.run, u = r && r.unstable;
+    if (!u || u.stage !== 'cull') return 'nothing to commit';
+    if (u.chosen.length < u.required) return 'the die needs ' + u.required + ' of them';
+    var tier = bidTier(u.chosen.length, u.required);
+    u.chosen.forEach(function (f) { ns.dieScrub(r.die, f); });
+    ns.dieWeldPrune(r.die);
+    var pool = ns.permanentPool(tier);
+    shuffle(pool);
+    u.offer = pool.slice(0, 3);
+    u.tierEarned = tier;
+    u.stage = 'pick';
+    emit('unstable', { burned: u.chosen.length, tier: tier });
+    E.save();
+    return null;
+  };
+
+  E.instabilityPick = function (id) {
+    var r = E.run, u = r && r.unstable;
+    if (!u || u.stage !== 'pick') return false;
+    if ((u.offer || []).indexOf(id) < 0) return false;
+    u.picked = id;
+    u.stage = 'place';
+    E.save();
+    return true;
+  };
+  E.instabilityUnpick = function () {
+    var u = E.run && E.run.unstable;
+    if (!u || u.stage !== 'place') return false;
+    u.picked = null; u.stage = 'pick'; E.save(); return true;
+  };
+
+  // Weld it into the face the player chose, and the sector turns over.
+  E.instabilityPlace = function (face) {
+    var r = E.run, u = r && r.unstable;
+    if (!u || u.stage !== 'place' || !u.picked) return 'nothing picked';
+    var why = ns.dieCanEngrave(r.die, u.picked, face);
+    if (why) return why;
+    ns.dieEngrave(r.die, u.picked, face);
+    // the mark that locks it out of the forge, the bench and every later fire
+    var slot = r.die.faces[face];
+    if (slot) slot.perm = true;
+    r.unstable = null;
     newSector();
+    return null;
   };
 
   function newSector() {
@@ -14093,6 +14403,24 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     return true;
   }
 
+  // Every permanent welded into the die, fired once per roll. `from` is the
+  // face the roll actually landed on, so a permanent never re-fires itself
+  // when the roll happens to land on the face it is welded to.
+  function firePermanents(landedFace, tgt) {
+    var r = E.run, c = E.combat;
+    if (!r || !r.die || !c || c.over) return;
+    c.permLanded = landedFace;      // THE FUSED CORE reaches across from HERE
+    for (var f = 1; f <= ns.dieSides(r.die); f++) {
+      if (c.over) break;
+      if (f === landedFace) continue;              // already fired as the root
+      var slot = r.die.faces[f];
+      if (!slot || slot.root !== f) continue;
+      var g = ns.dieEngraving(slot.id);
+      if (!g || !g.everyRoll) continue;
+      fireOneFace(f, tgt, 1, 'permanent', landedFace);
+    }
+  }
+
   /* THE ROLL BLEEDS. A roll no longer fires one face in isolation — it also
    * catches the faces either side of it at half strength. Two consequences,
    * both deliberate:
@@ -14114,6 +14442,18 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       c.etched = face;
       emit('relic', { id: 'cold_etch', v: face });
     }
+    /* PERMANENTS FIRE ON EVERY ROLL, and that has to happen HERE — above the
+     * early returns, not below them. An ordinary cut waits to be landed on; a
+     * permanent is welded into the structure and goes off regardless, which
+     * means it must survive the roll landing on a bare face, on a dead-shorted
+     * seam, or on a small barrel that does not bleed. Firing them lower down
+     * measured 0 fires in 12 rolls on a sparsely cut die, which is precisely
+     * the die this ritual creates.
+     *
+     * The PRIMARY roll only — Double Feed's unaimed second round does not get
+     * them twice — and they still obey the rule that a non-attack cannot make
+     * a face deal damage. */
+    if (!c.twinFeed) firePermanents(face, tgt);
     // DISTRIBUTION FRAME routes the charge past the face you rolled
     var lit = fireOneFace(face, tgt, art('rootHalf') > 0 ? 0.5 : 1);
     // SUBSTATION remembers the first face to fire this turn and re-fires it later
@@ -14350,6 +14690,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
 
   // Resolve a card's effects once. Echo can call this twice. ctx carries the
   // shared roll/crit/target and an appliedBurn flag for Contagion.
+  var _inPermReach = false;   // THE FUSED CORE must never reach through itself
   function applyCardFx(fx, ctx) {
     var c = E.combat, p = c.player;
     var tgt = ctx.tgt, crit = ctx.crit, roll = ctx.roll, flags = ctx.flags;
@@ -14438,7 +14779,28 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
            * Four verbs, and the tension between them is the archetype: the
            * wall is both your armour and your ammunition, so every detonation
            * is a decision to stand naked for a turn. */
-          if (f.id === 'wallFace') {
+          if (f.id === 'permOpposite') {
+            /* IT MUST NOT REACH BACK AT ITSELF. `eff` is the face this
+             * engraving sits on. Land a roll on the face opposite the Core and
+             * the reach lands on the Core, which reaches again — a stack
+             * overflow inside the first sector of the first sim run. The guard
+             * below is the fix; the re-entrancy flag is the belt to its
+             * braces, because two Cores welded opposite each other would
+             * ping-pong the same way. */
+            /* THE FUSED CORE. Reaches across the ring rather than along it, at
+             * full charge, on every single roll. fireOneFace and not
+             * fireDieFace on purpose: the far face fires, it does not start a
+             * second bleed of its own — the same rule Hot Barrel and Parity
+             * Pin follow, and the reason a relay cannot cascade. */
+            var _pn = ns.dieSides(E.run.die);
+            var _pl = E.combat.permLanded || eff || 1;
+            var _pa = ((_pl - 1 + Math.floor(_pn / 2)) % _pn) + 1;
+            if (!E.combat.over && _pa !== eff && !_inPermReach) {
+              _inPermReach = true;
+              try { fireOneFace(_pa, tgt, 1, 'opposite', _pl); }
+              finally { _inPermReach = false; }
+            }
+          } else if (f.id === 'wallFace') {
             // REVETMENT: the face you landed on IS the wall you build. `eff`
             // IS the landed face for a steering class, which is the only class
             // these cards belong to.
@@ -15630,6 +15992,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
        * thing your drafted cuts REPLACE. Offering one back as a pick is both
        * nonsense and, at 30 Bulwark a face, wildly overpriced for a tier-1. */
       if (ns.DIE_AUGMENTS[k].basic) return;
+      // A PERMANENT is only ever handed out by the instability. Offering one as
+      // an ordinary drop would let you take the ritual's payout without paying
+      // the ritual's price.
+      if (ns.DIE_AUGMENTS[k].permanent) return;
       // A class set only drops for its class — the Vanguard's listeners key off
       // Momentum and Parry, which the other two barely touch.
       var ec = ns.DIE_AUGMENTS[k].cls;
@@ -16292,6 +16658,10 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   E.reforgeOptionsAt = function (face) {
     var r = E.run, slot = r.die.faces[face];
     if (!slot) return [];
+    // A PERMANENT IS FINISHED. It is welded in by the instability and locked
+    // out of the forge, the bench and every later cull — which is a real cost,
+    // because it takes one of your best faces permanently out of the economy.
+    if (slot.perm) return [];
     var def = ns.dieEngraving(r.die.faces[slot.root].id);
     if (!def) return [];
     return ns.reforgeOptions(def, r.cls);
@@ -16299,7 +16669,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   // Commit one of them.
   E.reforgeApply = function (face, optIdx) {
     var r = E.run, slot = r.die.faces[face];
-    if (!slot) return null;
+    if (!slot || slot.perm) return null;
     var root = slot.root;
     var opts = E.reforgeOptionsAt(root);
     var opt = opts[optIdx];
@@ -17395,6 +17765,8 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var r = E.run;
     if (!E.benchOpen()) return 'the bench is closed';
     if (r.shop.grindUsed) return 'the grinder is spent';
+    var pslot = r.die && r.die.faces[face];
+    if (pslot && pslot.perm) return 'it is welded in — the grinder will not touch it';
     var id = r.die && ns.dieFaceId(r.die, face);
     var g = id ? ns.dieEngraving(id) : null;
     var taint = ns.dieTaintAt(r.die, face);
@@ -17425,6 +17797,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (!lathe && r.shop.reseatUsed) return 'the jig is already reset';
     var slot = r.die && r.die.faces[from];
     if (!slot) return 'that face is bare';
+    if (slot.perm) return 'it is welded in — the jig will not lift it';
     var cost = lathe ? 0 : E.reseatCost();
     if (r.credits < cost) return 'not enough credits';
     var id = slot.id, root = slot.root;
@@ -20611,6 +20984,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
       case 'boss-artifact': return showBossArtifact();
       case 'first-mark': return showFirstMark();
       case 'cutscene': return showCutscene();
+      case 'unstable': return showInstability();
       case 'sector-intro': return showSectorIntro();
       case 'victory': return showVictory();
       case 'dead': return showGameOver();
@@ -21626,6 +22000,11 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var tt = ns.dieTaintAt(die, face);
     if (tt) cls += ' tainted';
     if (sm) cls += ' seamed';
+    /* A WELDED-IN PERMANENT HAS TO LOOK IT. It is locked out of the forge, the
+     * bench and every later instability, so a player who cannot see that will
+     * tap it, get refused, and read the refusal as a bug. */
+    var isPerm = !!(slot && die.faces[slot.root] && die.faces[slot.root].perm);
+    if (isPerm) cls += ' permface';
     var scar = tt ? '<span class="df-scar" title="' + esc((ns.DIE_TAINTS[tt] || {}).name || tt) + '">✖</span>' : '';
     var body = d
       ? (cont ? '<span class="df-cont">— ' + esc(d.name) + '</span>' + scar
@@ -21634,6 +22013,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (smD) body += '<span class="df-seam" title="shared face">+ ' + esc(smD.name) + '</span>';
     // a welded boundary is drawn ON the face that owns its upper edge
     var wl = (welds && ns.dieWelded(die, face, ns.dieStep(face, 1))) ? '<span class="df-weld" title="welded seam">=</span>' : '';
+    if (isPerm && !cont) wl += '<span class="df-perm" title="welded in by the instability — it cannot be changed">◆</span>';
     return '<div class="' + cls + '" data-face="' + face + '"><span class="df-n">' + face + '</span>' + body + tag + wl + '</div>';
   }
   var dieView = null;
@@ -25996,6 +26376,133 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     s.addEventListener('pointerdown', function (ev) {
       if (typing()) { finish(); ev.stopPropagation(); }
     }, true);
+  }
+
+  /* ==================================================================
+   * THE INSTABILITY
+   * ==================================================================
+   * Three steps on one screen, because they are one decision: choose what
+   * burns, see what the bid earned, choose where the permanent welds in.
+   *
+   * The count and the TIER are live on the header while you are choosing, so
+   * the bid is legible before you commit rather than after. That is the whole
+   * reason this is a bid and not a tax — if you cannot see what one more
+   * engraving buys you, there is nothing to decide.
+   * ================================================================== */
+  function showInstability() {
+    combatChrome(false);
+    $hud.innerHTML = ''; setHud(false);
+    var r = E.run;
+    var s = overlayScreen();
+    s.classList.add('unstable-screen');
+    s.appendChild(el('h2', 'screen-title', 'The Die Destabilises'));
+    var sub = el('div', 'screen-sub', '');
+    s.appendChild(sub);
+    var body = el('div', 'un-body');
+    s.appendChild(body);
+    var acts = el('div', 'un-acts');
+    s.appendChild(acts);
+
+    function tierName(t) { return t === 3 ? 'TIER III' : t === 2 ? 'TIER II' : 'TIER I'; }
+
+    function draw() {
+      var st = E.instabilityState();
+      if (!st) { U.refresh(); return; }
+      body.innerHTML = ''; acts.innerHTML = '';
+
+      if (st.stage === 'cull') {
+        sub.textContent = 'IT CANNOT HOLD WHAT YOU CUT INTO IT · GIVE BACK ' + st.required + ' OF ' + st.roots.length;
+        var over = st.chosen.length - st.required;
+        body.appendChild(el('div', 'un-bid',
+          '<span class="un-count' + (st.ready ? ' ok' : '') + '">' + st.chosen.length + ' / ' + st.required + '</span>'
+          + '<span class="un-tier t' + st.tier + '">' + tierName(st.tier) + ' PERMANENT</span>'
+          + '<span class="un-hint">' + (over >= 4 ? 'the fire is fed'
+              : 'feed it ' + (2 - (Math.max(0, over) % 2)) + ' more for the next tier') + '</span>'));
+
+        var grid = el('div', 'face-grid');
+        for (var f = 1; f <= ns.dieSides(r.die); f++) {
+          (function (face) {
+            var slot = r.die.faces[face];
+            var isRoot = slot && slot.root === face;
+            var g = slot ? ns.dieEngraving(r.die.faces[slot.root].id) : null;
+            var perm = !!(slot && slot.perm);
+            var can = isRoot && !perm;
+            var taint = ns.dieTaintAt(r.die, face);
+            var cell = el('div', 'fc' + (can ? ' can' : '')
+              + (st.chosen.indexOf(face) >= 0 ? ' burning' : '')
+              + (perm ? ' permanent' : '')
+              + (!slot ? ' blank' : '')
+              + ((g && g.flaw) || taint ? ' scarred' : ''),
+              '<span class="fc-n">' + face + '</span>'
+              + '<span class="fc-name">' + esc(g ? g.name : '—') + '</span>'
+              + (perm ? '<span class="fc-scar" style="color:#ffb02e">WELDED</span>' : '')
+              + (g && g.flaw ? '<span class="fc-scar">FLAW</span>' : ''));
+            if (can) cell.addEventListener('pointerdown', function (ev) {
+              ev.stopPropagation(); SFX.tap(); E.instabilityToggle(face); draw();
+            });
+            grid.appendChild(cell);
+          })(f);
+        }
+        body.appendChild(grid);
+
+        var go = el('button', 'btn' + (st.ready ? '' : ' dim'), 'BURN ' + st.chosen.length + ' · TAKE A ' + tierName(st.tier));
+        go.addEventListener('pointerdown', function (ev) {
+          ev.stopPropagation();
+          var why = E.instabilityCommit();
+          if (why) { toast(why.toUpperCase(), 2000); return; }
+          SFX.win(); draw();
+        });
+        acts.appendChild(go);
+        return;
+      }
+
+      if (st.stage === 'pick') {
+        sub.textContent = 'IT FUSES ONE OF THESE INTO THE DIE · IT CAN NEVER BE CHANGED';
+        var offers = el('div', 'un-offers');
+        (st.offer || []).forEach(function (id) {
+          var g = ns.DIE_AUGMENTS[id];
+          var card = el('div', 'un-offer t' + (g.tier || 1),
+            '<div class="uo-name">' + esc(g.name) + '</div>'
+            + '<div class="uo-desc">' + esc(g.desc) + '</div>');
+          card.addEventListener('pointerdown', function (ev) {
+            ev.stopPropagation(); SFX.tap(); E.instabilityPick(id); draw();
+          });
+          offers.appendChild(card);
+        });
+        body.appendChild(offers);
+        return;
+      }
+
+      // place
+      var pg = ns.DIE_AUGMENTS[st.picked];
+      sub.textContent = 'WHERE DOES ' + (pg.name || '').toUpperCase() + ' WELD IN?';
+      var grid2 = el('div', 'face-grid');
+      for (var f2 = 1; f2 <= ns.dieSides(r.die); f2++) {
+        (function (face) {
+          var legal = !ns.dieCanEngrave(r.die, st.picked, face);
+          var slot = r.die.faces[face];
+          var g2 = slot ? ns.dieEngraving(r.die.faces[slot.root].id) : null;
+          var cell = el('div', 'fc' + (legal ? ' can' : '') + (!slot ? ' blank' : '')
+            + (slot && slot.perm ? ' permanent' : ''),
+            '<span class="fc-n">' + face + '</span>'
+            + '<span class="fc-name">' + esc(g2 ? g2.name : '—') + '</span>');
+          if (legal) cell.addEventListener('pointerdown', function (ev) {
+            ev.stopPropagation();
+            var why = E.instabilityPlace(face);
+            if (why) { toast(why.toUpperCase(), 2000); return; }
+            SFX.win(); U.refresh();
+          });
+          grid2.appendChild(cell);
+        })(f2);
+      }
+      body.appendChild(grid2);
+      var back = el('button', 'btn dim small', 'CHOOSE A DIFFERENT ONE');
+      back.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation(); SFX.tap(); E.instabilityUnpick(); draw();
+      });
+      acts.appendChild(back);
+    }
+    draw();
   }
 
   function showSectorIntro() {
