@@ -938,11 +938,25 @@ function engFaceValue(g, wantD) {
 function faceWorth(face) {
   var die = E.run.die, slot = die.faces[face];
   if (!slot) return 0;
-  var before = dieRollEV(die, false, null);
   var probe = { sides: die.sides, role: die.role, seams: JSON.parse(JSON.stringify(die.seams || {})),
                 welds: (die.welds || []).slice(), faces: JSON.parse(JSON.stringify(die.faces)) };
   VS.dieScrub(probe, face);
-  return before - dieRollEV(probe, false, null);
+  /* BOTH LENSES, AND THE FACE IS WORTH WHAT IT IS BEST AT.
+   *
+   * This scored the offence lens only (wantD false), under which engFaceValue
+   * prices `block` at 0.2x — a five-fold penalty. The Technomancer's die table
+   * SCALES Shield, so his defensive cuts are the build, and a bot culling on
+   * an offence-only lens burned his best faces first at every sector boundary.
+   * He measured five points behind on the mixed 900-run because of it.
+   *
+   * Taking the max rather than averaging is deliberate: you do not sacrifice
+   * your best shield face merely because it is not also a good damage face. */
+  var worst = 0;
+  [false, true].forEach(function (wantD) {
+    var drop = dieRollEV(die, wantD, null) - dieRollEV(probe, wantD, null);
+    if (drop > worst) worst = drop;
+  });
+  return worst;
 }
 // How much expected roll the bot will give up to climb one permanent tier.
 var BID_STEP = 3.5;
