@@ -2478,7 +2478,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
  * ========================================================================= */
 (function (ns) {
   // Replaced by test/bundle.js with the git short hash + date at build time.
-  ns.BUILD = '2026-08-28 279eeed';
+  ns.BUILD = '2026-08-28 da35db0';
 
   'use strict';
 
@@ -20531,6 +20531,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     { bass: 36, chord: [48, 52, 55] }, // C   (C E G)
   ];
   var ARP = [0, 2, 1, 2];
+  var TEMPO = { base: 74, climb: 16 };
+
+  /* EXPOSED SO THE SOUND TOOL CAN DRIVE THE REAL ENGINE. tools/sound.html
+   * edits these in place and hears the actual mix rather than a reimplementation
+   * of it, which is the same reason the artist previews art through the game's
+   * own draw call. Nothing in the game writes to them. */
+  M.PROG = PROG; M.ARP = ARP; M.VOL = VOL; M.TEMPO = TEMPO;
+  M.setIntensity = function (v) { intensity = Math.max(0, Math.min(1, v)); };
 
   function tone(time, midi, dur, type, vol, dest) {
     var o = AC.createOscillator(), g = AC.createGain();
@@ -20571,7 +20579,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     s.start(time); s.stop(time + 0.06);
   }
 
-  function secPerStep() { return 60 / (74 + intensity * 16) / 4; }   // slower, spacier
+  function secPerStep() { return 60 / (TEMPO.base + intensity * TEMPO.climb) / 4; }   // slower, spacier
 
   function scheduleStep(step, time) {
     var bar = (step >> 4) & 3, inBar = step & 15, ch = PROG[bar];

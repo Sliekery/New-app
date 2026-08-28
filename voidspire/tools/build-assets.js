@@ -61,3 +61,9 @@ console.log('assets.js: ' + out.length + ' pieces of art'
   + out.filter(function (a) { return a.kind === 'card'; }).length + ' cards)'
   + (skipped ? ', ' + skipped + ' skipped as empty or unusable' : ''));
 console.log('  ' + Math.round(body.length / 1024) + ' KB');
+
+/* The sound tool drives the REAL music engine rather than a copy of it, so the
+ * engine has to sit beside the tool — the deployed site publishes tools/ but
+ * not js/. Copied here so one command keeps both tools current. */
+fs.copyFileSync(path.join(root, 'js', 'music.js'), path.join(__dirname, 'music.js'));
+console.log('music.js copied beside the sound tool');
