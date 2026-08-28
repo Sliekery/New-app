@@ -90,7 +90,12 @@
           <button id="addStep">+ STEP</button>
           <button id="dupStep">DUPLICATE</button>
           <button id="delStep" class="warn">DELETE STEP</button>
+          <span style="width:10px"></span>
+          <span class="hint">monitor</span>
+          <input type="range" id="pGain" min="1" max="14" step="0.5" value="4" style="max-width:120px">
+          <span class="hint" id="pGainN">4×</span>
           <span class="hint" id="sfxStatus"></span>
+          <span class="hint" id="audioState" style="color:#ffb02e;display:none"></span>
         </div>
       </div>
       <div class="box" style="margin-top:10px">
@@ -142,6 +147,8 @@
         <div class="bar" style="margin-top:0">
           <button id="mPlay" class="big">▶ START</button>
           <button id="mScene" class="sm">SCENE: MENU</button>
+          <span class="hint">monitor</span>
+          <input type="range" id="mVol" min="0" max="100" value="100" style="max-width:110px">
           <span class="hint">intensity (sector)</span>
           <input type="range" id="mInt" min="0" max="100" value="30" style="max-width:150px">
           <span class="hint" id="mIntN">0.30</span>
@@ -192,11 +199,39 @@
 <script>
 (function () {
   'use strict';
-  var AC = null;
+  /* ==================================================================
+   * PREVIEW GAIN, and why it has to exist.
+   *
+   * The game's effects are mixed at vol 0.025 to 0.06 — a tap peaks at
+   * -32 dBFS, measured. That is right in the game, where they sit under music
+   * and you are expecting them, and it is far too quiet in a tool where you
+   * are auditioning one sound in silence on laptop speakers. So everything
+   * here runs through a master gain that is ONLY a monitoring level: it never
+   * touches the numbers that get exported, which stay the game's own.
+   *
+   * Browsers also refuse to start audio until the page has been interacted
+   * with, and resume() is asynchronous — scheduling a voice in the same tick
+   * as the resume can drop it. Both are handled below.
+   * ================================================================== */
+  var AC = null, MASTER = null, previewGain = 4;
   function ac() {
-    if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+    if (!AC) {
+      try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
+      MASTER = AC.createGain();
+      MASTER.gain.value = previewGain;
+      MASTER.connect(AC.destination);
+    }
     if (AC.state === 'suspended') AC.resume();
     return AC;
+  }
+  function out() { ac(); return MASTER || (AC && AC.destination); }
+  function audioReady() { return AC && AC.state === 'running'; }
+  function showAudioState() {
+    var el = document.getElementById('audioState');
+    if (!el) return;
+    if (audioReady()) { el.textContent = ''; el.style.display = 'none'; return; }
+    el.style.display = '';
+    el.textContent = AC ? 'AUDIO BLOCKED BY THE BROWSER — TAP PLAY AGAIN' : 'TAP PLAY TO ENABLE AUDIO';
   }
 
   /* ==================================================================
@@ -257,7 +292,7 @@
       bq.frequency.exponentialRampToValueAtTime(Math.max(60, filt / 4), now + dur);
       o.connect(bq); bq.connect(g);
     } else o.connect(g);
-    g.connect(c.destination);
+    g.connect(out());
     o.start(now); o.stop(now + dur + 0.02);
   }
   function synth(s) {
@@ -286,7 +321,7 @@
     g.gain.setValueAtTime(0.0001, now);
     g.gain.exponentialRampToValueAtTime(s.vol, now + (s.attack || 0.006));
     g.gain.exponentialRampToValueAtTime(0.0001, now + s.dur);
-    g.connect(c.destination);
+    g.connect(out());
     o.start(now); o.stop(now + s.dur); if (o2) { o2.start(now); o2.stop(now + s.dur); }
   }
   function noise(s) {
@@ -300,7 +335,7 @@
     bq.frequency.value = s.freq;
     g.gain.setValueAtTime(s.vol, now);
     g.gain.exponentialRampToValueAtTime(0.0001, now + s.dur);
-    src.connect(bq); bq.connect(g); g.connect(c.destination);
+    src.connect(bq); bq.connect(g); g.connect(out());
     src.start(now); src.stop(now + s.dur);
   }
   function fire(s) {
@@ -309,6 +344,14 @@
     else beep(s.freq, s.dur, s.type, s.vol, s.slide, s.filter);
   }
   function playSound() {
+    var c = ac();
+    if (c && c.state === 'suspended') {
+      // resume() is a promise; scheduling in the same tick can drop the voice
+      c.resume().then(function () { setTimeout(playSound, 30); showAudioState(); });
+      showAudioState();
+      return;
+    }
+    showAudioState();
     sound.steps.forEach(function (s) {
       if (s.at > 0) setTimeout(function () { fire(s); }, s.at);
       else fire(s);
@@ -461,6 +504,15 @@
   function render() { renderSteps(); drawScope(); emitSfx(); save(); }
 
   document.getElementById('play').onclick = playSound;
+  document.getElementById('pGain').oninput = function () {
+    previewGain = +this.value;
+    document.getElementById('pGainN').textContent = previewGain + '×';
+    if (MASTER) MASTER.gain.value = previewGain;
+  };
+  /* The exported numbers are the game's, not the monitor's — say so where the
+   * code appears, or someone will wonder why their sound is quiet in game. */
+  document.getElementById('sfxOut').title =
+    'The monitor level is for listening only. These numbers are the game\'s own.';
   document.getElementById('addStep').onclick = function () {
     var last = sound.steps[sound.steps.length - 1];
     sound.steps.push(step({ at: Math.round((last.at + last.dur * 1000) * 0.9), freq: last.freq * 1.25 }));
@@ -648,7 +700,12 @@
     var playing = false;
     document.getElementById('mPlay').onclick = function () {
       playing = !playing;
-      if (playing) { M.start(); M.setSector(1); } else M.stop();
+      if (playing) {
+        // the bed's own user volume defaults to 0.7 and its bus sits at 0.04 —
+        // audible in a game, easy to miss in a tool, so monitor it at full
+        if (M.setVolume) M.setVolume(document.getElementById('mVol').value / 100);
+        M.start(); M.setSector(1);
+      } else M.stop();
       this.textContent = playing ? '■ STOP' : '▶ START';
       this.classList.toggle('on', playing);
     };
@@ -657,6 +714,9 @@
       scene = scene === 'menu' ? 'combat' : 'menu';
       M.setScene(scene);
       this.textContent = 'SCENE: ' + scene.toUpperCase();
+    };
+    document.getElementById('mVol').oninput = function () {
+      if (M.setVolume) M.setVolume(this.value / 100);
     };
     document.getElementById('mInt').oninput = function () {
       var v = this.value / 100;
@@ -703,7 +763,7 @@
       document.getElementById('sfxName').value = d.name || 'myShot';
     }
   } catch (e) {}
-  document.getElementById('ver').textContent = 'build 1';
+  document.getElementById('ver').textContent = 'build 2';
   renderLib(); render();
   setInterval(drawScope, 120);
 })();
