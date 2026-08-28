@@ -2558,22 +2558,6 @@
    * icosahedron the engraving screen draws, so the solid you cut faces on is the
    * solid you watch land, and the chain hops across it face by face. */
   var combatDie = null;
-  /* Park the die where the canvas draws the hand. Called on every resize and
-   * on each animation frame while a fight is up, because the weapon rises when
-   * you roll and the die has to travel with it. */
-  function placeCombatDie() {
-    var el = document.getElementById('combat-die');
-    if (!el || !ns.render || !ns.render.weaponXY) return;
-    if (!E.combat || el.style.display === 'none') return;
-    var w = ns.render.weaponXY();
-    var q = ns.render.canvasToLayout(w.x, w.y);
-    el.style.left = q.x + 'px';
-    el.style.top = q.y + 'px';
-    // the die's own size is in layout px too, so the radius converts with it
-    var sc = Math.max(0.62, Math.min(1.20, (w.r / q.k) / 44));
-    el.style.transform = 'translate(-50%, -50%) scale(' + sc.toFixed(3) + ')';
-  }
-  ns.placeCombatDie = placeCombatDie;
   function combatDieMount() {
     var r = E.run; if (!r || !$die) return;
     if (combatDie) { combatDie.destroy(); combatDie = null; }
@@ -4312,11 +4296,7 @@
            * `roll` is emitted before anything else, so this is the one moment
            * the die has the stage to itself. */
           (function (e2, d) {
-            setTimeout(function () {
-              // the arm swings the die up into frame as it tumbles
-              if (ns.render && ns.render.throwDie) ns.render.throwDie();
-              if (combatDie) combatDie.setFace(e2.roll, true, 0.34);
-            }, d);
+            setTimeout(function () { if (combatDie) combatDie.setFace(e2.roll, true, 0.34); }, d);
           })(e, delay);
           // The class table had nothing to say about this card, so no banded
           // settle is coming. Hold the roll in case an engraving fires off it —
