@@ -148,6 +148,19 @@
   // The lowest line a readout may occupy. Called with the block's own height so
   // each caller says how much room it needs rather than sharing a guess.
   function readableBottom(need) { return Math.min(H, handY || H) - (need || 0); }
+  /* THE WEAPON BLOCKS ONLY ITS OWN COLUMN. Clamping readableBottom globally to
+   * the die's top edge kept the bars off the weapon, but it did so for every
+   * enemy on the field including ones nowhere near it — which flipped ordinary
+   * enemies' bars above their heads, the exact thing the fit suite guards.
+   *
+   * A bar that does not overlap the die horizontally has no quarrel with it. */
+  function weaponFloorFor(bx, bw, need) {
+    var lim = readableBottom(need);
+    if (!R.combatVisible || !ns.engine || !ns.engine.run) return lim;
+    var w = R.weaponXY();
+    if (bx + bw < w.x - w.r - 8 || bx > w.x + w.r + 8) return lim;
+    return Math.min(lim, w.y - w.r - 6 - (need || 0));
+  }
   function playerBottom(need) { return Math.min(H, leftY || H) - (need || 0); }
   R.readableBottom = readableBottom;
 
@@ -211,6 +224,15 @@
     var bn = base.length;
     var bshrink = bn >= 5 ? 0.64 : bn === 4 ? 0.74 : bn === 3 ? 0.82 : 1;
     for (var b = 0; b < bn; b++) {
+      /* THE SPREAD STAYS RIGHT OF THE LEDGER, which is why it starts at 0.34
+       * and not at the middle. Centring the line for first person looked
+       * better in a still and broke ten fit checks: the chain receipt owns the
+       * left third of the field (measured, x 5..220 of a 666-wide canvas in
+       * landscape) and enemy 0 walked straight into it.
+       *
+       * The left is not dead screen now either — it is where the weapon is
+       * held, which is where the trooper used to stand and where the player
+       * gauge has always been. */
       var bv = base[b], fx;
       if (bn === 1) fx = 0.64;
       else if (bn === 2) fx = 0.48 + b * 0.30;
@@ -220,7 +242,11 @@
       bv.y = y;
       // A boss reads as a different KIND of thing before it reads as a bigger
       // number, so it gets a third again the silhouette on top of its own size.
-      bv.r = figScale(0.092) * (bv.def.size || 1) * (bv.def.boss ? 1.32 : 1) * bshrink;
+      /* THEY LOOM. Side-on, the figures were scaled to share the stage with a
+       * trooper standing opposite them. Face-on with nothing between you and
+       * them, the same numbers left a single enemy adrift in an empty sky —
+       * measured on a 390px phone, the fight used a fifth of the field. */
+      bv.r = figScale(0.092) * 1.08 * (bv.def.size || 1) * (bv.def.boss ? 1.32 : 1) * bshrink;
     }
     // minions: fan around their spawner with vertical offset, clamped on-field
     var per = {};
@@ -235,7 +261,100 @@
     }
   }
 
-  R.playerXY = function () { return { x: W * 0.15, y: baseY() + 14 }; };
+  /* ---- THE WEAPON ------------------------------------------------------
+   * FIRST PERSON. There is no trooper on the stage any more: you are the
+   * camera, the enemies face you, and what you see of yourself is the die held
+   * in your hand at the bottom of the frame — the Doom shotgun, except the
+   * weapon is the thing the whole game is about.
+   *
+   * It rides LOW and SMALL between turns so the card hand keeps its space,
+   * then swings up into frame to tumble when you roll. On a phone the hand is
+   * the tightest real estate in the game, so the idle pose is the one that has
+   * to be cheap; the throw can afford to be expensive because nothing else is
+   * asking for attention while it happens.
+   * -------------------------------------------------------------------- */
+  R.weapon = { riseT: -9, rise: 0 };
+  // How far the weapon is out of its resting pose, 0..1. Rises fast, hangs
+  // while the die tumbles, falls back slowly.
+  function weaponRise() {
+    var e = t - R.weapon.riseT;
+    if (e < 0 || e > 1.5) return 0;
+    if (e < 0.13) return e / 0.13;                 // snap up
+    if (e < 0.95) return 1;                        // hold while it lands
+    return 1 - (e - 0.95) / 0.55;                  // ease back down
+  }
+  R.throwDie = function () { R.weapon.riseT = t; };
+  // Where the die sits, in CSS pixels. The DOM die widget is positioned from
+  // this same number so the die and the hand drawn under it cannot drift apart.
+  R.weaponXY = function () {
+    var rise = weaponRise();
+    var rad = Math.max(30, Math.min(52, figScale(0.085)));
+    /* SIT ON THE MEASURED CARD EDGE, not on fieldBottom(). fieldBottom is
+     * H - min(170, H*0.28), a reserve that is deliberately approximate; on a
+     * 1180x800 desktop the real card tops are ~130px above it, so the die was
+     * parked inside the hand and painted behind the cards. The die vanished
+     * entirely on desktop while the knuckles drawn around it stayed visible —
+     * a fist gripping nothing. readableBottom() is the measured edge and is
+     * what every other readout on this canvas already respects. */
+    // the DOCK, not readableBottom() — which now asks the weapon where it is
+    var floorY = Math.min(fieldBottom(), Math.min(H, handY || H));
+    /* THE THROW IS AS BIG AS THE ROOM ALLOWS, and no bigger. A flat 1.35-radius
+     * lift put the die through the enemy health bars with an empty hand, and
+     * clamping the RESULT under the fight line was worse: in landscape, where
+     * the band is short, the clamp pushed the weapon UP into the enemy line
+     * permanently, so every enemy sharing its column flipped its bar overhead.
+     * Ten fit failures, all from a clamp meant to prevent one.
+     *
+     * Measuring the headroom first and lifting into that instead means the
+     * swing is full on a phone and a desktop, modest in landscape, and never
+     * reaches the fight on any of them. */
+    /* THE DIE CLEARS THE DOCK LINE; THE ARM DOES NOT. Resting the die's CENTRE
+     * just above the line left its bottom half over the credits and stim row,
+     * covering the numbers. Sitting a full radius up, the die reads whole and
+     * the forearm still runs down behind the dock, which is the part that is
+     * supposed to be occluded. */
+    var headroom = Math.max(0, floorY - rad * 0.95 - (baseY() + rad * 0.55));
+    var wy = floorY - rad * 0.95 - rise * Math.min(rad * 1.35, headroom);
+    /* HELD LOW AND LEFT, where the trooper used to stand. Tried centred first
+     * and it sat on the exact vertical a lone enemy occupies, so that enemy's
+     * health bar — drawn under its feet — landed on the die; tried 0.70 and it
+     * landed on the second enemy of a pair instead. The fight lives right of
+     * the chain ledger, so the one column with nothing in it is the one the
+     * old side-on figure was drawn in, with the player gauge already beneath
+     * it. Which is also the hand entering from the lower left, as sketched. */
+    /* A FRACTION ALONE DOES NOT WORK ON BOTH. At 0.19W the die sat clear of
+     * the cards on a desktop but landed on the energy pip on a 390px phone; at
+     * 0.30W it cleared the pip and touched the leftmost card on desktop. The
+     * gap it has to live in is bounded on the left by the pip in PIXELS and on
+     * the right by the cards as a FRACTION, so it takes one of each. */
+    return {
+      x: Math.max(rad + 18, Math.min(W * 0.30, 250)),
+      y: wy,
+      r: rad,
+      rise: rise,
+    };
+  };
+  // FX still fire "from the player" — that origin is now the die in your hand,
+  // so every tracer, muzzle flash and volley re-aims itself for free.
+  R.playerXY = function () { var w = R.weaponXY(); return { x: w.x, y: w.y - w.r * 0.5 }; };
+
+  /* CANVAS COORDS ARE NOT LAYOUT COORDS. W and H are the canvas's RENDERED
+   * size (getBoundingClientRect), but #combat-die is positioned inside the
+   * transform-scaled #game, so assigning a canvas y straight to its style.top
+   * lands it somewhere else entirely — on a 1180x800 desktop the die was put
+   * 130px too low and painted behind the cards, leaving a fist gripping
+   * nothing while the phone, scaled 1:1, looked correct.
+   *
+   * This is the inverse of the k that measureChrome uses to come the other
+   * way. The canvas and the die share an offsetParent, so an offset within it
+   * is all either of them needs. */
+  R.canvasToLayout = function (x, y) {
+    if (!canvas) return { x: x, y: y, k: 1 };
+    var cb = canvas.getBoundingClientRect();
+    var k = canvas.offsetHeight ? (cb.height / canvas.offsetHeight) : 1;
+    if (!(k > 0.01)) k = 1;
+    return { x: canvas.offsetLeft + x / k, y: canvas.offsetTop + y / k, k: k };
+  };
 
   /* ---- view-state management ------------------------------------------- */
   R.syncCombat = function () {
@@ -699,6 +818,9 @@
     if (!ctx) return;
     if (R.combatVisible) measureChrome();
     t += dt;
+    // the DOM die rides the hand, so it has to be re-parked every frame the
+    // weapon is moving — not only on resize
+    if (R.combatVisible && ns.placeCombatDie) ns.placeCombatDie();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#04080a';
     ctx.fillRect(0, 0, W, H);
@@ -715,7 +837,7 @@
 
     if (R.combatVisible) {
       R.hotIcons.length = 0;   // rebuilt each frame: hover hit-boxes for status/trait icons
-      drawPlayer();
+      drawWeaponHand();
       for (var i = 0; i < R.views.length; i++) drawEnemy(R.views[i], i);
     }
 
@@ -817,7 +939,18 @@
     if (scene.kind === 'rust') drawRustSkyline();
 
     // perspective grid floor under the battlefield
-    var gy = baseY() + Math.min(W, H) * 0.13;
+    /* THE FLOOR MEETS THEIR FEET. It used to start 0.13*min(W,H) BELOW the
+     * line the fight stands on — invisible side-on, because the trooper and
+     * the enemies read as a frieze across the middle of the frame. Face-on
+     * that gap is the whole illusion: a 65px band of empty space between an
+     * enemy's boots and the ground it is supposed to be standing on, so
+     * everything hovered.
+     *
+     * Raising the horizon rather than dropping the fight is the fix that
+     * costs nothing — pushing baseY down to 0.82 instead put ordinary
+     * enemies' health bars into the card dock, which flipped them above their
+     * own heads by the boss rule and detached the one readout that matters. */
+    var gy = baseY() - 6;
     ctx.strokeStyle = th.grid;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -913,7 +1046,18 @@
   }
 
   function drawRustSkyline() {
-    var gy = baseY() + Math.min(W, H) * 0.13;
+    /* THE FLOOR MEETS THEIR FEET. It used to start 0.13*min(W,H) BELOW the
+     * line the fight stands on — invisible side-on, because the trooper and
+     * the enemies read as a frieze across the middle of the frame. Face-on
+     * that gap is the whole illusion: a 65px band of empty space between an
+     * enemy's boots and the ground it is supposed to be standing on, so
+     * everything hovered.
+     *
+     * Raising the horizon rather than dropping the fight is the fix that
+     * costs nothing — pushing baseY down to 0.82 instead put ordinary
+     * enemies' health bars into the card dock, which flipped them above their
+     * own heads by the boss rule and detached the one readout that matters. */
+    var gy = baseY() - 6;
     ctx.fillStyle = 'rgba(4, 8, 10, 0.9)';
     ctx.strokeStyle = 'rgba(255, 150, 40, 0.30)';
     ctx.lineWidth = 1;
@@ -1483,7 +1627,7 @@
      * reads as too big for the screen, which is the point. The readout is not.
      * When the block will not clear the cards it goes ABOVE instead, high
      * enough to clear the intent floating at v.r+22. */
-    var barsUp = by + reach > readableBottom(0);
+    var barsUp = by + reach > weaponFloorFor(bx, bw, 0);
     if (barsUp) by = Math.max(fieldTop() + 22, v.y - v.r - 46 - reach);
     // recorded so the fit test can assert where the block actually landed
     // rather than re-deriving it and drifting from this
@@ -2103,7 +2247,112 @@
     c.restore();
   }
 
-  function drawPlayer() {
+  /* THE HAND THAT HOLDS THE DIE.
+   *
+   * Drawn in the same vector line-work as everything else on this canvas, from
+   * below the frame edge, so it reads as YOUR arm rather than a sprite parked
+   * at the bottom. Two fingers wrap the near face and the thumb crosses the
+   * front; the die itself is the real icosahedron widget, sitting on top of
+   * this in the DOM, so what you are looking at is the same die you cut faces
+   * on — not a picture of one.
+   *
+   * The gauntlet takes the class colour, which is the only thing left on
+   * screen that says which of the three you are. */
+  function drawWeaponHand() {
+    var r = ns.engine.run; if (!r) return;
+    var w = R.weaponXY();
+    var art = CLASS_ART[r.cls] || CLASS_ART.vanguard;
+    var col = art.color;
+    // breathing, so the arm is held rather than pinned; damped while it rises
+    var idle = (1 - w.rise);
+    var bob = (Math.sin(t * 1.5) * 1.5 + Math.sin(t * 0.79) * 0.8) * idle;
+    var tilt = Math.sin(t * 0.61) * 0.045 * idle - w.rise * 0.16;
+    var flash = (t - R.player.flashT < 0.15);
+    ctx.save();
+    ctx.translate(w.x, w.y + bob);
+    ctx.rotate(tilt);
+    ctx.scale(w.r, w.r);
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1.9 / w.r;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.shadowColor = col;
+    ctx.shadowBlur = flash ? 13 : 8;
+    // forearm + gauntlet cuff, running off the bottom of the frame
+    /* IT GRIPS FROM BELOW AND THE SIDES, never across the front. The die is a
+     * DOM widget at z-index 27 and this canvas is behind it, so any finger
+     * drawn over the die's face is painted and then covered — the first pass
+     * put a thumb across the front and it simply vanished. A fist closed under
+     * the die, with knuckles breaking the silhouette either side, reads as a
+     * hand holding it and survives the layering. */
+    var HAND = [
+      /* THE GRIP SITS AT THE DIE'S WAIST, not under it. The card dock covers
+       * everything below the field line, so a fist drawn beneath the die was
+       * painted entirely into the hidden strip — measured on a 390px phone,
+       * two thirds of the arm never reached the screen. The knuckles now break
+       * the silhouette either side at the die's own centre height, which is
+       * the part of the frame that is actually visible. */
+      // knuckles either side, at the die's waist
+      [-0.72, -0.30, -1.00, -0.16, -1.04, 0.26, -0.86, 0.52],
+      [0.72, -0.30, 1.00, -0.16, 1.04, 0.26, 0.86, 0.52],
+      // fingertips curling up over the near edge
+      [-1.00, -0.16, -0.86, -0.42, -0.62, -0.44],
+      [1.00, -0.16, 0.86, -0.42, 0.62, -0.44],
+      // finger creases, so each side is a hand and not a flap
+      [-0.98, 0.06, -0.74, 0.02],
+      [0.98, 0.06, 0.74, 0.02],
+      [-0.94, 0.34, -0.72, 0.28],
+      [0.94, 0.34, 0.72, 0.28],
+      // the fist closing under the die
+      [-0.86, 0.52, -0.66, 0.82, 0.66, 0.82, 0.86, 0.52],
+      // gauntlet cuff and forearm, running off the bottom of the frame
+      [-0.74, 1.06, 0.74, 1.06],
+      [-0.62, 0.86, -0.70, 1.30, -0.60, 2.40],
+      [0.62, 0.86, 0.70, 1.30, 0.60, 2.40],
+    ];
+    HAND.forEach(function (q) {
+      ctx.beginPath();
+      ctx.moveTo(q[0], q[1]);
+      for (var i = 2; i < q.length; i += 2) ctx.lineTo(q[i], q[i + 1]);
+      ctx.stroke();
+    });
+    ctx.restore();
+    /* THE WARD IS A HORIZON NOW, not a ring around a figure. With no body on
+     * the stage there is nothing for a ward to circle, so Shield reads as an
+     * arc of light braced across the bottom of the view — between you and
+     * them, which is what blocking is. */
+    if (R.player.block > 0) {
+      var blk = R.player.block;
+      ctx.save();
+      ctx.strokeStyle = '#41d8ff';
+      ctx.shadowColor = '#41d8ff';
+      ctx.shadowBlur = 12;
+      ctx.globalAlpha = 0.30 + Math.min(0.5, blk / 90);
+      ctx.lineWidth = 1.5 + Math.min(3.5, blk / 22);
+      var arcY = fieldBottom() + 16, sag = 26 + Math.min(30, blk * 0.5);
+      ctx.beginPath();
+      ctx.moveTo(W * 0.04, arcY);
+      ctx.quadraticCurveTo(W * 0.5, arcY - sag, W * 0.96, arcY);
+      ctx.stroke();
+      ctx.restore();
+    }
+    /* THE GAUGE STACKS ABOVE THE DIE, not under it. It used to hang below the
+     * trooper's feet, but the weapon now occupies exactly that strip, so
+     * drawing it there put the HP bar straight through the fist. Above the die
+     * the left column reads top-to-bottom as one unit: your health, then your
+     * hand holding the die. */
+    // drawPlayerGauge lays its block out DOWNWARD from this anchor, so the
+    // anchor has to clear the die by the block's own height, not by a hair
+    if (R.combatVisible) drawPlayerGauge(w.x, w.y - w.r - 78, figScale(0.098));
+  }
+
+  // RETIRED WITH THE SIDE-ON STAGE. The trooper stood at 0.15W in profile and
+  // was the reason the enemy line started a third of the way across. In first
+  // person you are the camera, so the figure, its idle bob, its class sway and
+  // its three card-play animations have no one left to play to. The gauge and
+  // the ward it used to carry moved onto the weapon above; the class colour
+  // survives on the gauntlet.
+  function drawPlayerLegacy() {
     var r = ns.engine.run;
     if (!r) return;
     var p = R.playerXY();

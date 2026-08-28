@@ -447,8 +447,12 @@ html, body {
      than tucked in a dock corner. It is also the REAL die: the same icosahedron
      the engraving screen shows, so the thing you cut faces on is the thing you
      watch land. Tapping it opens that screen. */
-  position: absolute; left: 50%; transform: translateX(-50%);
-  top: calc(env(safe-area-inset-top, 0px) + 74px);
+  /* FIRST PERSON: the die is HELD, not displayed. It used to sit top-centre
+     under the HUD as a readout; now it rides low in the frame with the drawn
+     gauntlet closed around it, and the canvas positions it from the same
+     anchor it draws the hand at, so the two cannot drift apart. */
+  position: absolute; left: 50%; top: 0;
+  transform: translate(-50%, -50%);
   z-index: 27; width: 88px; height: 88px; display: none; color: #41d8ff;
   pointer-events: auto; cursor: pointer; touch-action: manipulation;
 }
