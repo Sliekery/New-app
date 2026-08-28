@@ -2,6 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<!-- GitHub Pages serves these with a long cache, and a single-file tool means
+     one stale document hides every change at once. Three separate "that
+     feature is missing" reports in this project turned out to be exactly
+     that — layers, image tracing and the audio fixes were all reported absent
+     while already deployed. Ask the browser to revalidate; the build number in
+     the header is the backstop when it does not. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>VOIDSPIRE · ARTIST</title>
 <style>
@@ -249,6 +258,7 @@
         <button id="bCopy">COPY</button>
         <button id="bLoad">LOAD FROM BOX</button>
         <button id="bSave" class="sm">SAVE .JSON</button>
+        <button id="bWipe" class="sm warn">RESET TOOL</button>
         <label class="btn sm">OPEN .JSON<input type="file" id="projIn" accept="application/json" hidden></label>
       </div>
       <p class="hint" style="margin:7px 0 0">
@@ -1502,7 +1512,20 @@
   };
   // A build stamp, because a cached copy of this page is indistinguishable
   // from a current one otherwise — which has already caused confusion twice.
-  document.getElementById('ver').textContent = 'build 6';
+  /* A WAY OUT. Autosave means a broken or unwanted drawing comes back on every
+   * reload, and the library shares that storage — so there has to be a
+   * deliberate way to empty it. Asks separately about the library, because
+   * losing a collection of saved parts to a stray tap would be worse than the
+   * problem it solves. */
+  document.getElementById('bWipe').onclick = function () {
+    if (!confirm('Clear the autosaved drawing and reload?\n\nYour LIBRARY is kept.')) return;
+    try { localStorage.removeItem('voidspire.artist.doc'); } catch (e) {}
+    if (confirm('Also clear your saved LIBRARY of parts?\n\nThis cannot be undone.')) {
+      try { localStorage.removeItem('voidspire.artist.library'); } catch (e) {}
+    }
+    location.reload();
+  };
+  document.getElementById('ver').textContent = 'build 7';
 
   libLoad(); renderLib(); renderAssets();
   var restored = loadAutosave();

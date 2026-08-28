@@ -2,6 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<!-- GitHub Pages serves these with a long cache, and a single-file tool means
+     one stale document hides every change at once. Three separate "that
+     feature is missing" reports in this project turned out to be exactly
+     that — layers, image tracing and the audio fixes were all reported absent
+     while already deployed. Ask the browser to revalidate; the build number in
+     the header is the backstop when it does not. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>VOIDSPIRE · SOUND</title>
 <style>
@@ -138,7 +147,10 @@
           <input type="text" id="sfxName" value="myShot" style="flex:1">
         </div>
         <textarea id="sfxOut" readonly style="margin-top:6px"></textarea>
-        <div class="bar"><button id="sfxCopy">COPY</button></div>
+        <div class="bar">
+          <button id="sfxCopy">COPY</button>
+          <button id="sndWipe" class="sm warn">RESET TOOL</button>
+        </div>
       </div>
     </div>
   </div>
@@ -918,7 +930,15 @@
       document.getElementById('sfxName').value = d.name || 'myShot';
     }
   } catch (e) {}
-  document.getElementById('ver').textContent = 'build 4';
+  document.getElementById('sndWipe').onclick = function () {
+    if (!confirm('Clear the autosaved sound and reload?\n\nYour LIBRARY is kept.')) return;
+    try { localStorage.removeItem('voidspire.sound.doc'); } catch (e) {}
+    if (confirm('Also clear your saved LIBRARY of sounds?\n\nThis cannot be undone.')) {
+      try { localStorage.removeItem('voidspire.sound.library'); } catch (e) {}
+    }
+    location.reload();
+  };
+  document.getElementById('ver').textContent = 'build 5';
   renderLib(); render();
   setInterval(drawScope, 120);
 })();
