@@ -286,6 +286,7 @@ function botCombat() {
       var best = null, bestDir = 0;
       [[nst.left, -1], [nst.right, 1]].forEach(function (pair) {
         if (!pair[0] || pair[0].flaw) return;      // never pay to fire a Flaw
+        if (!pair[0].afford) return;               // and never pick one it cannot pay for
         var g = VS.DIE_AUGMENTS[pair[0].id];
         // both lenses, same rule as the instability cull: a face is worth
         // what it is best at, and the bot should not decline a shield face
@@ -293,7 +294,9 @@ function botCombat() {
         var val = Math.max(engFaceValue(g, false), engFaceValue(g, true));
         if (val > (best === null ? NUDGE_BAR : best)) { best = val; bestDir = pair[1]; }
       });
-      if (bestDir) { E.nudge(bestDir); continue; }
+      // A REFUSAL MUST NOT BE RETRIED. Failing does not spend the once-a-turn
+      // allowance, so looping back to the identical choice never terminates.
+      if (bestDir && E.nudge(bestDir) === null) continue;
     }
     if (playable.length === 0) { E.endTurn(); continue; }
 

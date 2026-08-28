@@ -2962,8 +2962,14 @@
         if (!id) continue;
         var g = ns.dieEngraving(id);
         if (!g) continue;
+        var cst = nudgeCost(step);
+        // AFFORDABILITY IS PER SIDE. A single top-level flag derived from the
+        // cheaper direction told a caller "yes" and then refused the pricier
+        // one it had chosen — and because the refusal never spent the
+        // once-a-turn allowance, a caller that retried on failure span
+        // forever. The sim hung on exactly that.
         return { face: f, id: id, name: g.name, flaw: !!g.flaw,
-                 dist: step, cost: nudgeCost(step) };
+                 dist: step, cost: cst, afford: c.energy >= cst };
       }
       return null;
     }
@@ -2973,6 +2979,7 @@
     return {
       from: from,
       cost: cheapest,
+      // "at least one side is reachable" — never a promise about a given side
       afford: c.energy >= cheapest,
       left: lo, right: hi,
     };
