@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>VOIDSPIRE · SOUND</title>
+<style>
+  :root {
+    --bg: #04080a; --panel: #0a1014; --line: rgba(120,150,165,0.22);
+    --text: #eafcff; --dim: #8fa79a; --green: #5dff88; --amber: #ffb02e;
+    --cyan: #41d8ff; --red: #ff4a5e; --violet: #c86bff;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 10px;
+  }
+  h1 { font-size: 13px; letter-spacing: .18em; margin: 0 0 9px; color: var(--cyan); }
+  h1 span { color: var(--dim); letter-spacing: .06em; font-size: 11px; }
+  .wrap { display: grid; gap: 11px; grid-template-columns: 1fr; max-width: 1400px; margin: 0 auto; }
+  @media (min-width: 1000px) { .wrap { grid-template-columns: minmax(0,1fr) 330px; } }
+  .box { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 9px; }
+  .box h2 { font-size: 10px; letter-spacing: .13em; color: var(--dim); margin: 0 0 8px; font-weight: 700; }
+  button, label.btn {
+    background: rgba(10,16,20,0.9); border: 1px solid var(--line); border-radius: 3px;
+    color: var(--text); font: 700 10px/1 ui-monospace, monospace; letter-spacing: .07em;
+    padding: 8px 9px; cursor: pointer; display: inline-block;
+  }
+  button:hover, label.btn:hover { border-color: var(--cyan); }
+  button.on { border-color: var(--cyan); background: rgba(65,216,255,0.16); color: var(--cyan); }
+  button.warn:hover { border-color: var(--red); color: var(--red); }
+  button.sm { padding: 5px 6px; font-size: 9px; }
+  button.big { padding: 11px 16px; font-size: 12px; border-color: var(--green); color: var(--green); }
+  button.big:hover { background: rgba(93,255,136,0.15); }
+  .bar { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 7px; }
+  .hint { color: var(--dim); font-size: 10px; line-height: 1.5; }
+  .hint b { color: var(--text); font-weight: 700; }
+  canvas { display: block; width: 100%; height: auto; background: #05090b; border-radius: 3px; }
+  textarea {
+    width: 100%; min-height: 92px; background: #05090b; color: var(--green);
+    border: 1px solid var(--line); border-radius: 3px; padding: 7px;
+    font: 10px/1.45 ui-monospace, monospace; resize: vertical;
+  }
+  input[type=range] { flex: 1; min-width: 70px; accent-color: var(--cyan); }
+  input[type=text], input[type=number], select {
+    background: #05090b; color: var(--text); border: 1px solid var(--line);
+    border-radius: 3px; padding: 5px; font: 10px ui-monospace, monospace;
+  }
+  .list { max-height: 240px; overflow-y: auto; border: 1px solid var(--line); border-radius: 3px; }
+  .it {
+    display: flex; align-items: center; gap: 7px; padding: 5px 7px; cursor: pointer;
+    border-bottom: 1px solid rgba(120,150,165,0.09); font-size: 10px;
+  }
+  .it:hover { background: rgba(65,216,255,0.1); }
+  .it .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .it .x { color: var(--red); opacity: .5; padding: 0 3px; }
+  .it .x:hover { opacity: 1; }
+  /* one step of a sound */
+  .step { border: 1px solid var(--line); border-radius: 3px; padding: 7px; margin-bottom: 6px; }
+  .step.sel { border-color: var(--cyan); background: rgba(65,216,255,0.06); }
+  .step .hd { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+  .step .hd .t { flex: 1; font-size: 10px; color: var(--cyan); letter-spacing: .08em; }
+  .fld { display: grid; grid-template-columns: 62px 1fr 44px; gap: 5px; align-items: center; margin-bottom: 3px; }
+  .fld label { font-size: 9px; color: var(--dim); letter-spacing: .06em; }
+  .fld .v { font-size: 9.5px; color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
+  .tabs { display: flex; gap: 5px; margin-bottom: 9px; }
+  .tabs button { padding: 9px 14px; }
+  .chord { display: grid; grid-template-columns: 40px repeat(4, 1fr); gap: 5px; align-items: center; margin-bottom: 5px; }
+  .chord label { font-size: 9px; color: var(--dim); }
+  .chord input { width: 100%; }
+</style>
+</head>
+<body>
+<h1>VOIDSPIRE · SOUND <span>— design it, hear it, paste it in · <b id="ver"></b></span></h1>
+
+<div class="tabs">
+  <button id="tabSfx" class="on">SOUND EFFECTS</button>
+  <button id="tabMus">MUSIC</button>
+</div>
+
+<!-- ==================== SFX ==================== -->
+<div id="paneSfx">
+  <div class="wrap">
+    <div>
+      <div class="box">
+        <h2>THE SOUND — each step is one voice, fired after its delay</h2>
+        <canvas id="scope" width="1200" height="230"></canvas>
+        <div class="bar">
+          <button id="play" class="big">▶ PLAY</button>
+          <button id="addStep">+ STEP</button>
+          <button id="dupStep">DUPLICATE</button>
+          <button id="delStep" class="warn">DELETE STEP</button>
+          <span class="hint" id="sfxStatus"></span>
+        </div>
+      </div>
+      <div class="box" style="margin-top:10px">
+        <h2>STEPS</h2>
+        <div id="steps"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="box">
+        <h2>THE GAME'S SOUNDS — load one and change it</h2>
+        <div class="list" id="presetList"></div>
+        <p class="hint" style="margin:7px 0 0">
+          Transcribed from <b>js/ui.js</b>. The ones that use randomness or an
+          argument (<b>dice</b>, <b>talk</b>, <b>chainStep</b>) are shown as a
+          fixed example — the shape is right, the variation is not.
+        </p>
+      </div>
+
+      <div class="box" style="margin-top:10px">
+        <h2>YOUR LIBRARY</h2>
+        <div class="bar" style="margin-top:0">
+          <button id="libAdd" class="sm">+ SAVE THIS SOUND</button>
+          <button id="libExport" class="sm">EXPORT</button>
+          <label class="btn sm">IMPORT<input type="file" id="libIn" accept="application/json" hidden></label>
+        </div>
+        <div class="list" id="libList" style="margin-top:6px"></div>
+      </div>
+
+      <div class="box" style="margin-top:10px">
+        <h2>THE CODE — paste into SFX in js/ui.js</h2>
+        <div class="bar" style="margin-top:0">
+          <span class="hint">name</span>
+          <input type="text" id="sfxName" value="myShot" style="flex:1">
+        </div>
+        <textarea id="sfxOut" readonly style="margin-top:6px"></textarea>
+        <div class="bar"><button id="sfxCopy">COPY</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MUSIC ==================== -->
+<div id="paneMus" style="display:none">
+  <div class="wrap">
+    <div>
+      <div class="box">
+        <h2>THE BED — this drives the game's real music engine, not a copy</h2>
+        <div class="bar" style="margin-top:0">
+          <button id="mPlay" class="big">▶ START</button>
+          <button id="mScene" class="sm">SCENE: MENU</button>
+          <span class="hint">intensity (sector)</span>
+          <input type="range" id="mInt" min="0" max="100" value="30" style="max-width:150px">
+          <span class="hint" id="mIntN">0.30</span>
+        </div>
+        <div class="bar">
+          <span class="hint">tempo</span>
+          <input type="range" id="mTempo" min="50" max="140" value="74" style="max-width:150px">
+          <span class="hint" id="mTempoN">74</span>
+          <span class="hint">climb</span>
+          <input type="range" id="mClimb" min="0" max="60" value="16" style="max-width:110px">
+          <span class="hint" id="mClimbN">16</span>
+        </div>
+        <p class="hint" style="margin:8px 0 0">
+          Intensity is what the sector number feeds in: kick above 0.15, hats
+          and arp above 0.45, a driving pickup above 0.6. Move it to hear how
+          the bed tightens as a run goes deeper.
+        </p>
+      </div>
+
+      <div class="box" style="margin-top:10px">
+        <h2>PROGRESSION — bass note and chord, as MIDI numbers (60 = middle C)</h2>
+        <div id="prog"></div>
+        <div class="bar">
+          <span class="hint">arp pattern (indexes into the chord)</span>
+          <input type="text" id="arp" style="width:120px">
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="box">
+        <h2>MIX — each layer's level</h2>
+        <div id="mix"></div>
+      </div>
+      <div class="box" style="margin-top:10px">
+        <h2>THE CODE — paste into js/music.js</h2>
+        <textarea id="musOut" readonly></textarea>
+        <div class="bar">
+          <button id="musCopy">COPY</button>
+          <button id="musReset" class="sm warn">RESET</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="music.js"></script>
+<script>
+(function () {
+  'use strict';
+  var AC = null;
+  function ac() {
+    if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+    if (AC.state === 'suspended') AC.resume();
+    return AC;
+  }
+
+  /* ==================================================================
+   * THE SOUND MODEL
+   * The game's effects are one or more short voices fired after a delay —
+   * `beep(...)` plus `setTimeout(... beep(...))`. A sound here is that same
+   * list, so what the tool exports is the shape the codebase already uses
+   * rather than a format something would have to be written to consume.
+   * ================================================================== */
+  function step(o) {
+    return Object.assign({
+      at: 0, kind: 'beep', freq: 660, dur: 0.08, type: 'square',
+      vol: 0.035, slide: 0, filter: 0, detune: 0, vib: 0, attack: 0.006,
+    }, o || {});
+  }
+  var sound = { steps: [step()] };
+  var si = 0;
+
+  /* The game's own effects, transcribed from the SFX table in js/ui.js. Kept
+   * as data rather than parsed out of the source: three of them are built from
+   * a random value or an argument, and a parser would either silently freeze
+   * that variation or choke on it. Marked `approx` where that is the case. */
+  var PRESETS = [
+    { name: 'tap', steps: [{ freq: 660, dur: 0.05, vol: 0.025 }] },
+    { name: 'play', steps: [{ freq: 440, dur: 0.08, vol: 0.035, slide: 220 }] },
+    { name: 'hit', steps: [{ freq: 140, dur: 0.12, type: 'sawtooth', vol: 0.05, slide: -60 }] },
+    { name: 'crit', steps: [{ freq: 880, dur: 0.18, vol: 0.05, slide: -440 }] },
+    { name: 'block', steps: [{ freq: 520, dur: 0.08, type: 'triangle', vol: 0.045 }] },
+    { name: 'lock', steps: [{ freq: 720, dur: 0.04, vol: 0.028, slide: 200 }, { at: 42, freq: 1080, dur: 0.05, vol: 0.03 }] },
+    { name: 'hurt', steps: [{ freq: 90, dur: 0.2, type: 'sawtooth', vol: 0.06, slide: -40 }] },
+    { name: 'heal', steps: [{ freq: 520, dur: 0.12, type: 'sine', vol: 0.05, slide: 260 }] },
+    { name: 'win', steps: [{ freq: 523, dur: 0.1, vol: 0.04 }, { at: 110, freq: 659, dur: 0.1, vol: 0.04 }, { at: 220, freq: 784, dur: 0.22, vol: 0.05 }] },
+    { name: 'lose', steps: [{ freq: 220, dur: 0.3, type: 'sawtooth', vol: 0.05, slide: -160 }] },
+    { name: 'coin', steps: [{ freq: 988, dur: 0.06, vol: 0.03 }, { at: 60, freq: 1319, dur: 0.1, vol: 0.03 }] },
+    { name: 'servoFire', steps: [{ freq: 1180, dur: 0.03, vol: 0.018 }, { at: 34, freq: 300, dur: 0.09, type: 'sawtooth', vol: 0.035, slide: -120 }] },
+    { name: 'chainBreak', steps: [{ freq: 880, dur: 0.1, vol: 0.05 }, { at: 90, freq: 1320, dur: 0.26, vol: 0.055 }] },
+    { name: 'dice', approx: true, steps: [{ freq: 480, dur: 0.03, vol: 0.02 }] },
+    { name: 'talk', approx: true, steps: [{ freq: 890, dur: 0.025, vol: 0.012 }] },
+    { name: 'chainStep', approx: true, steps: [{ freq: 392, dur: 0.13, vol: 0.038 }] },
+  ];
+
+  /* PLAYBACK IS THE GAME'S OWN beep(), copied verbatim from js/ui.js rather
+   * than approximated — an editor whose preview differs from the runtime is
+   * worse than no editor, because it teaches you the wrong thing. */
+  function beep(f0, dur, type, vol, slide, filt) {
+    var c = ac(); if (!c) return;
+    var o = c.createOscillator(), g = c.createGain(), now = c.currentTime;
+    o.type = type || 'square';
+    o.frequency.setValueAtTime(f0, now);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(28, f0 + slide), now + dur);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(vol || 0.04, now + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    var src = o;
+    if (filt) {
+      var bq = c.createBiquadFilter(); bq.type = 'lowpass';
+      bq.frequency.setValueAtTime(filt, now);
+      bq.frequency.exponentialRampToValueAtTime(Math.max(60, filt / 4), now + dur);
+      o.connect(bq); bq.connect(g);
+    } else o.connect(g);
+    g.connect(c.destination);
+    o.start(now); o.stop(now + dur + 0.02);
+  }
+  function synth(s) {
+    var c = ac(); if (!c) return;
+    var now = c.currentTime, g = c.createGain();
+    var o = c.createOscillator(); o.type = s.type; o.frequency.setValueAtTime(s.freq, now);
+    if (s.slide) o.frequency.exponentialRampToValueAtTime(Math.max(28, s.freq + s.slide), now + s.dur);
+    var o2 = null;
+    if (s.detune) {
+      o2 = c.createOscillator(); o2.type = s.type; o2.frequency.setValueAtTime(s.freq, now);
+      o2.detune.setValueAtTime(s.detune, now);
+      if (s.slide) o2.frequency.exponentialRampToValueAtTime(Math.max(28, s.freq + s.slide), now + s.dur);
+    }
+    if (s.vib) {
+      var lfo = c.createOscillator(), lg = c.createGain();
+      lfo.frequency.value = 13; lg.gain.value = s.vib;
+      lfo.connect(lg); lg.connect(o.frequency); if (o2) lg.connect(o2.frequency);
+      lfo.start(now); lfo.stop(now + s.dur);
+    }
+    if (s.filter) {
+      var bq = c.createBiquadFilter(); bq.type = 'lowpass';
+      bq.frequency.setValueAtTime(s.filter, now);
+      bq.frequency.exponentialRampToValueAtTime(Math.max(60, s.filter / 4), now + s.dur);
+      o.connect(bq); if (o2) o2.connect(bq); bq.connect(g);
+    } else { o.connect(g); if (o2) o2.connect(g); }
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(s.vol, now + (s.attack || 0.006));
+    g.gain.exponentialRampToValueAtTime(0.0001, now + s.dur);
+    g.connect(c.destination);
+    o.start(now); o.stop(now + s.dur); if (o2) { o2.start(now); o2.stop(now + s.dur); }
+  }
+  function noise(s) {
+    var c = ac(); if (!c) return;
+    var n = Math.floor(c.sampleRate * s.dur), buf = c.createBuffer(1, Math.max(1, n), c.sampleRate);
+    var d = buf.getChannelData(0);
+    for (var i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    var src = c.createBufferSource(); src.buffer = buf;
+    var g = c.createGain(), now = c.currentTime;
+    var bq = c.createBiquadFilter(); bq.type = s.freq > 2000 ? 'highpass' : 'lowpass';
+    bq.frequency.value = s.freq;
+    g.gain.setValueAtTime(s.vol, now);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + s.dur);
+    src.connect(bq); bq.connect(g); g.connect(c.destination);
+    src.start(now); src.stop(now + s.dur);
+  }
+  function fire(s) {
+    if (s.kind === 'noise') noise(s);
+    else if (s.kind === 'synth') synth(s);
+    else beep(s.freq, s.dur, s.type, s.vol, s.slide, s.filter);
+  }
+  function playSound() {
+    sound.steps.forEach(function (s) {
+      if (s.at > 0) setTimeout(function () { fire(s); }, s.at);
+      else fire(s);
+    });
+    flash = Date.now();
+  }
+
+  /* ---- the scope: what the sound looks like in time ------------------- */
+  var scope = document.getElementById('scope'), sc = scope.getContext('2d');
+  var flash = 0;
+  function drawScope() {
+    var W = scope.width, H = scope.height;
+    sc.fillStyle = '#05090b'; sc.fillRect(0, 0, W, H);
+    var span = Math.max(0.35, sound.steps.reduce(function (m, s) {
+      return Math.max(m, s.at / 1000 + s.dur);
+    }, 0) * 1.08);
+    // time grid
+    sc.strokeStyle = 'rgba(120,150,165,0.14)'; sc.lineWidth = 1;
+    for (var t = 0; t <= span; t += 0.1) {
+      var x = t / span * W;
+      sc.beginPath(); sc.moveTo(x, 0); sc.lineTo(x, H); sc.stroke();
+    }
+    sc.fillStyle = 'rgba(143,167,154,0.75)'; sc.font = '11px ui-monospace, monospace';
+    sc.fillText(span.toFixed(2) + 's', W - 46, H - 8);
+
+    var lane = H / Math.max(1, sound.steps.length);
+    sound.steps.forEach(function (s, i) {
+      var x0 = (s.at / 1000) / span * W, x1 = ((s.at / 1000) + s.dur) / span * W;
+      var y0 = i * lane + 5, hh = lane - 10;
+      var on = (i === si);
+      // the envelope block, height by volume
+      var v = Math.min(1, s.vol / 0.08);
+      sc.fillStyle = on ? 'rgba(65,216,255,0.20)' : 'rgba(93,255,136,0.11)';
+      sc.fillRect(x0, y0 + hh * (1 - v), Math.max(2, x1 - x0), hh * v);
+      // the pitch line, sloping if it slides
+      var f0 = s.freq, f1 = Math.max(28, s.freq + (s.slide || 0));
+      function py(f) { return y0 + hh - (Math.log(Math.max(28, f) / 28) / Math.log(3000 / 28)) * hh; }
+      sc.strokeStyle = on ? '#41d8ff' : '#5dff88';
+      sc.lineWidth = on ? 2.6 : 1.8;
+      sc.beginPath(); sc.moveTo(x0, py(f0)); sc.lineTo(x1, py(f1)); sc.stroke();
+      sc.fillStyle = on ? '#41d8ff' : 'rgba(143,167,154,0.85)';
+      sc.font = '10px ui-monospace, monospace';
+      sc.fillText((i + 1) + ' · ' + s.kind + ' ' + Math.round(s.freq) + 'Hz'
+        + (s.slide ? (s.slide > 0 ? ' ↗' : ' ↘') : ''), x0 + 4, y0 + 11);
+    });
+    if (Date.now() - flash < 160) {
+      sc.strokeStyle = 'rgba(93,255,136,0.6)'; sc.lineWidth = 2;
+      sc.strokeRect(1, 1, W - 2, H - 2);
+    }
+  }
+
+  /* ---- step editor ---------------------------------------------------- */
+  var FIELDS = [
+    ['freq', 'PITCH', 28, 3000, 1],
+    ['dur', 'LENGTH', 0.01, 1.2, 0.005],
+    ['vol', 'LEVEL', 0.002, 0.12, 0.002],
+    ['slide', 'SLIDE', -900, 900, 10],
+    ['at', 'DELAY ms', 0, 800, 5],
+    ['filter', 'FILTER', 0, 6000, 50],
+    ['detune', 'DETUNE', 0, 40, 1],
+    ['vib', 'VIBRATO', 0, 40, 1],
+  ];
+  function renderSteps() {
+    var host = document.getElementById('steps');
+    host.innerHTML = '';
+    sound.steps.forEach(function (s, i) {
+      var d = document.createElement('div');
+      d.className = 'step' + (i === si ? ' sel' : '');
+      var hd = document.createElement('div');
+      hd.className = 'hd';
+      hd.innerHTML = '<span class="t">STEP ' + (i + 1) + '</span>';
+      var kind = document.createElement('select');
+      ['beep', 'synth', 'noise'].forEach(function (k) {
+        var o = document.createElement('option'); o.value = o.textContent = k;
+        if (s.kind === k) o.selected = true; kind.appendChild(o);
+      });
+      kind.onchange = function () { s.kind = kind.value; render(); };
+      hd.appendChild(kind);
+      var wave = document.createElement('select');
+      ['square', 'sawtooth', 'triangle', 'sine'].forEach(function (k) {
+        var o = document.createElement('option'); o.value = o.textContent = k;
+        if (s.type === k) o.selected = true; wave.appendChild(o);
+      });
+      wave.onchange = function () { s.type = wave.value; render(); };
+      hd.appendChild(wave);
+      var pb = document.createElement('button');
+      pb.className = 'sm'; pb.textContent = '▶';
+      pb.onclick = function (ev) { ev.stopPropagation(); fire(s); };
+      hd.appendChild(pb);
+      d.appendChild(hd);
+      FIELDS.forEach(function (f) {
+        if (s.kind === 'noise' && (f[0] === 'slide' || f[0] === 'detune' || f[0] === 'vib')) return;
+        if (s.kind === 'beep' && (f[0] === 'detune' || f[0] === 'vib')) return;
+        var row = document.createElement('div');
+        row.className = 'fld';
+        var lab = document.createElement('label'); lab.textContent = f[1];
+        var inp = document.createElement('input');
+        inp.type = 'range'; inp.min = f[2]; inp.max = f[3]; inp.step = f[4]; inp.value = s[f[0]];
+        var val = document.createElement('span'); val.className = 'v';
+        val.textContent = (f[4] < 1 ? (+s[f[0]]).toFixed(3) : Math.round(s[f[0]]));
+        inp.oninput = function () {
+          s[f[0]] = +inp.value;
+          val.textContent = (f[4] < 1 ? (+inp.value).toFixed(3) : Math.round(inp.value));
+          drawScope(); emitSfx(); save();
+        };
+        row.appendChild(lab); row.appendChild(inp); row.appendChild(val);
+        d.appendChild(row);
+      });
+      d.onclick = function () { si = i; render(); };
+      host.appendChild(d);
+    });
+    document.getElementById('sfxStatus').textContent =
+      sound.steps.length + ' step' + (sound.steps.length === 1 ? '' : 's');
+  }
+
+  /* TRIM ONLY AFTER A DECIMAL POINT. Stripping trailing zeros unconditionally
+   * turned 660 into 66 and 300 into 3 — every integer frequency in the tool
+   * exported an order of magnitude wrong, silently, because the code still
+   * looked plausible. Caught by round-tripping the presets against js/ui.js:
+   * 2 of 14 matched. */
+  function num(v, dp) {
+    var s = (+v).toFixed(dp === undefined ? 3 : dp);
+    if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+    return s === '' || s === '-' ? '0' : s;
+  }
+  function callFor(s) {
+    if (s.kind === 'noise') return 'noiseHit(' + num(s.freq, 0) + ', ' + num(s.dur) + ', ' + num(s.vol) + ')';
+    if (s.kind === 'synth') {
+      var opts = [];
+      if (s.detune) opts.push('detune: ' + num(s.detune, 0));
+      if (s.vib) opts.push('vib: ' + num(s.vib, 0));
+      if (s.filter) opts.push('filter: [' + num(s.filter, 0) + ', ' + num(s.filter / 4, 0) + ']');
+      return 'synth(' + num(s.freq, 0) + ', ' + num(s.dur) + ", '" + s.type + "', " + num(s.vol)
+        + (s.slide ? ', ' + num(s.slide, 0) : (opts.length ? ', 0' : ''))
+        + (opts.length ? ', { ' + opts.join(', ') + ' }' : '') + ')';
+    }
+    return 'beep(' + num(s.freq, 0) + ', ' + num(s.dur) + ", '" + s.type + "', " + num(s.vol)
+      + (s.slide ? ', ' + num(s.slide, 0) : '') + ')';
+  }
+  function emitSfx() {
+    var name = document.getElementById('sfxName').value || 'newSound';
+    var body = sound.steps.map(function (s) {
+      return s.at > 0
+        ? 'setTimeout(function () { ' + callFor(s) + '; }, ' + Math.round(s.at) + ');'
+        : callFor(s) + ';';
+    }).join(' ');
+    document.getElementById('sfxOut').value = name + ': function () { ' + body + ' },';
+  }
+
+  function render() { renderSteps(); drawScope(); emitSfx(); save(); }
+
+  document.getElementById('play').onclick = playSound;
+  document.getElementById('addStep').onclick = function () {
+    var last = sound.steps[sound.steps.length - 1];
+    sound.steps.push(step({ at: Math.round((last.at + last.dur * 1000) * 0.9), freq: last.freq * 1.25 }));
+    si = sound.steps.length - 1; render();
+  };
+  document.getElementById('dupStep').onclick = function () {
+    sound.steps.splice(si + 1, 0, step(JSON.parse(JSON.stringify(sound.steps[si]))));
+    sound.steps[si + 1].at += 90; si++; render();
+  };
+  document.getElementById('delStep').onclick = function () {
+    if (sound.steps.length < 2) return;
+    sound.steps.splice(si, 1); si = Math.max(0, si - 1); render();
+  };
+  document.getElementById('sfxName').oninput = function () { emitSfx(); save(); };
+  document.getElementById('sfxCopy').onclick = function () {
+    var t = document.getElementById('sfxOut');
+    t.removeAttribute('readonly'); t.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    if (navigator.clipboard) navigator.clipboard.writeText(t.value);
+    t.setAttribute('readonly', '');
+    var b = this, o = b.textContent; b.textContent = 'COPIED';
+    setTimeout(function () { b.textContent = o; }, 900);
+  };
+
+  function loadSound(p) {
+    sound = { steps: p.steps.map(function (s) { return step(s); }) };
+    si = 0;
+    document.getElementById('sfxName').value = p.name;
+    render();
+  }
+  (function renderPresets() {
+    var host = document.getElementById('presetList');
+    PRESETS.forEach(function (p) {
+      var row = document.createElement('div');
+      row.className = 'it';
+      row.innerHTML = '<span class="nm">' + p.name + (p.approx ? ' <span style="color:#ffb02e">~</span>' : '') + '</span>';
+      var pb = document.createElement('button');
+      pb.className = 'sm'; pb.textContent = '▶';
+      pb.onclick = function (ev) {
+        ev.stopPropagation();
+        p.steps.forEach(function (s) {
+          var full = step(s);
+          if (full.at > 0) setTimeout(function () { fire(full); }, full.at); else fire(full);
+        });
+      };
+      row.appendChild(pb);
+      row.onclick = function () { loadSound(p); };
+      host.appendChild(row);
+    });
+  })();
+
+  /* ---- library + autosave --------------------------------------------- */
+  var LIB = 'voidspire.sound.library', DOC = 'voidspire.sound.doc';
+  var lib = [];
+  function save() {
+    try {
+      localStorage.setItem(DOC, JSON.stringify({
+        sound: sound, name: document.getElementById('sfxName').value,
+      }));
+    } catch (e) {}
+  }
+  function renderLib() {
+    var host = document.getElementById('libList');
+    host.innerHTML = '';
+    if (!lib.length) { host.innerHTML = '<div class="hint" style="padding:8px">empty — design a sound and save it</div>'; return; }
+    lib.forEach(function (item, i) {
+      var row = document.createElement('div');
+      row.className = 'it';
+      row.innerHTML = '<span class="nm">' + item.name + '</span>';
+      var pb = document.createElement('button');
+      pb.className = 'sm'; pb.textContent = '▶';
+      pb.onclick = function (ev) {
+        ev.stopPropagation();
+        item.steps.forEach(function (s) {
+          var f = step(s);
+          if (f.at > 0) setTimeout(function () { fire(f); }, f.at); else fire(f);
+        });
+      };
+      row.appendChild(pb);
+      var x = document.createElement('span');
+      x.className = 'x'; x.textContent = '✕';
+      x.onclick = function (ev) {
+        ev.stopPropagation();
+        if (!confirm('Remove "' + item.name + '"?')) return;
+        lib.splice(i, 1); libSave(); renderLib();
+      };
+      row.appendChild(x);
+      row.onclick = function () { loadSound(item); };
+      host.appendChild(row);
+    });
+  }
+  function libSave() { try { localStorage.setItem(LIB, JSON.stringify(lib)); } catch (e) {} }
+  document.getElementById('libAdd').onclick = function () {
+    var name = prompt('Name this sound', document.getElementById('sfxName').value || 'sound');
+    if (!name) return;
+    lib.push({ name: name, steps: JSON.parse(JSON.stringify(sound.steps)) });
+    libSave(); renderLib();
+  };
+  document.getElementById('libExport').onclick = function () {
+    var blob = new Blob([JSON.stringify(lib)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'voidspire-sounds.json'; a.click();
+  };
+  document.getElementById('libIn').onchange = function (ev) {
+    var f = ev.target.files && ev.target.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      try { var d = JSON.parse(rd.result); if (!Array.isArray(d)) throw 0; lib = lib.concat(d); libSave(); renderLib(); }
+      catch (e) { alert('That is not a sound library file.'); }
+    };
+    rd.readAsText(f);
+  };
+
+  /* ==================================================================
+   * MUSIC. Drives VS.music directly — the same module the game runs — so
+   * every change is heard in the real mix with the real layering rules,
+   * not through a second implementation that would drift from it.
+   * ================================================================== */
+  var M = (window.VS && window.VS.music) || null;
+  var LAYERS = ['bass', 'sub', 'drone', 'pad', 'kick', 'hat', 'arp', 'menu', 'combat', 'tense'];
+  function renderMusic() {
+    if (!M) {
+      document.getElementById('prog').innerHTML =
+        '<div class="hint">music.js did not load — run <b>node tools/build-assets.js</b> to copy it beside this tool.</div>';
+      return;
+    }
+    var host = document.getElementById('prog');
+    host.innerHTML = '';
+    M.PROG.forEach(function (ch, i) {
+      var row = document.createElement('div');
+      row.className = 'chord';
+      row.innerHTML = '<label>BAR ' + (i + 1) + '</label>';
+      [['bass', null]].concat(ch.chord.map(function (_, k) { return ['chord', k]; }))
+        .forEach(function (spec) {
+          var inp = document.createElement('input');
+          inp.type = 'number'; inp.min = 20; inp.max = 90;
+          inp.value = spec[1] === null ? ch.bass : ch.chord[spec[1]];
+          inp.oninput = function () {
+            var v = Math.max(20, Math.min(90, +inp.value || 0));
+            if (spec[1] === null) ch.bass = v; else ch.chord[spec[1]] = v;
+            emitMus();
+          };
+          row.appendChild(inp);
+        });
+      host.appendChild(row);
+    });
+    document.getElementById('arp').value = M.ARP.join(',');
+
+    var mix = document.getElementById('mix');
+    mix.innerHTML = '';
+    LAYERS.forEach(function (k) {
+      if (M.VOL[k] === undefined) return;
+      var row = document.createElement('div');
+      row.className = 'fld';
+      var lab = document.createElement('label'); lab.textContent = k.toUpperCase();
+      var inp = document.createElement('input');
+      inp.type = 'range'; inp.min = 0; inp.max = k === 'bass' || k === 'kick' ? 1 : 0.3;
+      inp.step = 0.002; inp.value = M.VOL[k];
+      var val = document.createElement('span'); val.className = 'v'; val.textContent = (+M.VOL[k]).toFixed(3);
+      inp.oninput = function () { M.VOL[k] = +inp.value; val.textContent = (+inp.value).toFixed(3); emitMus(); };
+      row.appendChild(lab); row.appendChild(inp); row.appendChild(val);
+      mix.appendChild(row);
+    });
+    emitMus();
+  }
+  function emitMus() {
+    if (!M) return;
+    var prog = M.PROG.map(function (c) {
+      return '    { bass: ' + c.bass + ', chord: [' + c.chord.join(', ') + '] },';
+    }).join('\n');
+    var vol = Object.keys(M.VOL).map(function (k) {
+      return k + ': ' + (+M.VOL[k]).toFixed(3).replace(/\.?0+$/, '');
+    }).join(', ');
+    document.getElementById('musOut').value =
+      'var PROG = [\n' + prog + '\n  ];\n'
+      + '  var ARP = [' + M.ARP.join(', ') + '];\n'
+      + '  var TEMPO = { base: ' + M.TEMPO.base + ', climb: ' + M.TEMPO.climb + ' };\n'
+      + '  var VOL = { ' + vol + ' };';
+  }
+  if (M) {
+    document.getElementById('arp').oninput = function () {
+      var v = this.value.split(',').map(function (x) { return Math.max(0, Math.min(2, parseInt(x, 10) || 0)); });
+      if (v.length) { M.ARP.length = 0; v.forEach(function (n) { M.ARP.push(n); }); emitMus(); }
+    };
+    var playing = false;
+    document.getElementById('mPlay').onclick = function () {
+      playing = !playing;
+      if (playing) { M.start(); M.setSector(1); } else M.stop();
+      this.textContent = playing ? '■ STOP' : '▶ START';
+      this.classList.toggle('on', playing);
+    };
+    var scene = 'menu';
+    document.getElementById('mScene').onclick = function () {
+      scene = scene === 'menu' ? 'combat' : 'menu';
+      M.setScene(scene);
+      this.textContent = 'SCENE: ' + scene.toUpperCase();
+    };
+    document.getElementById('mInt').oninput = function () {
+      var v = this.value / 100;
+      document.getElementById('mIntN').textContent = v.toFixed(2);
+      if (M.setIntensity) M.setIntensity(v);
+    };
+    document.getElementById('mTempo').oninput = function () {
+      M.TEMPO.base = +this.value;
+      document.getElementById('mTempoN').textContent = this.value; emitMus();
+    };
+    document.getElementById('mClimb').oninput = function () {
+      M.TEMPO.climb = +this.value;
+      document.getElementById('mClimbN').textContent = this.value; emitMus();
+    };
+    document.getElementById('musCopy').onclick = function () {
+      var t = document.getElementById('musOut');
+      t.removeAttribute('readonly'); t.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      if (navigator.clipboard) navigator.clipboard.writeText(t.value);
+      t.setAttribute('readonly', '');
+      var b = this, o = b.textContent; b.textContent = 'COPIED';
+      setTimeout(function () { b.textContent = o; }, 900);
+    };
+    document.getElementById('musReset').onclick = function () { location.reload(); };
+  }
+
+  /* ---- tabs ------------------------------------------------------------ */
+  function tab(which) {
+    document.getElementById('paneSfx').style.display = which === 'sfx' ? '' : 'none';
+    document.getElementById('paneMus').style.display = which === 'mus' ? '' : 'none';
+    document.getElementById('tabSfx').classList.toggle('on', which === 'sfx');
+    document.getElementById('tabMus').classList.toggle('on', which === 'mus');
+    if (which === 'mus') renderMusic();
+  }
+  document.getElementById('tabSfx').onclick = function () { tab('sfx'); };
+  document.getElementById('tabMus').onclick = function () { tab('mus'); };
+
+  // restore
+  try {
+    lib = JSON.parse(localStorage.getItem(LIB) || '[]');
+    var d = JSON.parse(localStorage.getItem(DOC) || 'null');
+    if (d && d.sound && d.sound.steps && d.sound.steps.length) {
+      sound = { steps: d.sound.steps.map(function (s) { return step(s); }) };
+      document.getElementById('sfxName').value = d.name || 'myShot';
+    }
+  } catch (e) {}
+  document.getElementById('ver').textContent = 'build 1';
+  renderLib(); render();
+  setInterval(drawScope, 120);
+})();
+</script>
+</body>
+</html>
