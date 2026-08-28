@@ -95,6 +95,12 @@
           <input type="range" id="pGain" min="1" max="14" step="0.5" value="4" style="max-width:120px">
           <span class="hint" id="pGainN">4×</span>
           <span class="hint" id="sfxStatus"></span>
+        </div>
+        <div class="bar">
+          <button id="testTone" class="sm">TEST TONE</button>
+          <span class="hint">output</span>
+          <canvas id="meter" width="240" height="16" style="width:120px;height:8px;flex:0 0 120px"></canvas>
+          <span class="hint" id="audioInfo"></span>
           <span class="hint" id="audioState" style="color:#ffb02e;display:none"></span>
         </div>
       </div>
@@ -213,17 +219,64 @@
    * with, and resume() is asynchronous — scheduling a voice in the same tick
    * as the resume can drop it. Both are handled below.
    * ================================================================== */
-  var AC = null, MASTER = null, previewGain = 4;
+  var AC = null, MASTER = null, ANALYSER = null, previewGain = 4;
+
+  /* THE SILENT SWITCH. On iOS, Web Audio obeys the hardware ringer switch, so
+   * a page can be synthesising perfectly and be completely inaudible with no
+   * error and nothing in any log. Playing a real <audio> element on a user
+   * gesture promotes the page to the media playback category, which is not
+   * muted by that switch. Costs nothing anywhere else. */
+  var unlocker = null;
+  function unlockMedia() {
+    if (unlocker) return;
+    unlocker = document.createElement('audio');
+    unlocker.setAttribute('playsinline', '');
+    unlocker.loop = true;
+    // 0.1s of silence, so there is something real to play
+    unlocker.src = 'data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBIAAAABAAEAQB8AAEAfAAABAAgAAABmYWN0BAAAAAAAAABkYXRhAAAAAA==';
+    unlocker.volume = 0.01;
+    var pr = unlocker.play();
+    if (pr && pr.catch) pr.catch(function () {});
+  }
+  document.addEventListener('pointerdown', unlockMedia, { once: true });
+
   function ac() {
     if (!AC) {
       try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
       MASTER = AC.createGain();
       MASTER.gain.value = previewGain;
-      MASTER.connect(AC.destination);
+      ANALYSER = AC.createAnalyser();
+      ANALYSER.fftSize = 512;
+      MASTER.connect(ANALYSER);
+      ANALYSER.connect(AC.destination);
     }
     if (AC.state === 'suspended') AC.resume();
     return AC;
   }
+
+  /* A LEVEL METER, because "I hear nothing" and "it is producing nothing" are
+   * different faults and nothing on screen told them apart. If this moves, the
+   * tool is working and the problem is the device: a silent switch, a muted
+   * tab, the wrong output. If it does not, the fault is here. */
+  var meter = document.getElementById('meter'), mc = meter.getContext('2d'), peakHold = 0;
+  function drawMeter() {
+    var W = meter.width, H = meter.height, lvl = 0;
+    if (ANALYSER) {
+      var buf = new Uint8Array(ANALYSER.fftSize);
+      ANALYSER.getByteTimeDomainData(buf);
+      for (var i = 0; i < buf.length; i++) lvl = Math.max(lvl, Math.abs(buf[i] - 128) / 128);
+    }
+    peakHold = Math.max(lvl, peakHold * 0.92);
+    mc.fillStyle = '#05090b'; mc.fillRect(0, 0, W, H);
+    mc.fillStyle = peakHold > 0.9 ? '#ff4a5e' : peakHold > 0.02 ? '#5dff88' : '#1d2a2f';
+    mc.fillRect(0, 0, Math.max(2, W * Math.min(1, peakHold)), H);
+    var info = document.getElementById('audioInfo');
+    if (info) {
+      info.textContent = AC ? (AC.state + ' · ' + Math.round(AC.sampleRate / 1000) + 'kHz'
+        + (peakHold > 0.02 ? ' · SIGNAL' : ' · silent')) : 'not started';
+    }
+  }
+  setInterval(drawMeter, 80);
   function out() { ac(); return MASTER || (AC && AC.destination); }
   function audioReady() { return AC && AC.state === 'running'; }
   function showAudioState() {
@@ -504,6 +557,22 @@
   function render() { renderSteps(); drawScope(); emitSfx(); save(); }
 
   document.getElementById('play').onclick = playSound;
+  /* An unmistakable reference: a full second at a level nothing in the game
+   * uses. If THIS cannot be heard, the fault is not the sound design. */
+  document.getElementById('testTone').onclick = function () {
+    var c = ac(); if (!c) return;
+    if (c.state === 'suspended') { c.resume(); }
+    unlockMedia();
+    var o = c.createOscillator(), g = c.createGain(), now = c.currentTime;
+    o.type = 'sine'; o.frequency.setValueAtTime(440, now);
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(0.35, now + 0.02);
+    g.gain.setValueAtTime(0.35, now + 0.85);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 1.0);
+    o.connect(g); g.connect(out());
+    o.start(now); o.stop(now + 1.05);
+    showAudioState();
+  };
   document.getElementById('pGain').oninput = function () {
     previewGain = +this.value;
     document.getElementById('pGainN').textContent = previewGain + '×';
@@ -763,7 +832,7 @@
       document.getElementById('sfxName').value = d.name || 'myShot';
     }
   } catch (e) {}
-  document.getElementById('ver').textContent = 'build 2';
+  document.getElementById('ver').textContent = 'build 3';
   renderLib(); render();
   setInterval(drawScope, 120);
 })();
