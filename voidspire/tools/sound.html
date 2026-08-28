@@ -83,8 +83,8 @@
   <div class="wrap">
     <div>
       <div class="box">
-        <h2>THE SOUND — each step is one voice, fired after its delay</h2>
-        <canvas id="scope" width="1200" height="230"></canvas>
+        <h2>THE TIMELINE — drag a block to move it in time and pitch, drag its right edge to stretch it</h2>
+        <canvas id="scope" width="1200" height="260"></canvas>
         <div class="bar">
           <button id="play" class="big">▶ PLAY</button>
           <button id="addStep">+ STEP</button>
@@ -410,30 +410,61 @@
       else fire(s);
     });
     flash = Date.now();
+    playStart = performance.now();
   }
 
   /* ---- the scope: what the sound looks like in time ------------------- */
   var scope = document.getElementById('scope'), sc = scope.getContext('2d');
-  var flash = 0;
+  var flash = 0, span = 0.35, playStart = 0;
+  var RULER = 20;                          // the time ruler's strip at the top
+
+  /* ==================================================================
+   * THE TIMELINE IS THE EDITOR, not a picture of one.
+   * Delay and length were slider-only, which is the wrong instrument for
+   * timing: you hear that the second hit is late and you want to nudge it,
+   * not hunt for a number. Blocks drag like a piano roll — sideways for
+   * when, up and down for pitch — and the right-hand edge stretches the
+   * length. The sliders remain for when a number is what you want.
+   * ================================================================== */
+  function laneOf(i) {
+    var lane = (scope.height - RULER) / Math.max(1, sound.steps.length);
+    return { y0: RULER + i * lane + 5, hh: lane - 10 };
+  }
+  function freqToY(f, L) {
+    return L.y0 + L.hh - (Math.log(Math.max(28, f) / 28) / Math.log(3000 / 28)) * L.hh;
+  }
+  function yToFreq(y, L) {
+    var t = Math.max(0, Math.min(1, (L.y0 + L.hh - y) / L.hh));
+    return Math.round(28 * Math.pow(3000 / 28, t));
+  }
+  function scopeXY(ev) {
+    var r = scope.getBoundingClientRect();
+    return { x: (ev.clientX - r.left) / r.width * scope.width,
+             y: (ev.clientY - r.top) / r.height * scope.height };
+  }
+
   function drawScope() {
     var W = scope.width, H = scope.height;
     sc.fillStyle = '#05090b'; sc.fillRect(0, 0, W, H);
-    var span = Math.max(0.35, sound.steps.reduce(function (m, s) {
+    span = Math.max(0.35, sound.steps.reduce(function (m, s) {
       return Math.max(m, s.at / 1000 + s.dur);
     }, 0) * 1.08);
-    // time grid
+    // the ruler, labelled, so a delay can be read off rather than guessed
+    var tick = span > 0.8 ? 0.2 : span > 0.4 ? 0.1 : 0.05;
     sc.strokeStyle = 'rgba(120,150,165,0.14)'; sc.lineWidth = 1;
-    for (var t = 0; t <= span; t += 0.1) {
+    sc.font = '11px ui-monospace, monospace';
+    for (var t = 0; t <= span + 1e-9; t += tick) {
       var x = t / span * W;
       sc.beginPath(); sc.moveTo(x, 0); sc.lineTo(x, H); sc.stroke();
+      sc.fillStyle = 'rgba(143,167,154,0.6)';
+      sc.fillText(Math.round(t * 1000) + 'ms', x + 3, 13);
     }
-    sc.fillStyle = 'rgba(143,167,154,0.75)'; sc.font = '11px ui-monospace, monospace';
-    sc.fillText(span.toFixed(2) + 's', W - 46, H - 8);
+    sc.strokeStyle = 'rgba(120,150,165,0.3)';
+    sc.beginPath(); sc.moveTo(0, RULER); sc.lineTo(W, RULER); sc.stroke();
 
-    var lane = H / Math.max(1, sound.steps.length);
     sound.steps.forEach(function (s, i) {
       var x0 = (s.at / 1000) / span * W, x1 = ((s.at / 1000) + s.dur) / span * W;
-      var y0 = i * lane + 5, hh = lane - 10;
+      var L = laneOf(i), y0 = L.y0, hh = L.hh;
       var on = (i === si);
       // the envelope block, height by volume
       var v = Math.min(1, s.vol / 0.08);
@@ -441,7 +472,7 @@
       sc.fillRect(x0, y0 + hh * (1 - v), Math.max(2, x1 - x0), hh * v);
       // the pitch line, sloping if it slides
       var f0 = s.freq, f1 = Math.max(28, s.freq + (s.slide || 0));
-      function py(f) { return y0 + hh - (Math.log(Math.max(28, f) / 28) / Math.log(3000 / 28)) * hh; }
+      function py(f) { return freqToY(f, L); }
       sc.strokeStyle = on ? '#41d8ff' : '#5dff88';
       sc.lineWidth = on ? 2.6 : 1.8;
       sc.beginPath(); sc.moveTo(x0, py(f0)); sc.lineTo(x1, py(f1)); sc.stroke();
@@ -449,7 +480,22 @@
       sc.font = '10px ui-monospace, monospace';
       sc.fillText((i + 1) + ' · ' + s.kind + ' ' + Math.round(s.freq) + 'Hz'
         + (s.slide ? (s.slide > 0 ? ' ↗' : ' ↘') : ''), x0 + 4, y0 + 11);
+      // the grab handle for length, so the gesture is discoverable
+      sc.fillStyle = on ? 'rgba(65,216,255,0.85)' : 'rgba(93,255,136,0.5)';
+      sc.fillRect(x1 - 3, y0, 3, hh);
     });
+
+    // PLAYHEAD. Without it the timeline is a diagram; with it you can see
+    // which hit you are hearing.
+    if (playStart) {
+      var el = (performance.now() - playStart) / 1000;
+      if (el > span + 0.25) playStart = 0;
+      else {
+        var hx = el / span * W;
+        sc.strokeStyle = '#ffb02e'; sc.lineWidth = 2;
+        sc.beginPath(); sc.moveTo(hx, RULER); sc.lineTo(hx, H); sc.stroke();
+      }
+    }
     if (Date.now() - flash < 160) {
       sc.strokeStyle = 'rgba(93,255,136,0.6)'; sc.lineWidth = 2;
       sc.strokeRect(1, 1, W - 2, H - 2);
@@ -555,6 +601,46 @@
   }
 
   function render() { renderSteps(); drawScope(); emitSfx(); save(); }
+
+  /* Piano-roll gestures: the block body moves in time and pitch, the right
+   * edge stretches the length. Nothing else on the canvas is grabbable, so a
+   * miss simply selects the step under the pointer. */
+  var tdrag = null;
+  scope.addEventListener('pointerdown', function (ev) {
+    var q = scopeXY(ev), W = scope.width;
+    for (var i = 0; i < sound.steps.length; i++) {
+      var s = sound.steps[i], L = laneOf(i);
+      if (q.y < L.y0 - 5 || q.y > L.y0 + L.hh + 5) continue;
+      var x0 = (s.at / 1000) / span * W, x1 = ((s.at / 1000) + s.dur) / span * W;
+      si = i;
+      if (q.x >= x1 - 10 && q.x <= x1 + 10) tdrag = { i: i, mode: 'len' };
+      else if (q.x >= x0 - 6 && q.x <= x1 + 6) {
+        /* BOTH OFFSETS ARE RELATIVE. Taking pitch from the absolute y meant
+         * grabbing a block anywhere but exactly on its pitch line yanked the
+         * pitch to the grab point before the drag had moved at all — so a
+         * purely sideways nudge retuned the sound. */
+        tdrag = { i: i, mode: 'move', dx: q.x - x0, dy: q.y - freqToY(s.freq, L) };
+      }
+      else tdrag = null;
+      if (tdrag) scope.setPointerCapture(ev.pointerId);
+      renderSteps(); drawScope();
+      return;
+    }
+  });
+  scope.addEventListener('pointermove', function (ev) {
+    if (!tdrag) return;
+    var q = scopeXY(ev), W = scope.width, s = sound.steps[tdrag.i], L = laneOf(tdrag.i);
+    if (tdrag.mode === 'len') {
+      var t1 = (q.x / W) * span;
+      s.dur = Math.max(0.01, Math.min(1.2, t1 - s.at / 1000));
+    } else {
+      s.at = Math.max(0, Math.round(((q.x - tdrag.dx) / W) * span * 1000));
+      s.freq = Math.max(28, Math.min(3000, yToFreq(q.y - tdrag.dy, L)));
+    }
+    drawScope(); renderSteps(); emitSfx(); save();
+  });
+  scope.addEventListener('pointerup', function () { tdrag = null; });
+  scope.addEventListener('pointercancel', function () { tdrag = null; });
 
   document.getElementById('play').onclick = playSound;
   /* An unmistakable reference: a full second at a level nothing in the game
@@ -832,7 +918,7 @@
       document.getElementById('sfxName').value = d.name || 'myShot';
     }
   } catch (e) {}
-  document.getElementById('ver').textContent = 'build 3';
+  document.getElementById('ver').textContent = 'build 4';
   renderLib(); render();
   setInterval(drawScope, 120);
 })();
