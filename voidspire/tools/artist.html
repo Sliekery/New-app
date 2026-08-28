@@ -8,7 +8,7 @@
   :root {
     --bg: #04080a; --panel: #0a1014; --line: rgba(120,150,165,0.22);
     --text: #eafcff; --dim: #8fa79a; --green: #5dff88; --amber: #ffb02e;
-    --cyan: #41d8ff; --red: #ff4a5e;
+    --cyan: #41d8ff; --red: #ff4a5e; --violet: #c86bff;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
@@ -16,26 +16,28 @@
     font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
     padding: 10px; overscroll-behavior: none;
   }
-  h1 { font-size: 13px; letter-spacing: .18em; margin: 0 0 10px; color: var(--green); }
-  h1 span { color: var(--dim); letter-spacing: .08em; }
-  .wrap { display: grid; gap: 12px; grid-template-columns: 1fr; max-width: 1200px; margin: 0 auto; }
-  @media (min-width: 900px) { .wrap { grid-template-columns: minmax(0,1fr) 340px; } }
-  .stage { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 8px; }
-  canvas { display: block; width: 100%; height: auto; touch-action: none; border-radius: 3px; }
-  .bar { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
-  button {
-    background: rgba(10,16,20,0.9); border: 1px solid var(--line); border-radius: 3px;
-    color: var(--text); font: 700 10px/1 ui-monospace, monospace; letter-spacing: .08em;
-    padding: 8px 9px; cursor: pointer; touch-action: manipulation;
+  h1 { font-size: 13px; letter-spacing: .18em; margin: 0 0 9px; color: var(--green); }
+  h1 span { color: var(--dim); letter-spacing: .06em; font-size: 11px; }
+  .wrap { display: grid; gap: 11px; grid-template-columns: 1fr; max-width: 1400px; margin: 0 auto; }
+  @media (min-width: 1000px) { .wrap { grid-template-columns: minmax(0,1fr) 350px; } }
+  .stage, .box {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 8px;
   }
-  button:hover { border-color: var(--green); }
+  canvas { display: block; width: 100%; height: auto; touch-action: none; border-radius: 3px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; align-items: center; }
+  button, label.btn {
+    background: rgba(10,16,20,0.9); border: 1px solid var(--line); border-radius: 3px;
+    color: var(--text); font: 700 10px/1 ui-monospace, monospace; letter-spacing: .07em;
+    padding: 8px 9px; cursor: pointer; touch-action: manipulation; display: inline-block;
+  }
+  button:hover, label.btn:hover { border-color: var(--green); }
   button.on { border-color: var(--green); background: rgba(93,255,136,0.16); color: var(--green); }
   button.warn:hover { border-color: var(--red); color: var(--red); }
+  button.sm { padding: 5px 6px; font-size: 9px; }
   .side { display: flex; flex-direction: column; gap: 10px; }
-  .box { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 9px; }
-  .box h2 { font-size: 10px; letter-spacing: .14em; color: var(--dim); margin: 0 0 7px; font-weight: 700; }
+  .box h2 { font-size: 10px; letter-spacing: .13em; color: var(--dim); margin: 0 0 7px; font-weight: 700; }
   textarea {
-    width: 100%; min-height: 120px; background: #05090b; color: var(--green);
+    width: 100%; min-height: 96px; background: #05090b; color: var(--green);
     border: 1px solid var(--line); border-radius: 3px; padding: 7px;
     font: 10px/1.45 ui-monospace, monospace; resize: vertical;
   }
@@ -44,37 +46,97 @@
   .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
   .swatch { width: 15px; height: 15px; border-radius: 2px; border: 1px solid var(--line); cursor: pointer; }
   .swatch.on { outline: 2px solid var(--text); }
+  input[type=range] { flex: 1; min-width: 80px; accent-color: var(--green); }
+  /* layers and frames */
+  .lay, .frm {
+    display: flex; align-items: center; gap: 5px; padding: 4px 5px; border-radius: 3px;
+    border: 1px solid transparent; cursor: pointer;
+  }
+  .lay.sel, .frm.sel { border-color: var(--green); background: rgba(93,255,136,0.09); }
+  .lay .nm { flex: 1; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tog { font-size: 10px; width: 20px; text-align: center; opacity: .35; }
+  .tog.on { opacity: 1; color: var(--green); }
+  .tog.exp.on { color: var(--amber); }
+  .frames { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 3px; }
+  .frm { flex: 0 0 auto; font-size: 10px; padding: 5px 8px; border-color: var(--line); }
   #preview { background: #04080a; }
 </style>
 </head>
 <body>
-<h1>VOIDSPIRE · ARTIST <span>— draw it, copy the art block, paste it in</span></h1>
+<h1>VOIDSPIRE · ARTIST <span>— sketch, trace, animate, paste it in</span></h1>
 
 <div class="wrap">
   <div>
     <div class="stage">
-      <canvas id="pad" width="1200" height="1200"></canvas>
+      <canvas id="pad" width="1100" height="1100"></canvas>
       <div class="bar">
+        <button id="mDraw" class="on">DRAW</button>
+        <button id="mEdit">EDIT</button>
+        <button id="mEye">EYE</button>
+        <span style="width:8px"></span>
         <button id="bFinish">FINISH LINE</button>
         <button id="bUndo">UNDO</button>
         <button id="bMirror">MIRROR</button>
-        <button id="bEye">EYE DOT</button>
-        <button id="bGrid">GRID</button>
         <button id="bSnap">SNAP</button>
-        <button id="bClear" class="warn">CLEAR</button>
+        <button id="bGrid">GRID</button>
       </div>
-      <div class="bar" style="margin-top:4px">
-        <span class="hint" id="status"></span>
+      <div class="bar"><span class="hint" id="status"></span></div>
+    </div>
+
+    <div class="box" style="margin-top:10px">
+      <h2>FRAMES — more than one makes it an animation</h2>
+      <div class="frames" id="frameList"></div>
+      <div class="bar">
+        <button id="fAdd" class="sm">+ FRAME</button>
+        <button id="fDup" class="sm">DUPLICATE</button>
+        <button id="fDel" class="sm warn">DELETE</button>
+        <button id="fPlay" class="sm">▶ PLAY</button>
+        <button id="bOnion" class="sm">ONION</button>
+        <span class="hint">fps</span>
+        <input type="range" id="fps" min="2" max="24" value="8" style="max-width:110px">
+        <span class="hint" id="fpsN">8</span>
       </div>
     </div>
   </div>
 
   <div class="side">
     <div class="box">
-      <h2>LIVE PREVIEW — drawn the way the game draws it</h2>
-      <canvas id="preview" width="620" height="330"></canvas>
+      <h2>LAYERS — sketch underneath, line work on top</h2>
+      <div id="layerList"></div>
+      <div class="bar">
+        <button id="lAdd" class="sm">+ LAYER</button>
+        <button id="lDel" class="sm warn">DELETE</button>
+        <button id="lUp" class="sm">▲</button>
+        <button id="lDown" class="sm">▼</button>
+      </div>
+      <p class="hint" style="margin:7px 0 0">
+        The <b>eye</b> column shows a layer; the <b>◆</b> column decides whether
+        it is <b>exported</b>. Turn ◆ off on your sketch layer and it stays a
+        guide you can see but the game never gets.
+      </p>
+    </div>
+
+    <div class="box">
+      <h2>TRACE AN IMAGE</h2>
+      <div class="bar">
+        <label class="btn">LOAD IMAGE<input type="file" id="imgIn" accept="image/*" hidden></label>
+        <button id="imgClear" class="sm warn">REMOVE</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <span class="hint">fade</span>
+        <input type="range" id="imgA" min="0" max="100" value="45">
+      </div>
+      <p class="hint" style="margin:6px 0 0">
+        Photograph a paper sketch or drop in an iPad drawing and trace straight
+        over it. It is never exported.
+      </p>
+    </div>
+
+    <div class="box">
+      <h2>LIVE PREVIEW — the game's own draw call</h2>
+      <canvas id="preview" width="640" height="330"></canvas>
       <div class="row" style="margin-top:7px">
-        <span class="hint">glow colour</span>
+        <span class="hint">glow</span>
         <span class="swatch on" data-col="#5dff88" style="background:#5dff88"></span>
         <span class="swatch" data-col="#c86bff" style="background:#c86bff"></span>
         <span class="swatch" data-col="#41d8ff" style="background:#41d8ff"></span>
@@ -84,32 +146,20 @@
     </div>
 
     <div class="box">
-      <h2>THE ART BLOCK — copy this into the game</h2>
+      <h2>THE ART BLOCK</h2>
       <textarea id="out" readonly></textarea>
       <div class="bar">
         <button id="bCopy">COPY</button>
         <button id="bLoad">LOAD FROM BOX</button>
+        <button id="bSave" class="sm">SAVE .JSON</button>
+        <label class="btn sm">OPEN .JSON<input type="file" id="projIn" accept="application/json" hidden></label>
       </div>
       <p class="hint" style="margin:7px 0 0">
-        Paste into <b>js/enemies.js</b> (an enemy), <b>js/dice.js</b> (an
-        engraving) or <b>js/cardart.js</b> (a card icon), replacing that
-        entry's <b>art:</b> value. Paste an existing one in here and hit
-        LOAD to edit it.
-      </p>
-    </div>
-
-    <div class="box">
-      <h2>HOW IT WORKS</h2>
-      <p class="hint">
-        <b>Tap</b> to drop a point. Points join into a line as you go.<br>
-        <b>FINISH LINE</b> ends that stroke and starts a fresh one — a shape is
-        made of several separate strokes.<br>
-        <b>MIRROR</b> draws the left side for you as you draw the right. Every
-        enemy in the game is symmetrical, so leave this on for them.<br>
-        <b>EYE DOT</b> places the glowing pips (eyes, cores, lights) — those are
-        the <b>e</b> list, drawn solid rather than stroked.<br><br>
-        The box is <b>−1 to 1</b>. Anything inside the dashed square is roughly
-        the size of a normal enemy; the ring is where a big one reaches.
+        One frame exports <b>art: { p, e }</b>. Two or more export
+        <b>art: { fps, frames: [...] }</b>, which the renderer plays on a loop.
+        Paste into <b>js/enemies.js</b>, <b>js/dice.js</b> or
+        <b>js/cardart.js</b>. <b>SAVE .JSON</b> keeps layers and frames so you
+        can carry on later — the art block alone cannot.
       </p>
     </div>
   </div>
@@ -121,12 +171,37 @@
   var pv = document.getElementById('preview'), pc = pv.getContext('2d');
   var out = document.getElementById('out'), status = document.getElementById('status');
 
-  // A drawing is a list of strokes; each is a run of points plus whether it
-  // was drawn mirrored. Eyes are separate — the game draws them filled.
-  var lines = [], cur = [], eyes = [];
-  var mirror = true, eyeMode = false, grid = true, snap = true;
+  /* ------------------------------------------------------------------
+   * THE DOCUMENT
+   * Layer metadata is global; the CONTENT of each layer is per frame, which
+   * is what lets you keep a sketch layer steady underneath while the line
+   * work moves. cells[frame][layer] holds the strokes and eyes.
+   * ------------------------------------------------------------------ */
+  var doc = {
+    fps: 8,
+    layers: [
+      { name: 'sketch', vis: true, exp: false },
+      { name: 'line', vis: true, exp: true },
+    ],
+    frames: [blankFrame(2)],
+  };
+  function blankFrame(nLayers) {
+    var cells = [];
+    for (var i = 0; i < nLayers; i++) cells.push({ strokes: [], eyes: [] });
+    return { cells: cells };
+  }
+  var fi = 0, li = 1;                      // current frame, current layer
+  var cur = [];                            // stroke in progress
+  var mode = 'draw';                       // draw | edit | eye
+  var mirror = true, snap = true, grid = true, onion = true;
   var colour = '#5dff88';
-  var VIEW = 1.35;                       // world units visible either side of 0
+  var refImg = null, refAlpha = 0.45;
+  var playing = false, playT = 0;
+  var VIEW = 1.35;
+  var drag = null;                         // {si, pi} while dragging a point
+
+  function cell(f, l) { return doc.frames[f].cells[l]; }
+  function here() { return cell(fi, li); }
 
   function toWorld(cx, cy) {
     var r = pad.getBoundingClientRect();
@@ -139,102 +214,155 @@
     return [(x / VIEW + 1) / 2 * pad.width, (y / VIEW + 1) / 2 * pad.height];
   }
 
-  // Mirroring is applied at export and preview time, never stored, so the
-  // toggle stays live: turn it off and the stroke you already drew keeps its
-  // twin, turn it on and the next one gains one.
-  function expand() {
+  // Mirroring is applied when drawing and exporting, never stored, so the
+  // toggle stays live and a stroke keeps whatever it was drawn with.
+  function expandStrokes(strokes, extra) {
     var o = [];
-    lines.concat(cur.length > 1 ? [{ pts: cur, m: mirror }] : []).forEach(function (L) {
-      var flat = [];
-      L.pts.forEach(function (p) { flat.push(p[0], p[1]); });
+    (strokes || []).concat(extra || []).forEach(function (L) {
+      if (!L.pts || L.pts.length < 2) return;
+      var flat = []; L.pts.forEach(function (p) { flat.push(p[0], p[1]); });
       o.push(flat);
       if (L.m && L.pts.some(function (p) { return Math.abs(p[0]) > 0.015; })) {
-        var mf = [];
-        L.pts.forEach(function (p) { mf.push(-p[0], p[1]); });
+        var mf = []; L.pts.forEach(function (p) { mf.push(-p[0], p[1]); });
         o.push(mf);
       }
     });
     return o;
   }
-  function expandEyes() {
+  function expandEyes(eyes) {
     var o = [];
-    eyes.forEach(function (e) {
+    (eyes || []).forEach(function (e) {
       o.push([e[0], e[1]]);
       if (e[2] && Math.abs(e[0]) > 0.015) o.push([-e[0], e[1]]);
     });
     return o;
   }
+  // Everything the game would receive for one frame: exported layers only.
+  function framePaths(f) {
+    var p = [], e = [];
+    doc.layers.forEach(function (L, l) {
+      if (!L.exp) return;
+      var c = cell(f, l);
+      var extra = (f === fi && l === li && cur.length > 1) ? [{ pts: cur, m: mirror }] : [];
+      p = p.concat(expandStrokes(c.strokes, extra));
+      e = e.concat(expandEyes(c.eyes));
+    });
+    return { p: p, e: e };
+  }
 
+  /* ---- the pad ---------------------------------------------------- */
   function drawPad() {
     px.fillStyle = '#0a1014'; px.fillRect(0, 0, pad.width, pad.height);
+
+    if (refImg) {
+      px.save(); px.globalAlpha = refAlpha;
+      var s = Math.min(pad.width / refImg.width, pad.height / refImg.height);
+      var w = refImg.width * s, h = refImg.height * s;
+      px.drawImage(refImg, (pad.width - w) / 2, (pad.height - h) / 2, w, h);
+      px.restore();
+    }
     if (grid) {
-      px.strokeStyle = 'rgba(120,150,165,0.13)'; px.lineWidth = 1;
+      px.strokeStyle = 'rgba(120,150,165,0.12)'; px.lineWidth = 1;
       for (var g = -1.2; g <= 1.21; g += 0.2) {
         var a = toScreen(g, -VIEW), b = toScreen(g, VIEW);
         px.beginPath(); px.moveTo(a[0], a[1]); px.lineTo(b[0], b[1]); px.stroke();
-        var c = toScreen(-VIEW, g), d = toScreen(VIEW, g);
-        px.beginPath(); px.moveTo(c[0], c[1]); px.lineTo(d[0], d[1]); px.stroke();
+        var c1 = toScreen(-VIEW, g), d1 = toScreen(VIEW, g);
+        px.beginPath(); px.moveTo(c1[0], c1[1]); px.lineTo(d1[0], d1[1]); px.stroke();
       }
-      // the -1..1 box, and the reach of a large figure
-      px.strokeStyle = 'rgba(120,150,165,0.4)'; px.setLineDash([6, 6]);
-      var p0 = toScreen(-1, -1), p1 = toScreen(1, 1);
-      px.strokeRect(p0[0], p0[1], p1[0] - p0[0], p1[1] - p0[1]);
+      px.strokeStyle = 'rgba(120,150,165,0.35)'; px.setLineDash([6, 6]);
+      var q0 = toScreen(-1, -1), q1 = toScreen(1, 1);
+      px.strokeRect(q0[0], q0[1], q1[0] - q0[0], q1[1] - q0[1]);
       px.setLineDash([]);
-      px.strokeStyle = 'rgba(120,150,165,0.18)';
-      var ctr = toScreen(0, 0), edge = toScreen(1.15, 0);
-      px.beginPath(); px.arc(ctr[0], ctr[1], edge[0] - ctr[0], 0, 7); px.stroke();
     }
-    // the mirror axis, so it is obvious which half you are drawing
-    px.strokeStyle = mirror ? 'rgba(93,255,136,0.5)' : 'rgba(120,150,165,0.3)';
+    px.strokeStyle = mirror ? 'rgba(93,255,136,0.45)' : 'rgba(120,150,165,0.25)';
     px.lineWidth = mirror ? 2 : 1;
-    var t = toScreen(0, -VIEW), bm = toScreen(0, VIEW);
-    px.beginPath(); px.moveTo(t[0], t[1]); px.lineTo(bm[0], bm[1]); px.stroke();
+    var t0 = toScreen(0, -VIEW), t1 = toScreen(0, VIEW);
+    px.beginPath(); px.moveTo(t0[0], t0[1]); px.lineTo(t1[0], t1[1]); px.stroke();
 
-    // the strokes themselves
-    var paths = expand();
-    px.strokeStyle = colour; px.lineWidth = 3.4; px.lineJoin = 'round'; px.lineCap = 'round';
-    px.shadowColor = colour; px.shadowBlur = 9;
-    paths.forEach(function (p) {
-      px.beginPath();
-      var s = toScreen(p[0], p[1]); px.moveTo(s[0], s[1]);
-      for (var i = 2; i < p.length; i += 2) { var q = toScreen(p[i], p[i + 1]); px.lineTo(q[0], q[1]); }
-      px.stroke();
+    // ONION SKIN: the frame before this one, faint, so a movement can be
+    // built against where it just was rather than from memory.
+    if (onion && doc.frames.length > 1 && !playing) {
+      var prev = (fi - 1 + doc.frames.length) % doc.frames.length;
+      px.save(); px.globalAlpha = 0.22; px.strokeStyle = '#ffb02e'; px.lineWidth = 2.4;
+      doc.layers.forEach(function (L, l) {
+        if (!L.vis) return;
+        expandStrokes(cell(prev, l).strokes).forEach(strokeIt);
+      });
+      px.restore();
+    }
+
+    // layers bottom to top; a non-exported layer is drawn dimmer so it reads
+    // as a guide rather than as line work
+    doc.layers.forEach(function (L, l) {
+      if (!L.vis) return;
+      px.save();
+      var active = (l === li);
+      px.globalAlpha = L.exp ? (active ? 1 : 0.55) : (active ? 0.5 : 0.3);
+      px.strokeStyle = L.exp ? colour : '#8fa79a';
+      px.lineWidth = L.exp ? 3.2 : 2.4;
+      px.lineJoin = 'round'; px.lineCap = 'round';
+      px.shadowColor = L.exp ? colour : 'transparent';
+      px.shadowBlur = L.exp ? 8 : 0;
+      var extra = (active && cur.length > 1) ? [{ pts: cur, m: mirror }] : [];
+      expandStrokes(cell(fi, l).strokes, extra).forEach(strokeIt);
+      px.restore();
+      px.save();
+      px.fillStyle = '#ff4a5e'; px.shadowColor = '#ff4a5e'; px.shadowBlur = 9;
+      px.globalAlpha = active ? 1 : 0.5;
+      expandEyes(cell(fi, l).eyes).forEach(function (e) {
+        var s = toScreen(e[0], e[1]);
+        px.beginPath(); px.arc(s[0], s[1], 8, 0, 7); px.fill();
+      });
+      px.restore();
     });
-    px.shadowBlur = 0;
 
-    // handles on the stroke in progress, so a mis-tap is visible
+    // handles: the stroke in hand, and every point of the active layer in EDIT
     px.fillStyle = '#ffffff';
     cur.forEach(function (p) {
       var s = toScreen(p[0], p[1]);
       px.beginPath(); px.arc(s[0], s[1], 6, 0, 7); px.fill();
     });
-    px.fillStyle = '#ff4a5e'; px.shadowColor = '#ff4a5e'; px.shadowBlur = 10;
-    expandEyes().forEach(function (e) {
-      var s = toScreen(e[0], e[1]);
-      px.beginPath(); px.arc(s[0], s[1], 9, 0, 7); px.fill();
-    });
-    px.shadowBlur = 0;
+    if (mode === 'edit') {
+      px.fillStyle = '#41d8ff';
+      here().strokes.forEach(function (L) {
+        L.pts.forEach(function (p) {
+          var s = toScreen(p[0], p[1]);
+          px.beginPath(); px.arc(s[0], s[1], 7, 0, 7); px.fill();
+        });
+      });
+    }
 
-    status.textContent = lines.length + ' stroke' + (lines.length === 1 ? '' : 's')
-      + (cur.length ? ' · ' + cur.length + ' point' + (cur.length === 1 ? '' : 's') + ' in hand' : '')
-      + ' · ' + eyes.length + ' eye dot' + (eyes.length === 1 ? '' : 's')
+    var n = framePaths(fi);
+    status.textContent = 'frame ' + (fi + 1) + '/' + doc.frames.length
+      + ' · layer "' + doc.layers[li].name + '"'
+      + ' · ' + here().strokes.length + ' stroke' + (here().strokes.length === 1 ? '' : 's')
+      + (cur.length ? ' · ' + cur.length + ' in hand' : '')
+      + ' · exports ' + n.p.length + ' path' + (n.p.length === 1 ? '' : 's')
       + (mirror ? ' · MIRRORED' : '');
     drawPreview();
     emit();
   }
+  function strokeIt(p) {
+    px.beginPath();
+    var s = toScreen(p[0], p[1]); px.moveTo(s[0], s[1]);
+    for (var i = 2; i < p.length; i += 2) { var q = toScreen(p[i], p[i + 1]); px.lineTo(q[0], q[1]); }
+    px.stroke();
+  }
 
-  /* The preview copies the game's own draw call exactly — same 1.6/scale line
-   * width, same round joins, same shadow glow — so what you see here is what
-   * the battlefield will show, not an approximation of it. */
+  /* The preview copies the game's own draw call — 1.6/scale line width, round
+   * joins, shadow glow — at boss, normal and small scale, so it shows the
+   * battlefield's rendering rather than an approximation of it. */
   function drawPreview() {
+    var f = playing ? (Math.floor(playT) % doc.frames.length) : fi;
+    var art = framePaths(f);
     pc.fillStyle = '#04080a'; pc.fillRect(0, 0, pv.width, pv.height);
-    [[150, 165, 105], [370, 165, 58], [520, 165, 30]].forEach(function (s) {
-      var x = s[0], y = s[1], scale = s[2];
+    [[152, 160, 108], [382, 160, 60], [540, 160, 31]].forEach(function (s) {
+      var x = s[0], y = s[1], sc = s[2];
       pc.save();
-      pc.translate(x, y); pc.scale(scale, scale);
-      pc.strokeStyle = colour; pc.lineWidth = 1.6 / scale;
+      pc.translate(x, y); pc.scale(sc, sc);
+      pc.strokeStyle = colour; pc.lineWidth = 1.6 / sc;
       pc.lineJoin = 'round'; pc.shadowColor = colour; pc.shadowBlur = 7;
-      expand().forEach(function (p) {
+      art.p.forEach(function (p) {
         pc.beginPath(); pc.moveTo(p[0], p[1]);
         for (var i = 2; i < p.length; i += 2) pc.lineTo(p[i], p[i + 1]);
         pc.stroke();
@@ -242,59 +370,197 @@
       pc.restore();
       pc.save();
       pc.fillStyle = '#ff4a5e'; pc.shadowColor = '#ff4a5e'; pc.shadowBlur = 6;
-      expandEyes().forEach(function (e) {
-        var ex = x + e[0] * scale, ey = y + e[1] * scale;
-        var es = Math.max(1.5, scale * 0.05);
+      art.e.forEach(function (e) {
+        var ex = x + e[0] * sc, ey = y + e[1] * sc, es = Math.max(1.5, sc * 0.05);
         pc.fillRect(ex - es / 2, ey - es / 2, es, es);
       });
       pc.restore();
     });
-    pc.fillStyle = 'rgba(143,167,154,0.75)';
-    pc.font = '10px ui-monospace, monospace';
-    pc.fillText('boss', 128, 300); pc.fillText('normal', 344, 300); pc.fillText('small', 500, 300);
+    pc.fillStyle = 'rgba(143,167,154,0.7)'; pc.font = '10px ui-monospace, monospace';
+    pc.fillText('boss', 132, 300); pc.fillText('normal', 358, 300); pc.fillText('small', 518, 300);
+    if (doc.frames.length > 1) {
+      pc.fillStyle = playing ? '#5dff88' : 'rgba(143,167,154,0.7)';
+      pc.fillText('frame ' + (f + 1) + '/' + doc.frames.length, 10, 18);
+    }
   }
 
   function num(v) { return (Math.round(v * 1000) / 1000).toString(); }
   function emit() {
-    var p = expand().map(function (a) { return '[' + a.map(num).join(',') + ']'; });
-    var e = expandEyes().map(function (a) { return '[' + a.map(num).join(',') + ']'; });
-    out.value = 'art: { p: [' + p.join(', ') + '], e: [' + e.join(',') + '] },';
+    function block(f) {
+      var a = framePaths(f);
+      return '{ p: [' + a.p.map(function (q) { return '[' + q.map(num).join(',') + ']'; }).join(', ')
+        + '], e: [' + a.e.map(function (q) { return '[' + q.map(num).join(',') + ']'; }).join(',') + '] }';
+    }
+    if (doc.frames.length === 1) { out.value = 'art: ' + block(0) + ','; return; }
+    var fr = doc.frames.map(function (_, i) { return block(i); });
+    out.value = 'art: { fps: ' + doc.fps + ', frames: [\n  ' + fr.join(',\n  ') + '\n] },';
   }
 
-  function addPoint(ev) {
-    var t = ev.touches ? ev.touches[0] : ev;
-    var w = toWorld(t.clientX, t.clientY);
-    if (eyeMode) eyes.push([w[0], w[1], mirror]);
-    else cur.push(w);
-    drawPad();
+  /* ---- input ------------------------------------------------------- */
+  function nearest(w) {
+    var best = null, bd = 0.075;
+    here().strokes.forEach(function (L, si) {
+      L.pts.forEach(function (p, pi) {
+        var d = Math.hypot(p[0] - w[0], p[1] - w[1]);
+        if (d < bd) { bd = d; best = { si: si, pi: pi }; }
+      });
+    });
+    return best;
   }
-  pad.addEventListener('pointerdown', function (ev) { ev.preventDefault(); addPoint(ev); });
+  pad.addEventListener('pointerdown', function (ev) {
+    ev.preventDefault();
+    var w = toWorld(ev.clientX, ev.clientY);
+    if (mode === 'eye') { here().eyes.push([w[0], w[1], mirror]); drawPad(); return; }
+    if (mode === 'edit') {
+      var hit = nearest(w);
+      if (hit) { drag = hit; pad.setPointerCapture(ev.pointerId); }
+      drawPad(); return;
+    }
+    cur.push(w); drawPad();
+  });
+  pad.addEventListener('pointermove', function (ev) {
+    if (!drag) return;
+    var w = toWorld(ev.clientX, ev.clientY);
+    here().strokes[drag.si].pts[drag.pi] = w;
+    drawPad();
+  });
+  pad.addEventListener('pointerup', function () { drag = null; });
 
   function finish() {
-    if (cur.length > 1) lines.push({ pts: cur, m: mirror });
-    cur = [];
-    drawPad();
+    if (cur.length > 1) here().strokes.push({ pts: cur, m: mirror });
+    cur = []; drawPad();
   }
   document.getElementById('bFinish').onclick = finish;
   document.getElementById('bUndo').onclick = function () {
     if (cur.length) cur.pop();
-    else if (eyeMode && eyes.length) eyes.pop();
-    else if (lines.length) cur = lines.pop().pts;
+    else if (mode === 'eye' && here().eyes.length) here().eyes.pop();
+    else if (here().strokes.length) cur = here().strokes.pop().pts;
     drawPad();
   };
+  function modeBtn(id, m) {
+    document.getElementById(id).onclick = function () {
+      finish(); mode = m;
+      ['mDraw', 'mEdit', 'mEye'].forEach(function (o) { document.getElementById(o).classList.remove('on'); });
+      document.getElementById(id).classList.add('on');
+      drawPad();
+    };
+  }
+  modeBtn('mDraw', 'draw'); modeBtn('mEdit', 'edit'); modeBtn('mEye', 'eye');
   function toggle(id, get, set) {
     var b = document.getElementById(id);
-    b.onclick = function () { set(!get()); b.classList.toggle('on', get()); drawPad(); };
     b.classList.toggle('on', get());
+    b.onclick = function () { set(!get()); b.classList.toggle('on', get()); drawPad(); };
   }
   toggle('bMirror', function () { return mirror; }, function (v) { mirror = v; });
-  toggle('bEye', function () { return eyeMode; }, function (v) { eyeMode = v; });
-  toggle('bGrid', function () { return grid; }, function (v) { grid = v; });
   toggle('bSnap', function () { return snap; }, function (v) { snap = v; });
-  document.getElementById('bClear').onclick = function () {
-    if (!confirm('Clear the whole drawing?')) return;
-    lines = []; cur = []; eyes = []; drawPad();
+  toggle('bGrid', function () { return grid; }, function (v) { grid = v; });
+  toggle('bOnion', function () { return onion; }, function (v) { onion = v; });
+
+  /* ---- layers ------------------------------------------------------ */
+  function renderLayers() {
+    var host = document.getElementById('layerList');
+    host.innerHTML = '';
+    // topmost first, the way a layer stack is normally read
+    doc.layers.slice().reverse().forEach(function (L, ri) {
+      var idx = doc.layers.length - 1 - ri;
+      var row = document.createElement('div');
+      row.className = 'lay' + (idx === li ? ' sel' : '');
+      row.innerHTML = '<span class="tog vis' + (L.vis ? ' on' : '') + '">◉</span>'
+        + '<span class="tog exp' + (L.exp ? ' on' : '') + '">◆</span>'
+        + '<span class="nm">' + L.name + '</span>';
+      row.onclick = function (ev) {
+        if (ev.target.classList.contains('vis')) { L.vis = !L.vis; }
+        else if (ev.target.classList.contains('exp')) { L.exp = !L.exp; }
+        else { finish(); li = idx; }
+        renderLayers(); drawPad();
+      };
+      row.ondblclick = function () {
+        var n = prompt('Layer name', L.name); if (n) { L.name = n; renderLayers(); }
+      };
+      host.appendChild(row);
+    });
+  }
+  document.getElementById('lAdd').onclick = function () {
+    doc.layers.push({ name: 'layer ' + (doc.layers.length + 1), vis: true, exp: true });
+    doc.frames.forEach(function (f) { f.cells.push({ strokes: [], eyes: [] }); });
+    li = doc.layers.length - 1; renderLayers(); drawPad();
   };
+  document.getElementById('lDel').onclick = function () {
+    if (doc.layers.length < 2) return alert('Keep at least one layer.');
+    if (!confirm('Delete layer "' + doc.layers[li].name + '" from every frame?')) return;
+    doc.layers.splice(li, 1);
+    doc.frames.forEach(function (f) { f.cells.splice(li, 1); });
+    li = Math.max(0, li - 1); renderLayers(); drawPad();
+  };
+  function move(d) {
+    var j = li + d; if (j < 0 || j >= doc.layers.length) return;
+    var t = doc.layers[li]; doc.layers[li] = doc.layers[j]; doc.layers[j] = t;
+    doc.frames.forEach(function (f) {
+      var c = f.cells[li]; f.cells[li] = f.cells[j]; f.cells[j] = c;
+    });
+    li = j; renderLayers(); drawPad();
+  }
+  document.getElementById('lUp').onclick = function () { move(1); };
+  document.getElementById('lDown').onclick = function () { move(-1); };
+
+  /* ---- frames ------------------------------------------------------ */
+  function renderFrames() {
+    var host = document.getElementById('frameList');
+    host.innerHTML = '';
+    doc.frames.forEach(function (_, i) {
+      var b = document.createElement('div');
+      b.className = 'frm' + (i === fi ? ' sel' : '');
+      b.textContent = (i + 1);
+      b.onclick = function () { finish(); fi = i; renderFrames(); drawPad(); };
+      host.appendChild(b);
+    });
+  }
+  function clone(f) { return JSON.parse(JSON.stringify(f)); }
+  document.getElementById('fAdd').onclick = function () {
+    finish(); doc.frames.splice(fi + 1, 0, blankFrame(doc.layers.length));
+    fi++; renderFrames(); drawPad();
+  };
+  document.getElementById('fDup').onclick = function () {
+    finish(); doc.frames.splice(fi + 1, 0, clone(doc.frames[fi]));
+    fi++; renderFrames(); drawPad();
+  };
+  document.getElementById('fDel').onclick = function () {
+    if (doc.frames.length < 2) return alert('Keep at least one frame.');
+    doc.frames.splice(fi, 1); fi = Math.max(0, fi - 1); renderFrames(); drawPad();
+  };
+  document.getElementById('fps').oninput = function () {
+    doc.fps = +this.value; document.getElementById('fpsN').textContent = doc.fps; emit();
+  };
+  var playBtn = document.getElementById('fPlay');
+  playBtn.onclick = function () {
+    playing = !playing; playBtn.classList.toggle('on', playing);
+    playBtn.textContent = playing ? '■ STOP' : '▶ PLAY';
+    if (playing) requestAnimationFrame(tick);
+  };
+  var last = 0;
+  function tick(ts) {
+    if (!playing) return;
+    if (last) playT += (ts - last) / 1000 * doc.fps;
+    last = ts;
+    drawPreview();
+    requestAnimationFrame(tick);
+  }
+
+  /* ---- tracing image ----------------------------------------------- */
+  document.getElementById('imgIn').onchange = function (ev) {
+    var f = ev.target.files && ev.target.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      var im = new Image();
+      im.onload = function () { refImg = im; drawPad(); };
+      im.src = rd.result;
+    };
+    rd.readAsDataURL(f);
+  };
+  document.getElementById('imgClear').onclick = function () { refImg = null; drawPad(); };
+  document.getElementById('imgA').oninput = function () { refAlpha = this.value / 100; drawPad(); };
+
+  /* ---- import / export --------------------------------------------- */
   document.getElementById('bCopy').onclick = function () {
     out.removeAttribute('readonly'); out.select();
     try { document.execCommand('copy'); } catch (e) {}
@@ -303,40 +569,70 @@
     var b = this, o = b.textContent; b.textContent = 'COPIED';
     setTimeout(function () { b.textContent = o; }, 900);
   };
-
-  /* LOAD takes what the game files actually contain — an `art: {...}` line, or
-   * the bare object — so an existing enemy can be pasted straight in and
-   * edited rather than redrawn. Mirroring is left OFF on load, because the
-   * pasted art already contains both halves. */
+  /* Reads what the game files actually contain: a bare art object, an
+   * `art: {...}` line, or the animated `{ fps, frames: [...] }` form. Loaded
+   * art already contains both halves of a symmetric shape, so mirroring goes
+   * off — leaving it on would double everything on the next stroke. */
   document.getElementById('bLoad').onclick = function () {
     var t = out.value.trim().replace(/^art:\s*/, '').replace(/,\s*$/, '');
     var obj;
     try { obj = (new Function('return (' + t + ')'))(); }
-    catch (err) { alert('Could not read that. Paste an art block like:\n\nart: { p: [[0,0, 1,1]], e: [[0,0]] }'); return; }
-    if (!obj || !obj.p) { alert('No p: list found in that.'); return; }
-    /* DROP NON-FINITE POINTS. Four enemies in the game carry NaN coordinates
-     * from a generator that went wrong; Canvas silently skips any path
-     * containing one, so they have never drawn and the damage is invisible.
-     * Read in naively they arrive as nulls and become 0, which would put a
-     * stray line through the origin — turning invisible bad data into visible
-     * bad art. Skipping them means loading such a shape gives you what the
-     * game actually shows. */
+    catch (err) { return alert('Could not read that.\n\nExpected art: { p: [...], e: [...] }'); }
+    if (!obj) return alert('Nothing to read.');
+    var src = obj.frames ? obj.frames : [obj];
+    if (!src[0] || !src[0].p) return alert('No p: list found.');
+    doc.layers = [{ name: 'line', vis: true, exp: true }];
+    doc.fps = obj.fps || 8;
     var dropped = 0;
-    lines = obj.p.map(function (flat) {
-      var pts = [];
-      for (var i = 0; i < flat.length; i += 2) {
-        var x = flat[i], y = flat[i + 1];
-        if (typeof x !== 'number' || typeof y !== 'number' || !isFinite(x) || !isFinite(y)) { dropped++; continue; }
-        pts.push([x, y]);
-      }
-      return { pts: pts, m: false };
-    }).filter(function (L) { return L.pts.length > 1; });
-    if (dropped) status.textContent = 'dropped ' + dropped + ' unusable point' + (dropped === 1 ? '' : 's');
-    eyes = (obj.e || []).map(function (e) { return [e[0], e[1], false]; });
-    cur = [];
-    mirror = false;
+    doc.frames = src.map(function (fr) {
+      var strokes = (fr.p || []).map(function (flat) {
+        var pts = [];
+        for (var i = 0; i < flat.length; i += 2) {
+          var x = flat[i], y = flat[i + 1];
+          // Non-finite points are skipped, not zeroed. Four enemies in this
+          // game have carried NaN coordinates; Canvas silently drops any path
+          // containing one, so they never drew. Reading them as 0 would put a
+          // stray line through the origin — turning invisible bad data into
+          // visible bad art.
+          if (typeof x !== 'number' || typeof y !== 'number' || !isFinite(x) || !isFinite(y)) { dropped++; continue; }
+          pts.push([x, y]);
+        }
+        return { pts: pts, m: false };
+      }).filter(function (L) { return L.pts.length > 1; });
+      var eyes = (fr.e || []).map(function (e) { return [e[0], e[1], false]; });
+      return { cells: [{ strokes: strokes, eyes: eyes }] };
+    });
+    fi = 0; li = 0; cur = []; mirror = false;
     document.getElementById('bMirror').classList.remove('on');
-    drawPad();
+    document.getElementById('fps').value = doc.fps;
+    document.getElementById('fpsN').textContent = doc.fps;
+    renderLayers(); renderFrames(); drawPad();
+    if (dropped) status.textContent = 'dropped ' + dropped + ' unusable point' + (dropped === 1 ? '' : 's');
+  };
+
+  // The art block is lossy — it has no layers and no sketch. Saving the
+  // project keeps them, so a drawing can be put down and picked up.
+  document.getElementById('bSave').onclick = function () {
+    var blob = new Blob([JSON.stringify(doc)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'voidspire-art.json';
+    a.click();
+  };
+  document.getElementById('projIn').onchange = function (ev) {
+    var f = ev.target.files && ev.target.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      try {
+        var d = JSON.parse(rd.result);
+        if (!d.layers || !d.frames) throw 0;
+        doc = d; fi = 0; li = doc.layers.length - 1; cur = [];
+        document.getElementById('fps').value = doc.fps || 8;
+        document.getElementById('fpsN').textContent = doc.fps || 8;
+        renderLayers(); renderFrames(); drawPad();
+      } catch (e) { alert('That is not an artist project file.'); }
+    };
+    rd.readAsText(f);
   };
 
   document.querySelectorAll('.swatch').forEach(function (s) {
@@ -346,11 +642,16 @@
     };
   });
   document.addEventListener('keydown', function (ev) {
+    if (ev.target.tagName === 'TEXTAREA' || ev.target.tagName === 'INPUT') return;
     if (ev.key === 'Enter') finish();
     if (ev.key === 'z' && (ev.metaKey || ev.ctrlKey)) { document.getElementById('bUndo').click(); ev.preventDefault(); }
+    if (ev.key === 'Backspace' && mode === 'edit') {
+      // in EDIT, backspace removes the whole stroke nearest the last drag
+      if (drag) { here().strokes.splice(drag.si, 1); drag = null; drawPad(); }
+    }
   });
 
-  drawPad();
+  renderLayers(); renderFrames(); drawPad();
 })();
 </script>
 </body>

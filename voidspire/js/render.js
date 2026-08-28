@@ -1061,6 +1061,20 @@
     ctx.restore();
   }
 
+  /* ANIMATED ART. An art block is normally one shape — { p, e } — but it may
+   * instead carry { fps, frames: [ {p,e}, ... ] }, in which case the frames
+   * play on a loop off the shared clock. Everything downstream keeps reading a
+   * plain { p, e }, so nothing else in the renderer has to know.
+   *
+   * Off the shared clock and not a per-figure timer on purpose: two of the
+   * same enemy should breathe together, the way the existing idle bob does. */
+  function artFrame(art) {
+    if (!art || !art.frames || !art.frames.length) return art;
+    var fps = art.fps || 8;
+    return art.frames[Math.floor(t * fps) % art.frames.length] || art.frames[0];
+  }
+  ns.artFrame = artFrame;
+
   // ---- readable status / shield rendering (Slay-the-Spire-ish) ----
   var STATUS_COLORS = {
     vuln: '#ff8a3a', weak: '#c86bff', burn: '#ff5a2a', str: '#5dff88',
@@ -1412,7 +1426,7 @@
     var color = factionColor(v.def);
     var flash = (t - v.flashT < 0.13);
     var x = v.x + sx, y = v.y + bob;
-    var art = (v.en && v.en.art) || v.def.art;   // per-spawn art model (artAlt)
+    var art = artFrame((v.en && v.en.art) || v.def.art);   // per-spawn art model (artAlt)
     scale *= actScale;
 
     // Tilt (idle lean + act shear) needs a rotation strokePaths doesn't do, so
