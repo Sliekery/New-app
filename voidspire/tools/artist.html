@@ -89,6 +89,8 @@
         <button id="mFree">FREEHAND</button>
         <button id="mEdit">EDIT</button>
         <button id="mEye">EYE</button>
+        <button id="mShape">SHAPE</button>
+        <button id="mSel">SELECT</button>
         <span style="width:8px"></span>
         <button id="bFinish">FINISH LINE</button>
         <button id="bUndo">UNDO</button>
@@ -96,6 +98,32 @@
         <button id="bMirror">MIRROR</button>
         <button id="bSnap">SNAP</button>
         <button id="bGrid">GRID</button>
+        <span style="width:8px"></span>
+        <button id="zIn" class="sm">ZOOM +</button>
+        <button id="zOut" class="sm">ZOOM −</button>
+        <button id="zFit" class="sm">FIT</button>
+        <button id="mPan">PAN</button>
+      </div>
+      <div class="bar" id="shapeBar" style="display:none">
+        <span class="hint">shape</span>
+        <button class="sm shp on" data-shp="circle">CIRCLE</button>
+        <button class="sm shp" data-shp="rect">RECT</button>
+        <button class="sm shp" data-shp="poly">POLYGON</button>
+        <button class="sm shp" data-shp="arc">ARC</button>
+        <span class="hint">sides</span>
+        <input type="range" id="shpN" min="3" max="12" value="6" style="max-width:80px">
+        <span class="hint" id="shpNN">6</span>
+      </div>
+      <div class="bar" id="selBar" style="display:none">
+        <span class="hint" id="selCount">nothing selected</span>
+        <button id="tRotL" class="sm">↺ 15°</button>
+        <button id="tRotR" class="sm">↻ 15°</button>
+        <button id="tBig" class="sm">SCALE +</button>
+        <button id="tSmall" class="sm">SCALE −</button>
+        <button id="tFlip" class="sm">FLIP</button>
+        <button id="tDup" class="sm">DUPLICATE</button>
+        <button id="tDel" class="sm warn">DELETE</button>
+        <button id="selNone" class="sm">CLEAR</button>
       </div>
       <div class="bar"><span class="hint" id="status"></span></div>
     </div>
@@ -249,9 +277,16 @@
   var colour = '#5dff88';
   var refImg = null, refAlpha = 0.45;
   var playing = false, playT = 0;
+  /* THE VIEWPORT. Was a fixed 1.35 half-extent, which made detail work
+   * impossible — a 0.02 grid step is two pixels on a phone. cx/cy is the world
+   * point at the centre of the pad, z is magnification. */
   var VIEW = 1.35;
+  var view = { cx: 0, cy: 0, z: 1 };
+  function half() { return VIEW / view.z; }
   var drag = null;                         // {si, pi} while dragging a point
   var freeing = null;                      // raw points while a freehand stroke is down
+  var panFrom = null;                      // drag origin while panning
+  var shapeFrom = null, shapeTo = null;    // primitive being dragged out
   var smoothing = 18;
 
   /* ------------------------------------------------------------------
@@ -304,14 +339,13 @@
   function here() { return cell(fi, li); }
 
   function toWorld(cx, cy) {
-    var r = pad.getBoundingClientRect();
-    var x = ((cx - r.left) / r.width * 2 - 1) * VIEW;
-    var y = ((cy - r.top) / r.height * 2 - 1) * VIEW;
+    var w = rawWorld(cx, cy), x = w[0], y = w[1];
     if (snap) { x = Math.round(x / 0.02) * 0.02; y = Math.round(y / 0.02) * 0.02; }
     return [+x.toFixed(3), +y.toFixed(3)];
   }
   function toScreen(x, y) {
-    return [(x / VIEW + 1) / 2 * pad.width, (y / VIEW + 1) / 2 * pad.height];
+    var h = half();
+    return [((x - view.cx) / h + 1) / 2 * pad.width, ((y - view.cy) / h + 1) / 2 * pad.height];
   }
 
   // Mirroring is applied when drawing and exporting, never stored, so the
@@ -363,7 +397,21 @@
     }
     if (grid) {
       px.strokeStyle = 'rgba(120,150,165,0.12)'; px.lineWidth = 1;
-      for (var g = -1.2; g <= 1.21; g += 0.2) {
+      // step with the zoom, or a magnified view draws three lines and a
+      // shrunken one draws a thousand
+      var h0 = half();
+      var gs = h0 > 1.0 ? 0.2 : h0 > 0.5 ? 0.1 : h0 > 0.25 ? 0.05 : 0.02;
+      var lo = Math.ceil((view.cx - h0) / gs) * gs, hi = view.cx + h0;
+      var lo2 = Math.ceil((view.cy - h0) / gs) * gs, hi2 = view.cy + h0;
+      for (var gx = lo; gx <= hi; gx += gs) {
+        var a0 = toScreen(gx, view.cy - h0), b0 = toScreen(gx, view.cy + h0);
+        px.beginPath(); px.moveTo(a0[0], a0[1]); px.lineTo(b0[0], b0[1]); px.stroke();
+      }
+      for (var gy = lo2; gy <= hi2; gy += gs) {
+        var c0 = toScreen(view.cx - h0, gy), d0 = toScreen(view.cx + h0, gy);
+        px.beginPath(); px.moveTo(c0[0], c0[1]); px.lineTo(d0[0], d0[1]); px.stroke();
+      }
+      for (var g = -1.2; g <= 1.21; g += 999) {
         var a = toScreen(g, -VIEW), b = toScreen(g, VIEW);
         px.beginPath(); px.moveTo(a[0], a[1]); px.lineTo(b[0], b[1]); px.stroke();
         var c1 = toScreen(-VIEW, g), d1 = toScreen(VIEW, g);
@@ -376,7 +424,7 @@
     }
     px.strokeStyle = mirror ? 'rgba(93,255,136,0.45)' : 'rgba(120,150,165,0.25)';
     px.lineWidth = mirror ? 2 : 1;
-    var t0 = toScreen(0, -VIEW), t1 = toScreen(0, VIEW);
+    var t0 = toScreen(0, view.cy - half()), t1 = toScreen(0, view.cy + half());
     px.beginPath(); px.moveTo(t0[0], t0[1]); px.lineTo(t1[0], t1[1]); px.stroke();
 
     // ONION SKIN: the frame before this one, faint, so a movement can be
@@ -424,6 +472,35 @@
       var s = toScreen(p[0], p[1]);
       px.beginPath(); px.arc(s[0], s[1], 6, 0, 7); px.fill();
     });
+    // the primitive being dragged out, and the marquee
+    if (shapeFrom && shapeTo) {
+      px.save(); px.strokeStyle = '#41d8ff'; px.lineWidth = 2.4;
+      px.setLineDash([5, 5]);
+      var prev = makeShape(shapeFrom, shapeTo), flat = [];
+      prev.forEach(function (q) { flat.push(q[0], q[1]); });
+      strokeIt(flat); px.restore();
+    }
+    if (marquee) {
+      px.save(); px.strokeStyle = '#41d8ff'; px.lineWidth = 1.5; px.setLineDash([4, 4]);
+      var m0 = toScreen(marquee.a[0], marquee.a[1]), m1 = toScreen(marquee.b[0], marquee.b[1]);
+      px.strokeRect(m0[0], m0[1], m1[0] - m0[0], m1[1] - m0[1]); px.restore();
+    }
+    // selected strokes, and the box that transforms act about
+    if (mode === 'select' && sel.length) {
+      px.save(); px.strokeStyle = '#41d8ff'; px.lineWidth = 4; px.globalAlpha = 0.5;
+      sel.forEach(function (i) {
+        var L = here().strokes[i]; if (!L) return;
+        var fl = []; L.pts.forEach(function (q) { fl.push(q[0], q[1]); });
+        strokeIt(fl);
+      });
+      var bb = selBounds();
+      if (bb) {
+        px.globalAlpha = 1; px.lineWidth = 1.4; px.setLineDash([5, 4]);
+        var s0 = toScreen(bb.x0, bb.y0), s1 = toScreen(bb.x1, bb.y1);
+        px.strokeRect(s0[0] - 6, s0[1] - 6, s1[0] - s0[0] + 12, s1[1] - s0[1] + 12);
+      }
+      px.restore();
+    }
     if (mode === 'edit') {
       px.fillStyle = '#41d8ff';
       here().strokes.forEach(function (L) {
@@ -440,7 +517,13 @@
       + ' · ' + here().strokes.length + ' stroke' + (here().strokes.length === 1 ? '' : 's')
       + (cur.length ? ' · ' + cur.length + ' in hand' : '')
       + ' · exports ' + n.p.length + ' path' + (n.p.length === 1 ? '' : 's')
-      + (mirror ? ' · MIRRORED' : '');
+      + (mirror ? ' · MIRRORED' : '')
+      + (view.z !== 1 ? ' · ' + view.z.toFixed(1) + '×' : '');
+    document.getElementById('shapeBar').style.display = (mode === 'shape') ? 'flex' : 'none';
+    document.getElementById('selBar').style.display = (mode === 'select') ? 'flex' : 'none';
+    document.getElementById('selCount').textContent =
+      sel.length ? (sel.length + ' stroke' + (sel.length === 1 ? '' : 's') + ' selected')
+                 : 'drag a box round some strokes';
     drawPreview();
     emit();
     autosave();
@@ -501,7 +584,7 @@
 
   /* ---- input ------------------------------------------------------- */
   function nearest(w) {
-    var best = null, bd = 0.075;
+    var best = null, bd = 0.075 / view.z;
     here().strokes.forEach(function (L, si) {
       L.pts.forEach(function (p, pi) {
         var d = Math.hypot(p[0] - w[0], p[1] - w[1]);
@@ -526,9 +609,10 @@
     if (worst <= eps) return [a, b];
     return rdp(pts.slice(0, idx + 1), eps).slice(0, -1).concat(rdp(pts.slice(idx), eps));
   }
-  function rawWorld(cx, cy) {              // freehand samples unsnapped
-    var r = pad.getBoundingClientRect();
-    return [((cx - r.left) / r.width * 2 - 1) * VIEW, ((cy - r.top) / r.height * 2 - 1) * VIEW];
+  function rawWorld(cx, cy) {              // unsnapped, viewport-aware
+    var r = pad.getBoundingClientRect(), h = half();
+    return [((cx - r.left) / r.width * 2 - 1) * h + view.cx,
+            ((cy - r.top) / r.height * 2 - 1) * h + view.cy];
   }
 
   pad.addEventListener('pointerdown', function (ev) {
@@ -540,6 +624,24 @@
       if (hit) { pushHistory(); drag = hit; pad.setPointerCapture(ev.pointerId); }
       drawPad(); return;
     }
+    if (mode === 'pan') {
+      panFrom = { x: ev.clientX, y: ev.clientY, cx: view.cx, cy: view.cy };
+      pad.setPointerCapture(ev.pointerId);
+      return;
+    }
+    if (mode === 'shape') {
+      shapeFrom = w; pad.setPointerCapture(ev.pointerId); return;
+    }
+    if (mode === 'select') {
+      var b = selBounds();
+      if (b && w[0] >= b.x0 - 0.04 && w[0] <= b.x1 + 0.04 && w[1] >= b.y0 - 0.04 && w[1] <= b.y1 + 0.04) {
+        moveFrom = { w: w, snapshot: JSON.parse(JSON.stringify(sel.map(function (i) { return here().strokes[i].pts; }))) };
+        pushHistory();
+      } else {
+        marquee = { a: w, b: w };
+      }
+      pad.setPointerCapture(ev.pointerId); return;
+    }
     if (mode === 'free') {
       freeing = [rawWorld(ev.clientX, ev.clientY)];
       pad.setPointerCapture(ev.pointerId);
@@ -548,6 +650,24 @@
     cur.push(w); drawPad();
   });
   pad.addEventListener('pointermove', function (ev) {
+    if (panFrom) {
+      var r = pad.getBoundingClientRect(), h = half();
+      view.cx = panFrom.cx - (ev.clientX - panFrom.x) / r.width * 2 * h;
+      view.cy = panFrom.cy - (ev.clientY - panFrom.y) / r.height * 2 * h;
+      drawPad(); return;
+    }
+    if (shapeFrom) { shapeTo = toWorld(ev.clientX, ev.clientY); drawPad(); return; }
+    if (marquee) { marquee.b = toWorld(ev.clientX, ev.clientY); drawPad(); return; }
+    if (moveFrom) {
+      var mw = toWorld(ev.clientX, ev.clientY);
+      var dx = mw[0] - moveFrom.w[0], dy = mw[1] - moveFrom.w[1];
+      sel.forEach(function (i, k) {
+        here().strokes[i].pts = moveFrom.snapshot[k].map(function (p) {
+          return [+(p[0] + dx).toFixed(3), +(p[1] + dy).toFixed(3)];
+        });
+      });
+      drawPad(); return;
+    }
     if (freeing) {
       var w = rawWorld(ev.clientX, ev.clientY), last = freeing[freeing.length - 1];
       if (Math.hypot(w[0] - last[0], w[1] - last[1]) > 0.006) { freeing.push(w); drawPad(); }
@@ -558,6 +678,21 @@
     drawPad();
   });
   pad.addEventListener('pointerup', function () {
+    panFrom = null; moveFrom = null;
+    if (shapeFrom && shapeTo) {
+      var pts = makeShape(shapeFrom, shapeTo);
+      if (pts.length > 1) { pushHistory(); here().strokes.push({ pts: pts, m: mirror }); }
+    }
+    shapeFrom = shapeTo = null;
+    if (marquee) {
+      var x0 = Math.min(marquee.a[0], marquee.b[0]), x1 = Math.max(marquee.a[0], marquee.b[0]);
+      var y0 = Math.min(marquee.a[1], marquee.b[1]), y1 = Math.max(marquee.a[1], marquee.b[1]);
+      sel = [];
+      here().strokes.forEach(function (L, i) {
+        if (L.pts.some(function (p) { return p[0] >= x0 && p[0] <= x1 && p[1] >= y0 && p[1] <= y1; })) sel.push(i);
+      });
+      marquee = null;
+    }
     if (freeing) {
       var pts = rdp(freeing, smoothing / 1000);
       if (snap) pts = pts.map(function (p) {
@@ -565,9 +700,14 @@
       });
       else pts = pts.map(function (p) { return [+p[0].toFixed(3), +p[1].toFixed(3)]; });
       if (pts.length > 1) { pushHistory(); here().strokes.push({ pts: pts, m: mirror }); }
-      freeing = null; drawPad();
+      freeing = null;
     }
+    // REPAINT ONCE, AT THE END. drawPad() used to live only inside the
+    // freehand branch, so finishing a primitive or a marquee updated the model
+    // and left the canvas, the status line and the export box showing the
+    // state before it — the shape was there and looked as though it was not.
     drag = null;
+    drawPad();
   });
 
   function finish() {
@@ -580,12 +720,160 @@
   function modeBtn(id, m) {
     document.getElementById(id).onclick = function () {
       finish(); mode = m;
-      ['mDraw', 'mFree', 'mEdit', 'mEye'].forEach(function (o) { document.getElementById(o).classList.remove('on'); });
+      if (m !== 'select') sel = [];
+        ['mDraw', 'mFree', 'mEdit', 'mEye', 'mPan', 'mShape', 'mSel'].forEach(function (o) {
+        var el = document.getElementById(o); if (el) el.classList.remove('on');
+      });
       document.getElementById(id).classList.add('on');
       drawPad();
     };
   }
-  modeBtn('mDraw', 'draw'); modeBtn('mFree', 'free'); modeBtn('mEdit', 'edit'); modeBtn('mEye', 'eye');
+  modeBtn('mDraw', 'draw'); modeBtn('mFree', 'free'); modeBtn('mEdit', 'edit');
+  modeBtn('mEye', 'eye'); modeBtn('mPan', 'pan');
+  modeBtn('mShape', 'shape'); modeBtn('mSel', 'select');
+
+  /* ==================================================================
+   * PRIMITIVES. The game's art is full of clean geometry — hexagonal
+   * housings, boxes, rings — all of which is miserable to lay out point by
+   * point and trivial to generate. Drag from centre to edge.
+   * ================================================================== */
+  var shp = 'circle', shpN = 6;
+  document.querySelectorAll('.shp').forEach(function (b) {
+    b.onclick = function () {
+      document.querySelectorAll('.shp').forEach(function (o) { o.classList.remove('on'); });
+      b.classList.add('on'); shp = b.getAttribute('data-shp');
+    };
+  });
+  document.getElementById('shpN').oninput = function () {
+    shpN = +this.value; document.getElementById('shpNN').textContent = shpN;
+  };
+  function makeShape(c, edge) {
+    var rx = edge[0] - c[0], ry = edge[1] - c[1];
+    var r = Math.hypot(rx, ry), a0 = Math.atan2(ry, rx), pts = [];
+    var i;
+    if (shp === 'rect') {
+      pts = [[c[0] - Math.abs(rx), c[1] - Math.abs(ry)], [c[0] + Math.abs(rx), c[1] - Math.abs(ry)],
+             [c[0] + Math.abs(rx), c[1] + Math.abs(ry)], [c[0] - Math.abs(rx), c[1] + Math.abs(ry)]];
+      pts.push(pts[0].slice());
+    } else if (shp === 'arc') {
+      for (i = 0; i <= 16; i++) {
+        var t = a0 - Math.PI / 2 + (i / 16) * Math.PI;
+        pts.push([c[0] + Math.cos(t) * r, c[1] + Math.sin(t) * r]);
+      }
+    } else {
+      var n = (shp === 'circle') ? 24 : shpN;
+      for (i = 0; i <= n; i++) {
+        var th = a0 + (i / n) * Math.PI * 2;
+        pts.push([c[0] + Math.cos(th) * r, c[1] + Math.sin(th) * r]);
+      }
+    }
+    return pts.map(function (q) { return [+q[0].toFixed(3), +q[1].toFixed(3)]; });
+  }
+
+  /* ==================================================================
+   * SELECTION AND GROUP TRANSFORM. Dragging one point at a time meant
+   * "make the head bigger" was a redraw. Marquee-select strokes, then move,
+   * rotate, scale or flip them together about their own centre.
+   * ================================================================== */
+  var sel = [], marquee = null, moveFrom = null;
+  function selBounds() {
+    var xs = [], ys = [];
+    sel.forEach(function (i) {
+      (here().strokes[i] || { pts: [] }).pts.forEach(function (p) { xs.push(p[0]); ys.push(p[1]); });
+    });
+    if (!xs.length) return null;
+    return { cx: (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2,
+             cy: (Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2,
+             x0: Math.min.apply(null, xs), x1: Math.max.apply(null, xs),
+             y0: Math.min.apply(null, ys), y1: Math.max.apply(null, ys) };
+  }
+  function applySel(fn) {
+    var b = selBounds(); if (!b) return;
+    pushHistory();
+    sel.forEach(function (i) {
+      var L = here().strokes[i]; if (!L) return;
+      L.pts = L.pts.map(function (p) {
+        var q = fn(p[0] - b.cx, p[1] - b.cy);
+        return [+(q[0] + b.cx).toFixed(3), +(q[1] + b.cy).toFixed(3)];
+      });
+    });
+    drawPad();
+  }
+  function rot(d) { var c = Math.cos(d), s2 = Math.sin(d); applySel(function (x, y) { return [x * c - y * s2, x * s2 + y * c]; }); }
+  document.getElementById('tRotL').onclick = function () { rot(-Math.PI / 12); };
+  document.getElementById('tRotR').onclick = function () { rot(Math.PI / 12); };
+  document.getElementById('tBig').onclick = function () { applySel(function (x, y) { return [x * 1.1, y * 1.1]; }); };
+  document.getElementById('tSmall').onclick = function () { applySel(function (x, y) { return [x / 1.1, y / 1.1]; }); };
+  document.getElementById('tFlip').onclick = function () { applySel(function (x, y) { return [-x, y]; }); };
+  document.getElementById('tDup').onclick = function () {
+    pushHistory();
+    var copies = sel.map(function (i) { return JSON.parse(JSON.stringify(here().strokes[i])); });
+    copies.forEach(function (L) {
+      L.pts = L.pts.map(function (p) { return [+(p[0] + 0.06).toFixed(3), +(p[1] + 0.06).toFixed(3)]; });
+      here().strokes.push(L);
+    });
+    sel = copies.map(function (_, k) { return here().strokes.length - copies.length + k; });
+    drawPad();
+  };
+  document.getElementById('tDel').onclick = function () {
+    if (!sel.length) return;
+    pushHistory();
+    sel.slice().sort(function (a, b) { return b - a; }).forEach(function (i) { here().strokes.splice(i, 1); });
+    sel = []; drawPad();
+  };
+  document.getElementById('selNone').onclick = function () { sel = []; drawPad(); };
+
+  /* ZOOM AND PAN. Wheel and pinch both zoom about the pointer rather than the
+   * centre, which is what makes zooming feel like moving a lens instead of
+   * teleporting. PAN mode exists because a one-finger drag is already drawing
+   * — on a phone there is no spare gesture. */
+  function zoomAt(sx, sy, factor) {
+    var before = rawWorld(sx, sy);
+    view.z = Math.max(0.4, Math.min(14, view.z * factor));
+    var after = rawWorld(sx, sy);
+    view.cx += before[0] - after[0];
+    view.cy += before[1] - after[1];
+    drawPad();
+  }
+  pad.addEventListener('wheel', function (ev) {
+    ev.preventDefault();
+    zoomAt(ev.clientX, ev.clientY, ev.deltaY < 0 ? 1.12 : 1 / 1.12);
+  }, { passive: false });
+  document.getElementById('zIn').onclick = function () {
+    var r = pad.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1.35);
+  };
+  document.getElementById('zOut').onclick = function () {
+    var r = pad.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1 / 1.35);
+  };
+  document.getElementById('zFit').onclick = function () {
+    view.cx = 0; view.cy = 0; view.z = 1; drawPad();
+  };
+
+  // two-finger pinch and drag, tracked by pointer id
+  var pointers = {}, pinch = null;
+  pad.addEventListener('pointerdown', function (ev) { pointers[ev.pointerId] = ev; }, true);
+  pad.addEventListener('pointermove', function (ev) {
+    if (!pointers[ev.pointerId]) return;
+    pointers[ev.pointerId] = ev;
+    var ids = Object.keys(pointers);
+    if (ids.length !== 2) return;
+    var a = pointers[ids[0]], b = pointers[ids[1]];
+    var dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    var mx = (a.clientX + b.clientX) / 2, my = (a.clientY + b.clientY) / 2;
+    if (pinch) {
+      if (pinch.dist > 4) zoomAt(mx, my, dist / pinch.dist);
+      var h = half(), r = pad.getBoundingClientRect();
+      view.cx -= (mx - pinch.mx) / r.width * 2 * h;
+      view.cy -= (my - pinch.my) / r.height * 2 * h;
+      // a pinch is never also a stroke
+      cur = []; freeing = null; drag = null;
+      drawPad();
+    }
+    pinch = { dist: dist, mx: mx, my: my };
+  }, true);
+  function clearPointer(ev) { delete pointers[ev.pointerId]; if (Object.keys(pointers).length < 2) pinch = null; }
+  pad.addEventListener('pointerup', clearPointer, true);
+  pad.addEventListener('pointercancel', clearPointer, true);
   function toggle(id, get, set) {
     var b = document.getElementById(id);
     b.classList.toggle('on', get());
@@ -1073,7 +1361,7 @@
   };
   // A build stamp, because a cached copy of this page is indistinguishable
   // from a current one otherwise — which has already caused confusion twice.
-  document.getElementById('ver').textContent = 'build 4';
+  document.getElementById('ver').textContent = 'build 5';
 
   libLoad(); renderLib(); renderAssets();
   var restored = loadAutosave();
