@@ -63,7 +63,7 @@
 </style>
 </head>
 <body>
-<h1>VOIDSPIRE · ARTIST <span>— sketch, trace, animate, paste it in</span></h1>
+<h1>VOIDSPIRE · ARTIST <span>— sketch, trace, animate, paste it in · <b id="ver"></b></span></h1>
 
 <div class="wrap">
   <div>
@@ -71,11 +71,13 @@
       <canvas id="pad" width="1100" height="1100"></canvas>
       <div class="bar">
         <button id="mDraw" class="on">DRAW</button>
+        <button id="mFree">FREEHAND</button>
         <button id="mEdit">EDIT</button>
         <button id="mEye">EYE</button>
         <span style="width:8px"></span>
         <button id="bFinish">FINISH LINE</button>
         <button id="bUndo">UNDO</button>
+        <button id="bRedo">REDO</button>
         <button id="bMirror">MIRROR</button>
         <button id="bSnap">SNAP</button>
         <button id="bGrid">GRID</button>
@@ -95,6 +97,10 @@
         <span class="hint">fps</span>
         <input type="range" id="fps" min="2" max="24" value="8" style="max-width:110px">
         <span class="hint" id="fpsN">8</span>
+        <span style="width:10px"></span>
+        <span class="hint">freehand smoothing</span>
+        <input type="range" id="smooth" min="1" max="60" value="18" style="max-width:110px">
+        <span class="hint" id="smoothN">18</span>
       </div>
     </div>
   </div>
@@ -199,6 +205,54 @@
   var playing = false, playT = 0;
   var VIEW = 1.35;
   var drag = null;                         // {si, pi} while dragging a point
+  var freeing = null;                      // raw points while a freehand stroke is down
+  var smoothing = 18;
+
+  /* ------------------------------------------------------------------
+   * HISTORY. The old UNDO only popped the last point or stroke, so a
+   * deleted layer, a deleted frame, a dragged point or a cleared image
+   * could not be taken back — the destructive actions were exactly the
+   * ones it did not cover. This snapshots the whole document instead, so
+   * anything that changes the drawing is undoable by the same key.
+   *
+   * Snapshots are taken BEFORE a change, and are cheap: a document is a
+   * few hundred numbers. Fifty deep is far more than a drawing session
+   * needs and still trivial to hold.
+   * ------------------------------------------------------------------ */
+  var past = [], future = [];
+  function pushHistory() {
+    past.push(JSON.stringify({ doc: doc, fi: fi, li: li }));
+    if (past.length > 50) past.shift();
+    future.length = 0;
+    syncHistBtns();
+  }
+  function restore(str) {
+    var st = JSON.parse(str);
+    doc = st.doc;
+    fi = Math.min(st.fi, doc.frames.length - 1);
+    li = Math.min(st.li, doc.layers.length - 1);
+    cur = []; drag = null; freeing = null;
+    renderLayers(); renderFrames(); drawPad();
+  }
+  function undo() {
+    // a half-drawn stroke is the most recent thing on screen, so it goes first
+    if (cur.length) { cur.pop(); drawPad(); return; }
+    if (!past.length) return;
+    future.push(JSON.stringify({ doc: doc, fi: fi, li: li }));
+    restore(past.pop());
+    syncHistBtns();
+  }
+  function redo() {
+    if (!future.length) return;
+    past.push(JSON.stringify({ doc: doc, fi: fi, li: li }));
+    restore(future.pop());
+    syncHistBtns();
+  }
+  function syncHistBtns() {
+    var u = document.getElementById('bUndo'), r = document.getElementById('bRedo');
+    if (u) u.style.opacity = (past.length || cur.length) ? 1 : 0.4;
+    if (r) r.style.opacity = future.length ? 1 : 0.4;
+  }
 
   function cell(f, l) { return doc.frames[f].cells[l]; }
   function here() { return cell(fi, li); }
@@ -303,7 +357,9 @@
       px.lineJoin = 'round'; px.lineCap = 'round';
       px.shadowColor = L.exp ? colour : 'transparent';
       px.shadowBlur = L.exp ? 8 : 0;
-      var extra = (active && cur.length > 1) ? [{ pts: cur, m: mirror }] : [];
+      var extra = [];
+      if (active && cur.length > 1) extra.push({ pts: cur, m: mirror });
+      if (active && freeing && freeing.length > 1) extra.push({ pts: freeing, m: mirror });
       expandStrokes(cell(fi, l).strokes, extra).forEach(strokeIt);
       px.restore();
       px.save();
@@ -407,45 +463,82 @@
     });
     return best;
   }
+  /* SIMPLIFY, or freehand is unusable. A dragged stroke samples a point every
+   * few pixels — several hundred for one curve — and the game's art is a
+   * dozen points a stroke. Ramer-Douglas-Peucker keeps the corners that carry
+   * the shape and drops the rest, so a hand-drawn line exports as game art
+   * rather than as a wall of coordinates. The slider is the tolerance. */
+  function rdp(pts, eps) {
+    if (pts.length < 3) return pts.slice();
+    var a = pts[0], b = pts[pts.length - 1], worst = 0, idx = 0;
+    var dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1e-9;
+    for (var i = 1; i < pts.length - 1; i++) {
+      var d = Math.abs(dy * pts[i][0] - dx * pts[i][1] + b[0] * a[1] - b[1] * a[0]) / len;
+      if (d > worst) { worst = d; idx = i; }
+    }
+    if (worst <= eps) return [a, b];
+    return rdp(pts.slice(0, idx + 1), eps).slice(0, -1).concat(rdp(pts.slice(idx), eps));
+  }
+  function rawWorld(cx, cy) {              // freehand samples unsnapped
+    var r = pad.getBoundingClientRect();
+    return [((cx - r.left) / r.width * 2 - 1) * VIEW, ((cy - r.top) / r.height * 2 - 1) * VIEW];
+  }
+
   pad.addEventListener('pointerdown', function (ev) {
     ev.preventDefault();
     var w = toWorld(ev.clientX, ev.clientY);
-    if (mode === 'eye') { here().eyes.push([w[0], w[1], mirror]); drawPad(); return; }
+    if (mode === 'eye') { pushHistory(); here().eyes.push([w[0], w[1], mirror]); drawPad(); return; }
     if (mode === 'edit') {
       var hit = nearest(w);
-      if (hit) { drag = hit; pad.setPointerCapture(ev.pointerId); }
+      if (hit) { pushHistory(); drag = hit; pad.setPointerCapture(ev.pointerId); }
       drawPad(); return;
+    }
+    if (mode === 'free') {
+      freeing = [rawWorld(ev.clientX, ev.clientY)];
+      pad.setPointerCapture(ev.pointerId);
+      return;
     }
     cur.push(w); drawPad();
   });
   pad.addEventListener('pointermove', function (ev) {
+    if (freeing) {
+      var w = rawWorld(ev.clientX, ev.clientY), last = freeing[freeing.length - 1];
+      if (Math.hypot(w[0] - last[0], w[1] - last[1]) > 0.006) { freeing.push(w); drawPad(); }
+      return;
+    }
     if (!drag) return;
-    var w = toWorld(ev.clientX, ev.clientY);
-    here().strokes[drag.si].pts[drag.pi] = w;
+    here().strokes[drag.si].pts[drag.pi] = toWorld(ev.clientX, ev.clientY);
     drawPad();
   });
-  pad.addEventListener('pointerup', function () { drag = null; });
+  pad.addEventListener('pointerup', function () {
+    if (freeing) {
+      var pts = rdp(freeing, smoothing / 1000);
+      if (snap) pts = pts.map(function (p) {
+        return [+(Math.round(p[0] / 0.02) * 0.02).toFixed(3), +(Math.round(p[1] / 0.02) * 0.02).toFixed(3)];
+      });
+      else pts = pts.map(function (p) { return [+p[0].toFixed(3), +p[1].toFixed(3)]; });
+      if (pts.length > 1) { pushHistory(); here().strokes.push({ pts: pts, m: mirror }); }
+      freeing = null; drawPad();
+    }
+    drag = null;
+  });
 
   function finish() {
-    if (cur.length > 1) here().strokes.push({ pts: cur, m: mirror });
+    if (cur.length > 1) { pushHistory(); here().strokes.push({ pts: cur, m: mirror }); }
     cur = []; drawPad();
   }
   document.getElementById('bFinish').onclick = finish;
-  document.getElementById('bUndo').onclick = function () {
-    if (cur.length) cur.pop();
-    else if (mode === 'eye' && here().eyes.length) here().eyes.pop();
-    else if (here().strokes.length) cur = here().strokes.pop().pts;
-    drawPad();
-  };
+  document.getElementById('bUndo').onclick = undo;
+  document.getElementById('bRedo').onclick = redo;
   function modeBtn(id, m) {
     document.getElementById(id).onclick = function () {
       finish(); mode = m;
-      ['mDraw', 'mEdit', 'mEye'].forEach(function (o) { document.getElementById(o).classList.remove('on'); });
+      ['mDraw', 'mFree', 'mEdit', 'mEye'].forEach(function (o) { document.getElementById(o).classList.remove('on'); });
       document.getElementById(id).classList.add('on');
       drawPad();
     };
   }
-  modeBtn('mDraw', 'draw'); modeBtn('mEdit', 'edit'); modeBtn('mEye', 'eye');
+  modeBtn('mDraw', 'draw'); modeBtn('mFree', 'free'); modeBtn('mEdit', 'edit'); modeBtn('mEye', 'eye');
   function toggle(id, get, set) {
     var b = document.getElementById(id);
     b.classList.toggle('on', get());
@@ -481,6 +574,7 @@
     });
   }
   document.getElementById('lAdd').onclick = function () {
+    pushHistory();
     doc.layers.push({ name: 'layer ' + (doc.layers.length + 1), vis: true, exp: true });
     doc.frames.forEach(function (f) { f.cells.push({ strokes: [], eyes: [] }); });
     li = doc.layers.length - 1; renderLayers(); drawPad();
@@ -488,12 +582,14 @@
   document.getElementById('lDel').onclick = function () {
     if (doc.layers.length < 2) return alert('Keep at least one layer.');
     if (!confirm('Delete layer "' + doc.layers[li].name + '" from every frame?')) return;
+    pushHistory();
     doc.layers.splice(li, 1);
     doc.frames.forEach(function (f) { f.cells.splice(li, 1); });
     li = Math.max(0, li - 1); renderLayers(); drawPad();
   };
   function move(d) {
     var j = li + d; if (j < 0 || j >= doc.layers.length) return;
+    pushHistory();
     var t = doc.layers[li]; doc.layers[li] = doc.layers[j]; doc.layers[j] = t;
     doc.frames.forEach(function (f) {
       var c = f.cells[li]; f.cells[li] = f.cells[j]; f.cells[j] = c;
@@ -517,15 +613,16 @@
   }
   function clone(f) { return JSON.parse(JSON.stringify(f)); }
   document.getElementById('fAdd').onclick = function () {
-    finish(); doc.frames.splice(fi + 1, 0, blankFrame(doc.layers.length));
+    finish(); pushHistory(); doc.frames.splice(fi + 1, 0, blankFrame(doc.layers.length));
     fi++; renderFrames(); drawPad();
   };
   document.getElementById('fDup').onclick = function () {
-    finish(); doc.frames.splice(fi + 1, 0, clone(doc.frames[fi]));
+    finish(); pushHistory(); doc.frames.splice(fi + 1, 0, clone(doc.frames[fi]));
     fi++; renderFrames(); drawPad();
   };
   document.getElementById('fDel').onclick = function () {
     if (doc.frames.length < 2) return alert('Keep at least one frame.');
+    pushHistory();
     doc.frames.splice(fi, 1); fi = Math.max(0, fi - 1); renderFrames(); drawPad();
   };
   document.getElementById('fps').oninput = function () {
@@ -644,13 +741,23 @@
   document.addEventListener('keydown', function (ev) {
     if (ev.target.tagName === 'TEXTAREA' || ev.target.tagName === 'INPUT') return;
     if (ev.key === 'Enter') finish();
-    if (ev.key === 'z' && (ev.metaKey || ev.ctrlKey)) { document.getElementById('bUndo').click(); ev.preventDefault(); }
+    if (ev.key === 'z' && (ev.metaKey || ev.ctrlKey) && !ev.shiftKey) { undo(); ev.preventDefault(); }
+    if ((ev.key === 'y' && (ev.metaKey || ev.ctrlKey))
+        || (ev.key === 'z' && (ev.metaKey || ev.ctrlKey) && ev.shiftKey)) { redo(); ev.preventDefault(); }
     if (ev.key === 'Backspace' && mode === 'edit') {
       // in EDIT, backspace removes the whole stroke nearest the last drag
-      if (drag) { here().strokes.splice(drag.si, 1); drag = null; drawPad(); }
+      if (drag) { pushHistory(); here().strokes.splice(drag.si, 1); drag = null; drawPad(); }
     }
   });
 
+  document.getElementById('smooth').oninput = function () {
+    smoothing = +this.value; document.getElementById('smoothN').textContent = smoothing;
+  };
+  // A build stamp, because a cached copy of this page is indistinguishable
+  // from a current one otherwise — which has already caused confusion twice.
+  document.getElementById('ver').textContent = 'build 3';
+
+  syncHistBtns();
   renderLayers(); renderFrames(); drawPad();
 })();
 </script>
