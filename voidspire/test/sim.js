@@ -979,8 +979,22 @@ function faceWorth(face) {
 }
 // How much expected roll the bot will give up to climb one permanent tier.
 var BID_STEP = 3.5;
-// What a face has to be worth before the bot spends an Energy to reach it.
-// An Energy is roughly one cheap card, so this is that card's output.
+/* What a face has to be worth before the bot spends an Energy to reach it.
+ * An Energy is roughly one cheap card, so this is that card's output.
+ *
+ * The bot nudges GREEDILY: whenever the face one step round the ring clears
+ * this bar, without checking whether the Energy was wanted for a card.
+ *
+ * A guard against displacing a playable card was tried and removed. It was
+ * added because the two non-subject classes went backwards without it, which
+ * is the wrong reason on its own (see CLAUDE.md), and the Vanguard reading
+ * that appeared to justify removing it — 34.4% greedy against 31.8% guarded —
+ * is NOT trustworthy: the sim turned out to be non-deterministic, ~1.6 points
+ * of spread at n=800 on identical code, so those two figures are barely more
+ * than one noise width apart.
+ *
+ * Greedy is kept because it is the simpler rule and nothing has been shown to
+ * beat it, not because it measured better. */
 var NUDGE_BAR = 7;
 
 function dieRollEV(die, wantD, target) {

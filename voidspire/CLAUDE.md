@@ -18,10 +18,15 @@ Win rate swings hard on seed choice alone. The same code read 2.3 and 14.0
 points of spread on two different runs, and single-class figures move several
 points between sample sizes. Rules that follow from that:
 
-- **Compare paired**: same seeds, same n, one variable changed. A number on
-  its own says nothing.
-- **n=400 minimum** for anything reported, and treat a delta under ~2 points
-  as unresolved rather than real.
+- **The sim is NOT deterministic.** Identical code, n=800, vanguard, three
+  runs: 33.6 / 32.0 / 33.3. Roughly 1.6 points of spread from nothing at all.
+  There is no such thing as a "same seeds" comparison here, and treating one
+  run of A against one run of B as paired is how several confident and wrong
+  conclusions got stated.
+- **Compare distributions, not numbers**: repeat each side 4+ times and
+  compare means with their spread. A single number says nothing.
+- **n=600 minimum** for anything reported, and treat a delta under ~2 points
+  as unresolved — that is one noise width, not a finding.
 - **Never characterise an effect from part of the data.** Reporting a lift off
   one class before the others land has produced a wrong headline twice.
 - Distinguish **"the bot plays it badly"** from **"the mechanic is bad."** They
