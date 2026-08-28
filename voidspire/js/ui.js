@@ -11,7 +11,7 @@
   var R = ns.render;
   var B = ns.BALANCE;
 
-  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $rail, $railPanel, $railLine, $dock, $die;
+  var $hud, $hand, $controls, $overlay, $floaters, $toast, $energy, $hint, $counts, $game, $potions, $potionTip, $drawPile, $discardPile, $rail, $railPanel, $railLine, $dock, $die, $nudge;
   var dieTimer = null, dieRolling = false;
   var railOpen = null;      // which rail panel is open ('buffs'|'debuffs'|'relics'|'draw'|'discard') or null
   var selected = -1;        // selected hand index
@@ -256,6 +256,16 @@
       SFX.tap();
       showDieScreen();
     });
+
+    /* THE NUDGE PROMPT. It sits under the die and is the near-miss readout as
+     * well as the button: it NAMES what is one step either way, so "you missed
+     * Bracket Fire by one" is on screen at the moment it stings, with the
+     * price of fixing it next to it. One element doing both jobs is why the
+     * near-miss needs no separate feedback of its own. */
+    $nudge = el('div', '', '');
+    $nudge.id = 'nudge-bar';
+    $nudge.style.display = 'none';
+    $game.appendChild($nudge);
     $game.appendChild($die);
 
     $counts = el('div', '', '');
@@ -890,6 +900,45 @@
   // star-chart glyph for the top map button (two nodes on a flight path)
   var MAP_ICON = '<svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">' +
     '<path d="M4.5 13.5 13 4.5" stroke-dasharray="2 2"/><circle cx="4.5" cy="13.5" r="2.2"/><circle cx="13" cy="4.5" r="2.2"/></svg>';
+  /* Paint the nudge prompt. Shown only when a roll has just landed next to
+   * something worth reaching, hidden the instant it is spent or the turn
+   * turns over. Greyed rather than hidden when you cannot afford it, because
+   * "you missed it by one and you are out of Energy" is information too. */
+  function updateNudge() {
+    if (!$nudge) return;
+    var st = (E.combat && !E.combat.over && E.nudgeState) ? E.nudgeState() : null;
+    if (!st || locked) { $nudge.style.display = 'none'; return; }
+    function side(o, dir) {
+      if (!o) return '<span class="nz-bare"></span>';
+      return '<button class="nz-btn' + (st.afford ? '' : ' dim') + (o.flaw ? ' flaw' : '')
+        + '" data-dir="' + dir + '">'
+        + (dir < 0 ? '<span class="nz-ar">\u25c2</span>' : '')
+        + '<span class="nz-nm">' + esc(o.name) + '</span>'
+        + (dir > 0 ? '<span class="nz-ar">\u25b8</span>' : '')
+        + '</button>';
+    }
+    $nudge.innerHTML = side(st.left, -1)
+      + '<span class="nz-cost">NUDGE \u26a1' + st.cost + '</span>'
+      + side(st.right, 1);
+    $nudge.style.display = 'flex';
+    $nudge.querySelectorAll('.nz-btn').forEach(function (b) {
+      b.addEventListener('pointerdown', function (ev) {
+        ev.stopPropagation();
+        var why = E.nudge(+b.getAttribute('data-dir'));
+        if (why) { toast(why.toUpperCase(), 1600); return; }
+        SFX.tap();
+        // the same timeline a card's own chain runs on, so a nudged face
+        // arrives up the pitch ladder exactly like one you landed on
+        var evts = E.events.slice();
+        E.events.length = 0;
+        $nudge.style.display = 'none';
+        lock(true);
+        playTimeline(evts, 70, function () { lock(false); afterAction(false); });
+        updateEnergy();
+      });
+    });
+  }
+
   function updateHUD() {
     var r = E.run;
     if (!r) { $hud.innerHTML = ''; setHud(false); renderRail(); return; }
@@ -996,6 +1045,7 @@
     if (menuBtn) menuBtn.addEventListener('pointerdown', function (ev) { ev.stopPropagation(); showMenu(); });
 
     renderRail();
+    updateNudge();
   }
   U.updateHUD = updateHUD;
 
@@ -3949,6 +3999,7 @@
       lock(false);
       if (E.combat && E.combat.pending) showChoiceModal();   // Scry/Tutor/Discover need a pick
       else afterAction(false);
+      updateNudge();          // "you missed it by one" lands with the chain
     });
     // hand & energy update immediately — feels snappy
     renderHand();
@@ -3974,6 +4025,7 @@
 
   function afterAction(deal) {
     var r = E.run;
+    updateNudge();
     if (r.phase === 'dead') {
       SFX.lose();
       setTimeout(U.refresh, 700);

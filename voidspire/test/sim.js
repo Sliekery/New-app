@@ -276,6 +276,25 @@ function botCombat() {
     if (c.over || aliveIdx().length === 0) break;
     var playable = [];
     for (var i = 0; i < c.hand.length; i++) if (E.canPlay(i)) playable.push(i);
+    /* THE NUDGE. Taken whenever the face one step round the ring is worth more
+     * than the Energy it costs — an Energy buys roughly one cheap card, so the
+     * bar is a face scoring above a cheap card's output. Without this the sim
+     * would play as if the mechanic did not exist and report a balance figure
+     * for a game nobody is playing. */
+    var nst = E.nudgeState && E.nudgeState();
+    if (nst && nst.afford) {
+      var best = null, bestDir = 0;
+      [[nst.left, -1], [nst.right, 1]].forEach(function (pair) {
+        if (!pair[0] || pair[0].flaw) return;      // never pay to fire a Flaw
+        var g = VS.DIE_AUGMENTS[pair[0].id];
+        // both lenses, same rule as the instability cull: a face is worth
+        // what it is best at, and the bot should not decline a shield face
+        // merely because it is not also a damage face
+        var val = Math.max(engFaceValue(g, false), engFaceValue(g, true));
+        if (val > (best === null ? NUDGE_BAR : best)) { best = val; bestDir = pair[1]; }
+      });
+      if (bestDir) { E.nudge(bestDir); continue; }
+    }
     if (playable.length === 0) { E.endTurn(); continue; }
 
     if (RANDOM_PLAY) {
@@ -960,6 +979,9 @@ function faceWorth(face) {
 }
 // How much expected roll the bot will give up to climb one permanent tier.
 var BID_STEP = 3.5;
+// What a face has to be worth before the bot spends an Energy to reach it.
+// An Energy is roughly one cheap card, so this is that card's output.
+var NUDGE_BAR = 7;
 
 function dieRollEV(die, wantD, target) {
   var E = VS.engine, c = E.combat;

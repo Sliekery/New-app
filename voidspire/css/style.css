@@ -2406,3 +2406,30 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
  * floor this file already documents as the readability limit. */
 .unstable-screen .fc { min-height: 62px; }
 .unstable-screen .fc-name { white-space: normal; overflow: visible; overflow-wrap: anywhere; line-height: 1.2; }
+
+/* ---- THE NUDGE: near-miss readout and the button to fix it -------------
+ * Sits under the die because that is where your eye already is when the roll
+ * lands. It names both neighbours, so the sting ("Bracket Fire, one face
+ * away") and the remedy are the same piece of UI. */
+#nudge-bar {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  top: calc(env(safe-area-inset-top, 0px) + 176px);
+  z-index: 28; display: none; align-items: center; gap: 7px;
+  pointer-events: auto; white-space: nowrap;
+}
+.nz-btn {
+  background: rgba(10,16,20,0.9); border: 1px solid var(--green-dim); border-radius: 3px;
+  color: var(--text); font: 700 9.5px/1 ui-monospace, monospace; letter-spacing: .07em;
+  padding: 5px 7px; display: flex; align-items: center; gap: 4px; cursor: pointer;
+  max-width: 152px; overflow: hidden; text-overflow: ellipsis;
+}
+.nz-btn:hover { border-color: var(--green); background: rgba(93,255,136,0.12); }
+.nz-btn.dim { opacity: 0.4; }
+.nz-btn.flaw { border-color: rgba(255,74,94,0.5); color: #ff8a99; }
+.nz-nm { overflow: hidden; text-overflow: ellipsis; }
+.nz-ar { color: var(--green); font-size: 11px; }
+.nz-cost {
+  font: 700 8.5px/1 ui-monospace, monospace; letter-spacing: .1em;
+  color: var(--amber); text-shadow: var(--glow-a);
+}
+.nz-bare { display: inline-block; width: 26px; }

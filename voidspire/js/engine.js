@@ -2896,6 +2896,86 @@
     return totalDealt;
   }
 
+  /* ==================================================================
+   * THE NUDGE — missing by one stops being a shrug
+   * ==================================================================
+   * A d20 has twenty ADJACENT faces and, before this, adjacency paid for
+   * almost nothing: a quarter-strength bleed, and welds if you bought them.
+   * The ring the whole die is built on was decoration. Meanwhile every roll
+   * you did not want was a shrug — you watched it land, and that was the end
+   * of your involvement.
+   *
+   * The nudge spends 1 Energy to fire the face one step round the ring from
+   * where you landed, at FULL. It makes "what is next to what" the central
+   * placement question — you start cutting two good faces side by side so a
+   * miss is always recoverable — and it turns the worst moment in the game
+   * into a decision.
+   *
+   * WHY IT ADDS A FACE RATHER THAN MOVING THE ROLL, which is what it looks
+   * like it should do: the roll and the card's effects resolve in ONE
+   * synchronous pass, and the UI animates the result afterwards. By the time
+   * a player has seen the number, the engine has finished with it. A literal
+   * nudge would mean suspending playCard mid-flight and rebuilding its whole
+   * local context on resume — a restructure of the most central function in
+   * the engine for a difference the player cannot see. Firing the neighbour
+   * gives the same fantasy ("I missed it by one, let me pay for it") through
+   * a code path that already exists and is already tested.
+   *
+   * It is strictly additive, so it is priced and rationed: one per turn.
+   * ================================================================== */
+  function armNudge(face) {
+    var c = E.combat; if (!c) return;
+    c.nudge = { face: face, spent: false };
+  }
+  E.NUDGE_COST = 1;
+
+  // What the nudge is offering, or null when there is nothing to offer.
+  E.nudgeState = function () {
+    var c = E.combat, r = E.run;
+    if (!c || c.over || !c.nudge || c.nudgeUsedTurn || !r || !r.die) return null;
+    var n = ns.dieSides(r.die), from = c.nudge.face;
+    if (!(from >= 1 && from <= n)) return null;
+    function side(d) {
+      var f = ns.dieStep(from, d, r.die);
+      /* dieFaceId, not faces[slot.root].id. Reaching through the root by hand
+       * crashed the moment the neighbour was a band continuation or a seam
+       * whose root had been scrubbed — faces[root] is simply not there, and
+       * the sim died three hundred runs in. The accessor is what every other
+       * reader in the codebase uses and it handles both. */
+      var id = ns.dieFaceId(r.die, f);
+      if (!id) return null;
+      var g = ns.dieEngraving(id);
+      if (!g) return null;
+      return { face: f, id: id, name: g.name, flaw: !!g.flaw };
+    }
+    var lo = side(-1), hi = side(1);
+    if (!lo && !hi) return null;                 // nothing either side to reach
+    return {
+      from: from, cost: E.NUDGE_COST,
+      afford: c.energy >= E.NUDGE_COST,
+      left: lo, right: hi,
+    };
+  };
+
+  // Fire the neighbour. `dir` is -1 or +1 around the ring.
+  E.nudge = function (dir) {
+    var c = E.combat, r = E.run;
+    var st = E.nudgeState();
+    if (!st) return 'nothing to nudge into';
+    if (!st.afford) return 'not enough energy';
+    var pick = dir < 0 ? st.left : st.right;
+    if (!pick) return 'that side is bare';
+    c.energy -= E.NUDGE_COST;
+    c.nudgeUsedTurn = true;
+    c.nudge = null;
+    emit('nudge', { from: st.from, to: pick.face, name: pick.name, dir: dir < 0 ? -1 : 1 });
+    var tgt = c.enemies.find(function (e) { return e.alive; }) || null;
+    fireOneFace(pick.face, tgt, 1, 'nudge', st.from);
+    checkWin();          // a nudge can be the killing blow
+    E.save();
+    return null;
+  };
+
   E.playCard = function (handIdx, targetIdx) {
     var c = E.combat, r = E.run, p = c.player;
     if (!E.canPlay(handIdx)) return false;
@@ -3128,6 +3208,7 @@
       rollCost = slot ? (slot.hploss || 0) : 0;
       rollGain = slot ? (slot.energy || 0) : 0;
       emit('roll', { roll: roll, eff: eff, crit: crit, misfire: misfire, band: bandLabel, tone: rollTone, cost: rollCost, gain: rollGain });
+      armNudge(eff);                   // THE NUDGE — what you missed by one
       lawTrigger('roll', roll);        // THE SCRUTINY
     }
     }   // end of `if (!noRoll)` — a curse turns nothing
@@ -3322,6 +3403,8 @@
 
   /* ---------------- Combat: enemy turn ----------------------------------- */
   E.endTurn = function () {
+    // the nudge is a once-a-turn rescue, and it does not survive the turn
+    if (E.combat) { E.combat.nudge = null; E.combat.nudgeUsedTurn = false; }
     var c = E.combat, r = E.run, p = c.player;
     if (!c || c.over) return;
 
