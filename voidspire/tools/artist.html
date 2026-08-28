@@ -27,8 +27,24 @@
   }
   h1 { font-size: 13px; letter-spacing: .18em; margin: 0 0 9px; color: var(--green); }
   h1 span { color: var(--dim); letter-spacing: .06em; font-size: 11px; }
-  .wrap { display: grid; gap: 11px; grid-template-columns: 1fr; max-width: 1400px; margin: 0 auto; }
-  @media (min-width: 1000px) { .wrap { grid-template-columns: minmax(0,1fr) 350px; } }
+  /* THREE COLUMNS ON A WIDE SCREEN: a tool rail, the canvas, the panels.
+   * The page was centred at 1400px with the tools stacked underneath, which
+   * left a dead margin down each side and pushed the canvas up against its
+   * own controls. A rail is where every drawing program puts them and where
+   * the hand goes looking. Below 1000px it lies back down as a strip above
+   * the canvas, because a phone has no margin to spare. */
+  .wrap { display: grid; gap: 11px; grid-template-columns: 1fr; max-width: 1700px; margin: 0 auto; }
+  @media (min-width: 1000px) { .wrap { grid-template-columns: 74px minmax(0,1fr) 340px; } }
+  .rail { display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px; align-content: start; }
+  @media (min-width: 1000px) { .rail { flex-direction: column; flex-wrap: nowrap; } }
+  .rail button { width: 100%; padding: 9px 4px; font-size: 9px; letter-spacing: .04em; }
+  @media (max-width: 999px) { .rail button { width: auto; } }
+  .rail .sep {
+    height: 1px; background: var(--line); margin: 5px 0; width: 100%;
+  }
+  @media (max-width: 999px) { .rail .sep { display: none; } }
+  .rail .grp { font-size: 8px; color: var(--dim); letter-spacing: .1em; margin: 2px 0 1px; }
+  @media (max-width: 999px) { .rail .grp { display: none; } }
   .stage, .box {
     background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 8px;
   }
@@ -95,36 +111,40 @@
 <h1>VOIDSPIRE · ARTIST <span>— sketch, trace, animate, paste it in · <b id="ver"></b></span></h1>
 
 <div class="wrap">
+  <div class="rail">
+    <button id="bUndo" title="Undo (Cmd/Ctrl+Z)">↶ UNDO</button>
+    <button id="bRedo" title="Redo (Cmd/Ctrl+Shift+Z)">↷ REDO</button>
+    <div class="sep"></div>
+    <div class="grp">DRAW</div>
+    <button id="mDraw" class="on" title="Path — taps join into one stroke (D)">PATH <span class="k">D</span></button>
+    <button id="mLine" title="One straight segment per drag (L)">LINE <span class="k">L</span></button>
+    <button id="mFree" title="Freehand, simplified on release (F)">FREE <span class="k">F</span></button>
+    <button id="mShape" title="Drag a box, the shape fills it (S)">SHAPE <span class="k">S</span></button>
+    <button id="mEye" title="Place a glowing pip (E)">EYE <span class="k">E</span></button>
+    <div class="sep"></div>
+    <div class="grp">EDIT</div>
+    <button id="mEdit" title="Drag points; DELETE removes one (A)">POINTS <span class="k">A</span></button>
+    <button id="mSel" title="Marquee select and transform (V)">SELECT <span class="k">V</span></button>
+    <button id="mPan" title="Drag the canvas (H) — or hold SPACE anywhere">PAN <span class="k">H</span></button>
+    <div class="sep"></div>
+    <div class="grp">SNAP</div>
+    <button id="bMirror" title="Draw one half, get the other">MIRROR</button>
+    <button id="bSnap" title="Snap to the 0.02 grid">GRID</button>
+    <button id="bMag" title="Snap to nearby existing points">POINTS</button>
+    <button id="bGrid" title="Show the grid">SHOW</button>
+    <div class="sep"></div>
+    <div class="grp">VIEW</div>
+    <button id="zIn">ZOOM +</button>
+    <button id="zOut">ZOOM −</button>
+    <button id="zFit">FIT</button>
+  </div>
+
   <div>
     <div class="stage">
       <canvas id="pad" width="1100" height="1100"></canvas>
-      <div class="bar" id="undoBar">
-        <button id="bUndo" class="big">↶ UNDO</button>
-        <button id="bRedo" class="big">↷ REDO</button>
-        <span style="width:12px"></span>
+      <div class="bar">
         <button id="bFinish">FINISH LINE</button>
         <span class="hint" id="modeHint"></span>
-      </div>
-      <div class="bar">
-        <button id="mDraw" class="on">PATH <span class="k">D</span></button>
-        <button id="mLine">LINE <span class="k">L</span></button>
-        <button id="mFree">FREEHAND <span class="k">F</span></button>
-        <button id="mShape">SHAPE <span class="k">S</span></button>
-        <button id="mEye">EYE <span class="k">E</span></button>
-        <button id="mEdit">EDIT <span class="k">A</span></button>
-        <button id="mSel">SELECT <span class="k">V</span></button>
-        <button id="mPan">PAN <span class="k">H</span></button>
-      </div>
-      <div class="bar">
-        <button id="bMirror">MIRROR</button>
-        <button id="bSnap">GRID SNAP</button>
-        <button id="bMag">POINT SNAP</button>
-        <button id="bGrid">GRID</button>
-        <span style="width:8px"></span>
-        <button id="zIn" class="sm">ZOOM +</button>
-        <button id="zOut" class="sm">ZOOM −</button>
-        <button id="zFit" class="sm">FIT</button>
-        <span class="hint">hold <b>SPACE</b> or middle-drag to pan from any tool</span>
       </div>
       <div class="bar" id="shapeBar" style="display:none">
         <span class="hint">shape</span>
@@ -1525,7 +1545,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 7';
+  document.getElementById('ver').textContent = 'build 8';
 
   libLoad(); renderLib(); renderAssets();
   var restored = loadAutosave();
