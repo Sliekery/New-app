@@ -908,17 +908,23 @@
     if (!$nudge) return;
     var st = (E.combat && !E.combat.over && E.nudgeState) ? E.nudgeState() : null;
     if (!st || locked) { $nudge.style.display = 'none'; return; }
+    /* EACH SIDE CARRIES ITS OWN PRICE, because the two directions are rarely
+     * the same distance now. Showing one shared cost hid the whole decision —
+     * the point is that the near face is cheap and the far one is not. */
+    var en = E.combat.energy;
     function side(o, dir) {
       if (!o) return '<span class="nz-bare"></span>';
-      return '<button class="nz-btn' + (st.afford ? '' : ' dim') + (o.flaw ? ' flaw' : '')
-        + '" data-dir="' + dir + '">'
+      var can = en >= o.cost;
+      return '<button class="nz-btn' + (can ? '' : ' dim') + (o.flaw ? ' flaw' : '')
+        + '" data-dir="' + dir + '" title="' + o.dist + ' face' + (o.dist > 1 ? 's' : '') + ' away">'
         + (dir < 0 ? '<span class="nz-ar">\u25c2</span>' : '')
         + '<span class="nz-nm">' + esc(o.name) + '</span>'
+        + '<span class="nz-c">\u26a1' + o.cost + '</span>'
         + (dir > 0 ? '<span class="nz-ar">\u25b8</span>' : '')
         + '</button>';
     }
     $nudge.innerHTML = side(st.left, -1)
-      + '<span class="nz-cost">NUDGE \u26a1' + st.cost + '</span>'
+      + '<span class="nz-cost">NUDGE</span>'
       + side(st.right, 1);
     $nudge.style.display = 'flex';
     $nudge.querySelectorAll('.nz-btn').forEach(function (b) {

@@ -2927,7 +2927,21 @@
     var c = E.combat; if (!c) return;
     c.nudge = { face: face, spent: false };
   }
-  E.NUDGE_COST = 1;
+  /* PRICED BY DISTANCE, CAPPED AT THREE. Reaching only the immediate
+   * neighbours meant a die with ONE engraving on it could offer a nudge on 10%
+   * of rolls, and a fresh Vanguard die starts with nothing cut at all — so the
+   * mechanic whose whole job is teaching you that adjacency matters was
+   * invisible until you already had a dense die and had learned the lesson or
+   * not. Measured before this: 1 engraving 10%, 2 engravings 20%.
+   *
+   * A flat Energy-per-step would not have fixed it either: with one engraving
+   * the nearest face is ~5 steps away on average and nobody has five Energy.
+   * The cap means the die can ALWAYS be reached for at most a full turn's
+   * Energy, so the mechanic is live from the first cut you own — and paying
+   * three to reach a lone face is deliberately bad value, which is the lesson.
+   * Cluster your cuts and the same reach costs one. */
+  E.NUDGE_MAX = 3;
+  function nudgeCost(dist) { return Math.min(E.NUDGE_MAX, dist); }
 
   // What the nudge is offering, or null when there is nothing to offer.
   E.nudgeState = function () {
@@ -2935,24 +2949,31 @@
     if (!c || c.over || !c.nudge || c.nudgeUsedTurn || !r || !r.die) return null;
     var n = ns.dieSides(r.die), from = c.nudge.face;
     if (!(from >= 1 && from <= n)) return null;
+    /* Walk outward until an engraved face turns up. Half the ring is the
+     * limit because past that the other direction is the shorter way round.
+     *
+     * dieFaceId, not faces[slot.root].id: reaching through the root by hand
+     * crashed the moment the face was a band continuation or a seam whose root
+     * had been scrubbed, and the sim died three hundred runs in. */
     function side(d) {
-      var f = ns.dieStep(from, d, r.die);
-      /* dieFaceId, not faces[slot.root].id. Reaching through the root by hand
-       * crashed the moment the neighbour was a band continuation or a seam
-       * whose root had been scrubbed — faces[root] is simply not there, and
-       * the sim died three hundred runs in. The accessor is what every other
-       * reader in the codebase uses and it handles both. */
-      var id = ns.dieFaceId(r.die, f);
-      if (!id) return null;
-      var g = ns.dieEngraving(id);
-      if (!g) return null;
-      return { face: f, id: id, name: g.name, flaw: !!g.flaw };
+      for (var step = 1; step <= Math.floor(n / 2); step++) {
+        var f = ns.dieStep(from, d * step, r.die);
+        var id = ns.dieFaceId(r.die, f);
+        if (!id) continue;
+        var g = ns.dieEngraving(id);
+        if (!g) continue;
+        return { face: f, id: id, name: g.name, flaw: !!g.flaw,
+                 dist: step, cost: nudgeCost(step) };
+      }
+      return null;
     }
     var lo = side(-1), hi = side(1);
-    if (!lo && !hi) return null;                 // nothing either side to reach
+    if (!lo && !hi) return null;                 // a bare die has nothing to reach
+    var cheapest = Math.min(lo ? lo.cost : 99, hi ? hi.cost : 99);
     return {
-      from: from, cost: E.NUDGE_COST,
-      afford: c.energy >= E.NUDGE_COST,
+      from: from,
+      cost: cheapest,
+      afford: c.energy >= cheapest,
       left: lo, right: hi,
     };
   };
@@ -2962,13 +2983,14 @@
     var c = E.combat, r = E.run;
     var st = E.nudgeState();
     if (!st) return 'nothing to nudge into';
-    if (!st.afford) return 'not enough energy';
+
     var pick = dir < 0 ? st.left : st.right;
     if (!pick) return 'that side is bare';
-    c.energy -= E.NUDGE_COST;
+    if (c.energy < pick.cost) return 'not enough energy';
+    c.energy -= pick.cost;
     c.nudgeUsedTurn = true;
     c.nudge = null;
-    emit('nudge', { from: st.from, to: pick.face, name: pick.name, dir: dir < 0 ? -1 : 1 });
+    emit('nudge', { from: st.from, to: pick.face, name: pick.name, dist: pick.dist, dir: dir < 0 ? -1 : 1 });
     var tgt = c.enemies.find(function (e) { return e.alive; }) || null;
     fireOneFace(pick.face, tgt, 1, 'nudge', st.from);
     checkWin();          // a nudge can be the killing blow

@@ -2433,3 +2433,6 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   color: var(--amber); text-shadow: var(--glow-a);
 }
 .nz-bare { display: inline-block; width: 26px; }
+/* each direction prices itself — the near face is cheap, the far one is not */
+.nz-c { color: var(--amber); font: 700 9px/1 ui-monospace, monospace; margin-left: 2px; }
+.nz-btn.dim .nz-c { color: var(--text-dim); }
