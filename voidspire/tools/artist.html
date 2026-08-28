@@ -34,6 +34,11 @@
   button.on { border-color: var(--green); background: rgba(93,255,136,0.16); color: var(--green); }
   button.warn:hover { border-color: var(--red); color: var(--red); }
   button.sm { padding: 5px 6px; font-size: 9px; }
+  button.big { padding: 11px 15px; font-size: 12px; border-color: var(--green); color: var(--green); }
+  button.big:hover { background: rgba(93,255,136,0.15); }
+  button.big:disabled { opacity: .3; cursor: default; border-color: var(--line); color: var(--dim); }
+  .k { opacity: .45; font-size: 8px; margin-left: 3px; }
+  #undoBar { border-bottom: 1px solid var(--line); padding-bottom: 8px; }
   .side { display: flex; flex-direction: column; gap: 10px; }
   .box h2 { font-size: 10px; letter-spacing: .13em; color: var(--dim); margin: 0 0 7px; font-weight: 700; }
   textarea {
@@ -84,33 +89,46 @@
   <div>
     <div class="stage">
       <canvas id="pad" width="1100" height="1100"></canvas>
-      <div class="bar">
-        <button id="mDraw" class="on">DRAW</button>
-        <button id="mFree">FREEHAND</button>
-        <button id="mEdit">EDIT</button>
-        <button id="mEye">EYE</button>
-        <button id="mShape">SHAPE</button>
-        <button id="mSel">SELECT</button>
-        <span style="width:8px"></span>
+      <div class="bar" id="undoBar">
+        <button id="bUndo" class="big">↶ UNDO</button>
+        <button id="bRedo" class="big">↷ REDO</button>
+        <span style="width:12px"></span>
         <button id="bFinish">FINISH LINE</button>
-        <button id="bUndo">UNDO</button>
-        <button id="bRedo">REDO</button>
+        <span class="hint" id="modeHint"></span>
+      </div>
+      <div class="bar">
+        <button id="mDraw" class="on">PATH <span class="k">D</span></button>
+        <button id="mLine">LINE <span class="k">L</span></button>
+        <button id="mFree">FREEHAND <span class="k">F</span></button>
+        <button id="mShape">SHAPE <span class="k">S</span></button>
+        <button id="mEye">EYE <span class="k">E</span></button>
+        <button id="mEdit">EDIT <span class="k">A</span></button>
+        <button id="mSel">SELECT <span class="k">V</span></button>
+        <button id="mPan">PAN <span class="k">H</span></button>
+      </div>
+      <div class="bar">
         <button id="bMirror">MIRROR</button>
-        <button id="bSnap">SNAP</button>
+        <button id="bSnap">GRID SNAP</button>
+        <button id="bMag">POINT SNAP</button>
         <button id="bGrid">GRID</button>
         <span style="width:8px"></span>
         <button id="zIn" class="sm">ZOOM +</button>
         <button id="zOut" class="sm">ZOOM −</button>
         <button id="zFit" class="sm">FIT</button>
-        <button id="mPan">PAN</button>
+        <span class="hint">hold <b>SPACE</b> or middle-drag to pan from any tool</span>
       </div>
       <div class="bar" id="shapeBar" style="display:none">
         <span class="hint">shape</span>
         <button class="sm shp on" data-shp="circle">CIRCLE</button>
+        <button class="sm shp" data-shp="ellipse">ELLIPSE</button>
         <button class="sm shp" data-shp="rect">RECT</button>
+        <button class="sm shp" data-shp="square">SQUARE</button>
+        <button class="sm shp" data-shp="round">ROUNDED</button>
+        <button class="sm shp" data-shp="tri">TRIANGLE</button>
         <button class="sm shp" data-shp="poly">POLYGON</button>
+        <button class="sm shp" data-shp="star">STAR</button>
         <button class="sm shp" data-shp="arc">ARC</button>
-        <span class="hint">sides</span>
+        <span class="hint">points</span>
         <input type="range" id="shpN" min="3" max="12" value="6" style="max-width:80px">
         <span class="hint" id="shpNN">6</span>
       </div>
@@ -287,6 +305,9 @@
   var freeing = null;                      // raw points while a freehand stroke is down
   var panFrom = null;                      // drag origin while panning
   var shapeFrom = null, shapeTo = null;    // primitive being dragged out
+  var lineFrom = null, lineTo = null;      // a single independent segment
+  var spaceDown = false;
+  var hoverPt = null;                      // the point under the cursor in EDIT
   var smoothing = 18;
 
   /* ------------------------------------------------------------------
@@ -331,8 +352,8 @@
   }
   function syncHistBtns() {
     var u = document.getElementById('bUndo'), r = document.getElementById('bRedo');
-    if (u) u.style.opacity = (past.length || cur.length) ? 1 : 0.4;
-    if (r) r.style.opacity = future.length ? 1 : 0.4;
+    if (u) u.disabled = !(past.length || cur.length);
+    if (r) r.disabled = !future.length;
   }
 
   function cell(f, l) { return doc.frames[f].cells[l]; }
@@ -480,6 +501,10 @@
       prev.forEach(function (q) { flat.push(q[0], q[1]); });
       strokeIt(flat); px.restore();
     }
+    if (lineFrom && lineTo) {
+      px.save(); px.strokeStyle = '#41d8ff'; px.lineWidth = 3; px.setLineDash([6, 4]);
+      strokeIt([lineFrom[0], lineFrom[1], lineTo[0], lineTo[1]]); px.restore();
+    }
     if (marquee) {
       px.save(); px.strokeStyle = '#41d8ff'; px.lineWidth = 1.5; px.setLineDash([4, 4]);
       var m0 = toScreen(marquee.a[0], marquee.a[1]), m1 = toScreen(marquee.b[0], marquee.b[1]);
@@ -502,11 +527,12 @@
       px.restore();
     }
     if (mode === 'edit') {
-      px.fillStyle = '#41d8ff';
-      here().strokes.forEach(function (L) {
-        L.pts.forEach(function (p) {
+      here().strokes.forEach(function (L, si2) {
+        L.pts.forEach(function (p, pi2) {
           var s = toScreen(p[0], p[1]);
-          px.beginPath(); px.arc(s[0], s[1], 7, 0, 7); px.fill();
+          var hot = hoverPt && hoverPt.si === si2 && hoverPt.pi === pi2;
+          px.fillStyle = hot ? '#ff4a5e' : '#41d8ff';
+          px.beginPath(); px.arc(s[0], s[1], hot ? 10 : 7, 0, 7); px.fill();
         });
       });
     }
@@ -519,6 +545,17 @@
       + ' · exports ' + n.p.length + ' path' + (n.p.length === 1 ? '' : 's')
       + (mirror ? ' · MIRRORED' : '')
       + (view.z !== 1 ? ' · ' + view.z.toFixed(1) + '×' : '');
+    var HINTS = {
+      draw: 'tap to lay points — they join into one path · FINISH LINE ends it',
+      line: 'drag to make one straight segment, unconnected to the rest',
+      free: 'drag to draw freehand — it is simplified when you let go',
+      shape: 'drag a box; the shape fills it',
+      eye: 'tap to place a glowing pip',
+      edit: 'drag a point to move it · DELETE removes the point under the cursor',
+      select: 'drag a box round strokes · arrow keys nudge, SHIFT for a bigger step',
+      pan: 'drag to move the canvas',
+    };
+    document.getElementById('modeHint').textContent = HINTS[mode] || '';
     document.getElementById('shapeBar').style.display = (mode === 'shape') ? 'flex' : 'none';
     document.getElementById('selBar').style.display = (mode === 'select') ? 'flex' : 'none';
     document.getElementById('selCount').textContent =
@@ -617,6 +654,12 @@
 
   pad.addEventListener('pointerdown', function (ev) {
     ev.preventDefault();
+    // space held, or the middle button: pan regardless of the active tool
+    if (spaceDown || ev.button === 1) {
+      panFrom = { x: ev.clientX, y: ev.clientY, cx: view.cx, cy: view.cy };
+      pad.setPointerCapture(ev.pointerId);
+      return;
+    }
     var w = toWorld(ev.clientX, ev.clientY);
     if (mode === 'eye') { pushHistory(); here().eyes.push([w[0], w[1], mirror]); drawPad(); return; }
     if (mode === 'edit') {
@@ -630,7 +673,12 @@
       return;
     }
     if (mode === 'shape') {
-      shapeFrom = w; pad.setPointerCapture(ev.pointerId); return;
+      shapeFrom = snapPoint(w); pad.setPointerCapture(ev.pointerId); return;
+    }
+    if (mode === 'line') {
+      // one drag makes one independent two-point segment
+      lineFrom = snapPoint(w); lineTo = lineFrom;
+      pad.setPointerCapture(ev.pointerId); return;
     }
     if (mode === 'select') {
       var b = selBounds();
@@ -647,7 +695,7 @@
       pad.setPointerCapture(ev.pointerId);
       return;
     }
-    cur.push(w); drawPad();
+    cur.push(snapPoint(w)); drawPad();
   });
   pad.addEventListener('pointermove', function (ev) {
     if (panFrom) {
@@ -656,7 +704,8 @@
       view.cy = panFrom.cy - (ev.clientY - panFrom.y) / r.height * 2 * h;
       drawPad(); return;
     }
-    if (shapeFrom) { shapeTo = toWorld(ev.clientX, ev.clientY); drawPad(); return; }
+    if (shapeFrom) { shapeTo = snapPoint(toWorld(ev.clientX, ev.clientY)); drawPad(); return; }
+    if (lineFrom) { lineTo = snapPoint(toWorld(ev.clientX, ev.clientY)); drawPad(); return; }
     if (marquee) { marquee.b = toWorld(ev.clientX, ev.clientY); drawPad(); return; }
     if (moveFrom) {
       var mw = toWorld(ev.clientX, ev.clientY);
@@ -673,8 +722,16 @@
       if (Math.hypot(w[0] - last[0], w[1] - last[1]) > 0.006) { freeing.push(w); drawPad(); }
       return;
     }
+    if (mode === 'edit' && !drag) {
+      var hw = toWorld(ev.clientX, ev.clientY);
+      var h = nearest(hw);
+      if ((h && !hoverPt) || (!h && hoverPt) || (h && hoverPt && (h.si !== hoverPt.si || h.pi !== hoverPt.pi))) {
+        hoverPt = h; drawPad();
+      }
+      return;
+    }
     if (!drag) return;
-    here().strokes[drag.si].pts[drag.pi] = toWorld(ev.clientX, ev.clientY);
+    here().strokes[drag.si].pts[drag.pi] = snapPoint(toWorld(ev.clientX, ev.clientY));
     drawPad();
   });
   pad.addEventListener('pointerup', function () {
@@ -684,6 +741,11 @@
       if (pts.length > 1) { pushHistory(); here().strokes.push({ pts: pts, m: mirror }); }
     }
     shapeFrom = shapeTo = null;
+    if (lineFrom && lineTo) {
+      var d = Math.hypot(lineTo[0] - lineFrom[0], lineTo[1] - lineFrom[1]);
+      if (d > 0.008) { pushHistory(); here().strokes.push({ pts: [lineFrom, lineTo], m: mirror }); }
+    }
+    lineFrom = lineTo = null;
     if (marquee) {
       var x0 = Math.min(marquee.a[0], marquee.b[0]), x1 = Math.max(marquee.a[0], marquee.b[0]);
       var y0 = Math.min(marquee.a[1], marquee.b[1]), y1 = Math.max(marquee.a[1], marquee.b[1]);
@@ -730,7 +792,21 @@
   }
   modeBtn('mDraw', 'draw'); modeBtn('mFree', 'free'); modeBtn('mEdit', 'edit');
   modeBtn('mEye', 'eye'); modeBtn('mPan', 'pan');
-  modeBtn('mShape', 'shape'); modeBtn('mSel', 'select');
+  modeBtn('mShape', 'shape'); modeBtn('mSel', 'select'); modeBtn('mLine', 'line');
+  toggle('bMag', function () { return magnet; }, function (v) { magnet = v; });
+
+  /* PANNING FROM ANY TOOL. A dedicated mode is a mode you have to leave and
+   * come back to; holding space or dragging with the middle button works
+   * wherever you are, which is what every drawing program does and what the
+   * hand already expects. */
+  document.addEventListener('keydown', function (ev) {
+    if (ev.code === 'Space' && !spaceDown && ev.target.tagName !== 'INPUT') {
+      spaceDown = true; pad.style.cursor = 'grab'; ev.preventDefault();
+    }
+  });
+  document.addEventListener('keyup', function (ev) {
+    if (ev.code === 'Space') { spaceDown = false; pad.style.cursor = ''; }
+  });
 
   /* ==================================================================
    * PRIMITIVES. The game's art is full of clean geometry — hexagonal
@@ -747,27 +823,66 @@
   document.getElementById('shpN').oninput = function () {
     shpN = +this.value; document.getElementById('shpNN').textContent = shpN;
   };
-  function makeShape(c, edge) {
-    var rx = edge[0] - c[0], ry = edge[1] - c[1];
-    var r = Math.hypot(rx, ry), a0 = Math.atan2(ry, rx), pts = [];
-    var i;
-    if (shp === 'rect') {
-      pts = [[c[0] - Math.abs(rx), c[1] - Math.abs(ry)], [c[0] + Math.abs(rx), c[1] - Math.abs(ry)],
-             [c[0] + Math.abs(rx), c[1] + Math.abs(ry)], [c[0] - Math.abs(rx), c[1] + Math.abs(ry)]];
-      pts.push(pts[0].slice());
+  /* EVERY SHAPE IS DRAWN INSIDE THE BOX YOU DRAG, corner to corner. Centre-out
+   * is fine for a circle and baffling for a rectangle, and having some tools
+   * behave one way and some the other is the kind of inconsistency you have to
+   * relearn every time. One rule: drag the box, the shape fills it. */
+  function makeShape(a, bb) {
+    var x0 = Math.min(a[0], bb[0]), x1 = Math.max(a[0], bb[0]);
+    var y0 = Math.min(a[1], bb[1]), y1 = Math.max(a[1], bb[1]);
+    if (shp === 'square' || shp === 'circle') {         // constrained to the larger side
+      var side = Math.max(x1 - x0, y1 - y0);
+      if (bb[0] < a[0]) x0 = x1 - side; else x1 = x0 + side;
+      if (bb[1] < a[1]) y0 = y1 - side; else y1 = y0 + side;
+    }
+    var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    var rx = (x1 - x0) / 2, ry = (y1 - y0) / 2, pts = [], i, th;
+
+    if (shp === 'rect' || shp === 'square') {
+      pts = [[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]];
+    } else if (shp === 'round') {
+      var k = Math.min(rx, ry) * 0.42;
+      pts = [[x0 + k, y0], [x1 - k, y0], [x1, y0 + k], [x1, y1 - k],
+             [x1 - k, y1], [x0 + k, y1], [x0, y1 - k], [x0, y0 + k], [x0 + k, y0]];
+    } else if (shp === 'tri') {
+      pts = [[cx, y0], [x1, y1], [x0, y1], [cx, y0]];
     } else if (shp === 'arc') {
-      for (i = 0; i <= 16; i++) {
-        var t = a0 - Math.PI / 2 + (i / 16) * Math.PI;
-        pts.push([c[0] + Math.cos(t) * r, c[1] + Math.sin(t) * r]);
+      for (i = 0; i <= 18; i++) { th = Math.PI + (i / 18) * Math.PI; pts.push([cx + Math.cos(th) * rx, cy + Math.sin(th) * ry]); }
+    } else if (shp === 'star') {
+      var n2 = Math.max(3, shpN);
+      for (i = 0; i <= n2 * 2; i++) {
+        th = -Math.PI / 2 + (i / (n2 * 2)) * Math.PI * 2;
+        var rr = (i % 2 === 0) ? 1 : 0.44;
+        pts.push([cx + Math.cos(th) * rx * rr, cy + Math.sin(th) * ry * rr]);
       }
-    } else {
-      var n = (shp === 'circle') ? 24 : shpN;
+    } else {                                            // circle, ellipse, polygon
+      var n = (shp === 'poly') ? shpN : 28;
       for (i = 0; i <= n; i++) {
-        var th = a0 + (i / n) * Math.PI * 2;
-        pts.push([c[0] + Math.cos(th) * r, c[1] + Math.sin(th) * r]);
+        th = -Math.PI / 2 + (i / n) * Math.PI * 2;
+        pts.push([cx + Math.cos(th) * rx, cy + Math.sin(th) * ry]);
       }
     }
     return pts.map(function (q) { return [+q[0].toFixed(3), +q[1].toFixed(3)]; });
+  }
+
+  /* POINT SNAP. "Line after line, and let me connect them" only works if the
+   * ends actually meet — by eye they never quite do, and a 0.003 gap is
+   * invisible here and a visible break at boss scale. Every new point is
+   * pulled to a nearby existing endpoint. */
+  var magnet = true;
+  function snapPoint(w) {
+    if (!magnet) return w;
+    var best = null, bd = 0.05 / view.z;
+    doc.layers.forEach(function (L, l) {
+      if (!L.vis) return;
+      cell(fi, l).strokes.forEach(function (S) {
+        S.pts.forEach(function (p) {
+          var d = Math.hypot(p[0] - w[0], p[1] - w[1]);
+          if (d < bd) { bd = d; best = p; }
+        });
+      });
+    });
+    return best ? [best[0], best[1]] : w;
   }
 
   /* ==================================================================
@@ -1073,8 +1188,34 @@
       s.classList.add('on'); colour = s.getAttribute('data-col'); drawPad();
     };
   });
+  var MODE_KEYS = { d: 'mDraw', l: 'mLine', f: 'mFree', s: 'mShape', e: 'mEye', a: 'mEdit', v: 'mSel', h: 'mPan' };
   document.addEventListener('keydown', function (ev) {
     if (ev.target.tagName === 'TEXTAREA' || ev.target.tagName === 'INPUT') return;
+    // one letter a tool, the way every drawing program does it
+    if (!ev.metaKey && !ev.ctrlKey && MODE_KEYS[ev.key.toLowerCase()]) {
+      document.getElementById(MODE_KEYS[ev.key.toLowerCase()]).click();
+      ev.preventDefault(); return;
+    }
+    /* ARROW KEYS NUDGE THE SELECTION. Dragging is for gross movement and hopeless
+     * for the last two thousandths; shift takes a bigger step. */
+    if (mode === 'select' && sel.length && ev.key.indexOf('Arrow') === 0) {
+      var st = (ev.shiftKey ? 0.05 : 0.01);
+      var dx = ev.key === 'ArrowLeft' ? -st : ev.key === 'ArrowRight' ? st : 0;
+      var dy = ev.key === 'ArrowUp' ? -st : ev.key === 'ArrowDown' ? st : 0;
+      pushHistory();
+      sel.forEach(function (i) {
+        var L = here().strokes[i]; if (!L) return;
+        L.pts = L.pts.map(function (p) { return [+(p[0] + dx).toFixed(3), +(p[1] + dy).toFixed(3)]; });
+      });
+      drawPad(); ev.preventDefault(); return;
+    }
+    // in EDIT, delete just the point under the cursor rather than the stroke
+    if (mode === 'edit' && (ev.key === 'Delete' || ev.key === 'Backspace') && hoverPt) {
+      var S = here().strokes[hoverPt.si];
+      if (S && S.pts.length > 2) { pushHistory(); S.pts.splice(hoverPt.pi, 1); }
+      else if (S) { pushHistory(); here().strokes.splice(hoverPt.si, 1); }
+      hoverPt = null; drawPad(); ev.preventDefault(); return;
+    }
     if (ev.key === 'Enter') finish();
     if (ev.key === 'z' && (ev.metaKey || ev.ctrlKey) && !ev.shiftKey) { undo(); ev.preventDefault(); }
     if ((ev.key === 'y' && (ev.metaKey || ev.ctrlKey))
@@ -1361,7 +1502,7 @@
   };
   // A build stamp, because a cached copy of this page is indistinguishable
   // from a current one otherwise — which has already caused confusion twice.
-  document.getElementById('ver').textContent = 'build 5';
+  document.getElementById('ver').textContent = 'build 6';
 
   libLoad(); renderLib(); renderAssets();
   var restored = loadAutosave();
