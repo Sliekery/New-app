@@ -2452,6 +2452,9 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
   color: var(--amber); text-shadow: var(--glow-a);
 }
 .nz-bare { display: inline-block; width: 26px; }
+/* each direction prices itself — the near face is cheap, the far one is not */
+.nz-c { color: var(--amber); font: 700 9px/1 ui-monospace, monospace; margin-left: 2px; }
+.nz-btn.dim .nz-c { color: var(--text-dim); }
 
 </style>
 </head>
@@ -2475,7 +2478,7 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
  * ========================================================================= */
 (function (ns) {
   // Replaced by test/bundle.js with the git short hash + date at build time.
-  ns.BUILD = '2026-08-28 3a5942d';
+  ns.BUILD = '2026-08-28 eaa2d71';
 
   'use strict';
 
@@ -15107,7 +15110,21 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var c = E.combat; if (!c) return;
     c.nudge = { face: face, spent: false };
   }
-  E.NUDGE_COST = 1;
+  /* PRICED BY DISTANCE, CAPPED AT THREE. Reaching only the immediate
+   * neighbours meant a die with ONE engraving on it could offer a nudge on 10%
+   * of rolls, and a fresh Vanguard die starts with nothing cut at all — so the
+   * mechanic whose whole job is teaching you that adjacency matters was
+   * invisible until you already had a dense die and had learned the lesson or
+   * not. Measured before this: 1 engraving 10%, 2 engravings 20%.
+   *
+   * A flat Energy-per-step would not have fixed it either: with one engraving
+   * the nearest face is ~5 steps away on average and nobody has five Energy.
+   * The cap means the die can ALWAYS be reached for at most a full turn's
+   * Energy, so the mechanic is live from the first cut you own — and paying
+   * three to reach a lone face is deliberately bad value, which is the lesson.
+   * Cluster your cuts and the same reach costs one. */
+  E.NUDGE_MAX = 3;
+  function nudgeCost(dist) { return Math.min(E.NUDGE_MAX, dist); }
 
   // What the nudge is offering, or null when there is nothing to offer.
   E.nudgeState = function () {
@@ -15115,24 +15132,31 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (!c || c.over || !c.nudge || c.nudgeUsedTurn || !r || !r.die) return null;
     var n = ns.dieSides(r.die), from = c.nudge.face;
     if (!(from >= 1 && from <= n)) return null;
+    /* Walk outward until an engraved face turns up. Half the ring is the
+     * limit because past that the other direction is the shorter way round.
+     *
+     * dieFaceId, not faces[slot.root].id: reaching through the root by hand
+     * crashed the moment the face was a band continuation or a seam whose root
+     * had been scrubbed, and the sim died three hundred runs in. */
     function side(d) {
-      var f = ns.dieStep(from, d, r.die);
-      /* dieFaceId, not faces[slot.root].id. Reaching through the root by hand
-       * crashed the moment the neighbour was a band continuation or a seam
-       * whose root had been scrubbed — faces[root] is simply not there, and
-       * the sim died three hundred runs in. The accessor is what every other
-       * reader in the codebase uses and it handles both. */
-      var id = ns.dieFaceId(r.die, f);
-      if (!id) return null;
-      var g = ns.dieEngraving(id);
-      if (!g) return null;
-      return { face: f, id: id, name: g.name, flaw: !!g.flaw };
+      for (var step = 1; step <= Math.floor(n / 2); step++) {
+        var f = ns.dieStep(from, d * step, r.die);
+        var id = ns.dieFaceId(r.die, f);
+        if (!id) continue;
+        var g = ns.dieEngraving(id);
+        if (!g) continue;
+        return { face: f, id: id, name: g.name, flaw: !!g.flaw,
+                 dist: step, cost: nudgeCost(step) };
+      }
+      return null;
     }
     var lo = side(-1), hi = side(1);
-    if (!lo && !hi) return null;                 // nothing either side to reach
+    if (!lo && !hi) return null;                 // a bare die has nothing to reach
+    var cheapest = Math.min(lo ? lo.cost : 99, hi ? hi.cost : 99);
     return {
-      from: from, cost: E.NUDGE_COST,
-      afford: c.energy >= E.NUDGE_COST,
+      from: from,
+      cost: cheapest,
+      afford: c.energy >= cheapest,
       left: lo, right: hi,
     };
   };
@@ -15142,13 +15166,14 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     var c = E.combat, r = E.run;
     var st = E.nudgeState();
     if (!st) return 'nothing to nudge into';
-    if (!st.afford) return 'not enough energy';
+
     var pick = dir < 0 ? st.left : st.right;
     if (!pick) return 'that side is bare';
-    c.energy -= E.NUDGE_COST;
+    if (c.energy < pick.cost) return 'not enough energy';
+    c.energy -= pick.cost;
     c.nudgeUsedTurn = true;
     c.nudge = null;
-    emit('nudge', { from: st.from, to: pick.face, name: pick.name, dir: dir < 0 ? -1 : 1 });
+    emit('nudge', { from: st.from, to: pick.face, name: pick.name, dist: pick.dist, dir: dir < 0 ? -1 : 1 });
     var tgt = c.enemies.find(function (e) { return e.alive; }) || null;
     fireOneFace(pick.face, tgt, 1, 'nudge', st.from);
     checkWin();          // a nudge can be the killing blow
@@ -21518,17 +21543,23 @@ svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite
     if (!$nudge) return;
     var st = (E.combat && !E.combat.over && E.nudgeState) ? E.nudgeState() : null;
     if (!st || locked) { $nudge.style.display = 'none'; return; }
+    /* EACH SIDE CARRIES ITS OWN PRICE, because the two directions are rarely
+     * the same distance now. Showing one shared cost hid the whole decision —
+     * the point is that the near face is cheap and the far one is not. */
+    var en = E.combat.energy;
     function side(o, dir) {
       if (!o) return '<span class="nz-bare"></span>';
-      return '<button class="nz-btn' + (st.afford ? '' : ' dim') + (o.flaw ? ' flaw' : '')
-        + '" data-dir="' + dir + '">'
+      var can = en >= o.cost;
+      return '<button class="nz-btn' + (can ? '' : ' dim') + (o.flaw ? ' flaw' : '')
+        + '" data-dir="' + dir + '" title="' + o.dist + ' face' + (o.dist > 1 ? 's' : '') + ' away">'
         + (dir < 0 ? '<span class="nz-ar">\u25c2</span>' : '')
         + '<span class="nz-nm">' + esc(o.name) + '</span>'
+        + '<span class="nz-c">\u26a1' + o.cost + '</span>'
         + (dir > 0 ? '<span class="nz-ar">\u25b8</span>' : '')
         + '</button>';
     }
     $nudge.innerHTML = side(st.left, -1)
-      + '<span class="nz-cost">NUDGE \u26a1' + st.cost + '</span>'
+      + '<span class="nz-cost">NUDGE</span>'
       + side(st.right, 1);
     $nudge.style.display = 'flex';
     $nudge.querySelectorAll('.nz-btn').forEach(function (b) {
