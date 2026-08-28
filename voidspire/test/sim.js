@@ -281,25 +281,7 @@ function botCombat() {
      * bar is a face scoring above a cheap card's output. Without this the sim
      * would play as if the mechanic did not exist and report a balance figure
      * for a game nobody is playing. */
-    /* IT MUST NOT COST A CARD. The first pass compared the face beyond against
-     * a flat bar and nothing else, so the bot paid Energy it needed to play
-     * with: the Vanguard gained 1.8 points and the Voidadept LOST 2.2, because
-     * a damage-shaped yardstick over-values a nudge for a die that defends.
-     * That measured the bot, not the mechanic.
-     *
-     * The real cost of a nudge is the card it displaces, so spend only out of
-     * Energy that no playable card is waiting for. */
     var nst = E.nudgeState && E.nudgeState();
-    if (nst && nst.afford) {
-      var cheapest = Infinity;
-      for (var ci = 0; ci < c.hand.length; ci++) {
-        if (!E.canPlay(ci)) continue;
-        var cdef = VS.CARDS[c.hand[ci].id];
-        var ccost = (cdef && cdef.cost) || 0;
-        if (ccost < cheapest) cheapest = ccost;
-      }
-      if ((c.energy - nst.cost) < (isFinite(cheapest) ? cheapest : 0)) nst = null;
-    }
     if (nst && nst.afford) {
       var best = null, bestDir = 0;
       [[nst.left, -1], [nst.right, 1]].forEach(function (pair) {
