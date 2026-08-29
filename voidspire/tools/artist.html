@@ -1789,13 +1789,84 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 13';
+  document.getElementById('ver').textContent = 'build 14';
 
   libLoad(); renderLib(); renderAssets();
   var restored = loadAutosave();
   syncHistBtns();
   renderLayers(); renderFrames(); drawPad();
   if (restored) status.textContent = 'restored your last drawing';
+})();
+</script>
+
+<script>
+/* ==================================================================
+ * ONE BACKUP FOR EVERY TOOL
+ * ==================================================================
+ * All five tools keep their work in localStorage, which is per browser, per
+ * device and never syncs — so moving between a desktop and a phone lost
+ * everything unless each tool's own export had been remembered separately,
+ * and two of them had no export at all.
+ *
+ * This takes EVERY voidspire.* key in one file, so a move between devices is
+ * one download and one upload rather than five. It is identical in all five
+ * tools, so it can be reached from whichever one happens to be open.
+ * ================================================================== */
+(function () {
+  'use strict';
+  function allKeys() {
+    var out = [];
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf('voidspire.') === 0) out.push(k);
+      }
+    } catch (e) {}
+    return out;
+  }
+  function backup() {
+    var data = { kind: 'voidspire-tools-backup', at: new Date().toISOString(), keys: {} };
+    allKeys().forEach(function (k) { try { data.keys[k] = localStorage.getItem(k); } catch (e) {} });
+    var n = Object.keys(data.keys).length;
+    if (!n) { alert('Nothing saved in this browser yet.'); return; }
+    var blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'voidspire-tools-' + data.at.slice(0, 10) + '.json';
+    a.click();
+  }
+  function restore(file) {
+    var rd = new FileReader();
+    rd.onload = function () {
+      var d;
+      try { d = JSON.parse(rd.result); } catch (e) { alert('That is not a backup file.'); return; }
+      if (!d || d.kind !== 'voidspire-tools-backup' || !d.keys) { alert('That is not a backup file.'); return; }
+      var names = Object.keys(d.keys);
+      /* Say what is about to be overwritten. A restore replaces work in this
+       * browser, and doing that silently is how someone loses an afternoon. */
+      if (!confirm('Restore ' + names.length + ' saved item'
+        + (names.length === 1 ? '' : 's') + ' from ' + (d.at || '').slice(0, 10)
+        + '?\n\nThis REPLACES what is saved in this browser.')) return;
+      names.forEach(function (k) { try { localStorage.setItem(k, d.keys[k]); } catch (e) {} });
+      location.reload();
+    };
+    rd.readAsText(file);
+  }
+  var bar = document.createElement('div');
+  bar.style.cssText = 'position:fixed;right:10px;top:8px;z-index:9999;display:flex;gap:5px;';
+  bar.innerHTML =
+    '<button id="vsBackup" style="background:rgba(10,16,20,.95);border:1px solid rgba(120,150,165,.35);'
+    + 'border-radius:3px;color:#8fa79a;font:700 9px/1 ui-monospace,monospace;letter-spacing:.07em;'
+    + 'padding:6px 7px;cursor:pointer" title="Download everything this browser has saved, from all five tools">BACKUP ALL</button>'
+    + '<label style="background:rgba(10,16,20,.95);border:1px solid rgba(120,150,165,.35);'
+    + 'border-radius:3px;color:#8fa79a;font:700 9px/1 ui-monospace,monospace;letter-spacing:.07em;'
+    + 'padding:6px 7px;cursor:pointer" title="Load a backup made on another device">RESTORE'
+    + '<input type="file" id="vsRestore" accept="application/json" hidden></label>';
+  document.body.appendChild(bar);
+  document.getElementById('vsBackup').onclick = backup;
+  document.getElementById('vsRestore').onchange = function (ev) {
+    if (ev.target.files && ev.target.files[0]) restore(ev.target.files[0]);
+  };
 })();
 </script>
 </body>
