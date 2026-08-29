@@ -74,7 +74,7 @@
 <body>
 
 <h1>VOIDSPIRE · WORKSHOP <span id="clock"></span></h1>
-<p class="sub">the game, and the five tools we build it with</p>
+<p class="sub">the game, the tools we build it with, and one to give away</p>
 
 <div class="bar">
   <button id="refresh">RE-CHECK BUILDS</button>
@@ -151,6 +151,14 @@
       makes: 'Card styling and art for css/style.css and js/cardart.js.',
       keys: ['voidspire.card.frame'] },
 
+    { id: 'linework', name: 'LINEWORK', url: 'linework.html',
+      what: 'The artist tool as one file, with nothing about this game in it.',
+      makes: 'A gift. Save it and send it — it opens from a folder, offline, '
+           + 'and saves drawings as SVG or PNG.',
+      keys: ['linework.introHidden'],
+      links: [['OPEN', 'linework.html', true],
+              ['DOWNLOAD THE FILE', 'linework.html', false]] },
+
     { id: 'layout', name: 'LAYOUT', url: 'layout.html',
       what: 'Drag the HUD around over the running game and say where things belong.',
       makes: 'A written layout brief for me to implement.',
@@ -203,7 +211,9 @@
     var el = document.createElement('div');
     el.className = 'card' + (t.cls ? ' ' + t.cls : '');
     var links = (t.links || [['OPEN', t.url, true]]).map(function (l) {
-      return '<a href="' + l[1] + '"' + (l[2] ? ' class="go"' : '') + '>' + l[0] + '</a>';
+      // a link labelled DOWNLOAD should save the file, not navigate to it
+      var dl = /DOWNLOAD/.test(l[0]) ? ' download' : '';
+      return '<a href="' + l[1] + '"' + dl + (l[2] ? ' class="go"' : '') + '>' + l[0] + '</a>';
     }).join('');
     var st = storedFor(t.keys);
     el.innerHTML =
