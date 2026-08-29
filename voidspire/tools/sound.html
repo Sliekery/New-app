@@ -103,8 +103,8 @@
   canvas { touch-action: none; }
   /* the tabbed panes are the flex child here, so they carry the height */
   .tabs { flex: 0 0 auto; }
-  #paneSfx, #paneMus { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-  #paneSfx > .wrap, #paneMus > .wrap { flex: 1 1 auto; min-height: 0; }
+  #paneSfx, #paneMus, #paneRec { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  #paneSfx > .wrap, #paneMus > .wrap, #paneRec > .wrap { flex: 1 1 auto; min-height: 0; }
 </style>
 </head>
 <body>
@@ -113,6 +113,7 @@
 <div class="tabs">
   <button id="tabSfx" class="on">SOUND EFFECTS</button>
   <button id="tabMus">MUSIC</button>
+  <button id="tabRec">RECORD</button>
 </div>
 
 <!-- ==================== SFX ==================== -->
@@ -179,6 +180,72 @@
           <button id="sfxCopy">COPY</button>
           <button id="sndWipe" class="sm warn">RESET TOOL</button>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== RECORD ==================== -->
+<div id="paneRec" style="display:none">
+  <div class="wrap">
+    <div>
+      <div class="box">
+        <div class="bar" style="margin-top:0">
+          <button id="rArm" class="big">● RECORD</button>
+          <button id="rPlay" class="sm">▶ PLAY</button>
+          <button id="rClear" class="sm warn">CLEAR</button>
+          <span class="hint" id="rStatus">tap RECORD and allow the microphone</span>
+        </div>
+        <canvas id="rWave" width="1400" height="230" style="margin-top:8px"></canvas>
+        <div class="bar">
+          <span class="hint">drag on the waveform to keep just that part · everything outside it is thrown away</span>
+        </div>
+      </div>
+
+      <div class="box" style="margin-top:10px">
+        <h2>HOW ROUGH — this decides both the sound and the size</h2>
+        <div class="fld"><label>SAMPLE RATE</label>
+          <input type="range" id="rRate" min="0" max="4" value="1">
+          <span class="v" id="rRateN">8 kHz</span></div>
+        <div class="fld"><label>BIT DEPTH</label>
+          <input type="range" id="rBits" min="2" max="8" value="8">
+          <span class="v" id="rBitsN">8</span></div>
+        <div class="fld"><label>GAIN</label>
+          <input type="range" id="rGain" min="0.2" max="4" step="0.1" value="1">
+          <span class="v" id="rGainN">1.0×</span></div>
+        <p class="hint" id="rSize" style="margin:6px 0 0"></p>
+        <p class="hint" style="margin:6px 0 0">
+          The game is one 1.5MB file, so a recording has to be carried inside
+          it. At 8kHz and 8 bits a second of voice costs about <b>11KB</b>;
+          at CD quality the same second is <b>118KB</b>. The crunch is also
+          the right texture — a pristine voice clip over this soundtrack
+          sounds like it wandered in from another game.
+        </p>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="box">
+        <h2>YOUR RECORDINGS</h2>
+        <div class="bar" style="margin-top:0">
+          <span class="hint">name</span>
+          <input type="text" id="rName" value="grunt" style="flex:1">
+          <button id="rKeep" class="sm">+ KEEP</button>
+        </div>
+        <div class="list" id="rList" style="margin-top:6px"></div>
+        <p class="hint" style="margin:6px 0 0">
+          Kept in this browser. BACKUP ALL carries them to another device.
+        </p>
+      </div>
+
+      <div class="box" style="margin-top:10px">
+        <h2>THE CODE — paste into js/samples.js</h2>
+        <textarea id="rOut" readonly></textarea>
+        <div class="bar"><button id="rCopy">COPY</button></div>
+        <p class="hint" style="margin:7px 0 0">
+          Fire it with <b>VS.playSample('name')</b>, or from a card's cast.
+          <b>rate</b> re-pitches it, so one recording covers several notes.
+        </p>
       </div>
     </div>
   </div>
@@ -1148,16 +1215,273 @@
     drawGrid();
   }, 100);
 
+  /* ==================================================================
+   * RECORDING
+   * ==================================================================
+   * Captures from the microphone, lets a piece be trimmed out of it, and
+   * crushes it down to something a single-file game can actually carry.
+   *
+   * The crushing is the whole design. Audio embedded as base64 is enormous —
+   * a second of 44.1kHz 16-bit mono is about 118KB — so a handful of clean
+   * voice clips would visibly bloat a 1.5MB game. Downsampled to 8kHz and
+   * quantised to 8 bits the same second is about 11KB, a tenth, and the
+   * result sounds like a hardware sampler rather than a phone recording,
+   * which is the texture this game already has everywhere else.
+   *
+   * The size is shown live so the bill is visible while the decision is being
+   * made rather than after the fact.
+   * ================================================================== */
+  var RATES = [6000, 8000, 11025, 16000, 22050];
+  var recRate = 8000, recBits = 8, recGain = 1;
+  var raw = null;            // Float32Array at the device's own rate
+  var rawRate = 48000;
+  var selA = 0, selB = 1;    // trim, as a fraction of the whole
+  var mediaRec = null, chunks = [];
+  var rw = document.getElementById('rWave'), rc = rw.getContext('2d');
+
+  function rStatus(t) { document.getElementById('rStatus').textContent = t; }
+
+  async function startRec() {
+    if (mediaRec && mediaRec.state === 'recording') { mediaRec.stop(); return; }
+    var stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: {
+        echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    } catch (e) {
+      rStatus('the microphone was refused — check the site permissions');
+      return;
+    }
+    chunks = [];
+    mediaRec = new MediaRecorder(stream);
+    mediaRec.ondataavailable = function (ev) { if (ev.data.size) chunks.push(ev.data); };
+    mediaRec.onstop = async function () {
+      stream.getTracks().forEach(function (t) { t.stop(); });
+      var blob = new Blob(chunks);
+      var arr = await blob.arrayBuffer();
+      var c = ac();
+      if (!c) { rStatus('no audio context'); return; }
+      try {
+        var decodedBuf = await c.decodeAudioData(arr);
+        rawRate = decodedBuf.sampleRate;
+        raw = decodedBuf.getChannelData(0).slice();
+        selA = 0; selB = 1;
+        rStatus(raw.length + ' samples at ' + Math.round(rawRate / 1000) + 'kHz — drag to trim');
+        drawWave(); emitSample();
+      } catch (e) { rStatus('could not decode that recording'); }
+      document.getElementById('rArm').textContent = '● RECORD';
+      document.getElementById('rArm').classList.remove('on');
+    };
+    mediaRec.start();
+    document.getElementById('rArm').textContent = '■ STOP';
+    document.getElementById('rArm').classList.add('on');
+    rStatus('recording — press STOP when done');
+  }
+  document.getElementById('rArm').onclick = startRec;
+
+  // The trimmed, crushed sample: what actually gets carried into the game.
+  function crush() {
+    if (!raw) return null;
+    var a = Math.floor(Math.min(selA, selB) * raw.length);
+    var b = Math.floor(Math.max(selA, selB) * raw.length);
+    if (b - a < 32) return null;
+    var ratio = rawRate / recRate;
+    var n = Math.max(1, Math.floor((b - a) / ratio));
+    var levels = Math.pow(2, recBits);
+    var out = new Uint8Array(n);
+    for (var i = 0; i < n; i++) {
+      // nearest-neighbour on purpose: it is what a sampler of this vintage
+      // did, and interpolating would smooth away the grit being asked for
+      var v = raw[a + Math.floor(i * ratio)] * recGain;
+      v = Math.max(-1, Math.min(1, v));
+      var q = Math.round((v + 1) / 2 * (levels - 1)) / (levels - 1);
+      out[i] = Math.max(0, Math.min(255, Math.round(q * 255)));
+    }
+    return out;
+  }
+  function b64(u8) {
+    var s = '';
+    for (var i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]);
+    return btoa(s);
+  }
+
+  function drawWave() {
+    var W = rw.width, H = rw.height;
+    rc.fillStyle = '#05090b'; rc.fillRect(0, 0, W, H);
+    rc.strokeStyle = 'rgba(120,150,165,0.25)';
+    rc.beginPath(); rc.moveTo(0, H / 2); rc.lineTo(W, H / 2); rc.stroke();
+    if (!raw) {
+      rc.fillStyle = 'rgba(143,167,154,0.7)'; rc.font = '13px ui-monospace, monospace';
+      rc.fillText('nothing recorded yet', 14, H / 2 - 10);
+      return;
+    }
+    // the kept part bright, the rest dim, so the trim is unmistakable
+    var a = Math.min(selA, selB) * W, b = Math.max(selA, selB) * W;
+    rc.fillStyle = 'rgba(65,216,255,0.10)'; rc.fillRect(a, 0, b - a, H);
+    var step = Math.max(1, Math.floor(raw.length / W));
+    for (var x = 0; x < W; x++) {
+      var lo = 1, hi = -1;
+      for (var k = 0; k < step; k++) {
+        var v = raw[x * step + k] || 0;
+        if (v < lo) lo = v; if (v > hi) hi = v;
+      }
+      var inSel = x >= a && x <= b;
+      rc.strokeStyle = inSel ? '#41d8ff' : 'rgba(120,150,165,0.32)';
+      rc.beginPath();
+      rc.moveTo(x, H / 2 - lo * H * 0.45 * recGain);
+      rc.lineTo(x, H / 2 - hi * H * 0.45 * recGain);
+      rc.stroke();
+    }
+  }
+  var wDrag = false;
+  rw.addEventListener('pointerdown', function (ev) {
+    if (!raw) return;
+    var r = rw.getBoundingClientRect();
+    selA = selB = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width));
+    wDrag = true; rw.setPointerCapture(ev.pointerId); drawWave();
+  });
+  rw.addEventListener('pointermove', function (ev) {
+    if (!wDrag) return;
+    var r = rw.getBoundingClientRect();
+    selB = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width));
+    drawWave(); emitSample();
+  });
+  rw.addEventListener('pointerup', function () {
+    wDrag = false;
+    if (Math.abs(selB - selA) < 0.01) { selA = 0; selB = 1; }   // a tap keeps everything
+    drawWave(); emitSample();
+  });
+
+  function playCrushed() {
+    var u8 = crush(); if (!u8) { rStatus('nothing to play'); return; }
+    var c = ac(); if (!c) return;
+    var buf = c.createBuffer(1, u8.length, recRate);
+    var ch = buf.getChannelData(0);
+    for (var i = 0; i < u8.length; i++) ch[i] = (u8[i] - 128) / 128;
+    var src = c.createBufferSource();
+    src.buffer = buf; src.connect(out());
+    src.start();
+  }
+  document.getElementById('rPlay').onclick = playCrushed;
+  document.getElementById('rClear').onclick = function () {
+    raw = null; selA = 0; selB = 1; drawWave(); emitSample();
+    rStatus('cleared');
+  };
+
+  document.getElementById('rRate').oninput = function () {
+    recRate = RATES[+this.value];
+    document.getElementById('rRateN').textContent = (recRate / 1000).toFixed(recRate % 1000 ? 1 : 0) + ' kHz';
+    emitSample();
+  };
+  document.getElementById('rBits').oninput = function () {
+    recBits = +this.value;
+    document.getElementById('rBitsN').textContent = recBits;
+    emitSample();
+  };
+  document.getElementById('rGain').oninput = function () {
+    recGain = +this.value;
+    document.getElementById('rGainN').textContent = recGain.toFixed(1) + '×';
+    drawWave(); emitSample();
+  };
+
+  function emitSample() {
+    var u8 = crush();
+    var el = document.getElementById('rSize');
+    if (!u8) {
+      el.textContent = '';
+      document.getElementById('rOut').value = '';
+      return;
+    }
+    var enc = b64(u8);
+    var secs = u8.length / recRate;
+    el.innerHTML = '<b>' + secs.toFixed(2) + 's</b> · ' + u8.length + ' samples · '
+      + '<b>' + (enc.length / 1024).toFixed(1) + ' KB</b> once carried in the game'
+      + (enc.length > 60000 ? ' — that is a lot for one sound' : '');
+    el.style.color = enc.length > 60000 ? '#ffb02e' : '';
+    document.getElementById('rOut').value =
+      "// js/samples.js — inside ns.SAMPLES\n"
+      + (document.getElementById('rName').value || 'sample') + ": { rate: " + recRate
+      + ", data: '" + enc + "' },";
+  }
+  document.getElementById('rName').oninput = emitSample;
+  document.getElementById('rCopy').onclick = function () {
+    var t = document.getElementById('rOut');
+    t.removeAttribute('readonly'); t.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    if (navigator.clipboard) navigator.clipboard.writeText(t.value);
+    t.setAttribute('readonly', '');
+    var b = this, o = b.textContent; b.textContent = 'COPIED';
+    setTimeout(function () { b.textContent = o; }, 900);
+  };
+
+  /* ---- kept recordings ------------------------------------------------- */
+  var REC_KEY = 'voidspire.recordings';
+  var recs = [];
+  try { recs = JSON.parse(localStorage.getItem(REC_KEY) || '[]'); } catch (e) { recs = []; }
+  function saveRecs() {
+    try { localStorage.setItem(REC_KEY, JSON.stringify(recs)); }
+    catch (e) { alert('This browser is out of storage room — export a backup and clear some recordings.'); }
+  }
+  function renderRecs() {
+    var host = document.getElementById('rList');
+    host.innerHTML = '';
+    if (!recs.length) { host.innerHTML = '<div class="hint" style="padding:8px">nothing kept yet</div>'; return; }
+    recs.forEach(function (r, i) {
+      var row = document.createElement('div');
+      row.className = 'it';
+      row.innerHTML = '<span class="nm">' + r.name + '</span>'
+        + '<span class="hint">' + (r.data.length / 1024).toFixed(1) + 'KB</span>';
+      var pb = document.createElement('button');
+      pb.className = 'sm'; pb.textContent = '▶';
+      pb.onclick = function (ev) {
+        ev.stopPropagation();
+        var c = ac(); if (!c) return;
+        var bin = atob(r.data);
+        var buf = c.createBuffer(1, bin.length, r.rate);
+        var ch = buf.getChannelData(0);
+        for (var k = 0; k < bin.length; k++) ch[k] = (bin.charCodeAt(k) - 128) / 128;
+        var src = c.createBufferSource(); src.buffer = buf; src.connect(out()); src.start();
+      };
+      row.appendChild(pb);
+      var x = document.createElement('span');
+      x.className = 'x'; x.textContent = '✕';
+      x.onclick = function (ev) {
+        ev.stopPropagation();
+        if (!confirm('Remove "' + r.name + '"?')) return;
+        recs.splice(i, 1); saveRecs(); renderRecs();
+      };
+      row.appendChild(x);
+      row.onclick = function () {
+        document.getElementById('rName').value = r.name;
+        document.getElementById('rOut').value =
+          "// js/samples.js — inside ns.SAMPLES\n" + r.name + ": { rate: " + r.rate + ", data: '" + r.data + "' },";
+      };
+      host.appendChild(row);
+    });
+  }
+  document.getElementById('rKeep').onclick = function () {
+    var u8 = crush();
+    if (!u8) { rStatus('record something first'); return; }
+    var name = document.getElementById('rName').value || ('sample' + (recs.length + 1));
+    recs.push({ name: name, rate: recRate, data: b64(u8) });
+    saveRecs(); renderRecs();
+    rStatus('kept "' + name + '"');
+  };
+  renderRecs(); drawWave();
+
   /* ---- tabs ------------------------------------------------------------ */
   function tab(which) {
-    document.getElementById('paneSfx').style.display = which === 'sfx' ? '' : 'none';
-    document.getElementById('paneMus').style.display = which === 'mus' ? '' : 'none';
+    ['sfx', 'mus', 'rec'].forEach(function (k) {
+      document.getElementById('pane' + k[0].toUpperCase() + k.slice(1)).style.display = (which === k) ? '' : 'none';
+    });
     document.getElementById('tabSfx').classList.toggle('on', which === 'sfx');
     document.getElementById('tabMus').classList.toggle('on', which === 'mus');
+    document.getElementById('tabRec').classList.toggle('on', which === 'rec');
     if (which === 'mus') drawGrid();          // the tracker paints on arrival
+    if (which === 'rec') drawWave();
   }
   document.getElementById('tabSfx').onclick = function () { tab('sfx'); };
   document.getElementById('tabMus').onclick = function () { tab('mus'); };
+  document.getElementById('tabRec').onclick = function () { tab('rec'); };
 
   // restore
   try {
@@ -1176,7 +1500,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 9';
+  document.getElementById('ver').textContent = 'build 10';
   renderLib(); render();
   setInterval(function () {
     if (document.hidden) return;
@@ -1184,6 +1508,11 @@
     drawScope();
   }, 120);
   window.VS_HANDOFF = function () {
+    if (document.getElementById('paneRec').style.display !== 'none') {
+      var v = document.getElementById('rOut').value;
+      return { what: 'a recorded sample', target: 'js/samples.js — inside ns.SAMPLES',
+               body: v, empty: !v };
+    }
     var onMusic = document.getElementById('paneMus').style.display !== 'none';
     if (onMusic) {
       return { what: 'a music loop', target: 'js/music.js — hand it to VS.music.setPattern',
