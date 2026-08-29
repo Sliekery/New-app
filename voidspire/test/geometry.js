@@ -108,11 +108,16 @@ function ok(name, cond, detail) {
   const solids = await p.$$eval('#solidBar .sld', bs => bs.map(x => x.dataset.sld));
   ok('seventeen solids are offered', solids.length === 17, solids.length + ': ' + solids.join(','));
 
+  /* A solid is not committed by letting go of a drag any more: it sits on the
+   * canvas until PLACE IT. The box drag sets where it is and how big. */
+  async function place() { await p.click('#sPlace'); await p.waitForTimeout(80); }
+
   const perSolid = {};
   for (const s of solids) {
     await p.click(`#solidBar .sld[data-sld="${s}"]`);
     await p.waitForTimeout(30);
     await drag(0.25, 0.25, 0.75, 0.75);
+    await place();
     const r = await readout(), a = await art();
     const au = audit(a);
     perSolid[s] = au.paths;
@@ -129,10 +134,12 @@ function ok(name, cond, detail) {
   console.log('\nHIDE BACK actually hides something');
   await p.click('#solidBar .sld[data-sld="cube"]'); await p.waitForTimeout(50);
   await drag(0.25, 0.25, 0.75, 0.75);
+  await place();
   const culled = (await readout()).strokes;
   await p.click('#bUndo'); await p.waitForTimeout(60);
   await p.click('#sCull'); await p.waitForTimeout(60);
   await drag(0.25, 0.25, 0.75, 0.75);
+  await place();
   const all = (await readout()).strokes;
   ok('a cube has all twelve edges with it off', all === 12, all + ' edges');
   ok('and fewer with it on', culled < all && culled >= 6, culled + ' of ' + all);
@@ -142,6 +149,7 @@ function ok(name, cond, detail) {
   console.log('\nAN OPEN SOLID IS NEVER CULLED');
   await p.click('#solidBar .sld[data-sld="girder"]'); await p.waitForTimeout(50);
   await drag(0.25, 0.25, 0.75, 0.75);
+  await place();
   const girder = (await readout()).strokes;
   ok('the girder frame keeps all sixteen beams', girder === 16, girder + ' beams');
   await p.click('#bUndo'); await p.waitForTimeout(60);
@@ -157,13 +165,52 @@ function ok(name, cond, detail) {
   }
   await setSlider('#sYaw', 0);
   await drag(0.25, 0.25, 0.75, 0.75);
+  await place();
   const a0 = JSON.stringify((await art()).p);
   await p.click('#bUndo'); await p.waitForTimeout(60);
   await setSlider('#sYaw', 90);
   await drag(0.25, 0.25, 0.75, 0.75);
+  await place();
   const a90 = JSON.stringify((await art()).p);
   ok('turning it 90 degrees gives different line work', a0 !== a90);
   await p.click('#bUndo'); await p.waitForTimeout(60);
+
+  console.log('\nDRAGGING THE SOLID TURNS IT');
+  await p.click('#solidBar .sld[data-sld="cube"]'); await p.waitForTimeout(50);
+  await setSlider('#sYaw', 0); await setSlider('#sTilt', 0);
+  const aimBefore = await p.textContent('#sYawN');
+  // a drag that STARTS on the solid orbits it and places nothing
+  const strokesBefore = (await readout()).strokes;
+  await drag(0.5, 0.5, 0.68, 0.5);
+  const aimAfter = await p.textContent('#sYawN');
+  ok('dragging on it changes the turn', aimBefore !== aimAfter, aimBefore + ' → ' + aimAfter);
+  ok('and the sliders follow the drag', /\d+°/.test(aimAfter), aimAfter);
+  ok('turning it does not draw anything', (await readout()).strokes === strokesBefore,
+    strokesBefore + ' → ' + (await readout()).strokes);
+  await place();
+  ok('PLACE IT does', (await readout()).strokes > strokesBefore,
+    strokesBefore + ' → ' + (await readout()).strokes);
+  await p.click('#bUndo'); await p.waitForTimeout(60);
+
+  console.log('\nTHE VIEW PRESETS');
+  for (const [label, yaw] of [['FRONT', '0°'], ['SIDE', '90°'], ['3/4', '35°']]) {
+    await p.click(`#solidCtl .vw:has-text("${label}")`);
+    await p.waitForTimeout(60);
+    ok(label.padEnd(6) + ' sets the turn to ' + yaw, (await p.textContent('#sYawN')) === yaw,
+      await p.textContent('#sYawN'));
+  }
+
+  console.log('\nEVERY SOLID HAS A PICTURE ON ITS BUTTON');
+  const thumbs = await p.$$eval('#solidBar canvas.sthumb', cs => cs.map(c => {
+    const g = c.getContext('2d');
+    const d = g.getImageData(0, 0, c.width, c.height).data;
+    let lit = 0;
+    for (let i = 3; i < d.length; i += 4) if (d[i] > 8) lit++;
+    return lit;
+  }));
+  ok('there are seventeen of them', thumbs.length === 17, String(thumbs.length));
+  ok('and not one is blank', thumbs.every(n => n > 40),
+    thumbs.map((n, i) => n).join(','));
 
   console.log('\nBAKE SPIN');
   await p.click('#solidBar .sld[data-sld="cube"]'); await p.waitForTimeout(50);

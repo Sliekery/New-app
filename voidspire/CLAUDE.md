@@ -170,6 +170,33 @@ Four things that were got wrong first and are worth not repeating:
   pulse: a cube is wider corner-on than face-on, so every frame would be
   scaled differently and the thing would breathe as it turned.
 
+**Picking and aiming.** The solid SITS on the canvas until you press PLACE IT.
+Drag it to turn it, drag a box elsewhere to move and resize it — one surface,
+two gestures, told apart by where the drag starts, which is the rule every 3D
+viewport has used since they had windows. The first version treated a solid
+like a shape (drag a box, get strokes, aim with two sliders), so aiming meant
+nudging a slider, looking, nudging it back — on something already committed,
+so every attempt cost an undo. The sliders are still there and still exact;
+they follow the drag now rather than being the only way in.
+
+The picker shows a **drawing of each solid**, painted by the same projector
+that draws the real one. Seventeen text labels asked you to know the difference
+between a PRISM and a CRYSTAL before you had seen either. A hand-made icon set
+would have been a second opinion about what a PRISM looks like and would have
+gone stale the first time one was reshaped — as three were on the day they
+landed.
+
+Two things that bit while building it:
+
+- **The thumbnails ran before the tables they read.** Function declarations
+  hoist; `var SOLIDS = {…}` does not. As an IIFE where it sat, every button
+  came up blank AND the page threw before it finished wiring itself, which
+  presented as the *shape* tool being broken. Painted from the bootstrap now.
+- **A command must not replace the status line.** `placeSolid` wrote its own
+  message over the frame, layer and stroke counts, which is the same
+  display-disagrees-with-data failure as always, only in the other direction.
+  There is a `note()` that drawPad appends, and every command uses it.
+
 Generated geometry also fails quietly. The suite drags out all 23 shapes and
 all 17 solids and checks the numbers — a NaN (which Canvas drops silently, so
 the stroke exists and never draws), a point outside the box, an odd-length

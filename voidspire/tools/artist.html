@@ -40,12 +40,27 @@
      solids added four rows and pushed MIRROR, GRID and the zoom buttons off
      the bottom of the screen — the tools you reach for constantly, displaced
      by a list you use once per drawing. */
-  #railShapes, #railSolids { max-height: 32vh; overflow-y: auto; }
+  #railShapes { max-height: 32vh; overflow-y: auto; }
+  /* A PICTURE OF EACH SOLID, not its name. Seventeen text labels asked you to
+     know the difference between a PRISM and a CRYSTAL before you had seen
+     either, so choosing one meant placing it, looking, undoing and trying the
+     next. The thumbnails are drawn by the same projector that draws the real
+     thing, so what you pick is what you get. */
+  .sldgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 3px; }
+  .sldgrid.wide { grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); }
+  .sldgrid button {
+    padding: 2px 1px 3px; display: flex; flex-direction: column;
+    align-items: center; gap: 1px; line-height: 1;
+  }
+  .sldgrid canvas { width: 100%; max-width: 40px; height: auto; background: none; }
+  .sldgrid .lbl { font-size: 7px; letter-spacing: .03em; color: var(--dim); }
+  .sldgrid button.on .lbl { color: var(--cyan); }
+  .sep2 { width: 1px; align-self: stretch; min-height: 14px; background: var(--line); margin: 0 4px; }
   /* And on a phone the rail wraps into rows above the canvas, so the same
      list appears twice and shoves the drawing surface off the screen. The bar
      under the canvas already has every one of them. */
   @media (max-width: 860px) {
-    #railShapes, #railSolids { display: none !important; }
+    #railShapes { display: none !important; }
     /* Seventeen solids wrap to three rows on a phone, and every row of
        controls comes out of the drawing surface. Two rows and a scroll. */
     #solidBar, #shapeBar { max-height: 64px; overflow-y: auto; }
@@ -201,26 +216,7 @@
       <input type="range" id="shpN2" min="3" max="12" value="6" style="width:100%;margin-top:3px">
       <div class="hint" style="text-align:center" id="shpNN2">6 sides</div>
     </div>
-    <button id="mSolid" title="Drag a box, a 3D solid fits it (3)">SOLID <span class="k">3</span></button>
-    <div id="railSolids" style="display:none">
-      <button class="sm sld on" data-sld="cube">CUBE</button>
-      <button class="sm sld" data-sld="girder">GIRDERS</button>
-      <button class="sm sld" data-sld="tetra">TETRA</button>
-      <button class="sm sld" data-sld="octa">OCTA</button>
-      <button class="sm sld" data-sld="icosa">D20</button>
-      <button class="sm sld" data-sld="pyramid">PYRAMID</button>
-      <button class="sm sld" data-sld="prism">PRISM</button>
-      <button class="sm sld" data-sld="cone">CONE</button>
-      <button class="sm sld" data-sld="sphere">SPHERE</button>
-      <button class="sm sld" data-sld="torus">TORUS</button>
-      <button class="sm sld" data-sld="crystal">CRYSTAL</button>
-      <button class="sm sld" data-sld="ship">SHIP</button>
-      <button class="sm sld" data-sld="satellite">SATELLITE</button>
-      <button class="sm sld" data-sld="station">STATION</button>
-      <button class="sm sld" data-sld="gyro">GYRO</button>
-      <button class="sm sld" data-sld="turret">TURRET</button>
-      <button class="sm sld" data-sld="pod">POD</button>
-    </div>
+    <button id="mSolid" title="A 3D solid you can drag to turn (3)">SOLID <span class="k">3</span></button>
     <button id="mEye" title="Place a glowing pip (E)">EYE <span class="k">E</span></button>
     <button id="mErase" title="Drag over strokes to rub them out (X)">ERASE <span class="k">X</span></button>
     <div class="sep"></div>
@@ -277,27 +273,33 @@
         <input type="range" id="shpN" min="3" max="12" value="6" style="max-width:80px">
         <span class="hint" id="shpNN">6</span>
       </div>
-      <div class="bar" id="solidBar" style="display:none">
-        <span class="hint">solid</span>
-        <button class="sm sld on" data-sld="cube">CUBE</button>
-        <button class="sm sld" data-sld="girder">GIRDERS</button>
-        <button class="sm sld" data-sld="tetra">TETRA</button>
-        <button class="sm sld" data-sld="octa">OCTA</button>
-        <button class="sm sld" data-sld="icosa">D20</button>
-        <button class="sm sld" data-sld="pyramid">PYRAMID</button>
-        <button class="sm sld" data-sld="prism">PRISM</button>
-        <button class="sm sld" data-sld="cone">CONE</button>
-        <button class="sm sld" data-sld="sphere">SPHERE</button>
-        <button class="sm sld" data-sld="torus">TORUS</button>
-        <button class="sm sld" data-sld="crystal">CRYSTAL</button>
-        <button class="sm sld" data-sld="ship">SHIP</button>
-        <button class="sm sld" data-sld="satellite">SATELLITE</button>
-        <button class="sm sld" data-sld="station">STATION</button>
-        <button class="sm sld" data-sld="gyro">GYRO</button>
-        <button class="sm sld" data-sld="turret">TURRET</button>
-        <button class="sm sld" data-sld="pod">POD</button>
+      <div id="solidBar" class="sldgrid wide" style="display:none">
+      <button class="sld on" data-sld="cube" title="CUBE"><canvas class="sthumb" data-thumb="b:cube" width="76" height="76"></canvas><span class="lbl">CUBE</span></button>
+      <button class="sld" data-sld="girder" title="GIRDERS"><canvas class="sthumb" data-thumb="b:girder" width="76" height="76"></canvas><span class="lbl">GIRDERS</span></button>
+      <button class="sld" data-sld="tetra" title="TETRA"><canvas class="sthumb" data-thumb="b:tetra" width="76" height="76"></canvas><span class="lbl">TETRA</span></button>
+      <button class="sld" data-sld="octa" title="OCTA"><canvas class="sthumb" data-thumb="b:octa" width="76" height="76"></canvas><span class="lbl">OCTA</span></button>
+      <button class="sld" data-sld="icosa" title="D20"><canvas class="sthumb" data-thumb="b:icosa" width="76" height="76"></canvas><span class="lbl">D20</span></button>
+      <button class="sld" data-sld="pyramid" title="PYRAMID"><canvas class="sthumb" data-thumb="b:pyramid" width="76" height="76"></canvas><span class="lbl">PYRAMID</span></button>
+      <button class="sld" data-sld="prism" title="PRISM"><canvas class="sthumb" data-thumb="b:prism" width="76" height="76"></canvas><span class="lbl">PRISM</span></button>
+      <button class="sld" data-sld="cone" title="CONE"><canvas class="sthumb" data-thumb="b:cone" width="76" height="76"></canvas><span class="lbl">CONE</span></button>
+      <button class="sld" data-sld="sphere" title="SPHERE"><canvas class="sthumb" data-thumb="b:sphere" width="76" height="76"></canvas><span class="lbl">SPHERE</span></button>
+      <button class="sld" data-sld="torus" title="TORUS"><canvas class="sthumb" data-thumb="b:torus" width="76" height="76"></canvas><span class="lbl">TORUS</span></button>
+      <button class="sld" data-sld="crystal" title="CRYSTAL"><canvas class="sthumb" data-thumb="b:crystal" width="76" height="76"></canvas><span class="lbl">CRYSTAL</span></button>
+      <button class="sld" data-sld="ship" title="SHIP"><canvas class="sthumb" data-thumb="b:ship" width="76" height="76"></canvas><span class="lbl">SHIP</span></button>
+      <button class="sld" data-sld="satellite" title="SAT"><canvas class="sthumb" data-thumb="b:satellite" width="76" height="76"></canvas><span class="lbl">SAT</span></button>
+      <button class="sld" data-sld="station" title="STATION"><canvas class="sthumb" data-thumb="b:station" width="76" height="76"></canvas><span class="lbl">STATION</span></button>
+      <button class="sld" data-sld="gyro" title="GYRO"><canvas class="sthumb" data-thumb="b:gyro" width="76" height="76"></canvas><span class="lbl">GYRO</span></button>
+      <button class="sld" data-sld="turret" title="TURRET"><canvas class="sthumb" data-thumb="b:turret" width="76" height="76"></canvas><span class="lbl">TURRET</span></button>
+      <button class="sld" data-sld="pod" title="POD"><canvas class="sthumb" data-thumb="b:pod" width="76" height="76"></canvas><span class="lbl">POD</span></button>
       </div>
       <div class="bar" id="solidCtl" style="display:none">
+        <button id="sPlace" class="sm go">PLACE IT ↵</button>
+        <span class="hint">view</span>
+        <button class="sm vw" data-vw="0,0">FRONT</button>
+        <button class="sm vw" data-vw="35,20">3/4</button>
+        <button class="sm vw" data-vw="90,0">SIDE</button>
+        <button class="sm vw" data-vw="35,70">TOP</button>
+        <span class="sep2"></span>
         <span class="hint">turn</span>
         <input type="range" id="sYaw" min="0" max="359" value="35" style="max-width:110px">
         <span class="hint" id="sYawN">35°</span>
@@ -461,6 +463,13 @@
   var pad = document.getElementById('pad'), px = pad.getContext('2d');
   var pv = document.getElementById('preview'), pc = pv.getContext('2d');
   var out = document.getElementById('out'), status = document.getElementById('status');
+  /* WHAT JUST HAPPENED, ALONGSIDE WHAT IS TRUE. Commands used to replace the
+   * status line with their own message, which threw away the frame, layer and
+   * stroke counts every time one ran — the same disagreement between the
+   * display and the data that has bitten this tool at every turn, only in the
+   * other direction. drawPad still writes the readout and appends this. */
+  var statusNote = '';
+  function note(msg) { statusNote = msg || ''; drawPad(); }
 
   /* ------------------------------------------------------------------
    * THE DOCUMENT
@@ -498,6 +507,7 @@
   var freeing = null;                      // raw points while a freehand stroke is down
   var panFrom = null;                      // drag origin while panning
   var shapeFrom = null, shapeTo = null;    // primitive being dragged out
+  var orbitFrom = null;                    // turning the live solid
   var erasing = false, eraseR = 0.09;      // the rubber, in world units
   var lastPointer = null;                  // so the rubber can be drawn
   var lineFrom = null, lineTo = null;      // a single independent segment
@@ -702,8 +712,30 @@
       var s = toScreen(p[0], p[1]);
       px.beginPath(); px.arc(s[0], s[1], 6, 0, 7); px.fill();
     });
+    /* THE LIVE SOLID. Drawn solid rather than dashed, because it is a real
+     * object you are aiming and not a preview of a gesture — but in a second
+     * colour, so it is never mistaken for line work that is already in the
+     * drawing. The ring is the handle: inside it a drag turns, outside it a
+     * drag moves and resizes. */
+    if (mode === 'solid') {
+      px.save();
+      var hub = toScreen(lastSolidBox.cx, lastSolidBox.cy);
+      var rEdge = toScreen(lastSolidBox.cx + lastSolidBox.rx * 1.08, lastSolidBox.cy);
+      px.strokeStyle = orbitFrom ? 'rgba(255,176,46,0.5)' : 'rgba(200,107,255,0.28)';
+      px.lineWidth = 1.5; px.setLineDash([3, 5]);
+      px.beginPath(); px.arc(hub[0], hub[1], Math.abs(rEdge[0] - hub[0]), 0, 7); px.stroke();
+      px.setLineDash([]);
+      px.strokeStyle = orbitFrom ? '#ffb02e' : '#c86bff';
+      px.lineWidth = 2.6;
+      liveSolid().forEach(function (s) {
+        var flat = [];
+        s.forEach(function (q) { flat.push(q[0], q[1]); });
+        strokeIt(flat);
+      });
+      px.restore();
+    }
     // the primitive being dragged out, and the marquee
-    if (shapeFrom && shapeTo) {
+    if (mode !== 'solid' && shapeFrom && shapeTo) {
       px.save(); px.strokeStyle = '#41d8ff'; px.lineWidth = 2.4;
       px.setLineDash([5, 5]);
       dragStrokes(shapeFrom, shapeTo).forEach(function (s) {
@@ -768,7 +800,8 @@
        * where you put them, so neither is mirrored — but simply dropping the
        * tag made it look as though MIRROR had switched itself off. */
       + (mirror ? (unmirrored() ? ' · MIRROR NOT USED HERE' : ' · MIRRORED') : '')
-      + (view.z !== 1 ? ' · ' + view.z.toFixed(1) + '×' : '');
+      + (view.z !== 1 ? ' · ' + view.z.toFixed(1) + '×' : '')
+      + (statusNote ? '  ·  ' + statusNote : '');
     var HINTS = {
       draw: 'tap to lay points — they join into one path · FINISH LINE ends it',
       line: 'drag to make one straight segment, unconnected to the rest',
@@ -779,13 +812,17 @@
       select: 'drag a box round strokes · arrow keys nudge, SHIFT for a bigger step',
       pan: 'drag to move the canvas',
       erase: 'drag over strokes to rub them out — a whole stroke at a time',
-      solid: 'drag a box; the solid fits it · aim it below, then BAKE SPIN turns it into frames',
+      solid: 'drag the solid to turn it · drag a box elsewhere to move and resize it · PLACE IT keeps it, BAKE SPIN makes it an animation',
     };
     document.getElementById('modeHint').textContent = HINTS[mode] || '';
     document.getElementById('shapeBar').style.display = (mode === 'shape') ? 'flex' : 'none';
     document.getElementById('railShapes').style.display = (mode === 'shape') ? '' : 'none';
+    /* No copy of the solid picker in the rail. The rail is 90px wide, which
+     * fits one thumbnail per row — two visible and fifteen behind a scrollbar,
+     * which is worse than the text list it replaced. The bar under the canvas
+     * shows all seventeen at once and is where the rest of the solid's
+     * controls already live. */
     var isSolid = (mode === 'solid');
-    document.getElementById('railSolids').style.display = isSolid ? '' : 'none';
     ['solidBar', 'solidCtl', 'solidSpin'].forEach(function (id) {
       document.getElementById(id).style.display = isSolid ? 'flex' : 'none';
     });
@@ -969,7 +1006,18 @@
       erasing = true; pad.setPointerCapture(ev.pointerId);
       pushHistory(); rubOut(w); return;
     }
-    if (mode === 'shape' || mode === 'solid') {
+    if (mode === 'solid') {
+      /* Inside the solid turns it; outside sets where it sits and how big it
+       * is. One surface, two gestures, told apart by where the drag starts —
+       * which is the same rule a 3D viewport has always used. */
+      if (Math.hypot(w[0] - lastSolidBox.cx, w[1] - lastSolidBox.cy) <= lastSolidBox.rx * 1.08) {
+        orbitFrom = { x: w[0], y: w[1], yaw: sldYaw, tilt: sldTilt };
+      } else {
+        shapeFrom = snapPoint(w);
+      }
+      pad.setPointerCapture(ev.pointerId); return;
+    }
+    if (mode === 'shape') {
       shapeFrom = snapPoint(w); pad.setPointerCapture(ev.pointerId); return;
     }
     if (mode === 'line') {
@@ -1003,7 +1051,19 @@
       drawPad(); return;
     }
     if (erasing) { rubOut(toWorld(ev.clientX, ev.clientY)); return; }
-    if (shapeFrom) { shapeTo = snapPoint(toWorld(ev.clientX, ev.clientY)); drawPad(); return; }
+    if (orbitFrom) {
+      var ow = toWorld(ev.clientX, ev.clientY);
+      sldYaw = orbitFrom.yaw + (ow[0] - orbitFrom.x) * 2.4;
+      // y runs downward, so dragging down tips the near side away and shows
+      // the top — which is what the hand expects from an orbit
+      sldTilt = Math.max(-1.4, Math.min(1.4, orbitFrom.tilt + (ow[1] - orbitFrom.y) * 2.4));
+      syncSolidAim(); drawPad(); return;
+    }
+    if (shapeFrom) {
+      shapeTo = snapPoint(toWorld(ev.clientX, ev.clientY));
+      if (mode === 'solid') lastSolidBox = solidBoxAround(shapeFrom, shapeTo);
+      drawPad(); return;
+    }
     if (lineFrom) { lineTo = snapPoint(toWorld(ev.clientX, ev.clientY)); drawPad(); return; }
     if (marquee) { marquee.b = toWorld(ev.clientX, ev.clientY); drawPad(); return; }
     if (moveFrom) {
@@ -1035,6 +1095,11 @@
   });
   pad.addEventListener('pointerup', function () {
     panFrom = null; moveFrom = null; erasing = false;
+    if (orbitFrom) { orbitFrom = null; drawPad(); return; }
+    if (mode === 'solid') {
+      // a box drag repositions the solid; it is placed by PLACE, not by letting go
+      shapeFrom = shapeTo = null; drag = null; drawPad(); return;
+    }
     if (shapeFrom && shapeTo) {
       /* Generated strokes are never mirrored. Mirror exists because the
        * enemies are symmetric about the centre line; a solid part-way through
@@ -1148,6 +1213,7 @@
         o.classList.toggle('on', o.getAttribute('data-sld') === sld);
       });
       showSpinCost(); drawPad();
+      note(sld + ' \u2014 drag it to turn it, drag a box elsewhere to move it, PLACE IT to keep it');
     };
   });
   document.querySelectorAll('.axis').forEach(function (b) {
@@ -1170,6 +1236,26 @@
   slider('sTilt', 'sTiltN', function (v) { sldTilt = v * Math.PI / 180; }, function (v) { return v + '\u00b0'; });
   slider('sPersp', 'sPerspN', function (v) { sldPersp = v / 100; }, function (v) { return v + '%'; });
   slider('sFrames', 'sFramesN', function (v) { sldFrames = v; }, function (v) { return String(v); });
+  /* The sliders are still there and still exact — they just follow the drag
+   * now, instead of being the only way in. A control that disagrees with what
+   * is on screen is worse than no control. */
+  function syncSolidAim() {
+    var deg = function (r) { return Math.round(r * 180 / Math.PI); };
+    var y = ((deg(sldYaw) % 360) + 360) % 360, ti = Math.max(-80, Math.min(80, deg(sldTilt)));
+    document.getElementById('sYaw').value = y;
+    document.getElementById('sYawN').textContent = y + '\u00b0';
+    document.getElementById('sTilt').value = ti;
+    document.getElementById('sTiltN').textContent = ti + '\u00b0';
+    showSpinCost();
+  }
+  document.querySelectorAll('.vw').forEach(function (b) {
+    b.onclick = function () {
+      var v = b.getAttribute('data-vw').split(',');
+      sldYaw = +v[0] * Math.PI / 180; sldTilt = +v[1] * Math.PI / 180;
+      syncSolidAim(); drawPad();
+    };
+  });
+  document.getElementById('sPlace').onclick = placeSolid;
   document.getElementById('sCull').onclick = function () {
     sldCull = !sldCull;
     this.classList.toggle('on', sldCull);
@@ -1218,11 +1304,40 @@
     var extra = doc.frames.length - n;
     fi = 0;
     renderFrames(); drawPad();
-    status.textContent = 'baked ' + n + ' frames of ' + sld + ' spinning about '
+    note('baked ' + n + ' frames of ' + sld + ' spinning about '
       + sldAxis.toUpperCase() + ' onto layer "' + doc.layers[li].name + '"'
       + (extra > 0 ? ' \u2014 ' + extra + ' later frame' + (extra === 1 ? '' : 's')
-                     + ' left alone; delete them if you want the loop to close' : '');
+                     + ' left alone; delete them if you want the loop to close' : ''));
   };
+
+  /* Each picker button draws its own solid, through the same projector that
+   * draws the real one. A hand-made icon set would be a second opinion about
+   * what a PRISM looks like, and would go quietly out of date the first time
+   * one of them was reshaped — as three of them were on the day they landed. */
+  /* Called from the bootstrap at the bottom, not run where it sits. As an
+   * IIFE here it executed before `var SOLIDS = {…}` further down had been
+   * assigned — function declarations hoist, the tables they read do not — so
+   * every button came up blank and the page threw before it finished wiring
+   * itself, which looked like the shape tool being broken. */
+  function paintThumbs() {
+    document.querySelectorAll('canvas.sthumb').forEach(function (c) {
+      var id = c.getAttribute('data-thumb').split(':')[1];
+      var g = c.getContext('2d'), S = c.width;
+      g.clearRect(0, 0, S, S);
+      var lines = solidStrokes({ cx: 0, cy: 0, rx: 1, ry: 1 }, id, 6,
+        35 * Math.PI / 180, 22 * Math.PI / 180, 0.3, true);
+      g.save();
+      g.translate(S / 2, S / 2); g.scale(S * 0.42, S * 0.42);
+      g.strokeStyle = '#9bb0a6'; g.lineWidth = 2.4 / (S * 0.42);
+      g.lineJoin = g.lineCap = 'round';
+      lines.forEach(function (s) {
+        g.beginPath(); g.moveTo(s[0][0], s[0][1]);
+        for (var i = 1; i < s.length; i++) g.lineTo(s[i][0], s[i][1]);
+        g.stroke();
+      });
+      g.restore();
+    });
+  }
 
   function setSides(n) {
     shpN = n;
@@ -1860,22 +1975,41 @@
     return mode === 'solid' || (mode === 'shape' && !!SCIFI[shp]);
   }
 
-  /* One drag, one generator. SHAPE and SOLID are the same gesture over the
-   * same box; only what comes out of it differs, and both now return a LIST
-   * of strokes because most of the sci-fi shapes and every solid are several
-   * separate lines rather than one closed outline. */
-  function dragStrokes(a, bb) {
-    if (mode === 'solid') {
-      var x0 = Math.min(a[0], bb[0]), x1 = Math.max(a[0], bb[0]);
-      var y0 = Math.min(a[1], bb[1]), y1 = Math.max(a[1], bb[1]);
-      var side = Math.max(x1 - x0, y1 - y0);        // solids are not squashed
-      if (bb[0] < a[0]) x0 = x1 - side; else x1 = x0 + side;
-      if (bb[1] < a[1]) y0 = y1 - side; else y1 = y0 + side;
-      var bx = { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, rx: side / 2, ry: side / 2 };
-      lastSolidBox = bx;
-      return solidStrokes(bx, sld, shpN, sldYaw, sldTilt, sldPersp, sldCull);
-    }
-    return makeShape(a, bb);
+  /* One drag, one generator — for the SHAPE tool. The SOLID tool works
+   * differently and deliberately: see solidLive below. */
+  function dragStrokes(a, bb) { return makeShape(a, bb); }
+
+  /* ==================================================================
+   * THE SOLID ON THE CANVAS
+   * ==================================================================
+   * The first version treated a solid like a shape: drag a box, get strokes,
+   * aim it with two sliders. Which meant aiming it was a matter of nudging a
+   * slider, looking, nudging it back — and the thing you were aiming had
+   * already been committed, so getting it wrong cost an undo every time.
+   *
+   * A solid now SITS on the canvas until you place it. Drag it to turn it,
+   * the way every 3D program has worked since they had windows. Drag a box
+   * anywhere else to move and resize it. PLACE drops it into the drawing as
+   * ordinary strokes, and it stays put so you can drop another.
+   * ================================================================== */
+  function solidBoxAround(a, bb) {
+    var x0 = Math.min(a[0], bb[0]), x1 = Math.max(a[0], bb[0]);
+    var y0 = Math.min(a[1], bb[1]), y1 = Math.max(a[1], bb[1]);
+    var side = Math.max(x1 - x0, y1 - y0);          // solids are never squashed
+    if (bb[0] < a[0]) x0 = x1 - side; else x1 = x0 + side;
+    if (bb[1] < a[1]) y0 = y1 - side; else y1 = y0 + side;
+    return { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, rx: side / 2, ry: side / 2 };
+  }
+  function liveSolid() {
+    return solidStrokes(lastSolidBox, sld, shpN, sldYaw, sldTilt, sldPersp, sldCull);
+  }
+  function placeSolid() {
+    var made = liveSolid().filter(function (s) { return s.length > 1; });
+    if (!made.length) return;
+    pushHistory();
+    made.forEach(function (s) { here().strokes.push({ pts: s, m: false }); });
+    note('placed ' + sld + ' \u2014 ' + made.length
+      + ' lines · it is still on the canvas, so you can turn it and place another');
   }
 
   /* THE ERASER. Takes out whole STROKES rather than nibbling pixels, because
@@ -2261,7 +2395,7 @@
     document.getElementById('fps').value = doc.fps;
     document.getElementById('fpsN').textContent = doc.fps;
     renderLayers(); renderFrames(); drawPad();
-    if (dropped) status.textContent = 'dropped ' + dropped + ' unusable point' + (dropped === 1 ? '' : 's');
+    if (dropped) note('dropped ' + dropped + ' unusable point' + (dropped === 1 ? '' : 's'));
   };
 
   // The art block is lossy — it has no layers and no sketch. Saving the
@@ -2324,7 +2458,9 @@
       else if (S) { pushHistory(); here().strokes.splice(hoverPt.si, 1); }
       hoverPt = null; drawPad(); ev.preventDefault(); return;
     }
-    if (ev.key === 'Enter') finish();
+    // Enter ends a path in the drawing tools, and drops the solid in the
+    // solid tool — in both cases it means "that one is done"
+    if (ev.key === 'Enter') { if (mode === 'solid') placeSolid(); else finish(); }
     if (ev.key === 'z' && (ev.metaKey || ev.ctrlKey) && !ev.shiftKey) { undo(); ev.preventDefault(); }
     if ((ev.key === 'y' && (ev.metaKey || ev.ctrlKey))
         || (ev.key === 'z' && (ev.metaKey || ev.ctrlKey) && ev.shiftKey)) { redo(); ev.preventDefault(); }
@@ -2632,13 +2768,14 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 18';
+  document.getElementById('ver').textContent = 'build 19';
 
+  paintThumbs();
   libLoad(); renderLib(); renderAssets();
   var restored = loadAutosave();
   syncHistBtns();
   renderLayers(); renderFrames(); drawPad();
-  if (restored) status.textContent = 'restored your last drawing';
+  if (restored) note('restored your last drawing');
   /* What this tool is currently making, for the handoff button. Each tool
    * answers the same three questions — what it is, which file it belongs in,
    * and the payload — so one shared button can hand any of them over. */
