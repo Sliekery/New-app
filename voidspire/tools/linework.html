@@ -124,6 +124,8 @@
   .sldgrid canvas { width: 100%; max-width: 40px; height: auto; background: none; }
   .sldgrid .lbl { font-size: 7px; letter-spacing: .03em; color: var(--dim); }
   .sldgrid button.on .lbl { color: var(--cyan); }
+  .xgrid { gap: 4px; }
+  .xgrid button { flex: 1 1 auto; }
   .sep2 { width: 1px; align-self: stretch; min-height: 14px; background: var(--line); margin: 0 4px; }
 
   /* THE BIG VIEW. Over everything, because the point is to look at one thing
@@ -600,6 +602,60 @@
         <span class="swatch" data-col="#ffb02e" style="background:#ffb02e"></span>
         <span class="swatch" data-col="#ff4a5e" style="background:#ff4a5e"></span>
       </div>
+    </div>
+
+    <div class="box">
+      <h2>EXPORT — a real file</h2>
+      <div class="bar" style="margin-top:0">
+        <span class="hint">name</span>
+        <input type="text" id="xName" value="drawing" style="flex:1;min-width:80px">
+      </div>
+      <p class="hint" style="margin:7px 0 3px">for a game</p>
+      <div class="bar xgrid" id="xFormat" style="margin-top:0">
+        <button class="sm" data-x="sheet">SPRITE SHEET + JSON</button>
+        <button class="sm" data-x="frames">PNG FRAMES .ZIP</button>
+        <button class="sm" data-x="svg">SVG</button>
+        <button class="sm" data-x="json">PROJECT .JSON</button>
+        <span style="flex-basis:100%;height:0"></span>
+        <span class="hint" style="width:100%;margin:5px 0 0">to send to someone</span>
+        <button class="sm" data-x="gif">ANIMATED GIF</button>
+        <button class="sm" data-x="video">VIDEO (MP4/WEBM)</button>
+        <button class="sm on" data-x="png">PNG</button>
+      </div>
+      <div class="bar">
+        <span class="hint">on</span>
+        <span id="xBg" style="display:contents">
+          <button class="sm" data-bg="none">NOTHING</button>
+          <button class="sm on" data-bg="dark">DARK</button>
+          <button class="sm" data-bg="light">LIGHT</button>
+        </span>
+      </div>
+      <div class="bar">
+        <span class="hint">frame</span>
+        <span id="xShape" style="display:contents">
+          <button class="sm on" data-shape="square">SQUARE</button>
+          <button class="sm" data-shape="post">POST 4:5</button>
+          <button class="sm" data-shape="story">STORY 9:16</button>
+        </span>
+      </div>
+      <div class="fld"><label>SIZE</label>
+        <input type="range" id="xSize" min="128" max="2048" step="64" value="1024">
+        <span class="v" id="xSizeN">1024px</span></div>
+      <div class="fld"><label>MARGIN</label>
+        <input type="range" id="xPad" min="0" max="30" value="8">
+        <span class="v" id="xPadN">8%</span></div>
+      <div class="bar">
+        <button id="xGo" class="go">SAVE IT</button>
+        <span class="hint" id="xWhat"></span>
+      </div>
+      <p class="hint" style="margin:7px 0 0">
+        <b>SPRITE SHEET</b> is what Unity, Godot, Phaser and Aseprite read — one
+        strip plus a .json saying how to cut it. <b>SVG</b> stays sharp at any
+        size and animates on its own. <b>GIF</b> plays anywhere and needs
+        nothing installed; <b>VIDEO</b> is what Instagram takes. <b>NOTHING</b>
+        as a ground gives you transparency, which GIF and PNG keep and video
+        cannot.
+      </p>
     </div>
 
     <div class="box">
@@ -2971,6 +3027,489 @@
     tuckStrip();
   };
 
+  /* ==================================================================
+   * EXPORT — real files, for the two places this art actually goes
+   * ==================================================================
+   * Until now the only way out was a block of JavaScript for js/enemies.js.
+   * That is exactly right for one of the two audiences and useless to the
+   * other, and the drawing itself is the same either way:
+   *
+   *   INTO A GAME    a sprite sheet with a JSON sidecar, which is what Unity,
+   *                  Godot, Phaser and Aseprite all read; a zip of numbered
+   *                  frames for anything that prefers them; SVG for engines
+   *                  and pages that take vectors.
+   *   TO A PERSON    a GIF, because it plays everywhere and needs nothing;
+   *                  a video, because that is what Instagram takes; a PNG at
+   *                  the size the place you are posting to wants.
+   *
+   * NO LIBRARIES. Not for purity — LINEWORK is one file you can email, and a
+   * CDN script would end that. So the GIF encoder and the zip writer are
+   * here, in about two hundred lines between them, and neither is clever.
+   * ================================================================== */
+
+  /* ---- drawing a frame at any size, on any ground --------------------- */
+  function exportOpts() {
+    return {
+      size: +document.getElementById('xSize').value,
+      bg: document.querySelector('#xBg .on').getAttribute('data-bg'),
+      pad: +document.getElementById('xPad').value / 100,
+      shape: document.querySelector('#xShape .on').getAttribute('data-shape'),
+    };
+  }
+  function groundOf(bg) {
+    return bg === 'dark' ? '#04080a' : bg === 'light' ? '#ffffff' : null;
+  }
+  /* A square for a sprite sheet or a game asset, 4:5 and 9:16 for the two
+   * placements people actually post to. The art stays centred and uncropped
+   * in whichever it is: a drawing squeezed to fit a story frame is not the
+   * drawing any more. */
+  function canvasFor(o) {
+    var w = o.size, h = o.size;
+    if (o.shape === 'post') h = Math.round(o.size * 5 / 4);
+    if (o.shape === 'story') h = Math.round(o.size * 16 / 9);
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    return c;
+  }
+  function paintFrame(c, f, o) {
+    var g = c.getContext('2d');
+    g.clearRect(0, 0, c.width, c.height);
+    var ground = groundOf(o.bg);
+    if (ground) { g.fillStyle = ground; g.fillRect(0, 0, c.width, c.height); }
+    var art = framePaths(f);
+    var line = (o.bg === 'light') ? '#101820' : colour;
+    var sc = Math.min(c.width, c.height) * 0.5 * (1 - o.pad);
+    g.save();
+    g.translate(c.width / 2, c.height / 2);
+    g.scale(sc, sc);
+    g.strokeStyle = line;
+    g.lineWidth = Math.max(0.004, 2.2 / sc);
+    g.lineJoin = g.lineCap = 'round';
+    art.p.forEach(function (p) {
+      if (p.length < 4) return;
+      g.beginPath(); g.moveTo(p[0], p[1]);
+      for (var i = 2; i < p.length; i += 2) g.lineTo(p[i], p[i + 1]);
+      g.stroke();
+    });
+    g.restore();
+    g.fillStyle = (o.bg === 'light') ? '#b02030' : '#ff4a5e';
+    art.e.forEach(function (e) {
+      var s = Math.max(2, sc * 0.05);
+      g.fillRect(c.width / 2 + e[0] * sc - s / 2, c.height / 2 + e[1] * sc - s / 2, s, s);
+    });
+    return c;
+  }
+  function stamp(ext) {
+    var n = (document.getElementById('xName') || {}).value || 'drawing';
+    return n.replace(/[^\w-]+/g, '-').replace(/^-|-$/g, '') + '.' + ext;
+  }
+  function drop(blob, name) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 8000);
+    note('saved ' + name + ' — ' + Math.round(blob.size / 1024) + ' KB');
+  }
+  function blobOf(c, cb) { c.toBlob(cb, 'image/png'); }
+
+  /* ---- SVG ------------------------------------------------------------
+   * Written out rather than rasterised, because that is the whole point of
+   * vector art: it is the one format that stays sharp at any size and can
+   * still be recoloured after it leaves here. */
+  function svgOut(animated) {
+    var n = doc.frames.length, VB = '-1.08 -1.08 2.16 2.16';
+    function shapes(f, dx) {
+      var a = framePaths(f), s = '<g' + (dx ? ' transform="translate(' + dx + ',0)"' : '') + '>';
+      a.p.forEach(function (q) {
+        var pts = [];
+        for (var i = 0; i < q.length; i += 2) pts.push(q[i] + ',' + q[i + 1]);
+        s += '<polyline points="' + pts.join(' ') + '"/>';
+      });
+      a.e.forEach(function (e) { s += '<circle class="eye" cx="' + e[0] + '" cy="' + e[1] + '" r="0.05"/>'; });
+      return s + '</g>';
+    }
+    var head = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + VB + '" '
+      + 'width="512" height="512" color="#111"><style>'
+      + 'polyline{fill:none;stroke:currentColor;stroke-width:.045;stroke-linejoin:round;stroke-linecap:round}'
+      + 'circle.eye{fill:currentColor;stroke:none}';
+    if (!animated || n < 2) return head + '</style>' + shapes(fi, 0) + '</svg>';
+    head += '.reel{animation:reel ' + (n / doc.fps).toFixed(3) + 's steps(' + n + ') infinite}'
+      + '@keyframes reel{to{transform:translateX(' + (-2.16 * n).toFixed(3) + 'px)}}'
+      + '@media(prefers-reduced-motion:reduce){.reel{animation:none}}</style><g class="reel">';
+    var body = '';
+    for (var i = 0; i < n; i++) body += shapes(i, (2.16 * i).toFixed(3));
+    return head + body + '</g></svg>';
+  }
+
+  /* ==================================================================
+   * A GIF ENCODER, in about a hundred and forty lines
+   * ==================================================================
+   * GIF is the only animated format that needs nothing of the person you send
+   * it to — no player, no codec, no app. It is also the only one this tool can
+   * write byte for byte without a dependency, which is what keeps LINEWORK a
+   * single file.
+   *
+   * The palette is built from the pixels rather than assumed. Line art on a
+   * flat ground looks like it needs three colours and does not: antialiasing
+   * puts a ramp between the line and the background, and a naive three-colour
+   * palette turns every edge into a staircase. Counting the real colours and
+   * keeping the commonest 255 costs nothing and comes out indistinguishable
+   * from the canvas.
+   * ================================================================== */
+  function quantise(datas, w, h, wantAlpha) {
+    var counts = {}, i, k;
+    for (var f = 0; f < datas.length; f++) {
+      var d = datas[f];
+      for (i = 0; i < d.length; i += 4) {
+        if (wantAlpha && d[i + 3] < 128) continue;          // transparent
+        k = (d[i] >> 3) << 10 | (d[i + 1] >> 3) << 5 | (d[i + 2] >> 3);
+        counts[k] = (counts[k] || 0) + 1;
+      }
+    }
+    var keys = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; });
+    var max = wantAlpha ? 255 : 256;
+    var pal = [];
+    if (wantAlpha) pal.push([0, 0, 0]);                     // index 0 = transparent
+    for (i = 0; i < keys.length && pal.length < max + (wantAlpha ? 1 : 0); i++) {
+      k = +keys[i];
+      pal.push([((k >> 10) & 31) << 3, ((k >> 5) & 31) << 3, (k & 31) << 3]);
+    }
+    while (pal.length < 2) pal.push([0, 0, 0]);
+    return pal;
+  }
+  function nearest(pal, r, g, b, from) {
+    var best = from, bd = 1e9;
+    for (var i = from; i < pal.length; i++) {
+      var dr = pal[i][0] - r, dg = pal[i][1] - g, db = pal[i][2] - b;
+      var d = dr * dr + dg * dg + db * db;
+      if (d < bd) { bd = d; best = i; }
+    }
+    return best;
+  }
+  function indexFrame(d, pal, wantAlpha, cache) {
+    var out = new Uint8Array(d.length / 4), from = wantAlpha ? 1 : 0;
+    for (var i = 0, j = 0; i < d.length; i += 4, j++) {
+      if (wantAlpha && d[i + 3] < 128) { out[j] = 0; continue; }
+      var key = (d[i] >> 3) << 10 | (d[i + 1] >> 3) << 5 | (d[i + 2] >> 3);
+      var v = cache[key];
+      if (v === undefined) { v = nearest(pal, d[i], d[i + 1], d[i + 2], from); cache[key] = v; }
+      out[j] = v;
+    }
+    return out;
+  }
+  /* LZW, as the GIF spec defines it: a dictionary that grows from the palette
+   * size, a clear code when it fills, and codes packed LSB-first into bytes. */
+  function lzw(px, minCode) {
+    var clear = 1 << minCode, eoi = clear + 1;
+    var dict = {}, next = eoi + 1, width = minCode + 1;
+    var out = [], cur = 0, bits = 0;
+    function emit(code) {
+      cur |= code << bits; bits += width;
+      while (bits >= 8) { out.push(cur & 255); cur >>= 8; bits -= 8; }
+    }
+    function reset() { dict = {}; next = eoi + 1; width = minCode + 1; }
+    emit(clear); reset();
+    var prev = px[0];
+    for (var i = 1; i < px.length; i++) {
+      var c = px[i], key = prev * 4096 + c;
+      if (dict[key] !== undefined) { prev = dict[key]; continue; }
+      emit(prev);
+      dict[key] = next++;
+      /* THE DECODER IS ALWAYS ONE ENTRY BEHIND THE ENCODER — it can only add
+       * an entry once it has read the code AFTER the one that created it. So
+       * the width grows when `next` has PASSED the limit, not when it reaches
+       * it: `>=` puts the encoder a code ahead of every decoder in the world.
+       * Both versions produce a file with a perfect header, a perfect frame
+       * count and a perfect trailer, and only one of them draws anything.
+       * Checked by round-tripping against a decoder written from the spec —
+       * see the harness note in CLAUDE.md. */
+      if (next > (1 << width)) {
+        if (width < 12) width++;
+        else { emit(clear); reset(); }
+      }
+      prev = c;
+    }
+    emit(prev); emit(eoi);
+    if (bits > 0) out.push(cur & 255);
+    return out;
+  }
+  function gifEncode(datas, w, h, delayCs, wantAlpha) {
+    var pal = quantise(datas, w, h, wantAlpha);
+    var bitsNeeded = Math.max(1, Math.ceil(Math.log(pal.length) / Math.LN2));
+    var palSize = 1 << bitsNeeded;
+    var b = [], i;
+    function byte(v) { b.push(v & 255); }
+    function word(v) { byte(v); byte(v >> 8); }
+    function str(s) { for (var k = 0; k < s.length; k++) byte(s.charCodeAt(k)); }
+
+    str('GIF89a');
+    word(w); word(h);
+    byte(0x80 | ((bitsNeeded - 1) & 7));      // global table, its size
+    byte(0); byte(0);
+    for (i = 0; i < palSize; i++) {
+      var c = pal[i] || [0, 0, 0];
+      byte(c[0]); byte(c[1]); byte(c[2]);
+    }
+    // Netscape 2.0: loop forever. Without it a GIF plays once and stops.
+    str('\x21\xFF\x0BNETSCAPE2.0\x03\x01'); word(0); byte(0);
+
+    var cache = {};
+    for (var f = 0; f < datas.length; f++) {
+      byte(0x21); byte(0xF9); byte(4);
+      byte(wantAlpha ? 0x09 : 0x08);          // restore to background; transparency flag
+      word(delayCs); byte(0); byte(0);
+      byte(0x2C); word(0); word(0); word(w); word(h); byte(0);
+      var minCode = Math.max(2, bitsNeeded);
+      byte(minCode);
+      var bytes = lzw(indexFrame(datas[f], pal, wantAlpha, cache), minCode);
+      for (i = 0; i < bytes.length; i += 255) {
+        var n = Math.min(255, bytes.length - i);
+        byte(n);
+        for (var j = 0; j < n; j++) byte(bytes[i + j]);
+      }
+      byte(0);
+    }
+    byte(0x3B);
+    return new Blob([new Uint8Array(b)], { type: 'image/gif' });
+  }
+
+  /* ==================================================================
+   * A ZIP WRITER, stored not deflated
+   * ==================================================================
+   * PNGs are already compressed, so deflating them again buys a percent and
+   * costs an implementation of deflate. Stored entries are a header, the
+   * bytes, and a central directory — and every unzipper reads them.
+   * ================================================================== */
+  var CRC = (function () {
+    var t = new Int32Array(256);
+    for (var n = 0; n < 256; n++) {
+      var c = n;
+      for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      t[n] = c;
+    }
+    return t;
+  })();
+  function crc32(u8) {
+    var c = -1;
+    for (var i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8);
+    return (c ^ -1) >>> 0;
+  }
+  function zipStore(files) {
+    var parts = [], central = [], offset = 0;
+    function u16(a, v) { a.push(v & 255, (v >> 8) & 255); }
+    function u32(a, v) { a.push(v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >>> 24) & 255); }
+    files.forEach(function (f) {
+      var name = [];
+      for (var i = 0; i < f.name.length; i++) name.push(f.name.charCodeAt(i) & 255);
+      var crc = crc32(f.data), head = [];
+      u32(head, 0x04034b50); u16(head, 20); u16(head, 0); u16(head, 0);
+      u16(head, 0); u16(head, 0);
+      u32(head, crc); u32(head, f.data.length); u32(head, f.data.length);
+      u16(head, name.length); u16(head, 0);
+      parts.push(new Uint8Array(head.concat(name)), f.data);
+      var cen = [];
+      u32(cen, 0x02014b50); u16(cen, 20); u16(cen, 20); u16(cen, 0); u16(cen, 0);
+      u16(cen, 0); u16(cen, 0);
+      u32(cen, crc); u32(cen, f.data.length); u32(cen, f.data.length);
+      u16(cen, name.length); u16(cen, 0); u16(cen, 0); u16(cen, 0); u16(cen, 0);
+      u32(cen, 0); u32(cen, offset);
+      central.push(new Uint8Array(cen.concat(name)));
+      offset += head.length + name.length + f.data.length;
+    });
+    var cenSize = central.reduce(function (a, c) { return a + c.length; }, 0);
+    var end = [];
+    u32(end, 0x06054b50); u16(end, 0); u16(end, 0);
+    u16(end, files.length); u16(end, files.length);
+    u32(end, cenSize); u32(end, offset); u16(end, 0);
+    return new Blob(parts.concat(central, [new Uint8Array(end)]), { type: 'application/zip' });
+  }
+
+  /* ---- the formats ----------------------------------------------------- */
+  function eachFrame(o, cb) {
+    var c = canvasFor(o), out = [];
+    for (var i = 0; i < doc.frames.length; i++) {
+      paintFrame(c, i, o);
+      out.push(cb(c, i));
+    }
+    return out;
+  }
+
+  var XFORMAT = {
+    png: function (o) {
+      var c = canvasFor(o);
+      paintFrame(c, fi, o);
+      blobOf(c, function (bl) { drop(bl, stamp('png')); });
+    },
+
+    svg: function (o) {
+      drop(new Blob([svgOut(doc.frames.length > 1)], { type: 'image/svg+xml' }),
+        stamp('svg'));
+    },
+
+    /* One row, left to right, every cell the same size — which is what every
+     * engine's importer assumes when you hand it a strip and tell it how many
+     * frames there are. The JSON says so explicitly anyway, because guessing
+     * frame size from a sheet is how sprites end up half a pixel out. */
+    sheet: function (o) {
+      var n = doc.frames.length, cell = canvasFor(o);
+      var sheet = document.createElement('canvas');
+      sheet.width = cell.width * n; sheet.height = cell.height;
+      var g = sheet.getContext('2d');
+      for (var i = 0; i < n; i++) {
+        paintFrame(cell, i, o);
+        g.drawImage(cell, cell.width * i, 0);
+      }
+      var meta = {
+        name: (document.getElementById('xName').value || 'drawing'),
+        frames: n, fps: doc.fps,
+        frameWidth: cell.width, frameHeight: cell.height,
+        sheetWidth: sheet.width, sheetHeight: sheet.height,
+        layout: 'horizontal-strip',
+        origin: 'centre',
+      };
+      blobOf(sheet, function (bl) {
+        drop(bl, stamp('png'));
+        setTimeout(function () {
+          drop(new Blob([JSON.stringify(meta, null, 2)], { type: 'application/json' }),
+            stamp('json'));
+        }, 350);
+      });
+    },
+
+    /* Numbered from 1 and zero-padded, so they sort correctly in a file
+     * browser and in every importer that globs a folder. */
+    frames: function (o) {
+      var n = doc.frames.length, pending = n, files = [];
+      var base = (document.getElementById('xName').value || 'drawing').replace(/[^\w-]+/g, '-');
+      var c = canvasFor(o);
+      function pad(i) { var s = String(i); while (s.length < 3) s = '0' + s; return s; }
+      for (var i = 0; i < n; i++) {
+        (function (idx) {
+          paintFrame(c, idx, o);
+          c.toBlob(function (bl) {
+            bl.arrayBuffer().then(function (buf) {
+              files[idx] = { name: base + '-' + pad(idx + 1) + '.png', data: new Uint8Array(buf) };
+              if (--pending === 0) drop(zipStore(files), stamp('zip'));
+            });
+          }, 'image/png');
+        })(i);
+      }
+    },
+
+    gif: function (o) {
+      var c = canvasFor(o);
+      var g = c.getContext('2d');
+      var datas = [];
+      for (var i = 0; i < doc.frames.length; i++) {
+        paintFrame(c, i, o);
+        datas.push(g.getImageData(0, 0, c.width, c.height).data);
+      }
+      var delay = Math.max(2, Math.round(100 / doc.fps));   // GIF delays are centiseconds
+      note('encoding ' + datas.length + ' frames…');
+      // let the note paint before a second of synchronous encoding
+      setTimeout(function () {
+        drop(gifEncode(datas, c.width, c.height, delay, o.bg === 'none'), stamp('gif'));
+      }, 30);
+    },
+
+    /* MediaRecorder on a canvas stream. Which container comes out depends on
+     * the browser — Chrome and Firefox give WebM, Safari gives MP4 — so the
+     * extension is taken from what the browser says it made rather than
+     * assumed, and if it can do MP4 it is asked for MP4, because that is what
+     * Instagram and the rest actually accept. */
+    video: function (o) {
+      if (typeof MediaRecorder === 'undefined') {
+        note('this browser cannot record video — try GIF', true); return;
+      }
+      var types = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
+      var mime = '';
+      for (var i = 0; i < types.length; i++) {
+        if (MediaRecorder.isTypeSupported(types[i])) { mime = types[i]; break; }
+      }
+      if (!mime) { note('this browser cannot record video — try GIF', true); return; }
+      var c = canvasFor(o);
+      // a solid ground: video has no transparency, and "none" would record black
+      var vo = { size: o.size, pad: o.pad, shape: o.shape, bg: o.bg === 'none' ? 'dark' : o.bg };
+      var stream = c.captureStream(Math.max(2, doc.fps));
+      var rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6000000 });
+      var chunks = [];
+      rec.ondataavailable = function (ev) { if (ev.data.size) chunks.push(ev.data); };
+      rec.onstop = function () {
+        var ext = /mp4/.test(mime) ? 'mp4' : 'webm';
+        drop(new Blob(chunks, { type: mime }), stamp(ext));
+      };
+      // three loops, so a short animation is long enough to be worth posting
+      var total = doc.frames.length * 3, shown = 0;
+      var msPer = 1000 / doc.fps;
+      note('recording ' + (total * msPer / 1000).toFixed(1) + 's…');
+      paintFrame(c, 0, vo);
+      rec.start();
+      var timer = setInterval(function () {
+        paintFrame(c, shown % doc.frames.length, vo);
+        if (++shown >= total) {
+          clearInterval(timer);
+          setTimeout(function () { rec.stop(); }, msPer + 60);
+        }
+      }, msPer);
+    },
+
+    json: function (o) {
+      drop(new Blob([JSON.stringify(doc, null, 1)], { type: 'application/json' }),
+        stamp('json'));
+    },
+  };
+
+  /* ---- what you are about to get, before you press it ------------------ */
+  function exportSummary() {
+    var o = exportOpts(), n = doc.frames.length;
+    var c = canvasFor(o);
+    var fmt = (document.querySelector('#xFormat .on') || {}).getAttribute
+      ? document.querySelector('#xFormat .on').getAttribute('data-x') : 'png';
+    var still = (fmt === 'png' || (fmt === 'svg' && n < 2));
+    var dims = c.width + '×' + c.height;
+    var msg;
+    if (fmt === 'sheet') msg = n + ' frames in a ' + (c.width * n) + '×' + c.height
+      + ' strip, plus a .json saying how to cut it';
+    else if (fmt === 'frames') msg = n + ' PNG' + (n === 1 ? '' : 's') + ' at ' + dims + ', zipped';
+    else if (fmt === 'gif') msg = n + ' frames at ' + dims + ', ' + doc.fps + ' fps, loops forever';
+    else if (fmt === 'video') msg = 'three loops at ' + dims + ', ' + doc.fps + ' fps';
+    else if (fmt === 'svg') msg = still ? 'vector, sharp at any size'
+      : 'vector, ' + n + ' frames, animates on its own';
+    else if (fmt === 'json') msg = 'layers and frames, to carry on later';
+    else msg = 'frame ' + (fi + 1) + ' at ' + dims;
+    if (n < 2 && (fmt === 'gif' || fmt === 'video' || fmt === 'sheet' || fmt === 'frames')) {
+      msg += ' — there is only one frame, so this will not move';
+    }
+    document.getElementById('xWhat').textContent = msg;
+  }
+
+  (function wireExport() {
+    ['#xFormat', '#xBg', '#xShape'].forEach(function (sel) {
+      document.querySelectorAll(sel + ' button').forEach(function (b) {
+        b.onclick = function () {
+          document.querySelectorAll(sel + ' button').forEach(function (o) { o.classList.remove('on'); });
+          b.classList.add('on');
+          exportSummary();
+        };
+      });
+    });
+    ['xSize', 'xPad'].forEach(function (id) {
+      document.getElementById(id).oninput = function () {
+        var lab = document.getElementById(id + 'N');
+        if (lab) lab.textContent = (id === 'xSize') ? this.value + 'px' : this.value + '%';
+        exportSummary();
+      };
+    });
+    document.getElementById('xName').oninput = exportSummary;
+    document.getElementById('xGo').onclick = function () {
+      var fmt = document.querySelector('#xFormat .on').getAttribute('data-x');
+      try { XFORMAT[fmt](exportOpts()); }
+      catch (e) { note('export failed: ' + e.message, true); }
+    };
+    exportSummary();
+  })();
+
   /* ---- tracing image ----------------------------------------------- */
   document.getElementById('imgIn').onchange = function (ev) {
     var f = ev.target.files && ev.target.files[0]; if (!f) return;
@@ -3405,7 +3944,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 22';
+  document.getElementById('ver').textContent = 'build 23';
 
   paintThumbs();
   applyView(viewMode);
@@ -3603,13 +4142,18 @@
     if (toggle && toggle.parentNode) toggle.parentNode.style.display = 'none';
   }
 
+  /* The EXPORT panel is what this build is for, so it opens whatever the
+   * tool's own folds say. Behind a heading a stranger has no reason to click,
+   * the first thing they look for is not there. */
+  var xBox = boxWithHeading('EXPORT');
+  if (xBox && xBox.classList.contains('shut')) {
+    var xh = xBox.querySelector('h2');
+    if (xh && xh.onclick) xh.onclick(); else xBox.classList.remove('shut');
+  }
+
   var outBox = boxWithHeading('THE ART BLOCK');
   if (outBox) {
-    /* OPEN HERE, whatever the tool folds by default. In the artist the export
-     * block is a code block used once at the end of a session, so folding it
-     * is right. In this build it holds SAVE SVG, which is the whole reason
-     * the file exists — folded away, the first thing a stranger looks for is
-     * behind a heading they have no reason to click. */
+    // the art block is a code block used once at the end of a session
     if (outBox.classList.contains('shut')) {
       var head = outBox.querySelector('h2');
       if (head && head.onclick) head.onclick();
@@ -3619,153 +4163,16 @@
     if (h2) h2.textContent = 'THE DRAWING, AND HOW TO GET IT OUT';
     var p = outBox.querySelector('p.hint');
     if (p) p.innerHTML =
-      '<b>SAVE SVG</b> is the one you want for anything else — it is line art at '
-      + 'any size, opens in a browser, and drops into Illustrator, Inkscape, Figma '
-      + 'or a web page. An animation saves as an SVG that plays on its own.<br>'
-      + '<b>SAVE PNG</b> is a picture of it as you see it here; more than one frame '
-      + 'saves as a strip.<br>'
-      + '<b>SAVE .JSON</b> keeps your layers and frames so you can carry on later '
-      + '\u2014 the box above alone cannot. The box is the drawing as plain numbers, '
-      + 'and <b>LOAD FROM BOX</b> reads it back.';
+      'The box is the drawing as plain numbers, and <b>LOAD FROM BOX</b> reads '
+      + 'it back. For a file you can send or open somewhere else, use '
+      + '<b>EXPORT</b> above — SVG, PNG, animated GIF and video are all there.';
   }
 
-  /* ---- SVG and PNG -----------------------------------------------------
-   * Both are built from the export box rather than from the canvas on
-   * screen, which carries a grid, a mirror line and point handles that
-   * nobody wants in their picture. The box is also the tool's tested
-   * contract, so this cannot drift from what the tool thinks it drew. */
-  function drawing() {
-    var t = (document.getElementById('out').value || '').trim()
-      .replace(/^art:\s*/, '').replace(/,\s*$/, '');
-    if (!t) return null;
-    try { return (new Function('return (' + t + ')'))(); } catch (e) { return null; }
-  }
-  function frames(d) { return (d && d.frames) ? d.frames : (d ? [d] : []); }
-  function save(blob, name) {
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = name;
-    a.click();
-    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
-  }
-  function stamp() {
-    var n = (document.querySelector('.layer-name') || {}).textContent;
-    return 'drawing-' + new Date().toISOString().slice(0, 10);
-  }
-
-  /* The art lives in a -1..1 box. A hair of margin keeps a stroke that runs
-   * to the very edge from being sliced in half by its own line width. */
-  var VB = '-1.08 -1.08 2.16 2.16';
-  function svgShapes(f, dx) {
-    var s = '', shift = dx ? ' transform="translate(' + dx + ',0)"' : '';
-    var g = '<g' + shift + '>';
-    (f.p || []).forEach(function (q) {
-      var pts = [];
-      for (var i = 0; i < q.length; i += 2) pts.push(q[i] + ',' + q[i + 1]);
-      g += '<polyline points="' + pts.join(' ') + '"/>';
-    });
-    (f.e || []).forEach(function (e) {
-      g += '<circle class="eye" cx="' + e[0] + '" cy="' + e[1] + '" r="0.05"/>';
-    });
-    return g + '</g>' + s;
-  }
-  function toSVG(d) {
-    var fr = frames(d);
-    if (!fr.length) return null;
-    var n = fr.length, fps = d.fps || 8;
-    /* Stroke colour is currentColor with a colour set on the root, so the
-     * file is black line art out of the box and one attribute away from any
-     * other colour — including being recoloured by CSS once it is in a page. */
-    var head = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + VB + '" '
-      + 'width="512" height="512" color="#111">'
-      + '<style>'
-      + 'polyline{fill:none;stroke:currentColor;stroke-width:.045;'
-      + 'stroke-linejoin:round;stroke-linecap:round}'
-      + 'circle.eye{fill:currentColor;stroke:none}';
-    if (n > 1) {
-      /* An animation is written as a reel: the frames sit side by side and
-       * the strip is stepped one frame-width at a time. It needs no script,
-       * so it plays in an <img>, in a browser tab, in anything that renders
-       * SVG at all — and a viewer that will not animate shows frame one
-       * rather than every frame stacked on top of each other. */
-      head += '.reel{animation:reel ' + (n / fps).toFixed(3) + 's steps(' + n + ') infinite}'
-        + '@keyframes reel{to{transform:translateX(' + (-2.16 * n).toFixed(3) + 'px)}}'
-        + '@media(prefers-reduced-motion:reduce){.reel{animation:none}}';
-    }
-    head += '</style>';
-    if (n === 1) return head + svgShapes(fr[0], 0) + '</svg>';
-    var body = '<g class="reel">';
-    fr.forEach(function (f, i) { body += svgShapes(f, (2.16 * i).toFixed(3)); });
-    return head + body + '</g></svg>';
-  }
-
-  function toPNG(d, cb) {
-    var fr = frames(d);
-    if (!fr.length) return cb(null);
-    var S = 1024, n = fr.length;
-    var c = document.createElement('canvas');
-    c.width = S * n; c.height = S;
-    var g = c.getContext('2d');
-    // as it looks on screen, because a PNG is a picture of the drawing
-    g.fillStyle = '#05090b'; g.fillRect(0, 0, c.width, c.height);
-    fr.forEach(function (f, i) {
-      g.save();
-      g.translate(S * i + S / 2, S / 2);
-      g.scale(S * 0.46, S * 0.46);
-      g.strokeStyle = '#41d8ff';
-      g.lineWidth = 4.5 / (S * 0.46);
-      g.lineJoin = g.lineCap = 'round';
-      (f.p || []).forEach(function (q) {
-        if (q.length < 4) return;
-        g.beginPath(); g.moveTo(q[0], q[1]);
-        for (var k = 2; k < q.length; k += 2) g.lineTo(q[k], q[k + 1]);
-        g.stroke();
-      });
-      g.fillStyle = '#f2fff5';
-      (f.e || []).forEach(function (e) {
-        g.beginPath(); g.arc(e[0], e[1], 0.05, 0, 7); g.fill();
-      });
-      g.restore();
-    });
-    c.toBlob(cb, 'image/png');
-  }
-
-  var bar = document.getElementById('bCopy') && document.getElementById('bCopy').parentNode;
-  function addButton(label, cls, fn) {
-    if (!bar) return;
-    var b = document.createElement('button');
-    b.textContent = label;
-    if (cls) b.className = cls;
-    b.onclick = fn;
-    bar.insertBefore(b, bar.firstChild);
-    return b;
-  }
-  function flash(b, msg) {
-    var was = b.textContent;
-    b.textContent = msg;
-    setTimeout(function () { b.textContent = was; }, 1100);
-  }
-  var pngBtn = addButton('SAVE PNG', 'sm', function () {
-    var d = drawing();
-    if (!d) return alert('Draw something first.');
-    var self = this;
-    toPNG(d, function (blob) {
-      if (!blob) return;
-      var n = frames(d).length;
-      save(blob, stamp() + (n > 1 ? '-' + n + 'frames' : '') + '.png');
-      flash(self, 'SAVED');
-    });
-  });
-  var svgBtn = addButton('SAVE SVG', null, function () {
-    var d = drawing();
-    if (!d) return alert('Draw something first.');
-    var s = toSVG(d);
-    if (!s) return alert('Draw something first.');
-    save(new Blob([s], { type: 'image/svg+xml' }), stamp() + '.svg');
-    flash(this, 'SAVED');
-  });
-  if (svgBtn) svgBtn.style.borderColor = '#5dff88';
-  if (svgBtn) svgBtn.style.color = '#5dff88';
+  /* The export panel in the tool itself does SVG, PNG, GIF, video, sprite
+   * sheets and zipped frames, so the two buttons this shim used to add — with
+   * their own second copy of an SVG writer and a PNG renderer — are gone. Two
+   * implementations of the same export is the fork problem in miniature: fix
+   * one, forget the other, and the gift version quietly falls behind. */
 
   /* MIRROR OFF BY DEFAULT. It is on in the tool it came from because every
    * enemy in that game is symmetric about the centre line, so drawing half a
@@ -3787,8 +4194,8 @@
   intro.innerHTML = 'Draw with the tools down the left — <b>PATH</b> taps out a line '
     + 'point by point, <b>FREE</b> draws by hand, <b>SHAPE</b> drags out one of nine. '
     + 'More than one frame makes it an animation. '
-    + 'It saves itself in this browser as you go, and <b>SAVE SVG</b> at the bottom '
-    + 'gets your drawing out as a file. '
+    + 'It saves itself in this browser as you go, and <b>EXPORT</b> on the right '
+    + 'gets it out as an SVG, a PNG, an animated GIF or a video. '
     + '<a href="#" id="lwHide" style="color:#5dff88">hide this</a>';
   var h1 = document.querySelector('body > h1');
   if (h1 && h1.parentNode) h1.parentNode.insertBefore(intro, h1.nextSibling);
