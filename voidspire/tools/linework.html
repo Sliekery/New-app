@@ -541,7 +541,8 @@
       </div>
       <div class="bar" id="selBar" style="display:none">
         <span class="hint" id="selCount">nothing selected</span>
-        <button id="tPivot" class="sm">PIVOT</button>
+        <button id="tSwing" class="sm on" title="What dragging the selection does. SWING turns it about the joint where it meets the rest of the drawing; MOVE slides it.">SWING</button>
+        <button id="tPivot" class="sm" title="Overrule the joint that was found — tap anywhere to turn about that instead">PIVOT</button>
         <button id="tRotL" class="sm">↺ 15°</button>
         <button id="tRotR" class="sm">↻ 15°</button>
         <button id="tBig" class="sm">SCALE +</button>
@@ -913,6 +914,9 @@
     fi = Math.min(st.fi, doc.frames.length - 1);
     li = Math.min(st.li, doc.layers.length - 1);
     cur = []; drag = null; freeing = null; curUndone.length = 0;
+    /* The strokes just changed under the selection, so where it meets the rest
+     * of the drawing may have changed with them. */
+    findJoint();
     renderLayers(); renderFrames(); drawPad();
   }
   function undo() {
@@ -1182,14 +1186,24 @@
     /* THE PIVOT. Drawn wherever it is, not only over a selection: it is the
      * joint you are working around and it has to be findable before you have
      * selected the limb that turns on it. */
-    if (pivot && (mode === 'select' || pivotArm)) {
-      var ps = toScreen(pivot[0], pivot[1]);
+    /* One found for you is drawn the same amber but quieter — a ring and four
+     * short ticks rather than a full crosshair. It has to be unmistakably THE
+     * SAME KIND OF THING as one you placed, because it does the same job, while
+     * still reading as something the tool decided rather than something you
+     * did. Wrong is then visible, which is what makes trusting it reasonable. */
+    var shownPivot = pivot || (mode === 'select' ? autoJoint : null);
+    if (shownPivot && (mode === 'select' || pivotArm)) {
+      var ps = toScreen(shownPivot[0], shownPivot[1]);
+      var own = !!pivot, arm2 = own ? 16 : 13, gap = own ? 0 : 5;
       px.save();
       px.strokeStyle = '#ffb02e'; px.lineWidth = 2;
-      px.beginPath(); px.arc(ps[0], ps[1], 9, 0, 7); px.stroke();
+      px.globalAlpha = own ? 1 : 0.8;
+      px.beginPath(); px.arc(ps[0], ps[1], own ? 9 : 8, 0, 7); px.stroke();
       px.beginPath();
-      px.moveTo(ps[0] - 16, ps[1]); px.lineTo(ps[0] + 16, ps[1]);
-      px.moveTo(ps[0], ps[1] - 16); px.lineTo(ps[0], ps[1] + 16);
+      px.moveTo(ps[0] - arm2, ps[1]); px.lineTo(ps[0] - gap, ps[1]);
+      px.moveTo(ps[0] + gap, ps[1]); px.lineTo(ps[0] + arm2, ps[1]);
+      px.moveTo(ps[0], ps[1] - arm2); px.lineTo(ps[0], ps[1] - gap);
+      px.moveTo(ps[0], ps[1] + gap); px.lineTo(ps[0], ps[1] + arm2);
       px.stroke();
       px.restore();
     }
@@ -1312,9 +1326,17 @@
     });
     if (isSolid) showSpinCost();
     document.getElementById('selBar').style.display = (mode === 'select') ? 'flex' : 'none';
+    /* Says what a drag will DO, not only how much is selected. The swing is
+     * invisible until you try it, and a gesture nobody knows is there is a
+     * gesture that was not added. */
     document.getElementById('selCount').textContent =
-      sel.length ? (sel.length + ' stroke' + (sel.length === 1 ? '' : 's') + ' selected')
-                 : 'drag a box round some strokes';
+      !sel.length ? 'drag a box round some strokes'
+        : sel.length + ' stroke' + (sel.length === 1 ? '' : 's') + ' selected'
+          + (!swingOn ? ' · drag to slide it'
+            : pivot ? ' · drag to swing it round your pivot'
+            : autoJoint ? ' · hinged where it meets the rest — drag it up and down'
+            : ' · touching nothing, so drag slides it');
+    if (mode === 'select') syncSwingBtn();
     drawPreview();
     emit();
     autosave();
@@ -1519,8 +1541,22 @@
     if (mode === 'select') {
       var b = selBounds();
       if (b && w[0] >= b.x0 - 0.04 && w[0] <= b.x1 + 0.04 && w[1] >= b.y0 - 0.04 && w[1] <= b.y1 + 0.04) {
-        moveFrom = { w: w, snapshot: JSON.parse(JSON.stringify(sel.map(function (i) { return here().strokes[i].pts; }))) };
-        pushHistory();
+        var snap0 = JSON.parse(JSON.stringify(sel.map(function (i) { return here().strokes[i].pts; })));
+        var pv = pivotPoint();
+        /* HOLD IT AND SWING IT. With a joint, taking hold of the selection and
+         * moving the mouse turns it about that joint — which is what a limb
+         * does. Without one there is nothing to turn about, so it slides, and
+         * MOVE forces sliding for when you want to reposition a limb rather
+         * than work it. The angle comes off the RAW pointer, never the snapped
+         * one: a cursor rounded to the grid makes the swing jump between
+         * whole squares instead of following your hand. */
+        if (pv && swingOn) {
+          var r0 = rawWorld(ev.clientX, ev.clientY);
+          swingFrom = { pv: pv, snapshot: snap0, da: 0, pushed: false, total: 0,
+                        aPrev: Math.atan2(r0[1] - pv[1], r0[0] - pv[0]) };
+        } else {
+          moveFrom = { w: w, snapshot: snap0, pushed: false };
+        }
       } else {
         marquee = { a: w, b: w };
       }
@@ -1562,9 +1598,46 @@
       drawPad(); return;
     }
     if (marquee) { marquee.b = toWorld(ev.clientX, ev.clientY); drawPad(); return; }
+    if (swingFrom) {
+      var sw = rawWorld(ev.clientX, ev.clientY);
+      var aNow = Math.atan2(sw[1] - swingFrom.pv[1], sw[0] - swingFrom.pv[0]);
+      /* UNWRAPPED, one small step at a time. atan2 comes back in (-π, π], so
+       * taking the difference from where the drag STARTED reads a swing that
+       * has crossed the far side of the joint as a turn the long way round the
+       * other way — a gentle drag upwards reported itself as −275°, and REPEAT
+       * would then have walked the arm backwards through the body. Each move
+       * is a few pixels, so the step between two of them is unambiguous. */
+      var d = aNow - swingFrom.aPrev;
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      swingFrom.aPrev = aNow;
+      swingFrom.total += d;
+      var da = swingFrom.total;
+      // ANGLE, or shift, steps it in fifteens the way the buttons do
+      if (angleLock || ev.shiftKey) da = Math.round(da / (Math.PI / 12)) * (Math.PI / 12);
+      if (!da) return;
+      // history on the first real movement, so taking hold and letting go is free
+      if (!swingFrom.pushed) { pushHistory(); swingFrom.pushed = true; }
+      swingFrom.da = da;
+      /* No settling. The joint is the centre of rotation, so it does not move
+       * at all, and every other point keeps its exact distance from it — the
+       * limb cannot come loose and cannot deform, which is the whole reason
+       * for finding the joint in the first place. */
+      var sc = Math.cos(da), ss = Math.sin(da);
+      sel.forEach(function (i, k) {
+        here().strokes[i].pts = swingFrom.snapshot[k].map(function (p) {
+          var x = p[0] - swingFrom.pv[0], y = p[1] - swingFrom.pv[1];
+          return [+(swingFrom.pv[0] + x * sc - y * ss).toFixed(3),
+                  +(swingFrom.pv[1] + x * ss + y * sc).toFixed(3)];
+        });
+      });
+      drawPad(); return;
+    }
     if (moveFrom) {
       var mw = toWorld(ev.clientX, ev.clientY);
       var dx = mw[0] - moveFrom.w[0], dy = mw[1] - moveFrom.w[1];
+      if (!dx && !dy) return;
+      if (!moveFrom.pushed) { pushHistory(); moveFrom.pushed = true; }
       moveFrom.dx = dx; moveFrom.dy = dy;
       sel.forEach(function (i, k) {
         here().strokes[i].pts = moveFrom.snapshot[k].map(function (p) {
@@ -1596,6 +1669,16 @@
     if (moveFrom && (moveFrom.dx || moveFrom.dy)) {
       markXform({ kind: 'move', dx: moveFrom.dx, dy: moveFrom.dy });
     }
+    /* A swing is the movement REPEAT was built for: swing the arm to where you
+     * want it a few frames from now, then REPEAT walks it there one step at a
+     * time. The joint is recorded with it, so the frames turn about the same
+     * hinge even if the selection changes afterwards. */
+    if (swingFrom && swingFrom.da) {
+      markXform({ kind: 'rot', a: swingFrom.da, px: swingFrom.pv[0], py: swingFrom.pv[1] });
+      note('swung ' + Math.round(swingFrom.da * 180 / Math.PI) + '° round the joint'
+        + ' — REPEAT walks it there over several frames');
+    }
+    swingFrom = null;
     panFrom = null; moveFrom = null; erasing = false;
     if (orbitFrom) { orbitFrom = null; drawPad(); return; }
     if (mode === 'solid') {
@@ -1629,6 +1712,7 @@
         if (L.pts.some(function (p) { return p[0] >= x0 && p[0] <= x1 && p[1] >= y0 && p[1] <= y1; })) sel.push(i);
       });
       marquee = null;
+      findJoint();
     }
     if (freeing) {
       var pts = rdp(freeing, smoothing / 1000);
@@ -1657,7 +1741,7 @@
   function modeBtn(id, m) {
     document.getElementById(id).onclick = function () {
       finish(); mode = m;
-      if (m !== 'select') sel = [];
+      if (m !== 'select') { sel = []; autoJoint = null; }
         ['mDraw', 'mFree', 'mEdit', 'mEye', 'mPan', 'mShape', 'mSel', 'mErase', 'mLine', 'mSolid'].forEach(function (o) {
         var el = document.getElementById(o); if (el) el.classList.remove('on');
       });
@@ -2587,7 +2671,7 @@
    * "make the head bigger" was a redraw. Marquee-select strokes, then move,
    * rotate, scale or flip them together about their own centre.
    * ================================================================== */
-  var sel = [], marquee = null, moveFrom = null;
+  var sel = [], marquee = null, moveFrom = null, swingFrom = null;
   function selBounds() {
     var xs = [], ys = [];
     sel.forEach(function (i) {
@@ -2611,13 +2695,125 @@
    * The pivot is a world point and it OUTLIVES the selection, because the
    * whole use of it is to turn the same joint over and over.
    * ================================================================== */
-  var pivot = null, pivotArm = false;
-  function pivotOr(b) { return pivot ? { cx: pivot[0], cy: pivot[1] } : b; }
+  var pivot = null, pivotArm = false, autoJoint = null;
+
+  /* ==================================================================
+   * THE JOINT IS FOUND, NOT PLACED
+   * ==================================================================
+   * Placing a pivot by hand is one press too many, and it is a press you have
+   * to get RIGHT — a shoulder half a step off the shoulder swings the arm out
+   * of its socket. But the drawing already knows where the joint is: it is
+   * WHERE THE SELECTED LINES MEET THE ONES YOU DID NOT SELECT. Select the arm
+   * and the only place it touches the body is the shoulder. There is nothing
+   * to choose.
+   *
+   * The anchor is the SELECTED point of the closest pair, not the midpoint
+   * between the two. If they coincide it makes no difference, and if there was
+   * already a hair of a gap, anchoring on the arm's own end holds that end
+   * exactly still instead of shifting it half a gap on every swing.
+   *
+   * Only the nearest contacts count. Everything within tolerance would take in
+   * a whole overlapping edge and average the hinge into the middle of it; the
+   * closest, plus anything effectively tied with it, is a joint — one point
+   * for a limb butted onto a body, two averaged for a limb sitting in a
+   * socket, which is the right hinge for both.
+   * ================================================================== */
+  /* Point to SEGMENT, not point to point. An arm almost never meets the body
+   * at one of the body's own corners — it lands part way along a line, which
+   * is a place with no point in it at all. Measuring corner to corner found
+   * nothing on any real drawing and quietly fell back to the bounding box. */
+  function segDist(p, a, b) {
+    var vx = b[0] - a[0], vy = b[1] - a[1], L = vx * vx + vy * vy;
+    var t = L ? ((p[0] - a[0]) * vx + (p[1] - a[1]) * vy) / L : 0;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    return Math.hypot(p[0] - (a[0] + vx * t), p[1] - (a[1] + vy * t));
+  }
+  function findJoint() {
+    autoJoint = null;
+    if (!sel.length) return;
+    var S = here().strokes, mine = {}, ours = [], theirs = [];
+    sel.forEach(function (i) { mine[i] = 1; });
+    S.forEach(function (L, i) { (mine[i] ? ours : theirs).push(L.pts); });
+    if (!ours.length || !theirs.length) return;
+    /* Generous, because hand-drawn work does not meet to the thousandth and a
+     * joint you can see is a joint. Wrong is visible — it is drawn on the
+     * canvas — and PIVOT is still there to overrule it. */
+    var tol = Math.max(gridStep * 1.5, 0.06);
+    var contacts = [], best = Infinity;
+    ours.forEach(function (a) {
+      a.forEach(function (p) {
+        var bd = Infinity;
+        theirs.forEach(function (b) {
+          if (b.length < 2) {
+            if (b.length) bd = Math.min(bd, Math.hypot(p[0] - b[0][0], p[1] - b[0][1]));
+            return;
+          }
+          for (var j = 1; j < b.length; j++) {
+            var d = segDist(p, b[j - 1], b[j]);
+            if (d < bd) bd = d;
+          }
+        });
+        if (bd < best) best = bd;
+        contacts.push({ p: p, d: bd });
+      });
+    });
+    if (best > tol) return;
+    var eps = Math.max(gridStep * 0.5, 0.01);
+    var hits = contacts.filter(function (c) { return c.d <= best + eps; });
+    var sx = 0, sy = 0;
+    hits.forEach(function (c) { sx += c.p[0]; sy += c.p[1]; });
+    autoJoint = [+(sx / hits.length).toFixed(3), +(sy / hits.length).toFixed(3)];
+  }
+
+  // what a turn actually goes round: your pivot, else the joint that was found
+  function pivotPoint() { return pivot || autoJoint; }
+  function pivotOr(b) {
+    var v = pivotPoint();
+    return v ? { cx: v[0], cy: v[1] } : b;
+  }
+  /* ==================================================================
+   * A PIVOT MEANS THE TURN IS RIGID
+   * ==================================================================
+   * Settling a turn onto the grid was the wrong answer to lines coming loose.
+   * It kept the ends on a ruling by rounding every point INDEPENDENTLY, which
+   * is deformation — a rectangle turned and settled is a wonky quadrilateral,
+   * and a limb wobbles by a fraction of a square every frame.
+   *
+   * With a joint there is nothing left for the grid to fix. The one point that
+   * has to stay exactly where it is IS the centre of rotation, so it does not
+   * move at all, and everything else keeps its distance from it. So: turning
+   * about a pivot is rigid and exact. Only a free-floating selection — nothing
+   * holding it, nothing for it to come loose FROM — settles onto the grid.
+   * ================================================================== */
+  function rigidNow() { return !!pivotPoint(); }
   function syncPivotBtn() {
     var el = document.getElementById('tPivot');
     el.textContent = pivotArm ? 'TAP THE JOINT' : (pivot ? 'PIVOT ✕' : 'PIVOT');
     el.classList.toggle('on', pivotArm || !!pivot);
   }
+  /* A working preference, like MIRROR and the grid: about how you handle the
+   * tool rather than about any one drawing, so it follows you between tabs and
+   * is remembered. */
+  var swingOn = true;
+  try { var svv = localStorage.getItem('voidspire.artist.swing');
+        if (svv !== null) swingOn = svv === '1'; } catch (e) {}
+  function syncSwingBtn() {
+    var el = document.getElementById('tSwing');
+    var have = !!pivotPoint();
+    el.textContent = swingOn ? (have ? 'SWING' : 'SWING —') : 'MOVE';
+    el.classList.toggle('on', swingOn && have);
+    el.title = !swingOn ? 'Dragging slides the selection. Press for SWING.'
+      : have ? 'Dragging turns it about the joint. Press for MOVE.'
+      : 'Nothing this selection touches, so there is no joint to turn about —'
+        + ' dragging slides it. Select a part that meets the rest of the drawing.';
+  }
+  document.getElementById('tSwing').onclick = function () {
+    swingOn = !swingOn;
+    try { localStorage.setItem('voidspire.artist.swing', swingOn ? '1' : '0'); } catch (e) {}
+    note(swingOn ? 'drag the selection to swing it round its joint'
+                 : 'drag the selection to slide it');
+    syncSwingBtn(); drawPad();
+  };
   document.getElementById('tPivot').onclick = function () {
     if (pivotArm) { pivotArm = false; note('pivot not moved'); }
     else if (pivot) { pivot = null; note('pivot cleared — turns go round the middle again'); }
@@ -2632,13 +2828,16 @@
    * reason, you know to take a finer grid or a bigger turn. */
   function applySel(fn, verb) {
     var b = pivotOr(selBounds()); if (!b) return false;
+    var rigid = rigidNow();
     var next = [], flattened = 0, moved = false;
     sel.forEach(function (i) {
       var L = here().strokes[i]; if (!L) return;
-      var out = settle(L.pts.map(function (p) {
+      var raw = L.pts.map(function (p) {
         var q = fn(p[0] - b.cx, p[1] - b.cy);
         return [q[0] + b.cx, q[1] + b.cy];
-      }));
+      });
+      var out = rigid ? raw.map(function (q) { return [+q[0].toFixed(3), +q[1].toFixed(3)]; })
+                      : settle(raw);
       if (out.length < 2 && L.pts.length > 1) flattened++;
       if (JSON.stringify(out) !== JSON.stringify(L.pts)) moved = true;
       next.push({ i: i, pts: out });
@@ -2669,8 +2868,21 @@
   }
   function resetRepHint() { setRepHint('frames, each one step further'); }
   function markXform(x) {
+    // a swing brings its own joint; anything else takes whatever is in force
+    var own = x.px != null;
     var b = pivotOr(selBounds());
-    if (b && x.kind !== 'move') { x.px = b.cx; x.py = b.cy; }
+    if (b && x.kind !== 'move' && !own) { x.px = b.cx; x.py = b.cy; }
+    /* Carried WITH the transform, not read again when REPEAT runs: a swing made
+     * about a joint must keep turning about that joint, whatever the selection
+     * happens to be touching by then. It also decides whether the frames are
+     * settled onto the grid — a turn round a hinge holds itself together and
+     * has nothing to gain from rounding.
+     *
+     * Asked of `rigidNow`, NOT of whether px ended up set: pivotOr falls back
+     * to the middle of the selection, so px is always set for a turn and every
+     * rotation counted as hinged. The frames of a free shape then came out
+     * off-grid while the first turn had been settled onto it. */
+    if (x.rigid == null) x.rigid = (x.kind !== 'move') && (own || rigidNow());
     lastXform = x;
     setRepHint(x.kind === 'move' ? 'frames, each moved further'
       : x.kind === 'rot' ? 'frames, each turned further'
@@ -2741,11 +2953,16 @@
         var L = strokes[i];
         if (!L) return;
         var was = L.pts.length;
-        /* Settled per frame rather than carried forward, so the arm lands on
-         * the grid in EVERY frame instead of only the first — and because each
-         * frame is worked out from the original, the rounding cannot pile up
-         * across the run the way it would if each frame stepped off the last. */
-        L.pts = settle(L.pts.map(function (p) { return xformPoint(lastXform, p, k); }));
+        var raw = L.pts.map(function (p) { return xformPoint(lastXform, p, k); });
+        /* A turn about a joint stays rigid in every frame, so the limb is the
+         * same limb all the way round. Without a joint it is settled per frame
+         * rather than carried forward, so it lands on the grid in EVERY frame
+         * instead of only the first — and because each frame is worked out from
+         * the original, the rounding cannot pile up across the run the way it
+         * would if each frame stepped off the last. */
+        L.pts = lastXform.rigid
+          ? raw.map(function (q) { return [+q[0].toFixed(3), +q[1].toFixed(3)]; })
+          : settle(raw);
         if (L.pts.length < 2 && was > 1) flattened++;
       });
       var sig = JSON.stringify(strokes);
@@ -2780,15 +2997,18 @@
       here().strokes.push(L);
     });
     sel = copies.map(function (_, k) { return here().strokes.length - copies.length + k; });
+    findJoint();
     drawPad();
   };
   document.getElementById('tDel').onclick = function () {
     if (!sel.length) return;
     pushHistory();
     sel.slice().sort(function (a, b) { return b - a; }).forEach(function (i) { here().strokes.splice(i, 1); });
-    sel = []; drawPad();
+    sel = []; autoJoint = null; drawPad();
   };
-  document.getElementById('selNone').onclick = function () { sel = []; drawPad(); };
+  document.getElementById('selNone').onclick = function () {
+    sel = []; autoJoint = null; drawPad();
+  };
 
   /* ZOOM AND PAN. Wheel and pinch both zoom about the pointer rather than the
    * centre, which is what makes zooming feel like moving a lens instead of
@@ -4083,15 +4303,15 @@
      * stroke still being laid down, a marquee, a solid mid-drag: all of it is
      * dropped rather than carried across, because carrying it would paste
      * points into a drawing you had not touched. */
-    cur = []; curUndone.length = 0; sel = [];
+    cur = []; curUndone.length = 0; sel = []; autoJoint = null;
     drag = null; freeing = null; shapeFrom = shapeTo = null; orbitFrom = null;
     lineFrom = lineTo = null; marquee = null;
     /* The pivot is a point in A DRAWING — the robot's shoulder is nowhere in
      * particular in the next tab along — and the transform REPEAT would carry
      * on was made over there. Both go, or REPEAT in a drawing you have not
      * touched yet would build frames out of a movement from another one. */
-    pivot = null; pivotArm = false; lastXform = null;
-    syncPivotBtn(); resetRepHint();
+    pivot = null; pivotArm = false; lastXform = null; autoJoint = null;
+    syncPivotBtn(); syncSwingBtn(); resetRepHint();
     /* And the last thing that happened happened somewhere else. "placed icosa
      * — 18 lines" reading out over a drawing with no icosa in it is the same
      * display-disagrees-with-data problem as ever, just carried sideways. */
@@ -4533,7 +4753,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 27';
+  document.getElementById('ver').textContent = 'build 28';
 
   paintThumbs();
   applyView(viewMode);
