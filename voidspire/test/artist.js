@@ -143,9 +143,15 @@ function ok(name, cond, detail) {
       'export ' + (a ? a.p.length : 'unparseable') + ' paths, status says ' + now.paths);
   }
 
-  console.log('\nSHAPES — nine of them, all inside the dragged box');
+  console.log('\nSHAPES — all of them, inside the dragged box');
   const shapes = await p.$$eval('#shapeBar .shp', bs => bs.map(x => x.dataset.shp));
-  ok('all nine shapes are offered', shapes.length === 9, shapes.join(','));
+  /* The original nine are the contract; the sci-fi ones on top of them are
+   * covered in detail by test/geometry.js. What matters here is that adding
+   * them did not take any of the originals away. */
+  const NINE = ['circle', 'ellipse', 'rect', 'square', 'round', 'tri', 'poly', 'star', 'arc'];
+  ok('the original nine are all still there', NINE.every(n => shapes.indexOf(n) >= 0),
+    NINE.filter(n => shapes.indexOf(n) < 0).join(',') + ' missing');
+  ok('and there are more besides', shapes.length > 9, shapes.length + ' in all');
   for (const shp of shapes) {
     await p.click(`#shapeBar .shp[data-shp="${shp}"]`);
     const n0 = (await readout()).strokes;
@@ -159,8 +165,11 @@ function ok(name, cond, detail) {
       if (!isFinite(v)) nan++;
       else if (v < -1.001 || v > 1.001) bad++;
     }));
+    /* Not "exactly one stroke": several of these are made of separate lines —
+     * brackets are four corners, a reticle is a ring plus its ticks. What has
+     * to hold is that something arrived and that all of it is usable. */
     ok(shp.padEnd(8) + ' draws, stays in the box, and has no NaN',
-      n1 === n0 + 1 && bad === 0 && nan === 0,
+      n1 > n0 && bad === 0 && nan === 0,
       n0 + '→' + n1 + ' strokes, ' + bad + ' out of range, ' + nan + ' NaN');
     await p.click('#bUndo'); await p.waitForTimeout(90);
   }
@@ -237,6 +246,10 @@ function ok(name, cond, detail) {
   ok('undo removes them again', (await readout()).frames === 3, (await readout()).raw);
 
   console.log('\nMIRROR');
+  /* Back to a tool that actually uses it: the solid tool and the sci-fi
+   * shapes never mirror, and say so in different words, so the flag is not
+   * readable from there. */
+  await p.click('#mDraw'); await p.waitForTimeout(80);
   const mir0 = (await readout()).mirrored;
   await p.click('#bMirror'); await p.waitForTimeout(200);
   ok('the toggle flips it', (await readout()).mirrored === !mir0,

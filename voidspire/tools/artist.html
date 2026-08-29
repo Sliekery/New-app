@@ -36,6 +36,20 @@
   .wrap { display: grid; gap: 11px; grid-template-columns: 1fr; max-width: 1700px; margin: 0 auto; }
   @media (min-width: 1000px) { .wrap { grid-template-columns: 74px minmax(0,1fr) 340px; } }
   .rail { display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px; align-content: start; }
+  /* The pickers scroll INSIDE the rail rather than lengthening it. Seventeen
+     solids added four rows and pushed MIRROR, GRID and the zoom buttons off
+     the bottom of the screen — the tools you reach for constantly, displaced
+     by a list you use once per drawing. */
+  #railShapes, #railSolids { max-height: 32vh; overflow-y: auto; }
+  /* And on a phone the rail wraps into rows above the canvas, so the same
+     list appears twice and shoves the drawing surface off the screen. The bar
+     under the canvas already has every one of them. */
+  @media (max-width: 860px) {
+    #railShapes, #railSolids { display: none !important; }
+    /* Seventeen solids wrap to three rows on a phone, and every row of
+       controls comes out of the drawing surface. Two rows and a scroll. */
+    #solidBar, #shapeBar { max-height: 64px; overflow-y: auto; }
+  }
   @media (min-width: 1000px) { .rail { flex-direction: column; flex-wrap: nowrap; } }
   .rail button { width: 100%; padding: 9px 4px; font-size: 9px; letter-spacing: .04em; }
   @media (max-width: 999px) { .rail button { width: auto; } }
@@ -169,8 +183,43 @@
       <button class="sm shp" data-shp="poly">⬡ POLYGON</button>
       <button class="sm shp" data-shp="star">✶ STAR</button>
       <button class="sm shp" data-shp="arc">◠ ARC</button>
+      <div class="grp" style="margin-top:5px">SCI-FI</div>
+      <button class="sm shp" data-shp="panel">▱ PANEL</button>
+      <button class="sm shp" data-shp="hexcell">⬢ HEX CELL</button>
+      <button class="sm shp" data-shp="bracket">⌐ BRACKETS</button>
+      <button class="sm shp" data-shp="reticle">◎ RETICLE</button>
+      <button class="sm shp" data-shp="vents">▤ VENTS</button>
+      <button class="sm shp" data-shp="hazard">▨ HAZARD</button>
+      <button class="sm shp" data-shp="gear">⚙ GEAR</button>
+      <button class="sm shp" data-shp="dish">◡ DISH</button>
+      <button class="sm shp" data-shp="circuit">⌐ CIRCUIT</button>
+      <button class="sm shp" data-shp="burst">✳ BURST</button>
+      <button class="sm shp" data-shp="segring">◍ SEG RING</button>
+      <button class="sm shp" data-shp="capsule">▬ CAPSULE</button>
+      <button class="sm shp" data-shp="chevron">» CHEVRON</button>
+      <button class="sm shp" data-shp="grid">▦ GRID</button>
       <input type="range" id="shpN2" min="3" max="12" value="6" style="width:100%;margin-top:3px">
       <div class="hint" style="text-align:center" id="shpNN2">6 sides</div>
+    </div>
+    <button id="mSolid" title="Drag a box, a 3D solid fits it (3)">SOLID <span class="k">3</span></button>
+    <div id="railSolids" style="display:none">
+      <button class="sm sld on" data-sld="cube">CUBE</button>
+      <button class="sm sld" data-sld="girder">GIRDERS</button>
+      <button class="sm sld" data-sld="tetra">TETRA</button>
+      <button class="sm sld" data-sld="octa">OCTA</button>
+      <button class="sm sld" data-sld="icosa">D20</button>
+      <button class="sm sld" data-sld="pyramid">PYRAMID</button>
+      <button class="sm sld" data-sld="prism">PRISM</button>
+      <button class="sm sld" data-sld="cone">CONE</button>
+      <button class="sm sld" data-sld="sphere">SPHERE</button>
+      <button class="sm sld" data-sld="torus">TORUS</button>
+      <button class="sm sld" data-sld="crystal">CRYSTAL</button>
+      <button class="sm sld" data-sld="ship">SHIP</button>
+      <button class="sm sld" data-sld="satellite">SATELLITE</button>
+      <button class="sm sld" data-sld="station">STATION</button>
+      <button class="sm sld" data-sld="gyro">GYRO</button>
+      <button class="sm sld" data-sld="turret">TURRET</button>
+      <button class="sm sld" data-sld="pod">POD</button>
     </div>
     <button id="mEye" title="Place a glowing pip (E)">EYE <span class="k">E</span></button>
     <button id="mErase" title="Drag over strokes to rub them out (X)">ERASE <span class="k">X</span></button>
@@ -210,9 +259,65 @@
         <button class="sm shp" data-shp="poly">POLYGON</button>
         <button class="sm shp" data-shp="star">STAR</button>
         <button class="sm shp" data-shp="arc">ARC</button>
+        <button class="sm shp" data-shp="panel">PANEL</button>
+        <button class="sm shp" data-shp="hexcell">HEX CELL</button>
+        <button class="sm shp" data-shp="bracket">BRACKETS</button>
+        <button class="sm shp" data-shp="reticle">RETICLE</button>
+        <button class="sm shp" data-shp="vents">VENTS</button>
+        <button class="sm shp" data-shp="hazard">HAZARD</button>
+        <button class="sm shp" data-shp="gear">GEAR</button>
+        <button class="sm shp" data-shp="dish">DISH</button>
+        <button class="sm shp" data-shp="circuit">CIRCUIT</button>
+        <button class="sm shp" data-shp="burst">BURST</button>
+        <button class="sm shp" data-shp="segring">SEG RING</button>
+        <button class="sm shp" data-shp="capsule">CAPSULE</button>
+        <button class="sm shp" data-shp="chevron">CHEVRON</button>
+        <button class="sm shp" data-shp="grid">GRID</button>
         <span class="hint">points</span>
         <input type="range" id="shpN" min="3" max="12" value="6" style="max-width:80px">
         <span class="hint" id="shpNN">6</span>
+      </div>
+      <div class="bar" id="solidBar" style="display:none">
+        <span class="hint">solid</span>
+        <button class="sm sld on" data-sld="cube">CUBE</button>
+        <button class="sm sld" data-sld="girder">GIRDERS</button>
+        <button class="sm sld" data-sld="tetra">TETRA</button>
+        <button class="sm sld" data-sld="octa">OCTA</button>
+        <button class="sm sld" data-sld="icosa">D20</button>
+        <button class="sm sld" data-sld="pyramid">PYRAMID</button>
+        <button class="sm sld" data-sld="prism">PRISM</button>
+        <button class="sm sld" data-sld="cone">CONE</button>
+        <button class="sm sld" data-sld="sphere">SPHERE</button>
+        <button class="sm sld" data-sld="torus">TORUS</button>
+        <button class="sm sld" data-sld="crystal">CRYSTAL</button>
+        <button class="sm sld" data-sld="ship">SHIP</button>
+        <button class="sm sld" data-sld="satellite">SATELLITE</button>
+        <button class="sm sld" data-sld="station">STATION</button>
+        <button class="sm sld" data-sld="gyro">GYRO</button>
+        <button class="sm sld" data-sld="turret">TURRET</button>
+        <button class="sm sld" data-sld="pod">POD</button>
+      </div>
+      <div class="bar" id="solidCtl" style="display:none">
+        <span class="hint">turn</span>
+        <input type="range" id="sYaw" min="0" max="359" value="35" style="max-width:110px">
+        <span class="hint" id="sYawN">35°</span>
+        <span class="hint">tilt</span>
+        <input type="range" id="sTilt" min="-80" max="80" value="20" style="max-width:110px">
+        <span class="hint" id="sTiltN">20°</span>
+        <span class="hint">perspective</span>
+        <input type="range" id="sPersp" min="0" max="100" value="35" style="max-width:90px">
+        <span class="hint" id="sPerspN">35%</span>
+        <button id="sCull" class="sm on" title="Hide the edges that belong only to faces pointing away">HIDE BACK</button>
+      </div>
+      <div class="bar" id="solidSpin" style="display:none">
+        <span class="hint">spin about</span>
+        <button class="sm axis on" data-axis="y">Y</button>
+        <button class="sm axis" data-axis="x">X</button>
+        <span class="hint">frames</span>
+        <input type="range" id="sFrames" min="2" max="24" value="12" style="max-width:110px">
+        <span class="hint" id="sFramesN">12</span>
+        <button id="sBake" class="sm">BAKE SPIN →</button>
+        <span class="hint" id="sCost"></span>
       </div>
       <div class="bar" id="selBar" style="display:none">
         <span class="hint" id="selCount">nothing selected</span>
@@ -601,9 +706,12 @@
     if (shapeFrom && shapeTo) {
       px.save(); px.strokeStyle = '#41d8ff'; px.lineWidth = 2.4;
       px.setLineDash([5, 5]);
-      var prev = makeShape(shapeFrom, shapeTo), flat = [];
-      prev.forEach(function (q) { flat.push(q[0], q[1]); });
-      strokeIt(flat); px.restore();
+      dragStrokes(shapeFrom, shapeTo).forEach(function (s) {
+        var flat = [];
+        s.forEach(function (q) { flat.push(q[0], q[1]); });
+        strokeIt(flat);
+      });
+      px.restore();
     }
     if (lineFrom && lineTo) {
       px.save(); px.strokeStyle = '#41d8ff'; px.lineWidth = 3; px.setLineDash([6, 4]);
@@ -655,7 +763,11 @@
       + ' · ' + here().strokes.length + ' stroke' + (here().strokes.length === 1 ? '' : 's')
       + (cur.length ? ' · ' + cur.length + ' in hand' : '')
       + ' · exports ' + n.p.length + ' path' + (n.p.length === 1 ? '' : 's')
-      + (mirror ? ' · MIRRORED' : '')
+      /* Say which of the two it is rather than going quiet. A solid part-way
+       * through a rotation is not symmetric and the sci-fi shapes are placed
+       * where you put them, so neither is mirrored — but simply dropping the
+       * tag made it look as though MIRROR had switched itself off. */
+      + (mirror ? (unmirrored() ? ' · MIRROR NOT USED HERE' : ' · MIRRORED') : '')
       + (view.z !== 1 ? ' · ' + view.z.toFixed(1) + '×' : '');
     var HINTS = {
       draw: 'tap to lay points — they join into one path · FINISH LINE ends it',
@@ -667,10 +779,17 @@
       select: 'drag a box round strokes · arrow keys nudge, SHIFT for a bigger step',
       pan: 'drag to move the canvas',
       erase: 'drag over strokes to rub them out — a whole stroke at a time',
+      solid: 'drag a box; the solid fits it · aim it below, then BAKE SPIN turns it into frames',
     };
     document.getElementById('modeHint').textContent = HINTS[mode] || '';
     document.getElementById('shapeBar').style.display = (mode === 'shape') ? 'flex' : 'none';
     document.getElementById('railShapes').style.display = (mode === 'shape') ? '' : 'none';
+    var isSolid = (mode === 'solid');
+    document.getElementById('railSolids').style.display = isSolid ? '' : 'none';
+    ['solidBar', 'solidCtl', 'solidSpin'].forEach(function (id) {
+      document.getElementById(id).style.display = isSolid ? 'flex' : 'none';
+    });
+    if (isSolid) showSpinCost();
     document.getElementById('selBar').style.display = (mode === 'select') ? 'flex' : 'none';
     document.getElementById('selCount').textContent =
       sel.length ? (sel.length + ' stroke' + (sel.length === 1 ? '' : 's') + ' selected')
@@ -850,7 +969,7 @@
       erasing = true; pad.setPointerCapture(ev.pointerId);
       pushHistory(); rubOut(w); return;
     }
-    if (mode === 'shape') {
+    if (mode === 'shape' || mode === 'solid') {
       shapeFrom = snapPoint(w); pad.setPointerCapture(ev.pointerId); return;
     }
     if (mode === 'line') {
@@ -917,8 +1036,17 @@
   pad.addEventListener('pointerup', function () {
     panFrom = null; moveFrom = null; erasing = false;
     if (shapeFrom && shapeTo) {
-      var pts = makeShape(shapeFrom, shapeTo);
-      if (pts.length > 1) { pushHistory(); here().strokes.push({ pts: pts, m: mirror }); }
+      /* Generated strokes are never mirrored. Mirror exists because the
+       * enemies are symmetric about the centre line; a solid part-way through
+       * a rotation is not, and reflecting one produces a shape that cannot
+       * exist. The sci-fi shapes are placed where you put them for the same
+       * reason. */
+      var made = dragStrokes(shapeFrom, shapeTo).filter(function (s) { return s.length > 1; });
+      if (made.length) {
+        pushHistory();
+        var mm = unmirrored() ? false : mirror;
+        made.forEach(function (s) { here().strokes.push({ pts: s, m: mm }); });
+      }
     }
     shapeFrom = shapeTo = null;
     if (lineFrom && lineTo) {
@@ -963,7 +1091,7 @@
     document.getElementById(id).onclick = function () {
       finish(); mode = m;
       if (m !== 'select') sel = [];
-        ['mDraw', 'mFree', 'mEdit', 'mEye', 'mPan', 'mShape', 'mSel', 'mErase'].forEach(function (o) {
+        ['mDraw', 'mFree', 'mEdit', 'mEye', 'mPan', 'mShape', 'mSel', 'mErase', 'mLine', 'mSolid'].forEach(function (o) {
         var el = document.getElementById(o); if (el) el.classList.remove('on');
       });
       document.getElementById(id).classList.add('on');
@@ -973,6 +1101,7 @@
   modeBtn('mDraw', 'draw'); modeBtn('mFree', 'free'); modeBtn('mEdit', 'edit');
   modeBtn('mEye', 'eye'); modeBtn('mPan', 'pan');
   modeBtn('mShape', 'shape'); modeBtn('mSel', 'select'); modeBtn('mLine', 'line');
+  modeBtn('mSolid', 'solid');
   modeBtn('mErase', 'erase');
   toggle('bMag', function () { return magnet; }, function (v) { magnet = v; });
 
@@ -1007,6 +1136,94 @@
       });
     };
   });
+  /* ---- the solid tool's own state -------------------------------------- */
+  var sld = 'cube', sldYaw = 35 * Math.PI / 180, sldTilt = 20 * Math.PI / 180;
+  var sldPersp = 0.35, sldCull = true, sldAxis = 'y', sldFrames = 12;
+  var lastSolidBox = { cx: 0, cy: 0, rx: 0.8, ry: 0.8 };
+
+  document.querySelectorAll('.sld').forEach(function (b) {
+    b.onclick = function () {
+      sld = b.getAttribute('data-sld');
+      document.querySelectorAll('.sld').forEach(function (o) {
+        o.classList.toggle('on', o.getAttribute('data-sld') === sld);
+      });
+      showSpinCost(); drawPad();
+    };
+  });
+  document.querySelectorAll('.axis').forEach(function (b) {
+    b.onclick = function () {
+      sldAxis = b.getAttribute('data-axis');
+      document.querySelectorAll('.axis').forEach(function (o) {
+        o.classList.toggle('on', o.getAttribute('data-axis') === sldAxis);
+      });
+    };
+  });
+  function slider(id, label, set, fmt) {
+    var el = document.getElementById(id);
+    el.oninput = function () {
+      set(+this.value);
+      document.getElementById(label).textContent = fmt(+this.value);
+      showSpinCost(); drawPad();
+    };
+  }
+  slider('sYaw', 'sYawN', function (v) { sldYaw = v * Math.PI / 180; }, function (v) { return v + '\u00b0'; });
+  slider('sTilt', 'sTiltN', function (v) { sldTilt = v * Math.PI / 180; }, function (v) { return v + '\u00b0'; });
+  slider('sPersp', 'sPerspN', function (v) { sldPersp = v / 100; }, function (v) { return v + '%'; });
+  slider('sFrames', 'sFramesN', function (v) { sldFrames = v; }, function (v) { return String(v); });
+  document.getElementById('sCull').onclick = function () {
+    sldCull = !sldCull;
+    this.classList.toggle('on', sldCull);
+    drawPad();
+  };
+
+  /* WHAT A SPIN WILL COST, before it is made. The frames multiply: sixteen
+   * frames of a sphere is not sixteen times more interesting than four, and it
+   * IS sixteen times the bytes. The sound tool shows the same figure for the
+   * same reason — a budget you can see while deciding is worth more than one
+   * you discover afterwards. */
+  function showSpinCost() {
+    var el = document.getElementById('sCost');
+    if (!el) return;
+    var per = solidStrokes(lastSolidBox, sld, shpN, sldYaw, sldTilt, sldPersp, sldCull);
+    var nums = per.reduce(function (a, s) { return a + s.length * 2; }, 0);
+    var bytes = Math.round(nums * 6 * sldFrames / 1024 * 10) / 10;
+    el.textContent = per.length + ' lines/frame \u00b7 \u2248' + bytes + ' KB for ' + sldFrames + ' frames';
+    el.style.color = bytes > 25 ? '#ffb02e' : '';
+  }
+
+  /* ---- BAKE SPIN --------------------------------------------------------
+   * Each frame is GENERATED from the real rotation, never tweened. Tweening
+   * between a cube at 0 degrees and the same cube at 90 interpolates the flat
+   * points, so the in-between frames squash it through a flat line instead of
+   * turning it — which looks like a bug and is really a category error: a 2D
+   * tween cannot know the shape was ever three-dimensional.
+   *
+   * The strokes land on the CURRENT layer, one frame each, so hand-drawn work
+   * on any other layer survives and rides along with the animation. */
+  document.getElementById('sBake').onclick = function () {
+    var n = Math.max(2, Math.min(24, sldFrames));
+    pushHistory();
+    /* New frames are CLONES of the first, not blanks, so whatever is on your
+     * other layers is carried into every frame of the spin instead of
+     * appearing only on frame one. */
+    while (doc.frames.length < n) doc.frames.push(clone(doc.frames[0]));
+    for (var f = 0; f < n; f++) {
+      var turn = (f / n) * Math.PI * 2;
+      var yaw = sldYaw + (sldAxis === 'y' ? turn : 0);
+      var tilt = sldTilt + (sldAxis === 'x' ? turn : 0);
+      var made = solidStrokes(lastSolidBox, sld, shpN, yaw, tilt, sldPersp, sldCull);
+      var cell = doc.frames[f].cells[li];
+      cell.strokes = made.map(function (s) { return { pts: s, m: false }; });
+    }
+    var extra = doc.frames.length - n;
+    fi = 0;
+    renderFrames(); drawPad();
+    status.textContent = 'baked ' + n + ' frames of ' + sld + ' spinning about '
+      + sldAxis.toUpperCase() + ' onto layer "' + doc.layers[li].name + '"'
+      + (extra > 0 ? ' \u2014 ' + extra + ' later frame' + (extra === 1 ? '' : 's')
+                     + ' left alone; delete them if you want the loop to close' : '');
+  };
+
   function setSides(n) {
     shpN = n;
     ['shpN', 'shpN2'].forEach(function (id) { var e = document.getElementById(id); if (e) e.value = n; });
@@ -1020,6 +1237,578 @@
    * is fine for a circle and baffling for a rectangle, and having some tools
    * behave one way and some the other is the kind of inconsistency you have to
    * relearn every time. One rule: drag the box, the shape fills it. */
+  /* ==================================================================
+   * SCI-FI FLAT SHAPES
+   * ==================================================================
+   * The nine primitives above are the shapes every drawing program has. These
+   * are the ones this kind of art actually keeps needing — a chamfered panel,
+   * a hex cell, four HUD corner brackets, a reticle — each of which is a
+   * couple of minutes of fiddly point-placing and about six lines to generate.
+   *
+   * Every one takes the dragged box and returns a LIST of strokes, because
+   * most of them are not one closed outline: brackets are four separate
+   * corners, a reticle is a ring plus its ticks. That is why makeShape now
+   * returns an array rather than a single path.
+   * ================================================================== */
+  function ring(cx, cy, rx, ry, n, a0, a1) {
+    var pts = [], i, th;
+    a0 = (a0 == null) ? -Math.PI / 2 : a0;
+    a1 = (a1 == null) ? a0 + Math.PI * 2 : a1;
+    for (i = 0; i <= n; i++) {
+      th = a0 + (i / n) * (a1 - a0);
+      pts.push([cx + Math.cos(th) * rx, cy + Math.sin(th) * ry]);
+    }
+    return pts;
+  }
+
+  var SCIFI = {
+    // a rectangle with two corners cut off: the shape of every housing,
+    // readout and access hatch in this game
+    panel: function (b) {
+      var k = Math.min(b.rx, b.ry) * 0.38;
+      return [[[b.x0 + k, b.y0], [b.x1, b.y0], [b.x1, b.y1 - k], [b.x1 - k, b.y1],
+               [b.x0, b.y1], [b.x0, b.y0 + k], [b.x0 + k, b.y0]]];
+    },
+    // flat-topped, which tiles; the POLYGON tool gives you the pointy-topped one
+    hexcell: function (b) {
+      var pts = [], i, th;
+      for (i = 0; i <= 6; i++) { th = (i / 6) * Math.PI * 2; pts.push([b.cx + Math.cos(th) * b.rx, b.cy + Math.sin(th) * b.ry]); }
+      return [pts];
+    },
+    // four corners of a frame, with the middle of each side left open
+    bracket: function (b) {
+      var kx = b.rx * 0.42, ky = b.ry * 0.42;
+      return [
+        [[b.x0, b.y0 + ky], [b.x0, b.y0], [b.x0 + kx, b.y0]],
+        [[b.x1 - kx, b.y0], [b.x1, b.y0], [b.x1, b.y0 + ky]],
+        [[b.x1, b.y1 - ky], [b.x1, b.y1], [b.x1 - kx, b.y1]],
+        [[b.x0 + kx, b.y1], [b.x0, b.y1], [b.x0, b.y1 - ky]],
+      ];
+    },
+    // a ring broken at the four compass points, with ticks through the gaps
+    reticle: function (b) {
+      var out = [], q = Math.PI / 2, g = 0.22;
+      for (var i = 0; i < 4; i++) {
+        var a0 = -Math.PI / 2 + i * q + g / 2;
+        out.push(ring(b.cx, b.cy, b.rx * 0.72, b.ry * 0.72, 7, a0, a0 + q - g));
+      }
+      out.push([[b.cx, b.cy - b.ry], [b.cx, b.cy - b.ry * 0.4]]);
+      out.push([[b.cx, b.cy + b.ry * 0.4], [b.cx, b.cy + b.ry]]);
+      out.push([[b.cx - b.rx, b.cy], [b.cx - b.rx * 0.4, b.cy]]);
+      out.push([[b.cx + b.rx * 0.4, b.cy], [b.cx + b.rx, b.cy]]);
+      return out;
+    },
+    // a louvre: the box, then slats across it
+    vents: function (b, n) {
+      var out = [[[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1], [b.x0, b.y0]]];
+      var m = Math.max(2, Math.min(10, n));
+      for (var i = 1; i < m; i++) {
+        var y = b.y0 + (b.y1 - b.y0) * (i / m);
+        out.push([[b.x0 + b.rx * 0.12, y], [b.x1 - b.rx * 0.12, y]]);
+      }
+      return out;
+    },
+    // the box, filled with diagonals — a warning block
+    hazard: function (b, n) {
+      var out = [[[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1], [b.x0, b.y0]]];
+      var w = b.x1 - b.x0, h = b.y1 - b.y0, step = w / Math.max(2, Math.min(10, n));
+      for (var x = b.x0 - h; x < b.x1; x += step) {
+        var ax = x, ay = b.y1, bx = x + h, by = b.y0;
+        // clip the diagonal to the box rather than letting it run outside
+        if (ax < b.x0) { ay = b.y1 - (b.x0 - ax); ax = b.x0; }
+        if (bx > b.x1) { by = b.y0 + (bx - b.x1); bx = b.x1; }
+        if (ay > b.y0 && by < b.y1 && bx > ax) out.push([[ax, ay], [bx, by]]);
+      }
+      return out;
+    },
+    // a cog: n teeth around a hub
+    gear: function (b, n) {
+      var teeth = Math.max(4, Math.min(14, n)), pts = [], i;
+      var steps = teeth * 4;
+      for (i = 0; i <= steps; i++) {
+        var th = -Math.PI / 2 + (i / steps) * Math.PI * 2;
+        var phase = i % 4;
+        var r = (phase === 1 || phase === 2) ? 1 : 0.74;
+        pts.push([b.cx + Math.cos(th) * b.rx * r, b.cy + Math.sin(th) * b.ry * r]);
+      }
+      return [pts, ring(b.cx, b.cy, b.rx * 0.3, b.ry * 0.3, 12)];
+    },
+    // a parabolic dish on a stem, seen side-on
+    /* A CUP, NOT AN UMBRELLA. y runs DOWNWARD on this canvas, so a dish that
+     * opens upward needs its centre at a LARGER y than its rim. Both earlier
+     * attempts put the centre above the rim, from opposite directions, and
+     * both produced a very convincing bandstand. */
+    dish: function (b) {
+      var out = [], i, u, pts = [];
+      var rim = b.cy - b.ry * 0.45, depth = b.ry * 0.7;
+      for (i = 0; i <= 16; i++) {
+        u = -1 + (i / 16) * 2;
+        pts.push([b.cx + u * b.rx, rim + (1 - u * u) * depth]);
+      }
+      out.push(pts);
+      out.push([[b.cx - b.rx, rim], [b.cx + b.rx, rim]]);                    // the rim
+      out.push([[b.cx, rim + depth], [b.cx, rim - b.ry * 0.22]]);            // feed horn
+      out.push([[b.cx - b.rx * 0.13, rim - b.ry * 0.22], [b.cx + b.rx * 0.13, rim - b.ry * 0.22]]);
+      out.push([[b.cx, rim + depth], [b.cx, b.cy + b.ry]]);                  // mast
+      out.push([[b.cx - b.rx * 0.32, b.cy + b.ry], [b.cx + b.rx * 0.32, b.cy + b.ry]]);
+      return out;
+    },
+    // a right-angled trace with a pad at each end
+    circuit: function (b) {
+      var px = b.rx * 0.16, py = b.ry * 0.16;
+      var a = [b.x0 + px, b.y1 - py], c = [b.x1 - px, b.y0 + py];
+      return [
+        [a, [a[0], b.cy], [c[0], b.cy], c],
+        [[a[0] - px, a[1] - py], [a[0] + px, a[1] - py], [a[0] + px, a[1] + py], [a[0] - px, a[1] + py], [a[0] - px, a[1] - py]],
+        [[c[0] - px, c[1] - py], [c[0] + px, c[1] - py], [c[0] + px, c[1] + py], [c[0] - px, c[1] + py], [c[0] - px, c[1] - py]],
+      ];
+    },
+    // spikes out of the middle: an impact, a muzzle flash, a star
+    burst: function (b, n) {
+      var m = Math.max(4, Math.min(16, n * 2)), out = [];
+      for (var i = 0; i < m; i++) {
+        var th = -Math.PI / 2 + (i / m) * Math.PI * 2;
+        var r0 = (i % 2) ? 0.3 : 0.16, r1 = (i % 2) ? 0.62 : 1;
+        out.push([[b.cx + Math.cos(th) * b.rx * r0, b.cy + Math.sin(th) * b.ry * r0],
+                  [b.cx + Math.cos(th) * b.rx * r1, b.cy + Math.sin(th) * b.ry * r1]]);
+      }
+      return out;
+    },
+    // a ring cut into arcs — a loading dial, a shield indicator
+    segring: function (b, n) {
+      var m = Math.max(3, Math.min(12, n)), out = [], g = Math.PI * 2 / m * 0.22;
+      for (var i = 0; i < m; i++) {
+        var a0 = -Math.PI / 2 + (i / m) * Math.PI * 2 + g / 2;
+        out.push(ring(b.cx, b.cy, b.rx, b.ry, 6, a0, a0 + Math.PI * 2 / m - g));
+      }
+      return out;
+    },
+    // a stadium: two half-circles joined by straights
+    capsule: function (b) {
+      var r = Math.min(b.rx, b.ry), wide = (b.x1 - b.x0) >= (b.y1 - b.y0);
+      var pts;
+      if (wide) {
+        pts = ring(b.x1 - r, b.cy, r, r, 10, -Math.PI / 2, Math.PI / 2)
+          .concat(ring(b.x0 + r, b.cy, r, r, 10, Math.PI / 2, Math.PI * 1.5));
+      } else {
+        pts = ring(b.cx, b.y0 + r, r, r, 10, Math.PI, Math.PI * 2)
+          .concat(ring(b.cx, b.y1 - r, r, r, 10, 0, Math.PI));
+      }
+      pts.push(pts[0]);
+      return [pts];
+    },
+    // three nested arrowheads
+    chevron: function (b) {
+      var out = [];
+      for (var i = 0; i < 3; i++) {
+        var t = i * 0.3;
+        out.push([[b.x0 + b.rx * t * 0.9, b.y0 + b.ry * t],
+                  [b.x1 - b.rx * t * 0.9, b.cy],
+                  [b.x0 + b.rx * t * 0.9, b.y1 - b.ry * t]]);
+      }
+      return out;
+    },
+    // a mesh, for a floor, a screen or a force field
+    grid: function (b, n) {
+      var m = Math.max(2, Math.min(10, n)), out = [], i, t;
+      for (i = 0; i <= m; i++) {
+        t = i / m;
+        out.push([[b.x0 + (b.x1 - b.x0) * t, b.y0], [b.x0 + (b.x1 - b.x0) * t, b.y1]]);
+        out.push([[b.x0, b.y0 + (b.y1 - b.y0) * t], [b.x1, b.y0 + (b.y1 - b.y0) * t]]);
+      }
+      return out;
+    },
+  };
+
+  /* ==================================================================
+   * SOLIDS — 3D, projected down to the same flat line art
+   * ==================================================================
+   * The art format is polylines in a -1..1 box. A wireframe solid, rotated
+   * and projected, IS polylines in a -1..1 box — so a cube needs no new format,
+   * no new renderer and no new export. It comes out the far end as ordinary
+   * strokes you can edit by hand, and a spin comes out as ordinary frames.
+   *
+   * The maths is the same as js/dieview.js, which already draws a real
+   * icosahedron for the die screen: vertices, faces, outward normals,
+   * orthographic projection. This is that, generalised, plus back-face
+   * culling.
+   *
+   * WHY CULLING MATTERS. A full wireframe cube is a Necker cube — the eye
+   * cannot decide which face is nearer and it flips between two readings while
+   * you look at it. Hiding the edges that belong only to faces pointing away
+   * is the difference between an object and a tangle of lines. It is a toggle
+   * because the see-through version is a look of its own, and for the open
+   * solids (a gyroscope, a girder frame) it is the only correct answer.
+   *
+   * WHY EVERY SOLID IS NORMALISED TO RADIUS 1. Fitting the PROJECTED shape to
+   * the dragged box would be tighter, and would make a spinning object pulse:
+   * a cube is wider corner-on than face-on, so each frame would be scaled
+   * differently and the thing would breathe as it turned. Scaling by a radius
+   * that does not change with rotation costs a little size and keeps it still.
+   * ================================================================== */
+  function solidRing(n, y, r, out) {
+    var idx = [];
+    for (var i = 0; i < n; i++) {
+      var th = (i / n) * Math.PI * 2;
+      idx.push(out.push([Math.cos(th) * r, y, Math.sin(th) * r]) - 1);
+    }
+    return idx;
+  }
+  function loopEdges(idx, edges) {
+    for (var i = 0; i < idx.length; i++) edges.push([idx[i], idx[(i + 1) % idx.length]]);
+  }
+  function bandFaces(a, b, faces, edges) {
+    for (var i = 0; i < a.length; i++) {
+      var j = (i + 1) % a.length;
+      faces.push([a[i], a[j], b[j], b[i]]);
+      if (edges) edges.push([a[i], b[i]]);
+    }
+  }
+
+  var PHI3 = (1 + Math.sqrt(5)) / 2;
+  var SOLIDS = {
+    cube: function () {
+      var v = [], i;
+      for (i = 0; i < 8; i++) v.push([(i & 1) ? 1 : -1, (i & 2) ? 1 : -1, (i & 4) ? 1 : -1]);
+      return { verts: v,
+        faces: [[0, 2, 3, 1], [4, 5, 7, 6], [0, 1, 5, 4], [2, 6, 7, 3], [0, 4, 6, 2], [1, 3, 7, 5]] };
+    },
+    // Point up, rather than the cube-diagonal form. Both are the same solid;
+    // the diagonal one happens to sit face-on at the default angle, so
+    // clicking TETRA gave you a flat triangle and looked broken.
+    tetra: function () {
+      return { verts: [[0, 1, 0], [0.943, -0.333, 0],
+                       [-0.471, -0.333, 0.816], [-0.471, -0.333, -0.816]],
+        faces: [[0, 2, 1], [0, 3, 2], [0, 1, 3], [1, 2, 3]] };
+    },
+    octa: function () {
+      return { verts: [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]],
+        faces: [[0, 2, 4], [2, 1, 4], [1, 3, 4], [3, 0, 4],
+                [2, 0, 5], [1, 2, 5], [3, 1, 5], [0, 3, 5]] };
+    },
+    // the die this game is built around, straight out of dieview.js
+    icosa: function () {
+      return { verts: [
+          [-1, PHI3, 0], [1, PHI3, 0], [-1, -PHI3, 0], [1, -PHI3, 0],
+          [0, -1, PHI3], [0, 1, PHI3], [0, -1, -PHI3], [0, 1, -PHI3],
+          [PHI3, 0, -1], [PHI3, 0, 1], [-PHI3, 0, -1], [-PHI3, 0, 1]],
+        faces: [
+          [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
+          [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
+          [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
+          [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]] };
+    },
+    pyramid: function (n) {
+      var v = [], faces = [];
+      var base = solidRing(Math.max(3, n), -0.7, 1, v);
+      var apex = v.push([0, 1, 0]) - 1;
+      for (var i = 0; i < base.length; i++) faces.push([base[i], base[(i + 1) % base.length], apex]);
+      faces.push(base.slice().reverse());
+      return { verts: v, faces: faces };
+    },
+    prism: function (n) {
+      var v = [], faces = [], edges = [];
+      var m = Math.max(3, n);
+      var top = solidRing(m, 1, 1, v), bot = solidRing(m, -1, 1, v);
+      bandFaces(top, bot, faces, edges);
+      faces.push(top.slice()); faces.push(bot.slice().reverse());
+      return { verts: v, faces: faces };
+    },
+    cone: function (n) {
+      var v = [], faces = [];
+      var base = solidRing(Math.max(6, n * 2), -1, 1, v);
+      var apex = v.push([0, 1, 0]) - 1;
+      for (var i = 0; i < base.length; i++) faces.push([base[i], base[(i + 1) % base.length], apex]);
+      faces.push(base.slice().reverse());
+      return { verts: v, faces: faces };
+    },
+    sphere: function (n) {
+      var rings = Math.max(3, Math.min(9, n)), seg = Math.max(6, Math.min(16, n * 2));
+      var v = [], faces = [], bands = [], i;
+      for (i = 1; i < rings; i++) {
+        var ph = (i / rings) * Math.PI;
+        bands.push(solidRing(seg, Math.cos(ph), Math.sin(ph), v));
+      }
+      var top = v.push([0, 1, 0]) - 1, bot = v.push([0, -1, 0]) - 1;
+      for (i = 0; i < bands.length - 1; i++) bandFaces(bands[i], bands[i + 1], faces, null);
+      for (i = 0; i < seg; i++) {
+        faces.push([top, bands[0][(i + 1) % seg], bands[0][i]]);
+        faces.push([bot, bands[bands.length - 1][i], bands[bands.length - 1][(i + 1) % seg]]);
+      }
+      return { verts: v, faces: faces };
+    },
+    torus: function (n) {
+      var big = Math.max(8, Math.min(20, n * 2)), small = Math.max(4, Math.min(10, n));
+      var v = [], faces = [], rings = [], i, j;
+      var R = 0.72, r = 0.28;
+      for (i = 0; i < big; i++) {
+        var a = (i / big) * Math.PI * 2, idx = [];
+        for (j = 0; j < small; j++) {
+          var t = (j / small) * Math.PI * 2;
+          var rr = R + Math.cos(t) * r;
+          idx.push(v.push([Math.cos(a) * rr, Math.sin(t) * r, Math.sin(a) * rr]) - 1);
+        }
+        rings.push(idx);
+      }
+      for (i = 0; i < big; i++) bandFaces(rings[i], rings[(i + 1) % big], faces, null);
+      return { verts: v, faces: faces };
+    },
+
+    /* ---- the sci-fi ones ---------------------------------------------
+     * These are hand-placed rather than generated, because what makes a hull
+     * read as a hull is proportion, not maths. Several are OPEN on purpose:
+     * a gyroscope or a girder frame has no solid surface to hide anything
+     * behind, so culling them would delete the thing itself. */
+    ship: function () {
+      /* Hand-placed, because what makes a hull read as a hull is proportion
+       * rather than maths. Wider and flatter than the first attempt, which
+       * normalised to its own long nose and came out as a splinter. */
+      return { verts: [
+          [0, 0, 1.15],                              // 0  nose
+          [-0.34, -0.12, 0.1], [0.34, -0.12, 0.1],   // 1,2 belly shoulders
+          [-0.3, 0.2, 0.05], [0.3, 0.2, 0.05],       // 3,4 spine shoulders
+          [-1.15, -0.02, -0.5], [1.15, -0.02, -0.5], // 5,6 wingtips
+          [-0.36, -0.1, -0.85], [0.36, -0.1, -0.85], // 7,8 tail belly
+          [-0.3, 0.2, -0.8], [0.3, 0.2, -0.8],       // 9,10 tail spine
+          [0, 0.72, -0.72],                          // 11 fin
+        ],
+        faces: [
+          [0, 4, 3], [0, 2, 4], [0, 3, 1],           // nose
+          [0, 1, 2],                                 // underside of the nose
+          [3, 4, 10, 9],                             // spine
+          [1, 7, 8, 2],                              // belly
+          [1, 5, 7], [3, 5, 1], [5, 9, 7],           // port wing
+          [2, 8, 6], [4, 2, 6], [6, 8, 10],          // starboard wing
+          [9, 10, 11],                               // fin
+          [7, 9, 11, 8],                             // tail
+        ],
+        /* SEE-THROUGH ON PURPOSE. Culling orients each face by comparing its
+         * normal against the direction of its own centre, which is exactly
+         * right for a convex solid and wrong for a fin standing off the top of
+         * one. Hiding back faces on this hull deleted the fin and half the
+         * wing and left a splinter; drawn whole it reads as a fighter from any
+         * angle, which is what a wireframe ship is supposed to do anyway. */
+        open: true };
+    },
+    satellite: function () {
+      var v = [], edges = [], i;
+      for (i = 0; i < 8; i++) v.push([((i & 1) ? 1 : -1) * 0.34, ((i & 2) ? 1 : -1) * 0.34, ((i & 4) ? 1 : -1) * 0.5]);
+      var body = [[0, 1], [1, 3], [3, 2], [2, 0], [4, 5], [5, 7], [7, 6], [6, 4],
+                  [0, 4], [1, 5], [2, 6], [3, 7]];
+      body.forEach(function (e) { edges.push(e); });
+      // two solar wings, each a panel split into three cells
+      [-1, 1].forEach(function (s) {
+        var x0 = s * 0.34, x1 = s * 1.5;
+        var a = v.push([x0, 0.06, -0.4]) - 1, b = v.push([x1, 0.06, -0.4]) - 1;
+        var c = v.push([x1, 0.06, 0.4]) - 1, d = v.push([x0, 0.06, 0.4]) - 1;
+        edges.push([a, b], [b, c], [c, d], [d, a]);
+        for (i = 1; i < 3; i++) {
+          var t = i / 3;
+          var p = v.push([x0 + (x1 - x0) * t, 0.06, -0.4]) - 1;
+          var q = v.push([x0 + (x1 - x0) * t, 0.06, 0.4]) - 1;
+          edges.push([p, q]);
+        }
+      });
+      // dish on a mast
+      var m0 = v.push([0, 0.34, 0]) - 1, m1 = v.push([0, 0.85, 0]) - 1;
+      edges.push([m0, m1]);
+      var dish = solidRing(8, 0.95, 0.3, v);
+      loopEdges(dish, edges);
+      dish.forEach(function (k) { edges.push([m1, k]); });
+      return { verts: v, edges: edges, open: true };
+    },
+    gyro: function (n) {
+      // three rings at right angles: the classic reactor core
+      var v = [], edges = [], m = Math.max(10, Math.min(24, n * 3));
+      [[0, 1, 2], [1, 2, 0], [2, 0, 1]].forEach(function (ax, k) {
+        var idx = [], i;
+        for (i = 0; i < m; i++) {
+          var th = (i / m) * Math.PI * 2, p = [0, 0, 0];
+          var r = 1 - k * 0.16;
+          p[ax[0]] = Math.cos(th) * r; p[ax[1]] = Math.sin(th) * r;
+          idx.push(v.push(p) - 1);
+        }
+        loopEdges(idx, edges);
+      });
+      return { verts: v, edges: edges, open: true };
+    },
+    crystal: function (n) {
+      var v = [], faces = [], m = Math.max(4, Math.min(10, n));
+      var mid = solidRing(m, 0, 1, v);
+      var top = v.push([0, 1.5, 0]) - 1, bot = v.push([0, -1.5, 0]) - 1;
+      for (var i = 0; i < m; i++) {
+        var j = (i + 1) % m;
+        faces.push([mid[i], mid[j], top]);
+        faces.push([mid[j], mid[i], bot]);
+      }
+      return { verts: v, faces: faces };
+    },
+    girder: function () {
+      // an open cube of beams — the see-through look, on purpose
+      var v = [], edges = [], i;
+      for (i = 0; i < 8; i++) v.push([(i & 1) ? 1 : -1, (i & 2) ? 1 : -1, (i & 4) ? 1 : -1]);
+      [[0, 1], [1, 3], [3, 2], [2, 0], [4, 5], [5, 7], [7, 6], [6, 4],
+       [0, 4], [1, 5], [2, 6], [3, 7],
+       [0, 5], [2, 7], [1, 6], [3, 4]].forEach(function (e) { edges.push(e); });
+      return { verts: v, edges: edges, open: true };
+    },
+    station: function (n) {
+      // a habitation ring on spokes around a hub
+      var v = [], edges = [], m = Math.max(10, Math.min(24, n * 2)), i;
+      var outer = [], inner = [];
+      for (i = 0; i < m; i++) {
+        var th = (i / m) * Math.PI * 2;
+        outer.push(v.push([Math.cos(th), 0.13, Math.sin(th)]) - 1);
+        inner.push(v.push([Math.cos(th), -0.13, Math.sin(th)]) - 1);
+      }
+      loopEdges(outer, edges); loopEdges(inner, edges);
+      for (i = 0; i < m; i++) edges.push([outer[i], inner[i]]);
+      var hub = solidRing(6, 0, 0.18, v);
+      loopEdges(hub, edges);
+      for (i = 0; i < 4; i++) edges.push([hub[i + (i > 1 ? 1 : 0)], outer[Math.round(i * m / 4)]]);
+      return { verts: v, edges: edges, open: true };
+    },
+    turret: function (n) {
+      /* A tapered base, a dome and a barrel pointing forward. Built from
+       * explicit rings rather than the generic helpers, because the first
+       * version reused a ring it had already consumed and produced a shape
+       * that was neither a turret nor anything else. */
+      var v = [], faces = [], m = Math.max(5, Math.min(12, n)), i, j;
+      var foot = solidRing(m, -0.9, 0.95, v);
+      var waist = solidRing(m, -0.35, 0.7, v);
+      var shoulder = solidRing(m, 0.05, 0.6, v);
+      bandFaces(foot, waist, faces, null);
+      bandFaces(waist, shoulder, faces, null);
+      faces.push(foot.slice());
+      var apex = v.push([0, 0.5, 0]) - 1;
+      for (i = 0; i < m; i++) faces.push([shoulder[i], shoulder[(i + 1) % m], apex]);
+      // the barrel: a square tube out of the front
+      var w = 0.14, base = [], tip = [];
+      for (i = 0; i < 4; i++) {
+        var sx = (i === 0 || i === 3) ? -w : w;
+        var sy = (i < 2) ? w : -w;
+        base.push(v.push([sx, sy - 0.05, 0.3]) - 1);
+        tip.push(v.push([sx, sy - 0.05, 1.55]) - 1);
+      }
+      for (i = 0; i < 4; i++) {
+        j = (i + 1) % 4;
+        faces.push([base[i], base[j], tip[j], tip[i]]);
+      }
+      faces.push(tip.slice());
+      return { verts: v, faces: faces };
+    },
+    pod: function (n) {
+      // a landing pod: a capsule body on three legs
+      var v = [], faces = [], edges = [], m = Math.max(5, Math.min(12, n));
+      var a = solidRing(m, 0.55, 0.55, v), b = solidRing(m, -0.15, 0.75, v);
+      bandFaces(a, b, faces, null);
+      var apex = v.push([0, 1, 0]) - 1;
+      for (var i = 0; i < m; i++) faces.push([a[i], a[(i + 1) % m], apex]);
+      faces.push(b.slice().reverse());
+      for (i = 0; i < 3; i++) {
+        var k = Math.round(i * m / 3);
+        var foot = v.push([v[b[k]][0] * 1.6, -1, v[b[k]][2] * 1.6]) - 1;
+        edges.push([b[k], foot]);
+      }
+      return { verts: v, faces: faces, edges: edges };
+    },
+  };
+
+  /* ---- turning a solid into strokes ------------------------------------ */
+  var solidCache = {};
+  function buildSolid(id, n) {
+    var key = id + ':' + n;
+    if (solidCache[key]) return solidCache[key];
+    var maker = SOLIDS[id] || SOLIDS.cube;
+    var s = maker(n);
+    var verts = s.verts.map(function (p) { return p.slice(); });
+
+    // normalise to radius 1 so a rotation cannot change the size
+    var R = 0;
+    verts.forEach(function (p) { R = Math.max(R, Math.hypot(p[0], p[1], p[2])); });
+    if (R > 0) verts = verts.map(function (p) { return [p[0] / R, p[1] / R, p[2] / R]; });
+
+    /* Edges are derived from the faces, deduplicated. Emitting one polyline
+     * per FACE would draw every shared edge twice — visually identical, twice
+     * the bytes, and a mess to edit afterwards. */
+    var edgeMap = {}, edges = [];
+    function addEdge(i, j, face) {
+      var k = Math.min(i, j) + ',' + Math.max(i, j);
+      if (!edgeMap[k]) { edgeMap[k] = { a: i, b: j, f: [] }; edges.push(edgeMap[k]); }
+      if (face != null) edgeMap[k].f.push(face);
+    }
+    (s.faces || []).forEach(function (f, fi) {
+      for (var i = 0; i < f.length; i++) addEdge(f[i], f[(i + 1) % f.length], fi);
+    });
+    (s.edges || []).forEach(function (e) { addEdge(e[0], e[1], null); });
+
+    /* EACH FACE GETS AN OUTWARD NORMAL, worked out here rather than trusted
+     * from the winding order. Deciding visibility from the winding meant every
+     * face had to be listed in a consistent direction by hand, and one that
+     * was not — the prism's top cap — was culled on every frame where it
+     * should have been visible, so the solid came out with its lid missing and
+     * nothing to say why. Comparing the normal against the direction of the
+     * face's own centre orients it correctly for any convex solid without
+     * anybody having to be careful. */
+    var faces = s.faces || [];
+    var normals = faces.map(function (fc) {
+      var a = verts[fc[0]], b2 = verts[fc[1]], c2 = verts[fc[2]];
+      var ux = b2[0] - a[0], uy = b2[1] - a[1], uz = b2[2] - a[2];
+      var vx = c2[0] - a[0], vy = c2[1] - a[1], vz = c2[2] - a[2];
+      var n = [uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx];
+      var L = Math.hypot(n[0], n[1], n[2]) || 1;
+      n = [n[0] / L, n[1] / L, n[2] / L];
+      var ctr = [0, 0, 0];
+      fc.forEach(function (k) { ctr[0] += verts[k][0]; ctr[1] += verts[k][1]; ctr[2] += verts[k][2]; });
+      var m = fc.length;
+      ctr = [ctr[0] / m, ctr[1] / m, ctr[2] / m];
+      if (n[0] * ctr[0] + n[1] * ctr[1] + n[2] * ctr[2] < 0) n = [-n[0], -n[1], -n[2]];
+      return n;
+    });
+
+    var built = { verts: verts, edges: edges, faces: faces, normals: normals, open: !!s.open };
+    solidCache[key] = built;
+    return built;
+  }
+
+  function rot3(p, yaw, pitch) {
+    var x = p[0], y = p[1], z = p[2], c, s, t;
+    c = Math.cos(yaw); s = Math.sin(yaw);
+    t = x * c + z * s; z = -x * s + z * c; x = t;
+    c = Math.cos(pitch); s = Math.sin(pitch);
+    t = y * c - z * s; z = y * s + z * c; y = t;
+    return [x, y, z];
+  }
+
+  /* Project a solid at a given rotation into strokes inside the box.
+   * Separated from the drag so BAKE SPIN can call it once per frame. */
+  function solidStrokes(box, id, n, yaw, pitch, persp, cull) {
+    var S = buildSolid(id, n);
+    var P = S.verts.map(function (p) { return rot3(p, yaw, pitch); });
+
+    // a face is visible when its outward normal still points at the viewer
+    // after the rotation, i.e. its z component is positive
+    var vis = S.normals.map(function (n) { return rot3(n, yaw, pitch)[2] > 0; });
+
+    function flat(p) {
+      // orthographic at persp 0; the divide leans it into perspective, and the
+      // 0.35 keeps the denominator positive for anything inside the unit sphere
+      var k = 1 / (1 - persp * p[2] * 0.35);
+      return [+(box.cx + p[0] * box.rx * k).toFixed(3),
+              +(box.cy - p[1] * box.ry * k).toFixed(3)];
+    }
+    var out = [];
+    S.edges.forEach(function (e) {
+      if (cull && !S.open && e.f.length) {
+        var seen = false;
+        for (var i = 0; i < e.f.length; i++) if (vis[e.f[i]]) { seen = true; break; }
+        if (!seen) return;
+      }
+      out.push([flat(P[e.a]), flat(P[e.b])]);
+    });
+    return out;
+  }
+
   function makeShape(a, bb) {
     var x0 = Math.min(a[0], bb[0]), x1 = Math.max(a[0], bb[0]);
     var y0 = Math.min(a[1], bb[1]), y1 = Math.max(a[1], bb[1]);
@@ -1031,6 +1820,10 @@
     var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
     var rx = (x1 - x0) / 2, ry = (y1 - y0) / 2, pts = [], i, th;
 
+    if (SCIFI[shp]) {
+      return SCIFI[shp]({ x0: x0, x1: x1, y0: y0, y1: y1, cx: cx, cy: cy, rx: rx, ry: ry }, shpN)
+        .map(function (s) { return s.map(round2); });
+    }
     if (shp === 'rect' || shp === 'square') {
       pts = [[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]];
     } else if (shp === 'round') {
@@ -1055,7 +1848,34 @@
         pts.push([cx + Math.cos(th) * rx, cy + Math.sin(th) * ry]);
       }
     }
-    return pts.map(function (q) { return [+q[0].toFixed(3), +q[1].toFixed(3)]; });
+    return [pts.map(round2)];
+  }
+  function round2(q) { return [+q[0].toFixed(3), +q[1].toFixed(3)]; }
+
+  /* Which tools ignore MIRROR. The selected SHAPE only counts while the shape
+   * tool is the one in use — reading it regardless meant that picking a
+   * sci-fi shape once made the readout claim mirror was off in every other
+   * tool for the rest of the session, while it was quietly still on. */
+  function unmirrored() {
+    return mode === 'solid' || (mode === 'shape' && !!SCIFI[shp]);
+  }
+
+  /* One drag, one generator. SHAPE and SOLID are the same gesture over the
+   * same box; only what comes out of it differs, and both now return a LIST
+   * of strokes because most of the sci-fi shapes and every solid are several
+   * separate lines rather than one closed outline. */
+  function dragStrokes(a, bb) {
+    if (mode === 'solid') {
+      var x0 = Math.min(a[0], bb[0]), x1 = Math.max(a[0], bb[0]);
+      var y0 = Math.min(a[1], bb[1]), y1 = Math.max(a[1], bb[1]);
+      var side = Math.max(x1 - x0, y1 - y0);        // solids are not squashed
+      if (bb[0] < a[0]) x0 = x1 - side; else x1 = x0 + side;
+      if (bb[1] < a[1]) y0 = y1 - side; else y1 = y0 + side;
+      var bx = { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, rx: side / 2, ry: side / 2 };
+      lastSolidBox = bx;
+      return solidStrokes(bx, sld, shpN, sldYaw, sldTilt, sldPersp, sldCull);
+    }
+    return makeShape(a, bb);
   }
 
   /* THE ERASER. Takes out whole STROKES rather than nibbling pixels, because
@@ -1476,7 +2296,7 @@
     };
   });
   var MODE_KEYS = { d: 'mDraw', l: 'mLine', f: 'mFree', s: 'mShape', e: 'mEye',
-                    a: 'mEdit', v: 'mSel', h: 'mPan', x: 'mErase' };
+                    a: 'mEdit', v: 'mSel', h: 'mPan', x: 'mErase', '3': 'mSolid' };
   document.addEventListener('keydown', function (ev) {
     if (ev.target.tagName === 'TEXTAREA' || ev.target.tagName === 'INPUT') return;
     // one letter a tool, the way every drawing program does it
@@ -1812,7 +2632,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 17';
+  document.getElementById('ver').textContent = 'build 18';
 
   libLoad(); renderLib(); renderAssets();
   var restored = loadAutosave();

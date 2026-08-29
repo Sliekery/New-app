@@ -92,9 +92,10 @@ The hooks are always present; only the panel is behind the flag.
     node test/sampler.js       the sound tool's sample editor
     node test/animated.js      animated art, end to end through every stop
     node test/standalone.js    tools/linework.html, opened from file://
+    node test/geometry.js      every sci-fi shape and every 3D solid
     node test/_shell.js        all five tools: no page scroll, no pinch zoom
 
-The last five need the tools served: `python3 -m http.server 8944` from
+The last six need the tools served: `python3 -m http.server 8944` from
 `voidspire/`.
 
 `artist.js` and `sampler.js` exist because of one repeated failure, not a
@@ -136,6 +137,45 @@ The DOM half plays a reel as a sprite sheet — frames laid side by side, the
 strip stepped one 24-unit frame-width at a time by a CSS `steps()` animation,
 frames past the first clipped by the viewBox. No script, and a browser that
 will not animate shows frame one rather than a pile of overlapping frames.
+
+## 3D in the drawing tool
+
+The artist has a SOLID tool: drag a box, a wireframe solid fits it, TURN and
+TILT aim it, BAKE SPIN turns it into frames. Seventeen solids, plus fourteen
+flat sci-fi shapes on the SHAPE tool.
+
+**No new format.** A wireframe projected to 2D IS polylines in a -1..1 box, and
+a spin IS `{ fps, frames }`, so a cube flows through the renderer, the animated
+SVG reel, the asset collector and LINEWORK's export without any of them
+knowing. The maths is `js/dieview.js` generalised.
+
+Four things that were got wrong first and are worth not repeating:
+
+- **A spin must be GENERATED per frame, never tweened.** Interpolating the flat
+  points between a cube at 0 degrees and the same cube at 90 squashes it
+  through a flat line instead of turning it. A 2D tween cannot know the shape
+  was ever three-dimensional. `test/geometry.js` checks no frame of a spin is
+  narrower than half the widest, which is what that failure looks like.
+- **Orient face normals from the geometry, not the winding order.** Deciding
+  visibility from how a face happened to be listed meant every face had to be
+  wound consistently by hand, and one that was not — the prism's top cap — was
+  culled on every frame and the solid came out with its lid missing. Comparing
+  each normal against the direction of its own centre fixes it for any convex
+  solid without anybody having to be careful.
+- **Culling is wrong for a non-convex solid.** That same centroid trick cannot
+  orient a fin standing off the top of a hull, so the ship lost its fin and
+  half a wing. Non-convex solids are marked `open: true` and drawn whole.
+- **Normalise each solid to radius 1, not to its projected bounding box.**
+  Fitting the projection would be tighter and would make a spinning object
+  pulse: a cube is wider corner-on than face-on, so every frame would be
+  scaled differently and the thing would breathe as it turned.
+
+Generated geometry also fails quietly. The suite drags out all 23 shapes and
+all 17 solids and checks the numbers — a NaN (which Canvas drops silently, so
+the stroke exists and never draws), a point outside the box, an odd-length
+path. A picture is not enough either: the data was clean while the dish was
+upside down and the turret was reusing a ring it had already consumed, so the
+suite renders contact sheets too.
 
 ## The standalone drawing tool
 
