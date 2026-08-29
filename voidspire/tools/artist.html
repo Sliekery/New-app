@@ -1588,16 +1588,25 @@
       return (a.name + ' ' + a.id).toLowerCase().indexOf(q) >= 0;
     }).slice(0, 120);
     hits.forEach(function (a) {
+      /* An asset is either one shape or a reel of them. loadArt already knew
+       * how to take a reel; this list did not — it pulled a.p and a.e off the
+       * record and handed over a single frame, so an animated sprite would
+       * have opened here as a still and been saved back the same way, losing
+       * the animation without ever saying so. */
+      var f0 = a.frames ? (a.frames[0] || { p: [], e: [] }) : a;
       var row = document.createElement('div');
       row.className = 'it';
-      row.appendChild(thumb(a.p, a.e, 30));
+      row.appendChild(thumb(f0.p, f0.e, 30));
       var nm = document.createElement('span');
-      nm.className = 'nm'; nm.textContent = a.name;
+      nm.className = 'nm';
+      nm.textContent = a.name + (a.frames ? '  (' + a.frames.length + ' frames)' : '');
       row.appendChild(nm);
       var kd = document.createElement('span');
       kd.className = 'kd'; kd.textContent = a.kind.slice(0, 4).toUpperCase();
       row.appendChild(kd);
-      row.onclick = function () { loadArt({ p: a.p, e: a.e }, a.name); };
+      row.onclick = function () {
+        loadArt(a.frames ? { fps: a.fps, frames: a.frames } : { p: a.p, e: a.e }, a.name);
+      };
       host.appendChild(row);
     });
     if (!hits.length) host.innerHTML = '<div class="hint" style="padding:8px">nothing matches</div>';
@@ -1803,7 +1812,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 16';
+  document.getElementById('ver').textContent = 'build 17';
 
   libLoad(); renderLib(); renderAssets();
   var restored = loadAutosave();

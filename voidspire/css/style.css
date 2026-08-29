@@ -989,6 +989,17 @@ svg.vec polyline {
 svg.vec circle.eye { fill: #f2fff5; stroke: none; animation: blink 4.6s infinite; }
 @keyframes blink { 0%, 90% { opacity: 1; } 93%, 96% { opacity: 0.1; } 100% { opacity: 1; } }
 
+/* Animated art, played as a sprite reel: the frames sit side by side inside
+   the group and the whole strip steps one 24-unit frame at a time. The step
+   count and the duration are written per element by artSVG, since both depend
+   on how many frames the art has. */
+svg.vec .vec-reel { will-change: transform; }
+@keyframes vec-reel { to { transform: translateX(calc(var(--vec-n, 1) * -24px)); } }
+@media (prefers-reduced-motion: reduce) {
+  svg.vec .vec-reel { animation: none !important; }
+  svg.vec circle.eye { animation: none; }
+}
+
 .art-icon { width: 15px; height: 15px; color: var(--amber); }
 .artifact-chip { display: flex; align-items: center; justify-content: center; }
 .pb-icon { display: inline-block; width: 17px; height: 17px; vertical-align: -4px; margin-right: 7px; color: var(--amber); }

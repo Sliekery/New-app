@@ -18,11 +18,11 @@ global.VS = {};
   try { require(path.join(root, 'js', m + '.js')); } catch (e) { /* optional */ }
 });
 
-function clean(art) {
+// Skip anything non-finite rather than emitting it. Canvas silently drops a
+// path containing NaN, so such art has never drawn; carrying it into the
+// editor would only let it be read back as zeros and become a visible line.
+function cleanFrame(art) {
   if (!art) return null;
-  // Skip anything non-finite rather than emitting it. Canvas silently drops a
-  // path containing NaN, so such art has never drawn; carrying it into the
-  // editor would only let it be read back as zeros and become a visible line.
   var p = (art.p || []).map(function (flat) {
     return flat.filter(function (n) { return typeof n === 'number' && isFinite(n); });
   }).filter(function (flat) { return flat.length >= 4; });
@@ -33,11 +33,29 @@ function clean(art) {
   return { p: p, e: e };
 }
 
-var out = [], skipped = 0;
+/* An art block is normally one shape, { p, e }, but may instead be
+ * { fps, frames: [ {p,e}, … ] } — which the battlefield renderer has always
+ * played and this collector did not know about. It read art.p off an animated
+ * block, found undefined, and dropped the whole asset: the first sprite we
+ * animated would simply have disappeared out of the artist's library, with no
+ * error to say why. Both shapes now survive the trip. */
+function clean(art) {
+  if (!art) return null;
+  if (art.frames) {
+    var fr = art.frames.map(cleanFrame).filter(Boolean);
+    return fr.length ? { fps: art.fps || 8, frames: fr } : null;
+  }
+  return cleanFrame(art);
+}
+
+var out = [], skipped = 0, animated = 0;
 function take(kind, id, name, art) {
   var c = clean(art);
   if (!c) { skipped++; return; }
-  out.push({ kind: kind, id: id, name: name || id, p: c.p, e: c.e });
+  var rec = { kind: kind, id: id, name: name || id };
+  if (c.frames) { rec.fps = c.fps; rec.frames = c.frames; animated++; }
+  else { rec.p = c.p; rec.e = c.e; }
+  out.push(rec);
 }
 
 Object.keys(VS.ENEMIES || {}).forEach(function (id) {
@@ -60,6 +78,8 @@ console.log('assets.js: ' + out.length + ' pieces of art'
   + out.filter(function (a) { return a.kind === 'engraving'; }).length + ' engravings, '
   + out.filter(function (a) { return a.kind === 'card'; }).length + ' cards)'
   + (skipped ? ', ' + skipped + ' skipped as empty or unusable' : ''));
+if (animated) console.log('  ' + animated + ' of them are animated');
+else console.log('  none of them is animated yet — every piece is a single frame');
 console.log('  ' + Math.round(body.length / 1024) + ' KB');
 
 /* The sound tool drives the REAL music engine rather than a copy of it, so the

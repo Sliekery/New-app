@@ -90,9 +90,10 @@ The hooks are always present; only the panel is behind the flag.
     node test/devconsole.js    the dev console sets up REAL situations
     node test/artist.js        the artist tool, driven through its buttons
     node test/sampler.js       the sound tool's sample editor
+    node test/animated.js      animated art, end to end through every stop
     node test/_shell.js        all five tools: no page scroll, no pinch zoom
 
-The last four need the tools served: `python3 -m http.server 8944` from
+The last five need the tools served: `python3 -m http.server 8944` from
 `voidspire/`.
 
 `artist.js` and `sampler.js` exist because of one repeated failure, not a
@@ -105,6 +106,35 @@ had stopped agreeing with its data. **So assert against what the tool says
 about itself** — its status line and its export — after every gesture, and the
 whole class disappears. Between them these two suites found four real bugs on
 the day they were written.
+
+## Animated art: supported everywhere, used nowhere
+
+An art block is normally one shape, `{ p, e }`. It may instead be
+`{ fps, frames: [ {p,e}, … ] }` and play on a loop. **No art in the game uses
+that yet** — all 49 enemies, 96 engravings and 201 card icons are a single
+frame. What moves on the battlefield is the renderer's idle bob, not the art.
+
+That gap mattered more than it looked. The battlefield canvas had always been
+able to play a reel, so the capability read as present, while every other stop
+along the pipe had quietly grown unable to carry one:
+
+- `tools/build-assets.js` read `art.p` off an animated block, got `undefined`
+  and dropped the asset — the first sprite we animated would have vanished
+  from the artist's library with no error to say why.
+- The artist's asset list pulled `a.p` / `a.e` off the record, so a surviving
+  reel would have opened as a still and been saved back as one.
+- `artSVG` did `art.p.forEach` and threw, which would have taken out every
+  screen showing an engraving or a card icon.
+
+All three are the same shape: **a capability that exists at one end of a pipe
+and nowhere along it.** Worth checking for whenever something is supported "in
+principle" but has never had a real user. `test/animated.js` walks the whole
+pipe with a real four-frame block.
+
+The DOM half plays a reel as a sprite sheet — frames laid side by side, the
+strip stepped one 24-unit frame-width at a time by a CSS `steps()` animation,
+frames past the first clipped by the viewBox. No script, and a browser that
+will not animate shows frame one rather than a pile of overlapping frames.
 
 ## Verifying UI work
 

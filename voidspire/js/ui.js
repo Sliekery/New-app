@@ -152,6 +152,19 @@
       + '<polygon points="20,3 35,12 35,28 20,37 5,28 5,12" fill="none" stroke="currentColor" stroke-width="2.4"/>'
       + '<polygon points="20,10 29,25 11,25" fill="none" stroke="currentColor" stroke-width="1.6" opacity="0.6"/></svg>';
   }
+  /* ART AS AN SVG. The same art blocks the battlefield draws on canvas, drawn
+   * instead as DOM — engravings, card icons, die faces, 28 places in all.
+   *
+   * ANIMATED ART. A block may be { fps, frames: [ {p,e}, … ] } rather than a
+   * plain { p, e }. The canvas renderer has always played those; this did not
+   * even survive meeting one — it read art.p straight off the block and threw
+   * on undefined, so animating a single engraving would have taken out every
+   * screen that shows one. It plays them now, as a reel: the frames are laid
+   * out side by side and the strip is stepped one frame-width at a time, which
+   * is a sprite sheet and needs no script to run. Frames past the first sit
+   * outside the viewBox and are clipped, so a browser that will not animate —
+   * or a reader who has asked for less motion — sees frame one and nothing
+   * out of place. */
   function artSVG(art, cls, color) {
     function pts(arr) {
       var o = [];
@@ -160,13 +173,28 @@
       }
       return o.join(' ');
     }
+    function shapes(a) {
+      var s = '';
+      (a.p || []).forEach(function (p) { s += '<polyline points="' + pts(p) + '"/>'; });
+      (a.e || []).forEach(function (e) {
+        s += '<circle class="eye" cx="' + ((e[0] + 1.2) * 10).toFixed(2) + '" cy="' + ((e[1] + 1.2) * 10).toFixed(2) + '" r="0.6"/>';
+      });
+      if (a.m) s += '<polyline class="mouth" points="' + pts(a.m) + '"/>';
+      return s;
+    }
     var out = '<svg class="vec' + (cls ? ' ' + cls : '') + '" viewBox="0 0 24 24"' +
       (color ? ' style="color:' + color + '"' : '') + '>';
-    art.p.forEach(function (p) { out += '<polyline points="' + pts(p) + '"/>'; });
-    (art.e || []).forEach(function (e) {
-      out += '<circle class="eye" cx="' + ((e[0] + 1.2) * 10).toFixed(2) + '" cy="' + ((e[1] + 1.2) * 10).toFixed(2) + '" r="0.6"/>';
-    });
-    if (art.m) out += '<polyline class="mouth" points="' + pts(art.m) + '"/>';
+    if (art && art.frames && art.frames.length) {
+      var n = art.frames.length, secs = (n / (art.fps || 8)).toFixed(3);
+      out += '<g class="vec-reel" style="--vec-n:' + n
+           + ';animation:vec-reel ' + secs + 's steps(' + n + ') infinite">';
+      art.frames.forEach(function (fr, i) {
+        out += '<g transform="translate(' + (i * 24) + ',0)">' + shapes(fr) + '</g>';
+      });
+      out += '</g>';
+    } else if (art) {
+      out += shapes(art);
+    }
     return out + '</svg>';
   }
 
