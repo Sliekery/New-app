@@ -95,9 +95,10 @@ The hooks are always present; only the panel is behind the flag.
     node test/geometry.js      every sci-fi shape and every 3D solid
     node test/ux.js            the layout budget: canvas share, targets, prose
     node test/export.js        every export format, saved and then opened
+    node test/tabs.js          several drawings open at once, and their seams
     node test/_shell.js        all five tools: no page scroll, no pinch zoom
 
-The last eight need the tools served: `python3 -m http.server 8944` from
+The last nine need the tools served: `python3 -m http.server 8944` from
 `voidspire/`.
 
 `artist.js` and `sampler.js` exist because of one repeated failure, not a
@@ -360,6 +361,48 @@ Two browser-testing notes worth keeping:
   image never loads into it** — and a `file://` page that CAN load one taints
   the canvas, so `getImageData` throws. Pass the bytes in as a `data:` URL;
   it is neither.
+
+## Document tabs
+
+Several drawings open at once, one tab each. **What belongs to a tab** is the
+whole design: the drawing, the current frame and layer, its own UNDO HISTORY,
+and its own zoom and pan. MIRROR, GRID, the tool in your hand and the glow
+colour are settings about how you work rather than about a drawing, so they
+follow you across — which is what Photoshop does with its tool options.
+
+The tool holds exactly one `doc`, one history stack, one frame index and one
+viewport, so a tab is poured into those globals on the way in and poured back
+on the way out. One place to get right instead of two thousand lines taught to
+say `tabs[active].doc`.
+
+**The whole risk is leakage**, and none of it crashes:
+
+- Undo in one drawing removing a stroke from another, because both share a
+  stack.
+- A half-finished path following you across and being committed into a drawing
+  you never touched. Everything in progress — a stroke, a marquee, a solid
+  mid-drag — is dropped at the boundary.
+- The status note from the last thing you did reading out over a drawing it
+  did not happen in.
+
+`test/tabs.js` checks those seams rather than the buttons.
+
+**The migration is the part that could not be got wrong.** Whatever was in the
+old single-document autosave becomes tab one. Shipping without it would have
+silently emptied the canvas of anyone who had a drawing open — the one thing a
+tool that autosaves must never do. Testing it needs an init script on a page of
+its own: writing the old key with `evaluate()` and reloading does not work,
+because the reload fires `pagehide`, the tool flushes its empty tab set on the
+way out, and the migration then correctly declines to run.
+
+Undo histories are not persisted, only the drawings — Photoshop does not
+persist history either, and fifty deep per tab is the difference between a save
+that fits in localStorage and one that throws.
+
+**The strip costs 35px of height, and `test/ux.js` caught it** — the laptop
+canvas fell to 23% against a 24% floor. Paid for rather than waved through: the
+frame strip's heading is hidden while it is tucked, since the row under it
+already says "one frame — a still drawing".
 
 ## Verifying UI work
 

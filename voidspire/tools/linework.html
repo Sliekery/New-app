@@ -115,6 +115,33 @@
      either, so choosing one meant placing it, looking, undoing and trying the
      next. The thumbnails are drawn by the same projector that draws the real
      thing, so what you pick is what you get. */
+  /* ==================================================================
+   * DOCUMENT TABS — above the canvas, where every editor puts them.
+   * Small, because they are navigation and not the work; the active one is
+   * lifted rather than shouted, since the canvas below it already says which
+   * drawing you are in. */
+  .tabbar {
+    display: flex; flex-wrap: wrap; gap: 3px; align-items: stretch;
+    margin-bottom: 3px; flex: 0 0 auto;
+  }
+  .tabbar .tab {
+    display: flex; align-items: center; gap: 5px; cursor: pointer;
+    background: rgba(10,16,20,0.9); border: 1px solid var(--line);
+    border-bottom-color: transparent; border-radius: 4px 4px 0 0;
+    padding: 5px 8px; min-height: 26px; font-size: 10px; letter-spacing: .05em;
+    color: var(--dim); max-width: 190px;
+  }
+  .tabbar .tab:hover { border-color: var(--cyan); }
+  .tabbar .tab.on {
+    background: rgba(93,255,136,0.1); border-color: var(--green);
+    color: var(--green);
+  }
+  .tabbar .tab .tn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tabbar .tab .tc { font-size: 8.5px; opacity: .6; flex: 0 0 auto; }
+  .tabbar .tab .tx { opacity: .45; flex: 0 0 auto; padding: 0 2px; }
+  .tabbar .tab .tx:hover { opacity: 1; color: var(--red); }
+  @media (pointer: coarse) { .tabbar .tab { min-height: 40px; padding: 5px 10px; } }
+
   .sldgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 3px; }
   .sldgrid.wide { grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); }
   .sldgrid button {
@@ -322,7 +349,10 @@
      the time it is 96px spent on tween, onion skin, fps and a strip with one
      thumbnail in it. It folds itself away until there is an animation, and
      one tap brings it back. */
-  .framestrip.tucked > h2 { margin: 0; }
+  /* Tucked, the heading is saying nothing the row below it does not — and on
+     a 720px laptop those twenty pixels are the difference between the canvas
+     clearing its budget and not. ANIMATION CONTROLS in the row opens it. */
+  .framestrip.tucked > h2 { display: none; }
   .framestrip.tucked .frames { display: none; }
   /* The two that START an animation stay. Hiding DUPLICATE with the rest was
      the wrong cut: copying the drawing and changing it is how an animation
@@ -401,6 +431,7 @@
   </div>
 
   <div class="mid">
+    <div class="tabbar" id="tabBar"></div>
     <div class="stage">
       <canvas id="pad" width="1100" height="1100"></canvas>
       <div class="bar">
@@ -2609,7 +2640,7 @@
     }
     return kids.length - 1;
   }
-  function saveNow() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(doc)); } catch (e) {} }
+  function saveNow() { saveTabs(); }
   function clone(f) { return JSON.parse(JSON.stringify(f)); }
   document.getElementById('fAdd').onclick = function () {
     finish(); pushHistory(); doc.frames.splice(fi + 1, 0, blankFrame(doc.layers.length));
@@ -3647,22 +3678,236 @@
   });
 
   /* ==================================================================
+   * DOCUMENT TABS
+   * ==================================================================
+   * One drawing at a time meant a second one cost you the first: the tool
+   * holds exactly one `doc`, so starting something else was RESET TOOL, and
+   * coming back to the first was hoping you had saved a .json.
+   *
+   * WHAT BELONGS TO A TAB and what does not is the whole design. A tab owns
+   * the drawing, which frame and layer you were on, its own UNDO HISTORY, and
+   * its own zoom and pan — undo that reached across documents would be the
+   * worst kind of surprise, and coming back to a drawing zoomed somewhere else
+   * loses your place. MIRROR, GRID, the current tool and the glow colour are
+   * settings about how you work rather than about a drawing, so they stay
+   * where they are and follow you between tabs, which is what Photoshop does
+   * with its tool options too.
+   *
+   * NOTHING IS EVER SAVED BY HAND, so there is no dirty marker and no "are you
+   * sure" on switching. Closing a tab that has strokes in it does ask, because
+   * that is the one action that can lose work.
+   * ================================================================== */
+  var TABS_KEY = 'voidspire.artist.tabs';
+  var tabs = [], active = 0, tabSeq = 1;
+
+  function newTabState(name) {
+    /* The counter advances even when a name is handed in, or the first tab —
+     * created as "drawing 1" during the migration — leaves the counter at 1
+     * and the next new tab is called "drawing 1" as well. */
+    var n = tabSeq++;
+    return {
+      name: name || ('drawing ' + n),
+      doc: {
+        fps: 8,
+        layers: [
+          { name: 'sketch', vis: true, exp: false },
+          { name: 'line', vis: true, exp: true },
+        ],
+        frames: [blankFrame(2)],
+      },
+      fi: 0, li: 1,
+      past: [], future: [],
+      view: { cx: 0, cy: 0, z: 1 },
+    };
+  }
+
+  /* The globals ARE the active tab while it is active. Rather than teach two
+   * thousand lines to read doc.tabs[active].something, the tab is emptied into
+   * the globals on the way in and poured back on the way out. One place to get
+   * right instead of everywhere. */
+  function stashTab() {
+    var t = tabs[active];
+    if (!t) return;
+    t.doc = doc; t.fi = fi; t.li = li;
+    t.past = past; t.future = future;
+    t.view = { cx: view.cx, cy: view.cy, z: view.z };
+  }
+  function adoptTab(i) {
+    if (i < 0 || i >= tabs.length) return;
+    active = i;
+    var t = tabs[i];
+    doc = t.doc;
+    fi = Math.min(t.fi, doc.frames.length - 1);
+    li = Math.min(t.li, doc.layers.length - 1);
+    past = t.past; future = t.future;
+    view.cx = t.view.cx; view.cy = t.view.cy; view.z = t.view.z;
+    /* Anything half-done belongs to the tab you were on, not this one. A
+     * stroke still being laid down, a marquee, a solid mid-drag: all of it is
+     * dropped rather than carried across, because carrying it would paste
+     * points into a drawing you had not touched. */
+    cur = []; curUndone.length = 0; sel = [];
+    drag = null; freeing = null; shapeFrom = shapeTo = null; orbitFrom = null;
+    lineFrom = lineTo = null; marquee = null;
+    /* And the last thing that happened happened somewhere else. "placed icosa
+     * — 18 lines" reading out over a drawing with no icosa in it is the same
+     * display-disagrees-with-data problem as ever, just carried sideways. */
+    statusNote = '';
+    if (playing) stopPlay();
+    var nm = document.getElementById('xName');
+    if (nm) { nm.value = t.name; if (typeof exportSummary === 'function') exportSummary(); }
+    renderTabs(); renderLayers(); renderFrames();
+    document.getElementById('fps').value = doc.fps;
+    document.getElementById('fpsN').textContent = doc.fps;
+    syncHistBtns(); fitPadSoon(); drawPad();
+    saveTabs();
+  }
+
+  function renderTabs() {
+    var host = document.getElementById('tabBar');
+    if (!host) return;
+    host.innerHTML = '';
+    tabs.forEach(function (t, i) {
+      var el = document.createElement('div');
+      el.className = 'tab' + (i === active ? ' on' : '');
+      var nm = document.createElement('span');
+      nm.className = 'tn';
+      nm.textContent = t.name;
+      /* Strokes, not frames: "3 frames" on an empty animation says nothing,
+       * and the number you want when scanning a strip of tabs is how much is
+       * in each one. */
+      var n = 0;
+      t.doc.frames.forEach(function (f) {
+        f.cells.forEach(function (c) { n += c.strokes.length; });
+      });
+      var ct = document.createElement('span');
+      ct.className = 'tc';
+      ct.textContent = n ? (n + (t.doc.frames.length > 1 ? '·' + t.doc.frames.length + 'f' : '')) : 'empty';
+      el.appendChild(nm); el.appendChild(ct);
+      if (tabs.length > 1) {
+        var x = document.createElement('span');
+        x.className = 'tx'; x.textContent = '✕'; x.title = 'close';
+        x.onclick = function (ev) { ev.stopPropagation(); closeTab(i); };
+        el.appendChild(x);
+      }
+      el.onclick = function () { if (i !== active) { stashTab(); adoptTab(i); } };
+      el.ondblclick = function (ev) { ev.stopPropagation(); renameTab(i); };
+      el.title = 'click to open · double-click to rename';
+      host.appendChild(el);
+    });
+    var add = document.createElement('button');
+    add.className = 'sm'; add.id = 'tabAdd'; add.textContent = '+';
+    add.title = 'a new drawing';
+    add.onclick = addTab;
+    host.appendChild(add);
+  }
+
+  function addTab() {
+    stashTab();
+    tabs.push(newTabState());
+    adoptTab(tabs.length - 1);
+    note('new drawing — the other ' + (tabs.length - 1) + ' '
+      + (tabs.length === 2 ? 'is' : 'are') + ' still there');
+  }
+  function closeTab(i) {
+    if (tabs.length < 2) return;
+    var n = 0;
+    tabs[i].doc.frames.forEach(function (f) {
+      f.cells.forEach(function (c) { n += c.strokes.length; });
+    });
+    if (n && !confirm('Close "' + tabs[i].name + '"?\n\n'
+      + n + ' stroke' + (n === 1 ? '' : 's') + ' in it, and this cannot be undone.')) return;
+    if (i === active) stashTab();
+    tabs.splice(i, 1);
+    adoptTab(Math.min(active > i ? active - 1 : active, tabs.length - 1));
+  }
+  function renameTab(i) {
+    var v = prompt('Name this drawing', tabs[i].name);
+    if (v === null) return;
+    tabs[i].name = (v.trim() || tabs[i].name).slice(0, 24);
+    if (i === active) {
+      var nm = document.getElementById('xName');
+      if (nm) { nm.value = tabs[i].name; if (typeof exportSummary === 'function') exportSummary(); }
+    }
+    renderTabs(); saveTabs();
+  }
+
+  /* Only the drawings are written, not the undo histories. Photoshop does not
+   * persist history either, and a fifty-deep stack per tab is the difference
+   * between a save that fits in localStorage and one that throws. */
+  function saveTabs() {
+    stashTab();
+    try {
+      localStorage.setItem(TABS_KEY, JSON.stringify({
+        active: active,
+        seq: tabSeq,
+        tabs: tabs.map(function (t) { return { name: t.name, doc: t.doc, fi: t.fi, li: t.li }; }),
+      }));
+    } catch (e) {
+      note('this browser is out of storage room — export what you need', true);
+    }
+  }
+
+  function loadTabs() {
+    var raw = null;
+    try { raw = localStorage.getItem(TABS_KEY); } catch (e) {}
+    if (raw) {
+      try {
+        var d = JSON.parse(raw);
+        if (d && d.tabs && d.tabs.length) {
+          tabs = d.tabs.map(function (t) {
+            var s = newTabState(t.name);
+            if (t.doc && t.doc.layers && t.doc.frames) s.doc = t.doc;
+            s.fi = t.fi || 0; s.li = t.li == null ? s.doc.layers.length - 1 : t.li;
+            return s;
+          });
+          tabSeq = d.seq || (tabs.length + 1);
+          active = Math.min(d.active || 0, tabs.length - 1);
+          return true;
+        }
+      } catch (e) {}
+    }
+    /* MIGRATION. Whatever was in the single-document autosave becomes tab one.
+     * Shipping tabs without this would have silently emptied the canvas of
+     * anybody who had a drawing open, which is the one thing a tool that
+     * autosaves must never do. */
+    tabs = [newTabState('drawing 1')];
+    active = 0;
+    if (loadAutosave()) {
+      tabs[0].doc = doc;
+      tabs[0].fi = fi; tabs[0].li = li;
+      return true;
+    }
+    return false;
+  }
+
+  /* Cmd/Ctrl and a number, which is what browsers, editors and Photoshop all
+   * use for "the nth tab". Ctrl+Tab is not available — the browser takes it
+   * before the page ever sees it. */
+  document.addEventListener('keydown', function (ev) {
+    if (!(ev.metaKey || ev.ctrlKey) || ev.altKey) return;
+    var n = parseInt(ev.key, 10);
+    if (!(n >= 1 && n <= 9) || n > tabs.length) return;
+    var tag = ev.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    ev.preventDefault();
+    if (n - 1 !== active) { stashTab(); adoptTab(n - 1); }
+  });
+
+  /* ==================================================================
    * AUTOSAVE. A refresh, a locked phone or a stray gesture used to lose the
    * whole drawing unless SAVE .JSON had been remembered. Written on a short
    * debounce so a fast stroke does not serialise on every point.
    * ================================================================== */
   var SAVE_KEY = 'voidspire.artist.doc';
   var saveT = 0;
+  /* Writes every tab, not just the one in front of you. The single-document
+   * key is left alone rather than deleted, so a build without tabs — an older
+   * copy still open in another window — still finds what it expects. */
   function autosave() {
     clearTimeout(saveT);
-    saveT = setTimeout(function () {
-      try { localStorage.setItem(SAVE_KEY, JSON.stringify(doc)); } catch (e) {}
-    }, 400);
+    saveT = setTimeout(saveTabs, 400);
   }
-  function flushSave() {
-    clearTimeout(saveT);
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(doc)); } catch (e) {}
-  }
+  function flushSave() { clearTimeout(saveT); saveTabs(); }
   /* The debounce means a change made in the last fraction of a second is not
    * on disk yet, so leaving the page has to force it. `pagehide` rather than
    * `beforeunload`: it is the one that fires reliably when a mobile browser
@@ -3944,16 +4189,19 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 23';
+  document.getElementById('ver').textContent = 'build 24';
 
   paintThumbs();
   applyView(viewMode);
   fitPadSoon();
   libLoad(); renderLib(); renderAssets();
-  var restored = loadAutosave();
-  syncHistBtns();
-  renderLayers(); renderFrames(); drawPad();
-  if (restored) note('restored your last drawing');
+  var restored = loadTabs();
+  adoptTab(active);
+  if (restored) {
+    note(tabs.length > 1
+      ? ('restored ' + tabs.length + ' drawings')
+      : 'restored your last drawing');
+  }
   /* What this tool is currently making, for the handoff button. Each tool
    * answers the same three questions — what it is, which file it belongs in,
    * and the payload — so one shared button can hand any of them over. */
