@@ -103,7 +103,12 @@
     width: 100%; background: #05090b; color: var(--text); border: 1px solid var(--line);
     border-radius: 3px; padding: 6px; font: 10px ui-monospace, monospace; margin-bottom: 5px;
   }
-  .frm { flex: 0 0 auto; font-size: 10px; padding: 5px 8px; border-color: var(--line); }
+  .frm {
+    flex: 0 0 auto; font-size: 10px; padding: 6px 11px; border-color: var(--line);
+    cursor: grab; touch-action: none; user-select: none;
+  }
+  .frm:active { cursor: grabbing; }
+  .frm.dragging { opacity: .55; border-color: var(--amber); background: rgba(255,176,46,0.16); }
   #preview { background: #04080a; }
 
   /* ==================================================================
@@ -224,7 +229,7 @@
     </div>
 
     <div class="box framestrip">
-      <h2>FRAMES — more than one makes it an animation</h2>
+      <h2>FRAMES — more than one makes it an animation · drag one to reorder</h2>
       <div class="frames" id="frameList"></div>
       <div class="bar">
         <button id="fAdd" class="sm">+ FRAME</button>
@@ -1257,17 +1262,78 @@
   document.getElementById('lDown').onclick = function () { move(-1); };
 
   /* ---- frames ------------------------------------------------------ */
+  /* ==================================================================
+   * FRAMES REORDER BY DRAGGING
+   * ==================================================================
+   * Getting the order wrong is the normal case in animation — you draw the
+   * poses, then find the middle two are the wrong way round. Without this the
+   * only remedy was redrawing them, because nothing here could move a frame.
+   *
+   * The reorder happens LIVE as you drag rather than on release, so the strip
+   * shows the order you are about to get instead of asking you to imagine it.
+   * A drag under four pixels counts as a tap, or selecting a frame on a
+   * touchpad would keep turning into an accidental reorder.
+   *
+   * THE HANDLERS LIVE ON THE DOCUMENT, not on the chip. Reordering re-renders
+   * the strip, which destroys the very element holding pointer capture — the
+   * first attempt stopped receiving events after one move and reordered
+   * nothing at all. The document survives the re-render.
+   * ================================================================== */
+  var fDrag = null;
   function renderFrames() {
     var host = document.getElementById('frameList');
     host.innerHTML = '';
     doc.frames.forEach(function (_, i) {
       var b = document.createElement('div');
-      b.className = 'frm' + (i === fi ? ' sel' : '');
+      b.className = 'frm' + (i === fi ? ' sel' : '') + (fDrag && fDrag.i === i ? ' dragging' : '');
       b.textContent = (i + 1);
-      b.onclick = function () { finish(); fi = i; renderFrames(); drawPad(); };
+      b.title = 'drag to move this frame';
+      b.addEventListener('pointerdown', function (ev) {
+        ev.preventDefault();
+        finish();
+        fDrag = { i: i, x: ev.clientX, moved: false };
+        document.addEventListener('pointermove', onFrameDrag);
+        document.addEventListener('pointerup', endFrameDrag, { once: true });
+        renderFrames();
+      });
       host.appendChild(b);
     });
   }
+  function onFrameDrag(ev) {
+    if (!fDrag) return;
+    if (!fDrag.moved && Math.abs(ev.clientX - fDrag.x) < 4) return;
+    /* SNAPSHOT BEFORE THE FIRST MOVE, not after the last one. pushHistory on
+     * pointerup recorded the order you had just created, so undo returned you
+     * to it and appeared to do nothing. Taken here it is also only taken when
+     * a drag really starts, so a tap does not litter the history. */
+    if (!fDrag.moved) pushHistory();
+    fDrag.moved = true;
+    var to = frameAt(ev.clientX);
+    if (to < 0 || to === fDrag.i) return;
+    var moving = doc.frames.splice(fDrag.i, 1)[0];
+    doc.frames.splice(to, 0, moving);
+    if (fi === fDrag.i) fi = to;
+    else if (fi > fDrag.i && fi <= to) fi--;
+    else if (fi < fDrag.i && fi >= to) fi++;
+    fDrag.i = to;
+    renderFrames(); drawPad();
+  }
+  function endFrameDrag() {
+    document.removeEventListener('pointermove', onFrameDrag);
+    if (fDrag && !fDrag.moved) { fi = fDrag.i; drawPad(); }
+    else if (fDrag && fDrag.moved) saveNow();
+    fDrag = null;
+    renderFrames();
+  }
+  // which frame the pointer is over, by position across the strip
+  function frameAt(clientX) {
+    var kids = [].slice.call(document.getElementById('frameList').children);
+    for (var i = 0; i < kids.length; i++) {
+      if (clientX < kids[i].getBoundingClientRect().right) return i;
+    }
+    return kids.length - 1;
+  }
+  function saveNow() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(doc)); } catch (e) {} }
   function clone(f) { return JSON.parse(JSON.stringify(f)); }
   document.getElementById('fAdd').onclick = function () {
     finish(); pushHistory(); doc.frames.splice(fi + 1, 0, blankFrame(doc.layers.length));
@@ -1723,7 +1789,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 12';
+  document.getElementById('ver').textContent = 'build 13';
 
   libLoad(); renderLib(); renderAssets();
   var restored = loadAutosave();
