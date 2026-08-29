@@ -97,7 +97,7 @@ The hooks are always present; only the panel is behind the flag.
     node test/export.js        every export format, saved and then opened
     node test/tabs.js          several drawings open at once, and their seams
     node test/grid.js          snapping, and whether it makes the shape you meant
-    node test/rig.js           PIVOT and REPEAT — a limb that swings, not redrawn
+    node test/rig.js           PIVOT, REPEAT, and transforms that stay on grid
     node test/_shell.js        all five tools: no page scroll, no pinch zoom
 
 The last eleven need the tools served: `python3 -m http.server 8944` from
@@ -438,6 +438,68 @@ A test note: **detect canvas marks against the BACKGROUND, not an absolute
 threshold.** The pad's ground is rgb(10,16,20), so a "brighter than 12" test
 counted every pixel in the row as lit and the grid-line count came back as 1
 every time. The commonest value in a row is the background by definition.
+
+### The grid holds every point, not only the pen
+
+The follow-up report: turned lines "get loose and you still have to redraw it".
+GRID held the points you put down by hand and nothing that MOVED them
+afterwards, so a rotation left its ends a few thousandths off the ruling they
+started on — near enough to look right, far enough that a new line snapped to
+the grid missed it. Which meant deleting the turned part and drawing it again,
+exactly what PIVOT and REPEAT exist to stop.
+
+**Two jobs, and only one of them rounds anything.** This split is the whole
+design and it is what makes the feature safe:
+
+- A **translation** — a drag, an arrow nudge, DUPLICATE — moves by a WHOLE
+  NUMBER OF SQUARES. On-grid work stays on the grid, and nothing else is
+  touched. So dragging an enemy loaded out of the game's art cannot quantise
+  its curves: none of that art is on any grid, and re-snapping it on a mouse
+  slip would be silent vandalism.
+- A **turn or a scale** genuinely cannot keep the grid — a corner at 15° is not
+  on any ruling — so its result is settled onto the nearest one. That is a
+  deliberate button press, and it is where "a bit longer, but it joins up" is
+  the answer that was asked for.
+
+Arrow keys step one square, five with shift — five because that is the brighter
+ruling the grid is already drawn with, so the big step lands on a line you can
+see.
+
+**The bargain has a number and the tests state it.** On the grid a turn holds
+the arm's length to within one square and its angle to within roughly
+`step / length` radians; with GRID off both are exact. Three assertions written
+before this change asserted the exact version and failed correctly afterwards —
+they now assert the tolerance, and additionally that no step comes out
+*negative*, which is the error a viewer would actually notice as the arm
+jerking back.
+
+**Two ways a coarse grid can quietly ruin the work, both refused rather than
+applied.** A step big enough to be worth using is big enough to land every
+point of a short stroke on one intersection:
+
+- `applySel` builds the whole result before keeping any of it, and if a stroke
+  would flatten to a dot it refuses and names the grid. Applied blind it
+  destroys the stroke and burns an undo doing it.
+- REPEAT does the same across the whole run. A frame whose arm has been
+  flattened is worse than a frame never made — the limb simply disappears part
+  way through and there are N frames to undo before you find out why. It also
+  counts frames identical to their predecessor and says so, because a step too
+  small for the grid plays as a stutter and reads as REPEAT being broken.
+
+Only a transform that actually happened is recorded for REPEAT. Arming it with
+a refused one would build N frames out of a movement that moved nothing.
+
+Two test notes from this change:
+
+- **A block that inherits the previous block's state tests something other than
+  what it says.** Two assertions here read green against the wrong stroke:
+  DUPLICATE leaves the COPY selected, so a transform after it moves a stroke
+  the assertion was not looking at. Each block starts a fresh tab now.
+- **To force a flatten deterministically, arm with a DRAG, not a turn.** A turn
+  of a stroke small enough to flatten on a coarse grid is itself within a
+  rounding of doing nothing on the fine one, so which side of the rounding it
+  falls decides whether the test passes — and that is a test that fails on a
+  day nothing changed. A drag's step is a grid multiple by construction.
 
 ## Animating a limb without redrawing it
 

@@ -203,13 +203,27 @@ const DEG = 180 / Math.PI;
       PIVOT.join(',') + ' → ' + arm[0].join(','));
     ok('the hand does move', Math.hypot(arm[1][0] - handBefore[0], arm[1][1] - handBefore[1]) > 0.02,
       handBefore.join(',') + ' → ' + arm[1].join(','));
+    /* THE BARGAIN, stated as a number. On the grid a turn cannot keep the arm
+     * exactly as long, because the end has to come down on a ruling — the
+     * length moves by up to one square and that was the deal asked for: "even
+     * if this would make them a bit longer". What must NOT happen is a drift
+     * bigger than the grid, which would be the arm growing rather than
+     * rounding. At GRID off it is exact, and that is checked further down. */
+    const STEP = 0.05;                            // the tool's default grid
     const r1 = Math.hypot(arm[1][0] - PIVOT[0], arm[1][1] - PIVOT[1]);
-    ok('and the arm is exactly as long as it was — it turned, it did not stretch',
-      Math.abs(r1 - r0) < 0.004, r0.toFixed(4) + ' → ' + r1.toFixed(4));
+    ok('the arm keeps its length to within one grid square — it turned, it did not stretch',
+      Math.abs(r1 - r0) <= STEP, r0.toFixed(4) + ' → ' + r1.toFixed(4));
+    ok('and both its ends are on the grid, which is the whole point',
+      arm.every(q => q.every(v => Math.abs(v / STEP - Math.round(v / STEP)) < 0.02)),
+      JSON.stringify(arm));
     const a0 = Math.atan2(handBefore[1] - PIVOT[1], handBefore[0] - PIVOT[0]);
     const a1 = Math.atan2(arm[1][1] - PIVOT[1], arm[1][0] - PIVOT[0]);
-    ok('by fifteen degrees, which is what the button says',
-      Math.abs(((a1 - a0) * DEG) - 15) < 1.5, ((a1 - a0) * DEG).toFixed(2) + '°');
+    /* The angle the grid can afford: an end that may land half a square out in
+     * either axis, over the arm's own length. */
+    const slop = Math.max(1.5, (STEP / r0) * DEG);
+    ok('by about fifteen degrees, which is what the button says',
+      Math.abs(((a1 - a0) * DEG) - 15) < slop,
+      ((a1 - a0) * DEG).toFixed(2) + '° ±' + slop.toFixed(1));
     ok('the body still has not moved', JSON.stringify((await frames())[0].p[0]) === BODY0);
   }
 
@@ -235,11 +249,25 @@ const DEG = 180 / Math.PI;
     return Math.hypot(h[0] - PIVOT[0], h[1] - PIVOT[1]);
   });
   const steps = angles.slice(1).map((a, i) => a - angles[i]);
-  ok('the arm advances one step per frame, every frame the same step',
-    steps.every(s => Math.abs(s - 15) < 1.5), steps.map(s => s.toFixed(1)).join(', '));
-  ok('and it never changes length on the way round',
-    radii.every(r => Math.abs(r - radii[0]) < 0.006),
+  const SLOP = Math.max(1.5, (0.05 / radii[0]) * DEG);
+  /* Every step forward, none of them backward, and no step wildly out. The
+   * grid rounds each frame independently, so the individual steps vary by up
+   * to a square's worth of angle — but a step that came out NEGATIVE would be
+   * the arm jerking back, which is the thing that would actually be seen. */
+  ok('the arm advances every frame, none of them backwards',
+    steps.every(s => s > 0), steps.map(s => s.toFixed(1)).join(', '));
+  ok('and each step is about fifteen degrees, within what the grid can afford',
+    steps.every(s => Math.abs(s - 15) < SLOP),
+    steps.map(s => s.toFixed(1)).join(', ') + '  ±' + SLOP.toFixed(1));
+  ok('over the whole run it is exactly five steps of fifteen, so nothing drifts',
+    Math.abs((angles[angles.length - 1] - angles[0]) - 75) < SLOP,
+    (angles[angles.length - 1] - angles[0]).toFixed(1) + '° over 5 frames');
+  ok('and the arm keeps its length to within a square all the way round',
+    radii.every(r => Math.abs(r - radii[0]) <= 0.05),
     radii.map(r => r.toFixed(3)).join(', '));
+  ok('every frame of it is on the grid',
+    f.every(x => x.p.every(run => run.every(v => Math.abs(v / 0.05 - Math.round(v / 0.05)) < 0.02))),
+    f.map(x => x.p[1].join(',')).join(' | '));
   ok('every shoulder is still on the pivot',
     f.every(x => {
       const s = pairs(x.p[1])[0];
@@ -298,6 +326,174 @@ const DEG = 180 / Math.PI;
   await p.click('#tabBar .tab:nth-child(1)'); await p.waitForTimeout(600);
   ok('and the first drawing is still four frames', (await frameCount()) === 4,
     (await frameCount()) + ' frames');
+
+  /* ==================================================================
+   * A TURNED LINE STAYS ON THE GRID
+   * ==================================================================
+   * The report: turned lines "get loose and you still have to redraw it". The
+   * grid held the pen and nothing else, so a rotation left its ends a few
+   * thousandths off the ruling they started on — near enough to look right,
+   * far enough that a new line snapped to the grid missed it.
+   *
+   * The assertion is the one that matters in practice: after a turn, a point
+   * is an exact multiple of the step, which is the same test a freshly drawn
+   * point passes. The length changing is expected and is the price.
+   * ================================================================== */
+  console.log('\nA TURNED LINE IS STILL ON THE GRID');
+  const onGrid = (v, g) => Math.abs(v / g - Math.round(v / g)) < 0.02;
+  /* A DRAWING OF ITS OWN for each of these, because they are about the state
+   * the tool is carrying — which grid, what REPEAT is armed with, which
+   * strokes are selected — and a block that inherits the last one's state
+   * tests something other than what it says. Two of these read green against
+   * the wrong stroke before they were separated: DUPLICATE leaves the COPY
+   * selected, so the transform after it moved a stroke the assertion was not
+   * looking at. */
+  async function fresh(step, x0, y0, x1, y1) {
+    await p.click('#tabAdd'); await p.waitForTimeout(600);
+    await p.click(`.gstep[data-step="${step}"]`); await p.waitForTimeout(140);
+    await p.click('#mLine'); await p.waitForTimeout(80);
+    await drag(x0, y0, x1, y1);
+    await p.click('#mSel'); await p.waitForTimeout(120);
+    await drag(0.10, 0.10, 0.92, 0.92);         // everything
+  }
+  for (const step of ['0.1', '0.05', '0.02']) {
+    await p.click('#tabAdd'); await p.waitForTimeout(600);
+    await p.click(`.gstep[data-step="${step}"]`); await p.waitForTimeout(120);
+    await p.click('#mLine'); await p.waitForTimeout(80);
+    await drag(0.30, 0.30, 0.70, 0.62);         // a diagonal, so a turn changes both axes
+    const before = (await frames())[0].p[0];
+    ok('drawn on grid ' + step.padEnd(5) + ' it starts on the grid',
+      before.every(v => onGrid(v, +step)), before.join(', '));
+    await p.click('#mSel'); await p.waitForTimeout(120);
+    await drag(0.18, 0.18, 0.85, 0.75);
+    await p.click('#tRotR'); await p.waitForTimeout(220);
+    const after = (await frames())[0].p[0];
+    ok('and after a 15° turn every point is STILL on it',
+      after.every(v => onGrid(v, +step)), after.join(', ') + '  ·  ' + (await status()));
+    ok('it really did turn — this is not a no-op passing by accident',
+      JSON.stringify(after) !== JSON.stringify(before),
+      before.join(',') + ' → ' + after.join(','));
+    await p.click('#tBig'); await p.waitForTimeout(220);
+    const scaled = (await frames())[0].p[0];
+    ok('a scale lands on it too', scaled.every(v => onGrid(v, +step)), scaled.join(', '));
+    // back to one stroke for the next step
+    let n = 0;
+    while (await p.$eval('#bUndo', e => !e.disabled) && ++n < 30) {
+      await p.click('#bUndo'); await p.waitForTimeout(50);
+    }
+  }
+
+  console.log('\nA COARSE GRID SAYS SO RATHER THAN FLATTENING YOUR WORK');
+  /* The one bad outcome of snapping a turn: a step big enough to be useful is
+   * big enough to land every point of a short stroke on the same intersection.
+   * Applied blind that destroys the stroke and burns an undo doing it. */
+  await fresh('0.2', 0.48, 0.46, 0.55, 0.53);   // barely longer than one square
+  const tiny = (await frames())[0].p[0];
+  await p.click('#tRotR'); await p.waitForTimeout(250);
+  ok('it refuses and names the grid as the reason',
+    /grid 0\.2/.test(await status()) && /⚠/.test(await status()), await status());
+  ok('and the stroke is untouched',
+    JSON.stringify((await frames())[0].p[0]) === JSON.stringify(tiny),
+    JSON.stringify((await frames())[0].p[0]));
+  await p.click('#tRepeat'); await p.waitForTimeout(220);
+  ok('and REPEAT was never armed with a movement that did not happen',
+    /REPEAT does that again/.test(await status()) && (await frameCount()) === 1,
+    await status());
+
+  console.log('\nREPEAT MAKES NO FRAMES IT WOULD HAVE TO APOLOGISE FOR');
+  /* A turn made on a fine grid and then repeated on a coarse one. A frame whose
+   * arm the grid has flattened to a dot is worse than a frame never made — the
+   * limb just disappears part way through, and there are N frames to undo
+   * before you find out why. So the whole run is built and checked first. */
+  /* A stroke shorter than half a coarse square, so BOTH its ends settle onto
+   * the same intersection. Armed with a drag rather than a turn: a turn of
+   * something this small is within a rounding of doing nothing at the fine
+   * grid too, and a test that depends on which side of a rounding it falls is
+   * a test that fails on a day nothing changed. */
+  await fresh('0.02', 0.5000, 0.5000, 0.5075, 0.5075);
+  await drag(0.5040, 0.5040, 0.5115, 0.5040);   // push it one fine square right
+  ok('the move goes through on a fine grid', !/⚠/.test(await status()), await status());
+  const fine = JSON.stringify((await frames())[0].p[0]);
+  await p.click('.gstep[data-step="0.2"]'); await p.waitForTimeout(140);
+  await p.fill('#tRepeatN', '3');
+  await p.click('#tRepeat'); await p.waitForTimeout(400);
+  ok('not one frame is made', (await frameCount()) === 1, (await frameCount()) + ' frames');
+  ok('and it names the grid as the reason', /grid 0\.2 is too coarse/.test(await status()),
+    await status());
+  ok('the drawing is exactly as it was', JSON.stringify((await frames())[0].p[0]) === fine,
+    JSON.stringify((await frames())[0].p[0]));
+
+  console.log('\nEVERY FRAME REPEAT DOES MAKE IS ON THE GRID');
+  await fresh('0.1', 0.32, 0.28, 0.62, 0.58);
+  await p.click('#tRotR'); await p.waitForTimeout(220);
+  await p.fill('#tRepeatN', '4');
+  await p.click('#tRepeat'); await p.waitForTimeout(400);
+  ok('four frames', (await frameCount()) === 5, (await frameCount()) + ' frames');
+  ok('and every point of every one of them is on the grid',
+    (await frames()).every(x => x.p.every(run => run.every(v => onGrid(v, 0.1)))),
+    (await frames()).map(x => x.p[0].join(',')).join(' | '));
+  ok('with no two frames the same — the swing really advances',
+    new Set((await frames()).map(x => JSON.stringify(x.p))).size === 5,
+    new Set((await frames()).map(x => JSON.stringify(x.p))).size + ' distinct of 5');
+
+  console.log('\nNUDGE AND DUPLICATE MOVE BY WHOLE SQUARES');
+  await fresh('0.1', 0.30, 0.40, 0.62, 0.40);
+  {
+    const was = (await frames())[0].p[0];
+    await p.keyboard.press('ArrowRight'); await p.waitForTimeout(200);
+    const now = (await frames())[0].p[0];
+    ok('an arrow key moves it exactly one square',
+      Math.abs((now[0] - was[0]) - 0.1) < 0.002, (now[0] - was[0]).toFixed(4));
+    ok('and it is still on the grid', now.every(v => onGrid(v, 0.1)), now.join(', '));
+    await p.keyboard.down('Shift'); await p.keyboard.press('ArrowRight'); await p.keyboard.up('Shift');
+    await p.waitForTimeout(200);
+    const big = (await frames())[0].p[0];
+    ok('shift moves it five — the brighter ruling you can actually see',
+      Math.abs((big[0] - now[0]) - 0.5) < 0.002, (big[0] - now[0]).toFixed(4));
+    /* DUPLICATE leaves the COPY selected, so the copy is the LAST stroke —
+     * reading p[0] here reads the original and passes whatever happened. */
+    await p.click('#tDup'); await p.waitForTimeout(220);
+    const all = (await frames())[0].p;
+    const copy = all[all.length - 1];
+    ok('a duplicate lands on the grid as well', copy.every(v => onGrid(v, 0.1)), copy.join(', '));
+    ok('one square off the original, not a fraction of one',
+      Math.abs((copy[0] - big[0]) - 0.1) < 0.002, (copy[0] - big[0]).toFixed(4));
+  }
+
+  console.log('\nOFF THE GRID NOTHING IS ROUNDED');
+  /* GRID off has to mean off here too, or loading a piece of the game's art —
+   * none of which is on any grid — and turning it would quantise its curves. */
+  await fresh('0.1', 0.30, 0.30, 0.70, 0.62);
+  await p.click('#bSnap'); await p.waitForTimeout(150);
+  ok('the readout says freehand', /FREEHAND/.test(await status()), await status());
+  const lenOf = q => { const a = pairs(q); return Math.hypot(a[1][0] - a[0][0], a[1][1] - a[0][1]); };
+  const wasLen = lenOf((await frames())[0].p[0]);
+  await p.click('#tRotR'); await p.waitForTimeout(250);
+  {
+    const free = (await frames())[0].p[0];
+    ok('a turn with GRID off leaves points where the maths put them',
+      free.some(v => !onGrid(v, 0.1)), free.join(', '));
+    /* And with nothing rounding it, a turn is exact — the length the grid can
+     * only hold to within a square is held to a thousandth here. That is the
+     * whole trade, and it is why GRID is the switch rather than a new one. */
+    ok('and the length is exact, not merely close',
+      Math.abs(lenOf(free) - wasLen) < 0.003,
+      wasLen.toFixed(4) + ' → ' + lenOf(free).toFixed(4));
+  }
+  /* And a MOVE never rounds anything either way, which is what makes it safe
+   * on art that was never on a grid — an enemy loaded out of the game, say. */
+  await p.click('#bSnap'); await p.waitForTimeout(150);
+  {
+    const off = (await frames())[0].p[0];
+    await p.keyboard.press('ArrowRight'); await p.waitForTimeout(220);
+    const moved = (await frames())[0].p[0];
+    ok('nudging off-grid art with GRID back on shifts it without straightening it',
+      moved.every((v, i) => i % 2 ? Math.abs(v - off[i]) < 1e-6
+                                  : Math.abs((v - off[i]) - 0.1) < 0.002),
+      off.join(', ') + ' → ' + moved.join(', '));
+    ok('so it is still exactly as off-grid as it was — nothing was quantised',
+      moved.some(v => !onGrid(v, 0.1)), moved.join(', '));
+  }
 
   console.log('\n' + (errs.length ? 'PAGE ERRORS:\n  ' + errs.join('\n  ') : 'no page errors'));
   if (errs.length) fail += errs.length;
