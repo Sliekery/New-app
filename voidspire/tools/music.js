@@ -61,6 +61,54 @@
    * of it, which is the same reason the artist previews art through the game's
    * own draw call. Nothing in the game writes to them. */
   M.PROG = PROG; M.ARP = ARP; M.VOL = VOL; M.TEMPO = TEMPO;
+
+  /* ==================================================================
+   * THE PATTERN LAYER — a written loop riding on the generated bed
+   * ==================================================================
+   * Everything above this GENERATES its notes from the chord progression and
+   * the intensity, which is why the bed never quite repeats and why it
+   * tightens as a run goes deeper. That is worth keeping, so a written pattern
+   * does not replace it — it plays ON TOP of it.
+   *
+   * A pattern is a list of hits per voice: { step, midi, len, vel }. Steps are
+   * the same 16-per-bar grid the generator uses, so a hit lands exactly on the
+   * beat the sequencer drew it on. An empty pattern costs one array lookup a
+   * step and changes nothing.
+   * ================================================================== */
+  var PATTERN = null;
+  M.setPattern = function (p) { PATTERN = (p && p.hits) ? p : null; };
+  // Where the loop is, so a sequencer can draw a playhead on the right column.
+  M.getStep = function () { return stepN; };
+  /* Sound one note now, outside the loop. A sequencer has to speak the moment
+   * a square is tapped — waiting for the playhead to come round is the
+   * difference between an instrument and a form. */
+  M.auditionHit = function (voice, h) {
+    var c = ctx(); if (!c) return;
+    playHit(voice, c.currentTime + 0.01, h || {}, 1);
+  };
+  M.getPattern = function () { return PATTERN; };
+
+  // The voices a written hit can use. Names match the sequencer's rows.
+  function playHit(voice, time, h, sm) {
+    var vel = (h.vel == null ? 1 : h.vel);
+    var len = (h.len || 1) * secPerStep();
+    if (voice === 'kick') return kick(time, VOL.kick * vel * sm);
+    if (voice === 'hat') return hat(time, VOL.hat * vel * sm);
+    if (voice === 'bass') return tone(time, h.midi, len, 'sawtooth', VOL.bass * vel * sm);
+    if (voice === 'sub') return tone(time, h.midi, len, 'sine', VOL.sub * vel * sm);
+    if (voice === 'pad') return pad(time, h.midi, len, VOL.pad * vel * sm);
+    if (voice === 'arp') return tone(time, h.midi, len, 'triangle', VOL.arp * vel * sm);
+    if (voice === 'blip') return tone(time, h.midi, len, 'square', VOL.arp * 0.9 * vel * sm);
+    if (voice === 'lead') return tone(time, h.midi, len, 'sawtooth', VOL.arp * 1.1 * vel * sm);
+  }
+  function schedulePattern(step, time, sm) {
+    if (!PATTERN) return;
+    var n = PATTERN.steps || 64;
+    var at = step % n;
+    var hits = PATTERN.hits[at];
+    if (!hits) return;
+    for (var i = 0; i < hits.length; i++) playHit(hits[i].voice, time, hits[i], sm);
+  }
   M.setIntensity = function (v) { intensity = Math.max(0, Math.min(1, v)); };
 
   function tone(time, midi, dur, type, vol, dest) {
@@ -122,6 +170,7 @@
     if (I > 0.45 && scene === 'combat') {                                                  // sparse arp when tense
       tone(time, ch.chord[ARP[inBar % ARP.length]] + 12, 0.1, 'triangle', VOL.arp * (0.6 + 0.4 * I));
     }
+    schedulePattern(step, time, sm);          // the written loop, over the top
   }
 
   function scheduler() {

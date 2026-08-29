@@ -69,6 +69,7 @@
         <button id="addBeat">+ BEAT</button>
         <button id="dupBeat">DUPLICATE</button>
         <button id="delBeat" class="warn">DELETE</button>
+        <button id="withSound" class="sm on" title="also play whatever the sound tool last had open">+ SOUND</button>
         <button id="reload" class="sm">RELOAD</button>
         <span class="hint" id="status"></span>
       </div>
@@ -80,6 +81,11 @@
         calls a real card makes, on a real target. What you see here is the
         effect, not a mock-up of it.
       </p>
+    </div>
+
+    <div class="box" style="margin-top:10px">
+      <h2>THE TIMELINE — drag a beat sideways to change when it fires</h2>
+      <canvas id="tl" width="1400" height="150"></canvas>
     </div>
 
     <div class="box" style="margin-top:10px">
@@ -122,7 +128,7 @@
 <script>
 (function () {
   'use strict';
-  var BUILD = 'build 1';
+  var BUILD = 'build 2';
   var frame = document.getElementById('game');
   var status = document.getElementById('status');
 
@@ -209,7 +215,10 @@
       else fireBeat(b);
     });
   }
-  document.getElementById('fire').onclick = fireCast;
+  document.getElementById('fire').onclick = function () {
+    fireCast();
+    if (document.getElementById('withSound').classList.contains('on')) playSavedSound();
+  };
 
   /* ---- the beat editor ------------------------------------------------ */
   function renderBeats() {
@@ -306,7 +315,93 @@
       + '      a: function (e) { if (!e.tp) return; ' + body + ' },\n'
       + '    },';
   }
-  function render() { renderBeats(); emit(); save(); }
+  /* ==================================================================
+   * THE TIMELINE. A cast is entirely about timing — a flash 90ms before the
+   * impact reads as a muzzle, 90ms after reads as a mistake — and the beats
+   * were a column of sliders with no way to see the shape of it. The sound
+   * tool got a timeline and this did not, which was backwards.
+   * ================================================================== */
+  var tl = document.getElementById('tl'), tc = tl.getContext('2d');
+  var tlSpan = 600, tlDrag = null;
+  function tlLane(i) {
+    var lane = (tl.height - 20) / Math.max(1, cast.length);
+    return { y0: 20 + i * lane + 4, hh: lane - 8 };
+  }
+  function drawTimeline() {
+    var W = tl.width, H = tl.height;
+    tlSpan = Math.max(400, cast.reduce(function (m, b) { return Math.max(m, b.at); }, 0) * 1.25 + 120);
+    tc.fillStyle = '#05090b'; tc.fillRect(0, 0, W, H);
+    var tick = tlSpan > 900 ? 200 : 100;
+    tc.font = '10px ui-monospace, monospace';
+    for (var t = 0; t <= tlSpan; t += tick) {
+      var x = t / tlSpan * W;
+      tc.strokeStyle = 'rgba(120,150,165,0.16)'; tc.lineWidth = 1;
+      tc.beginPath(); tc.moveTo(x, 0); tc.lineTo(x, H); tc.stroke();
+      tc.fillStyle = 'rgba(143,167,154,0.65)'; tc.fillText(t + 'ms', x + 3, 12);
+    }
+    cast.forEach(function (b, i) {
+      var L = tlLane(i), x = b.at / tlSpan * W;
+      var w = Math.max(56, W * 0.05);
+      tc.fillStyle = b.colour; tc.globalAlpha = (i === bi) ? 0.35 : 0.16;
+      tc.fillRect(x, L.y0, w, L.hh);
+      tc.globalAlpha = 1;
+      tc.strokeStyle = (i === bi) ? '#ffffff' : b.colour;
+      tc.lineWidth = (i === bi) ? 2 : 1;
+      tc.strokeRect(x, L.y0, w, L.hh);
+      tc.fillStyle = '#eafcff'; tc.font = '700 9px ui-monospace, monospace';
+      tc.fillText(b.prim, x + 4, L.y0 + 12);
+    });
+  }
+  tl.addEventListener('pointerdown', function (ev) {
+    var r = tl.getBoundingClientRect();
+    var x = (ev.clientX - r.left) / r.width * tl.width;
+    var y = (ev.clientY - r.top) / r.height * tl.height;
+    for (var i = 0; i < cast.length; i++) {
+      var L = tlLane(i);
+      if (y < L.y0 || y > L.y0 + L.hh) continue;
+      bi = i;
+      tlDrag = { i: i, dx: x - (cast[i].at / tlSpan * tl.width) };
+      tl.setPointerCapture(ev.pointerId);
+      render(); return;
+    }
+  });
+  tl.addEventListener('pointermove', function (ev) {
+    if (!tlDrag) return;
+    var r = tl.getBoundingClientRect();
+    var x = (ev.clientX - r.left) / r.width * tl.width;
+    cast[tlDrag.i].at = Math.max(0, Math.round(((x - tlDrag.dx) / tl.width) * tlSpan / 5) * 5);
+    render();
+  });
+  tl.addEventListener('pointerup', function () { tlDrag = null; });
+
+  /* THE SOUND HALF, ALONGSIDE. A cast is picture and sound together, and
+   * hearing one without the other is designing half of it blind. This fires
+   * whatever the sound tool last had open, at the same instant the visuals go,
+   * monitored at the same 4x the sound tool uses. */
+  function playSavedSound() {
+    var d;
+    try { d = JSON.parse(localStorage.getItem('voidspire.sound.doc') || 'null'); } catch (e) { return; }
+    if (!d || !d.sound || !d.sound.steps) return;
+    d.sound.steps.forEach(function (st) {
+      var go = function () {
+        try {
+          var c = new (window.AudioContext || window.webkitAudioContext)();
+          var o = c.createOscillator(), g = c.createGain(), now = c.currentTime;
+          o.type = st.type || 'square';
+          o.frequency.setValueAtTime(st.freq, now);
+          if (st.slide) o.frequency.exponentialRampToValueAtTime(Math.max(28, st.freq + st.slide), now + st.dur);
+          g.gain.setValueAtTime(0.0001, now);
+          g.gain.exponentialRampToValueAtTime((st.vol || 0.04) * 4, now + 0.006);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + st.dur);
+          o.connect(g); g.connect(c.destination);
+          o.start(now); o.stop(now + st.dur + 0.02);
+        } catch (e) {}
+      };
+      if (st.at > 0) setTimeout(go, st.at); else go();
+    });
+  }
+
+  function render() { renderBeats(); drawTimeline(); emit(); save(); }
 
   document.getElementById('addBeat').onclick = function () {
     var last = cast[cast.length - 1];
@@ -335,6 +430,7 @@
     if (!confirm('Start this cast again?')) return;
     cast = [beat()]; bi = 0; render();
   };
+  document.getElementById('withSound').onclick = function () { this.classList.toggle('on'); };
   document.getElementById('reload').onclick = function () { frame.src = frame.src; };
 
   /* ---- the game's own casts, fired whole -------------------------------- */
