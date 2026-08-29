@@ -3973,6 +3973,27 @@
   // drive the receipt directly so its height and elision can be measured at any
   // chain length, including ones the engine only reaches rarely (test/uifit.js)
   U.probeChainWipe = function () { chainWipe(); };
+  /* THE CAST LIST, for tools/fx.html. The motif table is the whole visual
+   * vocabulary of the game — 47 named casts — and it was reachable only from
+   * inside this closure. Exposing the names and a way to fire one lets the
+   * effects tool use the REAL cast as reference rather than a description of
+   * it. Read-only: nothing here can change a motif. */
+  U.motifNames = function () { return Object.keys(MOTIF).sort(); };
+  U.probeMotif = function (name) {
+    var m = MOTIF[name]; if (!m) return false;
+    var c = E.combat; if (!c) return false;
+    var pp = R.playerXY();
+    var ti = c.enemies.findIndex(function (e) { return e.alive; });
+    var tp = ti >= 0 ? R.enemyPos(ti) : null;
+    var targets = [];
+    c.enemies.forEach(function (en, idx) { if (en.alive) { var ep = R.enemyPos(idx); if (ep) targets.push(ep); } });
+    var col = CLASS_COL[E.run.cls] || CLASS_COL.vanguard;
+    var env = { pp: pp, sx: pp.x + 8, sy: pp.y - 10, tp: tp, targets: targets, col: col,
+                cls: E.run.cls, power: 2, pm: 1, id: 'probe' };
+    m.s(env); m.a(env);
+    return true;
+  };
+
   U.probeChainLink = function (i) {
     CHAIN.batch = chainBatch; CHAIN.n = i;
     chainLedger({ name: 'Sympathetic Coil', face: 13 - (i % 5), dealt: 9,

@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>VOIDSPIRE · CARDS</title>
+<style>
+  :root {
+    --bg: #04080a; --panel: #0a1014; --line: rgba(120,150,165,0.22);
+    --text: #eafcff; --dim: #8fa79a; --green: #5dff88; --amber: #ffb02e;
+    --cyan: #41d8ff; --red: #ff4a5e; --violet: #c86bff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 10px; }
+  h1 { font-size: 13px; letter-spacing: .18em; margin: 0 0 9px; color: var(--green); }
+  h1 span { color: var(--dim); letter-spacing: .06em; font-size: 11px; }
+  .wrap { display: grid; gap: 11px; grid-template-columns: 1fr; max-width: 1750px; margin: 0 auto; }
+  @media (min-width: 1050px) { .wrap { grid-template-columns: minmax(0,1fr) 400px; } }
+  .box { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 9px; }
+  .box h2 { font-size: 10px; letter-spacing: .13em; color: var(--dim); margin: 0 0 8px; font-weight: 700; }
+  button, label.btn {
+    background: rgba(10,16,20,0.9); border: 1px solid var(--line); border-radius: 3px;
+    color: var(--text); font: 700 10px/1 ui-monospace, monospace; letter-spacing: .07em;
+    padding: 8px 9px; cursor: pointer; display: inline-block;
+  }
+  button:hover { border-color: var(--green); }
+  button.on { border-color: var(--green); background: rgba(93,255,136,0.16); color: var(--green); }
+  button.warn:hover { border-color: var(--red); color: var(--red); }
+  button.sm { padding: 5px 6px; font-size: 9px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 7px; }
+  .hint { color: var(--dim); font-size: 10px; line-height: 1.5; }
+  .hint b { color: var(--text); font-weight: 700; }
+  #stage { position: relative; background: #04080a; border-radius: 3px; overflow: hidden; }
+  #game { border: 0; display: block; }
+  textarea { width: 100%; min-height: 100px; background: #05090b; color: var(--green);
+             border: 1px solid var(--line); border-radius: 3px; padding: 7px;
+             font: 10px/1.45 ui-monospace, monospace; resize: vertical; }
+  select, input[type=text] { background: #05090b; color: var(--text); border: 1px solid var(--line);
+             border-radius: 3px; padding: 5px; font: 10px ui-monospace, monospace; width: 100%; }
+  .list { max-height: 200px; overflow-y: auto; border: 1px solid var(--line); border-radius: 3px; }
+  .it { padding: 5px 7px; font-size: 10px; cursor: pointer; display: flex; gap: 7px; align-items: center;
+        border-bottom: 1px solid rgba(120,150,165,0.09); }
+  .it:hover { background: rgba(93,255,136,0.1); }
+  .it canvas { width: 26px; height: 26px; flex: 0 0 26px; background: #05090b; border-radius: 2px; }
+  .it .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fld { display: grid; grid-template-columns: 84px 1fr 44px; gap: 5px; align-items: center; margin-bottom: 4px; }
+  .fld label { font-size: 9px; color: var(--dim); letter-spacing: .05em; }
+  .fld .v { font-size: 9.5px; text-align: right; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--green); }
+  input[type=color] { width: 100%; height: 26px; background: none; border: 1px solid var(--line); border-radius: 3px; }
+</style>
+</head>
+<body>
+<h1>VOIDSPIRE · CARDS <span>— the real card, with your art and your frame · <b id="ver"></b></span></h1>
+
+<div class="wrap">
+  <div>
+    <div class="box">
+      <div class="bar" style="margin-top:0">
+        <button id="reload" class="sm">RELOAD</button>
+        <span class="hint">hand size</span>
+        <select id="handN" style="width:70px">
+          <option>1</option><option>3</option><option selected>5</option><option>8</option>
+        </select>
+        <span class="hint">class</span>
+        <select id="cls" style="width:130px">
+          <option value="vanguard" selected>vanguard</option>
+          <option value="technomancer">technomancer</option>
+          <option value="voidadept">voidadept</option>
+        </select>
+        <button id="zoomIn" class="sm">BIGGER</button>
+        <button id="zoomOut" class="sm">SMALLER</button>
+        <span class="hint" id="status"></span>
+      </div>
+      <div id="stage" style="margin-top:8px">
+        <iframe id="game" src="../index.html" width="1180" height="760"></iframe>
+      </div>
+      <p class="hint" style="margin:8px 0 0">
+        These are the game's real cards, in a real hand, drawn by the game's own
+        CSS. Every change below is applied to them live — what you are looking
+        at is the card, not a picture of one.
+      </p>
+    </div>
+  </div>
+
+  <div>
+    <div class="box">
+      <h2>THE FRAME — four corner brackets, as the game draws them</h2>
+      <div class="fld"><label>ARM LENGTH</label><input type="range" id="bkt" min="0" max="60" value="15"><span class="v" id="bktN">15</span></div>
+      <div class="fld"><label>THICKNESS</label><input type="range" id="bkw" min="1" max="8" value="2"><span class="v" id="bkwN">2</span></div>
+      <div class="fld"><label>CORNER RADIUS</label><input type="range" id="rad" min="0" max="20" value="4"><span class="v" id="radN">4</span></div>
+      <div class="fld"><label>BORDER</label><input type="range" id="bw" min="0" max="6" step="0.5" value="1.5"><span class="v" id="bwN">1.5</span></div>
+      <div class="fld"><label>CARD WIDTH</label><input type="range" id="cw" min="80" max="220" value="0"><span class="v" id="cwN">—</span></div>
+      <div class="fld"><label>CARD HEIGHT</label><input type="range" id="ch" min="120" max="320" value="0"><span class="v" id="chN">—</span></div>
+      <div class="fld"><label>FRAME COLOUR</label><input type="color" id="cc" value="#5dff88"><span class="v"></span></div>
+      <div class="fld"><label>PANEL</label><input type="color" id="pnl" value="#0a1014"><span class="v"></span></div>
+      <div class="bar"><button id="resetFrame" class="sm warn">RESET FRAME</button></div>
+      <p class="hint" style="margin:7px 0 0">
+        The card has no border — it is <b>four corner brackets</b> built from
+        background gradients. That is why it never distorts at any width, and
+        it is the pattern to copy for any other frame you make.
+      </p>
+    </div>
+
+    <div class="box" style="margin-top:10px">
+      <h2>THE ART — put a drawing on a card</h2>
+      <div class="bar" style="margin-top:0">
+        <span class="hint">card</span>
+        <select id="cardPick"></select>
+      </div>
+      <div class="bar">
+        <button id="fromLib" class="sm">FROM ARTIST LIBRARY</button>
+        <button id="fromGame" class="sm on">FROM THE GAME</button>
+      </div>
+      <input type="text" id="artSearch" placeholder="search…" style="margin:5px 0">
+      <div class="list" id="artList"></div>
+      <p class="hint" style="margin:7px 0 0">
+        Your artist library lives in this browser, so anything you saved there
+        shows up here without a file in between.
+      </p>
+    </div>
+
+    <div class="box" style="margin-top:10px">
+      <h2>THE CODE</h2>
+      <textarea id="out" readonly></textarea>
+      <div class="bar"><button id="copy">COPY</button></div>
+      <p class="hint" style="margin:7px 0 0">
+        The frame block goes in <b>css/style.css</b> under <b>.card</b>; the art
+        goes in <b>js/cardart.js</b> against the card's id.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script src="assets.js"></script>
+<script>
+(function () {
+  'use strict';
+  var BUILD = 'build 1';
+  var frame = document.getElementById('game');
+  var status = document.getElementById('status');
+  var zoom = 1;
+
+  function win() { try { return frame.contentWindow; } catch (e) { return null; } }
+  function doc() { try { return frame.contentDocument; } catch (e) { return null; } }
+
+  /* Boot the real game into a fight with a full hand, so the cards on screen
+   * are the game's own — same markup, same CSS, same art pipeline. A mock-up
+   * would be a second thing to keep in step and would drift the moment the
+   * card frame changed. */
+  function bootGame() {
+    var w = win();
+    if (!w || !w.VS || !w.VS.engine) { status.textContent = 'waiting for the game…'; return false; }
+    try {
+      var E = w.VS.engine;
+      E.seed(5); E.newRun(document.getElementById('cls').value);
+      E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
+      E.startNode('fight');
+      var n = +document.getElementById('handN').value;
+      var pool = Object.keys(w.VS.CARDS).filter(function (id) {
+        var c = w.VS.CARDS[id];
+        return c && !c.token && (!c.cls || c.cls === E.run.cls);
+      });
+      E.combat.hand = [];
+      for (var i = 0; i < n; i++) E.combat.hand.push({ uid: 900 + i, id: pool[i % pool.length], up: false });
+      E.combat.energy = 9;
+      w.VS.ui.refresh();
+      status.textContent = n + ' real cards';
+      fillCardPick();
+      applyFrame();
+      return true;
+    } catch (e) { status.textContent = 'could not start: ' + e.message; return false; }
+  }
+
+  /* ---- the frame ------------------------------------------------------ */
+  var F = { bkt: 15, bkw: 2, rad: 4, bw: 1.5, cw: 0, ch: 0, cc: '', pnl: '' };
+  function applyFrame() {
+    var d = doc(); if (!d) return;
+    var id = 'vs-card-tool';
+    var st = d.getElementById(id);
+    if (!st) { st = d.createElement('style'); st.id = id; d.head.appendChild(st); }
+    var css = '.card {'
+      + ' --bkt: ' + F.bkt + 'px;'
+      + ' --bkw: ' + F.bkw + 'px;'
+      + ' border-radius: ' + F.rad + 'px;'
+      + ' border-width: ' + F.bw + 'px;'
+      + (F.cw ? ' width: ' + F.cw + 'px;' : '')
+      + (F.ch ? ' height: ' + F.ch + 'px;' : '')
+      + (F.cc ? ' --cc: ' + F.cc + ';' : '')
+      + (F.pnl ? ' --panel: ' + F.pnl + '; --panel2: ' + F.pnl + ';' : '')
+      + ' }';
+    st.textContent = css;
+    emit();
+  }
+  function bindRange(id, key, dp) {
+    var el = document.getElementById(id), out = document.getElementById(id + 'N');
+    el.oninput = function () {
+      F[key] = +el.value;
+      if (out) out.textContent = (key === 'cw' || key === 'ch') && !F[key] ? '—' : el.value;
+      applyFrame();
+    };
+  }
+  ['bkt', 'bkw', 'rad', 'bw', 'cw', 'ch'].forEach(function (k) { bindRange(k, k); });
+  document.getElementById('cc').oninput = function () { F.cc = this.value; applyFrame(); };
+  document.getElementById('pnl').oninput = function () { F.pnl = this.value; applyFrame(); };
+  document.getElementById('resetFrame').onclick = function () {
+    F = { bkt: 15, bkw: 2, rad: 4, bw: 1.5, cw: 0, ch: 0, cc: '', pnl: '' };
+    ['bkt', 'bkw', 'rad', 'bw', 'cw', 'ch'].forEach(function (k) {
+      document.getElementById(k).value = F[k];
+      var o = document.getElementById(k + 'N'); if (o) o.textContent = F[k] || '—';
+    });
+    applyFrame();
+  };
+
+  function emit() {
+    var lines = [];
+    if (F.bkt !== 15) lines.push('  --bkt: ' + F.bkt + 'px;      /* bracket arm length */');
+    if (F.bkw !== 2) lines.push('  --bkw: ' + F.bkw + 'px;       /* bracket thickness */');
+    if (F.rad !== 4) lines.push('  border-radius: ' + F.rad + 'px;');
+    if (F.bw !== 1.5) lines.push('  border-width: ' + F.bw + 'px;');
+    if (F.cw) lines.push('  width: ' + F.cw + 'px;');
+    if (F.ch) lines.push('  height: ' + F.ch + 'px;');
+    if (F.cc) lines.push('  --cc: ' + F.cc + ';');
+    var txt = lines.length ? '/* css/style.css — under .card */\n.card {\n' + lines.join('\n') + '\n}' : '/* the frame is unchanged */';
+    if (pendingArt) {
+      txt += '\n\n/* js/cardart.js — against the card id */\n'
+        + pendingArt.id + ': { p: [' + pendingArt.art.p.map(function (q) { return '[' + q.join(',') + ']'; }).join(', ')
+        + '], e: [' + (pendingArt.art.e || []).map(function (q) { return '[' + q.join(',') + ']'; }).join(',') + '] },';
+    }
+    document.getElementById('out').value = txt;
+  }
+
+  /* ---- art ------------------------------------------------------------ */
+  var pendingArt = null, artSource = 'game';
+  function thumb(p, size) {
+    var c = document.createElement('canvas');
+    c.width = c.height = size * 2;
+    var g = c.getContext('2d'); g.scale(2, 2);
+    g.fillStyle = '#05090b'; g.fillRect(0, 0, size, size);
+    g.save(); g.translate(size / 2, size / 2); g.scale(size * 0.4, size * 0.4);
+    g.strokeStyle = '#5dff88'; g.lineWidth = 2.4 / (size * 0.4); g.lineJoin = 'round';
+    (p || []).forEach(function (q) {
+      g.beginPath(); g.moveTo(q[0], q[1]);
+      for (var i = 2; i < q.length; i += 2) g.lineTo(q[i], q[i + 1]);
+      g.stroke();
+    });
+    g.restore();
+    return c;
+  }
+  function libraryArt() {
+    try {
+      return (JSON.parse(localStorage.getItem('voidspire.artist.library') || '[]') || [])
+        .map(function (it) { return { id: it.name, name: it.name, p: it.p, e: it.e }; });
+    } catch (e) { return []; }
+  }
+  function fillCardPick() {
+    var w = win(); if (!w) return;
+    var pick = document.getElementById('cardPick');
+    var cur = pick.value;
+    pick.innerHTML = '';
+    (w.VS.engine.combat ? w.VS.engine.combat.hand : []).forEach(function (cd) {
+      var o = document.createElement('option');
+      o.value = cd.id; o.textContent = (w.VS.CARDS[cd.id] || {}).name || cd.id;
+      pick.appendChild(o);
+    });
+    if (cur) pick.value = cur;
+  }
+  function renderArtList() {
+    var host = document.getElementById('artList');
+    host.innerHTML = '';
+    var q = (document.getElementById('artSearch').value || '').toLowerCase();
+    var src = artSource === 'lib' ? libraryArt()
+      : (window.VS_ASSETS || []).filter(function (a) { return a.kind === 'card' || a.kind === 'engraving'; });
+    src.filter(function (a) { return !q || (a.name + ' ' + a.id).toLowerCase().indexOf(q) >= 0; })
+      .slice(0, 100).forEach(function (a) {
+        var row = document.createElement('div');
+        row.className = 'it';
+        row.appendChild(thumb(a.p, 26));
+        var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = a.name;
+        row.appendChild(nm);
+        row.onclick = function () { putArt(a); };
+        host.appendChild(row);
+      });
+    if (!host.children.length) host.innerHTML = '<div class="hint" style="padding:8px">nothing here yet</div>';
+  }
+  /* Swap the art on a real card by writing into the game's own CARD_ART table
+   * and re-rendering — the same path the game uses, so what appears is what
+   * would appear if the art were pasted into the file. */
+  function putArt(a) {
+    var w = win(); if (!w || !w.VS) return;
+    var id = document.getElementById('cardPick').value;
+    if (!id) { status.textContent = 'no card selected'; return; }
+    w.VS.CARD_ART[id] = { p: a.p, e: a.e || [] };
+    pendingArt = { id: id, art: { p: a.p, e: a.e || [] } };
+    try { w.VS.ui.refresh(); } catch (e) {}
+    status.textContent = a.name + ' → ' + id;
+    emit();
+  }
+  document.getElementById('artSearch').oninput = renderArtList;
+  document.getElementById('fromLib').onclick = function () {
+    artSource = 'lib'; this.classList.add('on');
+    document.getElementById('fromGame').classList.remove('on'); renderArtList();
+  };
+  document.getElementById('fromGame').onclick = function () {
+    artSource = 'game'; this.classList.add('on');
+    document.getElementById('fromLib').classList.remove('on'); renderArtList();
+  };
+
+  document.getElementById('copy').onclick = function () {
+    var t = document.getElementById('out');
+    t.removeAttribute('readonly'); t.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    if (navigator.clipboard) navigator.clipboard.writeText(t.value);
+    t.setAttribute('readonly', '');
+    var b = this, o = b.textContent; b.textContent = 'COPIED';
+    setTimeout(function () { b.textContent = o; }, 900);
+  };
+  document.getElementById('reload').onclick = function () { frame.src = frame.src; };
+  document.getElementById('handN').onchange = function () { frame.src = frame.src; };
+  document.getElementById('cls').onchange = function () { frame.src = frame.src; };
+  function setZoom(z) {
+    zoom = Math.max(0.5, Math.min(2, z));
+    frame.style.transformOrigin = 'top left';
+    frame.style.transform = 'scale(' + zoom + ')';
+    document.getElementById('stage').style.height = (760 * zoom) + 'px';
+  }
+  document.getElementById('zoomIn').onclick = function () { setZoom(zoom * 1.15); };
+  document.getElementById('zoomOut').onclick = function () { setZoom(zoom / 1.15); };
+
+  frame.addEventListener('load', function () {
+    var tries = 0;
+    var t = setInterval(function () { if (bootGame() || ++tries > 40) clearInterval(t); }, 120);
+  });
+
+  document.getElementById('ver').textContent = BUILD;
+  renderArtList(); emit();
+})();
+</script>
+</body>
+</html>
