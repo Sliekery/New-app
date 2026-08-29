@@ -563,7 +563,11 @@
   }
 
   var bar = document.createElement('div');
-  bar.style.cssText = 'position:fixed;right:10px;top:8px;z-index:9999;display:flex;gap:5px;';
+  /* The bar floated over the title on a narrow screen — on a phone the three
+   * buttons landed straight on top of the tool's own name. Given its own row
+   * in the flow it cannot collide with anything. */
+  bar.style.cssText = 'display:flex;gap:5px;justify-content:flex-end;'
+    + 'padding:0 0 6px;flex:0 0 auto;flex-wrap:wrap;';
   bar.innerHTML =
     '<button id="vsHandoff" style="background:rgba(93,255,136,.14);border:1px solid rgba(93,255,136,.5);'
     + 'border-radius:3px;color:#5dff88;font:700 9px/1 ui-monospace,monospace;letter-spacing:.07em;'
@@ -575,7 +579,9 @@
     + 'border-radius:3px;color:#8fa79a;font:700 9px/1 ui-monospace,monospace;letter-spacing:.07em;'
     + 'padding:6px 7px;cursor:pointer" title="Load a backup made on another device">RESTORE'
     + '<input type="file" id="vsRestore" accept="application/json" hidden></label>';
-  document.body.appendChild(bar);
+  var h1 = document.querySelector('body > h1');
+  if (h1 && h1.parentNode) h1.parentNode.insertBefore(bar, h1.nextSibling);
+  else document.body.appendChild(bar);
   document.getElementById('vsHandoff').onclick = function () {
     var txt = handoff(); if (!txt) return;
     var ta = document.createElement('textarea');
