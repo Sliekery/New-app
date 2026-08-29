@@ -494,11 +494,24 @@ Four decisions inside that:
   between the two. If they coincide it makes no difference; if there was
   already a hair of a gap, anchoring on the arm's own end holds that end
   exactly still instead of shifting it half a gap on every swing.
-- **Only the nearest contacts count.** Everything within tolerance takes in a
-  whole overlapping edge and averages the hinge into the middle of it. The
-  closest plus anything effectively tied with it gives one point for a limb
-  butted onto a body and two averaged for a limb in a socket — the right hinge
-  for both.
+- **The contacts are GROUPED before anything is averaged**, and this is the
+  part that was got wrong first — twice. Averaging every contact wherever it
+  is puts the hinge in the middle of NOTHING: select an arm and a leg together
+  and the "joint" lands halfway down the torso between the shoulder and the
+  hip, attached to nothing, tearing both limbs off the moment it swings. It
+  was reported as a crosshair floating in clear space, and it is what the
+  screenshot showed.
+- **Two contacts are the same attachment when they are near each other OR next
+  door along the same stroke.** Distance alone was the second wrong answer: a
+  limb butted onto a body with a flat shoulder touches at the two ends of ONE
+  edge, and those can be most of the limb's width apart, so a plain radius
+  reads an ordinary arm as two joints and refuses to swing it. Following the
+  stroke keeps the edge together and still separates a shoulder from a hip.
+- **Several groups means there is no hinge, and it says so.** A selection held
+  at two ends does not rotate about anything — picking one silently would tear
+  the other while looking as though it worked. The bar reads "held on in 2
+  places … select just the part that swings, or place a PIVOT", and a drag
+  falls back to sliding.
 - **The tolerance is generous** (1.5 grid steps, at least 0.06), because
   hand-drawn work does not meet to the thousandth. Being wrong is *visible* —
   the joint is drawn on the canvas — and PIVOT is still there to overrule it,
@@ -601,7 +614,11 @@ and the strokes you did not select are byte-identical. Four notes worth keeping:
   what it says.** Several read green against the wrong stroke or the wrong
   selection: DUPLICATE leaves the COPY selected; a select-all leaves no joint,
   so a haul slides instead of swinging and REPEAT faithfully walks the slide
-  out over five frames. Each block re-establishes what it needs.
+  out over five frames; and a block that borrows a fresh tab has to hand the
+  first drawing back. Each block re-establishes what it needs.
+- **A marquee snaps to the grid too**, so a selection box drawn to stop a hair
+  above a line rounds down onto it and swallows it. Separate the thing you want
+  to exclude along the OTHER axis instead.
 - **A bounding-box centre is not a rotation invariant.** Asserting "the middle
   stays put" fails on a correct rotation, because a turned shape has a
   different bounding box. What holds is that every point keeps its distance

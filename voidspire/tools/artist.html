@@ -1336,6 +1336,11 @@
           + (!swingOn ? ' · drag to slide it'
             : pivot ? ' · drag to swing it round your pivot'
             : autoJoint ? ' · hinged where it meets the rest — drag it up and down'
+            /* Named, because "it slides" with no reason reads as the swing
+             * being broken. Held at two ends there is nothing to turn about,
+             * and the way out is to select less or place a PIVOT. */
+            : jointHeldAt > 1 ? ' · held on in ' + jointHeldAt + ' places, so nothing to hinge'
+              + ' on — select just the part that swings, or place a PIVOT'
             : ' · touching nothing, so drag slides it');
     if (mode === 'select') syncSwingBtn();
     drawPreview();
@@ -1742,7 +1747,7 @@
   function modeBtn(id, m) {
     document.getElementById(id).onclick = function () {
       finish(); mode = m;
-      if (m !== 'select') { sel = []; autoJoint = null; }
+      if (m !== 'select') { sel = []; autoJoint = null; jointHeldAt = 0; }
         ['mDraw', 'mFree', 'mEdit', 'mEye', 'mPan', 'mShape', 'mSel', 'mErase', 'mLine', 'mSolid'].forEach(function (o) {
         var el = document.getElementById(o); if (el) el.classList.remove('on');
       });
@@ -2697,6 +2702,8 @@
    * whole use of it is to turn the same joint over and over.
    * ================================================================== */
   var pivot = null, pivotArm = false, autoJoint = null;
+  // how many separate places the selection is held at — 0, 1, or too many
+  var jointHeldAt = 0;
 
   /* ==================================================================
    * THE JOINT IS FOUND, NOT PLACED
@@ -2713,11 +2720,27 @@
    * already a hair of a gap, anchoring on the arm's own end holds that end
    * exactly still instead of shifting it half a gap on every swing.
    *
-   * Only the nearest contacts count. Everything within tolerance would take in
-   * a whole overlapping edge and average the hinge into the middle of it; the
-   * closest, plus anything effectively tied with it, is a joint — one point
-   * for a limb butted onto a body, two averaged for a limb sitting in a
-   * socket, which is the right hinge for both.
+   * THE CONTACTS ARE GROUPED BEFORE ANYTHING IS AVERAGED, and this is the part
+   * that was got wrong first. A limb butted onto a body touches at one place;
+   * a limb in a socket touches at two points a finger apart, and averaging
+   * those two IS the hinge. But averaging every contact wherever it is puts
+   * the hinge in the middle of NOTHING — select an arm and a leg together and
+   * the "joint" lands halfway down the torso between the shoulder and the hip,
+   * a point that is not attached to anything and that tears both limbs off the
+   * moment you swing it. That is exactly what was reported: a crosshair
+   * floating in clear space.
+   *
+   * So contacts are clustered by proximity, and:
+   *
+   *   ONE cluster  — that is the joint, averaged across it.
+   *   SEVERAL      — there IS no single hinge. Anything you turn tears one of
+   *                  the attachments off. Refuse, say how many places it is
+   *                  held at, and let the person narrow the selection or place
+   *                  a PIVOT deliberately.
+   *
+   * Refusing is the honest answer rather than a fallback: a selection held at
+   * two ends does not rotate about anything, and picking one of them silently
+   * would break the other while looking as though it had worked.
    * ================================================================== */
   /* Point to SEGMENT, not point to point. An arm almost never meets the body
    * at one of the body's own corners — it lands part way along a line, which
@@ -2730,7 +2753,7 @@
     return Math.hypot(p[0] - (a[0] + vx * t), p[1] - (a[1] + vy * t));
   }
   function findJoint() {
-    autoJoint = null;
+    autoJoint = null; jointHeldAt = 0;
     if (!sel.length) return;
     var S = here().strokes, mine = {}, ours = [], theirs = [];
     sel.forEach(function (i) { mine[i] = 1; });
@@ -2741,8 +2764,8 @@
      * canvas — and PIVOT is still there to overrule it. */
     var tol = Math.max(gridStep * 1.5, 0.06);
     var contacts = [], best = Infinity;
-    ours.forEach(function (a) {
-      a.forEach(function (p) {
+    ours.forEach(function (a, si) {
+      a.forEach(function (p, pi) {
         var bd = Infinity;
         theirs.forEach(function (b) {
           if (b.length < 2) {
@@ -2755,15 +2778,46 @@
           }
         });
         if (bd < best) best = bd;
-        contacts.push({ p: p, d: bd });
+        contacts.push({ p: p, d: bd, s: si, i: pi });
       });
     });
     if (best > tol) return;
-    var eps = Math.max(gridStep * 0.5, 0.01);
-    var hits = contacts.filter(function (c) { return c.d <= best + eps; });
+    var hits = contacts.filter(function (c) { return c.d <= tol; });
+
+    /* GROUPED, and distance alone is not the test. Two contacts count as the
+     * same attachment when they are near each other OR when they are NEXT DOOR
+     * ALONG THE SAME STROKE — because a limb butted onto a body with a flat
+     * shoulder touches at the two ends of one edge, and those two ends can be
+     * most of the limb's width apart. On distance alone that reads as two
+     * joints and the swing is refused on a perfectly ordinary arm. Following
+     * the stroke keeps the whole edge together, and still refuses a shoulder
+     * and a hip, which are on different strokes with clear space between. */
+    var near = Math.max(gridStep * 4, 0.15);
+    function linked(a, c) {
+      if (a.s === c.s && Math.abs(a.i - c.i) === 1) return true;
+      return Math.hypot(a.p[0] - c.p[0], a.p[1] - c.p[1]) <= near;
+    }
+    var taken = [], groups = [];
+    for (var g = 0; g < hits.length; g++) taken.push(false);
+    for (var i2 = 0; i2 < hits.length; i2++) {
+      if (taken[i2]) continue;
+      taken[i2] = true;
+      var queue = [i2], group = [];
+      while (queue.length) {
+        var k = queue.pop();
+        group.push(hits[k]);
+        for (var j2 = 0; j2 < hits.length; j2++) {
+          if (taken[j2]) continue;
+          if (linked(hits[k], hits[j2])) { taken[j2] = true; queue.push(j2); }
+        }
+      }
+      groups.push(group);
+    }
+    jointHeldAt = groups.length;
+    if (groups.length !== 1) return;
     var sx = 0, sy = 0;
-    hits.forEach(function (c) { sx += c.p[0]; sy += c.p[1]; });
-    autoJoint = [+(sx / hits.length).toFixed(3), +(sy / hits.length).toFixed(3)];
+    groups[0].forEach(function (c) { sx += c.p[0]; sy += c.p[1]; });
+    autoJoint = [+(sx / groups[0].length).toFixed(3), +(sy / groups[0].length).toFixed(3)];
   }
 
   // what a turn actually goes round: your pivot, else the joint that was found
@@ -2805,6 +2859,9 @@
     el.classList.toggle('on', swingOn && have);
     el.title = !swingOn ? 'Dragging slides the selection. Press for SWING.'
       : have ? 'Dragging turns it about the joint. Press for MOVE.'
+      : jointHeldAt > 1 ? 'This selection is held on in ' + jointHeldAt + ' separate places,'
+        + ' so there is no one point it can turn about — swinging it would tear it off'
+        + ' somewhere. Select just the part that hinges, or place a PIVOT.'
       : 'Nothing this selection touches, so there is no joint to turn about —'
         + ' dragging slides it. Select a part that meets the rest of the drawing.';
   }
@@ -3005,10 +3062,10 @@
     if (!sel.length) return;
     pushHistory();
     sel.slice().sort(function (a, b) { return b - a; }).forEach(function (i) { here().strokes.splice(i, 1); });
-    sel = []; autoJoint = null; drawPad();
+    sel = []; autoJoint = null; jointHeldAt = 0; drawPad();
   };
   document.getElementById('selNone').onclick = function () {
-    sel = []; autoJoint = null; drawPad();
+    sel = []; autoJoint = null; jointHeldAt = 0; drawPad();
   };
 
   /* ZOOM AND PAN. Wheel and pinch both zoom about the pointer rather than the
@@ -4304,14 +4361,14 @@
      * stroke still being laid down, a marquee, a solid mid-drag: all of it is
      * dropped rather than carried across, because carrying it would paste
      * points into a drawing you had not touched. */
-    cur = []; curUndone.length = 0; sel = []; autoJoint = null;
+    cur = []; curUndone.length = 0; sel = []; autoJoint = null; jointHeldAt = 0;
     drag = null; freeing = null; shapeFrom = shapeTo = null; orbitFrom = null;
     lineFrom = lineTo = null; marquee = null;
     /* The pivot is a point in A DRAWING — the robot's shoulder is nowhere in
      * particular in the next tab along — and the transform REPEAT would carry
      * on was made over there. Both go, or REPEAT in a drawing you have not
      * touched yet would build frames out of a movement from another one. */
-    pivot = null; pivotArm = false; lastXform = null; autoJoint = null;
+    pivot = null; pivotArm = false; lastXform = null; autoJoint = null; jointHeldAt = 0;
     syncPivotBtn(); syncSwingBtn(); resetRepHint();
     /* And the last thing that happened happened somewhere else. "placed icosa
      * — 18 lines" reading out over a drawing with no icosa in it is the same
@@ -4754,7 +4811,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 28';
+  document.getElementById('ver').textContent = 'build 29';
 
   paintThumbs();
   applyView(viewMode);

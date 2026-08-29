@@ -296,6 +296,120 @@ const DEG = 180 / Math.PI;
     ok('and it goes back to SWING', (await swingLabel()) === 'SWING', await swingLabel());
   }
 
+  console.log('\nHELD ON IN TWO PLACES IS NOT A HINGE');
+  /* THE BUG THIS EXISTS FOR. Averaging every contact wherever it is puts the
+   * hinge in the middle of NOTHING: select an arm and a leg together and the
+   * "joint" lands halfway down the torso between the shoulder and the hip — a
+   * point attached to nothing, which tears both limbs off the moment it is
+   * swung. It was reported as a crosshair floating in clear space.
+   *
+   * A selection held at two ends does not rotate about anything, so the honest
+   * answer is to say so rather than to pick one of them silently. */
+  {
+    await p.click('#tabAdd'); await p.waitForTimeout(600);
+    await p.click('#mLine'); await p.waitForTimeout(80);
+    const Wf = v => (v / 1.35 + 1) / 2;             // world -> screen fraction
+    const wdrag = (a, c, d, e) => drag(Wf(a), Wf(c), Wf(d), Wf(e));
+    await wdrag(0.3, -0.6, 0.3, 0.8);               // torso — the only unselected stroke
+    await wdrag(0.3, -0.5, 0.8, -0.3);              // ARM, attached high
+    await wdrag(0.3, 0.5, 0.8, 0.7);                // LEG, attached low
+    await p.click('#mSel'); await p.waitForTimeout(150);
+
+    // the arm alone first: one attachment, so it hinges
+    await wdrag(0.45, -0.62, 0.95, 0.0);
+    ok('the arm on its own is hinged', /hinged where it meets the rest/.test(await selBar()),
+      await selBar());
+    const j = await p.evaluate(() => {
+      const c = document.getElementById('pad'), g = c.getContext('2d');
+      const d = g.getImageData(0, 0, c.width, c.height).data;
+      let ax = 0, ay = 0, n = 0;
+      for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
+        const i = (y * c.width + x) * 4;
+        if (d[i] > 200 && d[i + 1] > 130 && d[i + 1] < 200 && d[i + 2] < 90) { ax += x; ay += y; n++; }
+      }
+      return n ? [(ax / n / c.width * 2 - 1) * 1.35, (ay / n / c.height * 2 - 1) * 1.35] : null;
+    });
+    ok('and the crosshair is ON the shoulder, not near it',
+      j && Math.abs(j[0] - 0.3) < 0.03 && Math.abs(j[1] + 0.5) < 0.03,
+      j ? j.map(v => v.toFixed(3)).join(', ') : 'none');
+
+    // now the arm AND the leg: two attachments, half a torso apart
+    await wdrag(0.45, -0.62, 0.95, 0.78);
+    ok('both limbs are selected', /2 strokes selected/.test(await selBar()), await selBar());
+    ok('it refuses to invent a hinge between them',
+      !/hinged where it meets/.test(await selBar()), await selBar());
+    ok('and says how many places it is held at',
+      /held on in 2 places/.test(await selBar()), await selBar());
+    ok('SWING is not lit', await p.$eval('#tSwing', e => !e.classList.contains('on')),
+      await swingLabel());
+    ok('no crosshair is drawn in the empty space between them', await p.evaluate(() => {
+      const c = document.getElementById('pad'), g = c.getContext('2d');
+      const d = g.getImageData(0, 0, c.width, c.height).data;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i] > 200 && d[i + 1] > 130 && d[i + 1] < 200 && d[i + 2] < 90) return false;
+      }
+      return true;
+    }));
+    /* And a drag slides rather than tearing one of them off: both limbs shift
+     * by the same amount, and the torso they hang from does not move. */
+    const was = (await cur()).p.map(r => r.slice());
+    await wdrag(0.6, 0.6, 0.75, 0.6);
+    const now = (await cur()).p;
+    const dArm = now[1][0] - was[1][0], dLeg = now[2][0] - was[2][0];
+    ok('a drag slides both limbs by the same amount rather than tearing one off',
+      Math.abs(dArm - dLeg) < 0.002 && Math.abs(dArm) > 0.02,
+      'arm ' + dArm.toFixed(3) + ' vs leg ' + dLeg.toFixed(3));
+    ok('and the torso they hang from stays put',
+      JSON.stringify(now[0]) === JSON.stringify(was[0]),
+      JSON.stringify(was[0]) + ' → ' + JSON.stringify(now[0]));
+    await p.click('#bUndo'); await p.waitForTimeout(200);
+  }
+
+  console.log('\nA LIMB BUTTED ALONG AN EDGE IS STILL ONE JOINT');
+  /* The other half of the same rule: contacts that follow a chain are ONE
+   * attachment even when its two ends are far apart. Grouping by a plain
+   * radius round the nearest contact would call a wide shoulder two joints. */
+  {
+    await p.click('#tabAdd'); await p.waitForTimeout(600);
+    await p.click('#mLine'); await p.waitForTimeout(80);
+    const Wf = v => (v / 1.35 + 1) / 2;
+    const wdrag = (a, c, d, e) => drag(Wf(a), Wf(c), Wf(d), Wf(e));
+    /* The body edge runs well past the slab on both sides, so a marquee can
+     * take the slab and leave the edge out. It cannot be excluded by height:
+     * the marquee snaps to the grid too, so a box that stops a hair above y=0
+     * rounds down onto it and swallows the edge. */
+    await wdrag(-1.2, 0.0, 1.2, 0.0);               // a long body edge
+    // a wide slab sitting on it, its whole base along the edge
+    await wdrag(-0.4, 0.0, 0.4, 0.0);
+    await wdrag(-0.4, 0.0, -0.4, -0.4);
+    await wdrag(0.4, 0.0, 0.4, -0.4);
+    await wdrag(-0.4, -0.4, 0.4, -0.4);
+    await p.click('#mSel'); await p.waitForTimeout(150);
+    await wdrag(-0.7, -0.6, 0.7, 0.2);              // the slab, not the long edge
+    ok('the slab is selected and the edge is not',
+      /4 strokes selected/.test(await selBar()), await selBar());
+    ok('a whole edge of contact is still ONE joint, not two corners',
+      /hinged where it meets the rest/.test(await selBar()), await selBar());
+    const jm = await p.evaluate(() => {
+      const c = document.getElementById('pad'), g = c.getContext('2d');
+      const d = g.getImageData(0, 0, c.width, c.height).data;
+      let ax = 0, ay = 0, n = 0;
+      for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
+        const i = (y * c.width + x) * 4;
+        if (d[i] > 200 && d[i + 1] > 130 && d[i + 1] < 200 && d[i + 2] < 90) { ax += x; ay += y; n++; }
+      }
+      return n ? [(ax / n / c.width * 2 - 1) * 1.35, (ay / n / c.height * 2 - 1) * 1.35] : null;
+    });
+    ok('and it sits in the MIDDLE of that edge, where a shoulder would be',
+      jm && Math.abs(jm[0]) < 0.05 && Math.abs(jm[1]) < 0.05,
+      jm ? jm.map(v => v.toFixed(3)).join(', ') : 'none');
+  }
+  /* Back to the body-and-arm drawing these two blocks borrowed a tab from —
+   * everything below assumes it. */
+  await p.click('#tabBar .tab:nth-child(1)'); await p.waitForTimeout(600);
+  await p.click('#mSel'); await p.waitForTimeout(150);
+  ok('back in the first drawing', (await bodyOf()) === BODY0, await bodyOf());
+
   console.log('\nA SELECTION THAT TOUCHES NOTHING HAS NO JOINT');
   /* Select everything and there is no "rest of the drawing" left to hinge
    * against, so it must say so rather than inventing a hinge — and a drag has
