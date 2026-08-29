@@ -11,7 +11,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>VOIDSPIRE · SOUND</title>
 <style>
   :root {
@@ -77,6 +77,34 @@
   .chord { display: grid; grid-template-columns: 40px repeat(4, 1fr); gap: 5px; align-items: center; margin-bottom: 5px; }
   .chord label { font-size: 9px; color: var(--dim); }
   .chord input { width: 100%; }
+
+  /* ==================================================================
+   * APP SHELL — the page itself never scrolls or zooms
+   * ==================================================================
+   * These were ordinary documents: the body grew as tall as its content, so
+   * the canvas scrolled out of view while you were working on it, a pinch
+   * zoomed the whole page instead of the tool, and dragging on a canvas that
+   * had no touch-action scrolled the document out from under the pointer.
+   *
+   * That is what made them feel like they needed to be a desktop app. They do
+   * not — they need to behave like one. The page is now a fixed-height frame
+   * with its panels scrolling INSIDE it, so the work surface stays put and
+   * only the thing you are reading moves.
+   * ================================================================== */
+  html, body {
+    height: 100%; max-height: 100%; margin: 0;
+    overflow: hidden; overscroll-behavior: none;
+  }
+  body { display: flex; flex-direction: column; }
+  body > h1 { flex: 0 0 auto; }
+  .wrap { flex: 1 1 auto; min-height: 0; align-items: stretch; }
+  .wrap > * { min-height: 0; overflow-y: auto; overflow-x: hidden; }
+  /* A drag on a canvas is always a drag, never a scroll or a pinch. */
+  canvas { touch-action: none; }
+  /* the tabbed panes are the flex child here, so they carry the height */
+  .tabs { flex: 0 0 auto; }
+  #paneSfx, #paneMus { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  #paneSfx > .wrap, #paneMus > .wrap { flex: 1 1 auto; min-height: 0; }
 </style>
 </head>
 <body>
@@ -1148,7 +1176,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 6';
+  document.getElementById('ver').textContent = 'build 7';
   renderLib(); render();
   setInterval(function () {
     if (document.hidden) return;
