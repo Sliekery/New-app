@@ -1,0 +1,2198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- GitHub Pages serves these with a long cache, and a single-file tool means
+     one stale document hides every change at once. Three separate "that
+     feature is missing" reports in this project turned out to be exactly
+     that — layers, image tracing and the audio fixes were all reported absent
+     while already deployed. Ask the browser to revalidate; the build number in
+     the header is the backstop when it does not. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>LINEWORK</title>
+<style>
+  :root {
+    --bg: #04080a; --panel: #0a1014; --line: rgba(120,150,165,0.22);
+    --text: #eafcff; --dim: #8fa79a; --green: #5dff88; --amber: #ffb02e;
+    --cyan: #41d8ff; --red: #ff4a5e; --violet: #c86bff;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+    padding: 10px; overscroll-behavior: none;
+  }
+  h1 { font-size: 13px; letter-spacing: .18em; margin: 0 0 9px; color: var(--green); }
+  h1 span { color: var(--dim); letter-spacing: .06em; font-size: 11px; }
+  /* THREE COLUMNS ON A WIDE SCREEN: a tool rail, the canvas, the panels.
+   * The page was centred at 1400px with the tools stacked underneath, which
+   * left a dead margin down each side and pushed the canvas up against its
+   * own controls. A rail is where every drawing program puts them and where
+   * the hand goes looking. Below 1000px it lies back down as a strip above
+   * the canvas, because a phone has no margin to spare. */
+  .wrap { display: grid; gap: 11px; grid-template-columns: 1fr; max-width: 1700px; margin: 0 auto; }
+  @media (min-width: 1000px) { .wrap { grid-template-columns: 74px minmax(0,1fr) 340px; } }
+  .rail { display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px; align-content: start; }
+  @media (min-width: 1000px) { .rail { flex-direction: column; flex-wrap: nowrap; } }
+  .rail button { width: 100%; padding: 9px 4px; font-size: 9px; letter-spacing: .04em; }
+  @media (max-width: 999px) { .rail button { width: auto; } }
+  .rail .sep {
+    height: 1px; background: var(--line); margin: 5px 0; width: 100%;
+  }
+  @media (max-width: 999px) { .rail .sep { display: none; } }
+  .rail .grp { font-size: 8px; color: var(--dim); letter-spacing: .1em; margin: 2px 0 1px; }
+  @media (max-width: 999px) { .rail .grp { display: none; } }
+  .stage, .box {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 8px;
+  }
+  canvas { display: block; width: 100%; height: auto; touch-action: none; border-radius: 3px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; align-items: center; }
+  button, label.btn {
+    background: rgba(10,16,20,0.9); border: 1px solid var(--line); border-radius: 3px;
+    color: var(--text); font: 700 10px/1 ui-monospace, monospace; letter-spacing: .07em;
+    padding: 8px 9px; cursor: pointer; touch-action: manipulation; display: inline-block;
+  }
+  button:hover, label.btn:hover { border-color: var(--green); }
+  button.on { border-color: var(--green); background: rgba(93,255,136,0.16); color: var(--green); }
+  button.warn:hover { border-color: var(--red); color: var(--red); }
+  button.sm { padding: 5px 6px; font-size: 9px; }
+  button.big { padding: 11px 15px; font-size: 12px; border-color: var(--green); color: var(--green); }
+  button.big:hover { background: rgba(93,255,136,0.15); }
+  button.big:disabled { opacity: .3; cursor: default; border-color: var(--line); color: var(--dim); }
+  .k { opacity: .45; font-size: 8px; margin-left: 3px; }
+  #undoBar { border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  .side { display: flex; flex-direction: column; gap: 10px; }
+  .box h2 { font-size: 10px; letter-spacing: .13em; color: var(--dim); margin: 0 0 7px; font-weight: 700; }
+  textarea {
+    width: 100%; min-height: 96px; background: #05090b; color: var(--green);
+    border: 1px solid var(--line); border-radius: 3px; padding: 7px;
+    font: 10px/1.45 ui-monospace, monospace; resize: vertical;
+  }
+  .hint { color: var(--dim); font-size: 10px; line-height: 1.5; }
+  .hint b { color: var(--text); font-weight: 700; }
+  .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .swatch { width: 15px; height: 15px; border-radius: 2px; border: 1px solid var(--line); cursor: pointer; }
+  .swatch.on { outline: 2px solid var(--text); }
+  input[type=range] { flex: 1; min-width: 80px; accent-color: var(--green); }
+  /* layers and frames */
+  .lay, .frm {
+    display: flex; align-items: center; gap: 5px; padding: 4px 5px; border-radius: 3px;
+    border: 1px solid transparent; cursor: pointer;
+  }
+  .lay.sel, .frm.sel { border-color: var(--green); background: rgba(93,255,136,0.09); }
+  .lay .nm { flex: 1; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tog { font-size: 10px; width: 20px; text-align: center; opacity: .35; }
+  .tog.on { opacity: 1; color: var(--green); }
+  .tog.exp.on { color: var(--amber); }
+  .frames { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 3px; }
+  .list { max-height: 210px; overflow-y: auto; border: 1px solid var(--line); border-radius: 3px; }
+  .it {
+    display: flex; align-items: center; gap: 7px; padding: 4px 6px; cursor: pointer;
+    border-bottom: 1px solid rgba(120,150,165,0.09);
+  }
+  .it:hover { background: rgba(93,255,136,0.09); }
+  .it canvas { width: 30px; height: 30px; flex: 0 0 30px; background: #05090b; border-radius: 2px; }
+  .it .nm { flex: 1; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .it .kd { font-size: 8.5px; color: var(--dim); letter-spacing: .08em; }
+  .it .x { color: var(--red); opacity: .5; padding: 0 3px; }
+  .it .x:hover { opacity: 1; }
+  input[type=text] {
+    width: 100%; background: #05090b; color: var(--text); border: 1px solid var(--line);
+    border-radius: 3px; padding: 6px; font: 10px ui-monospace, monospace; margin-bottom: 5px;
+  }
+  .frm {
+    flex: 0 0 auto; font-size: 10px; padding: 6px 11px; border-color: var(--line);
+    cursor: grab; touch-action: none; user-select: none;
+  }
+  .frm:active { cursor: grabbing; }
+  .frm.dragging { opacity: .55; border-color: var(--amber); background: rgba(255,176,46,0.16); }
+  #preview { background: #04080a; }
+
+  /* ==================================================================
+   * APP SHELL — the page itself never scrolls or zooms
+   * ==================================================================
+   * These were ordinary documents: the body grew as tall as its content, so
+   * the canvas scrolled out of view while you were working on it, a pinch
+   * zoomed the whole page instead of the tool, and dragging on a canvas that
+   * had no touch-action scrolled the document out from under the pointer.
+   *
+   * That is what made them feel like they needed to be a desktop app. They do
+   * not — they need to behave like one. The page is now a fixed-height frame
+   * with its panels scrolling INSIDE it, so the work surface stays put and
+   * only the thing you are reading moves.
+   * ================================================================== */
+  html, body {
+    height: 100%; max-height: 100%; margin: 0;
+    overflow: hidden; overscroll-behavior: none;
+  }
+  body { display: flex; flex-direction: column; }
+  body > h1 { flex: 0 0 auto; }
+  .wrap { flex: 1 1 auto; min-height: 0; align-items: stretch; }
+  .wrap > * { min-height: 0; overflow-y: auto; overflow-x: hidden; }
+  /* A drag on a canvas is always a drag, never a scroll or a pinch. */
+  canvas { touch-action: none; }
+  /* THE CONTROLS STAY IN VIEW. Making the page a fixed shell let the canvas
+   * fill the column and push the shape picker and the frame strip below the
+   * fold, where they had to be scrolled to — which is worse than the scrolling
+   * problem the shell was fixing. The canvas is capped instead, and everything
+   * that is a CONTROL sits outside the scrolling part. */
+  .mid { display: flex; flex-direction: column; min-height: 0; overflow: hidden !important; }
+  .mid .stage { flex: 0 0 auto; }
+  #pad { max-height: 58vh; width: auto; max-width: 100%; aspect-ratio: 1 / 1; margin: 0 auto; }
+  .framestrip { flex: 0 0 auto; margin-top: 8px; }
+  .framestrip .bar { margin-top: 5px; }
+</style>
+</head>
+<body>
+<h1>LINEWORK <span>— a small tool for drawing with lines · <b id="ver"></b></span></h1>
+
+<div class="wrap">
+  <div class="rail">
+    <button id="bUndo" title="Undo (Cmd/Ctrl+Z)">↶ UNDO</button>
+    <button id="bRedo" title="Redo (Cmd/Ctrl+Shift+Z)">↷ REDO</button>
+    <div class="sep"></div>
+    <div class="grp">DRAW</div>
+    <button id="mDraw" class="on" title="Path — taps join into one stroke (D)">PATH <span class="k">D</span></button>
+    <button id="mLine" title="One straight segment per drag (L)">LINE <span class="k">L</span></button>
+    <button id="mFree" title="Freehand, simplified on release (F)">FREE <span class="k">F</span></button>
+    <button id="mShape" title="Drag a box, the shape fills it (S)">SHAPE <span class="k">S</span></button>
+    <div id="railShapes" style="display:none">
+      <button class="sm shp on" data-shp="circle">● CIRCLE</button>
+      <button class="sm shp" data-shp="ellipse">⬭ ELLIPSE</button>
+      <button class="sm shp" data-shp="rect">▭ RECT</button>
+      <button class="sm shp" data-shp="square">◻ SQUARE</button>
+      <button class="sm shp" data-shp="round">▢ ROUNDED</button>
+      <button class="sm shp" data-shp="tri">▲ TRIANGLE</button>
+      <button class="sm shp" data-shp="poly">⬡ POLYGON</button>
+      <button class="sm shp" data-shp="star">✶ STAR</button>
+      <button class="sm shp" data-shp="arc">◠ ARC</button>
+      <input type="range" id="shpN2" min="3" max="12" value="6" style="width:100%;margin-top:3px">
+      <div class="hint" style="text-align:center" id="shpNN2">6 sides</div>
+    </div>
+    <button id="mEye" title="Place a glowing pip (E)">EYE <span class="k">E</span></button>
+    <button id="mErase" title="Drag over strokes to rub them out (X)">ERASE <span class="k">X</span></button>
+    <div class="sep"></div>
+    <div class="grp">EDIT</div>
+    <button id="mEdit" title="Drag points; DELETE removes one (A)">POINTS <span class="k">A</span></button>
+    <button id="mSel" title="Marquee select and transform (V)">SELECT <span class="k">V</span></button>
+    <button id="mPan" title="Drag the canvas (H) — or hold SPACE anywhere">PAN <span class="k">H</span></button>
+    <div class="sep"></div>
+    <div class="grp">SNAP</div>
+    <button id="bMirror" title="Draw one half, get the other">MIRROR</button>
+    <button id="bSnap" title="Snap to the 0.02 grid">GRID</button>
+    <button id="bMag" title="Snap to nearby existing points">POINTS</button>
+    <button id="bGrid" title="Show the grid">SHOW</button>
+    <div class="sep"></div>
+    <div class="grp">VIEW</div>
+    <button id="zIn">ZOOM +</button>
+    <button id="zOut">ZOOM −</button>
+    <button id="zFit">FIT</button>
+  </div>
+
+  <div class="mid">
+    <div class="stage">
+      <canvas id="pad" width="1100" height="1100"></canvas>
+      <div class="bar">
+        <button id="bFinish">FINISH LINE</button>
+        <span class="hint" id="modeHint"></span>
+      </div>
+      <div class="bar" id="shapeBar" style="display:none">
+        <span class="hint">shape</span>
+        <button class="sm shp on" data-shp="circle">CIRCLE</button>
+        <button class="sm shp" data-shp="ellipse">ELLIPSE</button>
+        <button class="sm shp" data-shp="rect">RECT</button>
+        <button class="sm shp" data-shp="square">SQUARE</button>
+        <button class="sm shp" data-shp="round">ROUNDED</button>
+        <button class="sm shp" data-shp="tri">TRIANGLE</button>
+        <button class="sm shp" data-shp="poly">POLYGON</button>
+        <button class="sm shp" data-shp="star">STAR</button>
+        <button class="sm shp" data-shp="arc">ARC</button>
+        <span class="hint">points</span>
+        <input type="range" id="shpN" min="3" max="12" value="6" style="max-width:80px">
+        <span class="hint" id="shpNN">6</span>
+      </div>
+      <div class="bar" id="selBar" style="display:none">
+        <span class="hint" id="selCount">nothing selected</span>
+        <button id="tRotL" class="sm">↺ 15°</button>
+        <button id="tRotR" class="sm">↻ 15°</button>
+        <button id="tBig" class="sm">SCALE +</button>
+        <button id="tSmall" class="sm">SCALE −</button>
+        <button id="tFlip" class="sm">FLIP</button>
+        <button id="tDup" class="sm">DUPLICATE</button>
+        <button id="tDel" class="sm warn">DELETE</button>
+        <button id="selNone" class="sm">CLEAR</button>
+      </div>
+      <div class="bar"><span class="hint" id="status"></span></div>
+    </div>
+
+    <div class="box framestrip">
+      <h2>FRAMES — more than one makes it an animation · drag one to reorder</h2>
+      <div class="frames" id="frameList"></div>
+      <div class="bar">
+        <button id="fAdd" class="sm">+ FRAME</button>
+        <button id="fDup" class="sm">DUPLICATE</button>
+        <button id="fDel" class="sm warn">DELETE</button>
+        <button id="fPlay" class="sm">▶ PLAY</button>
+        <button id="bOnion" class="sm">ONION</button>
+        <button id="fTween" class="sm">TWEEN →</button>
+        <input type="range" id="tweenN" min="1" max="6" value="3" style="max-width:70px">
+        <span class="hint" id="tweenNN">3</span>
+        <span class="hint">fps</span>
+        <input type="range" id="fps" min="2" max="24" value="8" style="max-width:110px">
+        <span class="hint" id="fpsN">8</span>
+        <span style="width:10px"></span>
+        <span class="hint">freehand smoothing</span>
+        <input type="range" id="smooth" min="1" max="60" value="18" style="max-width:110px">
+        <span class="hint" id="smoothN">18</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="box">
+      <h2>LAYERS — sketch underneath, line work on top</h2>
+      <div id="layerList"></div>
+      <div class="bar">
+        <button id="lAdd" class="sm">+ LAYER</button>
+        <button id="lDel" class="sm warn">DELETE</button>
+        <button id="lUp" class="sm">▲</button>
+        <button id="lDown" class="sm">▼</button>
+      </div>
+      <p class="hint" style="margin:7px 0 0">
+        The <b>eye</b> column shows a layer; the <b>◆</b> column decides whether
+        it is <b>exported</b>. Turn ◆ off on your sketch layer and it stays a
+        guide you can see but the game never gets.
+      </p>
+    </div>
+
+    <div class="box">
+      <h2>THE GAME'S ART — load any of it and edit it</h2>
+      <input type="text" id="aSearch" placeholder="search 346 pieces…">
+      <div class="bar" style="margin:0 0 5px">
+        <button id="kAll" class="sm on">ALL</button>
+        <button id="kEnemy" class="sm">ENEMIES</button>
+        <button id="kEng" class="sm">ENGRAVINGS</button>
+        <button id="kCard" class="sm">CARDS</button>
+      </div>
+      <div class="list" id="assetList"></div>
+    </div>
+
+    <div class="box">
+      <h2>YOUR LIBRARY — parts you keep and reuse</h2>
+      <div class="bar" style="margin-top:0">
+        <button id="libAdd" class="sm">+ ADD THIS DRAWING</button>
+        <button id="libExport" class="sm">EXPORT</button>
+        <label class="btn sm">IMPORT<input type="file" id="libIn" accept="application/json" hidden></label>
+      </div>
+      <div class="list" id="libList" style="margin-top:6px"></div>
+      <p class="hint" style="margin:6px 0 0">
+        Tap a saved part to <b>drop it into the current layer</b> — build a
+        collection of arms, heads, housings and reuse them. Kept in this
+        browser; EXPORT if you want it on another device.
+      </p>
+    </div>
+
+    <div class="box">
+      <h2>TRACE AN IMAGE</h2>
+      <div class="bar">
+        <label class="btn">LOAD IMAGE<input type="file" id="imgIn" accept="image/*" hidden></label>
+        <button id="imgClear" class="sm warn">REMOVE</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <span class="hint">fade</span>
+        <input type="range" id="imgA" min="0" max="100" value="45">
+      </div>
+      <p class="hint" style="margin:6px 0 0">
+        Photograph a paper sketch or drop in an iPad drawing and trace straight
+        over it. It is never exported.
+      </p>
+    </div>
+
+    <div class="box">
+      <h2>LIVE PREVIEW — the game's own draw call</h2>
+      <div class="bar" style="margin:0 0 6px">
+        <button id="pvFig" class="sm on">FIGURE</button>
+        <button id="pvFrame" class="sm">FRAME</button>
+        <span class="hint">a frame is drawn as ONE CORNER</span>
+      </div>
+      <canvas id="preview" width="640" height="330"></canvas>
+      <div class="row" style="margin-top:7px">
+        <span class="hint">glow</span>
+        <span class="swatch on" data-col="#5dff88" style="background:#5dff88"></span>
+        <span class="swatch" data-col="#c86bff" style="background:#c86bff"></span>
+        <span class="swatch" data-col="#41d8ff" style="background:#41d8ff"></span>
+        <span class="swatch" data-col="#ffb02e" style="background:#ffb02e"></span>
+        <span class="swatch" data-col="#ff4a5e" style="background:#ff4a5e"></span>
+      </div>
+    </div>
+
+    <div class="box">
+      <h2>THE ART BLOCK</h2>
+      <textarea id="out" readonly></textarea>
+      <div class="bar">
+        <button id="bCopy">COPY</button>
+        <button id="bLoad">LOAD FROM BOX</button>
+        <button id="bSave" class="sm">SAVE .JSON</button>
+        <button id="bWipe" class="sm warn">RESET TOOL</button>
+        <label class="btn sm">OPEN .JSON<input type="file" id="projIn" accept="application/json" hidden></label>
+      </div>
+      <p class="hint" style="margin:7px 0 0">
+        One frame exports <b>art: { p, e }</b>. Two or more export
+        <b>art: { fps, frames: [...] }</b>, which the renderer plays on a loop.
+        Paste into <b>js/enemies.js</b>, <b>js/dice.js</b> or
+        <b>js/cardart.js</b>. <b>SAVE .JSON</b> keeps layers and frames so you
+        can carry on later — the art block alone cannot.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var pad = document.getElementById('pad'), px = pad.getContext('2d');
+  var pv = document.getElementById('preview'), pc = pv.getContext('2d');
+  var out = document.getElementById('out'), status = document.getElementById('status');
+
+  /* ------------------------------------------------------------------
+   * THE DOCUMENT
+   * Layer metadata is global; the CONTENT of each layer is per frame, which
+   * is what lets you keep a sketch layer steady underneath while the line
+   * work moves. cells[frame][layer] holds the strokes and eyes.
+   * ------------------------------------------------------------------ */
+  var doc = {
+    fps: 8,
+    layers: [
+      { name: 'sketch', vis: true, exp: false },
+      { name: 'line', vis: true, exp: true },
+    ],
+    frames: [blankFrame(2)],
+  };
+  function blankFrame(nLayers) {
+    var cells = [];
+    for (var i = 0; i < nLayers; i++) cells.push({ strokes: [], eyes: [] });
+    return { cells: cells };
+  }
+  var fi = 0, li = 1;                      // current frame, current layer
+  var cur = [];                            // stroke in progress
+  var mode = 'draw';                       // draw | edit | eye
+  var mirror = true, snap = true, grid = true, onion = true;
+  var colour = '#5dff88';
+  var refImg = null, refAlpha = 0.45;
+  var playing = false, playT = 0;
+  /* THE VIEWPORT. Was a fixed 1.35 half-extent, which made detail work
+   * impossible — a 0.02 grid step is two pixels on a phone. cx/cy is the world
+   * point at the centre of the pad, z is magnification. */
+  var VIEW = 1.35;
+  var view = { cx: 0, cy: 0, z: 1 };
+  function half() { return VIEW / view.z; }
+  var drag = null;                         // {si, pi} while dragging a point
+  var freeing = null;                      // raw points while a freehand stroke is down
+  var panFrom = null;                      // drag origin while panning
+  var shapeFrom = null, shapeTo = null;    // primitive being dragged out
+  var erasing = false, eraseR = 0.09;      // the rubber, in world units
+  var lastPointer = null;                  // so the rubber can be drawn
+  var lineFrom = null, lineTo = null;      // a single independent segment
+  var spaceDown = false;
+  var hoverPt = null;                      // the point under the cursor in EDIT
+  var smoothing = 18;
+
+  /* ------------------------------------------------------------------
+   * HISTORY. The old UNDO only popped the last point or stroke, so a
+   * deleted layer, a deleted frame, a dragged point or a cleared image
+   * could not be taken back — the destructive actions were exactly the
+   * ones it did not cover. This snapshots the whole document instead, so
+   * anything that changes the drawing is undoable by the same key.
+   *
+   * Snapshots are taken BEFORE a change, and are cheap: a document is a
+   * few hundred numbers. Fifty deep is far more than a drawing session
+   * needs and still trivial to hold.
+   * ------------------------------------------------------------------ */
+  var past = [], future = [];
+  /* Points taken back off a stroke that is still being drawn. UNDO already
+   * knew to pop one of these before touching the document — a half-drawn
+   * stroke is the most recent thing on screen, so it has to go first — but it
+   * dropped the point on the floor, so REDO could not put it back and the two
+   * keys stopped being each other's opposite. Anything undoable is redoable. */
+  var curUndone = [];
+  function pushHistory() {
+    past.push(JSON.stringify({ doc: doc, fi: fi, li: li }));
+    if (past.length > 50) past.shift();
+    future.length = 0;
+    syncHistBtns();
+  }
+  function restore(str) {
+    var st = JSON.parse(str);
+    doc = st.doc;
+    fi = Math.min(st.fi, doc.frames.length - 1);
+    li = Math.min(st.li, doc.layers.length - 1);
+    cur = []; drag = null; freeing = null; curUndone.length = 0;
+    renderLayers(); renderFrames(); drawPad();
+  }
+  function undo() {
+    // a half-drawn stroke is the most recent thing on screen, so it goes first
+    if (cur.length) { curUndone.push(cur.pop()); drawPad(); syncHistBtns(); return; }
+    if (!past.length) return;
+    /* Stepping past the in-progress stroke into the document's own history
+     * makes those points meaningless: they belonged to a stroke this restore
+     * is about to replace. Dropping them here keeps REDO reversing the undos
+     * in the order they were made. */
+    curUndone.length = 0;
+    future.push(JSON.stringify({ doc: doc, fi: fi, li: li }));
+    restore(past.pop());
+    syncHistBtns();
+  }
+  function redo() {
+    if (future.length) {
+      past.push(JSON.stringify({ doc: doc, fi: fi, li: li }));
+      restore(future.pop());
+      syncHistBtns();
+      return;
+    }
+    if (curUndone.length) { cur.push(curUndone.pop()); drawPad(); syncHistBtns(); }
+  }
+  function syncHistBtns() {
+    var u = document.getElementById('bUndo'), r = document.getElementById('bRedo');
+    if (u) u.disabled = !(past.length || cur.length);
+    if (r) r.disabled = !(future.length || curUndone.length);
+  }
+
+  function cell(f, l) { return doc.frames[f].cells[l]; }
+  function here() { return cell(fi, li); }
+
+  function toWorld(cx, cy) {
+    var w = rawWorld(cx, cy), x = w[0], y = w[1];
+    if (snap) { x = Math.round(x / 0.02) * 0.02; y = Math.round(y / 0.02) * 0.02; }
+    return [+x.toFixed(3), +y.toFixed(3)];
+  }
+  function toScreen(x, y) {
+    var h = half();
+    return [((x - view.cx) / h + 1) / 2 * pad.width, ((y - view.cy) / h + 1) / 2 * pad.height];
+  }
+
+  // Mirroring is applied when drawing and exporting, never stored, so the
+  // toggle stays live and a stroke keeps whatever it was drawn with.
+  function expandStrokes(strokes, extra) {
+    var o = [];
+    (strokes || []).concat(extra || []).forEach(function (L) {
+      if (!L.pts || L.pts.length < 2) return;
+      var flat = []; L.pts.forEach(function (p) { flat.push(p[0], p[1]); });
+      o.push(flat);
+      if (L.m && L.pts.some(function (p) { return Math.abs(p[0]) > 0.015; })) {
+        var mf = []; L.pts.forEach(function (p) { mf.push(-p[0], p[1]); });
+        o.push(mf);
+      }
+    });
+    return o;
+  }
+  function expandEyes(eyes) {
+    var o = [];
+    (eyes || []).forEach(function (e) {
+      o.push([e[0], e[1]]);
+      if (e[2] && Math.abs(e[0]) > 0.015) o.push([-e[0], e[1]]);
+    });
+    return o;
+  }
+  // Everything the game would receive for one frame: exported layers only.
+  function framePaths(f) {
+    var p = [], e = [];
+    doc.layers.forEach(function (L, l) {
+      if (!L.exp) return;
+      var c = cell(f, l);
+      var extra = (f === fi && l === li && cur.length > 1) ? [{ pts: cur, m: mirror }] : [];
+      p = p.concat(expandStrokes(c.strokes, extra));
+      e = e.concat(expandEyes(c.eyes));
+    });
+    return { p: p, e: e };
+  }
+
+  /* ---- the pad ---------------------------------------------------- */
+  function drawPad() {
+    px.fillStyle = '#0a1014'; px.fillRect(0, 0, pad.width, pad.height);
+
+    if (refImg) {
+      px.save(); px.globalAlpha = refAlpha;
+      var s = Math.min(pad.width / refImg.width, pad.height / refImg.height);
+      var w = refImg.width * s, h = refImg.height * s;
+      px.drawImage(refImg, (pad.width - w) / 2, (pad.height - h) / 2, w, h);
+      px.restore();
+    }
+    if (grid) {
+      px.strokeStyle = 'rgba(120,150,165,0.12)'; px.lineWidth = 1;
+      // step with the zoom, or a magnified view draws three lines and a
+      // shrunken one draws a thousand
+      var h0 = half();
+      var gs = h0 > 1.0 ? 0.2 : h0 > 0.5 ? 0.1 : h0 > 0.25 ? 0.05 : 0.02;
+      var lo = Math.ceil((view.cx - h0) / gs) * gs, hi = view.cx + h0;
+      var lo2 = Math.ceil((view.cy - h0) / gs) * gs, hi2 = view.cy + h0;
+      for (var gx = lo; gx <= hi; gx += gs) {
+        var a0 = toScreen(gx, view.cy - h0), b0 = toScreen(gx, view.cy + h0);
+        px.beginPath(); px.moveTo(a0[0], a0[1]); px.lineTo(b0[0], b0[1]); px.stroke();
+      }
+      for (var gy = lo2; gy <= hi2; gy += gs) {
+        var c0 = toScreen(view.cx - h0, gy), d0 = toScreen(view.cx + h0, gy);
+        px.beginPath(); px.moveTo(c0[0], c0[1]); px.lineTo(d0[0], d0[1]); px.stroke();
+      }
+      for (var g = -1.2; g <= 1.21; g += 999) {
+        var a = toScreen(g, -VIEW), b = toScreen(g, VIEW);
+        px.beginPath(); px.moveTo(a[0], a[1]); px.lineTo(b[0], b[1]); px.stroke();
+        var c1 = toScreen(-VIEW, g), d1 = toScreen(VIEW, g);
+        px.beginPath(); px.moveTo(c1[0], c1[1]); px.lineTo(d1[0], d1[1]); px.stroke();
+      }
+      px.strokeStyle = 'rgba(120,150,165,0.35)'; px.setLineDash([6, 6]);
+      var q0 = toScreen(-1, -1), q1 = toScreen(1, 1);
+      px.strokeRect(q0[0], q0[1], q1[0] - q0[0], q1[1] - q0[1]);
+      px.setLineDash([]);
+    }
+    px.strokeStyle = mirror ? 'rgba(93,255,136,0.45)' : 'rgba(120,150,165,0.25)';
+    px.lineWidth = mirror ? 2 : 1;
+    var t0 = toScreen(0, view.cy - half()), t1 = toScreen(0, view.cy + half());
+    px.beginPath(); px.moveTo(t0[0], t0[1]); px.lineTo(t1[0], t1[1]); px.stroke();
+
+    // ONION SKIN: the frame before this one, faint, so a movement can be
+    // built against where it just was rather than from memory.
+    if (onion && doc.frames.length > 1 && !playing) {
+      var prev = (fi - 1 + doc.frames.length) % doc.frames.length;
+      px.save(); px.globalAlpha = 0.22; px.strokeStyle = '#ffb02e'; px.lineWidth = 2.4;
+      doc.layers.forEach(function (L, l) {
+        if (!L.vis) return;
+        expandStrokes(cell(prev, l).strokes).forEach(strokeIt);
+      });
+      px.restore();
+    }
+
+    // layers bottom to top; a non-exported layer is drawn dimmer so it reads
+    // as a guide rather than as line work
+    doc.layers.forEach(function (L, l) {
+      if (!L.vis) return;
+      px.save();
+      var active = (l === li);
+      px.globalAlpha = L.exp ? (active ? 1 : 0.55) : (active ? 0.5 : 0.3);
+      px.strokeStyle = L.exp ? colour : '#8fa79a';
+      px.lineWidth = L.exp ? 3.2 : 2.4;
+      px.lineJoin = 'round'; px.lineCap = 'round';
+      px.shadowColor = L.exp ? colour : 'transparent';
+      px.shadowBlur = L.exp ? 8 : 0;
+      var extra = [];
+      if (active && cur.length > 1) extra.push({ pts: cur, m: mirror });
+      if (active && freeing && freeing.length > 1) extra.push({ pts: freeing, m: mirror });
+      expandStrokes(cell(fi, l).strokes, extra).forEach(strokeIt);
+      px.restore();
+      px.save();
+      px.fillStyle = '#ff4a5e'; px.shadowColor = '#ff4a5e'; px.shadowBlur = 9;
+      px.globalAlpha = active ? 1 : 0.5;
+      expandEyes(cell(fi, l).eyes).forEach(function (e) {
+        var s = toScreen(e[0], e[1]);
+        px.beginPath(); px.arc(s[0], s[1], 8, 0, 7); px.fill();
+      });
+      px.restore();
+    });
+
+    // handles: the stroke in hand, and every point of the active layer in EDIT
+    px.fillStyle = '#ffffff';
+    cur.forEach(function (p) {
+      var s = toScreen(p[0], p[1]);
+      px.beginPath(); px.arc(s[0], s[1], 6, 0, 7); px.fill();
+    });
+    // the primitive being dragged out, and the marquee
+    if (shapeFrom && shapeTo) {
+      px.save(); px.strokeStyle = '#41d8ff'; px.lineWidth = 2.4;
+      px.setLineDash([5, 5]);
+      var prev = makeShape(shapeFrom, shapeTo), flat = [];
+      prev.forEach(function (q) { flat.push(q[0], q[1]); });
+      strokeIt(flat); px.restore();
+    }
+    if (lineFrom && lineTo) {
+      px.save(); px.strokeStyle = '#41d8ff'; px.lineWidth = 3; px.setLineDash([6, 4]);
+      strokeIt([lineFrom[0], lineFrom[1], lineTo[0], lineTo[1]]); px.restore();
+    }
+    if (marquee) {
+      px.save(); px.strokeStyle = '#41d8ff'; px.lineWidth = 1.5; px.setLineDash([4, 4]);
+      var m0 = toScreen(marquee.a[0], marquee.a[1]), m1 = toScreen(marquee.b[0], marquee.b[1]);
+      px.strokeRect(m0[0], m0[1], m1[0] - m0[0], m1[1] - m0[1]); px.restore();
+    }
+    // selected strokes, and the box that transforms act about
+    if (mode === 'select' && sel.length) {
+      px.save(); px.strokeStyle = '#41d8ff'; px.lineWidth = 4; px.globalAlpha = 0.5;
+      sel.forEach(function (i) {
+        var L = here().strokes[i]; if (!L) return;
+        var fl = []; L.pts.forEach(function (q) { fl.push(q[0], q[1]); });
+        strokeIt(fl);
+      });
+      var bb = selBounds();
+      if (bb) {
+        px.globalAlpha = 1; px.lineWidth = 1.4; px.setLineDash([5, 4]);
+        var s0 = toScreen(bb.x0, bb.y0), s1 = toScreen(bb.x1, bb.y1);
+        px.strokeRect(s0[0] - 6, s0[1] - 6, s1[0] - s0[0] + 12, s1[1] - s0[1] + 12);
+      }
+      px.restore();
+    }
+    if (mode === 'erase' && lastPointer) {
+      px.save();
+      px.strokeStyle = '#ff4a5e'; px.lineWidth = 1.5; px.setLineDash([4, 3]);
+      var c0 = toScreen(lastPointer[0], lastPointer[1]);
+      var c1 = toScreen(lastPointer[0] + eraseR / view.z, lastPointer[1]);
+      px.beginPath(); px.arc(c0[0], c0[1], Math.abs(c1[0] - c0[0]), 0, 7); px.stroke();
+      px.restore();
+    }
+    if (mode === 'edit') {
+      here().strokes.forEach(function (L, si2) {
+        L.pts.forEach(function (p, pi2) {
+          var s = toScreen(p[0], p[1]);
+          var hot = hoverPt && hoverPt.si === si2 && hoverPt.pi === pi2;
+          px.fillStyle = hot ? '#ff4a5e' : '#41d8ff';
+          px.beginPath(); px.arc(s[0], s[1], hot ? 10 : 7, 0, 7); px.fill();
+        });
+      });
+    }
+
+    var n = framePaths(fi);
+    status.textContent = 'frame ' + (fi + 1) + '/' + doc.frames.length
+      + ' · layer "' + doc.layers[li].name + '"'
+      + ' · ' + here().strokes.length + ' stroke' + (here().strokes.length === 1 ? '' : 's')
+      + (cur.length ? ' · ' + cur.length + ' in hand' : '')
+      + ' · exports ' + n.p.length + ' path' + (n.p.length === 1 ? '' : 's')
+      + (mirror ? ' · MIRRORED' : '')
+      + (view.z !== 1 ? ' · ' + view.z.toFixed(1) + '×' : '');
+    var HINTS = {
+      draw: 'tap to lay points — they join into one path · FINISH LINE ends it',
+      line: 'drag to make one straight segment, unconnected to the rest',
+      free: 'drag to draw freehand — it is simplified when you let go',
+      shape: 'drag a box; the shape fills it',
+      eye: 'tap to place a glowing pip',
+      edit: 'drag a point to move it · DELETE removes the point under the cursor',
+      select: 'drag a box round strokes · arrow keys nudge, SHIFT for a bigger step',
+      pan: 'drag to move the canvas',
+      erase: 'drag over strokes to rub them out — a whole stroke at a time',
+    };
+    document.getElementById('modeHint').textContent = HINTS[mode] || '';
+    document.getElementById('shapeBar').style.display = (mode === 'shape') ? 'flex' : 'none';
+    document.getElementById('railShapes').style.display = (mode === 'shape') ? '' : 'none';
+    document.getElementById('selBar').style.display = (mode === 'select') ? 'flex' : 'none';
+    document.getElementById('selCount').textContent =
+      sel.length ? (sel.length + ' stroke' + (sel.length === 1 ? '' : 's') + ' selected')
+                 : 'drag a box round some strokes';
+    drawPreview();
+    emit();
+    autosave();
+    /* THE BUTTON HAS TO TRACK THE STROKE IN HAND, not only the history.
+     * syncHistBtns ran from pushHistory/undo/redo alone, so in PATH mode —
+     * the default — tapping points filled `cur` without ever re-enabling
+     * UNDO. There were three points on screen and a greyed-out, unclickable
+     * button: undo appeared simply not to work, which is exactly how it was
+     * reported. drawPad runs on every change, so it is the right place. */
+    syncHistBtns();
+  }
+  function strokeIt(p) {
+    px.beginPath();
+    var s = toScreen(p[0], p[1]); px.moveTo(s[0], s[1]);
+    for (var i = 2; i < p.length; i += 2) { var q = toScreen(p[i], p[i + 1]); px.lineTo(q[0], q[1]); }
+    px.stroke();
+  }
+
+  /* The preview copies the game's own draw call — 1.6/scale line width, round
+   * joins, shadow glow — at boss, normal and small scale, so it shows the
+   * battlefield's rendering rather than an approximation of it. */
+  /* ==================================================================
+   * FRAME MODE. A frame cannot be one picture: the bottom bar's width
+   * changes with the viewport, and a single asset stretched to fit gets
+   * uneven line weight — stretched 4:1 the horizontals come out a quarter
+   * the thickness of the verticals, which is glaring on neon linework.
+   *
+   * So you draw ONE CORNER and it is placed four times at a fixed size,
+   * which is exactly what the card frame already does with its four CSS
+   * brackets. This preview assembles your corner at three very different
+   * aspect ratios at once, so a corner that only reads at one of them is
+   * caught here rather than after it has been wired in.
+   * ================================================================== */
+  var previewMode = 'figure';
+  document.getElementById('pvFig').onclick = function () {
+    previewMode = 'figure'; this.classList.add('on');
+    document.getElementById('pvFrame').classList.remove('on'); drawPreview();
+  };
+  document.getElementById('pvFrame').onclick = function () {
+    previewMode = 'frame'; this.classList.add('on');
+    document.getElementById('pvFig').classList.remove('on'); drawPreview();
+  };
+
+  function drawFramePreview(art) {
+    pc.fillStyle = '#04080a'; pc.fillRect(0, 0, pv.width, pv.height);
+    // a wide dock, a narrow phone dock, a tall panel — the three shapes the
+    // same corner actually has to serve
+    var boxes = [[14, 14, 610, 74, 'wide bar'], [14, 104, 250, 62, 'phone bar'], [286, 104, 130, 190, 'panel']];
+    boxes.forEach(function (B) {
+      var x = B[0], y = B[1], w = B[2], h = B[3], c = Math.min(26, Math.min(w, h) * 0.42);
+      pc.save();
+      pc.strokeStyle = 'rgba(120,150,165,0.18)'; pc.lineWidth = 1;
+      pc.strokeRect(x, y, w, h);
+      pc.restore();
+      [[x, y, 1, 1], [x + w, y, -1, 1], [x, y + h, 1, -1], [x + w, y + h, -1, -1]].forEach(function (q) {
+        pc.save();
+        pc.translate(q[0], q[1]); pc.scale(q[2] * c, q[3] * c);
+        pc.strokeStyle = colour; pc.lineWidth = 1.6 / c;
+        pc.lineJoin = 'round'; pc.shadowColor = colour; pc.shadowBlur = 6;
+        art.p.forEach(function (p) {
+          pc.beginPath(); pc.moveTo(p[0], p[1]);
+          for (var i = 2; i < p.length; i += 2) pc.lineTo(p[i], p[i + 1]);
+          pc.stroke();
+        });
+        pc.restore();
+      });
+      pc.fillStyle = 'rgba(143,167,154,0.7)'; pc.font = '10px ui-monospace, monospace';
+      pc.fillText(B[4], x, y + h + 13);
+    });
+    pc.fillStyle = 'rgba(255,176,46,0.9)'; pc.font = '10px ui-monospace, monospace';
+    pc.fillText('drawn once, placed four times — corners never scale', 14, pv.height - 8);
+  }
+
+  function drawPreview() {
+    var f = playing ? (Math.floor(playT) % doc.frames.length) : fi;
+    if (previewMode === 'frame') { drawFramePreview(framePaths(f)); return; }
+    var art = framePaths(f);
+    pc.fillStyle = '#04080a'; pc.fillRect(0, 0, pv.width, pv.height);
+    [[152, 160, 108], [382, 160, 60], [540, 160, 31]].forEach(function (s) {
+      var x = s[0], y = s[1], sc = s[2];
+      pc.save();
+      pc.translate(x, y); pc.scale(sc, sc);
+      pc.strokeStyle = colour; pc.lineWidth = 1.6 / sc;
+      pc.lineJoin = 'round'; pc.shadowColor = colour; pc.shadowBlur = 7;
+      art.p.forEach(function (p) {
+        pc.beginPath(); pc.moveTo(p[0], p[1]);
+        for (var i = 2; i < p.length; i += 2) pc.lineTo(p[i], p[i + 1]);
+        pc.stroke();
+      });
+      pc.restore();
+      pc.save();
+      pc.fillStyle = '#ff4a5e'; pc.shadowColor = '#ff4a5e'; pc.shadowBlur = 6;
+      art.e.forEach(function (e) {
+        var ex = x + e[0] * sc, ey = y + e[1] * sc, es = Math.max(1.5, sc * 0.05);
+        pc.fillRect(ex - es / 2, ey - es / 2, es, es);
+      });
+      pc.restore();
+    });
+    pc.fillStyle = 'rgba(143,167,154,0.7)'; pc.font = '10px ui-monospace, monospace';
+    pc.fillText('boss', 132, 300); pc.fillText('normal', 358, 300); pc.fillText('small', 518, 300);
+    if (doc.frames.length > 1) {
+      pc.fillStyle = playing ? '#5dff88' : 'rgba(143,167,154,0.7)';
+      pc.fillText('frame ' + (f + 1) + '/' + doc.frames.length, 10, 18);
+    }
+  }
+
+  function num(v) { return (Math.round(v * 1000) / 1000).toString(); }
+  function emit() {
+    function block(f) {
+      var a = framePaths(f);
+      return '{ p: [' + a.p.map(function (q) { return '[' + q.map(num).join(',') + ']'; }).join(', ')
+        + '], e: [' + a.e.map(function (q) { return '[' + q.map(num).join(',') + ']'; }).join(',') + '] }';
+    }
+    if (doc.frames.length === 1) { out.value = block(0); return; }
+    var fr = doc.frames.map(function (_, i) { return block(i); });
+    out.value = '{ fps: ' + doc.fps + ', frames: [\n  ' + fr.join(',\n  ') + '\n] }';
+  }
+
+  /* ---- input ------------------------------------------------------- */
+  function nearest(w) {
+    var best = null, bd = 0.075 / view.z;
+    here().strokes.forEach(function (L, si) {
+      L.pts.forEach(function (p, pi) {
+        var d = Math.hypot(p[0] - w[0], p[1] - w[1]);
+        if (d < bd) { bd = d; best = { si: si, pi: pi }; }
+      });
+    });
+    return best;
+  }
+  /* SIMPLIFY, or freehand is unusable. A dragged stroke samples a point every
+   * few pixels — several hundred for one curve — and the game's art is a
+   * dozen points a stroke. Ramer-Douglas-Peucker keeps the corners that carry
+   * the shape and drops the rest, so a hand-drawn line exports as game art
+   * rather than as a wall of coordinates. The slider is the tolerance. */
+  function rdp(pts, eps) {
+    if (pts.length < 3) return pts.slice();
+    var a = pts[0], b = pts[pts.length - 1], worst = 0, idx = 0;
+    var dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1e-9;
+    for (var i = 1; i < pts.length - 1; i++) {
+      var d = Math.abs(dy * pts[i][0] - dx * pts[i][1] + b[0] * a[1] - b[1] * a[0]) / len;
+      if (d > worst) { worst = d; idx = i; }
+    }
+    if (worst <= eps) return [a, b];
+    return rdp(pts.slice(0, idx + 1), eps).slice(0, -1).concat(rdp(pts.slice(idx), eps));
+  }
+  function rawWorld(cx, cy) {              // unsnapped, viewport-aware
+    var r = pad.getBoundingClientRect(), h = half();
+    return [((cx - r.left) / r.width * 2 - 1) * h + view.cx,
+            ((cy - r.top) / r.height * 2 - 1) * h + view.cy];
+  }
+
+  pad.addEventListener('pointerdown', function (ev) {
+    ev.preventDefault();
+    // space held, or the middle button: pan regardless of the active tool
+    if (spaceDown || ev.button === 1) {
+      panFrom = { x: ev.clientX, y: ev.clientY, cx: view.cx, cy: view.cy };
+      pad.setPointerCapture(ev.pointerId);
+      return;
+    }
+    var w = toWorld(ev.clientX, ev.clientY);
+    if (mode === 'eye') { pushHistory(); here().eyes.push([w[0], w[1], mirror]); drawPad(); return; }
+    if (mode === 'edit') {
+      var hit = nearest(w);
+      if (hit) { pushHistory(); drag = hit; pad.setPointerCapture(ev.pointerId); }
+      drawPad(); return;
+    }
+    if (mode === 'pan') {
+      panFrom = { x: ev.clientX, y: ev.clientY, cx: view.cx, cy: view.cy };
+      pad.setPointerCapture(ev.pointerId);
+      return;
+    }
+    if (mode === 'erase') {
+      erasing = true; pad.setPointerCapture(ev.pointerId);
+      pushHistory(); rubOut(w); return;
+    }
+    if (mode === 'shape') {
+      shapeFrom = snapPoint(w); pad.setPointerCapture(ev.pointerId); return;
+    }
+    if (mode === 'line') {
+      // one drag makes one independent two-point segment
+      lineFrom = snapPoint(w); lineTo = lineFrom;
+      pad.setPointerCapture(ev.pointerId); return;
+    }
+    if (mode === 'select') {
+      var b = selBounds();
+      if (b && w[0] >= b.x0 - 0.04 && w[0] <= b.x1 + 0.04 && w[1] >= b.y0 - 0.04 && w[1] <= b.y1 + 0.04) {
+        moveFrom = { w: w, snapshot: JSON.parse(JSON.stringify(sel.map(function (i) { return here().strokes[i].pts; }))) };
+        pushHistory();
+      } else {
+        marquee = { a: w, b: w };
+      }
+      pad.setPointerCapture(ev.pointerId); return;
+    }
+    if (mode === 'free') {
+      freeing = [rawWorld(ev.clientX, ev.clientY)];
+      pad.setPointerCapture(ev.pointerId);
+      return;
+    }
+    cur.push(snapPoint(w)); curUndone.length = 0; drawPad();
+  });
+  pad.addEventListener('pointermove', function (ev) {
+    if (mode === 'erase') { lastPointer = toWorld(ev.clientX, ev.clientY); if (!erasing) drawPad(); }
+    if (panFrom) {
+      var r = pad.getBoundingClientRect(), h = half();
+      view.cx = panFrom.cx - (ev.clientX - panFrom.x) / r.width * 2 * h;
+      view.cy = panFrom.cy - (ev.clientY - panFrom.y) / r.height * 2 * h;
+      drawPad(); return;
+    }
+    if (erasing) { rubOut(toWorld(ev.clientX, ev.clientY)); return; }
+    if (shapeFrom) { shapeTo = snapPoint(toWorld(ev.clientX, ev.clientY)); drawPad(); return; }
+    if (lineFrom) { lineTo = snapPoint(toWorld(ev.clientX, ev.clientY)); drawPad(); return; }
+    if (marquee) { marquee.b = toWorld(ev.clientX, ev.clientY); drawPad(); return; }
+    if (moveFrom) {
+      var mw = toWorld(ev.clientX, ev.clientY);
+      var dx = mw[0] - moveFrom.w[0], dy = mw[1] - moveFrom.w[1];
+      sel.forEach(function (i, k) {
+        here().strokes[i].pts = moveFrom.snapshot[k].map(function (p) {
+          return [+(p[0] + dx).toFixed(3), +(p[1] + dy).toFixed(3)];
+        });
+      });
+      drawPad(); return;
+    }
+    if (freeing) {
+      var w = rawWorld(ev.clientX, ev.clientY), last = freeing[freeing.length - 1];
+      if (Math.hypot(w[0] - last[0], w[1] - last[1]) > 0.006) { freeing.push(w); drawPad(); }
+      return;
+    }
+    if (mode === 'edit' && !drag) {
+      var hw = toWorld(ev.clientX, ev.clientY);
+      var h = nearest(hw);
+      if ((h && !hoverPt) || (!h && hoverPt) || (h && hoverPt && (h.si !== hoverPt.si || h.pi !== hoverPt.pi))) {
+        hoverPt = h; drawPad();
+      }
+      return;
+    }
+    if (!drag) return;
+    here().strokes[drag.si].pts[drag.pi] = snapPoint(toWorld(ev.clientX, ev.clientY));
+    drawPad();
+  });
+  pad.addEventListener('pointerup', function () {
+    panFrom = null; moveFrom = null; erasing = false;
+    if (shapeFrom && shapeTo) {
+      var pts = makeShape(shapeFrom, shapeTo);
+      if (pts.length > 1) { pushHistory(); here().strokes.push({ pts: pts, m: mirror }); }
+    }
+    shapeFrom = shapeTo = null;
+    if (lineFrom && lineTo) {
+      var d = Math.hypot(lineTo[0] - lineFrom[0], lineTo[1] - lineFrom[1]);
+      if (d > 0.008) { pushHistory(); here().strokes.push({ pts: [lineFrom, lineTo], m: mirror }); }
+    }
+    lineFrom = lineTo = null;
+    if (marquee) {
+      var x0 = Math.min(marquee.a[0], marquee.b[0]), x1 = Math.max(marquee.a[0], marquee.b[0]);
+      var y0 = Math.min(marquee.a[1], marquee.b[1]), y1 = Math.max(marquee.a[1], marquee.b[1]);
+      sel = [];
+      here().strokes.forEach(function (L, i) {
+        if (L.pts.some(function (p) { return p[0] >= x0 && p[0] <= x1 && p[1] >= y0 && p[1] <= y1; })) sel.push(i);
+      });
+      marquee = null;
+    }
+    if (freeing) {
+      var pts = rdp(freeing, smoothing / 1000);
+      if (snap) pts = pts.map(function (p) {
+        return [+(Math.round(p[0] / 0.02) * 0.02).toFixed(3), +(Math.round(p[1] / 0.02) * 0.02).toFixed(3)];
+      });
+      else pts = pts.map(function (p) { return [+p[0].toFixed(3), +p[1].toFixed(3)]; });
+      if (pts.length > 1) { pushHistory(); here().strokes.push({ pts: pts, m: mirror }); }
+      freeing = null;
+    }
+    // REPAINT ONCE, AT THE END. drawPad() used to live only inside the
+    // freehand branch, so finishing a primitive or a marquee updated the model
+    // and left the canvas, the status line and the export box showing the
+    // state before it — the shape was there and looked as though it was not.
+    drag = null;
+    drawPad();
+  });
+
+  function finish() {
+    if (cur.length > 1) { pushHistory(); here().strokes.push({ pts: cur, m: mirror }); }
+    cur = []; drawPad(); curUndone.length = 0;
+  }
+  document.getElementById('bFinish').onclick = finish;
+  document.getElementById('bUndo').onclick = undo;
+  document.getElementById('bRedo').onclick = redo;
+  function modeBtn(id, m) {
+    document.getElementById(id).onclick = function () {
+      finish(); mode = m;
+      if (m !== 'select') sel = [];
+        ['mDraw', 'mFree', 'mEdit', 'mEye', 'mPan', 'mShape', 'mSel', 'mErase'].forEach(function (o) {
+        var el = document.getElementById(o); if (el) el.classList.remove('on');
+      });
+      document.getElementById(id).classList.add('on');
+      drawPad();
+    };
+  }
+  modeBtn('mDraw', 'draw'); modeBtn('mFree', 'free'); modeBtn('mEdit', 'edit');
+  modeBtn('mEye', 'eye'); modeBtn('mPan', 'pan');
+  modeBtn('mShape', 'shape'); modeBtn('mSel', 'select'); modeBtn('mLine', 'line');
+  modeBtn('mErase', 'erase');
+  toggle('bMag', function () { return magnet; }, function (v) { magnet = v; });
+
+  /* PANNING FROM ANY TOOL. A dedicated mode is a mode you have to leave and
+   * come back to; holding space or dragging with the middle button works
+   * wherever you are, which is what every drawing program does and what the
+   * hand already expects. */
+  document.addEventListener('keydown', function (ev) {
+    if (ev.code === 'Space' && !spaceDown && ev.target.tagName !== 'INPUT') {
+      spaceDown = true; pad.style.cursor = 'grab'; ev.preventDefault();
+    }
+  });
+  document.addEventListener('keyup', function (ev) {
+    if (ev.code === 'Space') { spaceDown = false; pad.style.cursor = ''; }
+  });
+
+  /* ==================================================================
+   * PRIMITIVES. The game's art is full of clean geometry — hexagonal
+   * housings, boxes, rings — all of which is miserable to lay out point by
+   * point and trivial to generate. Drag from centre to edge.
+   * ================================================================== */
+  var shp = 'circle', shpN = 6;
+  /* Both shape pickers drive the same choice — the one in the rail, next to
+   * the tool it belongs to, and the one under the canvas. Picking the shape
+   * was previously only possible in a row below a tall canvas, which on a
+   * laptop meant scrolling to find out that circles were not the only option. */
+  document.querySelectorAll('.shp').forEach(function (b) {
+    b.onclick = function () {
+      shp = b.getAttribute('data-shp');
+      document.querySelectorAll('.shp').forEach(function (o) {
+        o.classList.toggle('on', o.getAttribute('data-shp') === shp);
+      });
+    };
+  });
+  function setSides(n) {
+    shpN = n;
+    ['shpN', 'shpN2'].forEach(function (id) { var e = document.getElementById(id); if (e) e.value = n; });
+    var a = document.getElementById('shpNN'); if (a) a.textContent = n;
+    var b2 = document.getElementById('shpNN2'); if (b2) b2.textContent = n + ' sides';
+  }
+  ['shpN', 'shpN2'].forEach(function (id) {
+    var e = document.getElementById(id); if (e) e.oninput = function () { setSides(+this.value); };
+  });
+  /* EVERY SHAPE IS DRAWN INSIDE THE BOX YOU DRAG, corner to corner. Centre-out
+   * is fine for a circle and baffling for a rectangle, and having some tools
+   * behave one way and some the other is the kind of inconsistency you have to
+   * relearn every time. One rule: drag the box, the shape fills it. */
+  function makeShape(a, bb) {
+    var x0 = Math.min(a[0], bb[0]), x1 = Math.max(a[0], bb[0]);
+    var y0 = Math.min(a[1], bb[1]), y1 = Math.max(a[1], bb[1]);
+    if (shp === 'square' || shp === 'circle') {         // constrained to the larger side
+      var side = Math.max(x1 - x0, y1 - y0);
+      if (bb[0] < a[0]) x0 = x1 - side; else x1 = x0 + side;
+      if (bb[1] < a[1]) y0 = y1 - side; else y1 = y0 + side;
+    }
+    var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    var rx = (x1 - x0) / 2, ry = (y1 - y0) / 2, pts = [], i, th;
+
+    if (shp === 'rect' || shp === 'square') {
+      pts = [[x0, y0], [x1, y0], [x1, y1], [x0, y1], [x0, y0]];
+    } else if (shp === 'round') {
+      var k = Math.min(rx, ry) * 0.42;
+      pts = [[x0 + k, y0], [x1 - k, y0], [x1, y0 + k], [x1, y1 - k],
+             [x1 - k, y1], [x0 + k, y1], [x0, y1 - k], [x0, y0 + k], [x0 + k, y0]];
+    } else if (shp === 'tri') {
+      pts = [[cx, y0], [x1, y1], [x0, y1], [cx, y0]];
+    } else if (shp === 'arc') {
+      for (i = 0; i <= 18; i++) { th = Math.PI + (i / 18) * Math.PI; pts.push([cx + Math.cos(th) * rx, cy + Math.sin(th) * ry]); }
+    } else if (shp === 'star') {
+      var n2 = Math.max(3, shpN);
+      for (i = 0; i <= n2 * 2; i++) {
+        th = -Math.PI / 2 + (i / (n2 * 2)) * Math.PI * 2;
+        var rr = (i % 2 === 0) ? 1 : 0.44;
+        pts.push([cx + Math.cos(th) * rx * rr, cy + Math.sin(th) * ry * rr]);
+      }
+    } else {                                            // circle, ellipse, polygon
+      var n = (shp === 'poly') ? shpN : 28;
+      for (i = 0; i <= n; i++) {
+        th = -Math.PI / 2 + (i / n) * Math.PI * 2;
+        pts.push([cx + Math.cos(th) * rx, cy + Math.sin(th) * ry]);
+      }
+    }
+    return pts.map(function (q) { return [+q[0].toFixed(3), +q[1].toFixed(3)]; });
+  }
+
+  /* THE ERASER. Takes out whole STROKES rather than nibbling pixels, because
+   * this is vector art — there is nothing to rub away between the lines, and a
+   * pixel eraser on a polyline would leave a stroke that looks broken and
+   * exports whole. Drag over what you want gone. One history entry per drag,
+   * so a long sweep is one undo rather than forty. */
+  function rubOut(w) {
+    var hit = false;
+    for (var i = here().strokes.length - 1; i >= 0; i--) {
+      var L = here().strokes[i], gone = false;
+      for (var j = 0; j < L.pts.length && !gone; j++) {
+        var p = L.pts[j];
+        if (Math.hypot(p[0] - w[0], p[1] - w[1]) < eraseR / view.z) gone = true;
+        // also catch the span BETWEEN two points, or a long straight line can
+        // be dragged straight through without anything happening
+        if (!gone && j < L.pts.length - 1) {
+          var q = L.pts[j + 1];
+          var vx = q[0] - p[0], vy = q[1] - p[1], len2 = vx * vx + vy * vy;
+          if (len2 > 1e-9) {
+            var t = Math.max(0, Math.min(1, ((w[0] - p[0]) * vx + (w[1] - p[1]) * vy) / len2));
+            var cx = p[0] + vx * t, cy = p[1] + vy * t;
+            if (Math.hypot(cx - w[0], cy - w[1]) < eraseR / view.z) gone = true;
+          }
+        }
+      }
+      if (gone) { here().strokes.splice(i, 1); hit = true; }
+    }
+    for (var k = here().eyes.length - 1; k >= 0; k--) {
+      var e = here().eyes[k];
+      if (Math.hypot(e[0] - w[0], e[1] - w[1]) < eraseR / view.z) { here().eyes.splice(k, 1); hit = true; }
+    }
+    if (hit) drawPad();
+  }
+
+  /* POINT SNAP. "Line after line, and let me connect them" only works if the
+   * ends actually meet — by eye they never quite do, and a 0.003 gap is
+   * invisible here and a visible break at boss scale. Every new point is
+   * pulled to a nearby existing endpoint. */
+  var magnet = true;
+  function snapPoint(w) {
+    if (!magnet) return w;
+    var best = null, bd = 0.05 / view.z;
+    doc.layers.forEach(function (L, l) {
+      if (!L.vis) return;
+      cell(fi, l).strokes.forEach(function (S) {
+        S.pts.forEach(function (p) {
+          var d = Math.hypot(p[0] - w[0], p[1] - w[1]);
+          if (d < bd) { bd = d; best = p; }
+        });
+      });
+    });
+    return best ? [best[0], best[1]] : w;
+  }
+
+  /* ==================================================================
+   * SELECTION AND GROUP TRANSFORM. Dragging one point at a time meant
+   * "make the head bigger" was a redraw. Marquee-select strokes, then move,
+   * rotate, scale or flip them together about their own centre.
+   * ================================================================== */
+  var sel = [], marquee = null, moveFrom = null;
+  function selBounds() {
+    var xs = [], ys = [];
+    sel.forEach(function (i) {
+      (here().strokes[i] || { pts: [] }).pts.forEach(function (p) { xs.push(p[0]); ys.push(p[1]); });
+    });
+    if (!xs.length) return null;
+    return { cx: (Math.min.apply(null, xs) + Math.max.apply(null, xs)) / 2,
+             cy: (Math.min.apply(null, ys) + Math.max.apply(null, ys)) / 2,
+             x0: Math.min.apply(null, xs), x1: Math.max.apply(null, xs),
+             y0: Math.min.apply(null, ys), y1: Math.max.apply(null, ys) };
+  }
+  function applySel(fn) {
+    var b = selBounds(); if (!b) return;
+    pushHistory();
+    sel.forEach(function (i) {
+      var L = here().strokes[i]; if (!L) return;
+      L.pts = L.pts.map(function (p) {
+        var q = fn(p[0] - b.cx, p[1] - b.cy);
+        return [+(q[0] + b.cx).toFixed(3), +(q[1] + b.cy).toFixed(3)];
+      });
+    });
+    drawPad();
+  }
+  function rot(d) { var c = Math.cos(d), s2 = Math.sin(d); applySel(function (x, y) { return [x * c - y * s2, x * s2 + y * c]; }); }
+  document.getElementById('tRotL').onclick = function () { rot(-Math.PI / 12); };
+  document.getElementById('tRotR').onclick = function () { rot(Math.PI / 12); };
+  document.getElementById('tBig').onclick = function () { applySel(function (x, y) { return [x * 1.1, y * 1.1]; }); };
+  document.getElementById('tSmall').onclick = function () { applySel(function (x, y) { return [x / 1.1, y / 1.1]; }); };
+  document.getElementById('tFlip').onclick = function () { applySel(function (x, y) { return [-x, y]; }); };
+  document.getElementById('tDup').onclick = function () {
+    pushHistory();
+    var copies = sel.map(function (i) { return JSON.parse(JSON.stringify(here().strokes[i])); });
+    copies.forEach(function (L) {
+      L.pts = L.pts.map(function (p) { return [+(p[0] + 0.06).toFixed(3), +(p[1] + 0.06).toFixed(3)]; });
+      here().strokes.push(L);
+    });
+    sel = copies.map(function (_, k) { return here().strokes.length - copies.length + k; });
+    drawPad();
+  };
+  document.getElementById('tDel').onclick = function () {
+    if (!sel.length) return;
+    pushHistory();
+    sel.slice().sort(function (a, b) { return b - a; }).forEach(function (i) { here().strokes.splice(i, 1); });
+    sel = []; drawPad();
+  };
+  document.getElementById('selNone').onclick = function () { sel = []; drawPad(); };
+
+  /* ZOOM AND PAN. Wheel and pinch both zoom about the pointer rather than the
+   * centre, which is what makes zooming feel like moving a lens instead of
+   * teleporting. PAN mode exists because a one-finger drag is already drawing
+   * — on a phone there is no spare gesture. */
+  function zoomAt(sx, sy, factor) {
+    var before = rawWorld(sx, sy);
+    view.z = Math.max(0.4, Math.min(14, view.z * factor));
+    var after = rawWorld(sx, sy);
+    view.cx += before[0] - after[0];
+    view.cy += before[1] - after[1];
+    drawPad();
+  }
+  pad.addEventListener('wheel', function (ev) {
+    ev.preventDefault();
+    zoomAt(ev.clientX, ev.clientY, ev.deltaY < 0 ? 1.12 : 1 / 1.12);
+  }, { passive: false });
+  document.getElementById('zIn').onclick = function () {
+    var r = pad.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1.35);
+  };
+  document.getElementById('zOut').onclick = function () {
+    var r = pad.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1 / 1.35);
+  };
+  document.getElementById('zFit').onclick = function () {
+    view.cx = 0; view.cy = 0; view.z = 1; drawPad();
+  };
+
+  // two-finger pinch and drag, tracked by pointer id
+  var pointers = {}, pinch = null;
+  pad.addEventListener('pointerdown', function (ev) { pointers[ev.pointerId] = ev; }, true);
+  pad.addEventListener('pointermove', function (ev) {
+    if (!pointers[ev.pointerId]) return;
+    pointers[ev.pointerId] = ev;
+    var ids = Object.keys(pointers);
+    if (ids.length !== 2) return;
+    var a = pointers[ids[0]], b = pointers[ids[1]];
+    var dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    var mx = (a.clientX + b.clientX) / 2, my = (a.clientY + b.clientY) / 2;
+    if (pinch) {
+      if (pinch.dist > 4) zoomAt(mx, my, dist / pinch.dist);
+      var h = half(), r = pad.getBoundingClientRect();
+      view.cx -= (mx - pinch.mx) / r.width * 2 * h;
+      view.cy -= (my - pinch.my) / r.height * 2 * h;
+      // a pinch is never also a stroke
+      cur = []; freeing = null; drag = null; curUndone.length = 0;
+      drawPad();
+    }
+    pinch = { dist: dist, mx: mx, my: my };
+  }, true);
+  function clearPointer(ev) { delete pointers[ev.pointerId]; if (Object.keys(pointers).length < 2) pinch = null; }
+  pad.addEventListener('pointerup', clearPointer, true);
+  pad.addEventListener('pointercancel', clearPointer, true);
+  function toggle(id, get, set) {
+    var b = document.getElementById(id);
+    b.classList.toggle('on', get());
+    b.onclick = function () { set(!get()); b.classList.toggle('on', get()); drawPad(); };
+  }
+  toggle('bMirror', function () { return mirror; }, function (v) { mirror = v; });
+  toggle('bSnap', function () { return snap; }, function (v) { snap = v; });
+  toggle('bGrid', function () { return grid; }, function (v) { grid = v; });
+  toggle('bOnion', function () { return onion; }, function (v) { onion = v; });
+
+  /* ---- layers ------------------------------------------------------ */
+  function renderLayers() {
+    var host = document.getElementById('layerList');
+    host.innerHTML = '';
+    // topmost first, the way a layer stack is normally read
+    doc.layers.slice().reverse().forEach(function (L, ri) {
+      var idx = doc.layers.length - 1 - ri;
+      var row = document.createElement('div');
+      row.className = 'lay' + (idx === li ? ' sel' : '');
+      row.innerHTML = '<span class="tog vis' + (L.vis ? ' on' : '') + '">◉</span>'
+        + '<span class="tog exp' + (L.exp ? ' on' : '') + '">◆</span>'
+        + '<span class="nm">' + L.name + '</span>';
+      row.onclick = function (ev) {
+        if (ev.target.classList.contains('vis')) { L.vis = !L.vis; }
+        else if (ev.target.classList.contains('exp')) { L.exp = !L.exp; }
+        else { finish(); li = idx; }
+        renderLayers(); drawPad();
+      };
+      row.ondblclick = function () {
+        var n = prompt('Layer name', L.name); if (n) { L.name = n; renderLayers(); }
+      };
+      host.appendChild(row);
+    });
+  }
+  document.getElementById('lAdd').onclick = function () {
+    pushHistory();
+    doc.layers.push({ name: 'layer ' + (doc.layers.length + 1), vis: true, exp: true });
+    doc.frames.forEach(function (f) { f.cells.push({ strokes: [], eyes: [] }); });
+    li = doc.layers.length - 1; renderLayers(); drawPad();
+  };
+  document.getElementById('lDel').onclick = function () {
+    if (doc.layers.length < 2) return alert('Keep at least one layer.');
+    if (!confirm('Delete layer "' + doc.layers[li].name + '" from every frame?')) return;
+    pushHistory();
+    doc.layers.splice(li, 1);
+    doc.frames.forEach(function (f) { f.cells.splice(li, 1); });
+    li = Math.max(0, li - 1); renderLayers(); drawPad();
+  };
+  function move(d) {
+    var j = li + d; if (j < 0 || j >= doc.layers.length) return;
+    pushHistory();
+    var t = doc.layers[li]; doc.layers[li] = doc.layers[j]; doc.layers[j] = t;
+    doc.frames.forEach(function (f) {
+      var c = f.cells[li]; f.cells[li] = f.cells[j]; f.cells[j] = c;
+    });
+    li = j; renderLayers(); drawPad();
+  }
+  document.getElementById('lUp').onclick = function () { move(1); };
+  document.getElementById('lDown').onclick = function () { move(-1); };
+
+  /* ---- frames ------------------------------------------------------ */
+  /* ==================================================================
+   * FRAMES REORDER BY DRAGGING
+   * ==================================================================
+   * Getting the order wrong is the normal case in animation — you draw the
+   * poses, then find the middle two are the wrong way round. Without this the
+   * only remedy was redrawing them, because nothing here could move a frame.
+   *
+   * The reorder happens LIVE as you drag rather than on release, so the strip
+   * shows the order you are about to get instead of asking you to imagine it.
+   * A drag under four pixels counts as a tap, or selecting a frame on a
+   * touchpad would keep turning into an accidental reorder.
+   *
+   * THE HANDLERS LIVE ON THE DOCUMENT, not on the chip. Reordering re-renders
+   * the strip, which destroys the very element holding pointer capture — the
+   * first attempt stopped receiving events after one move and reordered
+   * nothing at all. The document survives the re-render.
+   * ================================================================== */
+  var fDrag = null;
+  function renderFrames() {
+    var host = document.getElementById('frameList');
+    host.innerHTML = '';
+    doc.frames.forEach(function (_, i) {
+      var b = document.createElement('div');
+      b.className = 'frm' + (i === fi ? ' sel' : '') + (fDrag && fDrag.i === i ? ' dragging' : '');
+      b.textContent = (i + 1);
+      b.title = 'drag to move this frame';
+      b.addEventListener('pointerdown', function (ev) {
+        ev.preventDefault();
+        finish();
+        fDrag = { i: i, x: ev.clientX, moved: false };
+        document.addEventListener('pointermove', onFrameDrag);
+        document.addEventListener('pointerup', endFrameDrag, { once: true });
+        renderFrames();
+      });
+      host.appendChild(b);
+    });
+  }
+  function onFrameDrag(ev) {
+    if (!fDrag) return;
+    if (!fDrag.moved && Math.abs(ev.clientX - fDrag.x) < 4) return;
+    /* SNAPSHOT BEFORE THE FIRST MOVE, not after the last one. pushHistory on
+     * pointerup recorded the order you had just created, so undo returned you
+     * to it and appeared to do nothing. Taken here it is also only taken when
+     * a drag really starts, so a tap does not litter the history. */
+    if (!fDrag.moved) pushHistory();
+    fDrag.moved = true;
+    var to = frameAt(ev.clientX);
+    if (to < 0 || to === fDrag.i) return;
+    var moving = doc.frames.splice(fDrag.i, 1)[0];
+    doc.frames.splice(to, 0, moving);
+    if (fi === fDrag.i) fi = to;
+    else if (fi > fDrag.i && fi <= to) fi--;
+    else if (fi < fDrag.i && fi >= to) fi++;
+    fDrag.i = to;
+    renderFrames(); drawPad();
+  }
+  function endFrameDrag() {
+    document.removeEventListener('pointermove', onFrameDrag);
+    if (fDrag && !fDrag.moved) { fi = fDrag.i; drawPad(); }
+    else if (fDrag && fDrag.moved) saveNow();
+    fDrag = null;
+    renderFrames();
+  }
+  // which frame the pointer is over, by position across the strip
+  function frameAt(clientX) {
+    var kids = [].slice.call(document.getElementById('frameList').children);
+    for (var i = 0; i < kids.length; i++) {
+      if (clientX < kids[i].getBoundingClientRect().right) return i;
+    }
+    return kids.length - 1;
+  }
+  function saveNow() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(doc)); } catch (e) {} }
+  function clone(f) { return JSON.parse(JSON.stringify(f)); }
+  document.getElementById('fAdd').onclick = function () {
+    finish(); pushHistory(); doc.frames.splice(fi + 1, 0, blankFrame(doc.layers.length));
+    fi++; renderFrames(); drawPad();
+  };
+  document.getElementById('fDup').onclick = function () {
+    finish(); pushHistory(); doc.frames.splice(fi + 1, 0, clone(doc.frames[fi]));
+    fi++; renderFrames(); drawPad();
+  };
+  document.getElementById('fDel').onclick = function () {
+    if (doc.frames.length < 2) return alert('Keep at least one frame.');
+    pushHistory();
+    doc.frames.splice(fi, 1); fi = Math.max(0, fi - 1); renderFrames(); drawPad();
+  };
+  document.getElementById('fps').oninput = function () {
+    doc.fps = +this.value; document.getElementById('fpsN').textContent = doc.fps; emit();
+  };
+  var playBtn = document.getElementById('fPlay');
+  playBtn.onclick = function () {
+    playing = !playing; playBtn.classList.toggle('on', playing);
+    playBtn.textContent = playing ? '■ STOP' : '▶ PLAY';
+    if (playing) requestAnimationFrame(tick);
+  };
+  var last = 0;
+  function tick(ts) {
+    if (!playing) return;
+    if (last) playT += (ts - last) / 1000 * doc.fps;
+    last = ts;
+    drawPreview();
+    requestAnimationFrame(tick);
+  }
+
+  /* ---- tracing image ----------------------------------------------- */
+  document.getElementById('imgIn').onchange = function (ev) {
+    var f = ev.target.files && ev.target.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      var im = new Image();
+      im.onload = function () { refImg = im; drawPad(); };
+      im.src = rd.result;
+    };
+    rd.readAsDataURL(f);
+  };
+  document.getElementById('imgClear').onclick = function () { refImg = null; drawPad(); };
+  document.getElementById('imgA').oninput = function () { refAlpha = this.value / 100; drawPad(); };
+
+  /* ---- import / export --------------------------------------------- */
+  document.getElementById('bCopy').onclick = function () {
+    out.removeAttribute('readonly'); out.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    if (navigator.clipboard) navigator.clipboard.writeText(out.value);
+    out.setAttribute('readonly', '');
+    var b = this, o = b.textContent; b.textContent = 'COPIED';
+    setTimeout(function () { b.textContent = o; }, 900);
+  };
+  /* Reads what the game files actually contain: a bare art object, an
+   * `art: {...}` line, or the animated `{ fps, frames: [...] }` form. Loaded
+   * art already contains both halves of a symmetric shape, so mirroring goes
+   * off — leaving it on would double everything on the next stroke. */
+  document.getElementById('bLoad').onclick = function () {
+    var t = out.value.trim().replace(/^art:\s*/, '').replace(/,\s*$/, '');
+    var obj;
+    try { obj = (new Function('return (' + t + ')'))(); }
+    catch (err) { return alert('Could not read that.\n\nExpected art: { p: [...], e: [...] }'); }
+    if (!obj) return alert('Nothing to read.');
+    var src = obj.frames ? obj.frames : [obj];
+    if (!src[0] || !src[0].p) return alert('No p: list found.');
+    doc.layers = [{ name: 'line', vis: true, exp: true }];
+    doc.fps = obj.fps || 8;
+    var dropped = 0;
+    doc.frames = src.map(function (fr) {
+      var strokes = (fr.p || []).map(function (flat) {
+        var pts = [];
+        for (var i = 0; i < flat.length; i += 2) {
+          var x = flat[i], y = flat[i + 1];
+          // Non-finite points are skipped, not zeroed. Four enemies in this
+          // game have carried NaN coordinates; Canvas silently drops any path
+          // containing one, so they never drew. Reading them as 0 would put a
+          // stray line through the origin — turning invisible bad data into
+          // visible bad art.
+          if (typeof x !== 'number' || typeof y !== 'number' || !isFinite(x) || !isFinite(y)) { dropped++; continue; }
+          pts.push([x, y]);
+        }
+        return { pts: pts, m: false };
+      }).filter(function (L) { return L.pts.length > 1; });
+      var eyes = (fr.e || []).map(function (e) { return [e[0], e[1], false]; });
+      return { cells: [{ strokes: strokes, eyes: eyes }] };
+    });
+    fi = 0; li = 0; cur = []; curUndone.length = 0; mirror = false;
+    document.getElementById('bMirror').classList.remove('on');
+    document.getElementById('fps').value = doc.fps;
+    document.getElementById('fpsN').textContent = doc.fps;
+    renderLayers(); renderFrames(); drawPad();
+    if (dropped) status.textContent = 'dropped ' + dropped + ' unusable point' + (dropped === 1 ? '' : 's');
+  };
+
+  // The art block is lossy — it has no layers and no sketch. Saving the
+  // project keeps them, so a drawing can be put down and picked up.
+  document.getElementById('bSave').onclick = function () {
+    var blob = new Blob([JSON.stringify(doc)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'voidspire-art.json';
+    a.click();
+  };
+  document.getElementById('projIn').onchange = function (ev) {
+    var f = ev.target.files && ev.target.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      try {
+        var d = JSON.parse(rd.result);
+        if (!d.layers || !d.frames) throw 0;
+        doc = d; fi = 0; li = doc.layers.length - 1; cur = []; curUndone.length = 0;
+        document.getElementById('fps').value = doc.fps || 8;
+        document.getElementById('fpsN').textContent = doc.fps || 8;
+        renderLayers(); renderFrames(); drawPad();
+      } catch (e) { alert('That is not an artist project file.'); }
+    };
+    rd.readAsText(f);
+  };
+
+  document.querySelectorAll('.swatch').forEach(function (s) {
+    s.onclick = function () {
+      document.querySelectorAll('.swatch').forEach(function (o) { o.classList.remove('on'); });
+      s.classList.add('on'); colour = s.getAttribute('data-col'); drawPad();
+    };
+  });
+  var MODE_KEYS = { d: 'mDraw', l: 'mLine', f: 'mFree', s: 'mShape', e: 'mEye',
+                    a: 'mEdit', v: 'mSel', h: 'mPan', x: 'mErase' };
+  document.addEventListener('keydown', function (ev) {
+    if (ev.target.tagName === 'TEXTAREA' || ev.target.tagName === 'INPUT') return;
+    // one letter a tool, the way every drawing program does it
+    if (!ev.metaKey && !ev.ctrlKey && MODE_KEYS[ev.key.toLowerCase()]) {
+      document.getElementById(MODE_KEYS[ev.key.toLowerCase()]).click();
+      ev.preventDefault(); return;
+    }
+    /* ARROW KEYS NUDGE THE SELECTION. Dragging is for gross movement and hopeless
+     * for the last two thousandths; shift takes a bigger step. */
+    if (mode === 'select' && sel.length && ev.key.indexOf('Arrow') === 0) {
+      var st = (ev.shiftKey ? 0.05 : 0.01);
+      var dx = ev.key === 'ArrowLeft' ? -st : ev.key === 'ArrowRight' ? st : 0;
+      var dy = ev.key === 'ArrowUp' ? -st : ev.key === 'ArrowDown' ? st : 0;
+      pushHistory();
+      sel.forEach(function (i) {
+        var L = here().strokes[i]; if (!L) return;
+        L.pts = L.pts.map(function (p) { return [+(p[0] + dx).toFixed(3), +(p[1] + dy).toFixed(3)]; });
+      });
+      drawPad(); ev.preventDefault(); return;
+    }
+    // in EDIT, delete just the point under the cursor rather than the stroke
+    if (mode === 'edit' && (ev.key === 'Delete' || ev.key === 'Backspace') && hoverPt) {
+      var S = here().strokes[hoverPt.si];
+      if (S && S.pts.length > 2) { pushHistory(); S.pts.splice(hoverPt.pi, 1); }
+      else if (S) { pushHistory(); here().strokes.splice(hoverPt.si, 1); }
+      hoverPt = null; drawPad(); ev.preventDefault(); return;
+    }
+    if (ev.key === 'Enter') finish();
+    if (ev.key === 'z' && (ev.metaKey || ev.ctrlKey) && !ev.shiftKey) { undo(); ev.preventDefault(); }
+    if ((ev.key === 'y' && (ev.metaKey || ev.ctrlKey))
+        || (ev.key === 'z' && (ev.metaKey || ev.ctrlKey) && ev.shiftKey)) { redo(); ev.preventDefault(); }
+    if (ev.key === 'Backspace' && mode === 'edit') {
+      // in EDIT, backspace removes the whole stroke nearest the last drag
+      if (drag) { pushHistory(); here().strokes.splice(drag.si, 1); drag = null; drawPad(); }
+    }
+  });
+
+  /* ==================================================================
+   * AUTOSAVE. A refresh, a locked phone or a stray gesture used to lose the
+   * whole drawing unless SAVE .JSON had been remembered. Written on a short
+   * debounce so a fast stroke does not serialise on every point.
+   * ================================================================== */
+  var SAVE_KEY = 'voidspire.artist.doc';
+  var saveT = 0;
+  function autosave() {
+    clearTimeout(saveT);
+    saveT = setTimeout(function () {
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify(doc)); } catch (e) {}
+    }, 400);
+  }
+  function flushSave() {
+    clearTimeout(saveT);
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(doc)); } catch (e) {}
+  }
+  /* The debounce means a change made in the last fraction of a second is not
+   * on disk yet, so leaving the page has to force it. `pagehide` rather than
+   * `beforeunload`: it is the one that fires reliably when a mobile browser
+   * backgrounds a tab, which is exactly when a phone drawing gets lost. */
+  window.addEventListener('pagehide', flushSave);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') flushSave();
+  });
+
+  function loadAutosave() {
+    try {
+      var raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return false;
+      var d = JSON.parse(raw);
+      if (!d || !d.layers || !d.frames) return false;
+      var strokes = 0;
+      d.frames.forEach(function (f) { f.cells.forEach(function (c) { strokes += c.strokes.length; }); });
+      if (!strokes) return false;                 // nothing worth restoring
+      doc = d; fi = 0; li = doc.layers.length - 1;
+      return true;
+    } catch (e) { return false; }
+  }
+
+  /* ==================================================================
+   * THE GAME'S OWN ART, browsable. Generated into assets.js by
+   * tools/build-assets.js, inlined as a script rather than fetched because
+   * this page is opened from file:// as often as from the deployed site and
+   * fetch() is blocked there.
+   * ================================================================== */
+  var ASSETS = window.VS_ASSETS || [];
+  var aKind = 'all', aQuery = '';
+  function thumb(p, e, size) {
+    var c = document.createElement('canvas');
+    c.width = c.height = size * 2;
+    var g = c.getContext('2d');
+    g.scale(2, 2);
+    g.fillStyle = '#05090b'; g.fillRect(0, 0, size, size);
+    g.save(); g.translate(size / 2, size / 2); g.scale(size * 0.42, size * 0.42);
+    g.strokeStyle = '#5dff88'; g.lineWidth = 2.2 / (size * 0.42); g.lineJoin = 'round';
+    (p || []).forEach(function (q) {
+      g.beginPath(); g.moveTo(q[0], q[1]);
+      for (var i = 2; i < q.length; i += 2) g.lineTo(q[i], q[i + 1]);
+      g.stroke();
+    });
+    g.restore();
+    return c;
+  }
+  function renderAssets() {
+    var host = document.getElementById('assetList');
+    host.innerHTML = '';
+    var q = aQuery.toLowerCase();
+    var hits = ASSETS.filter(function (a) {
+      if (aKind !== 'all' && a.kind !== aKind) return false;
+      if (!q) return true;
+      return (a.name + ' ' + a.id).toLowerCase().indexOf(q) >= 0;
+    }).slice(0, 120);
+    hits.forEach(function (a) {
+      /* An asset is either one shape or a reel of them. loadArt already knew
+       * how to take a reel; this list did not — it pulled a.p and a.e off the
+       * record and handed over a single frame, so an animated sprite would
+       * have opened here as a still and been saved back the same way, losing
+       * the animation without ever saying so. */
+      var f0 = a.frames ? (a.frames[0] || { p: [], e: [] }) : a;
+      var row = document.createElement('div');
+      row.className = 'it';
+      row.appendChild(thumb(f0.p, f0.e, 30));
+      var nm = document.createElement('span');
+      nm.className = 'nm';
+      nm.textContent = a.name + (a.frames ? '  (' + a.frames.length + ' frames)' : '');
+      row.appendChild(nm);
+      var kd = document.createElement('span');
+      kd.className = 'kd'; kd.textContent = a.kind.slice(0, 4).toUpperCase();
+      row.appendChild(kd);
+      row.onclick = function () {
+        loadArt(a.frames ? { fps: a.fps, frames: a.frames } : { p: a.p, e: a.e }, a.name);
+      };
+      host.appendChild(row);
+    });
+    if (!hits.length) host.innerHTML = '<div class="hint" style="padding:8px">nothing matches</div>';
+  }
+  document.getElementById('aSearch').oninput = function () { aQuery = this.value; renderAssets(); };
+  [['kAll', 'all'], ['kEnemy', 'enemy'], ['kEng', 'engraving'], ['kCard', 'card']].forEach(function (pair) {
+    document.getElementById(pair[0]).onclick = function () {
+      aKind = pair[1];
+      ['kAll', 'kEnemy', 'kEng', 'kCard'].forEach(function (o) { document.getElementById(o).classList.remove('on'); });
+      this.classList.add('on'); renderAssets();
+    };
+  });
+
+  // One path in: the art block box, the asset list and the library all arrive
+  // here, so loading behaves identically whatever it came from.
+  function loadArt(obj, label) {
+    pushHistory();
+    var src = obj.frames ? obj.frames : [obj];
+    doc.layers = [{ name: label || 'line', vis: true, exp: true }];
+    doc.fps = obj.fps || 8;
+    doc.frames = src.map(function (fr) {
+      var strokes = (fr.p || []).map(function (flat) {
+        var pts = [];
+        for (var i = 0; i < flat.length; i += 2) {
+          var x = flat[i], y = flat[i + 1];
+          if (typeof x !== 'number' || typeof y !== 'number' || !isFinite(x) || !isFinite(y)) continue;
+          pts.push([x, y]);
+        }
+        return { pts: pts, m: false };
+      }).filter(function (L) { return L.pts.length > 1; });
+      return { cells: [{ strokes: strokes, eyes: (fr.e || []).map(function (q) { return [q[0], q[1], false]; }) }] };
+    });
+    fi = 0; li = 0; cur = []; curUndone.length = 0; mirror = false;
+    document.getElementById('bMirror').classList.remove('on');
+    document.getElementById('fps').value = doc.fps;
+    document.getElementById('fpsN').textContent = doc.fps;
+    renderLayers(); renderFrames(); drawPad();
+  }
+
+  /* ==================================================================
+   * THE LIBRARY — parts you keep. Stored flat (already mirrored, already
+   * expanded) so dropping one in is a straight append with no surprises
+   * about which half you drew.
+   * ================================================================== */
+  var LIB_KEY = 'voidspire.artist.library';
+  var lib = [];
+  function libLoad() {
+    try { lib = JSON.parse(localStorage.getItem(LIB_KEY) || '[]'); } catch (e) { lib = []; }
+  }
+  function libSave() {
+    try { localStorage.setItem(LIB_KEY, JSON.stringify(lib)); } catch (e) {
+      alert('Could not save — this browser is out of local storage room.');
+    }
+  }
+  function renderLib() {
+    var host = document.getElementById('libList');
+    host.innerHTML = '';
+    if (!lib.length) {
+      host.innerHTML = '<div class="hint" style="padding:8px">empty — draw something and hit ADD</div>';
+      return;
+    }
+    lib.forEach(function (item, i) {
+      var row = document.createElement('div');
+      row.className = 'it';
+      row.appendChild(thumb(item.p, item.e, 30));
+      var nm = document.createElement('span');
+      nm.className = 'nm'; nm.textContent = item.name;
+      row.appendChild(nm);
+      var x = document.createElement('span');
+      x.className = 'x'; x.textContent = '✕';
+      x.onclick = function (ev) {
+        ev.stopPropagation();
+        if (!confirm('Remove "' + item.name + '" from the library?')) return;
+        lib.splice(i, 1); libSave(); renderLib();
+      };
+      row.appendChild(x);
+      // INSERT, not replace: a library part joins what is already on the layer
+      row.onclick = function () {
+        pushHistory();
+        item.p.forEach(function (flat) {
+          var pts = [];
+          for (var k = 0; k < flat.length; k += 2) pts.push([flat[k], flat[k + 1]]);
+          if (pts.length > 1) here().strokes.push({ pts: pts, m: false });
+        });
+        (item.e || []).forEach(function (q) { here().eyes.push([q[0], q[1], false]); });
+        drawPad();
+      };
+      host.appendChild(row);
+    });
+  }
+  document.getElementById('libAdd').onclick = function () {
+    finish();
+    var a = framePaths(fi);
+    if (!a.p.length && !a.e.length) return alert('Nothing on the exporting layers to save.');
+    var name = prompt('Name this part', 'part ' + (lib.length + 1));
+    if (!name) return;
+    lib.push({ name: name, p: a.p, e: a.e });
+    libSave(); renderLib();
+  };
+  document.getElementById('libExport').onclick = function () {
+    var blob = new Blob([JSON.stringify(lib)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'voidspire-library.json'; a.click();
+  };
+  document.getElementById('libIn').onchange = function (ev) {
+    var f = ev.target.files && ev.target.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      try {
+        var d = JSON.parse(rd.result);
+        if (!Array.isArray(d)) throw 0;
+        lib = lib.concat(d); libSave(); renderLib();
+      } catch (e) { alert('That is not a library file.'); }
+    };
+    rd.readAsText(f);
+  };
+
+  /* ==================================================================
+   * TWEENING. Draw a pose, draw the next, and let the frames between be
+   * worked out. Strokes are matched by index and RESAMPLED to a common
+   * point count first — two hand-drawn strokes almost never have the same
+   * number of points, and lerping them pairwise without resampling produces
+   * garbage rather than motion.
+   * ================================================================== */
+  function resample(pts, n) {
+    if (pts.length === n) return pts.map(function (p) { return p.slice(); });
+    var segs = [], total = 0;
+    for (var i = 1; i < pts.length; i++) {
+      var d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+      segs.push(d); total += d;
+    }
+    if (!total) return new Array(n).fill(0).map(function () { return pts[0].slice(); });
+    var out = [pts[0].slice()], step = total / (n - 1), walked = 0, si = 0, acc = 0;
+    for (var k = 1; k < n - 1; k++) {
+      var want = k * step;
+      while (si < segs.length && acc + segs[si] < want) { acc += segs[si]; si++; }
+      var t = segs[si] ? (want - acc) / segs[si] : 0;
+      out.push([
+        pts[si][0] + (pts[si + 1][0] - pts[si][0]) * t,
+        pts[si][1] + (pts[si + 1][1] - pts[si][1]) * t,
+      ]);
+    }
+    out.push(pts[pts.length - 1].slice());
+    return out;
+  }
+  document.getElementById('tweenN').oninput = function () {
+    document.getElementById('tweenNN').textContent = this.value;
+  };
+  document.getElementById('fTween').onclick = function () {
+    finish();
+    if (doc.frames.length < 2) return alert('Tweening needs a frame after this one to aim at.');
+    var n = +document.getElementById('tweenN').value;
+    var A = doc.frames[fi], B = doc.frames[(fi + 1) % doc.frames.length];
+    pushHistory();
+    var made = [];
+    for (var k = 1; k <= n; k++) {
+      var t = k / (n + 1);
+      var cells = doc.layers.map(function (L, l) {
+        var sa = A.cells[l].strokes, sb = B.cells[l].strokes;
+        var strokes = [];
+        for (var i = 0; i < Math.min(sa.length, sb.length); i++) {
+          var cnt = Math.max(sa[i].pts.length, sb[i].pts.length);
+          var pa = resample(sa[i].pts, cnt), pb = resample(sb[i].pts, cnt);
+          var pts = pa.map(function (p, j) {
+            return [+(p[0] + (pb[j][0] - p[0]) * t).toFixed(3),
+                    +(p[1] + (pb[j][1] - p[1]) * t).toFixed(3)];
+          });
+          strokes.push({ pts: pts, m: sa[i].m });
+        }
+        // a stroke with no partner in the next pose is carried unchanged
+        for (var z = Math.min(sa.length, sb.length); z < sa.length; z++) {
+          strokes.push(JSON.parse(JSON.stringify(sa[z])));
+        }
+        var ea = A.cells[l].eyes, eb = B.cells[l].eyes, eyes = [];
+        for (var q = 0; q < ea.length; q++) {
+          var pe = eb[q] || ea[q];
+          eyes.push([+(ea[q][0] + (pe[0] - ea[q][0]) * t).toFixed(3),
+                     +(ea[q][1] + (pe[1] - ea[q][1]) * t).toFixed(3), ea[q][2]]);
+        }
+        return { strokes: strokes, eyes: eyes };
+      });
+      made.push({ cells: cells });
+    }
+    doc.frames.splice.apply(doc.frames, [fi + 1, 0].concat(made));
+    renderFrames(); drawPad();
+  };
+
+  document.getElementById('smooth').oninput = function () {
+    smoothing = +this.value; document.getElementById('smoothN').textContent = smoothing;
+  };
+  // A build stamp, because a cached copy of this page is indistinguishable
+  // from a current one otherwise — which has already caused confusion twice.
+  /* A WAY OUT. Autosave means a broken or unwanted drawing comes back on every
+   * reload, and the library shares that storage — so there has to be a
+   * deliberate way to empty it. Asks separately about the library, because
+   * losing a collection of saved parts to a stray tap would be worse than the
+   * problem it solves. */
+  document.getElementById('bWipe').onclick = function () {
+    if (!confirm('Clear the autosaved drawing and reload?\n\nYour LIBRARY is kept.')) return;
+    try { localStorage.removeItem('voidspire.artist.doc'); } catch (e) {}
+    if (confirm('Also clear your saved LIBRARY of parts?\n\nThis cannot be undone.')) {
+      try { localStorage.removeItem('voidspire.artist.library'); } catch (e) {}
+    }
+    location.reload();
+  };
+  document.getElementById('ver').textContent = 'build 17';
+
+  libLoad(); renderLib(); renderAssets();
+  var restored = loadAutosave();
+  syncHistBtns();
+  renderLayers(); renderFrames(); drawPad();
+  if (restored) status.textContent = 'restored your last drawing';
+  /* What this tool is currently making, for the handoff button. Each tool
+   * answers the same three questions — what it is, which file it belongs in,
+   * and the payload — so one shared button can hand any of them over. */
+  window.VS_HANDOFF = function () {
+    var frames = doc.frames.length;
+    return {
+      what: frames > 1 ? ('animated art, ' + frames + ' frames at ' + doc.fps + ' fps') : 'a piece of art',
+      target: 'js/enemies.js (an enemy), js/dice.js (an engraving), js/cardart.js (a card icon), or js/uiart.js (a UI slot)',
+      body: document.getElementById('out').value,
+      empty: !/\[\[/.test(document.getElementById('out').value),
+    };
+  };
+})();
+</script>
+
+<script>
+/* ==================================================================
+ * ONE BACKUP FOR EVERY TOOL
+ * ==================================================================
+ * All five tools keep their work in localStorage, which is per browser, per
+ * device and never syncs — so moving between a desktop and a phone lost
+ * everything unless each tool's own export had been remembered separately,
+ * and two of them had no export at all.
+ *
+ * This takes EVERY voidspire.* key in one file, so a move between devices is
+ * one download and one upload rather than five. It is identical in all five
+ * tools, so it can be reached from whichever one happens to be open.
+ * ================================================================== */
+(function () {
+  'use strict';
+  function allKeys() {
+    var out = [];
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf('voidspire.') === 0) out.push(k);
+      }
+    } catch (e) {}
+    return out;
+  }
+  function backup() {
+    var data = { kind: 'voidspire-tools-backup', at: new Date().toISOString(), keys: {} };
+    allKeys().forEach(function (k) { try { data.keys[k] = localStorage.getItem(k); } catch (e) {} });
+    var n = Object.keys(data.keys).length;
+    if (!n) { alert('Nothing saved in this browser yet.'); return; }
+    var blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'voidspire-tools-' + data.at.slice(0, 10) + '.json';
+    a.click();
+  }
+  function restore(file) {
+    var rd = new FileReader();
+    rd.onload = function () {
+      var d;
+      try { d = JSON.parse(rd.result); } catch (e) { alert('That is not a backup file.'); return; }
+      if (!d || d.kind !== 'voidspire-tools-backup' || !d.keys) { alert('That is not a backup file.'); return; }
+      var names = Object.keys(d.keys);
+      /* Say what is about to be overwritten. A restore replaces work in this
+       * browser, and doing that silently is how someone loses an afternoon. */
+      if (!confirm('Restore ' + names.length + ' saved item'
+        + (names.length === 1 ? '' : 's') + ' from ' + (d.at || '').slice(0, 10)
+        + '?\n\nThis REPLACES what is saved in this browser.')) return;
+      names.forEach(function (k) { try { localStorage.setItem(k, d.keys[k]); } catch (e) {} });
+      location.reload();
+    };
+    rd.readAsText(file);
+  }
+  /* ==================================================================
+   * HAND OFF — one action that produces something worth pasting to me
+   * ==================================================================
+   * Every tool already produced a code block, but handing one over meant
+   * copying it out of a textarea and then explaining what it was and which
+   * file it belonged in. This wraps the same payload in the answers to those
+   * questions — what it is, where it goes, which tool and build made it — so
+   * a creation arrives ready to act on rather than ready to be interrogated.
+   *
+   * It copies AND downloads: small things paste straight into a message, and
+   * a long one is a file you can keep or send.
+   * ================================================================== */
+  function handoff() {
+    var d = null;
+    try { d = window.VS_HANDOFF && window.VS_HANDOFF(); } catch (e) {}
+    if (!d) { alert('This tool has nothing to hand over yet.'); return null; }
+    if (d.empty) {
+      if (!confirm('There does not seem to be anything made yet.\n\nHand it over anyway?')) return null;
+    }
+    var ver = (document.getElementById('ver') || {}).textContent || '';
+    var title = (document.title || 'VOIDSPIRE').replace('VOIDSPIRE · ', '');
+    return '=== VOIDSPIRE HANDOFF ===\n'
+      + 'from: the ' + title.toLowerCase() + ' tool (' + ver + ')\n'
+      + 'made: ' + new Date().toISOString().slice(0, 16).replace('T', ' ') + '\n'
+      + 'what: ' + d.what + '\n'
+      + 'goes in: ' + d.target + '\n'
+      + '\n' + d.body + '\n'
+      + '=== END ===';
+  }
+
+  var bar = document.createElement('div');
+  /* The bar floated over the title on a narrow screen — on a phone the three
+   * buttons landed straight on top of the tool's own name. Given its own row
+   * in the flow it cannot collide with anything. */
+  bar.style.cssText = 'display:flex;gap:5px;justify-content:flex-end;'
+    + 'padding:0 0 6px;flex:0 0 auto;flex-wrap:wrap;';
+  bar.innerHTML =
+    '<button id="vsHandoff" style="background:rgba(93,255,136,.14);border:1px solid rgba(93,255,136,.5);'
+    + 'border-radius:3px;color:#5dff88;font:700 9px/1 ui-monospace,monospace;letter-spacing:.07em;'
+    + 'padding:6px 8px;cursor:pointer" title="Copy this creation with a note saying what it is and where it goes">HAND OFF</button>'
+    + '<button id="vsBackup" style="background:rgba(10,16,20,.95);border:1px solid rgba(120,150,165,.35);'
+    + 'border-radius:3px;color:#8fa79a;font:700 9px/1 ui-monospace,monospace;letter-spacing:.07em;'
+    + 'padding:6px 7px;cursor:pointer" title="Download everything this browser has saved, from all five tools">BACKUP ALL</button>'
+    + '<label style="background:rgba(10,16,20,.95);border:1px solid rgba(120,150,165,.35);'
+    + 'border-radius:3px;color:#8fa79a;font:700 9px/1 ui-monospace,monospace;letter-spacing:.07em;'
+    + 'padding:6px 7px;cursor:pointer" title="Load a backup made on another device">RESTORE'
+    + '<input type="file" id="vsRestore" accept="application/json" hidden></label>';
+  var h1 = document.querySelector('body > h1');
+  if (h1 && h1.parentNode) h1.parentNode.insertBefore(bar, h1.nextSibling);
+  else document.body.appendChild(bar);
+  document.getElementById('vsHandoff').onclick = function () {
+    var txt = handoff(); if (!txt) return;
+    var ta = document.createElement('textarea');
+    ta.value = txt; ta.style.cssText = 'position:fixed;left:-9999px';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    if (navigator.clipboard) navigator.clipboard.writeText(txt);
+    document.body.removeChild(ta);
+    // and a file, for anything too long to paste comfortably
+    var blob = new Blob([txt], { type: 'text/plain' });
+    var a2 = document.createElement('a');
+    a2.href = URL.createObjectURL(blob);
+    a2.download = 'voidspire-handoff-' + new Date().toISOString().slice(0, 10) + '.txt';
+    a2.click();
+    var b2 = this, o2 = b2.textContent;
+    b2.textContent = 'COPIED + SAVED';
+    setTimeout(function () { b2.textContent = o2; }, 1400);
+  };
+  document.getElementById('vsBackup').onclick = backup;
+  document.getElementById('vsRestore').onchange = function (ev) {
+    if (ev.target.files && ev.target.files[0]) restore(ev.target.files[0]);
+  };
+
+})();
+</script>
+
+<script>
+/* =========================================================================
+ * LINEWORK — the standalone shim.
+ * Everything below runs after the tool has built itself, and only touches
+ * things by id or by the text of a heading. Generated by
+ * tools/build-standalone.js; do not edit this file, edit that one.
+ * ========================================================================= */
+(function () {
+  'use strict';
+
+  function boxWithHeading(text) {
+    var hs = document.querySelectorAll('.box h2');
+    for (var i = 0; i < hs.length; i++) {
+      if (hs[i].textContent.indexOf(text) >= 0) return hs[i].closest('.box');
+    }
+    return null;
+  }
+  function gone(el) { if (el) el.style.display = 'none'; }
+  function reword(sel, html) { var e = document.querySelector(sel); if (e) e.innerHTML = html; }
+
+  // the game's own art, and the button that hands work back to the project
+  gone(boxWithHeading("THE GAME'S ART"));
+  gone(document.getElementById('vsHandoff'));
+
+  // wording that only means something inside the game it came from
+  var lay = boxWithHeading('LAYERS');
+  if (lay) {
+    var hint = lay.querySelector('p.hint');
+    if (hint) hint.innerHTML = 'The <b>eye</b> column shows a layer; the <b>&#9670;</b> '
+      + 'column decides whether it is <b>saved out</b>. Turn &#9670; off on a sketch layer '
+      + 'and it stays a guide you can see but never export.';
+  }
+  /* The preview panel draws the art at the three sizes the game uses, which
+   * is genuinely useful anywhere — but its FIGURE / FRAME toggle is about a
+   * UI-frame slot that does not exist outside the game, and "ONE CORNER"
+   * means nothing without it. */
+  var pv = boxWithHeading('LIVE PREVIEW');
+  if (pv) {
+    var pvh = pv.querySelector('h2');
+    if (pvh) pvh.textContent = 'LIVE PREVIEW — how it reads at real sizes';
+    var toggle = document.getElementById('pvFig');
+    if (toggle && toggle.parentNode) toggle.parentNode.style.display = 'none';
+  }
+
+  var outBox = boxWithHeading('THE ART BLOCK');
+  if (outBox) {
+    var h2 = outBox.querySelector('h2');
+    if (h2) h2.textContent = 'THE DRAWING, AND HOW TO GET IT OUT';
+    var p = outBox.querySelector('p.hint');
+    if (p) p.innerHTML =
+      '<b>SAVE SVG</b> is the one you want for anything else — it is line art at '
+      + 'any size, opens in a browser, and drops into Illustrator, Inkscape, Figma '
+      + 'or a web page. An animation saves as an SVG that plays on its own.<br>'
+      + '<b>SAVE PNG</b> is a picture of it as you see it here; more than one frame '
+      + 'saves as a strip.<br>'
+      + '<b>SAVE .JSON</b> keeps your layers and frames so you can carry on later '
+      + '\u2014 the box above alone cannot. The box is the drawing as plain numbers, '
+      + 'and <b>LOAD FROM BOX</b> reads it back.';
+  }
+
+  /* ---- SVG and PNG -----------------------------------------------------
+   * Both are built from the export box rather than from the canvas on
+   * screen, which carries a grid, a mirror line and point handles that
+   * nobody wants in their picture. The box is also the tool's tested
+   * contract, so this cannot drift from what the tool thinks it drew. */
+  function drawing() {
+    var t = (document.getElementById('out').value || '').trim()
+      .replace(/^art:\s*/, '').replace(/,\s*$/, '');
+    if (!t) return null;
+    try { return (new Function('return (' + t + ')'))(); } catch (e) { return null; }
+  }
+  function frames(d) { return (d && d.frames) ? d.frames : (d ? [d] : []); }
+  function save(blob, name) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+  }
+  function stamp() {
+    var n = (document.querySelector('.layer-name') || {}).textContent;
+    return 'drawing-' + new Date().toISOString().slice(0, 10);
+  }
+
+  /* The art lives in a -1..1 box. A hair of margin keeps a stroke that runs
+   * to the very edge from being sliced in half by its own line width. */
+  var VB = '-1.08 -1.08 2.16 2.16';
+  function svgShapes(f, dx) {
+    var s = '', shift = dx ? ' transform="translate(' + dx + ',0)"' : '';
+    var g = '<g' + shift + '>';
+    (f.p || []).forEach(function (q) {
+      var pts = [];
+      for (var i = 0; i < q.length; i += 2) pts.push(q[i] + ',' + q[i + 1]);
+      g += '<polyline points="' + pts.join(' ') + '"/>';
+    });
+    (f.e || []).forEach(function (e) {
+      g += '<circle class="eye" cx="' + e[0] + '" cy="' + e[1] + '" r="0.05"/>';
+    });
+    return g + '</g>' + s;
+  }
+  function toSVG(d) {
+    var fr = frames(d);
+    if (!fr.length) return null;
+    var n = fr.length, fps = d.fps || 8;
+    /* Stroke colour is currentColor with a colour set on the root, so the
+     * file is black line art out of the box and one attribute away from any
+     * other colour — including being recoloured by CSS once it is in a page. */
+    var head = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + VB + '" '
+      + 'width="512" height="512" color="#111">'
+      + '<style>'
+      + 'polyline{fill:none;stroke:currentColor;stroke-width:.045;'
+      + 'stroke-linejoin:round;stroke-linecap:round}'
+      + 'circle.eye{fill:currentColor;stroke:none}';
+    if (n > 1) {
+      /* An animation is written as a reel: the frames sit side by side and
+       * the strip is stepped one frame-width at a time. It needs no script,
+       * so it plays in an <img>, in a browser tab, in anything that renders
+       * SVG at all — and a viewer that will not animate shows frame one
+       * rather than every frame stacked on top of each other. */
+      head += '.reel{animation:reel ' + (n / fps).toFixed(3) + 's steps(' + n + ') infinite}'
+        + '@keyframes reel{to{transform:translateX(' + (-2.16 * n).toFixed(3) + 'px)}}'
+        + '@media(prefers-reduced-motion:reduce){.reel{animation:none}}';
+    }
+    head += '</style>';
+    if (n === 1) return head + svgShapes(fr[0], 0) + '</svg>';
+    var body = '<g class="reel">';
+    fr.forEach(function (f, i) { body += svgShapes(f, (2.16 * i).toFixed(3)); });
+    return head + body + '</g></svg>';
+  }
+
+  function toPNG(d, cb) {
+    var fr = frames(d);
+    if (!fr.length) return cb(null);
+    var S = 1024, n = fr.length;
+    var c = document.createElement('canvas');
+    c.width = S * n; c.height = S;
+    var g = c.getContext('2d');
+    // as it looks on screen, because a PNG is a picture of the drawing
+    g.fillStyle = '#05090b'; g.fillRect(0, 0, c.width, c.height);
+    fr.forEach(function (f, i) {
+      g.save();
+      g.translate(S * i + S / 2, S / 2);
+      g.scale(S * 0.46, S * 0.46);
+      g.strokeStyle = '#41d8ff';
+      g.lineWidth = 4.5 / (S * 0.46);
+      g.lineJoin = g.lineCap = 'round';
+      (f.p || []).forEach(function (q) {
+        if (q.length < 4) return;
+        g.beginPath(); g.moveTo(q[0], q[1]);
+        for (var k = 2; k < q.length; k += 2) g.lineTo(q[k], q[k + 1]);
+        g.stroke();
+      });
+      g.fillStyle = '#f2fff5';
+      (f.e || []).forEach(function (e) {
+        g.beginPath(); g.arc(e[0], e[1], 0.05, 0, 7); g.fill();
+      });
+      g.restore();
+    });
+    c.toBlob(cb, 'image/png');
+  }
+
+  var bar = document.getElementById('bCopy') && document.getElementById('bCopy').parentNode;
+  function addButton(label, cls, fn) {
+    if (!bar) return;
+    var b = document.createElement('button');
+    b.textContent = label;
+    if (cls) b.className = cls;
+    b.onclick = fn;
+    bar.insertBefore(b, bar.firstChild);
+    return b;
+  }
+  function flash(b, msg) {
+    var was = b.textContent;
+    b.textContent = msg;
+    setTimeout(function () { b.textContent = was; }, 1100);
+  }
+  var pngBtn = addButton('SAVE PNG', 'sm', function () {
+    var d = drawing();
+    if (!d) return alert('Draw something first.');
+    var self = this;
+    toPNG(d, function (blob) {
+      if (!blob) return;
+      var n = frames(d).length;
+      save(blob, stamp() + (n > 1 ? '-' + n + 'frames' : '') + '.png');
+      flash(self, 'SAVED');
+    });
+  });
+  var svgBtn = addButton('SAVE SVG', null, function () {
+    var d = drawing();
+    if (!d) return alert('Draw something first.');
+    var s = toSVG(d);
+    if (!s) return alert('Draw something first.');
+    save(new Blob([s], { type: 'image/svg+xml' }), stamp() + '.svg');
+    flash(this, 'SAVED');
+  });
+  if (svgBtn) svgBtn.style.borderColor = '#5dff88';
+  if (svgBtn) svgBtn.style.color = '#5dff88';
+
+  /* MIRROR OFF BY DEFAULT. It is on in the tool it came from because every
+   * enemy in that game is symmetric about the centre line, so drawing half a
+   * robot and getting a whole one is exactly right there. To anybody else it
+   * is a drawing program that draws two of everything, which reads as a bug
+   * rather than a feature. It is still one button away. */
+  try {
+    var st = document.getElementById('status');
+    var mir = document.getElementById('bMirror');
+    if (mir && st && /MIRRORED/.test(st.textContent)) mir.click();
+  } catch (e) {}
+
+  /* A line saying what this is. It goes in the page rather than on the status
+   * line, which the tool rewrites on its own next repaint — the note was there
+   * and gone before anybody could read it. */
+  var intro = document.createElement('p');
+  intro.style.cssText = 'margin:0 0 9px;font-size:11px;line-height:1.6;color:#8fa79a;'
+    + 'border-left:2px solid #5dff88;padding-left:9px';
+  intro.innerHTML = 'Draw with the tools down the left — <b>PATH</b> taps out a line '
+    + 'point by point, <b>FREE</b> draws by hand, <b>SHAPE</b> drags out one of nine. '
+    + 'More than one frame makes it an animation. '
+    + 'It saves itself in this browser as you go, and <b>SAVE SVG</b> at the bottom '
+    + 'gets your drawing out as a file. '
+    + '<a href="#" id="lwHide" style="color:#5dff88">hide this</a>';
+  var h1 = document.querySelector('body > h1');
+  if (h1 && h1.parentNode) h1.parentNode.insertBefore(intro, h1.nextSibling);
+  try { if (localStorage.getItem('linework.introHidden')) intro.style.display = 'none'; } catch (e) {}
+  var hideLink = document.getElementById('lwHide');
+  if (hideLink) hideLink.onclick = function (ev) {
+    ev.preventDefault();
+    intro.style.display = 'none';
+    try { localStorage.setItem('linework.introHidden', '1'); } catch (e) {}
+  };
+})();
+</script>
+</body>
+</html>

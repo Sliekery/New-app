@@ -91,6 +91,7 @@ The hooks are always present; only the panel is behind the flag.
     node test/artist.js        the artist tool, driven through its buttons
     node test/sampler.js       the sound tool's sample editor
     node test/animated.js      animated art, end to end through every stop
+    node test/standalone.js    tools/linework.html, opened from file://
     node test/_shell.js        all five tools: no page scroll, no pinch zoom
 
 The last five need the tools served: `python3 -m http.server 8944` from
@@ -135,6 +136,25 @@ The DOM half plays a reel as a sprite sheet — frames laid side by side, the
 strip stepped one 24-unit frame-width at a time by a CSS `steps()` animation,
 frames past the first clipped by the viewBox. No script, and a browser that
 will not animate shows frame one rather than a pile of overlapping frames.
+
+## The standalone drawing tool
+
+`node tools/build-standalone.js` turns `tools/artist.html` into
+`tools/linework.html` — one file, no dependencies, nothing about this game in
+it, with SAVE SVG and SAVE PNG added. It is a build rather than a fork because
+a fork would be stale within the week: every artist fix would have to be made
+twice, which in practice means made once.
+
+The shim it appends is **additive** — it hides and rewords by id and by
+heading text after the page has built itself, so a rename in the artist makes
+it do nothing rather than something wrong. The two edits that cannot work that
+way (the `assets.js` script tag, the `art:` export prefix) are asserted before
+they are made, so a rename fails the build loudly.
+
+`test/standalone.js` opens the output from **`file://`**, not from the server.
+That matters: a script that 404s, a fetch that is blocked, an asset that was
+never inlined — all of them only fail there, and all of them leave the page
+looking almost right.
 
 ## Verifying UI work
 
