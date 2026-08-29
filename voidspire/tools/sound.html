@@ -301,7 +301,7 @@
         + (peakHold > 0.02 ? ' · SIGNAL' : ' · silent')) : 'not started';
     }
   }
-  setInterval(drawMeter, 80);
+  setInterval(function () { if (!document.hidden) drawMeter(); }, 90);
   function out() { ac(); return MASTER || (AC && AC.destination); }
   function audioReady() { return AC && AC.state === 'running'; }
   function showAudioState() {
@@ -1110,7 +1110,15 @@
       document.getElementById('mBars').value = bars; }
   } catch (e) {}
   renderPList(); syncHitControls();
-  setInterval(function () { if (mPlaying) drawGrid(); }, 90);
+  /* Only repaint what is on screen. Three timers were running at once — the
+   * SFX scope, the level meter and this — regardless of which tab was open or
+   * whether the page was even visible. Cheap on a desktop, not necessarily so
+   * on a phone with the tab in the background. */
+  setInterval(function () {
+    if (!mPlaying || document.hidden) return;
+    if (document.getElementById('paneMus').style.display === 'none') return;
+    drawGrid();
+  }, 100);
 
   /* ---- tabs ------------------------------------------------------------ */
   function tab(which) {
@@ -1140,9 +1148,13 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 5';
+  document.getElementById('ver').textContent = 'build 6';
   renderLib(); render();
-  setInterval(drawScope, 120);
+  setInterval(function () {
+    if (document.hidden) return;
+    if (document.getElementById('paneSfx').style.display === 'none') return;
+    drawScope();
+  }, 120);
 })();
 </script>
 </body>

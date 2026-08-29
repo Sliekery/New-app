@@ -173,12 +173,28 @@
     schedulePattern(step, time, sm);          // the written loop, over the top
   }
 
+  /* THE ONE LOOP HERE THAT CAN HANG A TAB. It advances by secPerStep() until
+   * it has scheduled far enough ahead; if that ever returns zero, a negative,
+   * or NaN it never advances and the browser locks up hard with no error —
+   * which is exactly what a frozen tab looks like from the outside.
+   *
+   * Nothing in the game could produce such a tempo, but the sound tool now
+   * writes TEMPO.base from a slider, and a tool reaching into a live engine is
+   * a new way for a bad value to arrive. The guard costs one comparison a
+   * frame and removes the whole failure mode. */
   function scheduler() {
     if (!AC) return;
+    var guard = 0;
     while (nextTime < AC.currentTime + 0.18) {
+      var dt = secPerStep();
+      if (!(dt > 0.0005) || !isFinite(dt)) {          // refuse to spin
+        nextTime = AC.currentTime + 0.18;
+        break;
+      }
       scheduleStep(stepN, nextTime);
-      nextTime += secPerStep();
+      nextTime += dt;
       stepN = (stepN + 1) % STEPS;
+      if (++guard > 256) break;                      // a frame cannot need more
     }
   }
 
