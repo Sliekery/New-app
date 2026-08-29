@@ -81,7 +81,9 @@ function ok(name, cond, detail) {
   const body = await p.evaluate(() => document.body.innerText);
   ok('no js/enemies.js in what you can read', !/js\/enemies\.js|js\/cardart\.js/.test(body),
     (body.match(/js\/\w+\.js/g) || []).join(', '));
-  ok('the export panel explains itself in plain terms', /SAVE SVG/.test(body));
+  ok('the export panel offers the formats a stranger needs',
+    /EXPORT/.test(body) && /ANIMATED GIF/.test(body) && /SVG/.test(body), 
+    (body.match(/ANIMATED GIF|VIDEO|SPRITE SHEET|SVG/g) || []).join(', '));
 
   console.log('\nDRAW SOMETHING');
   const box = await p.locator('#pad').boundingBox();
@@ -104,16 +106,30 @@ function ok(name, cond, detail) {
   })(), out.slice(0, 60));
 
   console.log('\nSAVE SVG');
-  async function grab(selector) {
-    const [dl] = await Promise.all([
-      p.waitForEvent('download', { timeout: 8000 }),
-      p.click(selector),
-    ]);
+  /* Through the tool's own export panel now, not a pair of buttons this build
+   * used to bolt on with a second copy of an SVG writer behind them. */
+  await p.$eval('#xName', el => { el.value = 'drawing'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  /* Collected from the event stream: the sprite sheet saves two files, and two
+   * waitForEvent calls made before one click both resolve on the same event. */
+  const inbox = [];
+  p.on('download', async dl => {
     const to = path.join(dir, dl.suggestedFilename());
     await dl.saveAs(to);
-    return { name: dl.suggestedFilename(), path: to, size: fs.statSync(to).size };
+    inbox.push({ name: dl.suggestedFilename(), path: to,
+                 size: fs.statSync(to).size, data: fs.readFileSync(to) });
+  });
+  async function grab(fmt) {
+    inbox.length = 0;
+    await p.click(`#xFormat button[data-x="${fmt}"]`);
+    await p.waitForTimeout(120);
+    await p.click('#xGo');
+    const want = fmt === 'sheet' ? 2 : 1;
+    const until = Date.now() + 15000;
+    while (inbox.length < want && Date.now() < until) await p.waitForTimeout(120);
+    if (!inbox.length) throw new Error(fmt + ': nothing came down');
+    return want === 1 ? inbox[0] : inbox.slice();
   }
-  const svg = await grab('button:has-text("SAVE SVG")');
+  const svg = await grab('svg');
   ok('a .svg comes down', /\.svg$/.test(svg.name), svg.name);
   const svgText = fs.readFileSync(svg.path, 'utf8');
   ok('it is a real svg document', /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/.test(svgText));
@@ -142,7 +158,7 @@ function ok(name, cond, detail) {
   }
 
   console.log('\nSAVE PNG');
-  const png = await grab('button:has-text("SAVE PNG")');
+  const png = await grab('png');
   ok('a .png comes down', /\.png$/.test(png.name), png.name);
   const bytes = fs.readFileSync(png.path);
   ok('it is a real png', bytes.slice(1, 4).toString() === 'PNG', bytes.slice(0, 8).toString('hex'));
@@ -155,7 +171,7 @@ function ok(name, cond, detail) {
   await p.click('#fDup'); await p.waitForTimeout(200);
   const status = await p.textContent('#status');
   ok('there are three frames now', /\/3/.test(status), status);
-  const asvg = await grab('button:has-text("SAVE SVG")');
+  const asvg = await grab('svg');
   const atext = fs.readFileSync(asvg.path, 'utf8');
   ok('the animation is a reel of three',
     /class="reel"/.test(atext) && (atext.match(/<g transform/g) || []).length === 3,
@@ -174,8 +190,13 @@ function ok(name, cond, detail) {
       JSON.stringify(anim));
     await v.close();
   }
-  const apng = await grab('button:has-text("SAVE PNG")');
-  ok('and the png of it is a strip named for its frames', /3frames\.png$/.test(apng.name), apng.name);
+  /* PNG is one still now and the strip is its own format, which is the right
+   * split: a person wants a picture, an engine wants a sheet. */
+  const sheet = await grab('sheet');
+  const strip = Array.isArray(sheet) ? sheet[0] : sheet;
+  ok('and the sprite sheet is a strip, three cells wide',
+    strip.data.readUInt32BE(16) > strip.data.readUInt32BE(20) * 2,
+    strip.data.readUInt32BE(16) + 'x' + strip.data.readUInt32BE(20));
 
   console.log('\nIT SURVIVES BEING CLOSED AND REOPENED');
   await p.goto('file://' + lone);

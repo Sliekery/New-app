@@ -15,9 +15,10 @@
  *      from an email attachment, offline, no server.
  *   2. Renames it. VOIDSPIRE means nothing to somebody who has not played it.
  *   3. Appends a shim that hides the parts that only make sense inside this
- *      project, rewrites the game-facing wording, and adds SAVE SVG and
- *      SAVE PNG — because a drawing tool whose only output is a block of
- *      JavaScript for js/enemies.js is not a drawing tool to anyone else.
+ *      project and rewrites the game-facing wording, and makes sure the
+ *      EXPORT panel starts open — SVG, PNG, GIF, video, sprite sheets and
+ *      zipped frames are the tool's own now, and are the whole reason this
+ *      build exists.
  *
  * The shim is APPENDED rather than surgically spliced into the tool's own
  * code. Regex surgery on 1800 lines of somebody else's markup breaks the
@@ -110,13 +111,18 @@ var SHIM = `
     if (toggle && toggle.parentNode) toggle.parentNode.style.display = 'none';
   }
 
+  /* The EXPORT panel is what this build is for, so it opens whatever the
+   * tool's own folds say. Behind a heading a stranger has no reason to click,
+   * the first thing they look for is not there. */
+  var xBox = boxWithHeading('EXPORT');
+  if (xBox && xBox.classList.contains('shut')) {
+    var xh = xBox.querySelector('h2');
+    if (xh && xh.onclick) xh.onclick(); else xBox.classList.remove('shut');
+  }
+
   var outBox = boxWithHeading('THE ART BLOCK');
   if (outBox) {
-    /* OPEN HERE, whatever the tool folds by default. In the artist the export
-     * block is a code block used once at the end of a session, so folding it
-     * is right. In this build it holds SAVE SVG, which is the whole reason
-     * the file exists — folded away, the first thing a stranger looks for is
-     * behind a heading they have no reason to click. */
+    // the art block is a code block used once at the end of a session
     if (outBox.classList.contains('shut')) {
       var head = outBox.querySelector('h2');
       if (head && head.onclick) head.onclick();
@@ -126,153 +132,16 @@ var SHIM = `
     if (h2) h2.textContent = 'THE DRAWING, AND HOW TO GET IT OUT';
     var p = outBox.querySelector('p.hint');
     if (p) p.innerHTML =
-      '<b>SAVE SVG</b> is the one you want for anything else — it is line art at '
-      + 'any size, opens in a browser, and drops into Illustrator, Inkscape, Figma '
-      + 'or a web page. An animation saves as an SVG that plays on its own.<br>'
-      + '<b>SAVE PNG</b> is a picture of it as you see it here; more than one frame '
-      + 'saves as a strip.<br>'
-      + '<b>SAVE .JSON</b> keeps your layers and frames so you can carry on later '
-      + '\\u2014 the box above alone cannot. The box is the drawing as plain numbers, '
-      + 'and <b>LOAD FROM BOX</b> reads it back.';
+      'The box is the drawing as plain numbers, and <b>LOAD FROM BOX</b> reads '
+      + 'it back. For a file you can send or open somewhere else, use '
+      + '<b>EXPORT</b> above \u2014 SVG, PNG, animated GIF and video are all there.';
   }
 
-  /* ---- SVG and PNG -----------------------------------------------------
-   * Both are built from the export box rather than from the canvas on
-   * screen, which carries a grid, a mirror line and point handles that
-   * nobody wants in their picture. The box is also the tool's tested
-   * contract, so this cannot drift from what the tool thinks it drew. */
-  function drawing() {
-    var t = (document.getElementById('out').value || '').trim()
-      .replace(/^art:\\s*/, '').replace(/,\\s*$/, '');
-    if (!t) return null;
-    try { return (new Function('return (' + t + ')'))(); } catch (e) { return null; }
-  }
-  function frames(d) { return (d && d.frames) ? d.frames : (d ? [d] : []); }
-  function save(blob, name) {
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = name;
-    a.click();
-    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
-  }
-  function stamp() {
-    var n = (document.querySelector('.layer-name') || {}).textContent;
-    return 'drawing-' + new Date().toISOString().slice(0, 10);
-  }
-
-  /* The art lives in a -1..1 box. A hair of margin keeps a stroke that runs
-   * to the very edge from being sliced in half by its own line width. */
-  var VB = '-1.08 -1.08 2.16 2.16';
-  function svgShapes(f, dx) {
-    var s = '', shift = dx ? ' transform="translate(' + dx + ',0)"' : '';
-    var g = '<g' + shift + '>';
-    (f.p || []).forEach(function (q) {
-      var pts = [];
-      for (var i = 0; i < q.length; i += 2) pts.push(q[i] + ',' + q[i + 1]);
-      g += '<polyline points="' + pts.join(' ') + '"/>';
-    });
-    (f.e || []).forEach(function (e) {
-      g += '<circle class="eye" cx="' + e[0] + '" cy="' + e[1] + '" r="0.05"/>';
-    });
-    return g + '</g>' + s;
-  }
-  function toSVG(d) {
-    var fr = frames(d);
-    if (!fr.length) return null;
-    var n = fr.length, fps = d.fps || 8;
-    /* Stroke colour is currentColor with a colour set on the root, so the
-     * file is black line art out of the box and one attribute away from any
-     * other colour — including being recoloured by CSS once it is in a page. */
-    var head = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + VB + '" '
-      + 'width="512" height="512" color="#111">'
-      + '<style>'
-      + 'polyline{fill:none;stroke:currentColor;stroke-width:.045;'
-      + 'stroke-linejoin:round;stroke-linecap:round}'
-      + 'circle.eye{fill:currentColor;stroke:none}';
-    if (n > 1) {
-      /* An animation is written as a reel: the frames sit side by side and
-       * the strip is stepped one frame-width at a time. It needs no script,
-       * so it plays in an <img>, in a browser tab, in anything that renders
-       * SVG at all — and a viewer that will not animate shows frame one
-       * rather than every frame stacked on top of each other. */
-      head += '.reel{animation:reel ' + (n / fps).toFixed(3) + 's steps(' + n + ') infinite}'
-        + '@keyframes reel{to{transform:translateX(' + (-2.16 * n).toFixed(3) + 'px)}}'
-        + '@media(prefers-reduced-motion:reduce){.reel{animation:none}}';
-    }
-    head += '</style>';
-    if (n === 1) return head + svgShapes(fr[0], 0) + '</svg>';
-    var body = '<g class="reel">';
-    fr.forEach(function (f, i) { body += svgShapes(f, (2.16 * i).toFixed(3)); });
-    return head + body + '</g></svg>';
-  }
-
-  function toPNG(d, cb) {
-    var fr = frames(d);
-    if (!fr.length) return cb(null);
-    var S = 1024, n = fr.length;
-    var c = document.createElement('canvas');
-    c.width = S * n; c.height = S;
-    var g = c.getContext('2d');
-    // as it looks on screen, because a PNG is a picture of the drawing
-    g.fillStyle = '#05090b'; g.fillRect(0, 0, c.width, c.height);
-    fr.forEach(function (f, i) {
-      g.save();
-      g.translate(S * i + S / 2, S / 2);
-      g.scale(S * 0.46, S * 0.46);
-      g.strokeStyle = '#41d8ff';
-      g.lineWidth = 4.5 / (S * 0.46);
-      g.lineJoin = g.lineCap = 'round';
-      (f.p || []).forEach(function (q) {
-        if (q.length < 4) return;
-        g.beginPath(); g.moveTo(q[0], q[1]);
-        for (var k = 2; k < q.length; k += 2) g.lineTo(q[k], q[k + 1]);
-        g.stroke();
-      });
-      g.fillStyle = '#f2fff5';
-      (f.e || []).forEach(function (e) {
-        g.beginPath(); g.arc(e[0], e[1], 0.05, 0, 7); g.fill();
-      });
-      g.restore();
-    });
-    c.toBlob(cb, 'image/png');
-  }
-
-  var bar = document.getElementById('bCopy') && document.getElementById('bCopy').parentNode;
-  function addButton(label, cls, fn) {
-    if (!bar) return;
-    var b = document.createElement('button');
-    b.textContent = label;
-    if (cls) b.className = cls;
-    b.onclick = fn;
-    bar.insertBefore(b, bar.firstChild);
-    return b;
-  }
-  function flash(b, msg) {
-    var was = b.textContent;
-    b.textContent = msg;
-    setTimeout(function () { b.textContent = was; }, 1100);
-  }
-  var pngBtn = addButton('SAVE PNG', 'sm', function () {
-    var d = drawing();
-    if (!d) return alert('Draw something first.');
-    var self = this;
-    toPNG(d, function (blob) {
-      if (!blob) return;
-      var n = frames(d).length;
-      save(blob, stamp() + (n > 1 ? '-' + n + 'frames' : '') + '.png');
-      flash(self, 'SAVED');
-    });
-  });
-  var svgBtn = addButton('SAVE SVG', null, function () {
-    var d = drawing();
-    if (!d) return alert('Draw something first.');
-    var s = toSVG(d);
-    if (!s) return alert('Draw something first.');
-    save(new Blob([s], { type: 'image/svg+xml' }), stamp() + '.svg');
-    flash(this, 'SAVED');
-  });
-  if (svgBtn) svgBtn.style.borderColor = '#5dff88';
-  if (svgBtn) svgBtn.style.color = '#5dff88';
+  /* The export panel in the tool itself does SVG, PNG, GIF, video, sprite
+   * sheets and zipped frames, so the two buttons this shim used to add — with
+   * their own second copy of an SVG writer and a PNG renderer — are gone. Two
+   * implementations of the same export is the fork problem in miniature: fix
+   * one, forget the other, and the gift version quietly falls behind. */
 
   /* MIRROR OFF BY DEFAULT. It is on in the tool it came from because every
    * enemy in that game is symmetric about the centre line, so drawing half a
@@ -294,8 +163,8 @@ var SHIM = `
   intro.innerHTML = 'Draw with the tools down the left \u2014 <b>PATH</b> taps out a line '
     + 'point by point, <b>FREE</b> draws by hand, <b>SHAPE</b> drags out one of nine. '
     + 'More than one frame makes it an animation. '
-    + 'It saves itself in this browser as you go, and <b>SAVE SVG</b> at the bottom '
-    + 'gets your drawing out as a file. '
+    + 'It saves itself in this browser as you go, and <b>EXPORT</b> on the right '
+    + 'gets it out as an SVG, a PNG, an animated GIF or a video. '
     + '<a href="#" id="lwHide" style="color:#5dff88">hide this</a>';
   var h1 = document.querySelector('body > h1');
   if (h1 && h1.parentNode) h1.parentNode.insertBefore(intro, h1.nextSibling);

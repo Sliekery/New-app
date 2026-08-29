@@ -80,6 +80,11 @@ const REEL = {
     await p.goto('http://localhost:8944/tools/artist.html');
     await p.waitForTimeout(500);
     const row = await p.evaluate(() => {
+      /* The panels fold by default now, and a folded panel's contents are
+       * display:none — so the list is there and unclickable until it opens. */
+      const box = [...document.querySelectorAll('.side .box')]
+        .find(x => /THE GAME'S ART/.test(x.querySelector('h2').textContent));
+      if (box && box.classList.contains('shut')) box.querySelector('h2').onclick();
       window.VS_ASSETS.push(Object.assign(
         { kind: 'enemy', id: 'test_reel', name: 'ZZ Test Reel' }, window.__REEL));
       document.getElementById('aSearch').value = 'ZZ Test Reel';

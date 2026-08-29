@@ -94,9 +94,10 @@ The hooks are always present; only the panel is behind the flag.
     node test/standalone.js    tools/linework.html, opened from file://
     node test/geometry.js      every sci-fi shape and every 3D solid
     node test/ux.js            the layout budget: canvas share, targets, prose
+    node test/export.js        every export format, saved and then opened
     node test/_shell.js        all five tools: no page scroll, no pinch zoom
 
-The last seven need the tools served: `python3 -m http.server 8944` from
+The last eight need the tools served: `python3 -m http.server 8944` from
 `voidspire/`.
 
 `artist.js` and `sampler.js` exist because of one repeated failure, not a
@@ -318,6 +319,47 @@ Four traps met on the way:
   before so BIG VIEW could be found at all — and in the standalone it shut
   SAVE SVG, which is the whole reason that build exists. Which panels open is
   a judgement about what you look at while working.
+
+## Exporting real files
+
+The EXPORT panel writes what the two audiences actually need, and it does it
+with no libraries — not for purity, but because LINEWORK is one file you can
+email and a CDN script would end that.
+
+    FOR A GAME    sprite sheet + JSON sidecar (Unity, Godot, Phaser, Aseprite)
+                  zipped numbered PNG frames
+                  SVG, still or self-animating
+                  the project .json
+    TO SEND       animated GIF, plays everywhere, needs nothing installed
+                  MP4/WebM through MediaRecorder, which is what Instagram takes
+                  PNG, square / 4:5 post / 9:16 story, transparent or on a ground
+
+The GIF encoder and the zip writer are here in about two hundred lines. Both
+are written from their specs, and both have a failure mode that no structural
+check can see:
+
+- **A GIF's LZW decoder is always ONE ENTRY BEHIND the encoder** — it cannot
+  add the entry a code created until it has read the code after it. So the
+  code width grows when `next` has PASSED the limit, not when it reaches it.
+  Off by that one, the encoder runs a code ahead of every decoder in the world
+  and the file has a perfect header, a perfect frame count, a perfect palette
+  and a perfect trailer, and draws nothing. **`test/export.js` round-trips the
+  encoder against a decoder written from the spec**, which says WHICH code is
+  wrong where the browser only says "blank". I changed this rule to `>=`
+  reasoning about it in my head, broke it, and only the round-trip harness
+  settled it.
+- A zip's entries are stored, not deflated: PNGs are already compressed, so
+  deflating again buys a percent and costs an implementation of deflate.
+
+Two browser-testing notes worth keeping:
+
+- **Two `waitForEvent('download')` calls made before one click both resolve on
+  the SAME event.** The sprite sheet saves a PNG and a JSON, and the test got
+  two copies of the PNG. Collect from `page.on('download')` instead.
+- **A page built with `setContent` has an `about:blank` origin, so a `file://`
+  image never loads into it** — and a `file://` page that CAN load one taints
+  the canvas, so `getImageData` throws. Pass the bytes in as a `data:` URL;
+  it is neither.
 
 ## Verifying UI work
 
