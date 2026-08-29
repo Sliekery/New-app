@@ -93,9 +93,10 @@ The hooks are always present; only the panel is behind the flag.
     node test/animated.js      animated art, end to end through every stop
     node test/standalone.js    tools/linework.html, opened from file://
     node test/geometry.js      every sci-fi shape and every 3D solid
+    node test/ux.js            the layout budget: canvas share, targets, prose
     node test/_shell.js        all five tools: no page scroll, no pinch zoom
 
-The last six need the tools served: `python3 -m http.server 8944` from
+The last seven need the tools served: `python3 -m http.server 8944` from
 `voidspire/`.
 
 `artist.js` and `sampler.js` exist because of one repeated failure, not a
@@ -265,6 +266,58 @@ they are made, so a rename fails the build loudly.
 That matters: a script that 404s, a fetch that is blocked, an asset that was
 never inlined — all of them only fail there, and all of them leave the page
 looking almost right.
+
+## The layout budget
+
+Three numbers, measured against what the drawing tools everyone else uses
+actually do, and now held by `test/ux.js` because every one of them regresses
+silently — a panel added later, a bar that grows a row, and the canvas is
+quietly smaller again with nothing to say so.
+
+| | before | after |
+|---|---|---|
+| canvas, desktop | 21% of the screen | 37%, or 48% in focus |
+| canvas, laptop | 19% | 27% |
+| controls under 24px | 27 of 50 | 0 |
+| explanation on screen | 854 characters | 443 |
+
+What the research says, and what it changed here:
+
+- **Procreate** gives the canvas essentially the whole display and nests
+  everything else; Photoshop with default panels is around 60%. At 21% this
+  was a control panel that happened to have a canvas. Tab hides the panel
+  column, Shift+Tab leaves the drawing alone on screen, and both are
+  remembered.
+- **Corel Painter's** oldest complaint is "busy", "chaotic", stuck in the
+  settings before you can start. The answer everyone converges on is
+  progressive disclosure: show the eighty percent, keep the rest one clearly
+  marked click away. Panels fold, the paragraph explaining each hides behind a
+  ? in its own header, and the animation controls tuck themselves away for a
+  still drawing — 96px, the biggest thing in the column after the canvas.
+- **WCAG 2.2 SC 2.5.8** makes 24x24 CSS pixels Level AA. More than half the
+  controls failed it. 26px everywhere now, 40px on a coarse pointer — not 44,
+  because at 44 the shape and solid racks push the canvas off a phone, which
+  trades one accessibility problem for a worse one.
+
+Four traps met on the way:
+
+- **`.wrap` had `margin: 0 auto` on a flex item**, and an auto cross-axis
+  margin makes a flex item size to its CONTENT rather than stretch. The grid
+  never spanned the window, its `1fr` column resolved against the canvas
+  inside it, and hiding the panels changed the template while the column came
+  out the same 967px it had been.
+- **Sizing the canvas from its own column is circular.** `.mid`'s height comes
+  from its content, which includes the canvas, so it walked itself down by
+  seventy pixels on every view change. Measure against `.wrap`, which the
+  fixed shell sizes and which does not move.
+- **Measure after layout, not during it.** Called inline at boot, the fit read
+  a frame strip that had not rendered, came out 72px generous, then corrected
+  itself later — which looks like the canvas shrinking on its own.
+- **Folding by position folds the wrong things.** Shutting everything but the
+  first panel shut the LIVE PREVIEW, and with it the button added the week
+  before so BIG VIEW could be found at all — and in the standalone it shut
+  SAVE SVG, which is the whole reason that build exists. Which panels open is
+  a judgement about what you look at while working.
 
 ## Verifying UI work
 

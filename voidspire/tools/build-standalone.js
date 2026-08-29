@@ -112,6 +112,16 @@ var SHIM = `
 
   var outBox = boxWithHeading('THE ART BLOCK');
   if (outBox) {
+    /* OPEN HERE, whatever the tool folds by default. In the artist the export
+     * block is a code block used once at the end of a session, so folding it
+     * is right. In this build it holds SAVE SVG, which is the whole reason
+     * the file exists — folded away, the first thing a stranger looks for is
+     * behind a heading they have no reason to click. */
+    if (outBox.classList.contains('shut')) {
+      var head = outBox.querySelector('h2');
+      if (head && head.onclick) head.onclick();
+      else outBox.classList.remove('shut');
+    }
     var h2 = outBox.querySelector('h2');
     if (h2) h2.textContent = 'THE DRAWING, AND HOW TO GET IT OUT';
     var p = outBox.querySelector('p.hint');
