@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>VOIDSPIRE · WORKSHOP</title>
+<style>
+  :root {
+    --bg: #04080a; --panel: #0a1014; --line: rgba(120,150,165,0.22);
+    --text: #eafcff; --dim: #8fa79a; --green: #5dff88; --amber: #ffb02e;
+    --cyan: #41d8ff; --red: #ff4a5e; --violet: #c86bff;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); padding: 12px 12px 40px;
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    max-width: 1180px; margin: 0 auto;
+  }
+  h1 { font-size: 14px; letter-spacing: .2em; margin: 4px 0 2px; color: var(--cyan); }
+  h1 span { color: var(--dim); letter-spacing: .06em; font-size: 11px; }
+  .sub { color: var(--dim); font-size: 11px; margin: 0 0 14px; }
+  a { color: inherit; text-decoration: none; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 10px 0 16px; }
+  button, label.btn {
+    background: rgba(10,16,20,0.9); border: 1px solid var(--line); border-radius: 3px;
+    color: var(--text); font: 700 10px/1 ui-monospace, monospace; letter-spacing: .07em;
+    padding: 8px 10px; cursor: pointer; display: inline-block;
+  }
+  button:hover, label.btn:hover { border-color: var(--cyan); }
+
+  .grid { display: grid; gap: 11px; grid-template-columns: 1fr; }
+  @media (min-width: 760px) { .grid { grid-template-columns: 1fr 1fr; } }
+
+  .card {
+    display: block; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 4px; padding: 12px; position: relative;
+  }
+  .card:hover { border-color: var(--cyan); }
+  .card.game { border-color: rgba(93,255,136,0.4); }
+  @media (min-width: 760px) { .card.game { grid-column: 1 / -1; } }
+  .card .nm { font-size: 15px; letter-spacing: .14em; color: var(--cyan); font-weight: 700; }
+  .card.game .nm { color: var(--green); font-size: 18px; }
+  .card .what { color: var(--text); margin: 6px 0 3px; font-size: 11.5px; }
+  .card .makes { color: var(--dim); font-size: 10.5px; }
+  .card .foot {
+    margin-top: 9px; padding-top: 8px; border-top: 1px solid rgba(120,150,165,0.14);
+    display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 10px; color: var(--dim);
+  }
+  .card .foot b { color: var(--text); font-weight: 700; }
+  .stale { color: var(--amber); }
+  .fresh { color: var(--green); }
+  .gone  { color: var(--red); }
+  .links { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+  .links a {
+    border: 1px solid var(--line); border-radius: 3px; padding: 6px 8px;
+    font: 700 9.5px/1 ui-monospace, monospace; letter-spacing: .07em; color: var(--dim);
+  }
+  .links a:hover { border-color: var(--cyan); color: var(--cyan); }
+  .links a.go { border-color: rgba(65,216,255,0.5); color: var(--cyan); }
+  .card.game .links a.go { border-color: rgba(93,255,136,0.55); color: var(--green); }
+
+  .note {
+    margin-top: 18px; border: 1px solid var(--line); border-radius: 4px;
+    background: var(--panel); padding: 12px; color: var(--dim); font-size: 10.5px;
+  }
+  .note h2 { font-size: 10px; letter-spacing: .13em; color: var(--dim); margin: 0 0 8px; }
+  .note b { color: var(--text); }
+  .note ol { margin: 0; padding-left: 18px; }
+  .note li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<h1>VOIDSPIRE · WORKSHOP <span id="clock"></span></h1>
+<p class="sub">the game, and the five tools we build it with</p>
+
+<div class="bar">
+  <button id="refresh">RE-CHECK BUILDS</button>
+  <button id="backup">BACKUP ALL</button>
+  <label class="btn">RESTORE<input type="file" id="restore" accept="application/json" hidden></label>
+  <span class="sub" style="margin:0" id="storeAll"></span>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="note">
+  <h2>HOW A THING GETS FROM HERE INTO THE GAME</h2>
+  <ol>
+    <li>Make it in the tool. It saves itself in <b>this browser</b> as you go — nothing is uploaded anywhere.</li>
+    <li>Press <b>HAND OFF</b>. That copies the creation together with a note saying what it is and which file it belongs in, and saves the same thing as a file.</li>
+    <li>Paste or send it to me. I wire it up, test it and push it.</li>
+    <li>The build number on this page goes up. That is how you know it landed.</li>
+  </ol>
+  <p style="margin:9px 0 0">
+    <b>Moving between a phone and a desktop:</b> the tools save per browser and
+    per device, and nothing syncs. <b>BACKUP ALL</b> takes every tool's work as
+    one file; <b>RESTORE</b> puts it back on the other device. A run of the game
+    in progress is <em>not</em> in that file — it is saved separately and stays
+    on the machine it was played on.
+  </p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ==================================================================
+   * THE FRONT DOOR
+   * ==================================================================
+   * Five tools with five URLs and nothing tying them together meant the only
+   * way to reach one was a remembered address — and a mistyped one is a 404
+   * with no clue in it, which happened. This is the one bookmark.
+   *
+   * It also answers the question that has wasted the most time in this
+   * project by a distance: AM I LOOKING AT THE CURRENT BUILD? Three separate
+   * "that feature is missing" reports turned out to be a cached document, and
+   * every one of them cost a round trip to work out. Each card here fetches
+   * its tool twice — once as the browser would serve it, once forced from the
+   * network — and says plainly whether those two agree. The forced fetch also
+   * replaces the stale entry, so checking is also fixing.
+   * ================================================================== */
+
+  var TOOLS = [
+    { id: 'game', cls: 'game', name: 'THE GAME', url: '../index.html',
+      what: 'Voidspire itself — the d20 with engraved faces, the deck, the spire.',
+      makes: 'Everything the tools below feed into.',
+      keys: ['voidspire_save'],
+      links: [['PLAY', '../index.html', true],
+              ['ENGRAVING SANDBOX', '../index.html?workshop=1', false]] },
+
+    { id: 'artist', name: 'ARTIST', url: 'artist.html',
+      what: 'Draw the vector line-work: enemies, engravings, card icons.',
+      makes: 'Art that goes into js/enemies.js, js/dice.js or js/cardart.js.',
+      keys: ['voidspire.artist.doc', 'voidspire.artist.library'] },
+
+    { id: 'sound', name: 'SOUND', url: 'sound.html',
+      what: 'Build sound effects, write music on a tracker, record and edit your own samples.',
+      makes: 'A cast for js/ui.js, a pattern for js/music.js, a sample for js/samples.js.',
+      keys: ['voidspire.sound.doc', 'voidspire.sound.library',
+             'voidspire.tracker.doc', 'voidspire.tracker.lib', 'voidspire.recordings'] },
+
+    { id: 'fx', name: 'VFX', url: 'fx.html',
+      what: 'Compose what a card looks like when it fires, in a live fight.',
+      makes: 'A cast — the animation half of a MOTIF.',
+      keys: ['voidspire.fx'] },
+
+    { id: 'card', name: 'CARD', url: 'card.html',
+      what: 'The card frame, its art, its name and its rules text — on real cards in a real hand.',
+      makes: 'Card styling and art for css/style.css and js/cardart.js.',
+      keys: ['voidspire.card.frame'] },
+
+    { id: 'layout', name: 'LAYOUT', url: 'layout.html',
+      what: 'Drag the HUD around over the running game and say where things belong.',
+      makes: 'A written layout brief for me to implement.',
+      keys: ['voidspire.layout'] }
+  ];
+
+  /* Both stamp styles the tools use, plus the game's content hash. The game's
+   * is a hash of the assembled page rather than a number, so it cannot drift
+   * from what is actually deployed the way a hand-typed version can. */
+  function buildOf(text) {
+    var m = text.match(/(?:var BUILD = |getElementById\('ver'\)\.textContent = )'([^']+)'/);
+    if (m) return m[1];
+    m = text.match(/ns\.BUILD = '([^']+)'/);
+    if (m && m[1].indexOf('__') !== 0) return m[1];
+    return null;
+  }
+
+  /* The game is a 1.5MB single file and the stamp sits in the first 200KB of
+   * it, so ask for that much. A server that ignores the range just sends the
+   * whole thing, which still works — it is only slower. */
+  function opts(mode, ranged) {
+    var o = { cache: mode };
+    if (ranged) o.headers = { Range: 'bytes=0-220000' };
+    return o;
+  }
+  /* No cache-busting query string here, deliberately. A ?t=… would fetch a
+   * DIFFERENT url and leave the stale entry for the real one exactly where it
+   * was — which is the trap: the check would pass while the tool still opened
+   * old. cache:'reload' forces the network for THIS url and replaces what is
+   * stored against it, so the check and the fix are the same request. */
+  async function grab(url, mode, ranged) {
+    var r = await fetch(url, opts(mode, ranged));
+    if (!r.ok && r.status !== 206) throw new Error('HTTP ' + r.status);
+    return { build: buildOf(await r.text()), when: r.headers.get('last-modified') };
+  }
+
+  function kb(n) { return n < 1024 ? n + ' B' : (n / 1024).toFixed(1) + ' KB'; }
+  function storedFor(keys) {
+    var n = 0, found = 0;
+    keys.forEach(function (k) {
+      try {
+        var v = localStorage.getItem(k);
+        if (v != null) { found++; n += v.length; }
+      } catch (e) {}
+    });
+    return found ? { items: found, bytes: n } : null;
+  }
+
+  function card(t) {
+    var el = document.createElement('div');
+    el.className = 'card' + (t.cls ? ' ' + t.cls : '');
+    var links = (t.links || [['OPEN', t.url, true]]).map(function (l) {
+      return '<a href="' + l[1] + '"' + (l[2] ? ' class="go"' : '') + '>' + l[0] + '</a>';
+    }).join('');
+    var st = storedFor(t.keys);
+    el.innerHTML =
+      '<div class="nm">' + t.name + '</div>'
+      + '<div class="what">' + t.what + '</div>'
+      + '<div class="makes">' + t.makes + '</div>'
+      + '<div class="links">' + links + '</div>'
+      + '<div class="foot">'
+      + '<span id="b-' + t.id + '">checking the deployed build…</span>'
+      + '<span>' + (st
+          ? 'saved here: <b>' + st.items + ' item' + (st.items === 1 ? '' : 's') + '</b>, ' + kb(st.bytes)
+          : 'nothing saved on this device yet') + '</span>'
+      + '</div>';
+    return el;
+  }
+
+  var grid = document.getElementById('grid');
+  TOOLS.forEach(function (t) { grid.appendChild(card(t)); });
+
+  async function check(t) {
+    var slot = document.getElementById('b-' + t.id);
+    var ranged = t.id === 'game';
+    var cached = null, live = null, err = null;
+    try { cached = await grab(t.url, 'force-cache', ranged); } catch (e) { err = e; }
+    try { live = await grab(t.url, 'reload', ranged); } catch (e) { err = err || e; }
+    if (!live) {
+      slot.innerHTML = '<span class="gone">could not reach it — ' + (err ? err.message : 'offline?') + '</span>';
+      return;
+    }
+    var b = live.build || 'unstamped';
+    var when = live.when ? new Date(live.when).toISOString().slice(0, 10) : null;
+    if (cached && cached.build && live.build && cached.build !== live.build) {
+      /* The forced fetch has already replaced the stale entry, so this is a
+       * report of something already put right rather than a chore. */
+      slot.innerHTML = '<span class="stale">your browser was holding <b>' + cached.build
+        + '</b> — refreshed to <b>' + b + '</b></span>';
+    } else {
+      slot.innerHTML = '<span class="fresh">' + b + '</span>'
+        + (when ? ' <span style="opacity:.7">· deployed ' + when + '</span>' : '');
+    }
+  }
+  function checkAll() {
+    TOOLS.forEach(function (t) {
+      var s = document.getElementById('b-' + t.id);
+      if (s) s.textContent = 'checking…';
+      check(t);
+    });
+  }
+  document.getElementById('refresh').onclick = checkAll;
+  checkAll();
+
+  /* ---- how much is on this device at all -------------------------------- */
+  (function () {
+    var n = 0, c = 0;
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && (k.indexOf('voidspire') === 0)) { c++; n += (localStorage.getItem(k) || '').length; }
+      }
+    } catch (e) {}
+    document.getElementById('storeAll').textContent =
+      c ? c + ' saved item' + (c === 1 ? '' : 's') + ' in this browser, ' + kb(n) + ' in all'
+        : 'this browser has nothing saved yet';
+  })();
+
+  /* ---- backup / restore, the same file every tool writes ----------------- */
+  function allKeys() {
+    var out = [];
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf('voidspire.') === 0) out.push(k);
+      }
+    } catch (e) {}
+    return out;
+  }
+  document.getElementById('backup').onclick = function () {
+    var data = { kind: 'voidspire-tools-backup', at: new Date().toISOString(), keys: {} };
+    allKeys().forEach(function (k) { try { data.keys[k] = localStorage.getItem(k); } catch (e) {} });
+    if (!Object.keys(data.keys).length) { alert('Nothing saved in this browser yet.'); return; }
+    var blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'voidspire-tools-' + data.at.slice(0, 10) + '.json';
+    a.click();
+  };
+  document.getElementById('restore').onchange = function () {
+    var f = this.files && this.files[0];
+    this.value = '';
+    if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      var d;
+      try { d = JSON.parse(rd.result); } catch (e) { alert('That is not a backup file.'); return; }
+      if (!d || d.kind !== 'voidspire-tools-backup' || !d.keys) { alert('That is not a backup file.'); return; }
+      var names = Object.keys(d.keys);
+      if (!confirm('Restore ' + names.length + ' saved item' + (names.length === 1 ? '' : 's')
+        + ' from ' + (d.at || '').slice(0, 10) + '?\n\nThis REPLACES what is saved in this browser.')) return;
+      names.forEach(function (k) { try { localStorage.setItem(k, d.keys[k]); } catch (e) {} });
+      location.reload();
+    };
+    rd.readAsText(f);
+  };
+
+  document.getElementById('clock').textContent =
+    '— ' + new Date().toISOString().slice(0, 10);
+})();
+</script>
+</body>
+</html>
