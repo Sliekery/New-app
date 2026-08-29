@@ -2814,7 +2814,10 @@
   var CLASS_COLOR = { vanguard: '#ffb02e', technomancer: '#41d8ff', voidadept: '#c86bff' };
   function pileHTML(cls, which, n, sub) {
     var set = ns.PILE_ICONS[cls] || ns.PILE_ICONS.vanguard;
-    return '<div class="pile-card pile-' + which + '">' + artSVG(set[which], 'pile-ic', CLASS_COLOR[cls] || '#5dff88') +
+    // A drawn override wins, per class art is the fallback. Nothing changes
+    // until a slot is filled in js/uiart.js.
+    var ic = (ns.uiArt && ns.uiArt('icon.' + which)) || set[which];
+    return '<div class="pile-card pile-' + which + '">' + artSVG(ic, 'pile-ic', CLASS_COLOR[cls] || '#5dff88') +
       '<span class="pile-n">' + n + '</span></div>' +
       '<div class="pile-lbl">' + (which === 'draw' ? 'DRAW' : 'DISC' + (sub || '')) + '</div>';
   }

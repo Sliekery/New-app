@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- The tools are served with a long cache by default, and a single-file tool
+     means one stale document hides every change at once. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>VOIDSPIRE · LAYOUT</title>
+<style>
+  :root {
+    --bg: #04080a; --panel: #0a1014; --line: rgba(120,150,165,0.22);
+    --text: #eafcff; --dim: #8fa79a; --green: #5dff88; --amber: #ffb02e;
+    --cyan: #41d8ff; --red: #ff4a5e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 10px;
+  }
+  h1 { font-size: 13px; letter-spacing: .18em; margin: 0 0 9px; color: var(--amber); }
+  h1 span { color: var(--dim); letter-spacing: .06em; font-size: 11px; }
+  .wrap { display: grid; gap: 11px; grid-template-columns: 1fr; max-width: 1700px; margin: 0 auto; }
+  @media (min-width: 1050px) { .wrap { grid-template-columns: minmax(0,1fr) 360px; } }
+  .box { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 9px; }
+  .box h2 { font-size: 10px; letter-spacing: .13em; color: var(--dim); margin: 0 0 8px; font-weight: 700; }
+  button, label.btn {
+    background: rgba(10,16,20,0.9); border: 1px solid var(--line); border-radius: 3px;
+    color: var(--text); font: 700 10px/1 ui-monospace, monospace; letter-spacing: .07em;
+    padding: 8px 9px; cursor: pointer; display: inline-block;
+  }
+  button:hover { border-color: var(--amber); }
+  button.on { border-color: var(--amber); background: rgba(255,176,46,0.16); color: var(--amber); }
+  button.warn:hover { border-color: var(--red); color: var(--red); }
+  button.sm { padding: 5px 6px; font-size: 9px; }
+  button:disabled { opacity: .3; cursor: default; }
+  .bar { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 7px; }
+  .hint { color: var(--dim); font-size: 10px; line-height: 1.5; }
+  .hint b { color: var(--text); font-weight: 700; }
+  textarea {
+    width: 100%; min-height: 130px; background: #05090b; color: var(--green);
+    border: 1px solid var(--line); border-radius: 3px; padding: 7px;
+    font: 10px/1.45 ui-monospace, monospace; resize: vertical;
+  }
+  select, input[type=text], input[type=number] {
+    background: #05090b; color: var(--text); border: 1px solid var(--line);
+    border-radius: 3px; padding: 5px; font: 10px ui-monospace, monospace;
+  }
+  /* the stage: the real game, with an overlay on top */
+  #stage { position: relative; background: #000; border-radius: 3px; overflow: hidden; }
+  #game { border: 0; display: block; background: #04080a; }
+  #ov { position: absolute; inset: 0; pointer-events: none; }
+  .hit {
+    position: absolute; border: 1px dashed rgba(65,216,255,0.55); pointer-events: auto;
+    cursor: move; border-radius: 2px;
+  }
+  .hit:hover { border-color: var(--cyan); background: rgba(65,216,255,0.08); }
+  .hit.sel { border: 1px solid var(--amber); background: rgba(255,176,46,0.12); }
+  .hit .tag {
+    position: absolute; top: -15px; left: 0; font: 700 8.5px/1 ui-monospace, monospace;
+    color: var(--cyan); background: rgba(4,8,10,0.85); padding: 2px 3px; white-space: nowrap;
+  }
+  .hit.sel .tag { color: var(--amber); }
+  .hit .grip {
+    position: absolute; right: -4px; bottom: -4px; width: 10px; height: 10px;
+    background: var(--amber); cursor: nwse-resize; border-radius: 1px;
+  }
+  .row { display: grid; grid-template-columns: 78px 1fr; gap: 5px; align-items: center; margin-bottom: 4px; }
+  .row label { font-size: 9px; color: var(--dim); letter-spacing: .06em; }
+  .list { max-height: 190px; overflow-y: auto; border: 1px solid var(--line); border-radius: 3px; }
+  .it { padding: 5px 7px; font-size: 10px; cursor: pointer; border-bottom: 1px solid rgba(120,150,165,0.09); display: flex; gap: 6px; }
+  .it:hover { background: rgba(255,176,46,0.1); }
+  .it.sel { background: rgba(255,176,46,0.14); color: var(--amber); }
+  .it .moved { color: var(--amber); }
+  .note { width: 100%; min-height: 54px; }
+</style>
+</head>
+<body>
+<h1>VOIDSPIRE · LAYOUT <span>— move the real interface, then hand it over · <b id="ver"></b></span></h1>
+
+<div class="wrap">
+  <div>
+    <div class="box">
+      <div class="bar" style="margin-top:0">
+        <button id="reload">RELOAD GAME</button>
+        <span class="hint">viewport</span>
+        <select id="vp">
+          <option value="390x844">phone 390×844</option>
+          <option value="430x932">phone large 430×932</option>
+          <option value="844x390">landscape 844×390</option>
+          <option value="1180x800" selected>desktop 1180×800</option>
+          <option value="1512x950">desktop large 1512×950</option>
+        </select>
+        <button id="scene" class="sm">SCENE: FIGHT</button>
+        <button id="showHits" class="on sm">HANDLES</button>
+        <span class="hint" id="status"></span>
+      </div>
+      <div id="stage" style="margin-top:8px">
+        <iframe id="game" src="../index.html"></iframe>
+        <div id="ov"></div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="box">
+      <h2>ELEMENTS — pick one to move, or drag it on the stage</h2>
+      <div class="list" id="elList"></div>
+      <div class="bar">
+        <button id="resetOne" class="sm warn">RESET THIS</button>
+        <button id="resetAll" class="sm warn">RESET ALL</button>
+      </div>
+    </div>
+
+    <div class="box" style="margin-top:10px">
+      <h2>INTENT — what should hold when the screen changes</h2>
+      <div class="row"><label>ANCHOR X</label>
+        <select id="ax"><option value="left">left edge</option><option value="center" selected>centre</option><option value="right">right edge</option></select>
+      </div>
+      <div class="row"><label>ANCHOR Y</label>
+        <select id="ay"><option value="top">top edge</option><option value="center">centre</option><option value="bottom" selected>bottom edge</option></select>
+      </div>
+      <div class="row"><label>SIZE</label>
+        <select id="sz"><option value="fixed">fixed px</option><option value="scale">scales with the screen</option></select>
+      </div>
+      <div class="row"><label>PRIORITY</label>
+        <select id="pri"><option value="normal">normal</option><option value="must">must never be covered</option></select>
+      </div>
+      <div class="row"><label>NOTE</label><span class="hint">an order attached to this element</span></div>
+      <textarea id="note" class="note" placeholder="e.g. make this pulse when energy is low"></textarea>
+      <p class="hint" style="margin:7px 0 0">
+        The anchor is the thing that matters. Pixel positions authored on a
+        desktop are wrong on a phone; an anchor says <b>what you meant</b>, and
+        that is what survives the translation.
+      </p>
+    </div>
+
+    <div class="box" style="margin-top:10px">
+      <h2>THE HANDOVER</h2>
+      <div class="bar" style="margin-top:0">
+        <button id="mkBrief">BUILD THE BRIEF</button>
+        <button id="copy" class="sm">COPY</button>
+        <button id="save" class="sm">SAVE .JSON</button>
+        <label class="btn sm">OPEN .JSON<input type="file" id="openIn" accept="application/json" hidden></label>
+      </div>
+      <textarea id="out" readonly style="margin-top:6px"></textarea>
+      <p class="hint" style="margin:7px 0 0">
+        Paste this to me and I will wire it up: responsive CSS, the behaviour in
+        the notes, and the fit suites kept green. It records the build it was
+        authored against, so a layout drawn against an interface I have since
+        changed can be spotted rather than applied blind.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var BUILD = 'build 1';
+  var frame = document.getElementById('game');
+  var ov = document.getElementById('ov');
+  var status = document.getElementById('status');
+
+  /* The pieces of interface worth moving. Everything here is a real element in
+   * the running game — this tool never draws a mock-up of the HUD, because a
+   * mock-up is a second thing to keep in step and it would quietly stop
+   * matching the moment the game changed. */
+  var PARTS = [
+    { sel: '#combat-dock', name: 'the bottom bar' },
+    { sel: '#hand', name: 'the card hand' },
+    { sel: '#energy-pip', name: 'energy' },
+    { sel: '#draw-pile', name: 'draw pile' },
+    { sel: '#discard-pile', name: 'discard pile' },
+    { sel: '#combat-die', name: 'the die' },
+    { sel: '#combat-controls', name: 'end turn' },
+    { sel: '#potion-belt', name: 'potions' },
+    { sel: '#hud', name: 'the top readout' },
+    { sel: '#chain-ledger', name: 'the chain receipt' },
+  ];
+
+  var layout = {};        // sel -> { dx, dy, dw, dh, ax, ay, sz, pri, note }
+  var sel = null;
+  var showHits = true;
+  var scene = 'fight';
+
+  function def(s) {
+    return layout[s] || (layout[s] = { dx: 0, dy: 0, dw: 0, dh: 0,
+      ax: 'center', ay: 'bottom', sz: 'fixed', pri: 'normal', note: '' });
+  }
+  function moved(s) {
+    var L = layout[s];
+    return L && (L.dx || L.dy || L.dw || L.dh || L.note);
+  }
+
+  function doc() {
+    try { return frame.contentDocument; } catch (e) { return null; }
+  }
+  function win() {
+    try { return frame.contentWindow; } catch (e) { return null; }
+  }
+
+  /* Drive the real game into a state where the HUD is actually up. Nothing is
+   * visible on the title screen, so without this the tool would open on an
+   * empty stage and look broken. */
+  function bootGame() {
+    var w = win();
+    if (!w || !w.VS || !w.VS.engine) { status.textContent = 'waiting for the game…'; return false; }
+    try {
+      var E = w.VS.engine;
+      E.seed(5); E.newRun('vanguard');
+      E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
+      if (scene === 'fight') E.startNode('fight');
+      else if (scene === 'boss') { E.run.mapRow = 12; E.startNode('boss'); }
+      w.VS.ui.refresh();
+      status.textContent = 'the real game, in a ' + scene;
+      return true;
+    } catch (e) { status.textContent = 'could not start the game: ' + e.message; return false; }
+  }
+
+  /* Overlay a draggable handle on every part we can find. Positions come from
+   * getBoundingClientRect inside the frame, so a handle is always exactly on
+   * top of the thing it moves however the game laid it out. */
+  function syncHandles() {
+    var d = doc();
+    ov.innerHTML = '';
+    if (!d || !showHits) return;
+    var fr = frame.getBoundingClientRect(), st = document.getElementById('stage').getBoundingClientRect();
+    PARTS.forEach(function (P) {
+      var el = d.querySelector(P.sel);
+      if (!el) return;
+      var b = el.getBoundingClientRect();
+      if (!b.width || !b.height) return;
+      var h = document.createElement('div');
+      h.className = 'hit' + (sel === P.sel ? ' sel' : '');
+      h.style.left = (fr.left - st.left + b.left) + 'px';
+      h.style.top = (fr.top - st.top + b.top) + 'px';
+      h.style.width = b.width + 'px';
+      h.style.height = b.height + 'px';
+      h.innerHTML = '<span class="tag">' + P.name + (moved(P.sel) ? ' ✳' : '') + '</span>'
+        + (sel === P.sel ? '<span class="grip"></span>' : '');
+      h.addEventListener('pointerdown', function (ev) {
+        if (ev.target.classList.contains('grip')) return startDrag(P.sel, ev, 'size');
+        startDrag(P.sel, ev, 'move');
+      });
+      ov.appendChild(h);
+    });
+  }
+
+  var dragging = null;
+  function startDrag(s, ev, mode) {
+    ev.preventDefault(); ev.stopPropagation();
+    sel = s; renderList(); renderIntent();
+    var L = def(s);
+    dragging = { s: s, mode: mode, x: ev.clientX, y: ev.clientY,
+                 dx: L.dx, dy: L.dy, dw: L.dw, dh: L.dh };
+    ov.setPointerCapture && ov.setPointerCapture(ev.pointerId);
+    document.addEventListener('pointermove', onDrag);
+    document.addEventListener('pointerup', endDrag, { once: true });
+  }
+  function onDrag(ev) {
+    if (!dragging) return;
+    var L = def(dragging.s);
+    var mx = ev.clientX - dragging.x, my = ev.clientY - dragging.y;
+    if (dragging.mode === 'move') { L.dx = Math.round(dragging.dx + mx); L.dy = Math.round(dragging.dy + my); }
+    else { L.dw = Math.round(dragging.dw + mx); L.dh = Math.round(dragging.dh + my); }
+    applyOne(dragging.s);
+    syncHandles();
+  }
+  function endDrag() {
+    dragging = null;
+    document.removeEventListener('pointermove', onDrag);
+    save();
+  }
+
+  /* Apply an offset by writing an inline transform on the real element, so what
+   * you are looking at IS the moved interface rather than a preview of it. The
+   * exported CSS says the same thing in a responsive form. */
+  function applyOne(s) {
+    var d = doc(); if (!d) return;
+    var el = d.querySelector(s); if (!el) return;
+    var L = def(s);
+    el.style.transform = (L.dx || L.dy) ? 'translate(' + L.dx + 'px,' + L.dy + 'px)' : '';
+    if (L.dw || L.dh) {
+      var b = el.getBoundingClientRect();
+      el.style.width = Math.max(12, b.width + (L.dw || 0)) + 'px';
+      el.style.height = Math.max(12, b.height + (L.dh || 0)) + 'px';
+      L.dw = 0; L.dh = 0;                    // folded into the measured size
+      L.w = Math.round(Math.max(12, b.width)); L.h = Math.round(Math.max(12, b.height));
+    }
+  }
+  function applyAll() { Object.keys(layout).forEach(applyOne); }
+
+  function renderList() {
+    var host = document.getElementById('elList');
+    host.innerHTML = '';
+    PARTS.forEach(function (P) {
+      var row = document.createElement('div');
+      row.className = 'it' + (sel === P.sel ? ' sel' : '');
+      row.innerHTML = '<span style="flex:1">' + P.name + '</span>'
+        + '<span class="hint">' + P.sel + '</span>'
+        + (moved(P.sel) ? '<span class="moved">✳</span>' : '');
+      row.onclick = function () { sel = P.sel; renderList(); renderIntent(); syncHandles(); };
+      host.appendChild(row);
+    });
+  }
+  function renderIntent() {
+    var on = !!sel;
+    ['ax', 'ay', 'sz', 'pri', 'note'].forEach(function (id) {
+      document.getElementById(id).disabled = !on;
+    });
+    if (!on) return;
+    var L = def(sel);
+    document.getElementById('ax').value = L.ax;
+    document.getElementById('ay').value = L.ay;
+    document.getElementById('sz').value = L.sz;
+    document.getElementById('pri').value = L.pri;
+    document.getElementById('note').value = L.note || '';
+  }
+  ['ax', 'ay', 'sz', 'pri'].forEach(function (id) {
+    document.getElementById(id).onchange = function () {
+      if (!sel) return; def(sel)[id] = this.value; save(); renderList();
+    };
+  });
+  document.getElementById('note').oninput = function () {
+    if (!sel) return; def(sel).note = this.value; save(); renderList(); syncHandles();
+  };
+
+  /* THE BRIEF. Coordinates alone do not say what you meant, so this is written
+   * as sentences with the numbers in them: what moved, which way, and what
+   * should hold when the screen changes. It is the thing that gets handed
+   * over, and it is meant to be read by a person as well as parsed. */
+  function buildBrief() {
+    var w = win();
+    /* The deployed site serves the BUNDLE here, which carries a real stamp;
+     * running locally this frame is the dev shell, where the placeholder is
+     * still literal. Say which, rather than quoting `__BUILD__` as though it
+     * were a version. */
+    var raw = (w && w.VS && w.VS.BUILD) || '';
+    var build = (!raw || raw === '__BUILD__') ? 'dev shell (unstamped — run from the deployed site for a real build id)' : raw;
+    var vp = document.getElementById('vp').value;
+    var lines = [], notes = [], data = {};
+    PARTS.forEach(function (P) {
+      var L = layout[P.sel];
+      if (!L || (!L.dx && !L.dy && !L.w && !L.note)) return;
+      data[P.sel] = L;
+      var bits = [];
+      if (L.dx) bits.push(Math.abs(L.dx) + 'px ' + (L.dx < 0 ? 'left' : 'right'));
+      if (L.dy) bits.push(Math.abs(L.dy) + 'px ' + (L.dy < 0 ? 'up' : 'down'));
+      if (L.w) bits.push('sized to ' + L.w + '×' + L.h);
+      if (bits.length) {
+        lines.push('- ' + P.name + ' (' + P.sel + '): ' + bits.join(', ')
+          + ' · anchor ' + L.ax + '/' + L.ay
+          + ' · ' + (L.sz === 'scale' ? 'scales with the screen' : 'fixed size')
+          + (L.pri === 'must' ? ' · MUST NEVER BE COVERED' : ''));
+      }
+      if (L.note) notes.push('- ' + P.name + ' (' + P.sel + '): ' + L.note);
+    });
+    var txt = 'LAYOUT BRIEF\n'
+      + 'authored against game build: ' + build + '\n'
+      + 'placed on viewport: ' + vp + ' (' + scene + ')\n\n';
+    txt += lines.length ? 'MOVED\n' + lines.join('\n') + '\n' : 'MOVED\n- nothing yet\n';
+    if (notes.length) txt += '\nORDERS\n' + notes.join('\n') + '\n';
+    txt += '\nDATA\n' + JSON.stringify({ build: build, viewport: vp, scene: scene, parts: data });
+    return txt;
+  }
+  document.getElementById('mkBrief').onclick = function () {
+    document.getElementById('out').value = buildBrief();
+  };
+  document.getElementById('copy').onclick = function () {
+    var t = document.getElementById('out');
+    if (!t.value) t.value = buildBrief();
+    t.removeAttribute('readonly'); t.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    if (navigator.clipboard) navigator.clipboard.writeText(t.value);
+    t.setAttribute('readonly', '');
+    var b = this, o = b.textContent; b.textContent = 'COPIED';
+    setTimeout(function () { b.textContent = o; }, 900);
+  };
+  document.getElementById('save').onclick = function () {
+    var blob = new Blob([buildBrief()], { type: 'text/plain' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'voidspire-layout.txt'; a.click();
+  };
+  document.getElementById('openIn').onchange = function (ev) {
+    var f = ev.target.files && ev.target.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      var m = /DATA\n([\s\S]*)$/.exec(rd.result);
+      try {
+        var d = JSON.parse(m ? m[1] : rd.result);
+        layout = d.parts || {};
+        save(); renderList(); renderIntent(); reload();
+      } catch (e) { alert('That is not a layout brief.'); }
+    };
+    rd.readAsText(f);
+  };
+
+  document.getElementById('resetOne').onclick = function () {
+    if (!sel) return;
+    delete layout[sel]; save(); renderList(); renderIntent(); reload();
+  };
+  document.getElementById('resetAll').onclick = function () {
+    if (!confirm('Put every element back where the game puts it?')) return;
+    layout = {}; save(); renderList(); renderIntent(); reload();
+  };
+
+  function sizeFrame() {
+    var v = document.getElementById('vp').value.split('x');
+    frame.style.width = v[0] + 'px';
+    frame.style.height = v[1] + 'px';
+    document.getElementById('stage').style.height = v[1] + 'px';
+  }
+  function reload() { sizeFrame(); frame.src = frame.src; }
+  document.getElementById('vp').onchange = reload;
+  document.getElementById('reload').onclick = reload;
+  document.getElementById('scene').onclick = function () {
+    scene = scene === 'fight' ? 'boss' : 'fight';
+    this.textContent = 'SCENE: ' + scene.toUpperCase();
+    reload();
+  };
+  document.getElementById('showHits').onclick = function () {
+    showHits = !showHits; this.classList.toggle('on', showHits); syncHandles();
+  };
+
+  function save() { try { localStorage.setItem('voidspire.layout', JSON.stringify(layout)); } catch (e) {} }
+  try { layout = JSON.parse(localStorage.getItem('voidspire.layout') || '{}'); } catch (e) { layout = {}; }
+
+  frame.addEventListener('load', function () {
+    // the game boots asynchronously; poll briefly rather than guess a delay
+    var tries = 0;
+    var t = setInterval(function () {
+      if (bootGame() || ++tries > 40) {
+        clearInterval(t);
+        applyAll(); syncHandles();
+      }
+    }, 120);
+  });
+  window.addEventListener('resize', syncHandles);
+  setInterval(syncHandles, 700);        // the game relayouts on its own clock
+
+  document.getElementById('ver').textContent = BUILD;
+  sizeFrame(); renderList(); renderIntent();
+})();
+</script>
+</body>
+</html>
