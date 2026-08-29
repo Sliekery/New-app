@@ -204,6 +204,38 @@ path. A picture is not enough either: the data was clean while the dish was
 upside down and the turret was reusing a ring it had already consumed, so the
 suite renders contact sheets too.
 
+## Watching an animation
+
+`⛶ BIG VIEW` in the FRAMES bar opens a full-screen player: scrub, step, speed,
+FIT / BIG / SMALL, and a dark / grid / light ground for judging readability.
+Escape closes it, space plays, arrows step.
+
+The side preview panel answers ONE question — does this still read at 40
+pixels — and answers it well. It is the wrong place to watch an animation,
+because the thing being judged is timing and weight and neither can be judged
+at thumbnail size out of the corner of your eye. The big view keeps the three
+real sizes along the bottom anyway, so the small answer is not traded away for
+the big one.
+
+Three things worth keeping:
+
+- **One play clock, two windows.** `startPlay`/`stopPlay` are shared, so
+  opening one while the other runs cannot start a second animation half a
+  frame out of step.
+- **The fit is measured across ALL frames, never per frame.** A per-frame fit
+  rescales each frame to its own extent and the animation pulses — the same
+  trap the solids avoid by normalising to a fixed radius rather than to their
+  projected box.
+- **The real-size row is not rescaled by the fit**, and its strip is tall
+  enough for the largest of the three. A cropped "boss" copy is worse than no
+  copy: the row exists to answer whether the art reads at a size, and it
+  cannot answer that about a picture with its feet cut off.
+
+A testing note that cost half an hour: **sample a playing animation until it
+moves, not once after a fixed wait.** Reading the frame counter twice 700ms
+apart at 8fps over a 3-frame loop lands on the same frame both times, and
+looks exactly like an animation that is not playing.
+
 ## The standalone drawing tool
 
 `node tools/build-standalone.js` turns `tools/artist.html` into

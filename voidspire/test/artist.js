@@ -278,6 +278,82 @@ function ok(name, cond, detail) {
   ok('every coordinate is finite and inside the box',
     fin.p.every(q => q.every(v => isFinite(v) && v >= -1.001 && v <= 1.001)));
 
+
+  console.log('\nTHE BIG VIEW');
+  /* A playback window is only worth having if it actually plays, so this
+   * watches the frame counter move rather than checking that a div appeared.
+   * The controls are then driven the way an animator would: pause, step,
+   * scrub — and the frame you scrubbed to has to be the one still selected
+   * when you close, or the window is a detour rather than a place to work. */
+  await p.click('#fAdd'); await p.click('#fAdd'); await p.waitForTimeout(200);
+  const nFrames = await p.$$eval('#frameList > *', e => e.length);
+  ok('there are frames to play', nFrames >= 3, nFrames + ' frames');
+
+  await p.click('#fBig'); await p.waitForTimeout(300);
+  ok('it opens', await p.isVisible('#theatre'));
+  const size = await p.$eval('#thCanvas', c => {
+    const r = c.getBoundingClientRect();
+    return { css: Math.round(r.width) + 'x' + Math.round(r.height), back: c.width + 'x' + c.height };
+  });
+  ok('the canvas fills the screen and has a real backing store',
+    /^\d{3,}x\d{3,}$/.test(size.css) && size.back !== '300x150', JSON.stringify(size));
+  ok('and it is bigger than the side panel it replaces',
+    parseInt(size.css, 10) > 640, size.css + ' vs the panel at 640x330');
+
+  ok('it starts playing on its own', /PAUSE/.test(await p.textContent('#thPlay')),
+    await p.textContent('#thPlay'));
+  /* SAMPLE UNTIL IT MOVES, rather than once after a fixed wait. Reading it
+   * twice 700ms apart at 8fps over a 3-frame loop lands on the same frame
+   * both times — 700ms is 5.6 frames, and 5.6 modulo 3 is close enough to
+   * zero to look exactly like an animation that is not playing. */
+  async function seenFrames(ms) {
+    const seen = new Set();
+    for (let t = 0; t < ms; t += 60) {
+      seen.add((await p.textContent('#thFrame')).trim());
+      await p.waitForTimeout(60);
+    }
+    return seen;
+  }
+  const moved = await seenFrames(1200);
+  ok('and the frame really advances', moved.size > 1, [...moved].join(' '));
+
+  await p.click('#thPlay'); await p.waitForTimeout(250);
+  const tf3 = await p.textContent('#thFrame');
+  await p.waitForTimeout(500);
+  ok('pause stops it', (await p.textContent('#thFrame')) === tf3, tf3 + ' → ' + (await p.textContent('#thFrame')));
+  ok('and the panel PLAY agrees it stopped — one clock, two windows',
+    /PLAY/.test(await p.textContent('#fPlay')), await p.textContent('#fPlay'));
+
+  const cur = parseInt(await p.textContent('#thFrame'), 10);
+  await p.click('#thNext'); await p.waitForTimeout(120);
+  ok('the next-frame button steps forward', parseInt(await p.textContent('#thFrame'), 10) === (cur % nFrames) + 1,
+    cur + ' → ' + (await p.textContent('#thFrame')));
+  await p.click('#thPrev'); await p.waitForTimeout(120);
+  ok('and the previous one steps back', parseInt(await p.textContent('#thFrame'), 10) === cur);
+
+  await p.$eval('#thScrub', el => { el.value = 2; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  await p.waitForTimeout(150);
+  ok('scrubbing lands on that frame', /^3 \//.test(await p.textContent('#thFrame')),
+    await p.textContent('#thFrame'));
+
+  for (const bg of ['grid', 'light', 'dark']) {
+    await p.click(`#theatre .thbg[data-bg="${bg}"]`); await p.waitForTimeout(100);
+    ok('the ' + bg.padEnd(5) + ' ground paints', await p.$eval('#thCanvas', c => {
+      const d = c.getContext('2d').getImageData(0, 0, 40, 40).data;
+      let lit = 0;
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 8) lit++;
+      return lit > 100;                       // the background itself is opaque
+    }));
+  }
+  await p.click('#thSizes'); await p.waitForTimeout(120);
+  ok('the real-size row can be turned off', await p.isVisible('#thSizes'));
+  await p.click('#thSizes'); await p.waitForTimeout(120);
+
+  await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+  ok('escape closes it', !(await p.isVisible('#theatre')));
+  ok('and leaves you on the frame you scrubbed to',
+    /frame 3\//.test(await p.textContent('#status')), await p.textContent('#status'));
+
   console.log('\n' + (errs.length ? 'PAGE ERRORS:\n  ' + errs.join('\n  ') : 'no page errors'));
   if (errs.length) fail += errs.length;
   console.log('\n' + pass + ' passed, ' + fail + ' failed');

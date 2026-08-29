@@ -56,6 +56,24 @@
   .sldgrid .lbl { font-size: 7px; letter-spacing: .03em; color: var(--dim); }
   .sldgrid button.on .lbl { color: var(--cyan); }
   .sep2 { width: 1px; align-self: stretch; min-height: 14px; background: var(--line); margin: 0 4px; }
+
+  /* THE BIG VIEW. Over everything, because the point is to look at one thing
+     without the rest of the tool round the edge of your eye. */
+  #theatre {
+    position: fixed; inset: 0; z-index: 9000; background: rgba(2,5,7,0.97);
+    display: flex; flex-direction: column;
+  }
+  #theatre .thstage { flex: 1 1 auto; min-height: 0; padding: 8px; }
+  #theatre canvas {
+    width: 100%; height: 100%; display: block; border-radius: 4px;
+    border: 1px solid var(--line); background: #04080a;
+  }
+  #theatre .thbar {
+    flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line); background: var(--panel);
+  }
+  #theatre .thgrow { flex: 1 1 160px; min-width: 90px; }
   /* And on a phone the rail wraps into rows above the canvas, so the same
      list appears twice and shoves the drawing surface off the screen. The bar
      under the canvas already has every one of them. */
@@ -343,6 +361,7 @@
         <button id="fDup" class="sm">DUPLICATE</button>
         <button id="fDel" class="sm warn">DELETE</button>
         <button id="fPlay" class="sm">▶ PLAY</button>
+        <button id="fBig" class="sm go">⛶ BIG VIEW</button>
         <button id="bOnion" class="sm">ONION</button>
         <button id="fTween" class="sm">TWEEN →</button>
         <input type="range" id="tweenN" min="1" max="6" value="3" style="max-width:70px">
@@ -457,6 +476,32 @@
   </div>
 </div>
 
+<div id="theatre" style="display:none">
+  <div class="thstage"><canvas id="thCanvas"></canvas></div>
+  <div class="thbar">
+    <button id="thPrev" class="sm" title="Previous frame (←)">◀</button>
+    <button id="thPlay" class="sm">▶ PLAY</button>
+    <button id="thNext" class="sm" title="Next frame (→)">▶</button>
+    <span class="hint" id="thFrame">1 / 1</span>
+    <input type="range" id="thScrub" min="0" max="0" value="0" class="thgrow">
+    <span class="hint">speed</span>
+    <input type="range" id="thFps" min="2" max="24" value="8" style="max-width:110px">
+    <span class="hint" id="thFpsN">8 fps</span>
+    <span class="sep2"></span>
+    <span class="hint">size</span>
+    <button class="sm thz on" data-z="1">FIT</button>
+    <button class="sm thz" data-z="1.6">BIG</button>
+    <button class="sm thz" data-z="0.55">SMALL</button>
+    <span class="sep2"></span>
+    <span class="hint">on</span>
+    <button class="sm thbg on" data-bg="dark">DARK</button>
+    <button class="sm thbg" data-bg="grid">GRID</button>
+    <button class="sm thbg" data-bg="light">LIGHT</button>
+    <button id="thSizes" class="sm on" title="Also show it at the sizes the game draws it">REAL SIZES</button>
+    <span class="sep2"></span>
+    <button id="thClose" class="sm warn">CLOSE ✕</button>
+  </div>
+</div>
 <script>
 (function () {
   var pad = document.getElementById('pad'), px = pad.getContext('2d');
@@ -2318,20 +2363,272 @@
   document.getElementById('fps').oninput = function () {
     doc.fps = +this.value; document.getElementById('fpsN').textContent = doc.fps; emit();
   };
+  /* ONE PLAY STATE, TWO WINDOWS. The panel preview and the big view play the
+   * same clock, so opening one while the other is running does not start a
+   * second animation half a frame out of step with the first. */
   var playBtn = document.getElementById('fPlay');
-  playBtn.onclick = function () {
-    playing = !playing; playBtn.classList.toggle('on', playing);
+  function syncPlayBtn() {
+    playBtn.classList.toggle('on', playing);
     playBtn.textContent = playing ? '■ STOP' : '▶ PLAY';
-    if (playing) requestAnimationFrame(tick);
-  };
+    syncTheatrePlay();
+  }
+  function startPlay() {
+    if (playing) return;
+    playing = true; last = 0;
+    syncPlayBtn();
+    requestAnimationFrame(tick);
+  }
+  function stopPlay() {
+    if (!playing) return;
+    playing = false;
+    syncPlayBtn();
+    drawPad(); paintTheatre();
+  }
+  playBtn.onclick = function () { if (playing) stopPlay(); else startPlay(); };
   var last = 0;
   function tick(ts) {
     if (!playing) return;
     if (last) playT += (ts - last) / 1000 * doc.fps;
     last = ts;
     drawPreview();
+    paintTheatre();
     requestAnimationFrame(tick);
   }
+
+  /* ==================================================================
+   * THE BIG VIEW
+   * ==================================================================
+   * PLAY has always run the animation in the preview panel on the right,
+   * which is 640x330 shared between three copies at the sizes the game uses.
+   * That panel answers ONE question — does this still read at 40 pixels — and
+   * it answers it well. It is the wrong place to actually WATCH an animation:
+   * the thing you are judging is timing and weight, and you cannot judge
+   * either at thumbnail size out of the corner of your eye.
+   *
+   * So: the whole screen, one frame at a time, as large as it fits. Scrub it,
+   * step it, change the ground under it. The real sizes stay along the bottom,
+   * because losing the "does it read small" answer to gain a big one would be
+   * a trade and not an improvement — here you get both at once, which is
+   * something neither view could do alone.
+   * ================================================================== */
+  var theatreOn = false, theatreZoom = 1, theatreBg = 'dark', theatreSizes = true;
+  var th = document.getElementById('theatre');
+  var tc = document.getElementById('thCanvas'), tx = tc.getContext('2d');
+  var tW = 0, tH = 0;
+
+  /* HOW BIG THE DRAWING ACTUALLY IS, across every frame at once.
+   *
+   * Scaling as though the art filled the whole -1..1 box leaves anything
+   * smaller than that marooned in the middle of the screen, which for most
+   * hand-drawn work is most of the time. Measuring the real extent fills the
+   * window instead.
+   *
+   * Measured over ALL frames and not the one on screen, deliberately: a
+   * per-frame fit would rescale every frame to its own size and the animation
+   * would pulse — the same trap the solids avoid by normalising to a fixed
+   * radius rather than to their projected box. */
+  var theatreExtent = 1;
+  function measureTheatre() {
+    var m = 0;
+    for (var i = 0; i < doc.frames.length; i++) {
+      var a = framePaths(i);
+      a.p.forEach(function (q) {
+        for (var k = 0; k < q.length; k++) {
+          var v = Math.abs(q[k]);
+          if (isFinite(v) && v > m) m = v;
+        }
+      });
+      a.e.forEach(function (e) {
+        m = Math.max(m, Math.abs(e[0]), Math.abs(e[1]));
+      });
+    }
+    theatreExtent = Math.max(0.12, m);
+  }
+
+  function fitTheatre() {
+    var r = tc.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    tW = Math.round(r.width); tH = Math.round(r.height);
+    var w = Math.round(tW * dpr), h = Math.round(tH * dpr);
+    if (tc.width !== w || tc.height !== h) { tc.width = w; tc.height = h; }
+    tx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function drawArtAt(g, art, cx, cy, sc, col, glow) {
+    g.save();
+    g.translate(cx, cy); g.scale(sc, sc);
+    g.strokeStyle = col; g.lineWidth = 1.7 / sc;
+    g.lineJoin = g.lineCap = 'round';
+    if (glow) { g.shadowColor = col; g.shadowBlur = glow; }
+    art.p.forEach(function (p) {
+      if (p.length < 4) return;
+      g.beginPath(); g.moveTo(p[0], p[1]);
+      for (var i = 2; i < p.length; i += 2) g.lineTo(p[i], p[i + 1]);
+      g.stroke();
+    });
+    g.restore();
+    g.save();
+    g.fillStyle = '#ff4a5e';
+    if (glow) { g.shadowColor = '#ff4a5e'; g.shadowBlur = glow * 0.8; }
+    art.e.forEach(function (e) {
+      var es = Math.max(1.5, sc * 0.05);
+      g.fillRect(cx + e[0] * sc - es / 2, cy + e[1] * sc - es / 2, es, es);
+    });
+    g.restore();
+  }
+
+  function paintTheatre() {
+    if (!theatreOn) return;
+    fitTheatre();
+    var W = tW, H = tH;
+    if (!W || !H) return;
+    var f = playing ? (Math.floor(playT) % doc.frames.length) : fi;
+    var art = framePaths(f);
+    var light = theatreBg === 'light';
+    var col = light ? '#101820' : colour;
+
+    tx.fillStyle = light ? '#e9eff1' : '#04080a';
+    tx.fillRect(0, 0, W, H);
+    if (theatreBg === 'grid') {
+      /* A grid under it, for judging whether a shape drifts as it plays —
+       * the one thing a plain background cannot show you. */
+      tx.strokeStyle = 'rgba(120,150,165,0.13)'; tx.lineWidth = 1;
+      for (var gx = 0; gx <= W; gx += 40) {
+        tx.beginPath(); tx.moveTo(gx + 0.5, 0); tx.lineTo(gx + 0.5, H); tx.stroke();
+      }
+      for (var gy = 0; gy <= H; gy += 40) {
+        tx.beginPath(); tx.moveTo(0, gy + 0.5); tx.lineTo(W, gy + 0.5); tx.stroke();
+      }
+    }
+
+    /* Tall enough for the largest of the three AT ITS REAL SIZE. A shorter
+     * strip cropped the boss copy, which makes it worse than useless: the one
+     * question this row answers is whether the thing reads at a given size,
+     * and it cannot answer that about a picture with its feet cut off. It is
+     * the same 108 / 60 / 31 the side panel uses, so the two agree. */
+    var stripH = (theatreSizes && W > 560 && H > 620) ? 240 : 0;
+    var areaH = H - stripH;
+    var sc = Math.min(W, areaH) * 0.46 / theatreExtent * theatreZoom;
+    drawArtAt(tx, art, W / 2, areaH / 2, sc, col, light ? 0 : 16);
+
+    if (stripH) {
+      tx.save();
+      tx.strokeStyle = light ? 'rgba(16,24,32,0.18)' : 'rgba(120,150,165,0.18)';
+      tx.beginPath(); tx.moveTo(0, areaH + 0.5); tx.lineTo(W, areaH + 0.5); tx.stroke();
+      tx.restore();
+      // the sizes the game actually draws it at, so the small answer survives
+      /* These three are NOT rescaled by the fit. They are the sizes the game
+       * draws it at; adjusting them to fill the row would answer a question
+       * nobody asked and stop answering the one that matters. */
+      var spots = [[W / 2 - 230, 108, 'boss'], [W / 2 + 20, 60, 'normal'], [W / 2 + 170, 31, 'small']];
+      spots.forEach(function (s) {
+        drawArtAt(tx, art, s[0], areaH + stripH / 2 - 10, s[1], col, light ? 0 : 8);
+        tx.fillStyle = light ? 'rgba(16,24,32,0.55)' : 'rgba(143,167,154,0.6)';
+        tx.font = '10px ui-monospace, monospace';
+        tx.textAlign = 'center';
+        tx.fillText(s[2], s[0], areaH + stripH - 8);
+        tx.textAlign = 'left';
+      });
+    }
+
+    document.getElementById('thFrame').textContent =
+      (f + 1) + ' / ' + doc.frames.length;
+    var scrub = document.getElementById('thScrub');
+    scrub.max = Math.max(0, doc.frames.length - 1);
+    if (+scrub.value !== f) scrub.value = f;
+  }
+
+  function openTheatre() {
+    if (doc.frames.length < 1) return;
+    theatreOn = true;
+    measureTheatre();
+    th.style.display = 'flex';
+    document.getElementById('thFps').value = doc.fps;
+    document.getElementById('thFpsN').textContent = doc.fps + ' fps';
+    syncTheatrePlay();
+    // start playing straight away when there is something to play: opening a
+    // window called BIG VIEW and being shown a still is a wasted click
+    if (doc.frames.length > 1 && !playing) startPlay();
+    paintTheatre();
+  }
+  function closeTheatre() {
+    theatreOn = false;
+    th.style.display = 'none';
+    if (playing) stopPlay();
+    drawPad();
+  }
+  document.getElementById('fBig').onclick = openTheatre;
+  document.getElementById('thClose').onclick = closeTheatre;
+  th.addEventListener('click', function (ev) {
+    // clicking the backdrop closes; clicking the picture or the controls does not
+    if (ev.target === th) closeTheatre();
+  });
+  window.addEventListener('resize', function () { if (theatreOn) paintTheatre(); });
+
+  function syncTheatrePlay() {
+    var b = document.getElementById('thPlay');
+    b.textContent = playing ? '❚❚ PAUSE' : '▶ PLAY';
+    b.classList.toggle('on', playing);
+  }
+  document.getElementById('thPlay').onclick = function () {
+    if (playing) stopPlay(); else startPlay();
+  };
+  document.getElementById('thScrub').oninput = function () {
+    if (playing) stopPlay();
+    fi = Math.max(0, Math.min(doc.frames.length - 1, +this.value));
+    renderFrames(); drawPad(); paintTheatre();
+  };
+  document.getElementById('thFps').oninput = function () {
+    doc.fps = +this.value;
+    document.getElementById('thFpsN').textContent = doc.fps + ' fps';
+    document.getElementById('fps').value = doc.fps;
+    document.getElementById('fpsN').textContent = doc.fps;
+    emit();
+  };
+  document.querySelectorAll('#theatre .thz').forEach(function (b) {
+    b.onclick = function () {
+      theatreZoom = +b.getAttribute('data-z');
+      document.querySelectorAll('#theatre .thz').forEach(function (o) {
+        o.classList.toggle('on', o === b);
+      });
+      paintTheatre();
+    };
+  });
+  document.querySelectorAll('#theatre .thbg').forEach(function (b) {
+    b.onclick = function () {
+      theatreBg = b.getAttribute('data-bg');
+      document.querySelectorAll('#theatre .thbg').forEach(function (o) {
+        o.classList.toggle('on', o === b);
+      });
+      paintTheatre();
+    };
+  });
+  document.getElementById('thSizes').onclick = function () {
+    theatreSizes = !theatreSizes;
+    this.classList.toggle('on', theatreSizes);
+    paintTheatre();
+  };
+  function stepTheatre(d) {
+    if (playing) stopPlay();
+    fi = (fi + d + doc.frames.length) % doc.frames.length;
+    renderFrames(); drawPad(); paintTheatre();
+  }
+  document.getElementById('thPrev').onclick = function () { stepTheatre(-1); };
+  document.getElementById('thNext').onclick = function () { stepTheatre(1); };
+
+  /* The keys an animator's hand goes to without being told. They are captured
+   * before the tool's own single-letter shortcuts, so SPACE does not also pan
+   * and D does not switch to the path tool behind the overlay. */
+  document.addEventListener('keydown', function (ev) {
+    if (!theatreOn) return;
+    var k = ev.key;
+    if (k === 'Escape') { closeTheatre(); ev.stopPropagation(); ev.preventDefault(); return; }
+    if (k === ' ') { playing ? stopPlay() : startPlay(); ev.stopPropagation(); ev.preventDefault(); return; }
+    if (k === 'ArrowLeft') { stepTheatre(-1); ev.stopPropagation(); ev.preventDefault(); return; }
+    if (k === 'ArrowRight') { stepTheatre(1); ev.stopPropagation(); ev.preventDefault(); return; }
+    ev.stopPropagation();
+  }, true);
 
   /* ---- tracing image ----------------------------------------------- */
   document.getElementById('imgIn').onchange = function (ev) {
@@ -2767,7 +3064,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 19';
+  document.getElementById('ver').textContent = 'build 20';
 
   paintThumbs();
   libLoad(); renderLib(); renderAssets();
