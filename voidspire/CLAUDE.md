@@ -97,7 +97,7 @@ The hooks are always present; only the panel is behind the flag.
     node test/export.js        every export format, saved and then opened
     node test/tabs.js          several drawings open at once, and their seams
     node test/grid.js          snapping, and whether it makes the shape you meant
-    node test/rig.js           PIVOT, REPEAT, and transforms that stay on grid
+    node test/rig.js           the found joint, the swing, REPEAT, and the grid
     node test/_shell.js        all five tools: no page scroll, no pinch zoom
 
 The last eleven need the tools served: `python3 -m http.server 8944` from
@@ -445,110 +445,171 @@ The follow-up report: turned lines "get loose and you still have to redraw it".
 GRID held the points you put down by hand and nothing that MOVED them
 afterwards, so a rotation left its ends a few thousandths off the ruling they
 started on — near enough to look right, far enough that a new line snapped to
-the grid missed it. Which meant deleting the turned part and drawing it again,
-exactly what PIVOT and REPEAT exist to stop.
+the grid missed it. Which meant deleting the turned part and drawing it again.
 
-**Two jobs, and only one of them rounds anything.** This split is the whole
-design and it is what makes the feature safe:
-
-- A **translation** — a drag, an arrow nudge, DUPLICATE — moves by a WHOLE
-  NUMBER OF SQUARES. On-grid work stays on the grid, and nothing else is
-  touched. So dragging an enemy loaded out of the game's art cannot quantise
-  its curves: none of that art is on any grid, and re-snapping it on a mouse
-  slip would be silent vandalism.
-- A **turn or a scale** genuinely cannot keep the grid — a corner at 15° is not
-  on any ruling — so its result is settled onto the nearest one. That is a
-  deliberate button press, and it is where "a bit longer, but it joins up" is
-  the answer that was asked for.
+**A translation moves by a WHOLE NUMBER OF SQUARES** — a drag, an arrow nudge,
+DUPLICATE. On-grid work stays on the grid and nothing else is touched, so
+dragging an enemy loaded out of the game's art cannot quantise its curves: none
+of that art is on any grid, and re-snapping it on a mouse slip would be silent
+vandalism. Nothing is ever re-rounded, so nothing can be damaged.
 
 Arrow keys step one square, five with shift — five because that is the brighter
 ruling the grid is already drawn with, so the big step lands on a line you can
 see.
 
-**The bargain has a number and the tests state it.** On the grid a turn holds
-the arm's length to within one square and its angle to within roughly
-`step / length` radians; with GRID off both are exact. Three assertions written
-before this change asserted the exact version and failed correctly afterwards —
-they now assert the tolerance, and additionally that no step comes out
-*negative*, which is the error a viewer would actually notice as the arm
-jerking back.
-
-**Two ways a coarse grid can quietly ruin the work, both refused rather than
-applied.** A step big enough to be worth using is big enough to land every
-point of a short stroke on one intersection:
-
-- `applySel` builds the whole result before keeping any of it, and if a stroke
-  would flatten to a dot it refuses and names the grid. Applied blind it
-  destroys the stroke and burns an undo doing it.
-- REPEAT does the same across the whole run. A frame whose arm has been
-  flattened is worse than a frame never made — the limb simply disappears part
-  way through and there are N frames to undo before you find out why. It also
-  counts frames identical to their predecessor and says so, because a step too
-  small for the grid plays as a stutter and reads as REPEAT being broken.
-
-Only a transform that actually happened is recorded for REPEAT. Arming it with
-a refused one would build N frames out of a movement that moved nothing.
-
-Two test notes from this change:
-
-- **A block that inherits the previous block's state tests something other than
-  what it says.** Two assertions here read green against the wrong stroke:
-  DUPLICATE leaves the COPY selected, so a transform after it moves a stroke
-  the assertion was not looking at. Each block starts a fresh tab now.
-- **To force a flatten deterministically, arm with a DRAG, not a turn.** A turn
-  of a stroke small enough to flatten on a coarse grid is itself within a
-  rounding of doing nothing on the fine one, so which side of the rounding it
-  falls decides whether the test passes — and that is a test that fails on a
-  day nothing changed. A drag's step is a grid multiple by construction.
+A **turn or a scale** cannot keep the grid, and what happens then depends on
+whether the selection is hinged: see *A pivot means the turn is rigid* below.
+Settling a turn onto the grid was the FIRST answer to lines coming loose and it
+was the wrong one — it keeps the ends on a ruling by rounding every point
+independently, which is deformation. It survives only for a free-floating
+selection, where there is nothing else holding the shape together.
 
 ## Animating a limb without redrawing it
 
 The report: "when animating we are removing some lines and redrawing them in a
-different position — I wanna make the arms go up and down." Two additions, and
-they only pay off together.
+different position — I wanna make the arms go up and down."
 
-**PIVOT** places a joint. Turning a selection about its own middle is the wrong
-motion for a limb: an arm's centre is halfway down it, not at the shoulder, so
-the top end swings backwards and the shoulder walks away from the body. Drop a
-pivot on the shoulder and the shoulder is the one point that does not move.
-The pivot is a world point and it **outlives the selection**, because the whole
-use of it is turning the same joint over and over.
+### The joint is found, not placed
 
-**REPEAT** does the last movement again across N new frames. Each frame is a
-clone of the whole frame with the transform applied one step further to the
-selected strokes only, so the body stays exactly where it is and the arm walks
-round the joint. Turns, scales and hand-drags all count as a movement; FLIP
-deliberately does not, because repeating it just alternates — a blink, not a
-motion, and "each one step further" would be a lie about that button.
+The first answer was a PIVOT you place by hand, and it was one press too many —
+and a press you have to get RIGHT, because a shoulder half a step off the
+shoulder swings the arm out of its socket. The better answer came back as:
+"the pivot occurs automatically where the selected lines and the first
+non-selected lines meet. This way they are still connected and nothing gets
+deformed. Then the user can just hold the selected bunch of lines to go up and
+down."
+
+Which is the design. **The drawing already knows where the joint is.** Select
+the arm and the only place it touches the body is the shoulder; there is
+nothing to choose. Then taking hold of the selection and dragging turns it
+about that point, so an arm goes up and down by being pushed up and down.
+
+Four decisions inside that:
+
+- **Point to SEGMENT, not point to point.** An arm almost never meets the body
+  at one of the body's own corners — it lands part way along a line, which is a
+  place with no point in it at all. Corner-to-corner found nothing on any real
+  drawing and fell back to the bounding box, silently.
+- **The anchor is the SELECTED point** of the closest pair, not the midpoint
+  between the two. If they coincide it makes no difference; if there was
+  already a hair of a gap, anchoring on the arm's own end holds that end
+  exactly still instead of shifting it half a gap on every swing.
+- **Only the nearest contacts count.** Everything within tolerance takes in a
+  whole overlapping edge and averages the hinge into the middle of it. The
+  closest plus anything effectively tied with it gives one point for a limb
+  butted onto a body and two averaged for a limb in a socket — the right hinge
+  for both.
+- **The tolerance is generous** (1.5 grid steps, at least 0.06), because
+  hand-drawn work does not meet to the thousandth. Being wrong is *visible* —
+  the joint is drawn on the canvas — and PIVOT is still there to overrule it,
+  which is what makes trusting a guess reasonable.
+
+Only the CURRENT LAYER is searched. A limb hinged against a line on the sketch
+layer would be hinged against a guide.
+
+### A pivot means the turn is rigid
+
+Settling a turn onto the grid was the wrong answer to lines coming loose. It
+kept the ends on a ruling by rounding every point INDEPENDENTLY, which is
+deformation: a rectangle turned and settled is a wonky quadrilateral, and a
+limb wobbles by a fraction of a square every frame.
+
+**With a joint there is nothing left for the grid to fix.** The one point that
+has to stay exactly where it is IS the centre of rotation, so it does not move
+at all and everything else keeps its exact distance from it. So the rule is:
+
+| | rotate / scale | translate |
+|---|---|---|
+| **with a joint or pivot** | rigid and exact | whole grid squares |
+| **free-floating** | settled onto the grid | whole grid squares |
+
+A free-floating selection has nothing holding it and nothing to come loose
+FROM, and that is the only case where the grid earns its place in a turn.
+
+### REPEAT
+
+REPEAT does the last movement again across N new frames — each a clone of the
+whole frame with the transform applied one step further to the selected strokes
+only, so the body stays exactly where it is and the arm walks round the joint.
+A swing is what it was built for: swing the arm to where you want it a few
+frames from now, then REPEAT walks it there. FLIP deliberately is not recorded,
+because repeating it just alternates — a blink, not a motion.
 
 **The stroke order is the reason to generate rather than redraw.** TWEEN pairs
 strokes BY INDEX. Deleting an arm and drawing it again sends it to the end of
 the list, so a hand-redrawn animation tweens a body into an arm. A cloned frame
-keeps every index, so it still tweens against its neighbours.
+keeps every index.
 
-Two things that had to be got right:
+Things that had to be got right, several of them the hard way:
 
-- **The transform captures its pivot at the time it is made**, not when REPEAT
-  reads it. Move the pivot afterwards and the frames already made should not
-  change their minds about where they turned.
-- **The pivot and the last movement belong to a drawing, not to the tool.** A
+- **The transform carries its pivot and its rigidity WITH it**, captured when
+  it is made rather than read again when REPEAT runs. Move the pivot afterwards
+  and the frames already made must not change their minds.
+- **Rigidity is asked of "is there a pivot", not "did px end up set".**
+  `pivotOr` falls back to the middle of the selection, so px is always set for
+  a turn — every rotation counted as hinged, and the frames of a free shape
+  came out off-grid while the first turn had been settled onto it.
+- **The swing angle is unwrapped one step at a time.** `atan2` returns
+  (-π, π], so measuring the whole swing against where the drag STARTED reads a
+  swing that has crossed the far side of the joint as an enormous turn the
+  other way. A gentle drag upward reported −275°, and REPEAT would then have
+  walked the arm backwards through the body five times over.
+- **The angle comes off the RAW pointer, never the snapped one.** A cursor
+  rounded to the grid makes the swing jump between whole squares instead of
+  following your hand.
+- **History is pushed on the first real movement**, not on taking hold. Taking
+  hold of something and letting go again should not cost an undo.
+- **The joint, the pivot and the last movement belong to a drawing.** A
   shoulder is a point in a picture; carried into the next tab it sits in the
   middle of nothing, and a REPEAT there would build frames out of a movement
-  made in a drawing you are no longer looking at. Both are dropped in
-  `adoptTab`, alongside the stroke in hand and the marquee.
+  made in a drawing you are no longer looking at. All dropped in `adoptTab`.
+
+Two ways a coarse grid can quietly ruin work that is NOT hinged, both refused
+rather than applied — a step big enough to be worth using is big enough to land
+every point of a short stroke on one intersection:
+
+- `applySel` builds the whole result before keeping any of it and refuses if a
+  stroke would flatten to a dot, naming the grid. Applied blind it destroys the
+  stroke and burns an undo doing it.
+- REPEAT does the same across the whole run. A frame whose arm has been
+  flattened is worse than a frame never made — the limb disappears part way
+  through and there are N frames to undo before you find out why. It also
+  counts frames identical to their predecessor and says so, because a step too
+  small for the grid plays as a stutter and reads as REPEAT being broken.
+
+Only a transform that actually happened is recorded. Arming REPEAT with a
+refused one would build N frames out of a movement that moved nothing.
+
+### Testing it
 
 `test/rig.js` asserts the GEOMETRY rather than the buttons, because a rotation
-about a pivot has two signatures nothing else can stand in for: the point on
-the pivot does not move at all, and every other point keeps its distance from
-it. It also checks that the body is byte-identical across all generated frames
-and that every frame keeps the same stroke count in the same order.
+about a joint has three signatures nothing else can stand in for: the attached
+end does not move at all, every other point keeps its exact distance from it,
+and the strokes you did not select are byte-identical. Four notes worth keeping:
 
-A test-writing note: **the pad is not square, and the world is stretched to its
-aspect**, so the two axes have different scales and "the middle of the arm" is
-not a screen fraction that can be guessed. Grabbing it by eye missed the
-selection entirely and read as the drag doing nothing. Fit screen-to-world from
-points the tool actually drew — their fractions and their exported coordinates
-are both known.
+- **Re-measure the canvas before every gesture.** The pad is sized from what is
+  left over and the frame strip grows the moment a drawing has more than one
+  frame — so REPEAT changes the canvas's size and position, and a box measured
+  once at the top is wrong from then on. Every screen fraction was landing
+  somewhere else after the first REPEAT, which read as a pivot being placed off
+  the end of the arm. (A fraction of the pad maps to the same WORLD point
+  whatever size the pad is, so only fraction-to-pixel has to be redone.)
+- **The pad is not square and the world is stretched to its aspect**, so "the
+  middle of the arm" is not a screen fraction that can be guessed. Fit
+  screen-to-world from points the tool actually drew.
+- **A block that inherits the previous block's state tests something other than
+  what it says.** Several read green against the wrong stroke or the wrong
+  selection: DUPLICATE leaves the COPY selected; a select-all leaves no joint,
+  so a haul slides instead of swinging and REPEAT faithfully walks the slide
+  out over five frames. Each block re-establishes what it needs.
+- **A bounding-box centre is not a rotation invariant.** Asserting "the middle
+  stays put" fails on a correct rotation, because a turned shape has a
+  different bounding box. What holds is that every point keeps its distance
+  from the middle it turned ABOUT.
+- **To force a flatten deterministically, arm with a DRAG, not a turn.** A turn
+  of a stroke small enough to flatten on a coarse grid is itself within a
+  rounding of doing nothing on the fine one, so which side of the rounding it
+  falls decides whether the test passes.
 
 ## Verifying UI work
 
