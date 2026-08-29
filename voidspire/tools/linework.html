@@ -973,6 +973,44 @@
   }
   function onGrid(v) { return +(Math.round(v / gridStep) * gridStep).toFixed(4); }
 
+  /* ==================================================================
+   * THE GRID GOVERNS EVERY POINT, NOT ONLY THE PEN
+   * ==================================================================
+   * GRID used to hold only the points you put down by hand. Everything that
+   * MOVED them afterwards — a turn, a scale, a nudge — did its arithmetic and
+   * left the result wherever the maths landed, a few thousandths off the ruling
+   * it started on. The drawing looked right and would not join up: a new line
+   * snapped to the grid, the turned one did not, and they missed each other by
+   * less than a pixel. Which meant deleting the turned part and drawing it
+   * again — exactly what PIVOT and REPEAT were added to stop.
+   *
+   * Two different jobs, and only one of them needs to round anything:
+   *
+   *   A TRANSLATION — a drag, a nudge, DUPLICATE — moves by a WHOLE NUMBER OF
+   *   STEPS. On-grid work stays on the grid and nothing else is touched, so
+   *   dragging an enemy loaded out of the game's art cannot quantise its
+   *   curves. Nothing is re-snapped, so nothing can be damaged.
+   *
+   *   A TURN OR A SCALE genuinely cannot keep the grid — a corner at 15° is
+   *   not on any ruling — so its result is settled onto the nearest one. That
+   *   is a deliberate button press, and it is the case where "a bit longer, but
+   *   it joins up" is the answer that was asked for.
+   * ================================================================== */
+  function settle(pts) {
+    if (!snap) return pts.map(function (p) { return [+p[0].toFixed(3), +p[1].toFixed(3)]; });
+    var out = [];
+    for (var i = 0; i < pts.length; i++) {
+      var q = [onGrid(pts[i][0]), onGrid(pts[i][1])];
+      var last = out[out.length - 1];
+      // a point that landed on its own neighbour is a segment of zero length
+      if (last && last[0] === q[0] && last[1] === q[1]) continue;
+      out.push(q);
+    }
+    return out;
+  }
+  // a translation that keeps whatever relationship the points already had
+  function stepped(d) { return snap ? Math.round(d / gridStep) * gridStep : d; }
+
   function toWorld(cx, cy) {
     var w = rawWorld(cx, cy), x = w[0], y = w[1];
     if (snap) { x = onGrid(x); y = onGrid(y); }
@@ -2587,17 +2625,39 @@
     syncPivotBtn(); drawPad();
   };
 
-  function applySel(fn) {
-    var b = pivotOr(selBounds()); if (!b) return;
-    pushHistory();
+  /* Worked out in full BEFORE anything is written, because a grid coarse
+   * enough to be worth using is also coarse enough for a small turn to land
+   * every point of a short stroke on the same intersection. Applied blind that
+   * flattens the stroke to a dot and burns an undo doing it; refused with a
+   * reason, you know to take a finer grid or a bigger turn. */
+  function applySel(fn, verb) {
+    var b = pivotOr(selBounds()); if (!b) return false;
+    var next = [], flattened = 0, moved = false;
     sel.forEach(function (i) {
       var L = here().strokes[i]; if (!L) return;
-      L.pts = L.pts.map(function (p) {
+      var out = settle(L.pts.map(function (p) {
         var q = fn(p[0] - b.cx, p[1] - b.cy);
-        return [+(q[0] + b.cx).toFixed(3), +(q[1] + b.cy).toFixed(3)];
-      });
+        return [q[0] + b.cx, q[1] + b.cy];
+      }));
+      if (out.length < 2 && L.pts.length > 1) flattened++;
+      if (JSON.stringify(out) !== JSON.stringify(L.pts)) moved = true;
+      next.push({ i: i, pts: out });
     });
+    if (flattened) {
+      note('grid ' + gridStep + ' is too coarse for that — ' + flattened + ' stroke'
+        + (flattened === 1 ? '' : 's') + ' would land on one point. Take a finer grid.', true);
+      return false;
+    }
+    if (!moved) {
+      note(verb === 'flip' ? 'that selection is already symmetrical — flipping it changes nothing'
+        : 'on grid ' + gridStep + ' that lands exactly back where it started — '
+          + (verb === 'scale' ? 'scale again' : 'turn further') + ', or take a finer grid', true);
+      return false;
+    }
+    pushHistory();
+    next.forEach(function (n) { here().strokes[n.i].pts = n.pts; });
     drawPad();
+    return true;
   }
   /* WHAT WAS DONE LAST, so REPEAT can do it again. The pivot is captured at
    * the time rather than read later: move the pivot afterwards and the frames
@@ -2616,23 +2676,29 @@
       : x.kind === 'rot' ? 'frames, each turned further'
       : 'frames, each scaled further');
   }
+  /* Only a transform that actually happened is worth repeating. Recording one
+   * the grid refused would arm REPEAT to build N frames out of a movement that
+   * moved nothing. */
   function rot(d) {
     var c = Math.cos(d), s2 = Math.sin(d);
-    applySel(function (x, y) { return [x * c - y * s2, x * s2 + y * c]; });
-    markXform({ kind: 'rot', a: d });
+    if (applySel(function (x, y) { return [x * c - y * s2, x * s2 + y * c]; })) {
+      markXform({ kind: 'rot', a: d });
+    }
   }
   document.getElementById('tRotL').onclick = function () { rot(-Math.PI / 12); };
   document.getElementById('tRotR').onclick = function () { rot(Math.PI / 12); };
   document.getElementById('tBig').onclick = function () {
-    applySel(function (x, y) { return [x * 1.1, y * 1.1]; }); markXform({ kind: 'scale', k: 1.1 });
+    if (applySel(function (x, y) { return [x * 1.1, y * 1.1]; }, 'scale')) markXform({ kind: 'scale', k: 1.1 });
   };
   document.getElementById('tSmall').onclick = function () {
-    applySel(function (x, y) { return [x / 1.1, y / 1.1]; }); markXform({ kind: 'scale', k: 1 / 1.1 });
+    if (applySel(function (x, y) { return [x / 1.1, y / 1.1]; }, 'scale')) markXform({ kind: 'scale', k: 1 / 1.1 });
   };
   /* FLIP is deliberately not recorded. Repeating it just alternates, which is
    * a blink rather than a motion, and offering it as "each one step further"
    * would be a lie about what the button does. */
-  document.getElementById('tFlip').onclick = function () { applySel(function (x, y) { return [-x, y]; }); };
+  document.getElementById('tFlip').onclick = function () {
+    applySel(function (x, y) { return [-x, y]; }, 'flip');
+  };
   /* ==================================================================
    * REPEAT — do that again, across new frames
    * ==================================================================
@@ -2662,31 +2728,55 @@
     if (!sel.length) return note('select the part that moves first', true);
     if (!lastXform) return note('turn it, drag it or scale it once — REPEAT does that again', true);
     var n = Math.max(1, Math.min(16, +document.getElementById('tRepeatN').value || 4));
-    pushHistory();
-    var made = [];
+    /* Built in full and checked BEFORE any of it is kept, the same as a single
+     * turn. A frame whose arm has been flattened to a dot by the grid is worse
+     * than a frame that was never made: the limb simply disappears part way
+     * through the animation, and you have N frames to undo to find out why. */
+    var made = [], seen = [JSON.stringify(doc.frames[fi].cells[li].strokes)];
+    var same = 0, flattened = 0;
     for (var k = 1; k <= n; k++) {
       var fr = clone(doc.frames[fi]);
       var strokes = fr.cells[li].strokes;
       sel.forEach(function (i) {
         var L = strokes[i];
         if (!L) return;
-        L.pts = L.pts.map(function (p) {
-          var q = xformPoint(lastXform, p, k);
-          return [+q[0].toFixed(3), +q[1].toFixed(3)];
-        });
+        var was = L.pts.length;
+        /* Settled per frame rather than carried forward, so the arm lands on
+         * the grid in EVERY frame instead of only the first — and because each
+         * frame is worked out from the original, the rounding cannot pile up
+         * across the run the way it would if each frame stepped off the last. */
+        L.pts = settle(L.pts.map(function (p) { return xformPoint(lastXform, p, k); }));
+        if (L.pts.length < 2 && was > 1) flattened++;
       });
+      var sig = JSON.stringify(strokes);
+      if (sig === seen[seen.length - 1]) same++;
+      seen.push(sig);
       made.push(fr);
     }
+    if (flattened) {
+      return note('grid ' + gridStep + ' is too coarse for that — the moving part would'
+        + ' land on one point in ' + flattened + ' of the ' + n + ' frames.'
+        + ' Take a finer grid.', true);
+    }
+    pushHistory();
     doc.frames.splice.apply(doc.frames, [fi + 1, 0].concat(made));
     renderFrames(); drawPad();
-    note('made ' + n + ' frames, each one step further — press ▶ PLAY to see it');
+    /* A step too small for the grid gives frames identical to the one before,
+     * which plays as a stutter and reads as REPEAT being broken. Said out loud
+     * it is a setting to change instead. */
+    note('made ' + n + ' frames, each one step further'
+      + (same ? ' — but ' + same + ' came out identical on grid ' + gridStep
+                + '; undo, then turn further or take a finer grid'
+              : ' — press ▶ PLAY to see it'), !!same);
   };
 
   document.getElementById('tDup').onclick = function () {
     pushHistory();
     var copies = sel.map(function (i) { return JSON.parse(JSON.stringify(here().strokes[i])); });
+    // offset by a whole square, so a copy of on-grid work is on-grid too
+    var off = snap ? Math.max(gridStep, stepped(0.06)) : 0.06;
     copies.forEach(function (L) {
-      L.pts = L.pts.map(function (p) { return [+(p[0] + 0.06).toFixed(3), +(p[1] + 0.06).toFixed(3)]; });
+      L.pts = L.pts.map(function (p) { return [+(p[0] + off).toFixed(3), +(p[1] + off).toFixed(3)]; });
       here().strokes.push(L);
     });
     sel = copies.map(function (_, k) { return here().strokes.length - copies.length + k; });
@@ -3893,7 +3983,10 @@
     /* ARROW KEYS NUDGE THE SELECTION. Dragging is for gross movement and hopeless
      * for the last two thousandths; shift takes a bigger step. */
     if (mode === 'select' && sel.length && ev.key.indexOf('Arrow') === 0) {
-      var st = (ev.shiftKey ? 0.05 : 0.01);
+      /* One grid square a press, five with shift — five because that is the
+       * brighter ruling the grid is already drawn with, so the big step lands
+       * on a line you can see. Off the grid it keeps the old free amounts. */
+      var st = snap ? gridStep * (ev.shiftKey ? 5 : 1) : (ev.shiftKey ? 0.05 : 0.01);
       var dx = ev.key === 'ArrowLeft' ? -st : ev.key === 'ArrowRight' ? st : 0;
       var dy = ev.key === 'ArrowUp' ? -st : ev.key === 'ArrowDown' ? st : 0;
       pushHistory();
@@ -4440,7 +4533,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 26';
+  document.getElementById('ver').textContent = 'build 27';
 
   paintThumbs();
   applyView(viewMode);
