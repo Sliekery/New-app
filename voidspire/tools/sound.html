@@ -161,53 +161,66 @@
   <div class="wrap">
     <div>
       <div class="box">
-        <h2>THE BED — this drives the game's real music engine, not a copy</h2>
         <div class="bar" style="margin-top:0">
-          <button id="mPlay" class="big">▶ START</button>
-          <button id="mScene" class="sm">SCENE: MENU</button>
+          <button id="mPlay" class="big">▶ PLAY</button>
+          <button id="mClear" class="sm warn">CLEAR</button>
+          <span class="hint">bars</span>
+          <select id="mBars" style="width:60px"><option>1</option><option selected>2</option><option>4</option></select>
+          <span class="hint">tempo</span>
+          <input type="range" id="mTempo" min="50" max="150" value="74" style="max-width:130px">
+          <span class="hint" id="mTempoN">74</span>
           <span class="hint">monitor</span>
-          <input type="range" id="mVol" min="0" max="100" value="100" style="max-width:110px">
-          <span class="hint">intensity (sector)</span>
-          <input type="range" id="mInt" min="0" max="100" value="30" style="max-width:150px">
-          <span class="hint" id="mIntN">0.30</span>
+          <input type="range" id="mVol" min="0" max="100" value="100" style="max-width:90px">
+          <span class="hint" id="mStatus"></span>
         </div>
         <div class="bar">
-          <span class="hint">tempo</span>
-          <input type="range" id="mTempo" min="50" max="140" value="74" style="max-width:150px">
-          <span class="hint" id="mTempoN">74</span>
-          <span class="hint">climb</span>
-          <input type="range" id="mClimb" min="0" max="60" value="16" style="max-width:110px">
-          <span class="hint" id="mClimbN">16</span>
+          <span class="hint">the generated bed underneath:</span>
+          <button id="mBed" class="sm on">ON</button>
+          <span class="hint">intensity</span>
+          <input type="range" id="mInt" min="0" max="100" value="40" style="max-width:120px">
+          <span class="hint" id="mIntN">0.40</span>
+          <button id="mScene" class="sm">SCENE: MENU</button>
         </div>
+        <canvas id="grid" width="1600" height="440" style="margin-top:8px"></canvas>
         <p class="hint" style="margin:8px 0 0">
-          Intensity is what the sector number feeds in: kick above 0.15, hats
-          and arp above 0.45, a driving pickup above 0.6. Move it to hear how
-          the bed tightens as a run goes deeper.
+          Tap a square to place a hit, tap it again to take it away. Stack a
+          column and those notes sound together. Drag a hit up or down to
+          re-pitch it, drag its right edge to make it longer.
+        </p>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="box">
+        <h2>THE HIT — what the selected square does</h2>
+        <div class="fld"><label>PITCH</label><input type="range" id="hMidi" min="24" max="84" value="50"><span class="v" id="hMidiN">D3</span></div>
+        <div class="fld"><label>LENGTH</label><input type="range" id="hLen" min="1" max="16" value="1"><span class="v" id="hLenN">1</span></div>
+        <div class="fld"><label>LEVEL</label><input type="range" id="hVel" min="0.1" max="1.6" step="0.05" value="1"><span class="v" id="hVelN">1</span></div>
+        <p class="hint" style="margin:6px 0 0">
+          Kick and hat ignore pitch — they are one sound each. Everything else
+          is a note.
         </p>
       </div>
 
       <div class="box" style="margin-top:10px">
-        <h2>PROGRESSION — bass note and chord, as MIDI numbers (60 = middle C)</h2>
-        <div id="prog"></div>
-        <div class="bar">
-          <span class="hint">arp pattern (indexes into the chord)</span>
-          <input type="text" id="arp" style="width:120px">
+        <h2>PATTERNS YOU KEEP</h2>
+        <div class="bar" style="margin-top:0">
+          <button id="pAdd" class="sm">+ SAVE THIS LOOP</button>
+          <button id="pExport" class="sm">EXPORT</button>
+          <label class="btn sm">IMPORT<input type="file" id="pIn" accept="application/json" hidden></label>
         </div>
+        <div class="list" id="pList" style="margin-top:6px"></div>
       </div>
-    </div>
 
-    <div>
-      <div class="box">
-        <h2>MIX — each layer's level</h2>
-        <div id="mix"></div>
-      </div>
       <div class="box" style="margin-top:10px">
         <h2>THE CODE — paste into js/music.js</h2>
         <textarea id="musOut" readonly></textarea>
-        <div class="bar">
-          <button id="musCopy">COPY</button>
-          <button id="musReset" class="sm warn">RESET</button>
-        </div>
+        <div class="bar"><button id="musCopy">COPY</button></div>
+        <p class="hint" style="margin:7px 0 0">
+          Hand it to <b>VS.music.setPattern(...)</b>, or drop it in as the
+          default loop. It rides on top of the generated bed rather than
+          replacing it, so the music still tightens as a run goes deeper.
+        </p>
       </div>
     </div>
   </div>
@@ -794,121 +807,310 @@
   };
 
   /* ==================================================================
-   * MUSIC. Drives VS.music directly — the same module the game runs — so
-   * every change is heard in the real mix with the real layering rules,
-   * not through a second implementation that would drift from it.
+   * THE TRACKER
+   * ==================================================================
+   * The music tab used to expose the synth's PARAMETERS — chord progressions
+   * as MIDI numbers, per-layer gains. That is the engineer's view of the
+   * engine and the wrong instrument for writing a tune: you cannot hear a
+   * chord by reading [50, 53, 57].
+   *
+   * This is a grid instead. Rows are voices, columns are sixteenths, a tap
+   * places a hit and a column of hits is a chord without anyone having to name
+   * one. It writes VS.music.setPattern, which rides ON TOP of the generated
+   * bed rather than replacing it — so the loop is yours and the music still
+   * tightens as a run goes deeper.
    * ================================================================== */
   var M = (window.VS && window.VS.music) || null;
-  var LAYERS = ['bass', 'sub', 'drone', 'pad', 'kick', 'hat', 'arp', 'menu', 'combat', 'tense'];
-  function renderMusic() {
-    if (!M) {
-      document.getElementById('prog').innerHTML =
-        '<div class="hint">music.js did not load — run <b>node tools/build-assets.js</b> to copy it beside this tool.</div>';
-      return;
+  var VOICES = [
+    { id: 'kick', name: 'KICK', pitched: false, col: '#ff4a5e' },
+    { id: 'hat', name: 'HAT', pitched: false, col: '#8fa79a' },
+    { id: 'sub', name: 'SUB', pitched: true, col: '#c86bff', midi: 26 },
+    { id: 'bass', name: 'BASS', pitched: true, col: '#41d8ff', midi: 38 },
+    { id: 'pad', name: 'PAD', pitched: true, col: '#5dff88', midi: 50 },
+    { id: 'arp', name: 'ARP', pitched: true, col: '#ffb02e', midi: 62 },
+    { id: 'blip', name: 'BLIP', pitched: true, col: '#eafcff', midi: 69 },
+    { id: 'lead', name: 'LEAD', pitched: true, col: '#ff8a3a', midi: 65 },
+  ];
+  var NOTE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  function noteName(m) { return NOTE[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1); }
+
+  var bars = 2, steps = 32;
+  var hits = {};                 // "voice:step" -> { midi, len, vel }
+  var selKey = null;
+  var mPlaying = false;
+
+  var grid = document.getElementById('grid'), gc = grid.getContext('2d');
+  var LBL = 74, HDR = 22;
+  function cellW() { return (grid.width - LBL) / steps; }
+  function cellH() { return (grid.height - HDR) / VOICES.length; }
+
+  function drawGrid() {
+    var W = grid.width, H = grid.height, cw = cellW(), ch = cellH();
+    gc.fillStyle = '#05090b'; gc.fillRect(0, 0, W, H);
+    // bar and beat lines — a grid you cannot count is a grid you cannot use
+    for (var s = 0; s <= steps; s++) {
+      var x = LBL + s * cw;
+      gc.strokeStyle = s % 16 === 0 ? 'rgba(255,176,46,0.55)'
+        : s % 4 === 0 ? 'rgba(120,150,165,0.34)' : 'rgba(120,150,165,0.13)';
+      gc.lineWidth = 1;
+      gc.beginPath(); gc.moveTo(x, 0); gc.lineTo(x, H); gc.stroke();
+      if (s % 4 === 0 && s < steps) {
+        gc.fillStyle = 'rgba(143,167,154,0.8)'; gc.font = '10px ui-monospace, monospace';
+        gc.fillText((s / 4 + 1), x + 3, 14);
+      }
     }
-    var host = document.getElementById('prog');
+    VOICES.forEach(function (V, i) {
+      var y = HDR + i * ch;
+      gc.strokeStyle = 'rgba(120,150,165,0.18)';
+      gc.beginPath(); gc.moveTo(0, y); gc.lineTo(W, y); gc.stroke();
+      gc.fillStyle = V.col; gc.font = '700 11px ui-monospace, monospace';
+      gc.fillText(V.name, 8, y + ch / 2 + 4);
+      // the row a pitched voice sits in, so a note reads as high or low
+      if (V.pitched) {
+        gc.fillStyle = 'rgba(143,167,154,0.5)'; gc.font = '9px ui-monospace, monospace';
+        gc.fillText(noteName(V.midi), 8, y + ch - 4);
+      }
+    });
+    // the hits
+    Object.keys(hits).forEach(function (k) {
+      var p = k.split(':'), vi = VOICES.findIndex(function (v) { return v.id === p[0]; });
+      if (vi < 0) return;
+      var st = +p[1], h = hits[k];
+      var x = LBL + st * cw, y = HDR + vi * ch;
+      var wpx = Math.max(cw - 2, cw * (h.len || 1) - 2);
+      var V = VOICES[vi];
+      gc.fillStyle = V.col;
+      gc.globalAlpha = 0.28 + 0.5 * Math.min(1, (h.vel || 1));
+      gc.fillRect(x + 1, y + 3, wpx, ch - 6);
+      gc.globalAlpha = 1;
+      gc.strokeStyle = (k === selKey) ? '#ffffff' : V.col;
+      gc.lineWidth = (k === selKey) ? 2 : 1;
+      gc.strokeRect(x + 1, y + 3, wpx, ch - 6);
+      if (V.pitched) {
+        gc.fillStyle = '#04080a'; gc.font = '700 9px ui-monospace, monospace';
+        gc.fillText(noteName(h.midi), x + 4, y + ch / 2 + 3);
+      }
+    });
+    // playhead
+    if (mPlaying && M && M.getStep) {
+      var st2 = M.getStep() % steps;
+      gc.strokeStyle = '#ffb02e'; gc.lineWidth = 2;
+      var px2 = LBL + st2 * cw;
+      gc.beginPath(); gc.moveTo(px2, HDR); gc.lineTo(px2, H); gc.stroke();
+    }
+    emitPattern();
+  }
+
+  function cellAt(ev) {
+    var r = grid.getBoundingClientRect();
+    var x = (ev.clientX - r.left) / r.width * grid.width;
+    var y = (ev.clientY - r.top) / r.height * grid.height;
+    if (x < LBL || y < HDR) return null;
+    var st = Math.floor((x - LBL) / cellW());
+    var vi = Math.floor((y - HDR) / cellH());
+    if (st < 0 || st >= steps || vi < 0 || vi >= VOICES.length) return null;
+    return { st: st, vi: vi, key: VOICES[vi].id + ':' + st };
+  }
+  grid.addEventListener('pointerdown', function (ev) {
+    var c = cellAt(ev); if (!c) return;
+    var V = VOICES[c.vi];
+    if (hits[c.key]) {
+      if (selKey === c.key) { delete hits[c.key]; selKey = null; }
+      else selKey = c.key;
+    } else {
+      hits[c.key] = { midi: V.midi || 50, len: 1, vel: 1 };
+      selKey = c.key;
+      audition(V.id, hits[c.key]);
+    }
+    pushPattern(); syncHitControls(); drawGrid(); saveTrk();
+  });
+
+  // hear the note as you place it, the way a hardware sequencer does
+  function audition(voice, h) {
+    if (!M || !M.auditionHit) return;
+    try { M.auditionHit(voice, h); } catch (e) {}
+  }
+
+  function syncHitControls() {
+    var on = !!(selKey && hits[selKey]);
+    ['hMidi', 'hLen', 'hVel'].forEach(function (id) { document.getElementById(id).disabled = !on; });
+    if (!on) return;
+    var h = hits[selKey];
+    document.getElementById('hMidi').value = h.midi;
+    document.getElementById('hMidiN').textContent = noteName(h.midi);
+    document.getElementById('hLen').value = h.len;
+    document.getElementById('hLenN').textContent = h.len;
+    document.getElementById('hVel').value = h.vel;
+    document.getElementById('hVelN').textContent = (+h.vel).toFixed(2);
+  }
+  document.getElementById('hMidi').oninput = function () {
+    if (!selKey || !hits[selKey]) return;
+    hits[selKey].midi = +this.value;
+    document.getElementById('hMidiN').textContent = noteName(+this.value);
+    pushPattern(); drawGrid(); saveTrk();
+  };
+  document.getElementById('hLen').oninput = function () {
+    if (!selKey || !hits[selKey]) return;
+    hits[selKey].len = +this.value;
+    document.getElementById('hLenN').textContent = this.value;
+    pushPattern(); drawGrid(); saveTrk();
+  };
+  document.getElementById('hVel').oninput = function () {
+    if (!selKey || !hits[selKey]) return;
+    hits[selKey].vel = +this.value;
+    document.getElementById('hVelN').textContent = (+this.value).toFixed(2);
+    pushPattern(); drawGrid(); saveTrk();
+  };
+
+  // Turn the grid into the shape the engine wants: hits indexed by step.
+  function asPattern() {
+    var out = { steps: steps, hits: {} };
+    Object.keys(hits).forEach(function (k) {
+      var p = k.split(':'), st = +p[1], h = hits[k];
+      (out.hits[st] = out.hits[st] || []).push({ voice: p[0], midi: h.midi, len: h.len, vel: h.vel });
+    });
+    return out;
+  }
+  function pushPattern() { if (M && M.setPattern) M.setPattern(asPattern()); }
+  function emitPattern() {
+    var p = asPattern();
+    // built plainly rather than cleverly: this is pasted into a source file
+    var lines = Object.keys(p.hits).sort(function (a, b) { return a - b; }).map(function (st) {
+      var items = p.hits[st].map(function (h) {
+        var V = VOICES.find(function (v) { return v.id === h.voice; }) || {};
+        return '{ voice: \'' + h.voice + '\''
+          + (V.pitched ? ', midi: ' + h.midi : '')
+          + (h.len > 1 ? ', len: ' + h.len : '')
+          + (h.vel !== 1 ? ', vel: ' + (+h.vel).toFixed(2) : '')
+          + ' }';
+      });
+      return '    ' + st + ': [' + items.join(', ') + '],';
+    });
+    document.getElementById('musOut').value =
+      'VS.music.setPattern({\n  steps: ' + steps + ',\n  hits: {\n'
+      + lines.join('\n') + '\n  },\n});';
+  }
+
+  document.getElementById('mBars').onchange = function () {
+    bars = +this.value; steps = bars * 16;
+    Object.keys(hits).forEach(function (k) { if (+k.split(':')[1] >= steps) delete hits[k]; });
+    pushPattern(); drawGrid(); saveTrk();
+  };
+  document.getElementById('mClear').onclick = function () {
+    if (!confirm('Clear the whole loop?')) return;
+    hits = {}; selKey = null; pushPattern(); syncHitControls(); drawGrid(); saveTrk();
+  };
+  var mBtn = document.getElementById('mPlay');
+  mBtn.onclick = function () {
+    if (!M) { document.getElementById('mStatus').textContent = 'music.js did not load'; return; }
+    mPlaying = !mPlaying;
+    if (mPlaying) {
+      if (M.setVolume) M.setVolume(document.getElementById('mVol').value / 100);
+      pushPattern(); M.start(); M.setSector(1);
+      document.getElementById('mStatus').textContent = 'playing';
+    } else { M.stop(); document.getElementById('mStatus').textContent = ''; }
+    this.textContent = mPlaying ? '■ STOP' : '▶ PLAY';
+    this.classList.toggle('on', mPlaying);
+  };
+  document.getElementById('mVol').oninput = function () { if (M && M.setVolume) M.setVolume(this.value / 100); };
+  document.getElementById('mTempo').oninput = function () {
+    if (M && M.TEMPO) M.TEMPO.base = +this.value;
+    document.getElementById('mTempoN').textContent = this.value;
+  };
+  document.getElementById('mInt').oninput = function () {
+    var v = this.value / 100;
+    document.getElementById('mIntN').textContent = v.toFixed(2);
+    if (M && M.setIntensity) M.setIntensity(v);
+  };
+  var mScene = 'menu';
+  document.getElementById('mScene').onclick = function () {
+    mScene = mScene === 'menu' ? 'combat' : 'menu';
+    if (M) M.setScene(mScene);
+    this.textContent = 'SCENE: ' + mScene.toUpperCase();
+  };
+  /* The generated bed can be silenced to hear the written loop alone — which
+   * is the only way to tell whether the loop itself is any good. */
+  var bedOn = true;
+  document.getElementById('mBed').onclick = function () {
+    bedOn = !bedOn; this.classList.toggle('on', bedOn);
+    this.textContent = bedOn ? 'ON' : 'OFF';
+    if (!M) return;
+    if (!M._bedSaved) M._bedSaved = { bass: M.VOL.bass, sub: M.VOL.sub, drone: M.VOL.drone, pad: M.VOL.pad, kick: M.VOL.kick, hat: M.VOL.hat, arp: M.VOL.arp };
+    ['bass', 'sub', 'drone', 'pad', 'kick', 'hat', 'arp'].forEach(function (k) {
+      M.VOL[k] = bedOn ? M._bedSaved[k] : 0.0001;
+    });
+  };
+
+  /* ---- saved loops ---------------------------------------------------- */
+  var PKEY = 'voidspire.tracker.lib', TKEY = 'voidspire.tracker.doc';
+  var plib = [];
+  function saveTrk() { try { localStorage.setItem(TKEY, JSON.stringify({ bars: bars, hits: hits })); } catch (e) {} }
+  function renderPList() {
+    var host = document.getElementById('pList');
     host.innerHTML = '';
-    M.PROG.forEach(function (ch, i) {
+    if (!plib.length) { host.innerHTML = '<div class="hint" style="padding:8px">empty — write a loop and save it</div>'; return; }
+    plib.forEach(function (it, i) {
       var row = document.createElement('div');
-      row.className = 'chord';
-      row.innerHTML = '<label>BAR ' + (i + 1) + '</label>';
-      [['bass', null]].concat(ch.chord.map(function (_, k) { return ['chord', k]; }))
-        .forEach(function (spec) {
-          var inp = document.createElement('input');
-          inp.type = 'number'; inp.min = 20; inp.max = 90;
-          inp.value = spec[1] === null ? ch.bass : ch.chord[spec[1]];
-          inp.oninput = function () {
-            var v = Math.max(20, Math.min(90, +inp.value || 0));
-            if (spec[1] === null) ch.bass = v; else ch.chord[spec[1]] = v;
-            emitMus();
-          };
-          row.appendChild(inp);
-        });
+      row.className = 'it';
+      row.innerHTML = '<span class="nm">' + it.name + '</span>';
+      var x = document.createElement('span');
+      x.className = 'x'; x.textContent = '✕';
+      x.onclick = function (ev) {
+        ev.stopPropagation();
+        if (!confirm('Remove "' + it.name + '"?')) return;
+        plib.splice(i, 1); try { localStorage.setItem(PKEY, JSON.stringify(plib)); } catch (e) {}
+        renderPList();
+      };
+      row.appendChild(x);
+      row.onclick = function () {
+        bars = it.bars || 2; steps = bars * 16;
+        document.getElementById('mBars').value = bars;
+        hits = JSON.parse(JSON.stringify(it.hits));
+        selKey = null; pushPattern(); syncHitControls(); drawGrid(); saveTrk();
+      };
       host.appendChild(row);
     });
-    document.getElementById('arp').value = M.ARP.join(',');
+  }
+  document.getElementById('pAdd').onclick = function () {
+    var n = prompt('Name this loop', 'loop ' + (plib.length + 1));
+    if (!n) return;
+    plib.push({ name: n, bars: bars, hits: JSON.parse(JSON.stringify(hits)) });
+    try { localStorage.setItem(PKEY, JSON.stringify(plib)); } catch (e) {}
+    renderPList();
+  };
+  document.getElementById('pExport').onclick = function () {
+    var blob = new Blob([JSON.stringify(plib)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'voidspire-loops.json'; a.click();
+  };
+  document.getElementById('pIn').onchange = function (ev) {
+    var f = ev.target.files && ev.target.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      try { var d = JSON.parse(rd.result); if (!Array.isArray(d)) throw 0;
+        plib = plib.concat(d); localStorage.setItem(PKEY, JSON.stringify(plib)); renderPList(); }
+      catch (e) { alert('That is not a loop file.'); }
+    };
+    rd.readAsText(f);
+  };
+  document.getElementById('musCopy').onclick = function () {
+    var t = document.getElementById('musOut');
+    t.removeAttribute('readonly'); t.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    if (navigator.clipboard) navigator.clipboard.writeText(t.value);
+    t.setAttribute('readonly', '');
+    var b = this, o = b.textContent; b.textContent = 'COPIED';
+    setTimeout(function () { b.textContent = o; }, 900);
+  };
 
-    var mix = document.getElementById('mix');
-    mix.innerHTML = '';
-    LAYERS.forEach(function (k) {
-      if (M.VOL[k] === undefined) return;
-      var row = document.createElement('div');
-      row.className = 'fld';
-      var lab = document.createElement('label'); lab.textContent = k.toUpperCase();
-      var inp = document.createElement('input');
-      inp.type = 'range'; inp.min = 0; inp.max = k === 'bass' || k === 'kick' ? 1 : 0.3;
-      inp.step = 0.002; inp.value = M.VOL[k];
-      var val = document.createElement('span'); val.className = 'v'; val.textContent = (+M.VOL[k]).toFixed(3);
-      inp.oninput = function () { M.VOL[k] = +inp.value; val.textContent = (+inp.value).toFixed(3); emitMus(); };
-      row.appendChild(lab); row.appendChild(inp); row.appendChild(val);
-      mix.appendChild(row);
-    });
-    emitMus();
-  }
-  function emitMus() {
-    if (!M) return;
-    var prog = M.PROG.map(function (c) {
-      return '    { bass: ' + c.bass + ', chord: [' + c.chord.join(', ') + '] },';
-    }).join('\n');
-    var vol = Object.keys(M.VOL).map(function (k) {
-      return k + ': ' + (+M.VOL[k]).toFixed(3).replace(/\.?0+$/, '');
-    }).join(', ');
-    document.getElementById('musOut').value =
-      'var PROG = [\n' + prog + '\n  ];\n'
-      + '  var ARP = [' + M.ARP.join(', ') + '];\n'
-      + '  var TEMPO = { base: ' + M.TEMPO.base + ', climb: ' + M.TEMPO.climb + ' };\n'
-      + '  var VOL = { ' + vol + ' };';
-  }
-  if (M) {
-    document.getElementById('arp').oninput = function () {
-      var v = this.value.split(',').map(function (x) { return Math.max(0, Math.min(2, parseInt(x, 10) || 0)); });
-      if (v.length) { M.ARP.length = 0; v.forEach(function (n) { M.ARP.push(n); }); emitMus(); }
-    };
-    var playing = false;
-    document.getElementById('mPlay').onclick = function () {
-      playing = !playing;
-      if (playing) {
-        // the bed's own user volume defaults to 0.7 and its bus sits at 0.04 —
-        // audible in a game, easy to miss in a tool, so monitor it at full
-        if (M.setVolume) M.setVolume(document.getElementById('mVol').value / 100);
-        M.start(); M.setSector(1);
-      } else M.stop();
-      this.textContent = playing ? '■ STOP' : '▶ START';
-      this.classList.toggle('on', playing);
-    };
-    var scene = 'menu';
-    document.getElementById('mScene').onclick = function () {
-      scene = scene === 'menu' ? 'combat' : 'menu';
-      M.setScene(scene);
-      this.textContent = 'SCENE: ' + scene.toUpperCase();
-    };
-    document.getElementById('mVol').oninput = function () {
-      if (M.setVolume) M.setVolume(this.value / 100);
-    };
-    document.getElementById('mInt').oninput = function () {
-      var v = this.value / 100;
-      document.getElementById('mIntN').textContent = v.toFixed(2);
-      if (M.setIntensity) M.setIntensity(v);
-    };
-    document.getElementById('mTempo').oninput = function () {
-      M.TEMPO.base = +this.value;
-      document.getElementById('mTempoN').textContent = this.value; emitMus();
-    };
-    document.getElementById('mClimb').oninput = function () {
-      M.TEMPO.climb = +this.value;
-      document.getElementById('mClimbN').textContent = this.value; emitMus();
-    };
-    document.getElementById('musCopy').onclick = function () {
-      var t = document.getElementById('musOut');
-      t.removeAttribute('readonly'); t.select();
-      try { document.execCommand('copy'); } catch (e) {}
-      if (navigator.clipboard) navigator.clipboard.writeText(t.value);
-      t.setAttribute('readonly', '');
-      var b = this, o = b.textContent; b.textContent = 'COPIED';
-      setTimeout(function () { b.textContent = o; }, 900);
-    };
-    document.getElementById('musReset').onclick = function () { location.reload(); };
-  }
+  try {
+    plib = JSON.parse(localStorage.getItem(PKEY) || '[]');
+    var td = JSON.parse(localStorage.getItem(TKEY) || 'null');
+    if (td && td.hits) { bars = td.bars || 2; steps = bars * 16; hits = td.hits;
+      document.getElementById('mBars').value = bars; }
+  } catch (e) {}
+  renderPList(); syncHitControls();
+  setInterval(function () { if (mPlaying) drawGrid(); }, 90);
 
   /* ---- tabs ------------------------------------------------------------ */
   function tab(which) {
@@ -916,7 +1118,7 @@
     document.getElementById('paneMus').style.display = which === 'mus' ? '' : 'none';
     document.getElementById('tabSfx').classList.toggle('on', which === 'sfx');
     document.getElementById('tabMus').classList.toggle('on', which === 'mus');
-    if (which === 'mus') renderMusic();
+    if (which === 'mus') drawGrid();          // the tracker paints on arrival
   }
   document.getElementById('tabSfx').onclick = function () { tab('sfx'); };
   document.getElementById('tabMus').onclick = function () { tab('mus'); };

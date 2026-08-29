@@ -107,6 +107,23 @@
     </div>
 
     <div class="box" style="margin-top:10px">
+      <h2>THE WORDS — does it fit?</h2>
+      <div class="bar" style="margin-top:0">
+        <span class="hint">card</span>
+        <select id="txtPick"></select>
+      </div>
+      <div class="fld" style="grid-template-columns:60px 1fr"><label>NAME</label><input type="text" id="tName"></div>
+      <div class="fld" style="grid-template-columns:60px 1fr"><label>COST</label><input type="text" id="tCost"></div>
+      <div class="fld" style="grid-template-columns:60px 1fr"><label>RULES</label><input type="text" id="tDesc"></div>
+      <div class="bar"><button id="tApply" class="sm">APPLY</button><span class="hint" id="fitMsg"></span></div>
+      <p class="hint" style="margin:6px 0 0">
+        Half of card design is finding out that a name wraps to three lines or
+        the rules text overflows. This puts the words on the real card so that
+        happens here rather than in play.
+      </p>
+    </div>
+
+    <div class="box" style="margin-top:10px">
       <h2>THE ART — put a drawing on a card</h2>
       <div class="bar" style="margin-top:0">
         <span class="hint">card</span>
@@ -140,7 +157,7 @@
 <script>
 (function () {
   'use strict';
-  var BUILD = 'build 1';
+  var BUILD = 'build 2';
   var frame = document.getElementById('game');
   var status = document.getElementById('status');
   var zoom = 1;
@@ -171,6 +188,7 @@
       w.VS.ui.refresh();
       status.textContent = n + ' real cards';
       fillCardPick();
+      fillTextPick();
       applyFrame();
       return true;
     } catch (e) { status.textContent = 'could not start: ' + e.message; return false; }
@@ -330,6 +348,64 @@
   }
   document.getElementById('zoomIn').onclick = function () { setZoom(zoom * 1.15); };
   document.getElementById('zoomOut').onclick = function () { setZoom(zoom / 1.15); };
+
+  /* ---- the words ------------------------------------------------------ */
+  function fillTextPick() {
+    var w = win(); if (!w) return;
+    var pick = document.getElementById('txtPick');
+    var cur = pick.value;
+    pick.innerHTML = '';
+    (w.VS.engine.combat ? w.VS.engine.combat.hand : []).forEach(function (cd) {
+      var o = document.createElement('option');
+      o.value = cd.id; o.textContent = (w.VS.CARDS[cd.id] || {}).name || cd.id;
+      pick.appendChild(o);
+    });
+    if (cur) pick.value = cur;
+    loadWords();
+  }
+  function loadWords() {
+    var w = win(); if (!w) return;
+    var id = document.getElementById('txtPick').value;
+    var c = w.VS.CARDS[id]; if (!c) return;
+    document.getElementById('tName').value = c.name || '';
+    document.getElementById('tCost').value = (c.cost == null ? '' : c.cost);
+    document.getElementById('tDesc').value = c.desc || c.text || '';
+  }
+  document.getElementById('txtPick').onchange = loadWords;
+  /* Write straight into the game's card table and re-render. The overflow
+   * check afterwards is the point: a name that wraps or a rules block taller
+   * than its box is invisible in a spreadsheet and obvious here. */
+  document.getElementById('tApply').onclick = function () {
+    var w = win(); if (!w) return;
+    var id = document.getElementById('txtPick').value;
+    var c = w.VS.CARDS[id]; if (!c) return;
+    c.name = document.getElementById('tName').value;
+    var cost = parseInt(document.getElementById('tCost').value, 10);
+    if (!isNaN(cost)) c.cost = cost;
+    var d = document.getElementById('tDesc').value;
+    if ('desc' in c) c.desc = d; else c.text = d;
+    try { w.VS.ui.refresh(); } catch (e) {}
+    setTimeout(checkFit, 120);
+  };
+  function checkFit() {
+    var d = doc(); if (!d) return;
+    var msg = [], id = document.getElementById('txtPick').value;
+    d.querySelectorAll('#hand .card').forEach(function (el) {
+      // the game's own class names, read off js/ui.js — guessing at
+      // `.card-name` matched nothing, so the check silently passed everything
+      var nm = el.querySelector('.cname');
+      var tx = el.querySelector('.cdesc');
+      [[nm, 'the name'], [tx, 'the rules text']].forEach(function (pair) {
+        var e = pair[0]; if (!e) return;
+        if (e.scrollHeight > e.clientHeight + 1 || e.scrollWidth > e.clientWidth + 1) {
+          msg.push(pair[1] + ' overflows');
+        }
+      });
+    });
+    var out = document.getElementById('fitMsg');
+    out.textContent = msg.length ? '⚠ ' + [...new Set(msg)].join(' · ') : 'fits';
+    out.style.color = msg.length ? '#ffb02e' : '#5dff88';
+  }
 
   frame.addEventListener('load', function () {
     var tries = 0;
