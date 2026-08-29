@@ -541,6 +541,7 @@
       </div>
       <div class="bar" id="selBar" style="display:none">
         <span class="hint" id="selCount">nothing selected</span>
+        <button id="tPivot" class="sm">PIVOT</button>
         <button id="tRotL" class="sm">↺ 15°</button>
         <button id="tRotR" class="sm">↻ 15°</button>
         <button id="tBig" class="sm">SCALE +</button>
@@ -549,6 +550,10 @@
         <button id="tDup" class="sm">DUPLICATE</button>
         <button id="tDel" class="sm warn">DELETE</button>
         <button id="selNone" class="sm">CLEAR</button>
+        <span class="sep2"></span>
+        <button id="tRepeat" class="sm go">REPEAT →</button>
+        <input type="number" id="tRepeatN" min="1" max="16" value="4" style="width:52px">
+        <span class="hint" id="repHint">frames, each one step further</span>
       </div>
       <div class="bar"><span class="hint" id="status"></span></div>
     </div>
@@ -830,7 +835,9 @@
    * display and the data that has bitten this tool at every turn, only in the
    * other direction. drawPad still writes the readout and appends this. */
   var statusNote = '';
-  function note(msg) { statusNote = msg || ''; drawPad(); }
+  /* `bad` was being passed by three callers and quietly ignored — a message
+   * meant to read as a refusal read as a result. */
+  function note(msg, bad) { statusNote = (bad ? '\u26a0 ' : '') + (msg || ''); drawPad(); }
 
   /* ------------------------------------------------------------------
    * THE DOCUMENT
@@ -1134,6 +1141,21 @@
       var s = toScreen(p[0], p[1]);
       px.beginPath(); px.arc(s[0], s[1], 6, 0, 7); px.fill();
     });
+    /* THE PIVOT. Drawn wherever it is, not only over a selection: it is the
+     * joint you are working around and it has to be findable before you have
+     * selected the limb that turns on it. */
+    if (pivot && (mode === 'select' || pivotArm)) {
+      var ps = toScreen(pivot[0], pivot[1]);
+      px.save();
+      px.strokeStyle = '#ffb02e'; px.lineWidth = 2;
+      px.beginPath(); px.arc(ps[0], ps[1], 9, 0, 7); px.stroke();
+      px.beginPath();
+      px.moveTo(ps[0] - 16, ps[1]); px.lineTo(ps[0] + 16, ps[1]);
+      px.moveTo(ps[0], ps[1] - 16); px.lineTo(ps[0], ps[1] + 16);
+      px.stroke();
+      px.restore();
+    }
+
     /* THE LIVE SOLID. Drawn solid rather than dashed, because it is a real
      * object you are aiming and not a preview of a gesture — but in a second
      * colour, so it is never mistaken for line work that is already in the
@@ -1449,6 +1471,13 @@
       lineFrom = snapPoint(w); lineTo = lineFrom;
       pad.setPointerCapture(ev.pointerId); return;
     }
+    if (mode === 'select' && pivotArm) {
+      pivot = [w[0], w[1]];
+      pivotArm = false;
+      syncPivotBtn();
+      note('turns now go round ' + pivot[0].toFixed(2) + ', ' + pivot[1].toFixed(2));
+      drawPad(); return;
+    }
     if (mode === 'select') {
       var b = selBounds();
       if (b && w[0] >= b.x0 - 0.04 && w[0] <= b.x1 + 0.04 && w[1] >= b.y0 - 0.04 && w[1] <= b.y1 + 0.04) {
@@ -1498,6 +1527,7 @@
     if (moveFrom) {
       var mw = toWorld(ev.clientX, ev.clientY);
       var dx = mw[0] - moveFrom.w[0], dy = mw[1] - moveFrom.w[1];
+      moveFrom.dx = dx; moveFrom.dy = dy;
       sel.forEach(function (i, k) {
         here().strokes[i].pts = moveFrom.snapshot[k].map(function (p) {
           return [+(p[0] + dx).toFixed(3), +(p[1] + dy).toFixed(3)];
@@ -1523,6 +1553,11 @@
     drawPad();
   });
   pad.addEventListener('pointerup', function () {
+    /* A drag counts as a transform too, so REPEAT can carry on a movement you
+     * made by hand rather than only ones made with a button. */
+    if (moveFrom && (moveFrom.dx || moveFrom.dy)) {
+      markXform({ kind: 'move', dx: moveFrom.dx, dy: moveFrom.dy });
+    }
     panFrom = null; moveFrom = null; erasing = false;
     if (orbitFrom) { orbitFrom = null; drawPad(); return; }
     if (mode === 'solid') {
@@ -2526,8 +2561,34 @@
              x0: Math.min.apply(null, xs), x1: Math.max.apply(null, xs),
              y0: Math.min.apply(null, ys), y1: Math.max.apply(null, ys) };
   }
+  /* ==================================================================
+   * A PIVOT YOU PLACE
+   * ==================================================================
+   * Every transform turned around the centre of the selection's bounding box.
+   * For a stamp that is right; for an ARM it is useless — an arm turns about
+   * the shoulder, and turning it about its own middle swings the top end
+   * backwards and leaves the shoulder behind. Which is why animating a limb
+   * meant deleting it and drawing it again from scratch.
+   *
+   * The pivot is a world point and it OUTLIVES the selection, because the
+   * whole use of it is to turn the same joint over and over.
+   * ================================================================== */
+  var pivot = null, pivotArm = false;
+  function pivotOr(b) { return pivot ? { cx: pivot[0], cy: pivot[1] } : b; }
+  function syncPivotBtn() {
+    var el = document.getElementById('tPivot');
+    el.textContent = pivotArm ? 'TAP THE JOINT' : (pivot ? 'PIVOT ✕' : 'PIVOT');
+    el.classList.toggle('on', pivotArm || !!pivot);
+  }
+  document.getElementById('tPivot').onclick = function () {
+    if (pivotArm) { pivotArm = false; note('pivot not moved'); }
+    else if (pivot) { pivot = null; note('pivot cleared — turns go round the middle again'); }
+    else { pivotArm = true; note('tap the point to turn around — a shoulder, a hinge'); }
+    syncPivotBtn(); drawPad();
+  };
+
   function applySel(fn) {
-    var b = selBounds(); if (!b) return;
+    var b = pivotOr(selBounds()); if (!b) return;
     pushHistory();
     sel.forEach(function (i) {
       var L = here().strokes[i]; if (!L) return;
@@ -2538,12 +2599,89 @@
     });
     drawPad();
   }
-  function rot(d) { var c = Math.cos(d), s2 = Math.sin(d); applySel(function (x, y) { return [x * c - y * s2, x * s2 + y * c]; }); }
+  /* WHAT WAS DONE LAST, so REPEAT can do it again. The pivot is captured at
+   * the time rather than read later: move the pivot afterwards and the frames
+   * already made should not change their minds about where they turned. */
+  var lastXform = null;
+  function setRepHint(s) {
+    var h = document.getElementById('repHint');
+    if (h) h.textContent = s;
+  }
+  function resetRepHint() { setRepHint('frames, each one step further'); }
+  function markXform(x) {
+    var b = pivotOr(selBounds());
+    if (b && x.kind !== 'move') { x.px = b.cx; x.py = b.cy; }
+    lastXform = x;
+    setRepHint(x.kind === 'move' ? 'frames, each moved further'
+      : x.kind === 'rot' ? 'frames, each turned further'
+      : 'frames, each scaled further');
+  }
+  function rot(d) {
+    var c = Math.cos(d), s2 = Math.sin(d);
+    applySel(function (x, y) { return [x * c - y * s2, x * s2 + y * c]; });
+    markXform({ kind: 'rot', a: d });
+  }
   document.getElementById('tRotL').onclick = function () { rot(-Math.PI / 12); };
   document.getElementById('tRotR').onclick = function () { rot(Math.PI / 12); };
-  document.getElementById('tBig').onclick = function () { applySel(function (x, y) { return [x * 1.1, y * 1.1]; }); };
-  document.getElementById('tSmall').onclick = function () { applySel(function (x, y) { return [x / 1.1, y / 1.1]; }); };
+  document.getElementById('tBig').onclick = function () {
+    applySel(function (x, y) { return [x * 1.1, y * 1.1]; }); markXform({ kind: 'scale', k: 1.1 });
+  };
+  document.getElementById('tSmall').onclick = function () {
+    applySel(function (x, y) { return [x / 1.1, y / 1.1]; }); markXform({ kind: 'scale', k: 1 / 1.1 });
+  };
+  /* FLIP is deliberately not recorded. Repeating it just alternates, which is
+   * a blink rather than a motion, and offering it as "each one step further"
+   * would be a lie about what the button does. */
   document.getElementById('tFlip').onclick = function () { applySel(function (x, y) { return [-x, y]; }); };
+  /* ==================================================================
+   * REPEAT — do that again, across new frames
+   * ==================================================================
+   * Move the arm once, by hand, then say how many frames. Each new frame is a
+   * CLONE OF THE WHOLE FRAME with the transform applied one step further to
+   * the selected strokes only — so the body stays exactly where it is and the
+   * arm walks round the joint.
+   *
+   * The clone keeps stroke order, which matters more than it looks: TWEEN
+   * pairs strokes BY INDEX, so a frame built this way still tweens against
+   * its neighbours. Deleting the arm and drawing it again — which is what this
+   * replaces — sends it to the end of the list and breaks that pairing, which
+   * is why tweening a hand-redrawn animation produces a body melting into an
+   * arm.
+   * ================================================================== */
+  function xformPoint(xf, p, k) {
+    if (xf.kind === 'move') return [p[0] + xf.dx * k, p[1] + xf.dy * k];
+    var s = (xf.kind === 'scale') ? Math.pow(xf.k, k) : 1;
+    var x = (p[0] - xf.px) * s, y = (p[1] - xf.py) * s;
+    if (xf.kind === 'rot') {
+      var a = xf.a * k, c = Math.cos(a), sn = Math.sin(a);
+      var tx = x * c - y * sn; y = x * sn + y * c; x = tx;
+    }
+    return [xf.px + x, xf.py + y];
+  }
+  document.getElementById('tRepeat').onclick = function () {
+    if (!sel.length) return note('select the part that moves first', true);
+    if (!lastXform) return note('turn it, drag it or scale it once — REPEAT does that again', true);
+    var n = Math.max(1, Math.min(16, +document.getElementById('tRepeatN').value || 4));
+    pushHistory();
+    var made = [];
+    for (var k = 1; k <= n; k++) {
+      var fr = clone(doc.frames[fi]);
+      var strokes = fr.cells[li].strokes;
+      sel.forEach(function (i) {
+        var L = strokes[i];
+        if (!L) return;
+        L.pts = L.pts.map(function (p) {
+          var q = xformPoint(lastXform, p, k);
+          return [+q[0].toFixed(3), +q[1].toFixed(3)];
+        });
+      });
+      made.push(fr);
+    }
+    doc.frames.splice.apply(doc.frames, [fi + 1, 0].concat(made));
+    renderFrames(); drawPad();
+    note('made ' + n + ' frames, each one step further — press ▶ PLAY to see it');
+  };
+
   document.getElementById('tDup').onclick = function () {
     pushHistory();
     var copies = sel.map(function (i) { return JSON.parse(JSON.stringify(here().strokes[i])); });
@@ -3855,6 +3993,12 @@
     cur = []; curUndone.length = 0; sel = [];
     drag = null; freeing = null; shapeFrom = shapeTo = null; orbitFrom = null;
     lineFrom = lineTo = null; marquee = null;
+    /* The pivot is a point in A DRAWING — the robot's shoulder is nowhere in
+     * particular in the next tab along — and the transform REPEAT would carry
+     * on was made over there. Both go, or REPEAT in a drawing you have not
+     * touched yet would build frames out of a movement from another one. */
+    pivot = null; pivotArm = false; lastXform = null;
+    syncPivotBtn(); resetRepHint();
     /* And the last thing that happened happened somewhere else. "placed icosa
      * — 18 lines" reading out over a drawing with no icosa in it is the same
      * display-disagrees-with-data problem as ever, just carried sideways. */
@@ -4296,7 +4440,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 25';
+  document.getElementById('ver').textContent = 'build 26';
 
   paintThumbs();
   applyView(viewMode);

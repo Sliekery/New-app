@@ -97,9 +97,10 @@ The hooks are always present; only the panel is behind the flag.
     node test/export.js        every export format, saved and then opened
     node test/tabs.js          several drawings open at once, and their seams
     node test/grid.js          snapping, and whether it makes the shape you meant
+    node test/rig.js           PIVOT and REPEAT — a limb that swings, not redrawn
     node test/_shell.js        all five tools: no page scroll, no pinch zoom
 
-The last ten need the tools served: `python3 -m http.server 8944` from
+The last eleven need the tools served: `python3 -m http.server 8944` from
 `voidspire/`.
 
 `artist.js` and `sampler.js` exist because of one repeated failure, not a
@@ -437,6 +438,55 @@ A test note: **detect canvas marks against the BACKGROUND, not an absolute
 threshold.** The pad's ground is rgb(10,16,20), so a "brighter than 12" test
 counted every pixel in the row as lit and the grid-line count came back as 1
 every time. The commonest value in a row is the background by definition.
+
+## Animating a limb without redrawing it
+
+The report: "when animating we are removing some lines and redrawing them in a
+different position — I wanna make the arms go up and down." Two additions, and
+they only pay off together.
+
+**PIVOT** places a joint. Turning a selection about its own middle is the wrong
+motion for a limb: an arm's centre is halfway down it, not at the shoulder, so
+the top end swings backwards and the shoulder walks away from the body. Drop a
+pivot on the shoulder and the shoulder is the one point that does not move.
+The pivot is a world point and it **outlives the selection**, because the whole
+use of it is turning the same joint over and over.
+
+**REPEAT** does the last movement again across N new frames. Each frame is a
+clone of the whole frame with the transform applied one step further to the
+selected strokes only, so the body stays exactly where it is and the arm walks
+round the joint. Turns, scales and hand-drags all count as a movement; FLIP
+deliberately does not, because repeating it just alternates — a blink, not a
+motion, and "each one step further" would be a lie about that button.
+
+**The stroke order is the reason to generate rather than redraw.** TWEEN pairs
+strokes BY INDEX. Deleting an arm and drawing it again sends it to the end of
+the list, so a hand-redrawn animation tweens a body into an arm. A cloned frame
+keeps every index, so it still tweens against its neighbours.
+
+Two things that had to be got right:
+
+- **The transform captures its pivot at the time it is made**, not when REPEAT
+  reads it. Move the pivot afterwards and the frames already made should not
+  change their minds about where they turned.
+- **The pivot and the last movement belong to a drawing, not to the tool.** A
+  shoulder is a point in a picture; carried into the next tab it sits in the
+  middle of nothing, and a REPEAT there would build frames out of a movement
+  made in a drawing you are no longer looking at. Both are dropped in
+  `adoptTab`, alongside the stroke in hand and the marquee.
+
+`test/rig.js` asserts the GEOMETRY rather than the buttons, because a rotation
+about a pivot has two signatures nothing else can stand in for: the point on
+the pivot does not move at all, and every other point keeps its distance from
+it. It also checks that the body is byte-identical across all generated frames
+and that every frame keeps the same stroke count in the same order.
+
+A test-writing note: **the pad is not square, and the world is stretched to its
+aspect**, so the two axes have different scales and "the middle of the arm" is
+not a screen fraction that can be guessed. Grabbing it by eye missed the
+selection entirely and read as the drag doing nothing. Fit screen-to-world from
+points the tool actually drew — their fractions and their exported coordinates
+are both known.
 
 ## Verifying UI work
 
