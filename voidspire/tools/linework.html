@@ -142,6 +142,23 @@
   .tabbar .tab .tx:hover { opacity: 1; color: var(--red); }
   @media (pointer: coarse) { .tabbar .tab { min-height: 40px; padding: 5px 10px; } }
 
+  /* How coarse the grid is. Four numbers rather than a slider: these are the
+     only four anybody wants, and a slider you have to aim at to choose how
+     accurately you can aim is its own joke. */
+  /* TWO BY TWO, not four across. The rail is 74px wide and the 24px WCAG floor
+     is a floor: four buttons in a row cannot each clear it, and the version
+     that tried had min-width:0 on them to make them fit — which is just
+     opting out of the rule. */
+  .steps { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; width: 100%; }
+  .steps button { padding: 5px 0; font-size: 9px; }
+  /* And the chosen step is a SETTING, so it gets the quiet outline the snap
+     switches get. Filled, it was a second thing in the rail shouting as loudly
+     as the tool you are holding. */
+  .gstep.on {
+    background: transparent; border-color: rgba(93,255,136,0.5);
+    color: rgba(93,255,136,0.85);
+  }
+
   .sldgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 3px; }
   .sldgrid.wide { grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); }
   .sldgrid button {
@@ -420,7 +437,14 @@
     <div class="sep"></div>
     <div class="grp">SNAP</div>
     <button id="bMirror" class="tgl" title="Draw one half, get the other">MIRROR</button>
-    <button id="bSnap" class="tgl" title="Snap to the 0.02 grid">GRID</button>
+    <button id="bSnap" class="tgl" title="Land every point on the grid">GRID</button>
+    <div id="gridSteps" class="steps">
+      <button class="sm gstep" data-step="0.2">·2</button>
+      <button class="sm gstep" data-step="0.1">·1</button>
+      <button class="sm gstep" data-step="0.05">05</button>
+      <button class="sm gstep" data-step="0.02">02</button>
+    </div>
+    <button id="bAngle" class="tgl" title="Straight lines only — 0, 45 and 90 degrees (or hold SHIFT)">ANGLE</button>
     <button id="bMag" class="tgl" title="Snap to nearby existing points">POINTS</button>
     <button id="bGrid" class="tgl" title="Show the grid">SHOW</button>
     <div class="sep"></div>
@@ -915,10 +939,55 @@
   function cell(f, l) { return doc.frames[f].cells[l]; }
   function here() { return cell(fi, li); }
 
+  /* ==================================================================
+   * ONE GRID
+   * ==================================================================
+   * The grid you could SEE and the grid you SNAPPED TO were different grids.
+   * Points snapped to a fixed 0.02 while the painted lines stepped with the
+   * zoom — 0.2 at the default view — so there were ten invisible sub-steps
+   * between every line you were aiming at. You would put both ends of a
+   * horizontal line on what looked like the same row and they would land on
+   * adjacent sub-rows, and the line would come out very slightly sloped. That
+   * reads as a shaky hand and is nothing of the kind.
+   *
+   * There is one step now, it is the one that gets drawn, and it is yours to
+   * pick. 0.02 is a hundred divisions across the box: correct for detail and
+   * far too fine to aim at while blocking a shape out.
+   * ================================================================== */
+  var GRID_KEY = 'voidspire.artist.grid';
+  var gridStep = 0.05, angleLock = false;
+  try {
+    var gsv = JSON.parse(localStorage.getItem(GRID_KEY) || 'null');
+    if (gsv) { gridStep = gsv.step || gridStep; angleLock = !!gsv.angle; }
+  } catch (e) {}
+  function saveGrid() {
+    try { localStorage.setItem(GRID_KEY, JSON.stringify({ step: gridStep, angle: angleLock })); }
+    catch (e) {}
+  }
+  function onGrid(v) { return +(Math.round(v / gridStep) * gridStep).toFixed(4); }
+
   function toWorld(cx, cy) {
     var w = rawWorld(cx, cy), x = w[0], y = w[1];
-    if (snap) { x = Math.round(x / 0.02) * 0.02; y = Math.round(y / 0.02) * 0.02; }
+    if (snap) { x = onGrid(x); y = onGrid(y); }
     return [+x.toFixed(3), +y.toFixed(3)];
+  }
+
+  /* STRAIGHT MEANS STRAIGHT. Even on a shared grid, a long line's two ends can
+   * land a step apart and come out a degree off. Locking to the nearest
+   * eighth-turn and rounding the length to a whole number of steps puts both
+   * ends on the grid AND on the axis — which is the only way a rectangle comes
+   * out square by hand. Shift does it for one line without leaving the
+   * toggle on. */
+  function angleSnap(from, to, shift) {
+    if (!(angleLock || shift) || !from) return to;
+    var dx = to[0] - from[0], dy = to[1] - from[1];
+    if (!dx && !dy) return to;
+    var k = Math.round(Math.atan2(dy, dx) / (Math.PI / 4));
+    var ux = Math.round(Math.cos(k * Math.PI / 4));
+    var uy = Math.round(Math.sin(k * Math.PI / 4));
+    var len = Math.max(Math.abs(dx), Math.abs(dy));
+    if (snap) len = Math.round(len / gridStep) * gridStep;
+    return [+(from[0] + ux * len).toFixed(3), +(from[1] + uy * len).toFixed(3)];
   }
   function toScreen(x, y) {
     var h = half();
@@ -976,18 +1045,34 @@
       px.strokeStyle = 'rgba(120,150,165,0.12)'; px.lineWidth = 1;
       // step with the zoom, or a magnified view draws three lines and a
       // shrunken one draws a thousand
+      /* EXACTLY THE STEP THAT IS SNAPPED TO — the whole point. Every fifth
+       * line is brighter, the way graph paper is ruled, because a hundred
+       * identical lines is a texture rather than something you can count
+       * along. If the step would come out under three pixels the fine lines
+       * are dropped and only the fifths are drawn: at that density they are
+       * noise, and you are zoomed too far out to be aiming at one anyway. */
       var h0 = half();
-      var gs = h0 > 1.0 ? 0.2 : h0 > 0.5 ? 0.1 : h0 > 0.25 ? 0.05 : 0.02;
+      var gs = gridStep;
+      var px5 = (gs / h0) * (pad.width / 2);      // one step, in device pixels
       var lo = Math.ceil((view.cx - h0) / gs) * gs, hi = view.cx + h0;
       var lo2 = Math.ceil((view.cy - h0) / gs) * gs, hi2 = view.cy + h0;
-      for (var gx = lo; gx <= hi; gx += gs) {
+      var n0 = Math.round(lo / gs), m0 = Math.round(lo2 / gs), k = 0;
+      for (var gx = lo; gx <= hi; gx += gs, k++) {
+        var major = ((n0 + k) % 5) === 0;
+        if (!major && px5 < 3) continue;
+        px.strokeStyle = major ? 'rgba(120,150,165,0.26)' : 'rgba(120,150,165,0.10)';
         var a0 = toScreen(gx, view.cy - h0), b0 = toScreen(gx, view.cy + h0);
         px.beginPath(); px.moveTo(a0[0], a0[1]); px.lineTo(b0[0], b0[1]); px.stroke();
       }
-      for (var gy = lo2; gy <= hi2; gy += gs) {
+      k = 0;
+      for (var gy = lo2; gy <= hi2; gy += gs, k++) {
+        var major2 = ((m0 + k) % 5) === 0;
+        if (!major2 && px5 < 3) continue;
+        px.strokeStyle = major2 ? 'rgba(120,150,165,0.26)' : 'rgba(120,150,165,0.10)';
         var c0 = toScreen(view.cx - h0, gy), d0 = toScreen(view.cx + h0, gy);
         px.beginPath(); px.moveTo(c0[0], c0[1]); px.lineTo(d0[0], d0[1]); px.stroke();
       }
+      px.strokeStyle = 'rgba(120,150,165,0.12)';
       for (var g = -1.2; g <= 1.21; g += 999) {
         var a = toScreen(g, -VIEW), b = toScreen(g, VIEW);
         px.beginPath(); px.moveTo(a[0], a[1]); px.lineTo(b[0], b[1]); px.stroke();
@@ -1136,6 +1221,8 @@
        * through a rotation is not symmetric and the sci-fi shapes are placed
        * where you put them, so neither is mirrored — but simply dropping the
        * tag made it look as though MIRROR had switched itself off. */
+      + (snap ? ' · grid ' + gridStep : ' · FREEHAND')
+      + (angleLock ? ' · STRAIGHT' : '')
       + (mirror ? (unmirrored() ? ' · MIRROR NOT USED HERE' : ' · MIRRORED') : '')
       + (view.z !== 1 ? ' · ' + view.z.toFixed(1) + '×' : '')
       + (statusNote ? '  ·  ' + statusNote : '');
@@ -1377,7 +1464,9 @@
       pad.setPointerCapture(ev.pointerId);
       return;
     }
-    cur.push(snapPoint(w)); curUndone.length = 0; drawPad();
+    cur.push(cur.length ? angleSnap(cur[cur.length - 1], snapPoint(w), ev.shiftKey)
+                        : snapPoint(w));
+    curUndone.length = 0; drawPad();
   });
   pad.addEventListener('pointermove', function (ev) {
     if (mode === 'erase') { lastPointer = toWorld(ev.clientX, ev.clientY); if (!erasing) drawPad(); }
@@ -1401,7 +1490,10 @@
       if (mode === 'solid') lastSolidBox = solidBoxAround(shapeFrom, shapeTo);
       drawPad(); return;
     }
-    if (lineFrom) { lineTo = snapPoint(toWorld(ev.clientX, ev.clientY)); drawPad(); return; }
+    if (lineFrom) {
+      lineTo = angleSnap(lineFrom, snapPoint(toWorld(ev.clientX, ev.clientY)), ev.shiftKey);
+      drawPad(); return;
+    }
     if (marquee) { marquee.b = toWorld(ev.clientX, ev.clientY); drawPad(); return; }
     if (moveFrom) {
       var mw = toWorld(ev.clientX, ev.clientY);
@@ -1468,7 +1560,7 @@
     if (freeing) {
       var pts = rdp(freeing, smoothing / 1000);
       if (snap) pts = pts.map(function (p) {
-        return [+(Math.round(p[0] / 0.02) * 0.02).toFixed(3), +(Math.round(p[1] / 0.02) * 0.02).toFixed(3)];
+        return [+onGrid(p[0]).toFixed(3), +onGrid(p[1]).toFixed(3)];
       });
       else pts = pts.map(function (p) { return [+p[0].toFixed(3), +p[1].toFixed(3)]; });
       if (pts.length > 1) { pushHistory(); here().strokes.push({ pts: pts, m: mirror }); }
@@ -1506,6 +1598,21 @@
   modeBtn('mSolid', 'solid');
   modeBtn('mErase', 'erase');
   toggle('bMag', function () { return magnet; }, function (v) { magnet = v; });
+  toggle('bAngle', function () { return angleLock; },
+    function (v) { angleLock = v; saveGrid(); });
+  document.querySelectorAll('.gstep').forEach(function (b) {
+    b.onclick = function () {
+      gridStep = +b.getAttribute('data-step');
+      document.querySelectorAll('.gstep').forEach(function (o) {
+        o.classList.toggle('on', +o.getAttribute('data-step') === gridStep);
+      });
+      saveGrid(); drawPad();
+      note('grid step ' + gridStep + ' — ' + Math.round(2 / gridStep) + ' divisions across');
+    };
+  });
+  document.querySelectorAll('.gstep').forEach(function (o) {
+    o.classList.toggle('on', +o.getAttribute('data-step') === gridStep);
+  });
 
   /* PANNING FROM ANY TOOL. A dedicated mode is a mode you have to leave and
    * come back to; holding space or dragging with the middle button works
@@ -4189,7 +4296,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 24';
+  document.getElementById('ver').textContent = 'build 25';
 
   paintThumbs();
   applyView(viewMode);
