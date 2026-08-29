@@ -96,9 +96,10 @@ The hooks are always present; only the panel is behind the flag.
     node test/ux.js            the layout budget: canvas share, targets, prose
     node test/export.js        every export format, saved and then opened
     node test/tabs.js          several drawings open at once, and their seams
+    node test/grid.js          snapping, and whether it makes the shape you meant
     node test/_shell.js        all five tools: no page scroll, no pinch zoom
 
-The last nine need the tools served: `python3 -m http.server 8944` from
+The last ten need the tools served: `python3 -m http.server 8944` from
 `voidspire/`.
 
 `artist.js` and `sampler.js` exist because of one repeated failure, not a
@@ -403,6 +404,39 @@ that fits in localStorage and one that throws.
 canvas fell to 23% against a 24% floor. Paid for rather than waved through: the
 frame strip's heading is hidden while it is tucked, since the row under it
 already says "one frame — a still drawing".
+
+## The grid you see is the grid you snap to
+
+A rectangle drawn with GRID on came out with a visibly sloping bottom edge, and
+it was not a shaky hand: **the grid that was painted and the grid that was
+snapped to were two different grids.** Points went to a fixed 0.02 while the
+painted lines stepped with the zoom — 0.2 at the default view — so there were
+ten invisible sub-steps between the lines you were aiming at, and the two ends
+of one line could land on adjacent ones.
+
+One step now, it is the one that gets drawn, and it is chooseable: 0.2, 0.1,
+0.05 or 0.02. Every fifth line is brighter, the way graph paper is ruled,
+because a hundred identical lines is a texture rather than something you can
+count along. Under three pixels a step, the fine lines are dropped and only the
+fifths drawn — at that density they are noise and you are too far out to be
+aiming at one.
+
+**ANGLE** locks a straight line to 0/45/90 and rounds its length to a whole
+number of steps, so both ends land on the grid AND on the axis. Shift does it
+for one line without leaving the toggle on. Even on a shared grid a long line's
+ends can land a step apart; this is the only way a rectangle comes out square
+by hand.
+
+Two things `test/ux.js` caught in this change within a minute of writing it:
+the four step buttons had `min-width: 0` so they could fit four across a 74px
+rail, which is simply opting out of the 24px floor — two by two clears it. And
+the chosen step was styled `on`, i.e. filled, so it shouted as loudly as the
+tool in your hand; a setting gets the quiet outline.
+
+A test note: **detect canvas marks against the BACKGROUND, not an absolute
+threshold.** The pad's ground is rgb(10,16,20), so a "brighter than 12" test
+counted every pixel in the row as lit and the grid-line count came back as 1
+every time. The commonest value in a row is the background by definition.
 
 ## Verifying UI work
 
