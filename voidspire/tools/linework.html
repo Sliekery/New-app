@@ -106,6 +106,16 @@
   button.on { border-color: var(--green); background: rgba(93,255,136,0.16); color: var(--green); }
   button.warn:hover { border-color: var(--red); color: var(--red); }
   button.sm { padding: 5px 6px; font-size: 9px; }
+  /* THE ONE BUTTON IN A BAR THAT DOES THE THING. PLACE IT and BIG VIEW were
+     both given this class when they were written and it was never defined, so
+     they rendered identical to every other grey button beside them — present,
+     and invisible as an affordance. "Where is make bigger?" was asked of a
+     screenshot with BIG VIEW in it. */
+  button.go {
+    border-color: var(--green); color: var(--green);
+    background: rgba(93,255,136,0.12);
+  }
+  button.go:hover { background: rgba(93,255,136,0.22); border-color: var(--green); }
   button.big { padding: 11px 15px; font-size: 12px; border-color: var(--green); color: var(--green); }
   button.big:hover { background: rgba(93,255,136,0.15); }
   button.big:disabled { opacity: .3; cursor: default; border-color: var(--line); color: var(--dim); }
@@ -440,11 +450,13 @@
     <div class="box">
       <h2>LIVE PREVIEW — the game's own draw call</h2>
       <div class="bar" style="margin:0 0 6px">
+        <button id="pvBig" class="sm go">⛶ SEE IT BIG</button>
         <button id="pvFig" class="sm on">FIGURE</button>
         <button id="pvFrame" class="sm">FRAME</button>
         <span class="hint">a frame is drawn as ONE CORNER</span>
       </div>
-      <canvas id="preview" width="640" height="330"></canvas>
+      <canvas id="preview" width="640" height="330" style="cursor:zoom-in"
+              title="Click to watch it full screen"></canvas>
       <div class="row" style="margin-top:7px">
         <span class="hint">glow</span>
         <span class="swatch on" data-col="#5dff88" style="background:#5dff88"></span>
@@ -2558,7 +2570,14 @@
     if (playing) stopPlay();
     drawPad();
   }
+  /* THREE WAYS IN, because the first one was missed. The button in the FRAMES
+   * bar is where the other animation controls are; the one on the preview
+   * panel is where your eye already is while the animation plays; and the
+   * preview itself opens on a click, because a small picture of a thing you
+   * want to see bigger is the most obvious thing in the room to click. */
   document.getElementById('fBig').onclick = openTheatre;
+  document.getElementById('pvBig').onclick = openTheatre;
+  pv.addEventListener('click', openTheatre);
   document.getElementById('thClose').onclick = closeTheatre;
   th.addEventListener('click', function (ev) {
     // clicking the backdrop closes; clicking the picture or the controls does not
@@ -3064,7 +3083,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 20';
+  document.getElementById('ver').textContent = 'build 21';
 
   paintThumbs();
   libLoad(); renderLib(); renderAssets();

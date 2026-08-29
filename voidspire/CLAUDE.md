@@ -231,6 +231,17 @@ Three things worth keeping:
   copy: the row exists to answer whether the art reads at a size, and it
   cannot answer that about a picture with its feet cut off.
 
+**A class you use and never define fails silently.** `PLACE IT` and
+`⛶ BIG VIEW` were both written with `class="sm go"` and there was no `.go`
+rule, so they rendered identical to the six grey buttons beside them — present,
+and invisible as an affordance. "Where is make bigger?" was asked of a
+screenshot with BIG VIEW in it. Nothing warns about this: CSS drops selectors
+it does not recognise and unknown classes are simply inert. When a control is
+meant to stand out, assert its computed colour — and assert it on the element
+itself, not by comparing with a neighbour, since a neighbour the test just
+clicked carries hover and focus styling and the comparison then measures the
+mouse.
+
 A testing note that cost half an hour: **sample a playing animation until it
 moves, not once after a fixed wait.** Reading the frame counter twice 700ms
 apart at 8fps over a 3-frame loop lands on the same frame both times, and

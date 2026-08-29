@@ -289,6 +289,28 @@ function ok(name, cond, detail) {
   const nFrames = await p.$$eval('#frameList > *', e => e.length);
   ok('there are frames to play', nFrames >= 3, nFrames + ' frames');
 
+  /* THREE WAYS IN, all checked. The first version had one, styled with a class
+   * that was never defined, so it looked exactly like the six grey buttons
+   * beside it — and got missed. */
+  /* Assert the accent on the button itself rather than by comparing it with a
+   * neighbour: a neighbour the test has just clicked carries hover and focus
+   * styling of its own, so the comparison measures the mouse. */
+  const accent = 'rgb(93, 255, 136)';
+  const paint = sel => p.$eval(sel, el => {
+    const c = getComputedStyle(el);
+    return c.borderColor + ' / ' + c.color;
+  });
+  ok('the FRAMES bar button is accented, not another grey one',
+    (await paint('#fBig')) === accent + ' / ' + accent, await paint('#fBig'));
+  ok('and so is PLACE IT on the solid tool',
+    (await paint('#sPlace')) === accent + ' / ' + accent, await paint('#sPlace'));
+  await p.click('#pvBig'); await p.waitForTimeout(300);
+  ok('the preview panel button opens it', await p.isVisible('#theatre'));
+  await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+  await p.click('#preview'); await p.waitForTimeout(300);
+  ok('and so does clicking the preview itself', await p.isVisible('#theatre'));
+  await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+
   await p.click('#fBig'); await p.waitForTimeout(300);
   ok('it opens', await p.isVisible('#theatre'));
   const size = await p.$eval('#thCanvas', c => {
