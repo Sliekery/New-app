@@ -1789,13 +1789,25 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 14';
+  document.getElementById('ver').textContent = 'build 15';
 
   libLoad(); renderLib(); renderAssets();
   var restored = loadAutosave();
   syncHistBtns();
   renderLayers(); renderFrames(); drawPad();
   if (restored) status.textContent = 'restored your last drawing';
+  /* What this tool is currently making, for the handoff button. Each tool
+   * answers the same three questions — what it is, which file it belongs in,
+   * and the payload — so one shared button can hand any of them over. */
+  window.VS_HANDOFF = function () {
+    var frames = doc.frames.length;
+    return {
+      what: frames > 1 ? ('animated art, ' + frames + ' frames at ' + doc.fps + ' fps') : 'a piece of art',
+      target: 'js/enemies.js (an enemy), js/dice.js (an engraving), js/cardart.js (a card icon), or js/uiart.js (a UI slot)',
+      body: document.getElementById('out').value,
+      empty: !/\[\[/.test(document.getElementById('out').value),
+    };
+  };
 })();
 </script>
 
@@ -1852,10 +1864,43 @@
     };
     rd.readAsText(file);
   }
+  /* ==================================================================
+   * HAND OFF — one action that produces something worth pasting to me
+   * ==================================================================
+   * Every tool already produced a code block, but handing one over meant
+   * copying it out of a textarea and then explaining what it was and which
+   * file it belonged in. This wraps the same payload in the answers to those
+   * questions — what it is, where it goes, which tool and build made it — so
+   * a creation arrives ready to act on rather than ready to be interrogated.
+   *
+   * It copies AND downloads: small things paste straight into a message, and
+   * a long one is a file you can keep or send.
+   * ================================================================== */
+  function handoff() {
+    var d = null;
+    try { d = window.VS_HANDOFF && window.VS_HANDOFF(); } catch (e) {}
+    if (!d) { alert('This tool has nothing to hand over yet.'); return null; }
+    if (d.empty) {
+      if (!confirm('There does not seem to be anything made yet.\n\nHand it over anyway?')) return null;
+    }
+    var ver = (document.getElementById('ver') || {}).textContent || '';
+    var title = (document.title || 'VOIDSPIRE').replace('VOIDSPIRE · ', '');
+    return '=== VOIDSPIRE HANDOFF ===\n'
+      + 'from: the ' + title.toLowerCase() + ' tool (' + ver + ')\n'
+      + 'made: ' + new Date().toISOString().slice(0, 16).replace('T', ' ') + '\n'
+      + 'what: ' + d.what + '\n'
+      + 'goes in: ' + d.target + '\n'
+      + '\n' + d.body + '\n'
+      + '=== END ===';
+  }
+
   var bar = document.createElement('div');
   bar.style.cssText = 'position:fixed;right:10px;top:8px;z-index:9999;display:flex;gap:5px;';
   bar.innerHTML =
-    '<button id="vsBackup" style="background:rgba(10,16,20,.95);border:1px solid rgba(120,150,165,.35);'
+    '<button id="vsHandoff" style="background:rgba(93,255,136,.14);border:1px solid rgba(93,255,136,.5);'
+    + 'border-radius:3px;color:#5dff88;font:700 9px/1 ui-monospace,monospace;letter-spacing:.07em;'
+    + 'padding:6px 8px;cursor:pointer" title="Copy this creation with a note saying what it is and where it goes">HAND OFF</button>'
+    + '<button id="vsBackup" style="background:rgba(10,16,20,.95);border:1px solid rgba(120,150,165,.35);'
     + 'border-radius:3px;color:#8fa79a;font:700 9px/1 ui-monospace,monospace;letter-spacing:.07em;'
     + 'padding:6px 7px;cursor:pointer" title="Download everything this browser has saved, from all five tools">BACKUP ALL</button>'
     + '<label style="background:rgba(10,16,20,.95);border:1px solid rgba(120,150,165,.35);'
@@ -1863,10 +1908,29 @@
     + 'padding:6px 7px;cursor:pointer" title="Load a backup made on another device">RESTORE'
     + '<input type="file" id="vsRestore" accept="application/json" hidden></label>';
   document.body.appendChild(bar);
+  document.getElementById('vsHandoff').onclick = function () {
+    var txt = handoff(); if (!txt) return;
+    var ta = document.createElement('textarea');
+    ta.value = txt; ta.style.cssText = 'position:fixed;left:-9999px';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    if (navigator.clipboard) navigator.clipboard.writeText(txt);
+    document.body.removeChild(ta);
+    // and a file, for anything too long to paste comfortably
+    var blob = new Blob([txt], { type: 'text/plain' });
+    var a2 = document.createElement('a');
+    a2.href = URL.createObjectURL(blob);
+    a2.download = 'voidspire-handoff-' + new Date().toISOString().slice(0, 10) + '.txt';
+    a2.click();
+    var b2 = this, o2 = b2.textContent;
+    b2.textContent = 'COPIED + SAVED';
+    setTimeout(function () { b2.textContent = o2; }, 1400);
+  };
   document.getElementById('vsBackup').onclick = backup;
   document.getElementById('vsRestore').onchange = function (ev) {
     if (ev.target.files && ev.target.files[0]) restore(ev.target.files[0]);
   };
+
 })();
 </script>
 </body>
