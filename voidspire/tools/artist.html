@@ -623,6 +623,13 @@
     drawPreview();
     emit();
     autosave();
+    /* THE BUTTON HAS TO TRACK THE STROKE IN HAND, not only the history.
+     * syncHistBtns ran from pushHistory/undo/redo alone, so in PATH mode —
+     * the default — tapping points filled `cur` without ever re-enabling
+     * UNDO. There were three points on screen and a greyed-out, unclickable
+     * button: undo appeared simply not to work, which is exactly how it was
+     * reported. drawPad runs on every change, so it is the right place. */
+    syncHistBtns();
   }
   function strokeIt(p) {
     px.beginPath();
@@ -1627,7 +1634,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 10';
+  document.getElementById('ver').textContent = 'build 11';
 
   libLoad(); renderLib(); renderAssets();
   var restored = loadAutosave();
