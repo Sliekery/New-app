@@ -33,8 +33,77 @@
    * own controls. A rail is where every drawing program puts them and where
    * the hand goes looking. Below 1000px it lies back down as a strip above
    * the canvas, because a phone has no margin to spare. */
-  .wrap { display: grid; gap: 11px; grid-template-columns: 1fr; max-width: 1700px; margin: 0 auto; }
+  /* width:100% matters more than it looks. .wrap is a flex item of the body
+     with margin:0 auto, and an auto cross-axis margin makes a flex item size
+     to its CONTENT rather than stretch — so the grid never spanned the window
+     and its 1fr column resolved against the width of the canvas inside it,
+     which is circular. Hiding the panels changed the template and the column
+     came out the same 967px it had been. */
+  .wrap { display: grid; gap: 11px; grid-template-columns: 1fr; width: 100%; max-width: 1700px; margin: 0 auto; }
   @media (min-width: 1000px) { .wrap { grid-template-columns: 74px minmax(0,1fr) 340px; } }
+
+  /* ==================================================================
+   * CANVAS FIRST
+   * ==================================================================
+   * Measured before this: the canvas was 21% of the screen on a desktop, and
+   * 19% on a laptop. Procreate gives its canvas essentially the whole display
+   * and hides everything else behind gestures; Photoshop with its default
+   * panels is around 60%. A drawing tool that spends four fifths of the
+   * screen on its own chrome is a control panel that happens to have a canvas.
+   *
+   * Two levels, because the two situations are different. PANELS hides the
+   * column of boxes on the right — the reference material — and keeps every
+   * tool. FOCUS hides the tools as well and leaves the drawing and nothing
+   * else, for looking at what you have actually made.
+   *
+   * Tab and Shift+Tab, which is what MyPaint's most-requested issue asked for
+   * and what draw.io, Figma and Blender all bind. Both are remembered, so the
+   * layout you work in is the one you get back. */
+  body.no-panels .wrap { grid-template-columns: 74px minmax(0,1fr); }
+  body.no-panels .side { display: none; }
+  body.focus .rail, body.focus .side, body.focus > h1, body.focus .framestrip { display: none; }
+  body.focus .wrap { grid-template-columns: minmax(0,1fr); }
+  body.focus #vsbar { display: none !important; }
+  /* The way back out is always on screen. A mode you can enter and not leave
+     is a trap, and the keyboard is not a discoverable answer on a tablet. */
+  #viewBar {
+    position: fixed; right: 10px; bottom: 10px; z-index: 500;
+    display: flex; gap: 5px; opacity: .55; transition: opacity .15s;
+    background: var(--bg); border-radius: 4px; padding: 3px;
+    box-shadow: 0 0 0 1px var(--line), 0 4px 14px rgba(0,0,0,.5);
+  }
+  #viewBar:hover { opacity: 1; }
+
+  /* ==================================================================
+   * ONE PANEL OPEN AT A TIME, AND THE PROSE FOLDED AWAY
+   * ==================================================================
+   * Measured before this: six panels open at once and 854 characters of
+   * explanation on screen. That is Corel Painter's oldest and best-documented
+   * complaint — "busy", "chaotic", users "stuck in menus and settings before
+   * they can even start" — and the answer everyone converges on is
+   * progressive disclosure: show the eighty percent, keep the rest one click
+   * away and clearly marked.
+   *
+   * So every panel heading is now a switch, the state is remembered, and the
+   * paragraph explaining each panel hides behind a ? in its own header. The
+   * text is good and worth keeping; it is worth keeping where it can be asked
+   * for rather than where it has to be read past. */
+  .box > h2 {
+    cursor: pointer; user-select: none; display: flex; align-items: center;
+    gap: 6px; margin: 0; padding: 2px 0;
+  }
+  .box > h2 .caret { color: var(--dim); font-size: 9px; width: 8px; flex: 0 0 auto; }
+  .box > h2 .why {
+    margin-left: auto; border: 1px solid var(--line); border-radius: 50%;
+    width: 16px; height: 16px; line-height: 14px; text-align: center;
+    color: var(--dim); font-size: 9px; flex: 0 0 auto;
+  }
+  .box > h2 .why:hover { border-color: var(--cyan); color: var(--cyan); }
+  .box.shut > h2 { margin: 0; }
+  .box.shut > *:not(h2) { display: none !important; }
+  .box p.hint.why-text { display: none; }
+  .box.why-open p.hint.why-text { display: block; }
+  body.focus #viewBar { opacity: 1; }
   .rail { display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px; align-content: start; }
   /* The pickers scroll INSIDE the rail rather than lengthening it. Seventeen
      solids added four rows and pushed MIRROR, GRID and the zoom buttons off
@@ -105,7 +174,30 @@
   button:hover, label.btn:hover { border-color: var(--green); }
   button.on { border-color: var(--green); background: rgba(93,255,136,0.16); color: var(--green); }
   button.warn:hover { border-color: var(--red); color: var(--red); }
-  button.sm { padding: 5px 6px; font-size: 9px; }
+  /* ==================================================================
+   * SOMETHING BIG ENOUGH TO HIT
+   * ==================================================================
+   * WCAG 2.2 makes 24x24 CSS pixels a Level AA requirement (2.5.8). Measured
+   * before this, 27 of the 50 controls on screen were under it — more than
+   * half — and this gets used on a phone, where Apple asks for 44pt and
+   * Material for 48dp.
+   *
+   * 26px everywhere, and 40px once the pointer is coarse. Not 44: the sci-fi
+   * shape rack and the solid rack are grids of twenty-odd choices, and at 44
+   * they push the canvas off a phone screen, which trades one accessibility
+   * problem for a worse one. 40 with real spacing is the honest compromise
+   * and it is stated here rather than left for someone to discover.
+   * ================================================================== */
+  button, label.btn { min-height: 26px; min-width: 26px; }
+  button.sm, label.btn.sm { padding: 5px 7px; font-size: 9px; min-height: 26px; }
+  @media (pointer: coarse) {
+    button, label.btn { min-height: 40px; padding-left: 10px; padding-right: 10px; }
+    button.sm, label.btn.sm { min-height: 40px; }
+    .sldgrid button { min-height: 52px; }
+    .swatch { width: 26px; height: 26px;
+    min-width: 24px; min-height: 24px; }
+    input[type=range] { height: 34px; }
+  }
   /* THE ONE BUTTON IN A BAR THAT DOES THE THING. PLACE IT and BIG VIEW were
      both given this class when they were written and it was never defined, so
      they rendered identical to every other grey button beside them — present,
@@ -116,6 +208,16 @@
     background: rgba(93,255,136,0.12);
   }
   button.go:hover { background: rgba(93,255,136,0.22); border-color: var(--green); }
+  /* ONE THING IS THE LOUDEST. With the tool and the four snap switches all
+     lit the same green, five buttons in the rail claimed the eye at once and
+     the one that actually says which tool you are holding did not stand out
+     at all. A switch that is ON is a state; the tool you are holding is the
+     answer to "what happens when I touch the canvas". The state gets a quiet
+     outline, the tool keeps the fill. */
+  button.tgl.on {
+    background: transparent; border-color: rgba(93,255,136,0.5);
+    color: rgba(93,255,136,0.85);
+  }
   button.big { padding: 11px 15px; font-size: 12px; border-color: var(--green); color: var(--green); }
   button.big:hover { background: rgba(93,255,136,0.15); }
   button.big:disabled { opacity: .3; cursor: default; border-color: var(--line); color: var(--dim); }
@@ -131,7 +233,8 @@
   .hint { color: var(--dim); font-size: 10px; line-height: 1.5; }
   .hint b { color: var(--text); font-weight: 700; }
   .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-  .swatch { width: 15px; height: 15px; border-radius: 2px; border: 1px solid var(--line); cursor: pointer; }
+  /* 24px, the WCAG 2.5.8 floor. They were 15 — a colour chip you have to aim at. */
+  .swatch { width: 24px; height: 24px; border-radius: 3px; border: 1px solid var(--line); cursor: pointer; }
   .swatch.on { outline: 2px solid var(--text); }
   input[type=range] { flex: 1; min-width: 80px; accent-color: var(--green); }
   /* layers and frames */
@@ -198,14 +301,44 @@
    * that is a CONTROL sits outside the scrolling part. */
   .mid { display: flex; flex-direction: column; min-height: 0; overflow: hidden !important; }
   .mid .stage { flex: 0 0 auto; }
-  #pad { max-height: 58vh; width: auto; max-width: 100%; aspect-ratio: 1 / 1; margin: 0 auto; }
+  /* SIZED FROM WHAT IS ACTUALLY LEFT, by fitPad(), not from a guess.
+   * It was max-height:58vh — a number picked to leave room for the controls
+   * below it. On a 950px screen that is 551px of canvas and 21% of the
+   * display, against roughly 60% for Photoshop with its panels out and
+   * effectively all of it for Procreate. And a fixed vh cannot be right
+   * twice: the controls take about 240px whatever the screen, which is a
+   * quarter of a desktop and a third of a small laptop. Measuring the leftover
+   * gives the canvas everything the controls do not need, on any screen and
+   * in any of the view modes. */
+  #pad { width: auto; max-width: 100%; aspect-ratio: 1 / 1; margin: 0 auto; }
   .framestrip { flex: 0 0 auto; margin-top: 8px; }
   .framestrip .bar { margin-top: 5px; }
+  /* A STILL DRAWING DOES NOT NEED THE ANIMATION CONTROLS.
+     The strip is 96px — the single biggest thing in the column after the
+     canvas itself — and on a 720px laptop that is the difference between a
+     414px canvas and a 500px one. Most drawings have one frame, so most of
+     the time it is 96px spent on tween, onion skin, fps and a strip with one
+     thumbnail in it. It folds itself away until there is an animation, and
+     one tap brings it back. */
+  .framestrip.tucked > h2 { margin: 0; }
+  .framestrip.tucked .frames { display: none; }
+  /* The two that START an animation stay. Hiding DUPLICATE with the rest was
+     the wrong cut: copying the drawing and changing it is how an animation
+     usually begins, so the control for it cannot be the thing you have to
+     open the animation controls to reach. */
+  .framestrip.tucked .bar > *:not(#fAdd):not(#fDup):not(#fOpen) { display: none; }
+  .framestrip.tucked .tuckhint { display: inline !important; }
+  .framestrip .tuckhint, .framestrip #fOpen { display: none; }
+  .framestrip.tucked #fOpen { display: inline-block; }
 </style>
 </head>
 <body>
 <h1>VOIDSPIRE · ARTIST <span>— sketch, trace, animate, paste it in · <b id="ver"></b></span></h1>
 
+<div id="viewBar">
+  <button id="vPanels" class="sm" title="Hide the panels on the right (Tab)">▤ PANELS</button>
+  <button id="vFocus" class="sm" title="Just the drawing (Shift+Tab)">⛶ FOCUS</button>
+</div>
 <div class="wrap">
   <div class="rail">
     <button id="bUndo" title="Undo (Cmd/Ctrl+Z)">↶ UNDO</button>
@@ -254,10 +387,10 @@
     <button id="mPan" title="Drag the canvas (H) — or hold SPACE anywhere">PAN <span class="k">H</span></button>
     <div class="sep"></div>
     <div class="grp">SNAP</div>
-    <button id="bMirror" title="Draw one half, get the other">MIRROR</button>
-    <button id="bSnap" title="Snap to the 0.02 grid">GRID</button>
-    <button id="bMag" title="Snap to nearby existing points">POINTS</button>
-    <button id="bGrid" title="Show the grid">SHOW</button>
+    <button id="bMirror" class="tgl" title="Draw one half, get the other">MIRROR</button>
+    <button id="bSnap" class="tgl" title="Snap to the 0.02 grid">GRID</button>
+    <button id="bMag" class="tgl" title="Snap to nearby existing points">POINTS</button>
+    <button id="bGrid" class="tgl" title="Show the grid">SHOW</button>
     <div class="sep"></div>
     <div class="grp">VIEW</div>
     <button id="zIn">ZOOM +</button>
@@ -364,10 +497,12 @@
     </div>
 
     <div class="box framestrip">
-      <h2>FRAMES — more than one makes it an animation · drag one to reorder</h2>
+      <h2 id="framesH2">FRAMES — more than one makes it an animation · drag one to reorder</h2>
       <div class="frames" id="frameList"></div>
       <div class="bar">
         <button id="fAdd" class="sm">+ FRAME</button>
+        <span class="hint tuckhint">one frame — a still drawing</span>
+        <button id="fOpen" class="sm">ANIMATION CONTROLS ▾</button>
         <button id="fDup" class="sm">DUPLICATE</button>
         <button id="fDel" class="sm warn">DELETE</button>
         <button id="fPlay" class="sm">▶ PLAY</button>
@@ -519,6 +654,65 @@
 (function () {
   var pad = document.getElementById('pad'), px = pad.getContext('2d');
   var pv = document.getElementById('preview'), pc = pv.getContext('2d');
+
+  /* THE CANVAS TAKES WHAT THE CONTROLS DO NOT.
+   * Measured rather than guessed: every child of the column that is not the
+   * canvas is asked how tall it is, and the canvas gets the rest, square, up
+   * to the width available. Hiding the panels or entering focus therefore
+   * makes it genuinely bigger instead of leaving it at its old size in a
+   * wider column, which is what a fixed cap did. */
+  function fitPad() {
+    var mid = document.querySelector('.mid'), stage = document.querySelector('.mid .stage');
+    if (!mid || !stage) return;
+    /* Only charge for the gap under things that are actually there. Six of
+     * the bars in the stage are hidden at any moment — they belong to the
+     * other tools — and adding a gap for each cost thirty pixels of canvas
+     * for rows nobody could see. */
+    var used = 0, i, h;
+    for (i = 0; i < mid.children.length; i++) {
+      if (mid.children[i] === stage) continue;
+      h = mid.children[i].getBoundingClientRect().height;
+      if (h > 0) used += h + 9;
+    }
+    for (i = 0; i < stage.children.length; i++) {
+      if (stage.children[i] === pad) continue;
+      h = stage.children[i].getBoundingClientRect().height;
+      if (h > 0) used += h + 5;
+    }
+    var wide = stage.getBoundingClientRect().width - 18;
+    var side;
+    if (window.innerWidth < 1000) {
+      /* Below the three-column breakpoint the page is ONE column and the
+       * canvas is a grid row among several, so "the column's height minus the
+       * controls" is not the screen's height minus the controls — measuring it
+       * that way collapsed the canvas to its floor and made a phone worse than
+       * it had been. A fraction of the viewport is the honest answer there. */
+      side = Math.min(wide, Math.round(window.innerHeight * 0.42));
+    } else {
+      /* Measured against .wrap, NOT .mid. The column's own height is derived
+       * from its content, which includes the canvas — so sizing the canvas
+       * from it is circular, and it walked itself down by seventy pixels on
+       * every view change until it settled well short of the room available.
+       * .wrap is sized by the fixed shell and does not move. */
+      var frame = document.querySelector('.wrap').getBoundingClientRect().height;
+      side = Math.min(frame - used - 18, wide);
+    }
+    side = Math.max(200, side);
+    pad.style.width = side + 'px';
+    pad.style.height = side + 'px';
+  }
+  window.addEventListener('resize', function () { fitPad(); drawPad(); });
+  /* Measure AFTER the browser has laid out. Called inline at boot it read a
+   * frame strip that had not been rendered yet, came out 72px too generous,
+   * and then corrected itself the first time anything else called it — which
+   * looks like the canvas shrinking on its own for no reason. */
+  function fitPadSoon() {
+    // twice: the first frame lays out the bars, the second measures them
+    requestAnimationFrame(function () {
+      fitPad();
+      requestAnimationFrame(function () { fitPad(); drawPad(); });
+    });
+  }
   var out = document.getElementById('out'), status = document.getElementById('status');
   /* WHAT JUST HAPPENED, ALONGSIDE WHAT IS TRUE. Commands used to replace the
    * status line with their own message, which threw away the frame, layer and
@@ -2323,7 +2517,9 @@
       });
       host.appendChild(b);
     });
+    tuckStrip();
   }
+
   function onFrameDrag(ev) {
     if (!fDrag) return;
     if (!fDrag.moved && Math.abs(ev.clientX - fDrag.x) < 4) return;
@@ -2649,6 +2845,132 @@
     if (k === 'ArrowRight') { stepTheatre(1); ev.stopPropagation(); ev.preventDefault(); return; }
     ev.stopPropagation();
   }, true);
+
+  /* ==================================================================
+   * HOW MUCH OF THE SCREEN THE DRAWING GETS
+   * ==================================================================
+   * Two levels rather than one switch, because hiding the reference panels
+   * and hiding the tools are different wants. Working, you want the tools and
+   * not the panels; looking, you want neither.
+   *
+   * Both remembered. A view mode that resets on reload is one you stop using,
+   * because setting it up again costs more than the space it gives back.
+   * ================================================================== */
+  var VIEW_KEY = 'voidspire.artist.view';
+  function applyView(v) {
+    document.body.classList.toggle('no-panels', v === 'panels' || v === 'focus');
+    document.body.classList.toggle('focus', v === 'focus');
+    document.getElementById('vPanels').classList.toggle('on', v === 'panels');
+    document.getElementById('vFocus').classList.toggle('on', v === 'focus');
+    document.getElementById('vFocus').textContent = (v === 'focus') ? '⛶ SHOW ALL' : '⛶ FOCUS';
+    try { localStorage.setItem(VIEW_KEY, v); } catch (e) {}
+    fitPad(); fitPadSoon(); paintTheatre();
+  }
+  var viewMode = 'all';
+  try { viewMode = localStorage.getItem(VIEW_KEY) || 'all'; } catch (e) {}
+  function setView(v) { viewMode = v; applyView(v); }
+  document.getElementById('vPanels').onclick = function () {
+    setView(viewMode === 'panels' ? 'all' : 'panels');
+  };
+  document.getElementById('vFocus').onclick = function () {
+    setView(viewMode === 'focus' ? 'all' : 'focus');
+  };
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Tab' || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    var tag = ev.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (theatreOn) return;
+    ev.preventDefault();
+    if (ev.shiftKey) setView(viewMode === 'focus' ? 'all' : 'focus');
+    else setView(viewMode === 'panels' ? 'all' : 'panels');
+  });
+
+  /* ==================================================================
+   * THE PANELS FOLD
+   * ==================================================================
+   * Applied to whatever panels exist rather than to a hand-kept list, so a
+   * panel added later folds without anyone remembering to wire it. The first
+   * paragraph of each is treated as its explanation and moves behind the ?;
+   * anything else in the panel stays where it is, because a hint that sits
+   * under a control ("drag to trim") is part of that control and not prose.
+   * ================================================================== */
+  var FOLD_KEY = 'voidspire.artist.folds';
+  var folds = {};
+  try { folds = JSON.parse(localStorage.getItem(FOLD_KEY) || '{}'); } catch (e) { folds = {}; }
+  function saveFolds() { try { localStorage.setItem(FOLD_KEY, JSON.stringify(folds)); } catch (e) {} }
+
+  (function foldPanels() {
+    var boxes = document.querySelectorAll('.side .box');
+    for (var i = 0; i < boxes.length; i++) {
+      (function (box, idx) {
+        var h2 = box.querySelector('h2');
+        if (!h2) return;
+        var key = (h2.textContent || ('panel' + idx)).slice(0, 24);
+        var caret = document.createElement('span');
+        caret.className = 'caret';
+        var label = document.createElement('span');
+        label.textContent = h2.textContent;
+        label.style.flex = '1';
+        h2.textContent = '';
+        h2.appendChild(caret); h2.appendChild(label);
+
+        // the last paragraph of a panel is its explanation, not its labelling
+        var ps = box.querySelectorAll(':scope > p.hint');
+        var prose = ps.length ? ps[ps.length - 1] : null;
+        if (prose && (prose.textContent || '').length > 90) {
+          prose.classList.add('why-text');
+          var why = document.createElement('span');
+          why.className = 'why'; why.textContent = '?';
+          why.title = 'What this panel is for';
+          why.onclick = function (ev) {
+            ev.stopPropagation();
+            box.classList.toggle('why-open');
+            folds[key + '~why'] = box.classList.contains('why-open');
+            saveFolds(); fitPadSoon();
+          };
+          h2.appendChild(why);
+          if (folds[key + '~why']) box.classList.add('why-open');
+        }
+
+        /* WHICH PANELS START OPEN is a judgement about what you look at while
+         * working, not about order. Folding by position shut the LIVE PREVIEW
+         * — the thing you glance at constantly, and the panel carrying the
+         * button added last week so that BIG VIEW could be found at all.
+         * Layers and the preview are the eighty percent; the art browser, the
+         * library, the tracing panel and the export block are all things you
+         * go to on purpose, which is exactly what a fold is for. */
+        var OPEN_FIRST = /LAYERS|LIVE PREVIEW/;
+        var shut = (key in folds) ? folds[key] : !OPEN_FIRST.test(key);
+        box.classList.toggle('shut', shut);
+        caret.textContent = shut ? '\u25b8' : '\u25be';
+        h2.onclick = function () {
+          var now = !box.classList.contains('shut');
+          box.classList.toggle('shut', now);
+          caret.textContent = now ? '\u25b8' : '\u25be';
+          folds[key] = now; saveFolds(); fitPadSoon();
+        };
+      })(boxes[i], i);
+    }
+  })();
+
+  /* ---- the frame strip tucks itself away for a still drawing ---------- */
+  var stripForced = false;      // opened by hand; stays open until reload
+  function tuckStrip() {
+    var strip = document.querySelector('.framestrip');
+    if (!strip) return;
+    var tuck = !stripForced && doc.frames.length < 2;
+    if (strip.classList.contains('tucked') === tuck) return;
+    strip.classList.toggle('tucked', tuck);
+    fitPadSoon();
+  }
+  document.getElementById('fOpen').onclick = function () {
+    stripForced = true; tuckStrip();
+  };
+  document.getElementById('framesH2').onclick = function () {
+    stripForced = !document.querySelector('.framestrip').classList.contains('tucked')
+      ? false : true;
+    tuckStrip();
+  };
 
   /* ---- tracing image ----------------------------------------------- */
   document.getElementById('imgIn').onchange = function (ev) {
@@ -3084,9 +3406,11 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 21';
+  document.getElementById('ver').textContent = 'build 22';
 
   paintThumbs();
+  applyView(viewMode);
+  fitPadSoon();
   libLoad(); renderLib(); renderAssets();
   var restored = loadAutosave();
   syncHistBtns();
