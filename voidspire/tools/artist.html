@@ -129,6 +129,16 @@
   .wrap > * { min-height: 0; overflow-y: auto; overflow-x: hidden; }
   /* A drag on a canvas is always a drag, never a scroll or a pinch. */
   canvas { touch-action: none; }
+  /* THE CONTROLS STAY IN VIEW. Making the page a fixed shell let the canvas
+   * fill the column and push the shape picker and the frame strip below the
+   * fold, where they had to be scrolled to — which is worse than the scrolling
+   * problem the shell was fixing. The canvas is capped instead, and everything
+   * that is a CONTROL sits outside the scrolling part. */
+  .mid { display: flex; flex-direction: column; min-height: 0; overflow: hidden !important; }
+  .mid .stage { flex: 0 0 auto; }
+  #pad { max-height: 58vh; width: auto; max-width: 100%; aspect-ratio: 1 / 1; margin: 0 auto; }
+  .framestrip { flex: 0 0 auto; margin-top: 8px; }
+  .framestrip .bar { margin-top: 5px; }
 </style>
 </head>
 <body>
@@ -144,7 +154,21 @@
     <button id="mLine" title="One straight segment per drag (L)">LINE <span class="k">L</span></button>
     <button id="mFree" title="Freehand, simplified on release (F)">FREE <span class="k">F</span></button>
     <button id="mShape" title="Drag a box, the shape fills it (S)">SHAPE <span class="k">S</span></button>
+    <div id="railShapes" style="display:none">
+      <button class="sm shp on" data-shp="circle">● CIRCLE</button>
+      <button class="sm shp" data-shp="ellipse">⬭ ELLIPSE</button>
+      <button class="sm shp" data-shp="rect">▭ RECT</button>
+      <button class="sm shp" data-shp="square">◻ SQUARE</button>
+      <button class="sm shp" data-shp="round">▢ ROUNDED</button>
+      <button class="sm shp" data-shp="tri">▲ TRIANGLE</button>
+      <button class="sm shp" data-shp="poly">⬡ POLYGON</button>
+      <button class="sm shp" data-shp="star">✶ STAR</button>
+      <button class="sm shp" data-shp="arc">◠ ARC</button>
+      <input type="range" id="shpN2" min="3" max="12" value="6" style="width:100%;margin-top:3px">
+      <div class="hint" style="text-align:center" id="shpNN2">6 sides</div>
+    </div>
     <button id="mEye" title="Place a glowing pip (E)">EYE <span class="k">E</span></button>
+    <button id="mErase" title="Drag over strokes to rub them out (X)">ERASE <span class="k">X</span></button>
     <div class="sep"></div>
     <div class="grp">EDIT</div>
     <button id="mEdit" title="Drag points; DELETE removes one (A)">POINTS <span class="k">A</span></button>
@@ -163,7 +187,7 @@
     <button id="zFit">FIT</button>
   </div>
 
-  <div>
+  <div class="mid">
     <div class="stage">
       <canvas id="pad" width="1100" height="1100"></canvas>
       <div class="bar">
@@ -199,7 +223,7 @@
       <div class="bar"><span class="hint" id="status"></span></div>
     </div>
 
-    <div class="box" style="margin-top:10px">
+    <div class="box framestrip">
       <h2>FRAMES — more than one makes it an animation</h2>
       <div class="frames" id="frameList"></div>
       <div class="bar">
@@ -364,6 +388,8 @@
   var freeing = null;                      // raw points while a freehand stroke is down
   var panFrom = null;                      // drag origin while panning
   var shapeFrom = null, shapeTo = null;    // primitive being dragged out
+  var erasing = false, eraseR = 0.09;      // the rubber, in world units
+  var lastPointer = null;                  // so the rubber can be drawn
   var lineFrom = null, lineTo = null;      // a single independent segment
   var spaceDown = false;
   var hoverPt = null;                      // the point under the cursor in EDIT
@@ -585,6 +611,14 @@
       }
       px.restore();
     }
+    if (mode === 'erase' && lastPointer) {
+      px.save();
+      px.strokeStyle = '#ff4a5e'; px.lineWidth = 1.5; px.setLineDash([4, 3]);
+      var c0 = toScreen(lastPointer[0], lastPointer[1]);
+      var c1 = toScreen(lastPointer[0] + eraseR / view.z, lastPointer[1]);
+      px.beginPath(); px.arc(c0[0], c0[1], Math.abs(c1[0] - c0[0]), 0, 7); px.stroke();
+      px.restore();
+    }
     if (mode === 'edit') {
       here().strokes.forEach(function (L, si2) {
         L.pts.forEach(function (p, pi2) {
@@ -613,9 +647,11 @@
       edit: 'drag a point to move it · DELETE removes the point under the cursor',
       select: 'drag a box round strokes · arrow keys nudge, SHIFT for a bigger step',
       pan: 'drag to move the canvas',
+      erase: 'drag over strokes to rub them out — a whole stroke at a time',
     };
     document.getElementById('modeHint').textContent = HINTS[mode] || '';
     document.getElementById('shapeBar').style.display = (mode === 'shape') ? 'flex' : 'none';
+    document.getElementById('railShapes').style.display = (mode === 'shape') ? '' : 'none';
     document.getElementById('selBar').style.display = (mode === 'select') ? 'flex' : 'none';
     document.getElementById('selCount').textContent =
       sel.length ? (sel.length + ' stroke' + (sel.length === 1 ? '' : 's') + ' selected')
@@ -791,6 +827,10 @@
       pad.setPointerCapture(ev.pointerId);
       return;
     }
+    if (mode === 'erase') {
+      erasing = true; pad.setPointerCapture(ev.pointerId);
+      pushHistory(); rubOut(w); return;
+    }
     if (mode === 'shape') {
       shapeFrom = snapPoint(w); pad.setPointerCapture(ev.pointerId); return;
     }
@@ -817,12 +857,14 @@
     cur.push(snapPoint(w)); drawPad();
   });
   pad.addEventListener('pointermove', function (ev) {
+    if (mode === 'erase') { lastPointer = toWorld(ev.clientX, ev.clientY); if (!erasing) drawPad(); }
     if (panFrom) {
       var r = pad.getBoundingClientRect(), h = half();
       view.cx = panFrom.cx - (ev.clientX - panFrom.x) / r.width * 2 * h;
       view.cy = panFrom.cy - (ev.clientY - panFrom.y) / r.height * 2 * h;
       drawPad(); return;
     }
+    if (erasing) { rubOut(toWorld(ev.clientX, ev.clientY)); return; }
     if (shapeFrom) { shapeTo = snapPoint(toWorld(ev.clientX, ev.clientY)); drawPad(); return; }
     if (lineFrom) { lineTo = snapPoint(toWorld(ev.clientX, ev.clientY)); drawPad(); return; }
     if (marquee) { marquee.b = toWorld(ev.clientX, ev.clientY); drawPad(); return; }
@@ -854,7 +896,7 @@
     drawPad();
   });
   pad.addEventListener('pointerup', function () {
-    panFrom = null; moveFrom = null;
+    panFrom = null; moveFrom = null; erasing = false;
     if (shapeFrom && shapeTo) {
       var pts = makeShape(shapeFrom, shapeTo);
       if (pts.length > 1) { pushHistory(); here().strokes.push({ pts: pts, m: mirror }); }
@@ -902,7 +944,7 @@
     document.getElementById(id).onclick = function () {
       finish(); mode = m;
       if (m !== 'select') sel = [];
-        ['mDraw', 'mFree', 'mEdit', 'mEye', 'mPan', 'mShape', 'mSel'].forEach(function (o) {
+        ['mDraw', 'mFree', 'mEdit', 'mEye', 'mPan', 'mShape', 'mSel', 'mErase'].forEach(function (o) {
         var el = document.getElementById(o); if (el) el.classList.remove('on');
       });
       document.getElementById(id).classList.add('on');
@@ -912,6 +954,7 @@
   modeBtn('mDraw', 'draw'); modeBtn('mFree', 'free'); modeBtn('mEdit', 'edit');
   modeBtn('mEye', 'eye'); modeBtn('mPan', 'pan');
   modeBtn('mShape', 'shape'); modeBtn('mSel', 'select'); modeBtn('mLine', 'line');
+  modeBtn('mErase', 'erase');
   toggle('bMag', function () { return magnet; }, function (v) { magnet = v; });
 
   /* PANNING FROM ANY TOOL. A dedicated mode is a mode you have to leave and
@@ -933,15 +976,27 @@
    * point and trivial to generate. Drag from centre to edge.
    * ================================================================== */
   var shp = 'circle', shpN = 6;
+  /* Both shape pickers drive the same choice — the one in the rail, next to
+   * the tool it belongs to, and the one under the canvas. Picking the shape
+   * was previously only possible in a row below a tall canvas, which on a
+   * laptop meant scrolling to find out that circles were not the only option. */
   document.querySelectorAll('.shp').forEach(function (b) {
     b.onclick = function () {
-      document.querySelectorAll('.shp').forEach(function (o) { o.classList.remove('on'); });
-      b.classList.add('on'); shp = b.getAttribute('data-shp');
+      shp = b.getAttribute('data-shp');
+      document.querySelectorAll('.shp').forEach(function (o) {
+        o.classList.toggle('on', o.getAttribute('data-shp') === shp);
+      });
     };
   });
-  document.getElementById('shpN').oninput = function () {
-    shpN = +this.value; document.getElementById('shpNN').textContent = shpN;
-  };
+  function setSides(n) {
+    shpN = n;
+    ['shpN', 'shpN2'].forEach(function (id) { var e = document.getElementById(id); if (e) e.value = n; });
+    var a = document.getElementById('shpNN'); if (a) a.textContent = n;
+    var b2 = document.getElementById('shpNN2'); if (b2) b2.textContent = n + ' sides';
+  }
+  ['shpN', 'shpN2'].forEach(function (id) {
+    var e = document.getElementById(id); if (e) e.oninput = function () { setSides(+this.value); };
+  });
   /* EVERY SHAPE IS DRAWN INSIDE THE BOX YOU DRAG, corner to corner. Centre-out
    * is fine for a circle and baffling for a rectangle, and having some tools
    * behave one way and some the other is the kind of inconsistency you have to
@@ -982,6 +1037,39 @@
       }
     }
     return pts.map(function (q) { return [+q[0].toFixed(3), +q[1].toFixed(3)]; });
+  }
+
+  /* THE ERASER. Takes out whole STROKES rather than nibbling pixels, because
+   * this is vector art — there is nothing to rub away between the lines, and a
+   * pixel eraser on a polyline would leave a stroke that looks broken and
+   * exports whole. Drag over what you want gone. One history entry per drag,
+   * so a long sweep is one undo rather than forty. */
+  function rubOut(w) {
+    var hit = false;
+    for (var i = here().strokes.length - 1; i >= 0; i--) {
+      var L = here().strokes[i], gone = false;
+      for (var j = 0; j < L.pts.length && !gone; j++) {
+        var p = L.pts[j];
+        if (Math.hypot(p[0] - w[0], p[1] - w[1]) < eraseR / view.z) gone = true;
+        // also catch the span BETWEEN two points, or a long straight line can
+        // be dragged straight through without anything happening
+        if (!gone && j < L.pts.length - 1) {
+          var q = L.pts[j + 1];
+          var vx = q[0] - p[0], vy = q[1] - p[1], len2 = vx * vx + vy * vy;
+          if (len2 > 1e-9) {
+            var t = Math.max(0, Math.min(1, ((w[0] - p[0]) * vx + (w[1] - p[1]) * vy) / len2));
+            var cx = p[0] + vx * t, cy = p[1] + vy * t;
+            if (Math.hypot(cx - w[0], cy - w[1]) < eraseR / view.z) gone = true;
+          }
+        }
+      }
+      if (gone) { here().strokes.splice(i, 1); hit = true; }
+    }
+    for (var k = here().eyes.length - 1; k >= 0; k--) {
+      var e = here().eyes[k];
+      if (Math.hypot(e[0] - w[0], e[1] - w[1]) < eraseR / view.z) { here().eyes.splice(k, 1); hit = true; }
+    }
+    if (hit) drawPad();
   }
 
   /* POINT SNAP. "Line after line, and let me connect them" only works if the
@@ -1307,7 +1395,8 @@
       s.classList.add('on'); colour = s.getAttribute('data-col'); drawPad();
     };
   });
-  var MODE_KEYS = { d: 'mDraw', l: 'mLine', f: 'mFree', s: 'mShape', e: 'mEye', a: 'mEdit', v: 'mSel', h: 'mPan' };
+  var MODE_KEYS = { d: 'mDraw', l: 'mLine', f: 'mFree', s: 'mShape', e: 'mEye',
+                    a: 'mEdit', v: 'mSel', h: 'mPan', x: 'mErase' };
   document.addEventListener('keydown', function (ev) {
     if (ev.target.tagName === 'TEXTAREA' || ev.target.tagName === 'INPUT') return;
     // one letter a tool, the way every drawing program does it
@@ -1634,7 +1723,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 11';
+  document.getElementById('ver').textContent = 'build 12';
 
   libLoad(); renderLib(); renderAssets();
   var restored = loadAutosave();
