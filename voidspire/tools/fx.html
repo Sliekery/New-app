@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>VOIDSPIRE · EFFECTS</title>
+<style>
+  :root {
+    --bg: #04080a; --panel: #0a1014; --line: rgba(120,150,165,0.22);
+    --text: #eafcff; --dim: #8fa79a; --green: #5dff88; --amber: #ffb02e;
+    --cyan: #41d8ff; --red: #ff4a5e; --violet: #c86bff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; padding: 10px; }
+  h1 { font-size: 13px; letter-spacing: .18em; margin: 0 0 9px; color: var(--violet); }
+  h1 span { color: var(--dim); letter-spacing: .06em; font-size: 11px; }
+  .wrap { display: grid; gap: 11px; grid-template-columns: 1fr; max-width: 1750px; margin: 0 auto; }
+  @media (min-width: 1050px) { .wrap { grid-template-columns: minmax(0,1fr) 400px; } }
+  .box { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 9px; }
+  .box h2 { font-size: 10px; letter-spacing: .13em; color: var(--dim); margin: 0 0 8px; font-weight: 700; }
+  button, label.btn {
+    background: rgba(10,16,20,0.9); border: 1px solid var(--line); border-radius: 3px;
+    color: var(--text); font: 700 10px/1 ui-monospace, monospace; letter-spacing: .07em;
+    padding: 8px 9px; cursor: pointer; display: inline-block;
+  }
+  button:hover { border-color: var(--violet); }
+  button.on { border-color: var(--violet); background: rgba(200,107,255,0.16); color: var(--violet); }
+  button.warn:hover { border-color: var(--red); color: var(--red); }
+  button.sm { padding: 5px 6px; font-size: 9px; }
+  button.big { padding: 11px 16px; font-size: 12px; border-color: var(--green); color: var(--green); }
+  .bar { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 7px; }
+  .hint { color: var(--dim); font-size: 10px; line-height: 1.5; }
+  .hint b { color: var(--text); font-weight: 700; }
+  #stage { position: relative; background: #000; border-radius: 3px; overflow: hidden; }
+  #game { border: 0; display: block; }
+  textarea { width: 100%; min-height: 110px; background: #05090b; color: var(--green);
+             border: 1px solid var(--line); border-radius: 3px; padding: 7px;
+             font: 10px/1.45 ui-monospace, monospace; resize: vertical; }
+  select, input[type=text] { background: #05090b; color: var(--text); border: 1px solid var(--line);
+             border-radius: 3px; padding: 5px; font: 10px ui-monospace, monospace; }
+  .list { max-height: 200px; overflow-y: auto; border: 1px solid var(--line); border-radius: 3px; }
+  .it { padding: 5px 7px; font-size: 10px; cursor: pointer; display: flex; gap: 6px;
+        border-bottom: 1px solid rgba(120,150,165,0.09); }
+  .it:hover { background: rgba(200,107,255,0.12); }
+  .beat { border: 1px solid var(--line); border-radius: 3px; padding: 7px; margin-bottom: 6px; }
+  .beat.sel { border-color: var(--violet); background: rgba(200,107,255,0.07); }
+  .beat .hd { display: flex; gap: 6px; align-items: center; margin-bottom: 5px; }
+  .beat .hd .t { flex: 1; font-size: 10px; color: var(--violet); letter-spacing: .07em; }
+  .fld { display: grid; grid-template-columns: 66px 1fr 46px; gap: 5px; align-items: center; margin-bottom: 3px; }
+  .fld label { font-size: 9px; color: var(--dim); letter-spacing: .05em; }
+  .fld .v { font-size: 9.5px; text-align: right; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--violet); }
+  .sw { width: 15px; height: 15px; border-radius: 2px; border: 1px solid var(--line); cursor: pointer; }
+  .sw.on { outline: 2px solid var(--text); }
+</style>
+</head>
+<body>
+<h1>VOIDSPIRE · EFFECTS <span>— build a cast on the real battlefield · <b id="ver"></b></span></h1>
+
+<div class="wrap">
+  <div>
+    <div class="box">
+      <div class="bar" style="margin-top:0">
+        <button id="fire" class="big">▶ FIRE</button>
+        <button id="addBeat">+ BEAT</button>
+        <button id="dupBeat">DUPLICATE</button>
+        <button id="delBeat" class="warn">DELETE</button>
+        <button id="reload" class="sm">RELOAD</button>
+        <span class="hint" id="status"></span>
+      </div>
+      <div id="stage" style="margin-top:8px">
+        <iframe id="game" src="../index.html" width="900" height="600"></iframe>
+      </div>
+      <p class="hint" style="margin:8px 0 0">
+        This fires the game's own render primitives into a live fight — the same
+        calls a real card makes, on a real target. What you see here is the
+        effect, not a mock-up of it.
+      </p>
+    </div>
+
+    <div class="box" style="margin-top:10px">
+      <h2>BEATS — each one is a primitive, fired after its delay</h2>
+      <div id="beats"></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="box">
+      <h2>THE GAME'S CASTS — fire one, or take it apart</h2>
+      <input type="text" id="search" placeholder="search 47 motifs…" style="width:100%;margin-bottom:5px">
+      <div class="list" id="motifList"></div>
+      <p class="hint" style="margin:7px 0 0">
+        These fire through the game's own <b>playCardFX</b>, sound included.
+        Use them as reference — the editor below builds the animation half.
+      </p>
+    </div>
+
+    <div class="box" style="margin-top:10px">
+      <h2>THE CODE — paste into MOTIF in js/ui.js</h2>
+      <div class="bar" style="margin-top:0">
+        <span class="hint">name</span>
+        <input type="text" id="fxName" value="myCast" style="flex:1">
+      </div>
+      <textarea id="out" readonly style="margin-top:6px"></textarea>
+      <div class="bar">
+        <button id="copy">COPY</button>
+        <button id="wipe" class="sm warn">RESET</button>
+      </div>
+      <p class="hint" style="margin:7px 0 0">
+        Add the name to <b>CARD_MOTIF</b> against a card id and that card casts
+        it. The <b>s:</b> half is sound — design it in the sound tool and paste
+        it alongside.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var BUILD = 'build 1';
+  var frame = document.getElementById('game');
+  var status = document.getElementById('status');
+
+  /* ==================================================================
+   * THE PRIMITIVE VOCABULARY
+   * These are the real functions on VS.render that every existing cast is
+   * built from — signatures read straight off js/render.js. The editor
+   * composes calls to them and fires them into the running game, so a cast
+   * built here behaves identically when pasted in, rather than being an
+   * approximation that has to be re-tuned afterwards.
+   *
+   * `at` is the target, `src` the caster: the two anchors every cast uses.
+   * ================================================================== */
+  var PRIMS = {
+    burst:    { at: 1, args: [['n', 3, 1, 40]], desc: 'a spray of sparks' },
+    quake:    { at: 1, args: [['power', 1, 0, 4]], desc: 'impact flash + shockwave' },
+    nova:     { at: 1, args: [['power', 2, 0, 4]], desc: 'a big expanding bloom' },
+    ring:     { at: 1, args: [['maxR', 40, 5, 200], ['life', 0.4, 0.1, 2]], desc: 'an expanding circle' },
+    polyRing: { at: 1, args: [['rFrom', 6, 0, 120], ['rTo', 60, 5, 240], ['sides', 6, 3, 12], ['life', 0.5, 0.1, 2], ['spin', 1, -4, 4], ['lw', 2, 1, 6]], desc: 'a spinning polygon' },
+    aura:     { at: 1, args: [], desc: 'a soft glow on the target' },
+    shards:   { at: 1, args: [['n', 8, 1, 30], ['dir', 0, -3.2, 3.2], ['spread', 1, 0, 3.2]], desc: 'thrown fragments' },
+    embers:   { at: 1, args: [['n', 8, 1, 30]], desc: 'drifting motes' },
+    spiral:   { at: 1, args: [['n', 12, 3, 40], ['r', 40, 5, 160]], desc: 'a curling spiral' },
+    glitch:   { at: 1, args: [], desc: 'horizontal tear' },
+    implode:  { at: 1, args: [['w', 60, 10, 220], ['h', 60, 10, 220], ['n', 12, 3, 40]], desc: 'pulled inward' },
+    beamBolt: { at: 2, args: [['width', 4, 1, 12]], desc: 'a thick round, caster to target' },
+    shot:     { at: 2, args: [], desc: 'a thin tracer, caster to target' },
+    arc:      { at: 2, args: [['segs', 6, 2, 20], ['jitter', 8, 0, 40]], desc: 'forked lightning' },
+    shake:    { at: 0, args: [['v', 1, 0, 4]], desc: 'shake the whole screen' },
+  };
+  var COLOURS = ['#ffe9c0', '#5dff88', '#41d8ff', '#c86bff', '#ffb02e', '#ff4a5e', '#ffffff'];
+
+  function beat(o) {
+    return Object.assign({ at: 0, prim: 'burst', colour: '#ffe9c0', args: {} }, o || {});
+  }
+  var cast = [beat()];
+  var bi = 0;
+
+  function win() { try { return frame.contentWindow; } catch (e) { return null; } }
+  function doc() { try { return frame.contentDocument; } catch (e) { return null; } }
+
+  function bootGame() {
+    var w = win();
+    if (!w || !w.VS || !w.VS.engine) { status.textContent = 'waiting for the game…'; return false; }
+    try {
+      var E = w.VS.engine;
+      E.seed(5); E.newRun('vanguard');
+      E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
+      E.startNode('fight');
+      // keep them alive so an effect can be fired over and over
+      E.combat.enemies.forEach(function (en) { en.hp = 9999; en.maxHp = 9999; });
+      w.VS.ui.refresh();
+      status.textContent = 'live fight — fire away';
+      return true;
+    } catch (e) { status.textContent = 'could not start: ' + e.message; return false; }
+  }
+
+  // Where the caster and the target actually are, asked of the running game.
+  function anchors() {
+    var w = win();
+    if (!w || !w.VS || !w.VS.render) return null;
+    var R = w.VS.render;
+    var pp = R.playerXY ? R.playerXY() : { x: 120, y: 300 };
+    var tp = R.enemyPos ? R.enemyPos(0) : { x: 600, y: 260 };
+    return { sx: pp.x + 8, sy: pp.y - 10, tx: tp.x, ty: tp.y, R: R };
+  }
+
+  function fireBeat(b) {
+    var a = anchors(); if (!a) return;
+    var P = PRIMS[b.prim]; if (!P) return;
+    var fn = a.R[b.prim]; if (typeof fn !== 'function') return;
+    var vals = P.args.map(function (spec) {
+      return b.args[spec[0]] !== undefined ? b.args[spec[0]] : spec[1];
+    });
+    try {
+      if (P.at === 2) fn.apply(a.R, [a.sx, a.sy, a.tx, a.ty, b.colour].concat(vals));
+      else if (P.at === 1) fn.apply(a.R, [a.tx, a.ty, b.colour].concat(vals));
+      else fn.apply(a.R, vals);
+    } catch (e) { status.textContent = b.prim + ' threw: ' + e.message; }
+  }
+  function fireCast() {
+    cast.forEach(function (b) {
+      if (b.at > 0) setTimeout(function () { fireBeat(b); }, b.at);
+      else fireBeat(b);
+    });
+  }
+  document.getElementById('fire').onclick = fireCast;
+
+  /* ---- the beat editor ------------------------------------------------ */
+  function renderBeats() {
+    var host = document.getElementById('beats');
+    host.innerHTML = '';
+    cast.forEach(function (b, i) {
+      var P = PRIMS[b.prim];
+      var d = document.createElement('div');
+      d.className = 'beat' + (i === bi ? ' sel' : '');
+      var hd = document.createElement('div');
+      hd.className = 'hd';
+      hd.innerHTML = '<span class="t">BEAT ' + (i + 1) + '</span>';
+      var pick = document.createElement('select');
+      Object.keys(PRIMS).forEach(function (k) {
+        var o = document.createElement('option'); o.value = o.textContent = k;
+        if (b.prim === k) o.selected = true; pick.appendChild(o);
+      });
+      pick.onchange = function () { b.prim = pick.value; b.args = {}; render(); };
+      hd.appendChild(pick);
+      var pb = document.createElement('button');
+      pb.className = 'sm'; pb.textContent = '▶';
+      pb.onclick = function (ev) { ev.stopPropagation(); fireBeat(b); };
+      hd.appendChild(pb);
+      d.appendChild(hd);
+
+      var desc = document.createElement('div');
+      desc.className = 'hint'; desc.style.marginBottom = '5px';
+      desc.textContent = P ? P.desc : '';
+      d.appendChild(desc);
+
+      // colour
+      var cr = document.createElement('div');
+      cr.className = 'bar'; cr.style.marginTop = '0';
+      COLOURS.forEach(function (c) {
+        var sw = document.createElement('span');
+        sw.className = 'sw' + (b.colour === c ? ' on' : '');
+        sw.style.background = c;
+        sw.onclick = function (ev) { ev.stopPropagation(); b.colour = c; render(); };
+        cr.appendChild(sw);
+      });
+      d.appendChild(cr);
+
+      // delay, then the primitive's own arguments
+      [['at', 'DELAY ms', 0, 900, 10]].concat((P ? P.args : []).map(function (spec) {
+        return [spec[0], spec[0].toUpperCase(), spec[2], spec[3], (spec[3] - spec[2]) / 100];
+      })).forEach(function (f) {
+        var row = document.createElement('div');
+        row.className = 'fld';
+        var lab = document.createElement('label'); lab.textContent = f[1];
+        var inp = document.createElement('input');
+        inp.type = 'range'; inp.min = f[2]; inp.max = f[3]; inp.step = f[4] < 1 ? 0.01 : 1;
+        var cval = f[0] === 'at' ? b.at
+          : (b.args[f[0]] !== undefined ? b.args[f[0]] : (P.args.find(function (s) { return s[0] === f[0]; }) || [])[1]);
+        inp.value = cval;
+        var val = document.createElement('span'); val.className = 'v';
+        val.textContent = (+cval).toString();
+        inp.oninput = function () {
+          var v = +inp.value;
+          if (f[0] === 'at') b.at = v; else b.args[f[0]] = v;
+          val.textContent = v.toString(); emit(); save();
+        };
+        row.appendChild(lab); row.appendChild(inp); row.appendChild(val);
+        d.appendChild(row);
+      });
+      d.onclick = function () { bi = i; render(); };
+      host.appendChild(d);
+    });
+  }
+
+  function callFor(b) {
+    var P = PRIMS[b.prim];
+    var vals = P.args.map(function (s) {
+      var v = b.args[s[0]] !== undefined ? b.args[s[0]] : s[1];
+      return (Math.round(v * 100) / 100).toString();
+    });
+    if (P.at === 2) return "R." + b.prim + "(e.sx, e.sy, e.tp.x, e.tp.y, '" + b.colour + "'" + (vals.length ? ', ' + vals.join(', ') : '') + ")";
+    if (P.at === 1) return "R." + b.prim + "(e.tp.x, e.tp.y, '" + b.colour + "'" + (vals.length ? ', ' + vals.join(', ') : '') + ")";
+    return "R." + b.prim + "(" + vals.join(', ') + ")";
+  }
+  function emit() {
+    var name = document.getElementById('fxName').value || 'myCast';
+    var now = [], later = {};
+    cast.forEach(function (b) {
+      if (b.at > 0) { (later[b.at] = later[b.at] || []).push(callFor(b)); }
+      else now.push(callFor(b) + ';');
+    });
+    var body = now.join(' ');
+    Object.keys(later).sort(function (x, y) { return x - y; }).forEach(function (t) {
+      body += ' setTimeout(function () { ' + later[t].join('; ') + '; }, ' + t + ');';
+    });
+    document.getElementById('out').value =
+      name + ': {\n'
+      + '      s: function (e) { /* paste the sound half from tools/sound.html */ },\n'
+      + '      a: function (e) { if (!e.tp) return; ' + body + ' },\n'
+      + '    },';
+  }
+  function render() { renderBeats(); emit(); save(); }
+
+  document.getElementById('addBeat').onclick = function () {
+    var last = cast[cast.length - 1];
+    cast.push(beat({ at: last.at + 90, colour: last.colour }));
+    bi = cast.length - 1; render();
+  };
+  document.getElementById('dupBeat').onclick = function () {
+    cast.splice(bi + 1, 0, JSON.parse(JSON.stringify(cast[bi])));
+    cast[bi + 1].at += 90; bi++; render();
+  };
+  document.getElementById('delBeat').onclick = function () {
+    if (cast.length < 2) return;
+    cast.splice(bi, 1); bi = Math.max(0, bi - 1); render();
+  };
+  document.getElementById('fxName').oninput = function () { emit(); save(); };
+  document.getElementById('copy').onclick = function () {
+    var t = document.getElementById('out');
+    t.removeAttribute('readonly'); t.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    if (navigator.clipboard) navigator.clipboard.writeText(t.value);
+    t.setAttribute('readonly', '');
+    var b = this, o = b.textContent; b.textContent = 'COPIED';
+    setTimeout(function () { b.textContent = o; }, 900);
+  };
+  document.getElementById('wipe').onclick = function () {
+    if (!confirm('Start this cast again?')) return;
+    cast = [beat()]; bi = 0; render();
+  };
+  document.getElementById('reload').onclick = function () { frame.src = frame.src; };
+
+  /* ---- the game's own casts, fired whole -------------------------------- */
+  function renderMotifs() {
+    var w = win(), host = document.getElementById('motifList');
+    host.innerHTML = '';
+    var names = (w && w.VS && w.VS.ui && w.VS.ui.motifNames) ? w.VS.ui.motifNames() : [];
+    if (!names.length) {
+      host.innerHTML = '<div class="hint" style="padding:8px">the game has not exposed its motif list — reload once it is up</div>';
+      return;
+    }
+    var q = (document.getElementById('search').value || '').toLowerCase();
+    names.filter(function (n) { return !q || n.toLowerCase().indexOf(q) >= 0; })
+      .slice(0, 200).forEach(function (n) {
+      var row = document.createElement('div');
+      row.className = 'it';
+      row.innerHTML = '<span style="flex:1">' + n + '</span>';
+      row.onclick = function () {
+        try { w.VS.ui.probeMotif(n); status.textContent = 'fired ' + n; }
+        catch (e) { status.textContent = n + ' threw: ' + e.message; }
+      };
+      host.appendChild(row);
+    });
+  }
+  document.getElementById('search').oninput = renderMotifs;
+
+  function save() { try { localStorage.setItem('voidspire.fx', JSON.stringify({ cast: cast, name: document.getElementById('fxName').value })); } catch (e) {} }
+  try {
+    var d = JSON.parse(localStorage.getItem('voidspire.fx') || 'null');
+    if (d && d.cast && d.cast.length) { cast = d.cast.map(function (b) { return beat(b); }); document.getElementById('fxName').value = d.name || 'myCast'; }
+  } catch (e) {}
+
+  frame.addEventListener('load', function () {
+    var tries = 0;
+    var t = setInterval(function () {
+      if (bootGame() || ++tries > 40) { clearInterval(t); renderMotifs(); }
+    }, 120);
+  });
+
+  document.getElementById('ver').textContent = BUILD;
+  render();
+})();
+</script>
+</body>
+</html>

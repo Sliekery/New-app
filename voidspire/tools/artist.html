@@ -260,6 +260,11 @@
 
     <div class="box">
       <h2>LIVE PREVIEW — the game's own draw call</h2>
+      <div class="bar" style="margin:0 0 6px">
+        <button id="pvFig" class="sm on">FIGURE</button>
+        <button id="pvFrame" class="sm">FRAME</button>
+        <span class="hint">a frame is drawn as ONE CORNER</span>
+      </div>
       <canvas id="preview" width="640" height="330"></canvas>
       <div class="row" style="margin-top:7px">
         <span class="hint">glow</span>
@@ -605,8 +610,61 @@
   /* The preview copies the game's own draw call — 1.6/scale line width, round
    * joins, shadow glow — at boss, normal and small scale, so it shows the
    * battlefield's rendering rather than an approximation of it. */
+  /* ==================================================================
+   * FRAME MODE. A frame cannot be one picture: the bottom bar's width
+   * changes with the viewport, and a single asset stretched to fit gets
+   * uneven line weight — stretched 4:1 the horizontals come out a quarter
+   * the thickness of the verticals, which is glaring on neon linework.
+   *
+   * So you draw ONE CORNER and it is placed four times at a fixed size,
+   * which is exactly what the card frame already does with its four CSS
+   * brackets. This preview assembles your corner at three very different
+   * aspect ratios at once, so a corner that only reads at one of them is
+   * caught here rather than after it has been wired in.
+   * ================================================================== */
+  var previewMode = 'figure';
+  document.getElementById('pvFig').onclick = function () {
+    previewMode = 'figure'; this.classList.add('on');
+    document.getElementById('pvFrame').classList.remove('on'); drawPreview();
+  };
+  document.getElementById('pvFrame').onclick = function () {
+    previewMode = 'frame'; this.classList.add('on');
+    document.getElementById('pvFig').classList.remove('on'); drawPreview();
+  };
+
+  function drawFramePreview(art) {
+    pc.fillStyle = '#04080a'; pc.fillRect(0, 0, pv.width, pv.height);
+    // a wide dock, a narrow phone dock, a tall panel — the three shapes the
+    // same corner actually has to serve
+    var boxes = [[14, 14, 610, 74, 'wide bar'], [14, 104, 250, 62, 'phone bar'], [286, 104, 130, 190, 'panel']];
+    boxes.forEach(function (B) {
+      var x = B[0], y = B[1], w = B[2], h = B[3], c = Math.min(26, Math.min(w, h) * 0.42);
+      pc.save();
+      pc.strokeStyle = 'rgba(120,150,165,0.18)'; pc.lineWidth = 1;
+      pc.strokeRect(x, y, w, h);
+      pc.restore();
+      [[x, y, 1, 1], [x + w, y, -1, 1], [x, y + h, 1, -1], [x + w, y + h, -1, -1]].forEach(function (q) {
+        pc.save();
+        pc.translate(q[0], q[1]); pc.scale(q[2] * c, q[3] * c);
+        pc.strokeStyle = colour; pc.lineWidth = 1.6 / c;
+        pc.lineJoin = 'round'; pc.shadowColor = colour; pc.shadowBlur = 6;
+        art.p.forEach(function (p) {
+          pc.beginPath(); pc.moveTo(p[0], p[1]);
+          for (var i = 2; i < p.length; i += 2) pc.lineTo(p[i], p[i + 1]);
+          pc.stroke();
+        });
+        pc.restore();
+      });
+      pc.fillStyle = 'rgba(143,167,154,0.7)'; pc.font = '10px ui-monospace, monospace';
+      pc.fillText(B[4], x, y + h + 13);
+    });
+    pc.fillStyle = 'rgba(255,176,46,0.9)'; pc.font = '10px ui-monospace, monospace';
+    pc.fillText('drawn once, placed four times — corners never scale', 14, pv.height - 8);
+  }
+
   function drawPreview() {
     var f = playing ? (Math.floor(playT) % doc.frames.length) : fi;
+    if (previewMode === 'frame') { drawFramePreview(framePaths(f)); return; }
     var art = framePaths(f);
     pc.fillStyle = '#04080a'; pc.fillRect(0, 0, pv.width, pv.height);
     [[152, 160, 108], [382, 160, 60], [540, 160, 31]].forEach(function (s) {
@@ -1545,7 +1603,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 8';
+  document.getElementById('ver').textContent = 'build 9';
 
   libLoad(); renderLib(); renderAssets();
   var restored = loadAutosave();
