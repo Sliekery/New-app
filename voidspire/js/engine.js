@@ -995,11 +995,16 @@
     return en;
   }
 
-  function startCombat(kind) {
+  /* `forceIds` exists for the dev console: it names the enemies outright and
+   * lets every other line below run exactly as it does in a real fight — the
+   * relic hooks, the pressure modifiers, the intents, the first turn. A dev
+   * tool that built its own combat object would be testing the dev tool. */
+  function startCombat(kind, forceIds) {
     if (E.logging) E.clearLog();
     var r = E.run;
     var ids, isFinal = false;
-    if (kind === 'boss') {
+    if (forceIds && forceIds.length) { ids = forceIds.slice(); }
+    else if (kind === 'boss') {
       if (r.inHeart) { ids = [E.counterBossId(r)]; isFinal = true; }
       else if (r.sector === B.run.finale) { ids = [ns.FINAL_BOSS]; isFinal = true; }
       else ids = [E.sectorBossId()];
@@ -5917,6 +5922,112 @@
     E.clearSave();
     E.run = null;
     E.combat = null;
+  };
+
+  /* =========================================================================
+   * THE DEV CONSOLE'S HOOKS
+   * =========================================================================
+   * Testing a rare interaction meant playing until it happened. A Flaw firing
+   * on a welded seam against an enemy that only appears in sector 4 is maybe
+   * twenty minutes of play away, and it has to be reached again after every
+   * change to it.
+   *
+   * These set up a SITUATION. They are deliberately thin — each one does the
+   * smallest thing the real code already does and then hands back to the real
+   * code. `fight` goes through startCombat, so relics, pressure, intents and
+   * the first turn all happen as they would; `card` uses mkCard, so uids are
+   * allocated the same way; damage goes through dealToEnemy, so a kill still
+   * fires whatever a kill fires. A console that built its own state would be
+   * a second implementation of the game, and testing against it would prove
+   * nothing about the first one.
+   *
+   * The panel that drives these is behind ?dev=1 (js/dev.js). The functions
+   * themselves are always here: this is a single-player game in a browser, so
+   * hiding them would inconvenience us and nobody else.
+   * ========================================================================= */
+  E.dev = {
+    // the whole roster, for the panel's pickers
+    enemyIds: function () { return Object.keys(ns.ENEMIES); },
+    cardIds: function () { return Object.keys(ns.CARDS); },
+    // Augments and Flaws both, since half the reason to cut one from here is
+    // to watch a Flaw misbehave without having to earn it.
+    engravingIds: function () {
+      return Object.keys(ns.DIE_AUGMENTS || {}).concat(Object.keys(ns.DIE_FLAWS || {}));
+    },
+
+    fight: function (ids, kind) {
+      if (!E.run) return 'start a run first';
+      if (!ids || !ids.length) return 'pick at least one enemy';
+      var bad = ids.filter(function (i) { return !ns.ENEMIES[i]; });
+      if (bad.length) return 'no such enemy: ' + bad.join(', ');
+      E.run.nodeType = kind || 'fight';
+      startCombat(kind || 'fight', ids);
+      return null;
+    },
+
+    card: function (id, up, where) {
+      if (!ns.CARDS[id]) return 'no such card: ' + id;
+      var c = E.combat;
+      if (where === 'deck' || !c) { E.run.deck.push(mkCard(id, !!up)); return null; }
+      if (where === 'draw') c.drawPile.unshift(mkCard(id, !!up));
+      else if (where === 'discard') c.discard.push(mkCard(id, !!up));
+      else c.hand.push(mkCard(id, !!up));     // hand, past the usual cap on purpose
+      return null;
+    },
+
+    set: function (k, v) {
+      var r = E.run, c = E.combat;
+      if (!r) return 'start a run first';
+      v = Math.max(0, Math.round(v));
+      if (k === 'maxHp') { r.maxHp = Math.max(1, v); r.hp = Math.min(r.hp, r.maxHp); }
+      else if (k === 'hp') r.hp = Math.min(v, r.maxHp);
+      else if (k === 'credits') r.credits = v;
+      else if (k === 'sector') r.sector = Math.max(1, Math.min(B.run.finale || 5, v));
+      else if (k === 'energy') { if (!c) return 'not in a fight'; c.energy = v; }
+      else if (k === 'block') { if (!c) return 'not in a fight'; c.player.block = v; }
+      else return 'unknown: ' + k;
+      return null;
+    },
+
+    status: function (who, s, v) {
+      var c = E.combat;
+      if (!c) return 'not in a fight';
+      var ent = (who === 'player') ? c.player : c.enemies[who];
+      if (!ent) return 'no such target';
+      addStatus(ent, s, v);
+      emit('status', { who: who === 'player' ? 'player' : 'enemy', idx: who, s: s, v: statN(ent, s) });
+      return null;
+    },
+
+    // Cut an engraving in without the bench. It goes through the ordinary
+    // placement rules and reports the ordinary refusal, because "why won't
+    // this go there" is itself a thing worth being able to ask quickly.
+    engrave: function (face, id) {
+      if (!E.run || !E.run.die) return 'start a run first';
+      return ns.dieEngrave(E.run.die, id, face) || null;
+    },
+    scrub: function (face) {
+      if (!E.run || !E.run.die) return 'start a run first';
+      return ns.dieScrub(E.run.die, face) ? null : 'nothing on face ' + face;
+    },
+
+    kill: function (idx) {
+      var c = E.combat;
+      if (!c) return 'not in a fight';
+      c.enemies.forEach(function (en, i) {
+        if (!en.alive) return;
+        if (idx != null && i !== idx) return;
+        dealToEnemy(en, i, en.hp + en.block + 9999, { noCrit: true, src: 'dev' });
+      });
+      checkWin();
+      return null;
+    },
+
+    node: function (type) {
+      if (!E.run) return 'start a run first';
+      E.startNode(type);
+      return null;
+    },
   };
 
 })(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));

@@ -21,7 +21,8 @@
 
     // prevent rubber-band scrolling on iOS, but allow overlay screens to scroll
     document.addEventListener('touchmove', function (e) {
-      if (e.target && e.target.closest && e.target.closest('.screen')) return;
+      // #vsdev is the dev console, which has its own scrolling panel
+      if (e.target && e.target.closest && e.target.closest('.screen, #vsdev')) return;
       e.preventDefault();
     }, { passive: false });
     document.addEventListener('gesturestart', function (e) { e.preventDefault(); });

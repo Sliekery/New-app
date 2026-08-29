@@ -69,6 +69,43 @@ Load-bearing findings so far:
 - Canvas silently drops any path containing NaN, so bad art data is invisible
   rather than loud.
 
+## Setting up a situation instead of playing to one
+
+`index.html?dev=1` opens a console (`js/dev.js`) that names the enemies for a
+fight, deals a card, cuts an engraving without the bench, sets HP / Energy /
+Shield / sector, ends a turn, kills an enemy and jumps to any non-combat node.
+Every button calls a hook in `E.dev` that hands straight back to the real code
+— `fight` goes through `startCombat`, a card through `mkCard`, a kill through
+`dealToEnemy` — so relics, pressure, intents and death triggers all fire as
+they normally do. A console that built its own combat state would be a second
+implementation of the game and would prove nothing about the first.
+
+The hooks are always present; only the panel is behind the flag.
+
+## The test suites, and what each one is for
+
+    node test/mechanics.js     rules that must hold
+    node test/combatfit.js     48 combat layout invariants
+    node test/uifit.js         61 screen layout invariants
+    node test/devconsole.js    the dev console sets up REAL situations
+    node test/artist.js        the artist tool, driven through its buttons
+    node test/sampler.js       the sound tool's sample editor
+    node test/_shell.js        all five tools: no page scroll, no pinch zoom
+
+The last four need the tools served: `python3 -m http.server 8944` from
+`voidspire/`.
+
+`artist.js` and `sampler.js` exist because of one repeated failure, not a
+general wish for coverage: a handler updates the model and leaves the canvas,
+the status line or the export showing what was true before it. UNDO greyed out
+with points on screen; a finished shape that "was there and looked as though it
+was not"; a dragged frame that moved nothing; a stale length readout that read
+exactly like undo being broken. None were logic errors. All were a display that
+had stopped agreeing with its data. **So assert against what the tool says
+about itself** — its status line and its export — after every gesture, and the
+whole class disappears. Between them these two suites found four real bugs on
+the day they were written.
+
 ## Verifying UI work
 
 `test/combatfit.js` and `test/uifit.js` encode real layout invariants and have

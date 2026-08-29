@@ -412,6 +412,12 @@
    * needs and still trivial to hold.
    * ------------------------------------------------------------------ */
   var past = [], future = [];
+  /* Points taken back off a stroke that is still being drawn. UNDO already
+   * knew to pop one of these before touching the document — a half-drawn
+   * stroke is the most recent thing on screen, so it has to go first — but it
+   * dropped the point on the floor, so REDO could not put it back and the two
+   * keys stopped being each other's opposite. Anything undoable is redoable. */
+  var curUndone = [];
   function pushHistory() {
     past.push(JSON.stringify({ doc: doc, fi: fi, li: li }));
     if (past.length > 50) past.shift();
@@ -423,27 +429,35 @@
     doc = st.doc;
     fi = Math.min(st.fi, doc.frames.length - 1);
     li = Math.min(st.li, doc.layers.length - 1);
-    cur = []; drag = null; freeing = null;
+    cur = []; drag = null; freeing = null; curUndone.length = 0;
     renderLayers(); renderFrames(); drawPad();
   }
   function undo() {
     // a half-drawn stroke is the most recent thing on screen, so it goes first
-    if (cur.length) { cur.pop(); drawPad(); return; }
+    if (cur.length) { curUndone.push(cur.pop()); drawPad(); syncHistBtns(); return; }
     if (!past.length) return;
+    /* Stepping past the in-progress stroke into the document's own history
+     * makes those points meaningless: they belonged to a stroke this restore
+     * is about to replace. Dropping them here keeps REDO reversing the undos
+     * in the order they were made. */
+    curUndone.length = 0;
     future.push(JSON.stringify({ doc: doc, fi: fi, li: li }));
     restore(past.pop());
     syncHistBtns();
   }
   function redo() {
-    if (!future.length) return;
-    past.push(JSON.stringify({ doc: doc, fi: fi, li: li }));
-    restore(future.pop());
-    syncHistBtns();
+    if (future.length) {
+      past.push(JSON.stringify({ doc: doc, fi: fi, li: li }));
+      restore(future.pop());
+      syncHistBtns();
+      return;
+    }
+    if (curUndone.length) { cur.push(curUndone.pop()); drawPad(); syncHistBtns(); }
   }
   function syncHistBtns() {
     var u = document.getElementById('bUndo'), r = document.getElementById('bRedo');
     if (u) u.disabled = !(past.length || cur.length);
-    if (r) r.disabled = !future.length;
+    if (r) r.disabled = !(future.length || curUndone.length);
   }
 
   function cell(f, l) { return doc.frames[f].cells[l]; }
@@ -859,7 +873,7 @@
       pad.setPointerCapture(ev.pointerId);
       return;
     }
-    cur.push(snapPoint(w)); drawPad();
+    cur.push(snapPoint(w)); curUndone.length = 0; drawPad();
   });
   pad.addEventListener('pointermove', function (ev) {
     if (mode === 'erase') { lastPointer = toWorld(ev.clientX, ev.clientY); if (!erasing) drawPad(); }
@@ -940,7 +954,7 @@
 
   function finish() {
     if (cur.length > 1) { pushHistory(); here().strokes.push({ pts: cur, m: mirror }); }
-    cur = []; drawPad();
+    cur = []; drawPad(); curUndone.length = 0;
   }
   document.getElementById('bFinish').onclick = finish;
   document.getElementById('bUndo').onclick = undo;
@@ -1193,7 +1207,7 @@
       view.cx -= (mx - pinch.mx) / r.width * 2 * h;
       view.cy -= (my - pinch.my) / r.height * 2 * h;
       // a pinch is never also a stroke
-      cur = []; freeing = null; drag = null;
+      cur = []; freeing = null; drag = null; curUndone.length = 0;
       drawPad();
     }
     pinch = { dist: dist, mx: mx, my: my };
@@ -1422,7 +1436,7 @@
       var eyes = (fr.e || []).map(function (e) { return [e[0], e[1], false]; });
       return { cells: [{ strokes: strokes, eyes: eyes }] };
     });
-    fi = 0; li = 0; cur = []; mirror = false;
+    fi = 0; li = 0; cur = []; curUndone.length = 0; mirror = false;
     document.getElementById('bMirror').classList.remove('on');
     document.getElementById('fps').value = doc.fps;
     document.getElementById('fpsN').textContent = doc.fps;
@@ -1446,7 +1460,7 @@
       try {
         var d = JSON.parse(rd.result);
         if (!d.layers || !d.frames) throw 0;
-        doc = d; fi = 0; li = doc.layers.length - 1; cur = [];
+        doc = d; fi = 0; li = doc.layers.length - 1; cur = []; curUndone.length = 0;
         document.getElementById('fps').value = doc.fps || 8;
         document.getElementById('fpsN').textContent = doc.fps || 8;
         renderLayers(); renderFrames(); drawPad();
@@ -1616,7 +1630,7 @@
       }).filter(function (L) { return L.pts.length > 1; });
       return { cells: [{ strokes: strokes, eyes: (fr.e || []).map(function (q) { return [q[0], q[1], false]; }) }] };
     });
-    fi = 0; li = 0; cur = []; mirror = false;
+    fi = 0; li = 0; cur = []; curUndone.length = 0; mirror = false;
     document.getElementById('bMirror').classList.remove('on');
     document.getElementById('fps').value = doc.fps;
     document.getElementById('fpsN').textContent = doc.fps;
@@ -1789,7 +1803,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 15';
+  document.getElementById('ver').textContent = 'build 16';
 
   libLoad(); renderLib(); renderAssets();
   var restored = loadAutosave();
