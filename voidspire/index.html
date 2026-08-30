@@ -2489,7 +2489,7 @@ svg.vec .vec-reel { will-change: transform; }
  * ========================================================================= */
 (function (ns) {
   // Replaced by test/bundle.js with the git short hash + date at build time.
-  ns.BUILD = '2026-08-30 5b129b5';
+  ns.BUILD = '2026-08-30 1417c23';
 
   'use strict';
 
@@ -19884,7 +19884,8 @@ svg.vec .vec-reel { will-change: transform; }
        * off, which at boss scale reads as a bolt head rather than an eye. */
       (art.e || []).forEach(function (e) {
         var px = x + e[0] * scale, py = y + e[1] * scale;
-        var es = Math.max(1.5, scale * 0.05);
+        // e[2] is this pip's own size when the art carries one, else the default
+        var es = Math.max(1.5, scale * (e[2] || 0.04));
         ctx.beginPath(); ctx.arc(px, py, es / 2, 0, 7); ctx.fill();
       });
       ctx.restore();
@@ -20695,7 +20696,7 @@ svg.vec .vec-reel { will-change: transform; }
     ctx.shadowBlur = 7;
     (art.e || []).forEach(function (e) {
       var ex = px + e[0] * sc, ey = py + e[1] * sc;
-      var es = Math.max(1.5, sc * 0.055);
+      var es = Math.max(1.5, sc * (e[2] || 0.04));
       ctx.beginPath(); ctx.arc(ex, ey, es / 2, 0, 7); ctx.fill();
     });
     ctx.restore();
@@ -21230,7 +21231,13 @@ svg.vec .vec-reel { will-change: transform; }
       var s = '';
       (a.p || []).forEach(function (p) { s += '<polyline points="' + pts(p) + '"/>'; });
       (a.e || []).forEach(function (e) {
-        s += '<circle class="eye" cx="' + ((e[0] + 1.2) * 10).toFixed(2) + '" cy="' + ((e[1] + 1.2) * 10).toFixed(2) + '" r="0.6"/>';
+        /* SCALED FROM THE DEFAULT, not measured in world units like the
+         * canvas does. These are card icons and engravings drawn a few dozen
+         * pixels wide, where a true-to-scale pip would be under a pixel — so
+         * this half has always drawn a deliberately larger one, and keeps its
+         * own base while following whatever size the artist chose. */
+        var er = (0.6 * ((e[2] || 0.04) / 0.04)).toFixed(2);
+        s += '<circle class="eye" cx="' + ((e[0] + 1.2) * 10).toFixed(2) + '" cy="' + ((e[1] + 1.2) * 10).toFixed(2) + '" r="' + er + '"/>';
       });
       if (a.m) s += '<polyline class="mouth" points="' + pts(a.m) + '"/>';
       return s;
