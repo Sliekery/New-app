@@ -154,9 +154,16 @@
   /* And the chosen step is a SETTING, so it gets the quiet outline the snap
      switches get. Filled, it was a second thing in the rail shouting as loudly
      as the tool you are holding. */
-  .gstep.on {
-    background: transparent; border-color: rgba(93,255,136,0.5);
-    color: rgba(93,255,136,0.85);
+  /* The size itself, spelled out. It used to be four buttons labelled ·2 ·1 05
+     02, which is the number with its meaning filed off — you had to already
+     know they were grid sizes to read them as any. Reported as "we only have
+     one grid size", by someone who had been using all four. */
+  .gnow {
+    grid-column: 1 / -1; text-align: center; padding: 4px 0 3px;
+    font-size: 11px; letter-spacing: 0.5px;
+    color: rgba(93,255,136,0.9);
+    background: rgba(10,16,20,0.9);
+    border: 1px solid rgba(120,150,165,0.22); border-radius: 3px;
   }
 
   .sldgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); gap: 3px; }
@@ -439,10 +446,9 @@
     <button id="bMirror" class="tgl" title="Draw one half, get the other">MIRROR</button>
     <button id="bSnap" class="tgl" title="Land every point on the grid">GRID</button>
     <div id="gridSteps" class="steps">
-      <button class="sm gstep" data-step="0.2">·2</button>
-      <button class="sm gstep" data-step="0.1">·1</button>
-      <button class="sm gstep" data-step="0.05">05</button>
-      <button class="sm gstep" data-step="0.02">02</button>
+      <div class="gnow" id="gStepNow" title="The size of one grid square, and what every point snaps to.">0.05</div>
+      <button id="gWider" class="sm" title="A bigger grid — for blocking a shape out.  Shortcut: [">WIDER</button>
+      <button id="gFiner" class="sm" title="A finer grid — for detail.  Shortcut: ]">FINER</button>
     </div>
     <button id="bAngle" class="tgl" title="Straight lines only — 0, 45 and 90 degrees (or hold SHIFT)">ANGLE</button>
     <button id="bMag" class="tgl" title="Snap to nearby existing points">POINTS</button>
@@ -963,6 +969,21 @@
    * far too fine to aim at while blocking a shape out.
    * ================================================================== */
   var GRID_KEY = 'voidspire.artist.grid';
+  /* ==================================================================
+   * SIX SIZES, AND A WAY TO CHANGE THEM WITHOUT LOOKING
+   * ==================================================================
+   * "We only have one grid size" — said by someone who had four, because they
+   * were four buttons reading ·2 ·1 05 02 and nothing about that says SIZE.
+   * The step is written out in full now, and changed with a pair of buttons or
+   * with [ and ] from anywhere, which is what makes it usable mid-stroke:
+   * block a shape out wide, go fine for the detail, come back.
+   *
+   * The fine end stops at 0.005 because the export keeps THREE DECIMALS. Every
+   * multiple of 0.005 survives that exactly; a finer grid would let you place
+   * points the saved file cannot describe, and they would move the moment the
+   * drawing was reloaded.
+   * ================================================================== */
+  var GRID_STEPS = [0.2, 0.1, 0.05, 0.02, 0.01, 0.005];
   var gridStep = 0.05, angleLock = false;
   try {
     var gsv = JSON.parse(localStorage.getItem(GRID_KEY) || 'null');
@@ -1100,10 +1121,15 @@
       var h0 = half();
       var gs = gridStep;
       var px5 = (gs / h0) * (pad.width / 2);      // one step, in device pixels
-      var lo = Math.ceil((view.cx - h0) / gs) * gs, hi = view.cx + h0;
-      var lo2 = Math.ceil((view.cy - h0) / gs) * gs, hi2 = view.cy + h0;
+      /* When the fine lines are being dropped, WALK BY FIVES rather than
+       * stepping over four of them each time. At 0.005 zoomed out that is the
+       * difference between a few hundred iterations and a few thousand, every
+       * frame of every drag. */
+      var kstep = px5 < 3 ? 5 : 1, walk = gs * kstep;
+      var lo = Math.ceil((view.cx - h0) / walk) * walk, hi = view.cx + h0;
+      var lo2 = Math.ceil((view.cy - h0) / walk) * walk, hi2 = view.cy + h0;
       var n0 = Math.round(lo / gs), m0 = Math.round(lo2 / gs), k = 0;
-      for (var gx = lo; gx <= hi; gx += gs, k++) {
+      for (var gx = lo; gx <= hi; gx += walk, k += kstep) {
         var major = ((n0 + k) % 5) === 0;
         if (!major && px5 < 3) continue;
         px.strokeStyle = major ? 'rgba(120,150,165,0.26)' : 'rgba(120,150,165,0.10)';
@@ -1111,7 +1137,7 @@
         px.beginPath(); px.moveTo(a0[0], a0[1]); px.lineTo(b0[0], b0[1]); px.stroke();
       }
       k = 0;
-      for (var gy = lo2; gy <= hi2; gy += gs, k++) {
+      for (var gy = lo2; gy <= hi2; gy += walk, k += kstep) {
         var major2 = ((m0 + k) % 5) === 0;
         if (!major2 && px5 < 3) continue;
         px.strokeStyle = major2 ? 'rgba(120,150,165,0.26)' : 'rgba(120,150,165,0.10)';
@@ -1919,19 +1945,36 @@
   toggle('bMag', function () { return magnet; }, function (v) { magnet = v; });
   toggle('bAngle', function () { return angleLock; },
     function (v) { angleLock = v; saveGrid(); });
-  document.querySelectorAll('.gstep').forEach(function (b) {
-    b.onclick = function () {
-      gridStep = +b.getAttribute('data-step');
-      document.querySelectorAll('.gstep').forEach(function (o) {
-        o.classList.toggle('on', +o.getAttribute('data-step') === gridStep);
-      });
-      saveGrid(); drawPad();
-      note('grid step ' + gridStep + ' — ' + Math.round(2 / gridStep) + ' divisions across');
-    };
-  });
-  document.querySelectorAll('.gstep').forEach(function (o) {
-    o.classList.toggle('on', +o.getAttribute('data-step') === gridStep);
-  });
+  /* NEAREST, not indexOf: a step restored from an older save — or from a build
+   * with a different list — still lands somewhere sensible instead of pinning
+   * the stepper to the widest. */
+  function gridIndex() {
+    var best = 0, bd = Infinity;
+    GRID_STEPS.forEach(function (v, i) {
+      var d = Math.abs(v - gridStep);
+      if (d < bd) { bd = d; best = i; }
+    });
+    return best;
+  }
+  function showGridStep() {
+    var el = document.getElementById('gStepNow');
+    if (el) el.textContent = gridStep;
+  }
+  function nudgeGrid(dir) {
+    var i = gridIndex() + dir;
+    if (i < 0) return note('that is the widest grid there is', true);
+    if (i >= GRID_STEPS.length) {
+      return note('that is the finest grid there is — the export keeps three decimals,'
+        + ' so anything smaller would be rounded away when the drawing is saved', true);
+    }
+    gridStep = GRID_STEPS[i];
+    saveGrid(); showGridStep(); drawPad();
+    note('grid ' + gridStep + ' — ' + Math.round(2 / gridStep) + ' squares across the box'
+      + (snap ? '' : ' (GRID is off, so nothing is snapping to it yet)'));
+  }
+  document.getElementById('gWider').onclick = function () { nudgeGrid(-1); };
+  document.getElementById('gFiner').onclick = function () { nudgeGrid(1); };
+  showGridStep();
 
   /* PANNING FROM ANY TOOL. A dedicated mode is a mode you have to leave and
    * come back to; holding space or dragging with the middle button works
@@ -4621,6 +4664,12 @@
       document.getElementById(MODE_KEYS[ev.key.toLowerCase()]).click();
       ev.preventDefault(); return;
     }
+    /* The grid, without leaving the canvas or looking for a button — the
+     * brackets, where every drawing program keeps its size control. */
+    if (!ev.metaKey && !ev.ctrlKey && (ev.key === '[' || ev.key === ']')) {
+      nudgeGrid(ev.key === '[' ? -1 : 1);
+      ev.preventDefault(); return;
+    }
     /* ARROW KEYS NUDGE THE SELECTION. Dragging is for gross movement and hopeless
      * for the last two thousandths; shift takes a bigger step. */
     if (mode === 'select' && sel.length && ev.key.indexOf('Arrow') === 0) {
@@ -5106,7 +5155,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 36';
+  document.getElementById('ver').textContent = 'build 37';
 
   paintThumbs();
   applyView(viewMode);
