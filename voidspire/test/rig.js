@@ -1071,6 +1071,113 @@ const DEG = 180 / Math.PI;
       moved.some(v => !onGrid(v, 0.1)), moved.join(', '));
   }
 
+  /* ==================================================================
+   * TWEEN SAYS WHAT IT DID
+   * ==================================================================
+   * "The tween function does not seem to really work." It worked — and said
+   * nothing, which on the three occasions it CANNOT work is indistinguishable
+   * from being broken. All three are silent failures you can walk into in a
+   * minute of ordinary use, and the first is the state you are in the instant
+   * after pressing DUPLICATE.
+   * ================================================================== */
+  console.log('\nTWEEN SAYS WHAT IT DID');
+  {
+    const Wf = v => (v / 1.35 + 1) / 2;
+    const wdrag = (a1, c1, d1, e1) => drag(Wf(a1), Wf(c1), Wf(d1), Wf(e1));
+    const openFrames = () => p.evaluate(() => {
+      const bx = [...document.querySelectorAll('.box')]
+        .find(x => /FRAMES/.test((x.querySelector('h2') || {}).textContent || ''));
+      if (bx && bx.classList.contains('shut')) bx.querySelector('h2').onclick();
+    });
+    const tweenFrom1 = async () => {
+      await p.click('#frameList > *:nth-child(1)'); await p.waitForTimeout(250);
+      await openFrames();
+      await p.click('#fTween'); await p.waitForTimeout(420);
+      return status();
+    };
+    const twoBars = async () => {
+      await p.click('#tabAdd'); await p.waitForTimeout(600);
+      await p.click('#mLine'); await p.waitForTimeout(80);
+      await wdrag(-0.6, -0.5, -0.2, -0.5);
+      await wdrag(0.2, -0.5, 0.6, -0.5);
+      await p.click('#fDup'); await p.waitForTimeout(300);
+    };
+
+    // ---- it is not even offered until there is somewhere to tween TO ----
+    await p.click('#tabAdd'); await p.waitForTimeout(600);
+    await p.click('#mLine'); await p.waitForTimeout(80);
+    await wdrag(-0.5, -0.4, 0.5, -0.4);
+    await openFrames();
+    /* The animation row tucks itself away for a still drawing, so TWEEN cannot
+     * be reached at all with one frame — which is a better answer than a
+     * message, and it is why the guard behind it is unreachable by hand. */
+    ok('TWEEN is not offered while there is only one frame',
+      await p.$eval('#fTween', e => !e.offsetParent),
+      await p.$eval('#fTween', e => e.offsetParent ? 'visible' : 'hidden'));
+
+    // ---- two frames the same ------------------------------------------
+    await p.click('#fDup'); await p.waitForTimeout(300);
+    await openFrames();
+    ok('and it appears as soon as there are two', await p.$eval('#fTween', e => !!e.offsetParent));
+    let said = await tweenFrom1();
+    ok('between two identical frames it makes them and says they are identical',
+      /IDENTICAL/.test(said) && /⚠/.test(said), said);
+    ok('and it made them anyway rather than refusing', (await frameCount()) === 5,
+      (await frameCount()) + ' frames');
+
+    // ---- a stroke with no partner --------------------------------------
+    await p.click('#tabAdd'); await p.waitForTimeout(600);
+    await p.click('#mLine'); await p.waitForTimeout(80);
+    await wdrag(-0.5, -0.4, 0.5, -0.4);
+    await p.click('#fDup'); await p.waitForTimeout(300);
+    await wdrag(-0.5, 0.4, 0.5, 0.4);            // the second frame gains a bar
+    said = await tweenFrom1();
+    ok('it counts the strokes with no partner', /1 stroke with no partner/.test(said), said);
+    const grown = await frames();
+    ok('and that stroke is PRESENT in the in-betweens rather than popping in at the end',
+      grown.slice(1).every(x => x.p.length === 2), grown.map(x => x.p.length).join(','));
+    ok('growing out of a point — it starts far smaller than it ends',
+      (() => {
+        const w = x => { const q = pairs(x.p[1]); return dist(q[0], q[1]); };
+        return w(grown[1]) < w(grown[4]) * 0.5;
+      })(),
+      grown.slice(1).map(x => { const q = pairs(x.p[1]); return dist(q[0], q[1]).toFixed(2); }).join(', '));
+
+    // ---- the same strokes in a different ORDER --------------------------
+    await twoBars();
+    await p.click('#mSel'); await p.waitForTimeout(120);
+    await wdrag(-0.9, -0.9, 0.9, 0.0);
+    await p.click('#tDel'); await p.waitForTimeout(200);
+    await p.click('#mLine'); await p.waitForTimeout(80);
+    await wdrag(0.2, 0.4, 0.6, 0.4);             // redrawn right-hand-first
+    await wdrag(-0.6, 0.4, -0.2, 0.4);
+    said = await tweenFrom1();
+    ok('a pair of strokes redrawn in the other order is called out',
+      /not in the same order/.test(said), said);
+    ok('and it says what to do instead of redrawing them',
+      /Move a part rather than deleting it/.test(said), said);
+
+    /* THE TWO THAT MUST STAY QUIET. A warning that fires on ordinary work is
+     * worse than no warning, because it teaches you to ignore the line. */
+    await twoBars();
+    await p.click('#mSel'); await p.waitForTimeout(120);
+    await wdrag(-0.9, -0.9, 0.9, -0.2);
+    await wdrag(0.0, -0.5, 0.0, 0.45);           // BOTH bars a long way down
+    said = await tweenFrom1();
+    ok('a big honest move of everything is not called a shuffle',
+      !/⚠/.test(said) && /made 3 in-between/.test(said), said);
+
+    await twoBars();
+    await p.click('#mSel'); await p.waitForTimeout(120);
+    await wdrag(0.05, -0.9, 0.9, -0.2);
+    await wdrag(0.4, -0.5, 0.4, 0.45);           // one bar far, one not at all
+    said = await tweenFrom1();
+    ok('nor is one part travelling while the other stays put',
+      !/⚠/.test(said) && /made 3 in-between/.test(said), said);
+    ok('and the plain case names both frames and offers PLAY',
+      /between frame 1 and frame 2/.test(said) && /PLAY/.test(said), said);
+  }
+
   console.log('\n' + (errs.length ? 'PAGE ERRORS:\n  ' + errs.join('\n  ') : 'no page errors'));
   if (errs.length) fail += errs.length;
   console.log('\n' + pass + ' passed, ' + fail + ' failed');

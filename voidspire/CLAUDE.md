@@ -732,6 +732,43 @@ and the strokes you did not select are byte-identical. Four notes worth keeping:
   rounding of doing nothing on the fine one, so which side of the rounding it
   falls decides whether the test passes.
 
+## TWEEN worked and said nothing
+
+"The tween function does not seem to really work." It worked. It said nothing —
+and on the three occasions it CANNOT work, silence is indistinguishable from
+being broken:
+
+- **The two frames are identical.** This is the state you are in the instant
+  after pressing DUPLICATE, so it is the first thing anyone does: duplicate a
+  frame, press TWEEN, watch nothing happen.
+- **They hold different numbers of strokes.** The odd ones out used to be
+  carried unchanged and then pop.
+- **They hold the same number in a different ORDER**, because a part was
+  deleted and drawn again. Strokes pair BY INDEX, so the arm tweens into the
+  leg and they slide through each other on the way.
+
+**The pairing stays by index.** It is the pairing SWING and REPEAT go to
+trouble to preserve, and re-pairing by proximity would guess wrong on any part
+that genuinely travels. What changed is that all three are detected and said
+out loud, and that an unpaired stroke now tweens against a copy of itself
+squashed to its own middle — so it grows out of a point or shrinks away into
+one instead of appearing from nowhere at the far end.
+
+**Detecting the shuffle without crying wolf.** Compare the cost of pairing in
+order against pairing by nearness. A real move costs the same either way:
+translate every part downwards and each is still nearest its own new position;
+even one part travelling a long way while the others sit still leaves the two
+equal. Only a shuffle makes the in-order pairing dearer — and it has to be
+dearer by a visible fraction of the box AS WELL AS by a ratio, so two small
+strokes near each other cannot trip it on rounding. Both quiet cases are in
+`test/rig.js`, because **a warning that fires on ordinary work is worse than no
+warning**: it teaches you to ignore the line.
+
+A note for reaching it: **TWEEN is not offered at all while there is one
+frame** — the animation row tucks itself away for a still drawing. That is a
+better answer than a message, and it makes the guard behind the button
+unreachable by hand.
+
 ## A clicked button must not keep the keyboard
 
 "Pressing space sometimes undoes actions." SPACE and ENTER are how a button is
