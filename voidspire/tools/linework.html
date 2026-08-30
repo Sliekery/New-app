@@ -1193,9 +1193,16 @@
       px.save();
       px.fillStyle = '#ff4a5e'; px.shadowColor = '#ff4a5e'; px.shadowBlur = 9;
       px.globalAlpha = active ? 1 : 0.5;
+      /* SIZED LIKE THE ART, not like a marker. It was a flat 8 screen pixels
+       * whatever the zoom, so at 6x it was a speck against the drawing and at
+       * a distance it swamped it — the same eye looking like two different
+       * things depending on how far in you were. The game draws the pip 0.05
+       * of the figure across, so this does too, in world units converted
+       * through the same view as everything else. */
+      var eyeR = Math.max(2, 0.025 * (pad.width / 2) / half());
       expandEyes(cell(fi, l).eyes).forEach(function (e) {
         var s = toScreen(e[0], e[1]);
-        px.beginPath(); px.arc(s[0], s[1], 8, 0, 7); px.fill();
+        px.beginPath(); px.arc(s[0], s[1], eyeR, 0, 7); px.fill();
       });
       px.restore();
     });
@@ -1489,7 +1496,7 @@
       pc.fillStyle = '#ff4a5e'; pc.shadowColor = '#ff4a5e'; pc.shadowBlur = 6;
       art.e.forEach(function (e) {
         var ex = x + e[0] * sc, ey = y + e[1] * sc, es = Math.max(1.5, sc * 0.05);
-        pc.fillRect(ex - es / 2, ey - es / 2, es, es);
+        pc.beginPath(); pc.arc(ex, ey, es / 2, 0, 7); pc.fill();
       });
       pc.restore();
     });
@@ -3787,7 +3794,7 @@
     if (glow) { g.shadowColor = '#ff4a5e'; g.shadowBlur = glow * 0.8; }
     art.e.forEach(function (e) {
       var es = Math.max(1.5, sc * 0.05);
-      g.fillRect(cx + e[0] * sc - es / 2, cy + e[1] * sc - es / 2, es, es);
+      g.beginPath(); g.arc(cx + e[0] * sc, cy + e[1] * sc, es / 2, 0, 7); g.fill();
     });
     g.restore();
   }
@@ -5155,7 +5162,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 37';
+  document.getElementById('ver').textContent = 'build 38';
 
   paintThumbs();
   applyView(viewMode);
