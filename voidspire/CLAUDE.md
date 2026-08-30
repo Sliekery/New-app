@@ -97,7 +97,7 @@ The hooks are always present; only the panel is behind the flag.
     node test/export.js        every export format, saved and then opened
     node test/tabs.js          several drawings open at once, and their seams
     node test/grid.js          snapping, and whether it makes the shape you meant
-    node test/rig.js           the found joint, the swing, REPEAT, and the grid
+    node test/rig.js           the found joint, the swing, the stretch, REPEAT
     node test/_shell.js        all five tools: no page scroll, no pinch zoom
 
 The last eleven need the tools served: `python3 -m http.server 8944` from
