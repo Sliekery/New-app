@@ -1338,7 +1338,7 @@
       shape: 'drag a box; the shape fills it',
       eye: 'tap to place a glowing pip',
       edit: 'drag a point to move it · DELETE removes the point under the cursor',
-      select: 'drag a box round strokes · arrow keys nudge, SHIFT for a bigger step',
+      select: 'click a line to take just that one · SHIFT-click adds another · or drag a box round several',
       pan: 'drag to move the canvas',
       erase: 'drag over strokes to rub them out — a whole stroke at a time',
       solid: 'drag the solid to turn it · drag a box elsewhere to move and resize it · PLACE IT keeps it, BAKE SPIN makes it an animation',
@@ -1361,7 +1361,7 @@
      * invisible until you try it, and a gesture nobody knows is there is a
      * gesture that was not added. */
     document.getElementById('selCount').textContent =
-      !sel.length ? 'drag a box round some strokes'
+      !sel.length ? 'click a line, or drag a box round several'
         : sel.length + ' stroke' + (sel.length === 1 ? '' : 's') + ' selected'
           + (!swingOn ? ' · drag to slide it'
             : pivot ? ' · drag to swing it round your pivot'
@@ -1574,6 +1574,7 @@
       drawPad(); return;
     }
     if (mode === 'select') {
+      clickFrom = [ev.clientX, ev.clientY];
       /* A HANDLE BEATS THE BODY. One stroke selected puts a grab on each of
        * its ends, and taking hold of one stretches the line instead of
        * swinging it — the rule every vector tool has used since they had
@@ -1751,7 +1752,14 @@
     here().strokes[drag.si].pts[drag.pi] = snapPoint(toWorld(ev.clientX, ev.clientY));
     drawPad();
   });
-  pad.addEventListener('pointerup', function () {
+  pad.addEventListener('pointerup', function (ev) {
+    var upAt = [ev ? ev.clientX : 0, ev ? ev.clientY : 0];
+    var shiftUp = !!(ev && ev.shiftKey);
+    /* Worked out ONCE, at the top. The drag state is torn down part way through
+     * this handler and `clickFrom` with it, so anything below that point which
+     * asks "was this a click?" gets null and every click reads as a drag. */
+    var wasClick = !!clickFrom
+      && Math.hypot(upAt[0] - clickFrom[0], upAt[1] - clickFrom[1]) <= 4;
     /* A drag counts as a transform too, so REPEAT can carry on a movement you
      * made by hand rather than only ones made with a button. */
     if (moveFrom && (moveFrom.dx || moveFrom.dy)) {
@@ -1765,6 +1773,21 @@
       markXform({ kind: 'rot', a: swingFrom.da, px: swingFrom.pv[0], py: swingFrom.pv[1] });
       note('swung ' + Math.round(swingFrom.da * 180 / Math.PI) + '° round the joint'
         + ' — REPEAT walks it there over several frames');
+    }
+    /* Taking hold of the selection and letting go without moving is a CLICK
+     * too — on something already selected, which is how you narrow a group
+     * down to the one line in it you actually meant. It has to be read here,
+     * before the drag state is torn down two lines further on. */
+    var held = moveFrom || swingFrom;
+    if (wasClick && held && !held.pushed) {
+      var p2 = pickAt(upAt[0], upAt[1]);
+      if (p2 != null) {
+        if (shiftUp) {
+          var at3 = sel.indexOf(p2);
+          if (at3 >= 0) sel.splice(at3, 1); else sel.push(p2);
+        } else sel = [p2];
+        findJoint();
+      }
     }
     swingFrom = null;
     if (stretchFrom && (stretchFrom.dx || stretchFrom.dy)) {
@@ -1783,6 +1806,7 @@
      * old spot is the display disagreeing with the data again — it showed the
      * antenna's tip hanging in the air above the block that had just moved. */
     if (stretchFrom || moveFrom) findJoint();
+    clickFrom = null;
     stretchFrom = null;
     panFrom = null; moveFrom = null; erasing = false;
     if (orbitFrom) { orbitFrom = null; drawPad(); return; }
@@ -1810,12 +1834,25 @@
     }
     lineFrom = lineTo = null;
     if (marquee) {
-      var x0 = Math.min(marquee.a[0], marquee.b[0]), x1 = Math.max(marquee.a[0], marquee.b[0]);
-      var y0 = Math.min(marquee.a[1], marquee.b[1]), y1 = Math.max(marquee.a[1], marquee.b[1]);
-      sel = [];
-      here().strokes.forEach(function (L, i) {
-        if (L.pts.some(function (p) { return p[0] >= x0 && p[0] <= x1 && p[1] >= y0 && p[1] <= y1; })) sel.push(i);
-      });
+      /* A CLICK, not a box. The pointer never really moved, so this was a tap
+       * on a line rather than a rubber band round several — and a zero-size
+       * box selects nothing, which is why clicking a line used to clear the
+       * selection instead of picking it. */
+      if (wasClick) {
+        var picked = pickAt(upAt[0], upAt[1]);
+        if (picked == null) { if (!shiftUp) sel = []; }
+        else if (shiftUp) {
+          var at2 = sel.indexOf(picked);
+          if (at2 >= 0) sel.splice(at2, 1); else sel.push(picked);
+        } else sel = [picked];
+      } else {
+        var x0 = Math.min(marquee.a[0], marquee.b[0]), x1 = Math.max(marquee.a[0], marquee.b[0]);
+        var y0 = Math.min(marquee.a[1], marquee.b[1]), y1 = Math.max(marquee.a[1], marquee.b[1]);
+        sel = [];
+        here().strokes.forEach(function (L, i) {
+          if (L.pts.some(function (p) { return p[0] >= x0 && p[0] <= x1 && p[1] >= y0 && p[1] <= y1; })) sel.push(i);
+        });
+      }
       marquee = null;
       findJoint();
     }
@@ -2777,6 +2814,8 @@
    * rotate, scale or flip them together about their own centre.
    * ================================================================== */
   var sel = [], marquee = null, moveFrom = null, swingFrom = null, stretchFrom = null;
+  // where a press in SELECT mode began, so the release can tell a click from a drag
+  var clickFrom = null;
   function selBounds() {
     var xs = [], ys = [];
     sel.forEach(function (i) {
@@ -3014,6 +3053,47 @@
       }
     }
     return null;
+  }
+
+  /* ==================================================================
+   * CLICK ONE LINE
+   * ==================================================================
+   * A marquee was the only way in, and it takes anything with a POINT inside
+   * the box — so on a closed shape it is impossible to take one side without
+   * its neighbours, because every corner of a box belongs to two strokes at
+   * the same coordinate. "How do I only select one line" is the right question
+   * and the answer used to be "carefully, and often you cannot".
+   *
+   * So a click picks the line under it. Shift adds or removes one. The
+   * distance is measured in SCREEN pixels, not world units, so the grab is the
+   * same size however far in or out you are zoomed.
+   *
+   * A stroke drawn with MIRROR on is stored once and drawn twice, and the half
+   * you are looking at may well be the copy — so the click is tested against
+   * the mirrored position too. Picking only the stored half would mean half of
+   * every symmetrical drawing simply could not be clicked.
+   * ================================================================== */
+  function pickAt(cx, cy) {
+    var r = pad.getBoundingClientRect(), k = pad.width / r.width;
+    var w = rawWorld(cx, cy), best = null, bd = 10;      // 10 CSS px
+    here().strokes.forEach(function (L, i) {
+      var tries = [w];
+      if (L.m) tries.push([-w[0], w[1]]);
+      tries.forEach(function (q) {
+        var d = Infinity;
+        if (L.pts.length < 2) {
+          if (L.pts.length) d = Math.hypot(q[0] - L.pts[0][0], q[1] - L.pts[0][1]);
+        } else {
+          for (var j = 1; j < L.pts.length; j++) {
+            d = Math.min(d, segDist(q, L.pts[j - 1], L.pts[j]));
+          }
+        }
+        // world to CSS pixels: the pad spans 2*half() across its own width
+        var px2 = d / (2 * half()) * (pad.width / k);
+        if (px2 < bd) { bd = px2; best = i; }
+      });
+    });
+    return best;
   }
 
   /* A point welded to the rest of the drawing does not move, whatever the
@@ -5056,7 +5136,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 31';
+  document.getElementById('ver').textContent = 'build 32';
 
   paintThumbs();
   applyView(viewMode);

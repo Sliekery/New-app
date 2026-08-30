@@ -525,6 +525,31 @@ Decisions inside it:
 - Only the CURRENT LAYER is searched. A limb hinged against a line on the
   sketch layer would be hinged against a guide.
 
+### Clicking one line
+
+"How to only select one line." A marquee was the only way in, and it takes
+anything with a POINT inside the box — so **there is no box that takes one side
+of a closed shape and not its neighbours**, because every corner belongs to two
+strokes at the same coordinate. The honest answer to the question was "often
+you cannot", which is what made the stretch handles almost unreachable: they
+only appear when exactly one stroke is selected.
+
+A click now picks the line under it, shift-click adds or removes one, and a
+click on empty space clears. The distance is measured in **screen pixels**, not
+world units, so the grab is the same size however far in or out you are zoomed.
+
+**The mirrored half is clickable.** A stroke drawn with MIRROR on is stored
+once and drawn twice, and the half you are looking at may well be the copy — so
+the click is tested against the mirrored position too. Picking only the stored
+half would mean half of every symmetrical drawing simply could not be clicked,
+which on this game's art is most of it.
+
+Two ordering traps, the same one twice: **`pointerup` tears down the drag state
+part way through itself**, so anything below that point which asks "was this a
+click?" reads a null and every click looks like a drag. It is worked out once
+at the top of the handler now. The click-on-an-already-selected-thing branch
+had to move above the teardown for the same reason.
+
 ### Stretching one line, and what comes with it
 
 > Select a single line and make it longer or shorter by dragging. If another

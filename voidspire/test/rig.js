@@ -440,6 +440,87 @@ const DEG = 180 / Math.PI;
   await p.click('#mSel'); await p.waitForTimeout(150);
   ok('back in the first drawing', (await bodyOf()) === BODY0, await bodyOf());
 
+  console.log('\nCLICKING ONE LINE');
+  /* "How to only select one line." A marquee takes anything with a POINT inside
+   * the box, and every corner of a closed shape belongs to TWO strokes at the
+   * same coordinate — so there is no box that takes one side of a square and
+   * not its neighbours. The answer had to be a click. */
+  {
+    await p.click('#tabAdd'); await p.waitForTimeout(600);
+    await p.click('#mLine'); await p.waitForTimeout(80);
+    const Wf = v => (v / 1.35 + 1) / 2;
+    const wdrag = (a1, c1, d1, e1) => drag(Wf(a1), Wf(c1), Wf(d1), Wf(e1));
+    const wclick = async (a1, c1, sh) => {
+      await remeasure();
+      const [x, y] = at(Wf(a1), Wf(c1));
+      await p.mouse.move(x, y);
+      if (sh) await p.keyboard.down('Shift');
+      await p.mouse.down(); await p.mouse.up();
+      if (sh) await p.keyboard.up('Shift');
+      await p.waitForTimeout(180);
+    };
+    await wdrag(-0.4, -0.4, 0.4, -0.4);          // 0 top
+    await wdrag(0.4, -0.4, 0.4, 0.4);            // 1 right
+    await wdrag(0.4, 0.4, -0.4, 0.4);            // 2 bottom
+    await wdrag(-0.4, 0.4, -0.4, -0.4);          // 3 left
+    await p.click('#mSel'); await p.waitForTimeout(150);
+
+    /* WHICH stroke, not just how many. Nudging moves only what is selected, so
+     * the stroke that moves is the one the click actually took. */
+    const whoMoved = async () => {
+      const was = (await cur()).p.map(r => JSON.stringify(r));
+      await p.keyboard.press('ArrowRight'); await p.waitForTimeout(200);
+      const now = (await cur()).p.map(r => JSON.stringify(r));
+      const moved = [];
+      now.forEach((r, i) => { if (r !== was[i]) moved.push(i); });
+      await p.click('#bUndo'); await p.waitForTimeout(200);
+      return moved;
+    };
+
+    await wclick(-0.4, 0.0);                     // the LEFT side, mid-length
+    ok('a click takes exactly one line', /1 stroke selected/.test(await selBar()), await selBar());
+    ok('and it is the line that was under the pointer',
+      JSON.stringify(await whoMoved()) === '[3]', JSON.stringify(await whoMoved()));
+    await wclick(0.0, -0.4);                     // the TOP
+    ok('clicking another takes that one instead',
+      JSON.stringify(await whoMoved()) === '[0]', JSON.stringify(await whoMoved()));
+    await wclick(0.4, 0.0, true);                // shift adds the right side
+    ok('shift-click adds a second', /2 strokes selected/.test(await selBar()), await selBar());
+    ok('and it is the two you clicked',
+      JSON.stringify(await whoMoved()) === '[0,1]', JSON.stringify(await whoMoved()));
+    await wclick(0.4, 0.0, true);
+    ok('shift-clicking it again takes it back off',
+      /1 stroke selected/.test(await selBar()), await selBar());
+    await wclick(0.0, 0.0);                      // the middle of the box: nothing there
+    ok('clicking empty space clears the selection',
+      /click a line, or drag a box/.test(await selBar()), await selBar());
+
+    /* A corner is the case a marquee cannot do at all: two strokes end on the
+     * same coordinate, so a box round it takes both. A click has to pick one
+     * and stay picked. */
+    await wclick(-0.4, -0.2);
+    ok('near a corner it still takes one line, not both',
+      /1 stroke selected/.test(await selBar()), await selBar());
+
+    console.log('\n  AND ON THE MIRRORED HALF');
+    /* A stroke drawn with MIRROR on is stored once and drawn twice, and the
+     * half you are looking at may be the copy. Picking only the stored half
+     * would mean half of every symmetrical drawing could not be clicked. */
+    await p.click('#tabAdd'); await p.waitForTimeout(600);
+    ok('MIRROR follows across, it is a setting not a drawing',
+      await p.$eval('#bMirror', e => !e.classList.contains('on')));
+    await p.click('#bMirror'); await p.waitForTimeout(150);   // back ON
+    await p.click('#mLine'); await p.waitForTimeout(80);
+    await wdrag(0.3, -0.4, 0.3, 0.4);            // one upright, drawn on the right
+    ok('it is stored once and drawn twice',
+      /1 stroke .* exports 2 paths/.test(await status()), await status());
+    await p.click('#mSel'); await p.waitForTimeout(150);
+    await wclick(-0.3, 0.0);                     // click the MIRRORED copy
+    ok('clicking the mirrored copy selects the stroke behind it',
+      /1 stroke selected/.test(await selBar()), await selBar());
+    await p.click('#bMirror'); await p.waitForTimeout(150);   // off again for the rest
+  }
+
   console.log('\nSTRETCHING ONE LINE, AND WHAT COMES WITH IT');
   /* "Select a single line and make it longer or shorter by dragging. If
    *  another thing is attached it will move together with it, because it will
