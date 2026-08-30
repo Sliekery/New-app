@@ -1191,20 +1191,34 @@
      * SAME KIND OF THING as one you placed, because it does the same job, while
      * still reading as something the tool decided rather than something you
      * did. Wrong is then visible, which is what makes trusting it reasonable. */
-    var shownPivot = pivot || (mode === 'select' ? autoJoint : null);
-    if (shownPivot && (mode === 'select' || pivotArm)) {
-      var ps = toScreen(shownPivot[0], shownPivot[1]);
-      var own = !!pivot, arm2 = own ? 16 : 13, gap = own ? 0 : 5;
+    if (pivot && (mode === 'select' || pivotArm)) {
+      var ps = toScreen(pivot[0], pivot[1]);
       px.save();
       px.strokeStyle = '#ffb02e'; px.lineWidth = 2;
-      px.globalAlpha = own ? 1 : 0.8;
-      px.beginPath(); px.arc(ps[0], ps[1], own ? 9 : 8, 0, 7); px.stroke();
+      px.beginPath(); px.arc(ps[0], ps[1], 9, 0, 7); px.stroke();
       px.beginPath();
-      px.moveTo(ps[0] - arm2, ps[1]); px.lineTo(ps[0] - gap, ps[1]);
-      px.moveTo(ps[0] + gap, ps[1]); px.lineTo(ps[0] + arm2, ps[1]);
-      px.moveTo(ps[0], ps[1] - arm2); px.lineTo(ps[0], ps[1] - gap);
-      px.moveTo(ps[0], ps[1] + gap); px.lineTo(ps[0], ps[1] + arm2);
+      px.moveTo(ps[0] - 16, ps[1]); px.lineTo(ps[0] + 16, ps[1]);
+      px.moveTo(ps[0], ps[1] - 16); px.lineTo(ps[0], ps[1] + 16);
       px.stroke();
+      px.restore();
+    } else if (mode === 'select' && pins.length) {
+      /* EVERY PIN, not their average. The average is in clear space between
+       * them and welded to nothing — drawing a crosshair there said something
+       * about the arithmetic rather than about the drawing, and was reported
+       * as a marker floating in the middle of nowhere. A ring on each place
+       * the limb is actually held is the truth and reads as one. */
+      px.save();
+      px.strokeStyle = '#ffb02e'; px.lineWidth = 2; px.globalAlpha = 0.85;
+      pins.forEach(function (q) {
+        var qs = toScreen(q[0], q[1]);
+        px.beginPath(); px.arc(qs[0], qs[1], 7, 0, 7); px.stroke();
+        px.beginPath();
+        px.moveTo(qs[0] - 12, qs[1]); px.lineTo(qs[0] - 4, qs[1]);
+        px.moveTo(qs[0] + 4, qs[1]); px.lineTo(qs[0] + 12, qs[1]);
+        px.moveTo(qs[0], qs[1] - 12); px.lineTo(qs[0], qs[1] - 4);
+        px.moveTo(qs[0], qs[1] + 4); px.lineTo(qs[0], qs[1] + 12);
+        px.stroke();
+      });
       px.restore();
     }
 
@@ -1334,12 +1348,9 @@
         : sel.length + ' stroke' + (sel.length === 1 ? '' : 's') + ' selected'
           + (!swingOn ? ' · drag to slide it'
             : pivot ? ' · drag to swing it round your pivot'
-            : autoJoint ? ' · hinged where it meets the rest — drag it up and down'
-            /* Named, because "it slides" with no reason reads as the swing
-             * being broken. Held at two ends there is nothing to turn about,
-             * and the way out is to select less or place a PIVOT. */
-            : jointHeldAt > 1 ? ' · held on in ' + jointHeldAt + ' places, so nothing to hinge'
-              + ' on — select just the part that swings, or place a PIVOT'
+            : autoJoint ? ' · held at ' + pins.length + ' point' + (pins.length === 1 ? '' : 's')
+              + (jointHeldAt > 1 ? ' in ' + jointHeldAt + ' places' : '')
+              + ' — drag it up and down'
             : ' · touching nothing, so drag slides it');
     if (mode === 'select') syncSwingBtn();
     drawPreview();
@@ -1624,13 +1635,15 @@
       // history on the first real movement, so taking hold and letting go is free
       if (!swingFrom.pushed) { pushHistory(); swingFrom.pushed = true; }
       swingFrom.da = da;
-      /* No settling. The joint is the centre of rotation, so it does not move
-       * at all, and every other point keeps its exact distance from it — the
-       * limb cannot come loose and cannot deform, which is the whole reason
-       * for finding the joint in the first place. */
+      /* No settling, and no rounding: every PIN stays exactly where it is and
+       * everything else turns about their middle. The lines running from a pin
+       * into the limb change length to bridge the difference, which is what
+       * keeps the limb attached at all of its joints at once instead of only
+       * at whichever one was chosen. */
       var sc = Math.cos(da), ss = Math.sin(da);
       sel.forEach(function (i, k) {
-        here().strokes[i].pts = swingFrom.snapshot[k].map(function (p) {
+        here().strokes[i].pts = swingFrom.snapshot[k].map(function (p, pi) {
+          if (pinned(i, pi)) return [p[0], p[1]];
           var x = p[0] - swingFrom.pv[0], y = p[1] - swingFrom.pv[1];
           return [+(swingFrom.pv[0] + x * sc - y * ss).toFixed(3),
                   +(swingFrom.pv[1] + x * ss + y * sc).toFixed(3)];
@@ -1746,7 +1759,7 @@
   function modeBtn(id, m) {
     document.getElementById(id).onclick = function () {
       finish(); mode = m;
-      if (m !== 'select') { sel = []; autoJoint = null; jointHeldAt = 0; }
+      if (m !== 'select') { sel = []; clearJoint(); }
         ['mDraw', 'mFree', 'mEdit', 'mEye', 'mPan', 'mShape', 'mSel', 'mErase', 'mLine', 'mSolid'].forEach(function (o) {
         var el = document.getElementById(o); if (el) el.classList.remove('on');
       });
@@ -2701,45 +2714,44 @@
    * whole use of it is to turn the same joint over and over.
    * ================================================================== */
   var pivot = null, pivotArm = false, autoJoint = null;
-  // how many separate places the selection is held at — 0, 1, or too many
-  var jointHeldAt = 0;
+  // how many separate places the selection is held at, and every point held
+  var jointHeldAt = 0, pins = [], pinSet = {};
 
   /* ==================================================================
-   * THE JOINT IS FOUND, NOT PLACED
+   * THE JOINT IS FOUND, NOT PLACED — AND IT IS NOT ONE POINT
    * ==================================================================
-   * Placing a pivot by hand is one press too many, and it is a press you have
-   * to get RIGHT — a shoulder half a step off the shoulder swings the arm out
-   * of its socket. But the drawing already knows where the joint is: it is
-   * WHERE THE SELECTED LINES MEET THE ONES YOU DID NOT SELECT. Select the arm
-   * and the only place it touches the body is the shoulder. There is nothing
-   * to choose.
+   * Placing a pivot by hand is one press too many, and a press you have to get
+   * RIGHT. But the drawing already knows where a limb is attached: it is WHERE
+   * THE SELECTED LINES MEET THE ONES YOU DID NOT SELECT.
    *
-   * The anchor is the SELECTED point of the closest pair, not the midpoint
-   * between the two. If they coincide it makes no difference, and if there was
-   * already a hair of a gap, anchoring on the arm's own end holds that end
-   * exactly still instead of shifting it half a gap on every swing.
+   * The mistake, twice over, was treating that as a single point to turn
+   * about. A leg is not butted onto a hip at one spot — it is an outline, and
+   * BOTH its top ends touch the body. Turn that rigidly about anything and
+   * both of them move: the leg comes away on one side and drives into the body
+   * on the other. Averaging them first is worse, because the average is in
+   * clear space between the two and welded to nothing at all, which is the
+   * crosshair floating in the middle of the drawing that was reported twice.
    *
-   * THE CONTACTS ARE GROUPED BEFORE ANYTHING IS AVERAGED, and this is the part
-   * that was got wrong first. A limb butted onto a body touches at one place;
-   * a limb in a socket touches at two points a finger apart, and averaging
-   * those two IS the hinge. But averaging every contact wherever it is puts
-   * the hinge in the middle of NOTHING — select an arm and a leg together and
-   * the "joint" lands halfway down the torso between the shoulder and the hip,
-   * a point that is not attached to anything and that tears both limbs off the
-   * moment you swing it. That is exactly what was reported: a crosshair
-   * floating in clear space.
+   * SO NOTHING IS AVERAGED AND NOTHING IS RIGID. Every contact point is a PIN
+   * and simply does not move. Everything else in the selection turns. The
+   * lines that run from a pin into the limb therefore change length — which is
+   * exactly what a limb does when it swings, and exactly what was asked for:
    *
-   * So contacts are clustered by proximity, and:
+   *   "the pivot happens at two points ... the selected lines however shorten
+   *    or get longer to keep the lines connected. Only the lines that are
+   *    connected to the non selected lines will become shorter and or longer.
+   *    This way they stay connected, the shape stays the same, they don't get
+   *    lose or overlap."
    *
-   *   ONE cluster  — that is the joint, averaged across it.
-   *   SEVERAL      — there IS no single hinge. Anything you turn tears one of
-   *                  the attachments off. Refuse, say how many places it is
-   *                  held at, and let the person narrow the selection or place
-   *                  a PIVOT deliberately.
+   * With ONE pin this is an ordinary rotation about that pin, so the simple
+   * case is unchanged. With two it is a limb on a hinge. With a whole edge of
+   * contact the edge stays welded and the limb pivots off it. No case needs to
+   * be refused any more, because nothing is ever asked to turn about a point
+   * that is not attached to anything.
    *
-   * Refusing is the honest answer rather than a fallback: a selection held at
-   * two ends does not rotate about anything, and picking one of them silently
-   * would break the other while looking as though it had worked.
+   * The pins are what gets DRAWN, too. A marker on each place the limb is held
+   * says something true about the drawing; a marker on their average said
+   * something about the arithmetic.
    * ================================================================== */
   /* Point to SEGMENT, not point to point. An arm almost never meets the body
    * at one of the body's own corners — it lands part way along a line, which
@@ -2751,73 +2763,81 @@
     t = t < 0 ? 0 : t > 1 ? 1 : t;
     return Math.hypot(p[0] - (a[0] + vx * t), p[1] - (a[1] + vy * t));
   }
+  function clearJoint() { autoJoint = null; jointHeldAt = 0; pinSet = {}; pins = []; }
   function findJoint() {
-    autoJoint = null; jointHeldAt = 0;
+    clearJoint();
     if (!sel.length) return;
-    var S = here().strokes, mine = {}, ours = [], theirs = [];
+    var S = here().strokes, mine = {}, theirs = [];
     sel.forEach(function (i) { mine[i] = 1; });
-    S.forEach(function (L, i) { (mine[i] ? ours : theirs).push(L.pts); });
-    if (!ours.length || !theirs.length) return;
+    S.forEach(function (L, i) { if (!mine[i]) theirs.push(L.pts); });
+    if (!theirs.length) return;
     /* Generous, because hand-drawn work does not meet to the thousandth and a
-     * joint you can see is a joint. Wrong is visible — it is drawn on the
-     * canvas — and PIVOT is still there to overrule it. */
+     * joint you can see is a joint. Wrong is visible — every pin is drawn on
+     * the canvas — and PIVOT is still there to overrule the lot. */
     var tol = Math.max(gridStep * 1.5, 0.06);
-    var contacts = [], best = Infinity;
-    ours.forEach(function (a, si) {
-      a.forEach(function (p, pi) {
+    var found = [];
+    sel.forEach(function (si) {
+      var L = S[si];
+      if (!L) return;
+      L.pts.forEach(function (p, pi) {
         var bd = Infinity;
-        theirs.forEach(function (b) {
-          if (b.length < 2) {
-            if (b.length) bd = Math.min(bd, Math.hypot(p[0] - b[0][0], p[1] - b[0][1]));
+        theirs.forEach(function (q) {
+          if (q.length < 2) {
+            if (q.length) bd = Math.min(bd, Math.hypot(p[0] - q[0][0], p[1] - q[0][1]));
             return;
           }
-          for (var j = 1; j < b.length; j++) {
-            var d = segDist(p, b[j - 1], b[j]);
+          for (var j = 1; j < q.length; j++) {
+            var d = segDist(p, q[j - 1], q[j]);
             if (d < bd) bd = d;
           }
         });
-        if (bd < best) best = bd;
-        contacts.push({ p: p, d: bd, s: si, i: pi });
+        if (bd <= tol) found.push({ si: si, pi: pi, p: p });
       });
     });
-    if (best > tol) return;
-    var hits = contacts.filter(function (c) { return c.d <= tol; });
+    if (!found.length) return;
 
-    /* GROUPED, and distance alone is not the test. Two contacts count as the
-     * same attachment when they are near each other OR when they are NEXT DOOR
-     * ALONG THE SAME STROKE — because a limb butted onto a body with a flat
-     * shoulder touches at the two ends of one edge, and those two ends can be
-     * most of the limb's width apart. On distance alone that reads as two
-     * joints and the swing is refused on a perfectly ordinary arm. Following
-     * the stroke keeps the whole edge together, and still refuses a shoulder
-     * and a hip, which are on different strokes with clear space between. */
+    found.forEach(function (c) {
+      pinSet[c.si + ':' + c.pi] = 1;
+      pins.push([c.p[0], c.p[1]]);
+    });
+    /* The centre the free part turns about. With one pin it IS that pin, so a
+     * simple limb behaves exactly as it always did; with several it is their
+     * middle, and none of them moves anyway because they are all held. */
+    var sx = 0, sy = 0;
+    pins.forEach(function (q) { sx += q[0]; sy += q[1]; });
+    autoJoint = [+(sx / pins.length).toFixed(3), +(sy / pins.length).toFixed(3)];
+
+    /* Counted only so the bar can say how many places it is held at. Two
+     * contacts belong to the same place when they are near each other OR next
+     * door along the same stroke — a flat shoulder touches at the two ends of
+     * ONE edge, and those can be most of the limb's width apart. */
     var near = Math.max(gridStep * 4, 0.15);
-    function linked(a, c) {
-      if (a.s === c.s && Math.abs(a.i - c.i) === 1) return true;
-      return Math.hypot(a.p[0] - c.p[0], a.p[1] - c.p[1]) <= near;
+    function linked(x, y) {
+      if (x.si === y.si && Math.abs(x.pi - y.pi) === 1) return true;
+      return Math.hypot(x.p[0] - y.p[0], x.p[1] - y.p[1]) <= near;
     }
-    var taken = [], groups = [];
-    for (var g = 0; g < hits.length; g++) taken.push(false);
-    for (var i2 = 0; i2 < hits.length; i2++) {
+    var taken = [];
+    for (var g = 0; g < found.length; g++) taken.push(false);
+    for (var i2 = 0; i2 < found.length; i2++) {
       if (taken[i2]) continue;
       taken[i2] = true;
-      var queue = [i2], group = [];
+      var queue = [i2];
       while (queue.length) {
         var k = queue.pop();
-        group.push(hits[k]);
-        for (var j2 = 0; j2 < hits.length; j2++) {
+        for (var j2 = 0; j2 < found.length; j2++) {
           if (taken[j2]) continue;
-          if (linked(hits[k], hits[j2])) { taken[j2] = true; queue.push(j2); }
+          if (linked(found[k], found[j2])) { taken[j2] = true; queue.push(j2); }
         }
       }
-      groups.push(group);
+      jointHeldAt++;
     }
-    jointHeldAt = groups.length;
-    if (groups.length !== 1) return;
-    var sx = 0, sy = 0;
-    groups[0].forEach(function (c) { sx += c.p[0]; sy += c.p[1]; });
-    autoJoint = [+(sx / groups[0].length).toFixed(3), +(sy / groups[0].length).toFixed(3)];
   }
+
+  /* A point welded to the rest of the drawing does not move, whatever the
+   * transform. Pins are an AUTO-joint thing only: placing a PIVOT by hand says
+   * "turn the whole thing about exactly this", which is a rigid turn and the
+   * escape hatch when the pinning is not what you want. */
+  function pinned(si, pi) { return !pivot && !!pinSet[si + ':' + pi]; }
 
   // what a turn actually goes round: your pivot, else the joint that was found
   function pivotPoint() { return pivot || autoJoint; }
@@ -2858,10 +2878,7 @@
     el.classList.toggle('on', swingOn && have);
     el.title = !swingOn ? 'Dragging slides the selection. Press for SWING.'
       : have ? 'Dragging turns it about the joint. Press for MOVE.'
-      : jointHeldAt > 1 ? 'This selection is held on in ' + jointHeldAt + ' separate places,'
-        + ' so there is no one point it can turn about — swinging it would tear it off'
-        + ' somewhere. Select just the part that hinges, or place a PIVOT.'
-      : 'Nothing this selection touches, so there is no joint to turn about —'
+      : 'Nothing this selection touches, so there is nothing holding it —'
         + ' dragging slides it. Select a part that meets the rest of the drawing.';
   }
   document.getElementById('tSwing').onclick = function () {
@@ -2883,13 +2900,15 @@
    * every point of a short stroke on the same intersection. Applied blind that
    * flattens the stroke to a dot and burns an undo doing it; refused with a
    * reason, you know to take a finer grid or a bigger turn. */
-  function applySel(fn, verb) {
+  function applySel(fn, verb, noPin) {
     var b = pivotOr(selBounds()); if (!b) return false;
     var rigid = rigidNow();
     var next = [], flattened = 0, moved = false;
     sel.forEach(function (i) {
       var L = here().strokes[i]; if (!L) return;
-      var raw = L.pts.map(function (p) {
+      var raw = L.pts.map(function (p, pi) {
+        // welded to the rest of the drawing: it stays, and its line stretches
+        if (!noPin && pinned(i, pi)) return [p[0], p[1]];
         var q = fn(p[0] - b.cx, p[1] - b.cy);
         return [q[0] + b.cx, q[1] + b.cy];
       });
@@ -2940,6 +2959,13 @@
      * rotation counted as hinged. The frames of a free shape then came out
      * off-grid while the first turn had been settled onto it. */
     if (x.rigid == null) x.rigid = (x.kind !== 'move') && (own || rigidNow());
+    /* Which points were held while this was made. Copied, because the live set
+     * is rebuilt on every change of selection and REPEAT may run long after. */
+    if (x.pins == null && x.kind !== 'move' && !pivot) {
+      var keep = {}, any = false;
+      for (var kk in pinSet) if (pinSet.hasOwnProperty(kk)) { keep[kk] = 1; any = true; }
+      x.pins = any ? keep : null;
+    }
     lastXform = x;
     setRepHint(x.kind === 'move' ? 'frames, each moved further'
       : x.kind === 'rot' ? 'frames, each turned further'
@@ -2965,8 +2991,11 @@
   /* FLIP is deliberately not recorded. Repeating it just alternates, which is
    * a blink rather than a motion, and offering it as "each one step further"
    * would be a lie about what the button does. */
+  /* FLIP does not pin. Mirroring a limb while its attached end is held in
+   * place folds the shape through itself; a flip is meant to be the same shape
+   * the other way round, so it stays a plain transform. */
   document.getElementById('tFlip').onclick = function () {
-    applySel(function (x, y) { return [-x, y]; }, 'flip');
+    applySel(function (x, y) { return [-x, y]; }, 'flip', true);
   };
   /* ==================================================================
    * REPEAT — do that again, across new frames
@@ -3010,7 +3039,13 @@
         var L = strokes[i];
         if (!L) return;
         var was = L.pts.length;
-        var raw = L.pts.map(function (p) { return xformPoint(lastXform, p, k); });
+        /* The pins are replayed from the transform, not read fresh: every
+         * generated frame has to hold the limb at the SAME places the swing
+         * did, or the frames drift off the joint one at a time. */
+        var raw = L.pts.map(function (p, pi) {
+          if (lastXform.pins && lastXform.pins[i + ':' + pi]) return [p[0], p[1]];
+          return xformPoint(lastXform, p, k);
+        });
         /* A turn about a joint stays rigid in every frame, so the limb is the
          * same limb all the way round. Without a joint it is settled per frame
          * rather than carried forward, so it lands on the grid in EVERY frame
@@ -3061,10 +3096,10 @@
     if (!sel.length) return;
     pushHistory();
     sel.slice().sort(function (a, b) { return b - a; }).forEach(function (i) { here().strokes.splice(i, 1); });
-    sel = []; autoJoint = null; jointHeldAt = 0; drawPad();
+    sel = []; clearJoint(); drawPad();
   };
   document.getElementById('selNone').onclick = function () {
-    sel = []; autoJoint = null; jointHeldAt = 0; drawPad();
+    sel = []; clearJoint(); drawPad();
   };
 
   /* ZOOM AND PAN. Wheel and pinch both zoom about the pointer rather than the
@@ -4360,14 +4395,14 @@
      * stroke still being laid down, a marquee, a solid mid-drag: all of it is
      * dropped rather than carried across, because carrying it would paste
      * points into a drawing you had not touched. */
-    cur = []; curUndone.length = 0; sel = []; autoJoint = null; jointHeldAt = 0;
+    cur = []; curUndone.length = 0; sel = []; clearJoint();
     drag = null; freeing = null; shapeFrom = shapeTo = null; orbitFrom = null;
     lineFrom = lineTo = null; marquee = null;
     /* The pivot is a point in A DRAWING — the robot's shoulder is nowhere in
      * particular in the next tab along — and the transform REPEAT would carry
      * on was made over there. Both go, or REPEAT in a drawing you have not
      * touched yet would build frames out of a movement from another one. */
-    pivot = null; pivotArm = false; lastXform = null; autoJoint = null; jointHeldAt = 0;
+    pivot = null; pivotArm = false; lastXform = null; clearJoint();
     syncPivotBtn(); syncSwingBtn(); resetRepHint();
     /* And the last thing that happened happened somewhere else. "placed icosa
      * — 18 lines" reading out over a drawing with no icosa in it is the same
@@ -4810,7 +4845,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 29';
+  document.getElementById('ver').textContent = 'build 30';
 
   paintThumbs();
   applyView(viewMode);

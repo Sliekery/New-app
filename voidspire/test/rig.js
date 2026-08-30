@@ -11,21 +11,23 @@
  *
  * Which is the whole design:
  *
- *   THE JOINT IS FOUND, NOT PLACED. Select the arm and the only place it
- *   touches the body is the shoulder. There is nothing to choose.
- *   HOLD IT AND SWING IT. Dragging the selection turns it about that joint.
- *   RIGID, NOT SETTLED. The joint is the centre of rotation, so it does not
- *   move at all and every other point keeps its exact distance from it — the
- *   limb cannot come loose and cannot deform.
- *   REPEAT walks that swing out over as many frames as you ask for.
+ *   THE JOINT IS FOUND, NOT PLACED. Select the arm and the places it touches
+ *   the body are where it is held. There is nothing to choose.
+ *   IT IS NOT ONE POINT. A leg is an outline and BOTH its top ends touch the
+ *   body. Every contact is a PIN and simply does not move.
+ *   HOLD IT AND SWING IT. Dragging turns everything that is not pinned, and
+ *   the lines running from a pin into the limb change length to bridge — so
+ *   the limb stays attached at all of its joints at once.
+ *   REPEAT walks that swing out over as many frames as you ask for, holding
+ *   the same pins in every one.
  *
- * What is asserted is the GEOMETRY, not the buttons. A rotation about a joint
- * has three signatures no amount of "it looked right" can stand in for: the
- * attached end does not move, every other point keeps its distance from it,
- * and the strokes you did not select are byte-identical. And a generated frame
- * has to keep the stroke ORDER, because TWEEN pairs strokes by index — a limb
- * deleted and redrawn goes to the end of the list, which is exactly what makes
- * a hand-redrawn animation tween into a body melting through an arm.
+ * What is asserted is the GEOMETRY, not the buttons. Three signatures no
+ * amount of "it looked right" can stand in for: every pin is EXACTLY where it
+ * was, the parts of the limb that touch nothing keep their exact size, and the
+ * strokes you did not select are byte-identical. And a generated frame has to
+ * keep the stroke ORDER, because TWEEN pairs strokes by index — a limb deleted
+ * and redrawn goes to the end of the list, which is what makes a hand-redrawn
+ * animation tween into a body melting through an arm.
  *
  * Usage: node test/rig.js     (tools served on :8944)
  * ========================================================================= */
@@ -174,7 +176,7 @@ const DEG = 180 / Math.PI;
   await drag(0.45, 0.12, 0.78, 0.70);                 // a box round the arm only
   ok('the arm alone is selected', /1 stroke selected/.test(await selBar()), await selBar());
   ok('and the bar says it found the hinge without being asked',
-    /hinged where it meets the rest/.test(await selBar()), await selBar());
+    /held at \d+ points?/.test(await selBar()), await selBar());
   ok('SWING is lit, so a drag will turn it',
     await p.$eval('#tSwing', e => e.classList.contains('on')) && (await swingLabel()) === 'SWING',
     await swingLabel());
@@ -296,114 +298,142 @@ const DEG = 180 / Math.PI;
     ok('and it goes back to SWING', (await swingLabel()) === 'SWING', await swingLabel());
   }
 
-  console.log('\nHELD ON IN TWO PLACES IS NOT A HINGE');
-  /* THE BUG THIS EXISTS FOR. Averaging every contact wherever it is puts the
-   * hinge in the middle of NOTHING: select an arm and a leg together and the
-   * "joint" lands halfway down the torso between the shoulder and the hip — a
-   * point attached to nothing, which tears both limbs off the moment it is
-   * swung. It was reported as a crosshair floating in clear space.
+  console.log('\nHELD AT TWO POINTS, AND BOTH OF THEM HOLD');
+  /* THE CASE THIS WAS REBUILT FOR. A leg is not butted onto a hip at one spot:
+   * it is an outline, and BOTH its top ends touch the body. Turned rigidly
+   * about anything, both of them move — it comes away on one side and drives
+   * into the body on the other. Averaging them first is worse: the average is
+   * in clear space between the two, welded to nothing.
    *
-   * A selection held at two ends does not rotate about anything, so the honest
-   * answer is to say so rather than to pick one of them silently. */
-  {
-    await p.click('#tabAdd'); await p.waitForTimeout(600);
-    await p.click('#mLine'); await p.waitForTimeout(80);
-    const Wf = v => (v / 1.35 + 1) / 2;             // world -> screen fraction
-    const wdrag = (a, c, d, e) => drag(Wf(a), Wf(c), Wf(d), Wf(e));
-    await wdrag(0.3, -0.6, 0.3, 0.8);               // torso — the only unselected stroke
-    await wdrag(0.3, -0.5, 0.8, -0.3);              // ARM, attached high
-    await wdrag(0.3, 0.5, 0.8, 0.7);                // LEG, attached low
-    await p.click('#mSel'); await p.waitForTimeout(150);
-
-    // the arm alone first: one attachment, so it hinges
-    await wdrag(0.45, -0.62, 0.95, 0.0);
-    ok('the arm on its own is hinged', /hinged where it meets the rest/.test(await selBar()),
-      await selBar());
-    const j = await p.evaluate(() => {
-      const c = document.getElementById('pad'), g = c.getContext('2d');
-      const d = g.getImageData(0, 0, c.width, c.height).data;
-      let ax = 0, ay = 0, n = 0;
-      for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
-        const i = (y * c.width + x) * 4;
-        if (d[i] > 200 && d[i + 1] > 130 && d[i + 1] < 200 && d[i + 2] < 90) { ax += x; ay += y; n++; }
-      }
-      return n ? [(ax / n / c.width * 2 - 1) * 1.35, (ay / n / c.height * 2 - 1) * 1.35] : null;
-    });
-    ok('and the crosshair is ON the shoulder, not near it',
-      j && Math.abs(j[0] - 0.3) < 0.03 && Math.abs(j[1] + 0.5) < 0.03,
-      j ? j.map(v => v.toFixed(3)).join(', ') : 'none');
-
-    // now the arm AND the leg: two attachments, half a torso apart
-    await wdrag(0.45, -0.62, 0.95, 0.78);
-    ok('both limbs are selected', /2 strokes selected/.test(await selBar()), await selBar());
-    ok('it refuses to invent a hinge between them',
-      !/hinged where it meets/.test(await selBar()), await selBar());
-    ok('and says how many places it is held at',
-      /held on in 2 places/.test(await selBar()), await selBar());
-    ok('SWING is not lit', await p.$eval('#tSwing', e => !e.classList.contains('on')),
-      await swingLabel());
-    ok('no crosshair is drawn in the empty space between them', await p.evaluate(() => {
-      const c = document.getElementById('pad'), g = c.getContext('2d');
-      const d = g.getImageData(0, 0, c.width, c.height).data;
-      for (let i = 0; i < d.length; i += 4) {
-        if (d[i] > 200 && d[i + 1] > 130 && d[i + 1] < 200 && d[i + 2] < 90) return false;
-      }
-      return true;
-    }));
-    /* And a drag slides rather than tearing one of them off: both limbs shift
-     * by the same amount, and the torso they hang from does not move. */
-    const was = (await cur()).p.map(r => r.slice());
-    await wdrag(0.6, 0.6, 0.75, 0.6);
-    const now = (await cur()).p;
-    const dArm = now[1][0] - was[1][0], dLeg = now[2][0] - was[2][0];
-    ok('a drag slides both limbs by the same amount rather than tearing one off',
-      Math.abs(dArm - dLeg) < 0.002 && Math.abs(dArm) > 0.02,
-      'arm ' + dArm.toFixed(3) + ' vs leg ' + dLeg.toFixed(3));
-    ok('and the torso they hang from stays put',
-      JSON.stringify(now[0]) === JSON.stringify(was[0]),
-      JSON.stringify(was[0]) + ' → ' + JSON.stringify(now[0]));
-    await p.click('#bUndo'); await p.waitForTimeout(200);
-  }
-
-  console.log('\nA LIMB BUTTED ALONG AN EDGE IS STILL ONE JOINT');
-  /* The other half of the same rule: contacts that follow a chain are ONE
-   * attachment even when its two ends are far apart. Grouping by a plain
-   * radius round the nearest contact would call a wide shoulder two joints. */
+   * So every contact is a PIN and simply does not move; everything else turns;
+   * and the lines running from a pin into the limb change length to bridge.
+   * "This way they stay connected, the shape stays the same, they don't get
+   * lose or overlap." */
   {
     await p.click('#tabAdd'); await p.waitForTimeout(600);
     await p.click('#mLine'); await p.waitForTimeout(80);
     const Wf = v => (v / 1.35 + 1) / 2;
-    const wdrag = (a, c, d, e) => drag(Wf(a), Wf(c), Wf(d), Wf(e));
+    const wdrag = (a1, c1, d1, e1) => drag(Wf(a1), Wf(c1), Wf(d1), Wf(e1));
+    await wdrag(-0.8, 0.0, 0.8, 0.0);            // 0 the hips — not selected
+    await wdrag(-0.3, 0.0, -0.3, 0.7);           // 1 leg, outer edge
+    await wdrag(0.1, 0.0, 0.1, 0.7);             // 2 leg, inner edge
+    await wdrag(-0.3, 0.7, 0.1, 0.7);            // 3 the foot, touching nothing
+    await p.click('#mSel'); await p.waitForTimeout(150);
+    await wdrag(-0.5, -0.02, 0.35, 0.9);         // the leg, not the hips
+    ok('the leg is selected', /3 strokes selected/.test(await selBar()), await selBar());
+    ok('and the bar says it is held at two points',
+      /held at 2 points/.test(await selBar()), await selBar());
+
+    const was = (await cur()).p;
+    const HIP_A = [-0.3, 0], HIP_B = [0.1, 0];
+    const footWas = dist(pairs(was[3])[0], pairs(was[3])[1]);
+    await wdrag(-0.1, 0.55, 0.55, 0.35);         // swing the foot across
+    const now = (await cur()).p;
+
+    ok('the outer edge is still welded to the hip, exactly',
+      dist(pairs(now[1])[0], HIP_A) < 0.002, pairs(now[1])[0].join(','));
+    ok('and so is the inner edge — BOTH points hold, not an average of them',
+      dist(pairs(now[2])[0], HIP_B) < 0.002, pairs(now[2])[0].join(','));
+    ok('the hips themselves never moved', JSON.stringify(now[0]) === JSON.stringify(was[0]),
+      JSON.stringify(now[0]));
+    ok('the leg really did swing', dist(pairs(now[1])[1], pairs(was[1])[1]) > 0.1,
+      pairs(was[1])[1].join(',') + ' → ' + pairs(now[1])[1].join(','));
+
+    /* The two claims that make it usable: the part of the limb that touches
+     * nothing keeps its shape exactly, and the lines that reach the pins are
+     * the only ones that change length. */
+    ok('the foot — which touches nothing — keeps its exact length',
+      Math.abs(dist(pairs(now[3])[0], pairs(now[3])[1]) - footWas) < 0.003,
+      footWas.toFixed(4) + ' → ' + dist(pairs(now[3])[0], pairs(now[3])[1]).toFixed(4));
+    ok('the foot stayed joined to both edges of the leg',
+      dist(pairs(now[3])[0], pairs(now[1])[1]) < 0.002
+      && dist(pairs(now[3])[1], pairs(now[2])[1]) < 0.002,
+      JSON.stringify(pairs(now[3])) + ' vs ' + pairs(now[1])[1] + ' / ' + pairs(now[2])[1]);
+    const eA = dist(pairs(now[1])[0], pairs(now[1])[1]);
+    const eB = dist(pairs(now[2])[0], pairs(now[2])[1]);
+    ok('and the two edges changed length to bridge — one longer, one shorter',
+      (eA - 0.7) * (eB - 0.7) < 0 && Math.abs(eA - 0.7) > 0.02 && Math.abs(eB - 0.7) > 0.02,
+      '0.700 → ' + eA.toFixed(3) + ' and ' + eB.toFixed(3));
+
+    ok('a marker is drawn on each pin, and none between them', await p.evaluate(() => {
+      const c = document.getElementById('pad'), g = c.getContext('2d');
+      const d = g.getImageData(0, 0, c.width, c.height).data;
+      const cols = [];
+      for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
+        const i = (y * c.width + x) * 4;
+        if (d[i] > 200 && d[i + 1] > 130 && d[i + 1] < 200 && d[i + 2] < 90) cols.push(x);
+      }
+      if (!cols.length) return false;
+      // two clumps of amber, and a clear gap in the middle where the average was
+      cols.sort((u, v) => u - v);
+      let gaps = 0;
+      for (let i = 1; i < cols.length; i++) if (cols[i] - cols[i - 1] > 20) gaps++;
+      return gaps === 1;
+    }));
+    await p.click('#bUndo'); await p.waitForTimeout(200);
+  }
+
+  console.log('\nREPEAT HOLDS THE SAME PINS IN EVERY FRAME');
+  {
+    const Wf = v => (v / 1.35 + 1) / 2;
+    const wdrag = (a1, c1, d1, e1) => drag(Wf(a1), Wf(c1), Wf(d1), Wf(e1));
+    await wdrag(-0.1, 0.55, 0.35, 0.45);         // a gentler swing to repeat
+    await p.fill('#tRepeatN', '4');
+    await p.click('#tRepeat'); await p.waitForTimeout(450);
+    ok('four frames', (await frameCount()) === 5, (await frameCount()) + ' frames');
+    const fs = await frames();
+    ok('every frame still has the leg welded at both hips',
+      fs.every(x => dist(pairs(x.p[1])[0], [-0.3, 0]) < 0.003
+                 && dist(pairs(x.p[2])[0], [0.1, 0]) < 0.003),
+      fs.map(x => pairs(x.p[1])[0].join(',') + '/' + pairs(x.p[2])[0].join(',')).join(' | '));
+    ok('and the foot keeps its length in every one of them',
+      fs.every(x => Math.abs(dist(pairs(x.p[3])[0], pairs(x.p[3])[1]) - 0.4) < 0.004),
+      fs.map(x => dist(pairs(x.p[3])[0], pairs(x.p[3])[1]).toFixed(3)).join(', '));
+    ok('the hips are byte-identical throughout',
+      new Set(fs.map(x => JSON.stringify(x.p[0]))).size === 1,
+      fs.map(x => JSON.stringify(x.p[0])).join(' | '));
+    await p.click('#bUndo'); await p.waitForTimeout(300);
+  }
+
+  console.log('\nA WHOLE EDGE OF CONTACT IS HELD ALONG ITS LENGTH');
+  {
+    await p.click('#tabAdd'); await p.waitForTimeout(600);
+    await p.click('#mLine'); await p.waitForTimeout(80);
+    const Wf = v => (v / 1.35 + 1) / 2;
+    const wdrag = (a1, c1, d1, e1) => drag(Wf(a1), Wf(c1), Wf(d1), Wf(e1));
     /* The body edge runs well past the slab on both sides, so a marquee can
      * take the slab and leave the edge out. It cannot be excluded by height:
      * the marquee snaps to the grid too, so a box that stops a hair above y=0
      * rounds down onto it and swallows the edge. */
-    await wdrag(-1.2, 0.0, 1.2, 0.0);               // a long body edge
-    // a wide slab sitting on it, its whole base along the edge
-    await wdrag(-0.4, 0.0, 0.4, 0.0);
+    await wdrag(-1.2, 0.0, 1.2, 0.0);            // a long body edge
+    await wdrag(-0.4, 0.0, 0.4, 0.0);            // a slab sitting on it
     await wdrag(-0.4, 0.0, -0.4, -0.4);
     await wdrag(0.4, 0.0, 0.4, -0.4);
     await wdrag(-0.4, -0.4, 0.4, -0.4);
     await p.click('#mSel'); await p.waitForTimeout(150);
-    await wdrag(-0.7, -0.6, 0.7, 0.2);              // the slab, not the long edge
+    await wdrag(-0.7, -0.6, 0.7, 0.2);           // the slab, not the long edge
     ok('the slab is selected and the edge is not',
       /4 strokes selected/.test(await selBar()), await selBar());
-    ok('a whole edge of contact is still ONE joint, not two corners',
-      /hinged where it meets the rest/.test(await selBar()), await selBar());
-    const jm = await p.evaluate(() => {
-      const c = document.getElementById('pad'), g = c.getContext('2d');
-      const d = g.getImageData(0, 0, c.width, c.height).data;
-      let ax = 0, ay = 0, n = 0;
-      for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
-        const i = (y * c.width + x) * 4;
-        if (d[i] > 200 && d[i + 1] > 130 && d[i + 1] < 200 && d[i + 2] < 90) { ax += x; ay += y; n++; }
-      }
-      return n ? [(ax / n / c.width * 2 - 1) * 1.35, (ay / n / c.height * 2 - 1) * 1.35] : null;
-    });
-    ok('and it sits in the MIDDLE of that edge, where a shoulder would be',
-      jm && Math.abs(jm[0]) < 0.05 && Math.abs(jm[1]) < 0.05,
-      jm ? jm.map(v => v.toFixed(3)).join(', ') : 'none');
+    ok('its whole base is held — four points in one place',
+      /held at 4 points/.test(await selBar()) && !/in \d+ places/.test(await selBar()),
+      await selBar());
+    const was = (await cur()).p;
+    await wdrag(0.0, -0.3, 0.35, -0.2);
+    const now = (await cur()).p;
+    ok('the base has not moved at all', JSON.stringify(now[1]) === JSON.stringify(was[1]),
+      JSON.stringify(was[1]) + ' → ' + JSON.stringify(now[1]));
+    ok('the top has', JSON.stringify(now[4]) !== JSON.stringify(was[4]),
+      JSON.stringify(was[4]) + ' → ' + JSON.stringify(now[4]));
+    ok('the top is still the same width — it turned, it did not stretch',
+      Math.abs(dist(pairs(now[4])[0], pairs(now[4])[1])
+             - dist(pairs(was[4])[0], pairs(was[4])[1])) < 0.003,
+      dist(pairs(now[4])[0], pairs(now[4])[1]).toFixed(4));
+    ok('and the sides still reach from the base to the top',
+      dist(pairs(now[2])[0], pairs(now[1])[0]) < 0.002
+      && dist(pairs(now[3])[0], pairs(now[1])[1]) < 0.002,
+      'sides still meet the base');
   }
+
   /* Back to the body-and-arm drawing these two blocks borrowed a tab from —
    * everything below assumes it. */
   await p.click('#tabBar .tab:nth-child(1)'); await p.waitForTimeout(600);
@@ -468,7 +498,7 @@ const DEG = 180 / Math.PI;
    * whole drawing and REPEAT would faithfully walk that slide out over five
    * frames. Which is exactly what it did before this line was here. */
   await drag(0.45, 0.12, 0.78, 0.70);
-  ok('the arm alone, hinged again', /hinged where it meets the rest/.test(await selBar()),
+  ok('the arm alone, hinged again', /held at \d+ points?/.test(await selBar()),
     await selBar());
   const JOINT = (await armOf())[1];
   {
@@ -567,7 +597,7 @@ const DEG = 180 / Math.PI;
   await p.click('#tPivot'); await p.waitForTimeout(150);
   ok('clearing it hands the arm back to the joint that was found',
     (await pivotLabel()).trim() === 'PIVOT'
-    && /hinged where it meets the rest/.test(await selBar()), await selBar());
+    && /held at \d+ points?/.test(await selBar()), await selBar());
   await rewind();
 
   console.log('\nTHE JOINT BELONGS TO ONE DRAWING');

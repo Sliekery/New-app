@@ -458,7 +458,8 @@ ruling the grid is already drawn with, so the big step lands on a line you can
 see.
 
 A **turn or a scale** cannot keep the grid, and what happens then depends on
-whether the selection is hinged: see *A pivot means the turn is rigid* below.
+whether the selection is held: see *The grid does not settle anything that is
+held* below.
 Settling a turn onto the grid was the FIRST answer to lines coming loose and it
 was the wrong one — it keeps the ends on a ruling by rounding every point
 independently, which is deformation. It survives only for a free-floating
@@ -469,71 +470,74 @@ selection, where there is nothing else holding the shape together.
 The report: "when animating we are removing some lines and redrawing them in a
 different position — I wanna make the arms go up and down."
 
-### The joint is found, not placed
+### The joint is found, not placed — and it is not one point
 
 The first answer was a PIVOT you place by hand, and it was one press too many —
 and a press you have to get RIGHT, because a shoulder half a step off the
 shoulder swings the arm out of its socket. The better answer came back as:
 "the pivot occurs automatically where the selected lines and the first
-non-selected lines meet. This way they are still connected and nothing gets
-deformed. Then the user can just hold the selected bunch of lines to go up and
-down."
+non-selected lines meet." **The drawing already knows where the joint is.**
 
-Which is the design. **The drawing already knows where the joint is.** Select
-the arm and the only place it touches the body is the shoulder; there is
-nothing to choose. Then taking hold of the selection and dragging turns it
-about that point, so an arm goes up and down by being pushed up and down.
+The mistake after that, twice over, was treating it as a SINGLE POINT to turn
+about. A leg is not butted onto a hip at one spot: it is an outline, and both
+its top ends touch the body. Turn that rigidly about anything and both of them
+move — it comes away on one side and drives into the body on the other.
+Averaging them first is worse, because the average is in clear space between
+the two and welded to nothing at all. That was reported twice, as a crosshair
+floating in the middle of the drawing.
 
-Four decisions inside that:
+**So nothing is averaged and nothing is rigid.** Every contact point is a PIN
+and simply does not move. Everything else in the selection turns. The lines
+running from a pin into the limb therefore change length — which is what a limb
+does when it swings, and what was asked for:
+
+> the pivot happens at two points … the selected lines however shorten or get
+> longer to keep the lines connected. Only the lines that are connected to the
+> non selected lines will become shorter and or longer. This way they stay
+> connected, the shape stays the same, they don't get lose or overlap.
+
+With ONE pin this is an ordinary rotation about that pin, so a simple butted-on
+arm behaves as it always did. With two it is a limb on a hinge. With a whole
+edge of contact the edge stays welded and the limb pivots off it. **No case has
+to be refused**, because nothing is ever asked to turn about a point that is
+not attached to anything — which is what the previous version had to do, and
+what made it useless on a real figure.
+
+Decisions inside it:
 
 - **Point to SEGMENT, not point to point.** An arm almost never meets the body
   at one of the body's own corners — it lands part way along a line, which is a
   place with no point in it at all. Corner-to-corner found nothing on any real
   drawing and fell back to the bounding box, silently.
-- **The anchor is the SELECTED point** of the closest pair, not the midpoint
-  between the two. If they coincide it makes no difference; if there was
-  already a hair of a gap, anchoring on the arm's own end holds that end
-  exactly still instead of shifting it half a gap on every swing.
-- **The contacts are GROUPED before anything is averaged**, and this is the
-  part that was got wrong first — twice. Averaging every contact wherever it
-  is puts the hinge in the middle of NOTHING: select an arm and a leg together
-  and the "joint" lands halfway down the torso between the shoulder and the
-  hip, attached to nothing, tearing both limbs off the moment it swings. It
-  was reported as a crosshair floating in clear space, and it is what the
-  screenshot showed.
-- **Two contacts are the same attachment when they are near each other OR next
-  door along the same stroke.** Distance alone was the second wrong answer: a
-  limb butted onto a body with a flat shoulder touches at the two ends of ONE
-  edge, and those can be most of the limb's width apart, so a plain radius
-  reads an ordinary arm as two joints and refuses to swing it. Following the
-  stroke keeps the edge together and still separates a shoulder from a hip.
-- **Several groups means there is no hinge, and it says so.** A selection held
-  at two ends does not rotate about anything — picking one silently would tear
-  the other while looking as though it worked. The bar reads "held on in 2
-  places … select just the part that swings, or place a PIVOT", and a drag
-  falls back to sliding.
+- **The pins are what gets DRAWN.** A marker on each place the limb is held
+  says something true about the drawing; a marker on their average said
+  something about the arithmetic, and was the visible symptom both times.
 - **The tolerance is generous** (1.5 grid steps, at least 0.06), because
-  hand-drawn work does not meet to the thousandth. Being wrong is *visible* —
-  the joint is drawn on the canvas — and PIVOT is still there to overrule it,
-  which is what makes trusting a guess reasonable.
+  hand-drawn work does not meet to the thousandth. Being wrong is visible —
+  every pin is drawn — and PIVOT overrules the lot.
+- **A placed PIVOT turns off pinning.** It means "turn the whole thing about
+  exactly this", which is a plain rigid turn, and it is the escape hatch when
+  the pinning is not what you want. FLIP never pins either: mirroring a limb
+  while its attached end is held folds the shape through itself.
+- **REPEAT replays the pins carried on the transform**, not the live set — the
+  selection may be long gone by then, and frames that re-derived their own pins
+  would drift off the joint one at a time.
+- Only the CURRENT LAYER is searched. A limb hinged against a line on the
+  sketch layer would be hinged against a guide.
 
-Only the CURRENT LAYER is searched. A limb hinged against a line on the sketch
-layer would be hinged against a guide.
+### The grid does not settle anything that is held
 
-### A pivot means the turn is rigid
-
-Settling a turn onto the grid was the wrong answer to lines coming loose. It
+Settling a turn onto the grid was an earlier answer to lines coming loose. It
 kept the ends on a ruling by rounding every point INDEPENDENTLY, which is
 deformation: a rectangle turned and settled is a wonky quadrilateral, and a
 limb wobbles by a fraction of a square every frame.
 
-**With a joint there is nothing left for the grid to fix.** The one point that
-has to stay exactly where it is IS the centre of rotation, so it does not move
-at all and everything else keeps its exact distance from it. So the rule is:
+**With pins there is nothing left for the grid to fix.** The points that have
+to stay exactly where they are do not move at all. So:
 
 | | rotate / scale | translate |
 |---|---|---|
-| **with a joint or pivot** | rigid and exact | whole grid squares |
+| **held, or a placed pivot** | exact, no rounding | whole grid squares |
 | **free-floating** | settled onto the grid | whole grid squares |
 
 A free-floating selection has nothing holding it and nothing to come loose
