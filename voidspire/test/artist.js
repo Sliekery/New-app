@@ -365,6 +365,82 @@ function ok(name, cond, detail) {
   ok('and leaves you on the frame you scrubbed to',
     /frame 3\//.test(await p.textContent('#status')), await p.textContent('#status'));
 
+  console.log('\nAN EYE IS A ROUND PIP');
+  /* "On preview the eyes are a block for some reason." They were: three canvas
+   * paths — the LIVE PREVIEW, this one, and the game itself — drew an eye with
+   * fillRect, squaring off something the DOM half of the same renderer has
+   * always emitted as a <circle> and that the artist's own canvas draws round
+   * while you place it. At game size the pip is a pixel or two and the shape
+   * cannot be seen; BIG VIEW is where it shows.
+   *
+   * Measured by AREA AGAINST ITS BOUNDING BOX: a filled circle covers pi/4 of
+   * its box, a filled square covers all of it. Two things the measurement has
+   * to get right, and both were wrong first:
+   *
+   *   - ONE pip, not all of them. MIRROR puts a second eye on the far side and
+   *     the real-size row repeats the whole figure three times, so a single box
+   *     round every red pixel describes the gaps between them and reads 0.004.
+   *     The largest connected blob is one eye.
+   *   - THE SOLID CORE, not the glow. The pip is drawn with a shadow in its own
+   *     colour, and a halo is round whatever it surrounds — so a square would
+   *     have measured round. Only pixels at the brightest red present count.
+   * ================================================================== */
+  /* On FRAME ONE, because BIG VIEW opens there — the section above scrubbed to
+   * frame 3, and an eye placed on the frame you happen to be sitting on is not
+   * the frame the player opens. */
+  await p.click('#frameList > *:nth-child(1)'); await p.waitForTimeout(300);
+  await p.click('#mEye'); await p.waitForTimeout(100);
+  {
+    const eb = await p.locator('#pad').boundingBox();
+    await p.mouse.move(eb.x + eb.width * 0.5, eb.y + eb.height * 0.45);
+    await p.mouse.down(); await p.mouse.up(); await p.waitForTimeout(200);
+  }
+  ok('an eye is in the art', /e: \[\[/.test(await p.inputValue('#out')),
+    (await p.inputValue('#out')).slice(-40));
+  await p.click('#fBig'); await p.waitForTimeout(800);
+  {
+    const pip = await p.$eval('#thCanvas', c => {
+      const W2 = c.width, H2 = c.height;
+      const d = c.getContext('2d').getImageData(0, 0, W2, H2).data;
+      const isRed = i => d[i] > d[i + 1] + 60 && d[i] > d[i + 2] + 40;
+      let maxR = 0;
+      for (let i = 0; i < d.length; i += 4) if (isRed(i) && d[i] > maxR) maxR = d[i];
+      if (!maxR) return { none: true, size: W2 + 'x' + H2 };
+      const core = new Uint8Array(W2 * H2);
+      for (let i = 0, k = 0; k < core.length; k++, i += 4) {
+        if (d[i] >= maxR - 10 && isRed(i)) core[k] = 1;
+      }
+      const seen = new Uint8Array(W2 * H2), st = [];
+      let best = null;
+      for (let k0 = 0; k0 < core.length; k0++) {
+        if (!core[k0] || seen[k0]) continue;
+        st.length = 0; st.push(k0); seen[k0] = 1;
+        let n = 0, x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1;
+        while (st.length) {
+          const k = st.pop(), x = k % W2, y = (k - x) / W2;
+          n++;
+          if (x < x0) x0 = x; if (x > x1) x1 = x;
+          if (y < y0) y0 = y; if (y > y1) y1 = y;
+          if (x > 0 && core[k - 1] && !seen[k - 1]) { seen[k - 1] = 1; st.push(k - 1); }
+          if (x < W2 - 1 && core[k + 1] && !seen[k + 1]) { seen[k + 1] = 1; st.push(k + 1); }
+          if (y > 0 && core[k - W2] && !seen[k - W2]) { seen[k - W2] = 1; st.push(k - W2); }
+          if (y < H2 - 1 && core[k + W2] && !seen[k + W2]) { seen[k + W2] = 1; st.push(k + W2); }
+        }
+        const w = x1 - x0 + 1, h = y1 - y0 + 1;
+        if (!best || n > best.n) best = { n: n, w: w, h: h, fill: n / (w * h) };
+      }
+      return best;
+    });
+    ok('BIG VIEW draws it big enough to have a shape at all',
+      pip && !pip.none && pip.w >= 10 && pip.h >= 10, JSON.stringify(pip));
+    ok('it is as wide as it is tall', pip && Math.abs(pip.w - pip.h) <= 2,
+      pip && pip.w + 'x' + pip.h);
+    ok('and it is a ROUND pip, not a block',
+      pip && pip.fill > 0.65 && pip.fill < 0.9,
+      pip && pip.fill.toFixed(3) + ' of its box filled — a circle is 0.785, a square 1.0');
+  }
+  await p.keyboard.press('Escape'); await p.waitForTimeout(250);
+
   console.log('\nSPACE PANS, AND NEVER PRESSES A BUTTON');
   /* "Pressing space sometimes undoes actions." SPACE is how a button is
    * activated from the keyboard, so a button still holding focus from a mouse

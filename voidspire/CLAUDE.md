@@ -762,6 +762,40 @@ and the strokes you did not select are byte-identical. Four notes worth keeping:
   rounding of doing nothing on the fine one, so which side of the rounding it
   falls decides whether the test passes.
 
+## An eye is a round pip
+
+"On preview the eyes are a block for some reason." They were — and not only in
+the preview. **Three canvas paths drew an eye with `fillRect`**: the artist's
+LIVE PREVIEW, its BIG VIEW, and `js/render.js` itself, twice. The DOM half of
+the same renderer has always emitted a `<circle>`, and the artist's own canvas
+draws a round one while you place it, so the canvas half was the odd one out
+everywhere it appeared.
+
+At game size the pip is `scale * 0.05`, which on a 24px sprite is a pixel and a
+half — square or round cannot be told apart. It is only at boss scale and in
+BIG VIEW that it reads as a bolt head rather than an eye, which is why this
+survived so long.
+
+While fixing it: the artist's canvas drew the pip at a flat **8 screen pixels
+whatever the zoom**, so the same eye was a speck at 6x and swamped the drawing
+at a distance. It is sized in world units now, through the same view as
+everything else, so it matches what ships.
+
+**Measuring "round" in a test needs two things that were both wrong first:**
+
+- **One pip, not all of them.** MIRROR puts a second eye on the far side and
+  BIG VIEW's real-size row repeats the whole figure three times, so a single
+  bounding box round every red pixel describes the gaps between them — it read
+  0.004 of its box filled and looked like a catastrophic failure. Take the
+  largest connected blob.
+- **The solid core, not the glow.** The pip is drawn with a shadow in its own
+  colour, and **a halo is round whatever it surrounds** — so a square would
+  have measured round and the test would have passed on the broken build. Count
+  only pixels at the brightest red present.
+
+A circle covers pi/4 of its bounding box and a square covers all of it, so the
+assertion is a ratio: 0.785 ideal, ~0.806 with antialiasing, against 1.0.
+
 ## A clicked button must not keep the keyboard
 
 "Pressing space sometimes undoes actions." SPACE and ENTER are how a button is

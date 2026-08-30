@@ -1450,10 +1450,14 @@
       ctx.fillStyle = flash ? '#ffffff' : '#ffe9f0';
       ctx.shadowColor = color;
       ctx.shadowBlur = 7;
+      /* A PIP, not a block. The DOM half of this renderer has always drawn
+       * <circle> for an eye, and the artist's own canvas draws a round one
+       * while you place it — this was the only thing anywhere squaring them
+       * off, which at boss scale reads as a bolt head rather than an eye. */
       (art.e || []).forEach(function (e) {
         var px = x + e[0] * scale, py = y + e[1] * scale;
         var es = Math.max(1.5, scale * 0.05);
-        ctx.fillRect(px - es / 2, py - es / 2, es, es);
+        ctx.beginPath(); ctx.arc(px, py, es / 2, 0, 7); ctx.fill();
       });
       ctx.restore();
     }
@@ -2264,7 +2268,7 @@
     (art.e || []).forEach(function (e) {
       var ex = px + e[0] * sc, ey = py + e[1] * sc;
       var es = Math.max(1.5, sc * 0.055);
-      ctx.fillRect(ex - es / 2, ey - es / 2, es, es);
+      ctx.beginPath(); ctx.arc(ex, ey, es / 2, 0, 7); ctx.fill();
     });
     ctx.restore();
 
