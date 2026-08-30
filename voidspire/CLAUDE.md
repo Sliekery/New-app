@@ -732,6 +732,33 @@ and the strokes you did not select are byte-identical. Four notes worth keeping:
   rounding of doing nothing on the fine one, so which side of the rounding it
   falls decides whether the test passes.
 
+## A clicked button must not keep the keyboard
+
+"Pressing space sometimes undoes actions." SPACE and ENTER are how a button is
+activated from the keyboard, so a button still holding focus from a mouse click
+gets re-fired by either of them — and the button people click most is UNDO,
+while space is the pan key held constantly while drawing.
+
+**"Sometimes" was the word, and it named the bug.** The `preventDefault` sat
+behind a `!spaceDown` guard, so it was skipped whenever the tool already
+believed space was down. That happens the moment a **keyup goes missing** —
+hold space, lose the window before letting go (alt-tab, a dialog, the browser's
+own chrome) and the keyup is delivered somewhere else, leaving the flag stuck
+for the rest of the session. Auto-repeat on a held key does it too.
+
+Three things, and the third is the one that matters:
+
+- Space is prevented on EVERY keydown, not just the first.
+- `window.blur` clears the held-space flag, so it cannot stick.
+- **A pointer click on any button blurs it**, in every tool, from the shared
+  block at the foot of each file. `detail` is 0 when the activation came from
+  the keyboard, so tabbing to a control and pressing space still works — only
+  mouse clicks give the focus back.
+
+The general shape: **a bare-key shortcut and a focusable control are a hazard
+together**, and every tool here has both. Worth checking the same way whenever
+a new single-key binding is added.
+
 ## Verifying UI work
 
 `test/combatfit.js` and `test/uifit.js` encode real layout invariants and have

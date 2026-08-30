@@ -376,6 +376,73 @@ function ok(name, cond, detail) {
   ok('and leaves you on the frame you scrubbed to',
     /frame 3\//.test(await p.textContent('#status')), await p.textContent('#status'));
 
+  console.log('\nSPACE PANS, AND NEVER PRESSES A BUTTON');
+  /* "Pressing space sometimes undoes actions." SPACE is how a button is
+   * activated from the keyboard, so a button still holding focus from a mouse
+   * click gets re-fired by the pan key — and the button people click most is
+   * UNDO. "Sometimes" was the word: the preventDefault sat behind a
+   * `!spaceDown` guard, so it was skipped whenever the tool already believed
+   * space was down, which is what happens the moment a keyup goes missing. */
+  {
+    await p.click('#mLine'); await p.waitForTimeout(80);
+    const box2 = await p.locator('#pad').boundingBox();
+    const strokes = async () =>
+      +(((await p.textContent('#status')).match(/(\d+) stroke/)) || [0, 0])[1];
+    for (const y of [0.30, 0.40, 0.50]) {
+      const y0 = box2.y + box2.height * y;
+      await p.mouse.move(box2.x + box2.width * 0.25, y0);
+      await p.mouse.down();
+      await p.mouse.move(box2.x + box2.width * 0.75, y0, { steps: 4 });
+      await p.mouse.up(); await p.waitForTimeout(120);
+    }
+    const drew = await strokes();
+    ok('three lines to work with', drew >= 3, drew + ' strokes');
+
+    await p.click('#bUndo'); await p.waitForTimeout(200);
+    const afterUndo = await strokes();
+    ok('UNDO takes one back', afterUndo === drew - 1, drew + ' → ' + afterUndo);
+    ok('and a mouse click leaves nothing holding the keyboard',
+      await p.evaluate(() => document.activeElement === document.body
+        || document.activeElement.tagName !== 'BUTTON'),
+      await p.evaluate(() => document.activeElement.tagName + '#' + document.activeElement.id));
+
+    await p.keyboard.press('Space'); await p.waitForTimeout(220);
+    ok('space does not press UNDO again', (await strokes()) === afterUndo,
+      afterUndo + ' → ' + (await strokes()));
+
+    /* THE "SOMETIMES": a keyup that never arrives. Hold space, lose the window
+     * before letting go, and the tool is left believing space is still down —
+     * after which every press used to slip past the guard. */
+    await p.keyboard.down('Space');
+    await p.evaluate(() => window.dispatchEvent(new Event('blur')));
+    await p.waitForTimeout(120);
+    await p.evaluate(() => document.getElementById('bUndo').focus());
+    await p.keyboard.press('Space'); await p.waitForTimeout(220);
+    ok('nor after a keyup that never arrived', (await strokes()) === afterUndo,
+      afterUndo + ' → ' + (await strokes()));
+    await p.keyboard.press('Space'); await p.waitForTimeout(220);
+    ok('nor on the press after that', (await strokes()) === afterUndo,
+      afterUndo + ' → ' + (await strokes()));
+
+    // and it still does its own job
+    await p.keyboard.down('Space');
+    await p.mouse.move(box2.x + box2.width * 0.5, box2.y + box2.height * 0.5);
+    await p.mouse.down();
+    await p.mouse.move(box2.x + box2.width * 0.65, box2.y + box2.height * 0.5, { steps: 5 });
+    await p.mouse.up();
+    await p.keyboard.up('Space');
+    await p.waitForTimeout(200);
+    ok('holding space still pans the canvas rather than drawing',
+      (await strokes()) === afterUndo, 'strokes ' + (await strokes()));
+    ok('and the pan cursor is let go of afterwards',
+      await p.$eval('#pad', e => e.style.cursor !== 'grab'),
+      await p.$eval('#pad', e => e.style.cursor));
+    let g = 0;
+    while (await p.$eval('#bUndo', e => !e.disabled) && ++g < 30) {
+      await p.click('#bUndo'); await p.waitForTimeout(40);
+    }
+  }
+
   console.log('\n' + (errs.length ? 'PAGE ERRORS:\n  ' + errs.join('\n  ') : 'no page errors'));
   if (errs.length) fail += errs.length;
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
