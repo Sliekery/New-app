@@ -1942,13 +1942,30 @@
    * wherever you are, which is what every drawing program does and what the
    * hand already expects. */
   document.addEventListener('keydown', function (ev) {
-    if (ev.code === 'Space' && !spaceDown && ev.target.tagName !== 'INPUT') {
-      spaceDown = true; pad.style.cursor = 'grab'; ev.preventDefault();
-    }
+    if (ev.code !== 'Space' || ev.target.tagName === 'INPUT') return;
+    /* PREVENTED EVERY TIME, not only on the first press. SPACE is how a button
+     * is activated from the keyboard, so any press that reaches the browser
+     * un-prevented re-fires whatever you last clicked — and what people last
+     * click most is UNDO. Reported as "sometimes it undoes actions", and
+     * sometimes was the word: the guard used to sit on the preventDefault, so
+     * it was skipped whenever `spaceDown` was already true, which happens the
+     * moment a keyup goes missing (see the blur handler below) or on the
+     * auto-repeat of a held key. */
+    ev.preventDefault();
+    if (!spaceDown) { spaceDown = true; pad.style.cursor = 'grab'; }
   });
+  function spaceUp() { spaceDown = false; pad.style.cursor = ''; }
   document.addEventListener('keyup', function (ev) {
-    if (ev.code === 'Space') { spaceDown = false; pad.style.cursor = ''; }
+    if (ev.code === 'Space') spaceUp();
   });
+  /* A KEYUP THAT NEVER ARRIVES. Hold space, and if the window loses focus
+   * before you let go — alt-tab, a dialog, the browser's own chrome — the
+   * keyup is delivered somewhere else and the tool is left believing space is
+   * still held for the rest of the session. */
+  window.addEventListener('blur', spaceUp);
+
+  /* The other half of this — not letting a clicked button keep the keyboard at
+   * all — is fixed once for every tool, in its own block further down. */
 
   /* ==================================================================
    * PRIMITIVES. The game's art is full of clean geometry — hexagonal
@@ -5161,7 +5178,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 33';
+  document.getElementById('ver').textContent = 'build 34';
 
   paintThumbs();
   applyView(viewMode);
@@ -5186,6 +5203,29 @@
       empty: !/\[\[/.test(document.getElementById('out').value),
     };
   };
+})();
+</script>
+
+<script>
+/* ==================================================================
+ * A CLICKED BUTTON DOES NOT KEEP THE KEYBOARD
+ * ==================================================================
+ * SPACE and ENTER are how a button is activated from the keyboard, so a button
+ * that keeps focus after a mouse click can be re-fired by either of them for
+ * as long as it holds it. Reported against the artist as "pressing space
+ * sometimes undoes actions" — space, the pan key, landing on the UNDO button
+ * that had been clicked a moment earlier.
+ *
+ * Every tool here has buttons and most have a keyboard shortcut on a bare key,
+ * so it is fixed once, for all of them. Only POINTER clicks are blurred:
+ * `detail` is 0 when the activation came from the keyboard, so tabbing to a
+ * control and pressing space still does what it should.
+ * ================================================================== */
+(function () {
+  document.addEventListener('click', function (ev) {
+    var t = ev.target;
+    if (t && t.tagName === 'BUTTON' && ev.detail > 0) t.blur();
+  }, true);
 })();
 </script>
 

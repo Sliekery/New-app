@@ -534,6 +534,29 @@
 
 <script>
 /* ==================================================================
+ * A CLICKED BUTTON DOES NOT KEEP THE KEYBOARD
+ * ==================================================================
+ * SPACE and ENTER are how a button is activated from the keyboard, so a button
+ * that keeps focus after a mouse click can be re-fired by either of them for
+ * as long as it holds it. Reported against the artist as "pressing space
+ * sometimes undoes actions" — space, the pan key, landing on the UNDO button
+ * that had been clicked a moment earlier.
+ *
+ * Every tool here has buttons and most have a keyboard shortcut on a bare key,
+ * so it is fixed once, for all of them. Only POINTER clicks are blurred:
+ * `detail` is 0 when the activation came from the keyboard, so tabbing to a
+ * control and pressing space still does what it should.
+ * ================================================================== */
+(function () {
+  document.addEventListener('click', function (ev) {
+    var t = ev.target;
+    if (t && t.tagName === 'BUTTON' && ev.detail > 0) t.blur();
+  }, true);
+})();
+</script>
+
+<script>
+/* ==================================================================
  * ONE BACKUP FOR EVERY TOOL
  * ==================================================================
  * All five tools keep their work in localStorage, which is per browser, per
