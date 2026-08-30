@@ -26,6 +26,34 @@ function ok(name, cond) {
   if (!cond) fails++;
 }
 
+/* ==========================================================================
+ * THE SCRIPTED OPENER, and then out of the way
+ * ==========================================================================
+ * The first fight of a run is `VS.FIRST_FIGHT` whatever faction was rolled, so
+ * that the opening teaches one lesson every time. Checked here once — and then
+ * stood down for the whole of the rest of this file, because almost every test
+ * below sets up the fight it wants by overriding a PACK, and a scripted opener
+ * silently wins that argument. Seven tests failed that way, none of them about
+ * enemies: they had asked for a Void Drone or a Siege Walker and been handed
+ * the herald.
+ * ========================================================================== */
+(function () {
+  E.seed(11); E.newRun('vanguard'); E.run.nodeIdx = 0;
+  E.startNode('fight');
+  var ids = E.combat.enemies.map(function (e) { return e.id; });
+  ok('the first fight of a run is the scripted opener',
+    JSON.stringify(ids) === JSON.stringify(VS.FIRST_FIGHT));
+  ok('and it is one body, not a pack', ids.length === 1);
+  ok('the opener has art', !!(VS.ENEMIES[ids[0]] || {}).art);
+  // every other fight still comes from the packs
+  E.run.nodesCleared = 1;
+  E.startNode('fight');
+  var later = E.combat.enemies.map(function (e) { return e.id; });
+  ok('the fight after it is drawn from the faction packs',
+    later.indexOf(VS.FIRST_FIGHT[0]) < 0);
+})();
+VS.FIRST_FIGHT = null;
+
 function startFight(cls) {
   E.seed(123);
   E.newRun(cls || 'vanguard');

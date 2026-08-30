@@ -1012,6 +1012,13 @@
       var epool = [].concat(ns.ELITES[r.faction]);
       ids = [pick(epool)];
       if (E.pressureMods().eliteMinion || (r.sector >= 3 && rnd() < B.sector.eliteChance2Enemies)) ids.push(ns.ELITE_MINIONS[r.faction]);
+    } else if (r.sector === 1 && !(r.nodesCleared || 0) && ns.FIRST_FIGHT
+               && ns.FIRST_FIGHT.every(function (id) { return ns.ENEMIES[id]; })) {
+      /* THE SCRIPTED OPENER — see ns.FIRST_FIGHT. It stands alone against
+       * roughly the HP the packs it replaces carried between them, so the
+       * fight runs the same length without asking the player to read three
+       * telegraphs before they have been taught one. */
+      ids = ns.FIRST_FIGHT.slice();
     } else {
       var packs = ns.PACKS[r.faction];
       // earlier rows in a sector lean toward easier packs; the harder packs

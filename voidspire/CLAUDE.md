@@ -114,12 +114,25 @@ about itself** — its status line and its export — after every gesture, and t
 whole class disappears. Between them these two suites found four real bugs on
 the day they were written.
 
-## Animated art: supported everywhere, used nowhere
+## Animated art: built long before anything used it
 
 An art block is normally one shape, `{ p, e }`. It may instead be
-`{ fps, frames: [ {p,e}, … ] }` and play on a loop. **No art in the game uses
-that yet** — all 49 enemies, 96 engravings and 201 card icons are a single
-frame. What moves on the battlefield is the renderer's idle bob, not the art.
+`{ fps, frames: [ {p,e}, … ] }` and play on a loop. **The Spire Herald is the
+first piece of art in the game that does** — 11 frames at 14 fps, drawn in the
+artist tool and handed over whole. Everything else is still a single frame, and
+what moves under them is the renderer's idle bob rather than the art.
+
+It is also the scripted opener: `ns.FIRST_FIGHT` is used for the first combat
+of a run whatever faction was rolled, so the opening teaches one lesson every
+time instead of being two drones or three larvae at random. It stands alone at
+53 HP in play, against 40–95 for the packs it replaces (median 58) — the same
+length of fight without asking a new player to read three telegraphs.
+
+**Data, not a branch**, so a test can turn it off — and it had to be. Seven
+mechanics tests set up the fight they want by overriding a PACK, and a scripted
+opener silently wins that argument: they had asked for a Void Drone or a Siege
+Walker and been handed the herald. `test/mechanics.js` asserts the opener once
+and then stands it down for the rest of the file.
 
 That gap mattered more than it looked. The battlefield canvas had always been
 able to play a reel, so the capability read as present, while every other stop
