@@ -3,7 +3,7 @@
  * Drives the artist tool's real buttons in a real browser.
  *
  * The artist is the most stateful thing we own — nine tools, layers, frames,
- * onion skin, tweening, reordering, an eraser, a marquee — and it has broken
+ * onion skin, reordering, an eraser, a marquee — and it has broken
  * more often than anything else, always in the same way: a handler updates
  * the model and leaves the canvas, the status line or the export showing what
  * was true before it. UNDO was greyed out with points on screen. A finished
@@ -233,17 +233,6 @@ function ok(name, cond, detail) {
   ok('and undo puts the order back',
     JSON.stringify((await art()).frames) === orderBefore,
     'still reordered after undo');
-
-  console.log('\nTWEEN');
-  await p.click('#fTween'); await p.waitForTimeout(400);
-  fr = await readout();
-  ok('tween inserts frames', fr.frames > 3, 'frames ' + fr.frames);
-  const tw = await art();
-  let twNaN = 0;
-  (tw.frames || []).forEach(f => (f.p || []).forEach(q => q.forEach(v => { if (!isFinite(v)) twNaN++; })));
-  ok('and none of them contains a NaN', twNaN === 0, twNaN + ' NaN coordinates');
-  await p.click('#bUndo'); await p.waitForTimeout(250);
-  ok('undo removes them again', (await readout()).frames === 3, (await readout()).raw);
 
   console.log('\nMIRROR');
   /* Back to a tool that actually uses it: the solid tool and the sci-fi

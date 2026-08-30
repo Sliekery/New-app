@@ -228,7 +228,7 @@ function ok(name, cond, detail) {
   ok('and the export is an animation', !!(anim && anim.frames && anim.frames.length === 8),
     anim && anim.frames && anim.frames.length);
 
-  /* The whole reason the spin is generated rather than tweened: a 2D tween
+  /* The whole reason the spin is generated rather than interpolated: a flat
    * between 0 and 90 degrees squashes the cube through a flat line. If these
    * frames had been interpolated, the middle ones would be narrower than both
    * ends. Every frame of a real rotation keeps its own distinct line work. */
@@ -241,7 +241,7 @@ function ok(name, cond, detail) {
     return +(hi - lo).toFixed(3);
   });
   const wLo = Math.min(...widths), wHi = Math.max(...widths);
-  ok('none of them collapses — a tween would have flattened the middle',
+  ok('none of them collapses — interpolating would flatten the middle',
     wLo > wHi * 0.5, 'widths ' + widths.join(' '));
   let nan = 0;
   anim.frames.forEach(f => f.p.forEach(q => q.forEach(v => { if (!isFinite(v)) nan++; })));

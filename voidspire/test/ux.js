@@ -122,12 +122,12 @@ const MEASURE = () => {
       ok('one frame tucks the strip', await tucked());
       ok('but + FRAME and DUPLICATE stay — that is how an animation starts',
         (await p.isVisible('#fAdd')) && (await p.isVisible('#fDup')));
-      ok('and TWEEN, ONION and the fps slider do not clutter a still',
-        !(await p.isVisible('#fTween')) && !(await p.isVisible('#bOnion')));
+      ok('and ONION and the fps slider do not clutter a still',
+        !(await p.isVisible('#bOnion')) && !(await p.isVisible('#fps')));
       const withStrip = (await p.evaluate(MEASURE)).side;
       await p.click('#fDup'); await p.waitForTimeout(500);
       ok('a second frame brings the whole strip back', !(await tucked()));
-      ok('and everything in it', await p.isVisible('#fTween'));
+      ok('and everything in it', await p.isVisible('#bOnion'));
       ok('which costs the canvas some height, as it should',
         (await p.evaluate(MEASURE)).side < withStrip,
         withStrip + ' → ' + (await p.evaluate(MEASURE)).side);

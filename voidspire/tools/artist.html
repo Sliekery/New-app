@@ -363,7 +363,7 @@
      The strip is 96px — the single biggest thing in the column after the
      canvas itself — and on a 720px laptop that is the difference between a
      414px canvas and a 500px one. Most drawings have one frame, so most of
-     the time it is 96px spent on tween, onion skin, fps and a strip with one
+     the time it is 96px spent on onion skin, fps and a strip with one
      thumbnail in it. It folds itself away until there is an animation, and
      one tap brings it back. */
   /* Tucked, the heading is saying nothing the row below it does not — and on
@@ -571,9 +571,6 @@
         <button id="fPlay" class="sm">▶ PLAY</button>
         <button id="fBig" class="sm go">⛶ BIG VIEW</button>
         <button id="bOnion" class="sm">ONION</button>
-        <button id="fTween" class="sm">TWEEN →</button>
-        <input type="range" id="tweenN" min="1" max="6" value="3" style="max-width:70px">
-        <span class="hint" id="tweenNN">3</span>
         <span class="hint">fps</span>
         <input type="range" id="fps" min="2" max="24" value="8" style="max-width:110px">
         <span class="hint" id="fpsN">8</span>
@@ -2062,11 +2059,11 @@
   }
 
   /* ---- BAKE SPIN --------------------------------------------------------
-   * Each frame is GENERATED from the real rotation, never tweened. Tweening
-   * between a cube at 0 degrees and the same cube at 90 interpolates the flat
-   * points, so the in-between frames squash it through a flat line instead of
-   * turning it — which looks like a bug and is really a category error: a 2D
-   * tween cannot know the shape was ever three-dimensional.
+   * Each frame is GENERATED from the real rotation, never interpolated.
+   * Interpolating between a cube at 0 degrees and the same cube at 90 moves the
+   * FLAT points, so the frames in between squash it through a flat line instead
+   * of turning it — which looks like a bug and is really a category error: a
+   * two-dimensional in-between cannot know the shape was ever solid.
    *
    * The strokes land on the CURRENT layer, one frame each, so hand-drawn work
    * on any other layer survives and rides along with the animation. */
@@ -3310,12 +3307,12 @@
    * the selected strokes only — so the body stays exactly where it is and the
    * arm walks round the joint.
    *
-   * The clone keeps stroke order, which matters more than it looks: TWEEN
-   * pairs strokes BY INDEX, so a frame built this way still tweens against
-   * its neighbours. Deleting the arm and drawing it again — which is what this
-   * replaces — sends it to the end of the list and breaks that pairing, which
-   * is why tweening a hand-redrawn animation produces a body melting into an
-   * arm.
+   * The clone keeps STROKE ORDER, which matters more than it looks. Every part
+   * of this rig addresses a stroke by its index — which points are pinned,
+   * which strokes a stretch carries, which selection a transform is replayed
+   * over. Deleting the arm and drawing it again, which is what this replaces,
+   * sends it to the end of the list and quietly re-numbers everything after
+   * it, so a frame built by hand no longer lines up with its neighbours.
    * ================================================================== */
   function xformPoint(xf, p, k) {
     if (xf.kind === 'move') return [p[0] + xf.dx * k, p[1] + xf.dy * k];
@@ -5090,173 +5087,6 @@
     rd.readAsText(f);
   };
 
-  /* ==================================================================
-   * TWEENING. Draw a pose, draw the next, and let the frames between be
-   * worked out. Strokes are matched by index and RESAMPLED to a common
-   * point count first — two hand-drawn strokes almost never have the same
-   * number of points, and lerping them pairwise without resampling produces
-   * garbage rather than motion.
-   * ================================================================== */
-  function resample(pts, n) {
-    if (pts.length === n) return pts.map(function (p) { return p.slice(); });
-    var segs = [], total = 0;
-    for (var i = 1; i < pts.length; i++) {
-      var d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
-      segs.push(d); total += d;
-    }
-    if (!total) return new Array(n).fill(0).map(function () { return pts[0].slice(); });
-    var out = [pts[0].slice()], step = total / (n - 1), walked = 0, si = 0, acc = 0;
-    for (var k = 1; k < n - 1; k++) {
-      var want = k * step;
-      while (si < segs.length && acc + segs[si] < want) { acc += segs[si]; si++; }
-      var t = segs[si] ? (want - acc) / segs[si] : 0;
-      out.push([
-        pts[si][0] + (pts[si + 1][0] - pts[si][0]) * t,
-        pts[si][1] + (pts[si + 1][1] - pts[si][1]) * t,
-      ]);
-    }
-    out.push(pts[pts.length - 1].slice());
-    return out;
-  }
-  document.getElementById('tweenN').oninput = function () {
-    document.getElementById('tweenNN').textContent = this.value;
-  };
-  /* ==================================================================
-   * TWEEN, AND SAYING WHAT IT DID
-   * ==================================================================
-   * It worked and said nothing, which on the three occasions it CANNOT work is
-   * indistinguishable from it being broken:
-   *
-   *   - the two frames are identical (the state you are in the moment after
-   *     DUPLICATE), so every in-between is identical too and pressing the
-   *     button appears to do nothing at all;
-   *   - they hold different numbers of strokes, so the odd ones out used to be
-   *     carried unchanged and then pop;
-   *   - they hold the SAME number in a different ORDER, because a part was
-   *     deleted and drawn again. Strokes are paired BY INDEX, so the arm tweens
-   *     into the leg and they slide through each other on the way.
-   *
-   * The pairing stays by index — it is the pairing SWING and REPEAT preserve,
-   * and re-pairing by proximity would guess wrong on any part that genuinely
-   * travels. What changes is that all three are detected and said out loud, so
-   * "it does not work" becomes "these two poses do not correspond, and here is
-   * which way".
-   * ================================================================== */
-  function strokeMid(pts) {
-    var x = 0, y = 0;
-    pts.forEach(function (q) { x += q[0]; y += q[1]; });
-    return [x / pts.length, y / pts.length];
-  }
-  // a stroke squashed to its own middle: what an unpaired one grows out of
-  function collapsed(L) {
-    var m = strokeMid(L.pts);
-    return { pts: L.pts.map(function () { return [m[0], m[1]]; }), m: L.m };
-  }
-  /* Would pairing them up by nearness be much cheaper than pairing them in
-   * order? If so the drawing order of the two frames does not correspond, and
-   * every part is about to tween into a different part. */
-  function outOfOrder(sa, sb) {
-    var n = Math.min(sa.length, sb.length);
-    if (n < 2) return false;
-    var am = sa.slice(0, n).map(function (L) { return strokeMid(L.pts); });
-    var bm = sb.slice(0, n).map(function (L) { return strokeMid(L.pts); });
-    var byIndex = 0, greedy = 0, taken = {};
-    for (var i = 0; i < n; i++) {
-      byIndex += Math.hypot(am[i][0] - bm[i][0], am[i][1] - bm[i][1]);
-      var best = Infinity, at = -1;
-      for (var j = 0; j < n; j++) {
-        if (taken[j]) continue;
-        var d = Math.hypot(am[i][0] - bm[j][0], am[i][1] - bm[j][1]);
-        if (d < best) { best = d; at = j; }
-      }
-      if (at >= 0) { taken[at] = 1; greedy += best; }
-    }
-    /* A REAL MOVE COSTS THE SAME EITHER WAY. Translate every part downwards
-     * and each one is still nearest to its own new position, so both pairings
-     * agree and nothing is said. Even one part travelling a long way while the
-     * others sit still leaves the two equal. Only a SHUFFLE — the same parts in
-     * a different drawing order — makes pairing in order dearer than pairing by
-     * nearness, and it has to be dearer by a visible fraction of the box as
-     * well as by a ratio, so that two small strokes near each other cannot trip
-     * it on rounding alone. */
-    return byIndex > greedy * 1.25 && byIndex - greedy > 0.35;
-  }
-
-  document.getElementById('fTween').onclick = function () {
-    finish();
-    if (doc.frames.length < 2) {
-      return note('TWEEN fills the gap between this frame and the next — '
-        + 'there is only one frame, so add another first', true);
-    }
-    var n = +document.getElementById('tweenN').value;
-    var bi = (fi + 1) % doc.frames.length;
-    var A = doc.frames[fi], B = doc.frames[bi];
-
-    /* Looked at BEFORE anything is made, so what comes back describes the two
-     * poses rather than the pile of frames that is about to sit between them. */
-    var identical = JSON.stringify(A.cells) === JSON.stringify(B.cells);
-    var lonely = 0, shuffled = false;
-    doc.layers.forEach(function (L, l) {
-      var sa = (A.cells[l] || { strokes: [] }).strokes;
-      var sb = (B.cells[l] || { strokes: [] }).strokes;
-      lonely += Math.abs(sa.length - sb.length);
-      if (outOfOrder(sa, sb)) shuffled = true;
-    });
-
-    pushHistory();
-    var made = [];
-    for (var k = 1; k <= n; k++) {
-      var t = k / (n + 1);
-      var cells = doc.layers.map(function (L, l) {
-        var sa = (A.cells[l] || { strokes: [], eyes: [] }).strokes;
-        var sb = (B.cells[l] || { strokes: [], eyes: [] }).strokes;
-        var strokes = [];
-        /* Every stroke on BOTH sides, not just the ones that pair up. One with
-         * no partner tweens against a copy of itself squashed to its own
-         * middle, so it grows out of a point or shrinks away into one instead
-         * of appearing from nowhere at the far end. */
-        for (var i = 0; i < Math.max(sa.length, sb.length); i++) {
-          var la = sa[i] || collapsed(sb[i]);
-          var lb = sb[i] || collapsed(sa[i]);
-          var cnt = Math.max(la.pts.length, lb.pts.length);
-          var pa = resample(la.pts, cnt), pb = resample(lb.pts, cnt);
-          var pts = pa.map(function (q, j) {
-            return [+(q[0] + (pb[j][0] - q[0]) * t).toFixed(3),
-                    +(q[1] + (pb[j][1] - q[1]) * t).toFixed(3)];
-          });
-          strokes.push({ pts: pts, m: la.m });
-        }
-        var ea = (A.cells[l] || { eyes: [] }).eyes, eb = (B.cells[l] || { eyes: [] }).eyes;
-        var eyes = [];
-        for (var q2 = 0; q2 < ea.length; q2++) {
-          var pe = eb[q2] || ea[q2];
-          eyes.push([+(ea[q2][0] + (pe[0] - ea[q2][0]) * t).toFixed(3),
-                     +(ea[q2][1] + (pe[1] - ea[q2][1]) * t).toFixed(3), ea[q2][2]]);
-        }
-        return { strokes: strokes, eyes: eyes };
-      });
-      made.push({ cells: cells });
-    }
-    doc.frames.splice.apply(doc.frames, [fi + 1, 0].concat(made));
-    renderFrames(); drawPad();
-
-    var pair = 'frame ' + (fi + 1) + ' and frame ' + (bi + 1)
-      + (bi < fi ? ' (round the loop)' : '');
-    if (identical) {
-      note('made ' + n + ' in-betweens, but ' + pair + ' are IDENTICAL — so the'
-        + ' in-betweens are too. Move something in the second one first.', true);
-    } else if (shuffled) {
-      note('made ' + n + ' in-betweens, but the strokes of ' + pair + ' are not in the'
-        + ' same order — parts will slide through each other. Move a part rather than'
-        + ' deleting it and drawing it again.', true);
-    } else if (lonely) {
-      note('made ' + n + ' in-betweens — ' + lonely + ' stroke' + (lonely === 1 ? '' : 's')
-        + ' with no partner in the other frame, so they grow in or shrink away', true);
-    } else {
-      note('made ' + n + ' in-between' + (n === 1 ? '' : 's') + ' between ' + pair
-        + ' — press ▶ PLAY to see it');
-    }
-  };
 
 
   document.getElementById('smooth').oninput = function () {
@@ -5277,7 +5107,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 35';
+  document.getElementById('ver').textContent = 'build 36';
 
   paintThumbs();
   applyView(viewMode);
