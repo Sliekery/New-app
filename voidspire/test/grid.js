@@ -71,14 +71,31 @@ function ok(name, cond, detail) {
   // MIRROR doubles every path; off, so the numbers below are the ones drawn
   await p.click('#bMirror'); await p.waitForTimeout(100);
 
+  /* THE GRID IS A STEPPER NOW, not four labelled buttons: WIDER and FINER walk
+   * a list of six sizes, and [ and ] do the same from the keyboard. So a test
+   * asks for a size rather than clicking one — which is also the only way to
+   * reach the two that were added, 0.01 and 0.005. */
+  async function setGrid(step) {
+    const want = String(+step);
+    for (let i = 0; i < 12; i++) {
+      const now = +(await p.textContent('#gStepNow'));
+      if (String(now) === want) return true;
+      await p.click(now > +step ? '#gFiner' : '#gWider');
+      await p.waitForTimeout(110);
+    }
+    return false;
+  }
+
   console.log('THE STEP YOU PICK IS THE STEP YOU GET');
-  const steps = await p.$$eval('.gstep', bs => bs.map(x => x.dataset.step));
-  ok('four steps are offered', steps.length === 4, steps.join(' '));
+  const steps = ['0.2', '0.1', '0.05', '0.02', '0.01', '0.005'];
+  ok('the size is spelled out rather than abbreviated to nothing',
+    /^0\.\d+$/.test((await p.textContent('#gStepNow')).trim()),
+    await p.textContent('#gStepNow'));
   await p.click('#mLine'); await p.waitForTimeout(80);
 
   for (const step of steps) {
-    await p.click(`.gstep[data-step="${step}"]`);
-    await p.waitForTimeout(100);
+    ok('the stepper can reach ' + step.padEnd(5), await setGrid(step),
+      await p.textContent('#gStepNow'));
     ok('the readout says which grid you are on', /grid /.test(await status()),
       await status());
     await wobblyLine(0.28, 0.34, 0.72, 0.34);
@@ -99,7 +116,7 @@ function ok(name, cond, detail) {
    * whether both ends land on it. At the coarse steps the grid alone is
    * enough; the fine ones are what ANGLE is for. */
   for (const [step, expectLevel] of [['0.2', true], ['0.1', true], ['0.02', false]]) {
-    await p.click(`.gstep[data-step="${step}"]`); await p.waitForTimeout(100);
+    await setGrid(step);
     await wobblyLine(0.28, 0.34, 0.72, 0.345);
     const q = (await art()).p[0];
     const level = q[1] === q[3];
@@ -110,7 +127,7 @@ function ok(name, cond, detail) {
   }
 
   console.log('\nANGLE MAKES IT LEVEL WHATEVER THE STEP');
-  await p.click('.gstep[data-step="0.02"]'); await p.waitForTimeout(100);
+  await setGrid('0.02');
   await p.click('#bAngle'); await p.waitForTimeout(100);
   ok('the readout says so', /STRAIGHT/.test(await status()), await status());
   await wobblyLine(0.28, 0.34, 0.72, 0.352);
@@ -146,7 +163,7 @@ function ok(name, cond, detail) {
   /* The bug itself. Read the step the painter uses straight out of the page
    * and compare it with the step a point actually lands on. */
   for (const step of ['0.2', '0.05']) {
-    await p.click(`.gstep[data-step="${step}"]`); await p.waitForTimeout(120);
+    await setGrid(step); await p.waitForTimeout(120);
     const drawn = await p.evaluate(() => {
       /* Count the VERTICAL grid lines along one row. Not the middle row: the
        * world's y=0 is a multiple of every step, so the middle row sits ON a
@@ -182,6 +199,46 @@ function ok(name, cond, detail) {
       drawn + ' drawn, ' + expect + ' steps across the view');
   }
 
+  console.log('\nTHE FINE END, WHICH IS WHAT IT WAS ASKED FOR');
+  /* "When I want to go into more detail a smaller grid would be very helpful."
+   * 0.01 and 0.005 are the two that were added, and the second is the floor
+   * for a reason worth asserting rather than believing: the export keeps THREE
+   * DECIMALS, so a point on a 0.005 grid survives being saved exactly, and a
+   * finer one would move the first time the drawing was reloaded. */
+  for (const step of ['0.01', '0.005']) {
+    ok('the stepper reaches ' + step, await setGrid(step), await p.textContent('#gStepNow'));
+    await wobblyLine(0.42, 0.46, 0.58, 0.46);
+    const q = (await art()).p[0];
+    const g = +step;
+    ok('a point lands exactly on the ' + step.padEnd(5) + ' grid',
+      q.every(v => Math.abs(v / g - Math.round(v / g)) < 0.02), q.join(', '));
+    /* The whole claim about the floor: what the export wrote is what it was.
+     * Three decimals hold a multiple of 0.005 with nothing left over. */
+    ok('and the exported number is the number, not a rounding of it',
+      q.every(v => Math.abs(v - +v.toFixed(3)) < 1e-9), q.join(', '));
+    await clear();
+  }
+  ok('it will not go finer than the file can describe',
+    await (async () => {
+      await p.click('#gFiner'); await p.waitForTimeout(140);
+      return /finest grid/.test(await status()) && (await p.textContent('#gStepNow')).trim() === '0.005';
+    })(), await status());
+  ok('nor wider than the widest',
+    await (async () => {
+      await setGrid('0.2');
+      await p.click('#gWider'); await p.waitForTimeout(140);
+      return /widest grid/.test(await status()) && (await p.textContent('#gStepNow')).trim() === '0.2';
+    })(), await status());
+
+  console.log('\nAND FROM THE KEYBOARD, WITHOUT LEAVING THE CANVAS');
+  await setGrid('0.05');
+  await p.keyboard.press(']'); await p.waitForTimeout(150);
+  ok('] goes finer', (await p.textContent('#gStepNow')).trim() === '0.02',
+    await p.textContent('#gStepNow'));
+  await p.keyboard.press('['); await p.keyboard.press('['); await p.waitForTimeout(200);
+  ok('[ goes wider', (await p.textContent('#gStepNow')).trim() === '0.1',
+    await p.textContent('#gStepNow'));
+
   console.log('\nGRID OFF STILL MEANS OFF');
   await p.click('#bSnap'); await p.waitForTimeout(120);
   ok('the readout says freehand', /FREEHAND/.test(await status()), await status());
@@ -193,13 +250,13 @@ function ok(name, cond, detail) {
   await clear();
 
   console.log('\nIT IS REMEMBERED');
-  await p.click('.gstep[data-step="0.1"]'); await p.waitForTimeout(100);
+  await setGrid('0.1');
   await p.click('#bAngle'); await p.waitForTimeout(100);
   await p.reload(); await p.waitForTimeout(900);
   ok('the step comes back', /grid 0\.1/.test(await status()), await status());
   ok('and so does the angle lock', /STRAIGHT/.test(await status()), await status());
-  ok('with the right button lit',
-    await p.$eval('.gstep[data-step="0.1"]', e => e.classList.contains('on')));
+  ok('and the readout says which one you are on',
+    (await p.textContent('#gStepNow')).trim() === '0.1', await p.textContent('#gStepNow'));
 
   console.log('\n' + (errs.length ? 'PAGE ERRORS:\n  ' + errs.join('\n  ') : 'no page errors'));
   if (errs.length) fail += errs.length;

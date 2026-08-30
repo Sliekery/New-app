@@ -439,6 +439,34 @@ threshold.** The pad's ground is rgb(10,16,20), so a "brighter than 12" test
 counted every pixel in the row as lit and the grid-line count came back as 1
 every time. The commonest value in a row is the background by definition.
 
+### Six sizes, and a way to change them without looking
+
+"We only have one grid size" — said by someone who had four. They were four
+buttons in a 2x2 reading **·2 ·1 05 02**, which is the number with its meaning
+filed off: you had to already know they were grid sizes to read them as any,
+and the abbreviation that made them fit the rail is what made them unreadable.
+
+The step is **written out in full** now, in its own readout above a pair of
+WIDER / FINER buttons, and **`[` and `]` change it from anywhere** — which is
+what makes it usable mid-drawing: block a shape out wide, go fine for the
+detail, come back without hunting for a control.
+
+Two sizes were added at the fine end, 0.01 and 0.005, because "more detail" was
+the ask. **0.005 is the floor, and the reason is the file format**: the export
+keeps THREE DECIMALS. Every multiple of 0.005 survives that exactly; a finer
+grid would let you place points the saved drawing cannot describe, and they
+would move the first time it was reloaded. `test/grid.js` asserts that rather
+than trusting it — every exported coordinate equals its own `toFixed(3)`.
+
+The painter needed one change for the fine end: **when the fine lines are being
+dropped it now walks by FIVES** instead of stepping over four of them each time.
+At 0.005 zoomed out that is the difference between a few hundred iterations and
+a few thousand, on every frame of every drag.
+
+A note for tests: the grid is a stepper, so a test asks for a size — pressing
+WIDER or FINER until the readout matches — rather than clicking a labelled
+button. It is also the only way to reach the two new sizes.
+
 ### The grid holds every point, not only the pen
 
 The follow-up report: turned lines "get loose and you still have to redraw it".

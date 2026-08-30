@@ -133,6 +133,21 @@ const DEG = 180 / Math.PI;
     return [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
   };
 
+  /* THE GRID IS A STEPPER NOW, not four labelled buttons: WIDER and FINER walk
+   * a list of six sizes, and [ and ] do the same from the keyboard. So a test
+   * asks for a size rather than clicking one — which is also the only way to
+   * reach the two that were added, 0.01 and 0.005. */
+  async function setGrid(step) {
+    const want = String(+step);
+    for (let i = 0; i < 12; i++) {
+      const now = +(await p.textContent('#gStepNow'));
+      if (String(now) === want) return true;
+      await p.click(now > +step ? '#gFiner' : '#gWider');
+      await p.waitForTimeout(110);
+    }
+    return false;
+  }
+
   /* MIRROR off: it doubles every path, and what is being measured here is
    * which strokes moved and which did not. */
   await p.click('#bMirror'); await p.waitForTimeout(120);
@@ -927,7 +942,7 @@ const DEG = 180 / Math.PI;
    * looking at. */
   async function fresh(step, x0, y0, x1, y1) {
     await p.click('#tabAdd'); await p.waitForTimeout(600);
-    await p.click(`.gstep[data-step="${step}"]`); await p.waitForTimeout(140);
+    await setGrid(step);
     await p.click('#mLine'); await p.waitForTimeout(80);
     await drag(x0, y0, x1, y1);
     await p.click('#mSel'); await p.waitForTimeout(120);
@@ -980,7 +995,7 @@ const DEG = 180 / Math.PI;
    * that was arming a MOVE here started stretching instead, and a stretch has
    * nothing for the grid to swallow. Two strokes means no handles. */
   await p.click('#tabAdd'); await p.waitForTimeout(600);
-  await p.click('.gstep[data-step="0.02"]'); await p.waitForTimeout(140);
+  await setGrid('0.02');
   await p.click('#mLine'); await p.waitForTimeout(80);
   /* Far enough apart that the point magnet does not weld them into one — it
    * pulls a new point onto any endpoint within 0.05, and two strokes drawn a
@@ -993,7 +1008,7 @@ const DEG = 180 / Math.PI;
   await drag(0.5000, 0.5000, 0.50741, 0.5000);      // push them one fine square right
   ok('the move goes through on a fine grid', !/⚠/.test(await status()), await status());
   const fine = JSON.stringify((await cur()).p);
-  await p.click('.gstep[data-step="0.2"]'); await p.waitForTimeout(140);
+  await setGrid('0.2');
   await p.fill('#tRepeatN', '2');
   await p.click('#tRepeat'); await p.waitForTimeout(400);
   ok('not one frame is made', (await frameCount()) === 1, (await frameCount()) + ' frames');
