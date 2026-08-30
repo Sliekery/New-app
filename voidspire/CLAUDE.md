@@ -525,6 +525,60 @@ Decisions inside it:
 - Only the CURRENT LAYER is searched. A limb hinged against a line on the
   sketch layer would be hinged against a guide.
 
+### Stretching one line, and what comes with it
+
+> Select a single line and make it longer or shorter by dragging. If another
+> thing is attached to the line you are making shorter it will move together
+> with it, because it will still just be attached. For example an antenna with
+> a block at the end — when you make the antenna shorter the block stays
+> attached and moves down.
+
+One stroke selected puts a white grab on each of its ends. **A handle beats the
+body**: taking hold of one stretches the line instead of swinging it, which is
+the rule every vector tool has used since they had handles and the only way to
+tell the two gestures apart on something as thin as a line, whose ends are
+inside its own bounding box. Shift, or ANGLE, keeps the end on the line's own
+axis so it purely lengthens.
+
+**The end carries whatever hangs off it** — not the points that happen to touch
+it, but the whole connected run of strokes reachable from that end without
+going back through the line itself. Moving only the touching points would pull
+one corner of the block and leave the other three, which is a torn box rather
+than a block that moved.
+
+**The loop guard is what stops this eating the drawing.** If what hangs off the
+end also holds the OTHER end of the same line, the line is part of a ring
+rather than a stalk: a leg's outer edge reaches the foot, the inner edge, the
+hip and then the whole figure. Pulling that would drag everything instead of
+stretching anything, so nothing is carried and only the point moves. The status
+line says which of the three happened — how many strokes came along, that
+nothing was attached, or that the end loops back round.
+
+Two consequences worth knowing:
+
+- **A line welded at both ends has nothing to swing.** An antenna joined to a
+  head at one end and a block at the other is pinned at every point, so a swing
+  is a no-op — and a no-op that still costs an undo is worse than a refusal.
+  The bar says "held at every point, so there is nothing to swing" and points
+  at the ends instead.
+- **The pins go stale after a stretch or a slide.** They were worked out from
+  where things were BEFORE the drag; a marker left at the old spot is the
+  display disagreeing with its data again, and it showed the antenna's tip
+  hanging in the air above the block that had just moved. `findJoint()` runs
+  again on pointerup.
+
+REPEAT replays a stretch as its own kind rather than forcing it through
+`xformPoint`: it is one point moving with a run of strokes riding along, not a
+transform of the selection. Without that, REPEAT after a stretch would silently
+replay whatever transform came before it, which is worse than doing nothing.
+
+A test note: **a stroke small enough to flatten on a coarse grid is small
+enough that its middle is within grabbing distance of both its ends.** The
+fixture that armed a MOVE by dragging one started stretching instead, and a
+stretch has nothing for the grid to swallow. Two strokes means no handles. And
+**the point magnet welds strokes drawn closer than 0.05 to each other** — two
+tiny test strokes a fine step apart simply became one.
+
 ### The grid does not settle anything that is held
 
 Settling a turn onto the grid was an earlier answer to lines coming loose. It

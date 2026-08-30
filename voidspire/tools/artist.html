@@ -1202,7 +1202,24 @@
       px.moveTo(ps[0], ps[1] - 16); px.lineTo(ps[0], ps[1] + 16);
       px.stroke();
       px.restore();
-    } else if (mode === 'select' && pins.length) {
+    }
+    /* THE END GRABS. Drawn only when exactly one stroke is selected, because
+     * that is exactly when they do something — and drawn at all because a
+     * gesture nobody can see is a gesture that was not added. White, so they
+     * are never confused with the amber pins, which mean the opposite thing:
+     * a pin is a point that will NOT move. */
+    var ehs = endHandles();
+    if (ehs) {
+      px.save();
+      ehs.forEach(function (h) {
+        var hs = toScreen(h.p[0], h.p[1]);
+        px.fillStyle = '#eafcff'; px.strokeStyle = '#05090b'; px.lineWidth = 2;
+        px.beginPath(); px.rect(hs[0] - 5, hs[1] - 5, 10, 10);
+        px.fill(); px.stroke();
+      });
+      px.restore();
+    }
+    if (mode === 'select' && pins.length && !pivot) {
       /* EVERY PIN, not their average. The average is in clear space between
        * them and welded to nothing — drawing a crosshair there said something
        * about the arithmetic rather than about the drawing, and was reported
@@ -1349,10 +1366,12 @@
         : sel.length + ' stroke' + (sel.length === 1 ? '' : 's') + ' selected'
           + (!swingOn ? ' · drag to slide it'
             : pivot ? ' · drag to swing it round your pivot'
+            : jointAllHeld ? ' · held at every point, so there is nothing to swing'
             : autoJoint ? ' · held at ' + pins.length + ' point' + (pins.length === 1 ? '' : 's')
               + (jointHeldAt > 1 ? ' in ' + jointHeldAt + ' places' : '')
               + ' — drag it up and down'
-            : ' · touching nothing, so drag slides it');
+            : ' · touching nothing, so drag slides it')
+          + (sel.length === 1 ? ' · or drag an end ◻ to make it longer or shorter' : '');
     if (mode === 'select') syncSwingBtn();
     drawPreview();
     emit();
@@ -1556,6 +1575,30 @@
       drawPad(); return;
     }
     if (mode === 'select') {
+      /* A HANDLE BEATS THE BODY. One stroke selected puts a grab on each of
+       * its ends, and taking hold of one stretches the line instead of
+       * swinging it — the rule every vector tool has used since they had
+       * handles, and the only way to tell the two gestures apart on something
+       * as thin as a line, whose ends are inside its own bounding box. */
+      var eh = grabEnd(ev.clientX, ev.clientY);
+      if (eh) {
+        var SL = here().strokes[eh.si];
+        var carried = carriedBy(eh.si, eh.pi);
+        stretchFrom = {
+          si: eh.si, pi: eh.pi, pushed: false, dx: 0, dy: 0, loop: carried.loop,
+          at: [SL.pts[eh.pi][0], SL.pts[eh.pi][1]],
+          far: SL.pts[eh.pi === 0 ? SL.pts.length - 1 : 0].slice(),
+          snapshot: JSON.parse(JSON.stringify(SL.pts)),
+          carry: {},
+        };
+        for (var ci in carried.set) {
+          if (carried.set.hasOwnProperty(ci)) {
+            stretchFrom.carry[ci] = JSON.parse(JSON.stringify(here().strokes[ci].pts));
+          }
+        }
+        pad.setPointerCapture(ev.pointerId);
+        return;
+      }
       var b = selBounds();
       if (b && w[0] >= b.x0 - 0.04 && w[0] <= b.x1 + 0.04 && w[1] >= b.y0 - 0.04 && w[1] <= b.y1 + 0.04) {
         var snap0 = JSON.parse(JSON.stringify(sel.map(function (i) { return here().strokes[i].pts; })));
@@ -1567,6 +1610,10 @@
          * than work it. The angle comes off the RAW pointer, never the snapped
          * one: a cursor rounded to the grid makes the swing jump between
          * whole squares instead of following your hand. */
+        if (pv && swingOn && jointAllHeld) {
+          note('held at every point — drag an end \u25fb to make it longer or shorter', true);
+          return;
+        }
         if (pv && swingOn) {
           var r0 = rawWorld(ev.clientX, ev.clientY);
           swingFrom = { pv: pv, snapshot: snap0, da: 0, pushed: false, total: 0,
@@ -1615,6 +1662,29 @@
       drawPad(); return;
     }
     if (marquee) { marquee.b = toWorld(ev.clientX, ev.clientY); drawPad(); return; }
+    if (stretchFrom) {
+      var nw = toWorld(ev.clientX, ev.clientY);
+      if (angleLock || ev.shiftKey) nw = alongAxis(stretchFrom.far, stretchFrom.at, nw);
+      var ex = nw[0] - stretchFrom.at[0], ey = nw[1] - stretchFrom.at[1];
+      if (!ex && !ey) return;
+      if (!stretchFrom.pushed) { pushHistory(); stretchFrom.pushed = true; }
+      stretchFrom.dx = ex; stretchFrom.dy = ey;
+      here().strokes[stretchFrom.si].pts = stretchFrom.snapshot.map(function (q, qi) {
+        return qi === stretchFrom.pi ? [nw[0], nw[1]] : [q[0], q[1]];
+      });
+      /* Whatever hangs off that end goes with it, WHOLE — the block keeps its
+       * shape and simply arrives somewhere else, which is what "it is still
+       * attached" means. Moving only its touching corner would tear it. */
+      for (var cj in stretchFrom.carry) {
+        if (!stretchFrom.carry.hasOwnProperty(cj)) continue;
+        var T = here().strokes[cj];
+        if (!T) continue;
+        T.pts = stretchFrom.carry[cj].map(function (q) {
+          return [+(q[0] + ex).toFixed(3), +(q[1] + ey).toFixed(3)];
+        });
+      }
+      drawPad(); return;
+    }
     if (swingFrom) {
       var sw = rawWorld(ev.clientX, ev.clientY);
       var aNow = Math.atan2(sw[1] - swingFrom.pv[1], sw[0] - swingFrom.pv[0]);
@@ -1698,6 +1768,23 @@
         + ' — REPEAT walks it there over several frames');
     }
     swingFrom = null;
+    if (stretchFrom && (stretchFrom.dx || stretchFrom.dy)) {
+      var n = 0;
+      for (var ck in stretchFrom.carry) if (stretchFrom.carry.hasOwnProperty(ck)) n++;
+      markXform({ kind: 'stretch', si: stretchFrom.si, pi: stretchFrom.pi,
+                  dx: stretchFrom.dx, dy: stretchFrom.dy,
+                  carry: Object.keys(stretchFrom.carry), rigid: true });
+      note(n ? ('stretched it — ' + n + ' stroke' + (n === 1 ? '' : 's') + ' attached to that end came along')
+        : stretchFrom.loop
+          ? 'stretched it — nothing carried, because that end loops back round to the other one'
+          : 'stretched it — nothing else was attached to that end');
+    }
+    /* The pins were worked out from where things were BEFORE the drag. After
+     * a stretch or a slide they are somewhere else, and a marker left at the
+     * old spot is the display disagreeing with the data again — it showed the
+     * antenna's tip hanging in the air above the block that had just moved. */
+    if (stretchFrom || moveFrom) findJoint();
+    stretchFrom = null;
     panFrom = null; moveFrom = null; erasing = false;
     if (orbitFrom) { orbitFrom = null; drawPad(); return; }
     if (mode === 'solid') {
@@ -2690,7 +2777,7 @@
    * "make the head bigger" was a redraw. Marquee-select strokes, then move,
    * rotate, scale or flip them together about their own centre.
    * ================================================================== */
-  var sel = [], marquee = null, moveFrom = null, swingFrom = null;
+  var sel = [], marquee = null, moveFrom = null, swingFrom = null, stretchFrom = null;
   function selBounds() {
     var xs = [], ys = [];
     sel.forEach(function (i) {
@@ -2716,7 +2803,7 @@
    * ================================================================== */
   var pivot = null, pivotArm = false, autoJoint = null;
   // how many separate places the selection is held at, and every point held
-  var jointHeldAt = 0, pins = [], pinSet = {};
+  var jointHeldAt = 0, pins = [], pinSet = {}, jointAllHeld = false;
 
   /* ==================================================================
    * THE JOINT IS FOUND, NOT PLACED — AND IT IS NOT ONE POINT
@@ -2764,7 +2851,9 @@
     t = t < 0 ? 0 : t > 1 ? 1 : t;
     return Math.hypot(p[0] - (a[0] + vx * t), p[1] - (a[1] + vy * t));
   }
-  function clearJoint() { autoJoint = null; jointHeldAt = 0; pinSet = {}; pins = []; }
+  function clearJoint() {
+    autoJoint = null; jointHeldAt = 0; pinSet = {}; pins = []; jointAllHeld = false;
+  }
   function findJoint() {
     clearJoint();
     if (!sel.length) return;
@@ -2807,6 +2896,12 @@
     var sx = 0, sy = 0;
     pins.forEach(function (q) { sx += q[0]; sy += q[1]; });
     autoJoint = [+(sx / pins.length).toFixed(3), +(sy / pins.length).toFixed(3)];
+    /* Welded at every point — an antenna joined to a head at one end and a
+     * block at the other. There is nothing left free to turn, so a swing is a
+     * no-op, and a no-op that still costs an undo is worse than a refusal. */
+    var total = 0;
+    sel.forEach(function (i) { if (S[i]) total += S[i].pts.length; });
+    jointAllHeld = total > 0 && pins.length >= total;
 
     /* Counted only so the bar can say how many places it is held at. Two
      * contacts belong to the same place when they are near each other OR next
@@ -2832,6 +2927,94 @@
       }
       jointHeldAt++;
     }
+  }
+
+  /* ==================================================================
+   * STRETCHING ONE LINE, AND WHAT COMES WITH IT
+   * ==================================================================
+   * "Select a single line and make it longer or shorter by dragging. If
+   *  another thing is attached to the line you are making shorter it will move
+   *  together with it, because it will still just be attached. For example an
+   *  antenna with a block at the end — when you make the antenna shorter the
+   *  block stays attached and moves down."
+   *
+   * So the end you drag carries WHATEVER HANGS OFF IT: not the points that
+   * happen to touch it, but the whole connected run of strokes reachable from
+   * that end without going back through the line itself. Moving only the
+   * touching points would pull one corner of the block and leave the other
+   * three, which is a torn box rather than a block that moved.
+   *
+   * THE LOOP GUARD is the part that stops this eating the drawing. If what
+   * hangs off the end also holds the OTHER end of the same line, the line is
+   * part of a ring rather than a stalk — a leg's outer edge reaches the foot,
+   * the inner edge, the hip and then the whole figure. Pulling that would drag
+   * everything instead of stretching anything, so nothing is carried and only
+   * the point moves.
+   * ================================================================== */
+  function ptNearStroke(p, pts, tol) {
+    if (pts.length < 2) {
+      return pts.length ? Math.hypot(p[0] - pts[0][0], p[1] - pts[0][1]) <= tol : false;
+    }
+    for (var j = 1; j < pts.length; j++) if (segDist(p, pts[j - 1], pts[j]) <= tol) return true;
+    return false;
+  }
+  function strokesTouch(A, B, tol) {
+    for (var i = 0; i < A.length; i++) if (ptNearStroke(A[i], B, tol)) return true;
+    for (var j = 0; j < B.length; j++) if (ptNearStroke(B[j], A, tol)) return true;
+    return false;
+  }
+  function carriedBy(si, pi) {
+    var S = here().strokes, L = S[si];
+    if (!L || L.pts.length < 2) return { set: {}, loop: false };
+    var E = L.pts[pi], far = L.pts[pi === 0 ? L.pts.length - 1 : 0];
+    var tol = Math.max(gridStep * 1.5, 0.06);
+    var got = {}, queue = [];
+    S.forEach(function (T, i) {
+      if (i === si) return;
+      if (ptNearStroke(E, T.pts, tol)) { got[i] = 1; queue.push(i); }
+    });
+    while (queue.length) {
+      var k = queue.pop();
+      /* eslint-disable no-loop-func */
+      S.forEach(function (T, i) {
+        if (i === si || got[i]) return;
+        if (strokesTouch(S[k].pts, T.pts, tol)) { got[i] = 1; queue.push(i); }
+      });
+      /* eslint-enable no-loop-func */
+    }
+    for (var q in got) {
+      if (got.hasOwnProperty(q) && ptNearStroke(far, S[q].pts, tol)) return { set: {}, loop: true };
+    }
+    return { set: got, loop: false };
+  }
+  // hold shift, or turn ANGLE on, and the end only slides along the line itself
+  function alongAxis(far, at, w) {
+    var vx = at[0] - far[0], vy = at[1] - far[1], L2 = vx * vx + vy * vy;
+    if (!L2) return w;
+    var t = ((w[0] - far[0]) * vx + (w[1] - far[1]) * vy) / L2;
+    return [+(far[0] + vx * t).toFixed(3), +(far[1] + vy * t).toFixed(3)];
+  }
+  /* The two ends of the one selected stroke, as screen points, so the grab is
+   * the same size however far in or out you are zoomed. */
+  function endHandles() {
+    if (mode !== 'select' || sel.length !== 1) return null;
+    var L = here().strokes[sel[0]];
+    if (!L || L.pts.length < 2) return null;
+    return [{ pi: 0, p: L.pts[0] }, { pi: L.pts.length - 1, p: L.pts[L.pts.length - 1] }];
+  }
+  function grabEnd(cx, cy) {
+    var hs = endHandles();
+    if (!hs) return null;
+    var r = pad.getBoundingClientRect();
+    for (var i = 0; i < hs.length; i++) {
+      var q = toScreen(hs[i].p[0], hs[i].p[1]);
+      // toScreen is in backing-store pixels; the pointer is in CSS ones
+      var k = pad.width / r.width;
+      if (Math.hypot(q[0] / k - (cx - r.left), q[1] / k - (cy - r.top)) <= 11) {
+        return { si: sel[0], pi: hs[i].pi };
+      }
+    }
+    return null;
   }
 
   /* A point welded to the rest of the drawing does not move, whatever the
@@ -2874,7 +3057,7 @@
         if (svv !== null) swingOn = svv === '1'; } catch (e) {}
   function syncSwingBtn() {
     var el = document.getElementById('tSwing');
-    var have = !!pivotPoint();
+    var have = !!pivotPoint() && !jointAllHeld;
     el.textContent = swingOn ? (have ? 'SWING' : 'SWING —') : 'MOVE';
     el.classList.toggle('on', swingOn && have);
     el.title = !swingOn ? 'Dragging slides the selection. Press for SWING.'
@@ -2962,7 +3145,7 @@
     if (x.rigid == null) x.rigid = (x.kind !== 'move') && (own || rigidNow());
     /* Which points were held while this was made. Copied, because the live set
      * is rebuilt on every change of selection and REPEAT may run long after. */
-    if (x.pins == null && x.kind !== 'move' && !pivot) {
+    if (x.pins == null && x.kind !== 'move' && x.kind !== 'stretch' && !pivot) {
       var keep = {}, any = false;
       for (var kk in pinSet) if (pinSet.hasOwnProperty(kk)) { keep[kk] = 1; any = true; }
       x.pins = any ? keep : null;
@@ -2970,6 +3153,7 @@
     lastXform = x;
     setRepHint(x.kind === 'move' ? 'frames, each moved further'
       : x.kind === 'rot' ? 'frames, each turned further'
+      : x.kind === 'stretch' ? 'frames, each stretched further'
       : 'frames, each scaled further');
   }
   /* Only a transform that actually happened is worth repeating. Recording one
@@ -3036,6 +3220,33 @@
     for (var k = 1; k <= n; k++) {
       var fr = clone(doc.frames[fi]);
       var strokes = fr.cells[li].strokes;
+      /* A STRETCH is not a transform of the selection, it is one point moving
+       * and a run of strokes riding along with it — so it gets its own path
+       * here rather than being forced through xformPoint. Without it, REPEAT
+       * after a stretch would silently replay whatever transform came before,
+       * which is a worse answer than doing nothing. */
+      if (lastXform.kind === 'stretch') {
+        var SS = strokes[lastXform.si];
+        if (SS && SS.pts[lastXform.pi]) {
+          SS.pts = SS.pts.map(function (q, qi) {
+            return qi === lastXform.pi
+              ? [+(q[0] + lastXform.dx * k).toFixed(3), +(q[1] + lastXform.dy * k).toFixed(3)]
+              : [q[0], q[1]];
+          });
+        }
+        lastXform.carry.forEach(function (ci) {
+          var T = strokes[ci];
+          if (!T) return;
+          T.pts = T.pts.map(function (q) {
+            return [+(q[0] + lastXform.dx * k).toFixed(3), +(q[1] + lastXform.dy * k).toFixed(3)];
+          });
+        });
+        var sigS = JSON.stringify(strokes);
+        if (sigS === seen[seen.length - 1]) same++;
+        seen.push(sigS);
+        made.push(fr);
+        continue;
+      }
       sel.forEach(function (i) {
         var L = strokes[i];
         if (!L) return;
@@ -4398,7 +4609,7 @@
      * points into a drawing you had not touched. */
     cur = []; curUndone.length = 0; sel = []; clearJoint();
     drag = null; freeing = null; shapeFrom = shapeTo = null; orbitFrom = null;
-    lineFrom = lineTo = null; marquee = null;
+    lineFrom = lineTo = null; marquee = null; swingFrom = null; stretchFrom = null;
     /* The pivot is a point in A DRAWING — the robot's shoulder is nowhere in
      * particular in the next tab along — and the transform REPEAT would carry
      * on was made over there. Both go, or REPEAT in a drawing you have not
@@ -4846,7 +5057,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 30';
+  document.getElementById('ver').textContent = 'build 31';
 
   paintThumbs();
   applyView(viewMode);

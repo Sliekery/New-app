@@ -440,6 +440,142 @@ const DEG = 180 / Math.PI;
   await p.click('#mSel'); await p.waitForTimeout(150);
   ok('back in the first drawing', (await bodyOf()) === BODY0, await bodyOf());
 
+  console.log('\nSTRETCHING ONE LINE, AND WHAT COMES WITH IT');
+  /* "Select a single line and make it longer or shorter by dragging. If
+   *  another thing is attached it will move together with it, because it will
+   *  still just be attached. For example an antenna with a block at the end —
+   *  when you make the antenna shorter the block stays attached and moves
+   *  down."
+   *
+   * The whole claim is that the BLOCK arrives somewhere else with its shape
+   * untouched. Moving only the points that happen to touch the tip would pull
+   * one corner and leave the other three, which is a torn box. */
+  {
+    await p.click('#tabAdd'); await p.waitForTimeout(600);
+    await p.click('#mLine'); await p.waitForTimeout(80);
+    const Wf = v => (v / 1.35 + 1) / 2;
+    const wdrag = (a1, c1, d1, e1) => drag(Wf(a1), Wf(c1), Wf(d1), Wf(e1));
+    await wdrag(-0.4, 0.4, 0.4, 0.4);            // 0 the head
+    await wdrag(0.0, 0.4, 0.0, -0.5);            // 1 THE ANTENNA, tip at (0,-0.5)
+    await wdrag(-0.15, -0.5, 0.15, -0.5);        // 2 block, bottom
+    await wdrag(-0.15, -0.5, -0.15, -0.8);       // 3 block, left
+    await wdrag(0.15, -0.5, 0.15, -0.8);         // 4 block, right
+    await wdrag(-0.15, -0.8, 0.15, -0.8);        // 5 block, top
+    await p.click('#mSel'); await p.waitForTimeout(150);
+    // a thin box round the antenna only, clear of the head's ends and the block
+    await wdrag(-0.06, -0.45, 0.06, 0.45);
+    ok('the antenna alone is selected', /1 stroke selected/.test(await selBar()), await selBar());
+    ok('the bar offers the ends', /drag an end . to make it longer or shorter/.test(await selBar()),
+      await selBar());
+    ok('and says a swing has nothing to move — it is joined at both ends',
+      /held at every point/.test(await selBar()), await selBar());
+    ok('so SWING is not lit', await p.$eval('#tSwing', e => !e.classList.contains('on')),
+      await swingLabel());
+
+    const was = (await cur()).p;
+    const blockWas = was.slice(2).map(r => r.slice());
+    ok('the antenna starts 0.9 long',
+      Math.abs(dist(pairs(was[1])[0], pairs(was[1])[1]) - 0.9) < 0.002,
+      dist(pairs(was[1])[0], pairs(was[1])[1]).toFixed(3));
+
+    // take hold of the TIP and pull it back up towards the head
+    await wdrag(0.0, -0.5, 0.0, -0.15);
+    const now = (await cur()).p;
+    ok('it says what came along', /4 strokes attached to that end came along/.test(await status()),
+      await status());
+    ok('the antenna is shorter',
+      Math.abs(dist(pairs(now[1])[0], pairs(now[1])[1]) - 0.55) < 0.003,
+      dist(pairs(now[1])[0], pairs(now[1])[1]).toFixed(3));
+    ok('its base never moved — only the end you took hold of',
+      dist(pairs(now[1])[0], pairs(was[1])[0]) < 0.002,
+      pairs(was[1])[0].join(',') + ' → ' + pairs(now[1])[0].join(','));
+    ok('the head it grows out of is byte-identical',
+      JSON.stringify(now[0]) === JSON.stringify(was[0]), JSON.stringify(now[0]));
+
+    /* The block: every one of its four strokes moved by the SAME amount, so it
+     * is the same block in a different place rather than a distorted one. */
+    const shifts = now.slice(2).map((r, i) => pairs(r).map((q, j) =>
+      [q[0] - pairs(blockWas[i])[j][0], q[1] - pairs(blockWas[i])[j][1]]))
+      .reduce((a, r) => a.concat(r), []);
+    ok('the whole block moved by one and the same amount',
+      shifts.every(d => Math.abs(d[0] - shifts[0][0]) < 0.002
+                     && Math.abs(d[1] - shifts[0][1]) < 0.002),
+      shifts.map(d => d.map(v => v.toFixed(2)).join(',')).join(' | '));
+    ok('and that amount is exactly how far the tip moved',
+      Math.abs(shifts[0][1] - 0.35) < 0.003 && Math.abs(shifts[0][0]) < 0.002,
+      shifts[0].map(v => v.toFixed(3)).join(', '));
+    ok('so it is still sitting on the tip',
+      Math.abs(pairs(now[2])[0][1] - pairs(now[1])[1][1]) < 0.002,
+      'block base y ' + pairs(now[2])[0][1] + ' vs tip y ' + pairs(now[1])[1][1]);
+    ok('the block kept its exact size',
+      Math.abs(dist(pairs(now[2])[0], pairs(now[2])[1])
+             - dist(pairs(blockWas[0])[0], pairs(blockWas[0])[1])) < 0.002,
+      dist(pairs(now[2])[0], pairs(now[2])[1]).toFixed(3));
+
+    console.log('\n  REPEAT WALKS A STRETCH OUT TOO');
+    /* A SMALLER step to repeat. Three more of the 0.35 above would take the tip
+     * straight through the base and out the other side — which is REPEAT doing
+     * exactly what it says, and not something to assert a steady shortening
+     * against. */
+    await p.click('#bUndo'); await p.waitForTimeout(250);
+    await wdrag(0.0, -0.5, 0.0, -0.35);
+    await p.fill('#tRepeatN', '3');
+    ok('the hint knows it was a stretch', /stretched further/.test(await repHint()),
+      await repHint());
+    await p.click('#tRepeat'); await p.waitForTimeout(450);
+    ok('three frames', (await frameCount()) === 4, (await frameCount()) + ' frames');
+    const fs = await frames();
+    const lens = fs.map(x => dist(pairs(x.p[1])[0], pairs(x.p[1])[1]));
+    ok('the antenna shortens by the same step every frame',
+      lens.slice(1).every((v, i) => Math.abs((lens[i] - v) - 0.15) < 0.004),
+      lens.map(v => v.toFixed(3)).join(', '));
+    ok('and the block rides the tip down in every one of them',
+      fs.every(x => Math.abs(pairs(x.p[2])[0][1] - pairs(x.p[1])[1][1]) < 0.003),
+      fs.map(x => pairs(x.p[2])[0][1] + '/' + pairs(x.p[1])[1][1]).join(' | '));
+    ok('the head never moves',
+      new Set(fs.map(x => JSON.stringify(x.p[0]))).size === 1,
+      fs.map(x => JSON.stringify(x.p[0])).join(' | '));
+    await p.click('#bUndo'); await p.waitForTimeout(300);
+  }
+
+  console.log('\nA LINE IN A RING CARRIES NOTHING');
+  /* The guard that stops this eating the drawing. A leg's outer edge reaches
+   * the foot, the inner edge, the hip and then the whole figure — pulling its
+   * end would drag everything rather than stretch anything. */
+  {
+    await p.click('#tabAdd'); await p.waitForTimeout(600);
+    await p.click('#mLine'); await p.waitForTimeout(80);
+    const Wf = v => (v / 1.35 + 1) / 2;
+    const wdrag = (a1, c1, d1, e1) => drag(Wf(a1), Wf(c1), Wf(d1), Wf(e1));
+    /* The rails overhang the uprights, so the uprights meet them part way along
+     * rather than at a shared corner — which is the only way a marquee can take
+     * ONE side of a closed ring. Every corner of a plain box belongs to two
+     * strokes at the same coordinate, so a box round one of them takes both. */
+    await wdrag(-0.4, 0.0, 0.4, 0.0);            // 0 top rail
+    await wdrag(-0.3, 0.0, -0.3, 0.6);           // 1 left upright
+    await wdrag(0.3, 0.0, 0.3, 0.6);             // 2 right upright
+    await wdrag(-0.4, 0.6, 0.4, 0.6);            // 3 bottom rail
+    await p.click('#mSel'); await p.waitForTimeout(150);
+    await wdrag(-0.35, -0.1, -0.25, 0.7);        // the left upright alone
+    ok('one side of the box is selected', /1 stroke selected/.test(await selBar()), await selBar());
+    const was = (await cur()).p;
+    await wdrag(-0.3, 0.6, -0.3, 0.35);          // pull its bottom end up
+    ok('it says nothing came along, and why',
+      /loops back round/.test(await status()), await status());
+    const now = (await cur()).p;
+    ok('the side really did shorten',
+      Math.abs(dist(pairs(now[1])[0], pairs(now[1])[1]) - 0.35) < 0.004,
+      dist(pairs(now[1])[0], pairs(now[1])[1]).toFixed(3));
+    ok('and the rest of the box did NOT get dragged along with it',
+      JSON.stringify(now[0]) === JSON.stringify(was[0])
+      && JSON.stringify(now[2]) === JSON.stringify(was[2])
+      && JSON.stringify(now[3]) === JSON.stringify(was[3]),
+      'top/right/bottom unchanged');
+    await p.click('#tabBar .tab:nth-child(1)'); await p.waitForTimeout(600);
+    await p.click('#mSel'); await p.waitForTimeout(150);
+    ok('back in the first drawing again', (await bodyOf()) === BODY0, await bodyOf());
+  }
+
   console.log('\nA SELECTION THAT TOUCHES NOTHING HAS NO JOINT');
   /* Select everything and there is no "rest of the drawing" left to hinge
    * against, so it must say so rather than inventing a hinge — and a drag has
@@ -677,18 +813,33 @@ const DEG = 180 / Math.PI;
    * something this small is within a rounding of doing nothing at the fine
    * grid too, and a test that depends on which side of a rounding it falls is
    * a test that fails on a day nothing changed. */
-  await fresh('0.02', 0.5000, 0.5000, 0.5075, 0.5075);
-  await drag(0.5040, 0.5040, 0.5115, 0.5040);       // push it one fine square right
+  /* TWO strokes, not one. A single selected stroke puts a grab on each of its
+   * ends, and something small enough to flatten on a coarse grid is small
+   * enough that its middle is within grabbing distance of both — so the drag
+   * that was arming a MOVE here started stretching instead, and a stretch has
+   * nothing for the grid to swallow. Two strokes means no handles. */
+  await p.click('#tabAdd'); await p.waitForTimeout(600);
+  await p.click('.gstep[data-step="0.02"]'); await p.waitForTimeout(140);
+  await p.click('#mLine'); await p.waitForTimeout(80);
+  /* Far enough apart that the point magnet does not weld them into one — it
+   * pulls a new point onto any endpoint within 0.05, and two strokes drawn a
+   * finer step apart than that simply became one. */
+  await drag(0.48519, 0.47037, 0.48519, 0.52963);
+  await drag(0.51481, 0.47037, 0.51481, 0.52963);
+  await p.click('#mSel'); await p.waitForTimeout(120);
+  await drag(0.4500, 0.4400, 0.5500, 0.5600);
+  ok('both tiny strokes are selected', /2 strokes selected/.test(await selBar()), await selBar());
+  await drag(0.5000, 0.5000, 0.50741, 0.5000);      // push them one fine square right
   ok('the move goes through on a fine grid', !/⚠/.test(await status()), await status());
-  const fine = JSON.stringify((await cur()).p[0]);
+  const fine = JSON.stringify((await cur()).p);
   await p.click('.gstep[data-step="0.2"]'); await p.waitForTimeout(140);
-  await p.fill('#tRepeatN', '3');
+  await p.fill('#tRepeatN', '2');
   await p.click('#tRepeat'); await p.waitForTimeout(400);
   ok('not one frame is made', (await frameCount()) === 1, (await frameCount()) + ' frames');
   ok('and it names the grid as the reason', /grid 0\.2 is too coarse/.test(await status()),
     await status());
-  ok('the drawing is exactly as it was', JSON.stringify((await cur()).p[0]) === fine,
-    JSON.stringify((await cur()).p[0]));
+  ok('the drawing is exactly as it was', JSON.stringify((await cur()).p) === fine,
+    JSON.stringify((await cur()).p));
 
   console.log('\nEVERY FRAME REPEAT DOES MAKE IS ON THE GRID');
   await fresh('0.1', 0.32, 0.28, 0.62, 0.58);
