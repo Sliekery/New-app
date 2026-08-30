@@ -619,6 +619,86 @@ const DEG = 180 / Math.PI;
     await p.click('#bUndo'); await p.waitForTimeout(300);
   }
 
+  console.log('\nA CORNER STORED TWICE IS STILL ONE CORNER');
+  /* THE BUG THIS EXISTS FOR: "the shape that is attached goes down but the
+   * actual line you make shorter does not change."
+   *
+   * A stroke can carry the same coordinate twice — two taps in one grid square
+   * snap to the same place, and so does a tap the point magnet pulls onto the
+   * previous point. It draws identically, so nothing looks wrong. Then the
+   * stretch moved only the point its handle was INDEXED to, so the line kept
+   * its old length while everything attached to it walked away.
+   *
+   * Both ends of that: taps no longer land on top of the last point, and the
+   * stretch moves every point sitting on the corner rather than one of them.
+   * The second half is what matters for drawings made before the first. */
+  {
+    await p.click('#tabAdd'); await p.waitForTimeout(600);
+    const Wf = v => (v / 1.35 + 1) / 2;
+    const wdrag = (a1, c1, d1, e1) => drag(Wf(a1), Wf(c1), Wf(d1), Wf(e1));
+    const wclick = async (a1, c1) => {
+      await remeasure();
+      const [x, y] = at(Wf(a1), Wf(c1));
+      await p.mouse.move(x, y); await p.mouse.down(); await p.mouse.up();
+      await p.waitForTimeout(180);
+    };
+    await p.click('#mDraw'); await p.waitForTimeout(80);
+    await wclick(0.0, 0.4);
+    await wclick(0.0, -0.3);
+    await wclick(0.0, -0.32);                    // the same 0.05 square as the last
+    await p.click('#bFinish'); await p.waitForTimeout(220);
+    ok('a tap on top of the last one is not laid down twice',
+      (await cur()).p[0].length === 4, JSON.stringify((await cur()).p[0]));
+
+    await p.click('#mLine'); await p.waitForTimeout(80);
+    await wdrag(-0.2, -0.3, 0.2, -0.3);          // a block on the tip
+    await wdrag(-0.2, -0.3, -0.2, -0.6);
+    await wdrag(0.2, -0.3, 0.2, -0.6);
+    await wdrag(-0.2, -0.6, 0.2, -0.6);
+    await p.click('#mSel'); await p.waitForTimeout(150);
+    await wclick(0.0, 0.1);
+    ok('the line alone is selected', /1 stroke selected/.test(await selBar()), await selBar());
+    await wdrag(0.0, -0.3, 0.0, 0.0);            // pull the tip down by 0.3
+    const now = (await cur()).p;
+    ok('the line itself really is shorter now',
+      Math.abs(dist(pairs(now[0])[0], pairs(now[0])[pairs(now[0]).length - 1]) - 0.4) < 0.004,
+      JSON.stringify(now[0]));
+    ok('and the block is still sitting on its end',
+      Math.abs(pairs(now[1])[0][1] - pairs(now[0])[pairs(now[0]).length - 1][1]) < 0.003,
+      'block ' + pairs(now[1])[0][1] + ' vs tip ' + pairs(now[0])[pairs(now[0]).length - 1][1]);
+  }
+
+  console.log('\nA CLOSED SHAPE STAYS CLOSED');
+  /* The case where two points on one coordinate are not a mistake at all: a
+   * shape's first and last point are the same corner by definition. Moving one
+   * of them tears the outline open. */
+  {
+    await p.click('#tabAdd'); await p.waitForTimeout(600);
+    const Wf = v => (v / 1.35 + 1) / 2;
+    const wdrag = (a1, c1, d1, e1) => drag(Wf(a1), Wf(c1), Wf(d1), Wf(e1));
+    await p.click('#mShape'); await p.waitForTimeout(100);
+    await p.click('.shp[data-shp="tri"]'); await p.waitForTimeout(80);
+    await wdrag(-0.4, -0.4, 0.4, 0.4);
+    const t0 = (await cur()).p[0];
+    ok('a shape comes out closed',
+      JSON.stringify(t0.slice(0, 2)) === JSON.stringify(t0.slice(-2)),
+      JSON.stringify(t0.slice(0, 2)) + ' vs ' + JSON.stringify(t0.slice(-2)));
+    await p.click('#mSel'); await p.waitForTimeout(150);
+    await remeasure();
+    const [cx0, cy0] = at(Wf(0.0), Wf(0.4));
+    await p.mouse.move(cx0, cy0); await p.mouse.down(); await p.mouse.up();
+    await p.waitForTimeout(180);
+    ok('and can be selected by clicking it', /1 stroke selected/.test(await selBar()),
+      await selBar());
+    await wdrag(t0[0], t0[1], t0[0] + 0.2, t0[1] - 0.2);   // drag the shared corner
+    const t1 = (await cur()).p[0];
+    ok('dragging its corner moves BOTH copies, so it is still closed',
+      JSON.stringify(t1.slice(0, 2)) === JSON.stringify(t1.slice(-2)),
+      JSON.stringify(t1.slice(0, 2)) + ' vs ' + JSON.stringify(t1.slice(-2)));
+    ok('and the corner really moved', JSON.stringify(t1.slice(0, 2)) !== JSON.stringify(t0.slice(0, 2)),
+      JSON.stringify(t0.slice(0, 2)) + ' → ' + JSON.stringify(t1.slice(0, 2)));
+  }
+
   console.log('\nA LINE IN A RING CARRIES NOTHING');
   /* The guard that stops this eating the drawing. A leg's outer edge reaches
    * the foot, the inner edge, the hip and then the whole figure — pulling its

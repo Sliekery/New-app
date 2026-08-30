@@ -597,6 +597,27 @@ REPEAT replays a stretch as its own kind rather than forcing it through
 transform of the selection. Without that, REPEAT after a stretch would silently
 replay whatever transform came before it, which is worse than doing nothing.
 
+**A corner can be stored twice, and that is one corner.** The report was "the
+shape that is attached goes down but the actual line you make shorter does not
+change" — and it is exactly that. Two taps in one grid square snap to the same
+coordinate, and so does a tap the point magnet pulls onto the previous point;
+the stroke then carries the same corner twice. It DRAWS identically, so nothing
+looks wrong, and then a stretch moved only the point its handle was indexed to:
+the line kept its old length while everything attached to it walked away.
+
+Fixed at both ends. A tap is no longer laid down on top of the last one, and
+the stretch moves EVERY point sitting on that corner rather than one of them —
+which is what fixes drawings made before the first half. The second half is
+also load-bearing for something that is not a mistake at all: **a closed shape
+has its first and last point in the same place by definition**, and moving one
+of them tears the outline open.
+
+The same failure then appeared one level up in REPEAT, which matched the corner
+against where it STARTED. REPEAT clones the frame as it is now, with one
+stretch already applied, so the replay found nothing at the original coordinate
+and left the line alone while the carried strokes walked on. The transform
+records where the corner ENDED UP.
+
 A test note: **a stroke small enough to flatten on a coarse grid is small
 enough that its middle is within grabbing distance of both its ends.** The
 fixture that armed a MOVE by dragging one started stretching instead, and a
