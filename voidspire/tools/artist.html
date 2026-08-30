@@ -1632,8 +1632,17 @@
       pad.setPointerCapture(ev.pointerId);
       return;
     }
-    cur.push(cur.length ? angleSnap(cur[cur.length - 1], snapPoint(w), ev.shiftKey)
-                        : snapPoint(w));
+    var np = cur.length ? angleSnap(cur[cur.length - 1], snapPoint(w), ev.shiftKey)
+                        : snapPoint(w);
+    /* NOT ON TOP OF THE LAST ONE. Two taps in the same grid square snap to the
+     * same coordinate, and so does a tap the point magnet pulls onto the
+     * previous point — either way the stroke ends up carrying the same corner
+     * twice. It draws identically, so nothing looks wrong, and then dragging
+     * that end moves only ONE of the pair: the line keeps its old length while
+     * everything attached to it moves away. Exactly the report — "the shape
+     * that is attached goes down but the line does not change." */
+    var lastP = cur[cur.length - 1];
+    if (!(lastP && Math.hypot(np[0] - lastP[0], np[1] - lastP[1]) < 1e-4)) cur.push(np);
     curUndone.length = 0; drawPad();
   });
   pad.addEventListener('pointermove', function (ev) {
@@ -1670,8 +1679,15 @@
       if (!ex && !ey) return;
       if (!stretchFrom.pushed) { pushHistory(); stretchFrom.pushed = true; }
       stretchFrom.dx = ex; stretchFrom.dy = ey;
-      here().strokes[stretchFrom.si].pts = stretchFrom.snapshot.map(function (q, qi) {
-        return qi === stretchFrom.pi ? [nw[0], nw[1]] : [q[0], q[1]];
+      /* EVERY point sitting on that corner, not just the one the handle was
+       * indexed to. A stroke can carry the same coordinate twice — a closed
+       * shape has its first and last point in the same place by definition,
+       * and older drawings have accidental pairs from before those were
+       * refused. Moving one of a pair leaves the line exactly as long as it
+       * was while everything attached to it walks off. */
+      here().strokes[stretchFrom.si].pts = stretchFrom.snapshot.map(function (q) {
+        return Math.hypot(q[0] - stretchFrom.at[0], q[1] - stretchFrom.at[1]) < 1e-4
+          ? [nw[0], nw[1]] : [q[0], q[1]];
       });
       /* Whatever hangs off that end goes with it, WHOLE — the block keeps its
        * shape and simply arrives somewhere else, which is what "it is still
@@ -1794,7 +1810,14 @@
     if (stretchFrom && (stretchFrom.dx || stretchFrom.dy)) {
       var n = 0;
       for (var ck in stretchFrom.carry) if (stretchFrom.carry.hasOwnProperty(ck)) n++;
+      /* WHERE THE CORNER ENDED UP, not where it started. REPEAT clones the
+       * frame as it is NOW — one stretch already applied — so a replay that
+       * looked for the original coordinate found nothing there and left the
+       * line at its length while the carried strokes walked on. Which is the
+       * same failure this whole section is about, one level up. */
       markXform({ kind: 'stretch', si: stretchFrom.si, pi: stretchFrom.pi,
+                  to: [+(stretchFrom.at[0] + stretchFrom.dx).toFixed(3),
+                       +(stretchFrom.at[1] + stretchFrom.dy).toFixed(3)],
                   dx: stretchFrom.dx, dy: stretchFrom.dy,
                   carry: Object.keys(stretchFrom.carry), rigid: true });
       note(n ? ('stretched it — ' + n + ' stroke' + (n === 1 ? '' : 's') + ' attached to that end came along')
@@ -3307,9 +3330,10 @@
        * which is a worse answer than doing nothing. */
       if (lastXform.kind === 'stretch') {
         var SS = strokes[lastXform.si];
-        if (SS && SS.pts[lastXform.pi]) {
-          SS.pts = SS.pts.map(function (q, qi) {
-            return qi === lastXform.pi
+        if (SS) {
+          // the same corner test as the drag, so a repeat matches what you saw
+          SS.pts = SS.pts.map(function (q) {
+            return Math.hypot(q[0] - lastXform.to[0], q[1] - lastXform.to[1]) < 1e-4
               ? [+(q[0] + lastXform.dx * k).toFixed(3), +(q[1] + lastXform.dy * k).toFixed(3)]
               : [q[0], q[1]];
           });
@@ -5137,7 +5161,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 32';
+  document.getElementById('ver').textContent = 'build 33';
 
   paintThumbs();
   applyView(viewMode);
