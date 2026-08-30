@@ -441,6 +441,96 @@ function ok(name, cond, detail) {
   }
   await p.keyboard.press('Escape'); await p.waitForTimeout(250);
 
+  console.log('\nAND ITS SIZE IS YOURS');
+  /* "Now they are a bit too big. Let me control their size." The size was
+   * 0.05 of the figure, hard-coded in five renderers and therefore nobody's
+   * decision. An eye is stored WITH its size now — [x,y,d] — and the default
+   * came down to 0.04.
+   *
+   * The part worth asserting is that the DEFAULT IS NOT WRITTEN: art that does
+   * not care about the size stays exactly as short as it was, so nothing in
+   * the game's 346 existing pieces grows a third number it never asked for. */
+  {
+    await p.click('#tabAdd'); await p.waitForTimeout(600);
+    /* MIRROR off: it doubles every eye, and this block counts pips. It follows
+     * you between tabs — it is a setting about how you work, not about a
+     * drawing — so a fresh tab does not clear it. */
+    if (await p.$eval('#bMirror', e => e.classList.contains('on'))) {
+      await p.click('#bMirror'); await p.waitForTimeout(150);
+    }
+    await p.click('#mEye'); await p.waitForTimeout(150);
+    ok('the eye tool brings its own size control', await p.isVisible('#eyeBar'));
+    ok('and the size is written out, not abbreviated',
+      (await p.textContent('#eyeNow')).trim() === '0.04', await p.textContent('#eyeNow'));
+
+    const eb = await p.locator('#pad').boundingBox();
+    const place = async fx => {
+      await p.mouse.move(eb.x + eb.width * fx, eb.y + eb.height * 0.5);
+      await p.mouse.down(); await p.mouse.up(); await p.waitForTimeout(180);
+    };
+    const eyes = async () => {
+      const m = (await p.inputValue('#out')).match(/e:\s*(\[[\s\S]*\])\s*\}/);
+      // eslint-disable-next-line no-new-func
+      return m ? Function('return (' + m[1] + ')')() : [];
+    };
+    await place(0.35);
+    ok('an eye at the default size carries no size at all',
+      (await eyes()).every(q => q.length === 2), JSON.stringify(await eyes()));
+
+    await p.click('#eSmall'); await p.waitForTimeout(160);
+    ok('SMALLER steps down the list', (await p.textContent('#eyeNow')).trim() === '0.03',
+      await p.textContent('#eyeNow'));
+    await place(0.62);
+    const two = await eyes();
+    ok('and an eye at any other size carries it',
+      two.some(q => q.length === 3 && Math.abs(q[2] - 0.03) < 1e-9), JSON.stringify(two));
+    ok('while the first one is untouched',
+      two.some(q => q.length === 2), JSON.stringify(two));
+
+    /* It has to actually be drawn smaller, not merely recorded smaller. */
+    const widths = await p.$eval('#pad', c => {
+      const W2 = c.width, H2 = c.height;
+      const d = c.getContext('2d').getImageData(0, 0, W2, H2).data;
+      const isRed = i => d[i] > d[i + 1] + 60 && d[i] > d[i + 2] + 40;
+      let maxR = 0;
+      for (let i = 0; i < d.length; i += 4) if (isRed(i) && d[i] > maxR) maxR = d[i];
+      const core = new Uint8Array(W2 * H2);
+      for (let i = 0, k = 0; k < core.length; k++, i += 4) {
+        if (d[i] >= maxR - 10 && isRed(i)) core[k] = 1;
+      }
+      const seen = new Uint8Array(W2 * H2), st = [], out = [];
+      for (let k0 = 0; k0 < core.length; k0++) {
+        if (!core[k0] || seen[k0]) continue;
+        st.length = 0; st.push(k0); seen[k0] = 1;
+        let x0 = 1e9, x1 = -1;
+        while (st.length) {
+          const k = st.pop(), x = k % W2, y = (k - x) / W2;
+          if (x < x0) x0 = x; if (x > x1) x1 = x;
+          if (x > 0 && core[k - 1] && !seen[k - 1]) { seen[k - 1] = 1; st.push(k - 1); }
+          if (x < W2 - 1 && core[k + 1] && !seen[k + 1]) { seen[k + 1] = 1; st.push(k + 1); }
+          if (y > 0 && core[k - W2] && !seen[k - W2]) { seen[k - W2] = 1; st.push(k - W2); }
+          if (y < H2 - 1 && core[k + W2] && !seen[k + W2]) { seen[k + W2] = 1; st.push(k + W2); }
+        }
+        out.push({ x: x0, w: x1 - x0 + 1 });
+      }
+      return out.sort((a, b) => a.x - b.x).map(o => o.w);
+    });
+    ok('two pips on the canvas, and the second really is smaller',
+      widths.length === 2 && widths[1] < widths[0] * 0.85,
+      widths.join(' and ') + ' px wide');
+
+    await p.click('#eAll'); await p.waitForTimeout(250);
+    const all = await eyes();
+    ok('SET ALL TO IT gives every eye the current size',
+      all.length === 2 && all.every(q => q.length === 3 && Math.abs(q[2] - 0.03) < 1e-9),
+      JSON.stringify(all));
+    ok('and says how many it changed', /2 of them/.test(await p.textContent('#status')),
+      await p.textContent('#status'));
+    await p.click('#bUndo'); await p.waitForTimeout(250);
+    ok('one undo puts them all back',
+      JSON.stringify(await eyes()) === JSON.stringify(two), JSON.stringify(await eyes()));
+  }
+
   console.log('\nSPACE PANS, AND NEVER PRESSES A BUTTON');
   /* "Pressing space sometimes undoes actions." SPACE is how a button is
    * activated from the keyboard, so a button still holding focus from a mouse

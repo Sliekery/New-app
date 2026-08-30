@@ -177,7 +177,13 @@
       var s = '';
       (a.p || []).forEach(function (p) { s += '<polyline points="' + pts(p) + '"/>'; });
       (a.e || []).forEach(function (e) {
-        s += '<circle class="eye" cx="' + ((e[0] + 1.2) * 10).toFixed(2) + '" cy="' + ((e[1] + 1.2) * 10).toFixed(2) + '" r="0.6"/>';
+        /* SCALED FROM THE DEFAULT, not measured in world units like the
+         * canvas does. These are card icons and engravings drawn a few dozen
+         * pixels wide, where a true-to-scale pip would be under a pixel — so
+         * this half has always drawn a deliberately larger one, and keeps its
+         * own base while following whatever size the artist chose. */
+        var er = (0.6 * ((e[2] || 0.04) / 0.04)).toFixed(2);
+        s += '<circle class="eye" cx="' + ((e[0] + 1.2) * 10).toFixed(2) + '" cy="' + ((e[1] + 1.2) * 10).toFixed(2) + '" r="' + er + '"/>';
       });
       if (a.m) s += '<polyline class="mouth" points="' + pts(a.m) + '"/>';
       return s;

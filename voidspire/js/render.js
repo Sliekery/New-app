@@ -1456,7 +1456,8 @@
        * off, which at boss scale reads as a bolt head rather than an eye. */
       (art.e || []).forEach(function (e) {
         var px = x + e[0] * scale, py = y + e[1] * scale;
-        var es = Math.max(1.5, scale * 0.05);
+        // e[2] is this pip's own size when the art carries one, else the default
+        var es = Math.max(1.5, scale * (e[2] || 0.04));
         ctx.beginPath(); ctx.arc(px, py, es / 2, 0, 7); ctx.fill();
       });
       ctx.restore();
@@ -2267,7 +2268,7 @@
     ctx.shadowBlur = 7;
     (art.e || []).forEach(function (e) {
       var ex = px + e[0] * sc, ey = py + e[1] * sc;
-      var es = Math.max(1.5, sc * 0.055);
+      var es = Math.max(1.5, sc * (e[2] || 0.04));
       ctx.beginPath(); ctx.arc(ex, ey, es / 2, 0, 7); ctx.fill();
     });
     ctx.restore();

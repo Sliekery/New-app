@@ -762,7 +762,7 @@ and the strokes you did not select are byte-identical. Four notes worth keeping:
   rounding of doing nothing on the fine one, so which side of the rounding it
   falls decides whether the test passes.
 
-## An eye is a round pip
+## An eye is a round pip, and its size is yours
 
 "On preview the eyes are a block for some reason." They were — and not only in
 the preview. **Three canvas paths drew an eye with `fillRect`**: the artist's
@@ -780,6 +780,32 @@ While fixing it: the artist's canvas drew the pip at a flat **8 screen pixels
 whatever the zoom**, so the same eye was a speck at 6x and swamped the drawing
 at a distance. It is sized in world units now, through the same view as
 everything else, so it matches what ships.
+
+### The size
+
+It was `scale * 0.05`, hard-coded in five renderers and therefore nobody's
+decision. **An eye is stored WITH its size now**: `e: [x, y]` still means the
+default and `e: [x, y, d]` says how wide this one is, so a drawing can have one
+big eye and a row of small sensors, and old art keeps working because a missing
+third number IS the default. The default came down to 0.04, which is what "a
+bit too big" was about.
+
+**The default is never written.** An eye at 0.04 exports as two numbers exactly
+as before, so none of the game's 346 existing pieces grows a third number it
+never asked for, and a diff of the art files stays readable.
+
+The EYE tool carries its own SMALLER / BIGGER stepper, the same shape as the
+grid's. It sets the size of the NEXT eye — and because eyes cannot be
+marquee-selected, **SET ALL TO IT** is how an existing drawing gets resized
+without placing them again.
+
+**The DOM half scales from the default rather than measuring in world units.**
+`artSVG` draws card icons and engravings a few dozen pixels wide, where a
+true-to-scale pip would be under a pixel — so it has always drawn a
+deliberately larger one and keeps its own base, multiplied by whatever the
+artist chose. Unifying the two would have made every icon's eye vanish. The
+canvas has a `Math.max(1.5, …)` floor for the same reason; the SVG cannot have
+one, so it has a bigger base instead.
 
 **Measuring "round" in a test needs two things that were both wrong first:**
 

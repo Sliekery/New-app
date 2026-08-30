@@ -545,6 +545,15 @@
         <button id="sBake" class="sm">BAKE SPIN →</button>
         <span class="hint" id="sCost"></span>
       </div>
+      <div class="bar" id="eyeBar" style="display:none">
+        <span class="hint">eye size</span>
+        <span class="gnow" id="eyeNow" style="grid-column:auto;min-width:52px">0.04</span>
+        <button id="eSmall" class="sm" title="A smaller pip">SMALLER</button>
+        <button id="eBig" class="sm" title="A bigger pip">BIGGER</button>
+        <span class="sep2"></span>
+        <button id="eAll" class="sm" title="Give every eye already in this drawing the size above">SET ALL TO IT</button>
+        <span class="hint" id="eyeHint">click the canvas to place one</span>
+      </div>
       <div class="bar" id="selBar" style="display:none">
         <span class="hint" id="selCount">nothing selected</span>
         <button id="tSwing" class="sm on" title="What dragging the selection does. SWING turns it about the joint where it meets the rest of the drawing; MOVE slides it.">SWING</button>
@@ -984,6 +993,25 @@
    * points the saved file cannot describe, and they would move the moment the
    * drawing was reloaded.
    * ================================================================== */
+  /* ==================================================================
+   * HOW BIG AN EYE IS
+   * ==================================================================
+   * It was 0.05 of the figure across, hard-coded in five renderers and
+   * therefore not anybody's decision. An eye is now stored WITH its size —
+   * `e: [x, y]` still means the default, `e: [x, y, d]` says how wide this one
+   * is — so a drawing can have a big single eye and a row of small sensors,
+   * and old art keeps working because a missing third number IS the default.
+   *
+   * The default came down to 0.04, which is what "a bit too big" was about.
+   * ================================================================== */
+  var EYE_D = 0.04;
+  var EYE_SIZES = [0.02, 0.03, 0.04, 0.05, 0.07, 0.1];
+  var eyeSize = EYE_D;
+  try {
+    var esv = parseFloat(localStorage.getItem('voidspire.artist.eye'));
+    if (isFinite(esv) && esv > 0) eyeSize = esv;
+  } catch (e) {}
+
   var GRID_STEPS = [0.2, 0.1, 0.05, 0.02, 0.01, 0.005];
   var gridStep = 0.05, angleLock = false;
   try {
@@ -1077,11 +1105,18 @@
     });
     return o;
   }
+  /* Internally an eye is [x, y, mirrored, size]; what leaves is [x, y] or
+   * [x, y, size] — the size is only written when it is not the default, so
+   * ordinary art stays exactly as short as it was. */
   function expandEyes(eyes) {
     var o = [];
     (eyes || []).forEach(function (e) {
-      o.push([e[0], e[1]]);
-      if (e[2] && Math.abs(e[0]) > 0.015) o.push([-e[0], e[1]]);
+      var d = (typeof e[3] === 'number' && e[3] > 0) ? e[3] : EYE_D;
+      var one = (Math.abs(d - EYE_D) < 1e-9) ? [e[0], e[1]] : [e[0], e[1], +d.toFixed(3)];
+      o.push(one);
+      if (e[2] && Math.abs(e[0]) > 0.015) {
+        o.push(one.length === 3 ? [-e[0], e[1], one[2]] : [-e[0], e[1]]);
+      }
     });
     return o;
   }
@@ -1200,10 +1235,11 @@
        * things depending on how far in you were. The game draws the pip 0.05
        * of the figure across, so this does too, in world units converted
        * through the same view as everything else. */
-      var eyeR = Math.max(2, 0.025 * (pad.width / 2) / half());
+      var perUnit = (pad.width / 2) / half();
       expandEyes(cell(fi, l).eyes).forEach(function (e) {
         var s = toScreen(e[0], e[1]);
-        px.beginPath(); px.arc(s[0], s[1], eyeR, 0, 7); px.fill();
+        var r = Math.max(2, (e[2] || EYE_D) / 2 * perUnit);
+        px.beginPath(); px.arc(s[0], s[1], r, 0, 7); px.fill();
       });
       px.restore();
     });
@@ -1388,6 +1424,8 @@
     });
     if (isSolid) showSpinCost();
     document.getElementById('selBar').style.display = (mode === 'select') ? 'flex' : 'none';
+    document.getElementById('eyeBar').style.display = (mode === 'eye') ? 'flex' : 'none';
+    if (mode === 'eye') showEyeSize();
     /* Says what a drag will DO, not only how much is selected. The swing is
      * invisible until you try it, and a gesture nobody knows is there is a
      * gesture that was not added. */
@@ -1496,7 +1534,8 @@
       pc.save();
       pc.fillStyle = '#ff4a5e'; pc.shadowColor = '#ff4a5e'; pc.shadowBlur = 6;
       art.e.forEach(function (e) {
-        var ex = x + e[0] * sc, ey = y + e[1] * sc, es = Math.max(1.5, sc * 0.05);
+        var ex = x + e[0] * sc, ey = y + e[1] * sc;
+        var es = Math.max(1.5, sc * (e[2] || EYE_D));
         pc.beginPath(); pc.arc(ex, ey, es / 2, 0, 7); pc.fill();
       });
       pc.restore();
@@ -1563,7 +1602,9 @@
       return;
     }
     var w = toWorld(ev.clientX, ev.clientY);
-    if (mode === 'eye') { pushHistory(); here().eyes.push([w[0], w[1], mirror]); drawPad(); return; }
+    if (mode === 'eye') {
+      pushHistory(); here().eyes.push([w[0], w[1], mirror, eyeSize]); drawPad(); return;
+    }
     if (mode === 'edit') {
       var hit = nearest(w);
       if (hit) { pushHistory(); drag = hit; pad.setPointerCapture(ev.pointerId); }
@@ -1980,6 +2021,62 @@
     note('grid ' + gridStep + ' — ' + Math.round(2 / gridStep) + ' squares across the box'
       + (snap ? '' : ' (GRID is off, so nothing is snapping to it yet)'));
   }
+  /* ==================================================================
+   * THE EYE SIZE
+   * ==================================================================
+   * The same shape of control as the grid: the number written out, and a step
+   * either side of it. It sets the size of the NEXT eye you place — and since
+   * eyes cannot be marquee-selected, SET ALL TO IT is how an existing drawing
+   * gets resized without placing them again.
+   * ================================================================== */
+  function showEyeSize() {
+    var el = document.getElementById('eyeNow');
+    if (el) el.textContent = eyeSize;
+    var h = document.getElementById('eyeHint');
+    if (h) {
+      var n = 0;
+      doc.frames.forEach(function (f) {
+        f.cells.forEach(function (c) { n += (c.eyes || []).length; });
+      });
+      h.textContent = n ? (n + ' eye' + (n === 1 ? '' : 's') + ' in this drawing')
+                        : 'click the canvas to place one';
+    }
+  }
+  function nudgeEye(dir) {
+    var i = 0, bd = Infinity;
+    EYE_SIZES.forEach(function (v, k) {
+      var d = Math.abs(v - eyeSize);
+      if (d < bd) { bd = d; i = k; }
+    });
+    i += dir;
+    if (i < 0 || i >= EYE_SIZES.length) {
+      return note(dir < 0 ? 'that is the smallest pip' : 'that is the biggest pip', true);
+    }
+    eyeSize = EYE_SIZES[i];
+    try { localStorage.setItem('voidspire.artist.eye', String(eyeSize)); } catch (e) {}
+    showEyeSize(); drawPad();
+    note('eye size ' + eyeSize + ' — the next one you place'
+      + (eyeSize === EYE_D ? ' (the default, so it is not written into the art)' : ''));
+  }
+  document.getElementById('eSmall').onclick = function () { nudgeEye(-1); };
+  document.getElementById('eBig').onclick = function () { nudgeEye(1); };
+  document.getElementById('eAll').onclick = function () {
+    var n = 0;
+    doc.frames.forEach(function (f) {
+      f.cells.forEach(function (c) { n += (c.eyes || []).length; });
+    });
+    if (!n) return note('there are no eyes to resize yet', true);
+    pushHistory();
+    doc.frames.forEach(function (f) {
+      f.cells.forEach(function (c) {
+        (c.eyes || []).forEach(function (e) { e[3] = eyeSize; });
+      });
+    });
+    showEyeSize(); drawPad();
+    note('every eye in this drawing is now ' + eyeSize + ' across — ' + n + ' of them');
+  };
+  showEyeSize();
+
   document.getElementById('gWider').onclick = function () { nudgeGrid(-1); };
   document.getElementById('gFiner').onclick = function () { nudgeGrid(1); };
   showGridStep();
@@ -3794,7 +3891,7 @@
     g.fillStyle = '#ff4a5e';
     if (glow) { g.shadowColor = '#ff4a5e'; g.shadowBlur = glow * 0.8; }
     art.e.forEach(function (e) {
-      var es = Math.max(1.5, sc * 0.05);
+      var es = Math.max(1.5, sc * (e[2] || EYE_D));
       g.beginPath(); g.arc(cx + e[0] * sc, cy + e[1] * sc, es / 2, 0, 7); g.fill();
     });
     g.restore();
@@ -5110,7 +5207,8 @@
           for (var k = 0; k < flat.length; k += 2) pts.push([flat[k], flat[k + 1]]);
           if (pts.length > 1) here().strokes.push({ pts: pts, m: false });
         });
-        (item.e || []).forEach(function (q) { here().eyes.push([q[0], q[1], false]); });
+        // q[2] is the size if the art carries one; nothing means the default
+        (item.e || []).forEach(function (q) { here().eyes.push([q[0], q[1], false, q[2]]); });
         drawPad();
       };
       host.appendChild(row);
@@ -5163,7 +5261,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 38';
+  document.getElementById('ver').textContent = 'build 39';
 
   paintThumbs();
   applyView(viewMode);
