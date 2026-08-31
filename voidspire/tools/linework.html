@@ -1346,7 +1346,7 @@
       });
       px.restore();
     }
-    if (mode === 'select' && pins.length && !pivot) {
+    if (mode === 'select' && pinsDrawn.length && !pivot) {
       /* EVERY PIN, not their average. The average is in clear space between
        * them and welded to nothing — drawing a crosshair there said something
        * about the arithmetic rather than about the drawing, and was reported
@@ -1354,7 +1354,7 @@
        * the limb is actually held is the truth and reads as one. */
       px.save();
       px.strokeStyle = '#ffb02e'; px.lineWidth = 2; px.globalAlpha = 0.85;
-      pins.forEach(function (q) {
+      pinsDrawn.forEach(function (q) {
         var qs = toScreen(q[0], q[1]);
         px.beginPath(); px.arc(qs[0], qs[1], 7, 0, 7); px.stroke();
         px.beginPath();
@@ -1409,15 +1409,22 @@
       var m0 = toScreen(marquee.a[0], marquee.a[1]), m1 = toScreen(marquee.b[0], marquee.b[1]);
       px.strokeRect(m0[0], m0[1], m1[0] - m0[0], m1[1] - m0[1]); px.restore();
     }
-    // selected strokes, and the box that transforms act about
+    /* WHAT IS SELECTED, AS DRAWN — both halves of anything mirrored. Lighting
+     * up only the stored half meant boxing the right arm lit the LEFT one: the
+     * stroke was selected and said so, but every mark on screen pointed at the
+     * other side of the figure. Reported, twice, as not being able to select
+     * an arm at all — which is what it looks like when the only feedback
+     * appears somewhere you are not looking. */
     if (mode === 'select' && sel.length) {
       px.save(); px.strokeStyle = '#41d8ff'; px.lineWidth = 4; px.globalAlpha = 0.5;
       sel.forEach(function (i) {
         var L = here().strokes[i]; if (!L) return;
-        var fl = []; L.pts.forEach(function (q) { fl.push(q[0], q[1]); });
-        strokeIt(fl);
+        shownPts(L).forEach(function (pts) {
+          var fl = []; pts.forEach(function (q) { fl.push(q[0], q[1]); });
+          strokeIt(fl);
+        });
       });
-      var bb = selBounds();
+      var bb = selBoundsShown();
       if (bb) {
         px.globalAlpha = 1; px.lineWidth = 1.4; px.setLineDash([5, 4]);
         var s0 = toScreen(bb.x0, bb.y0), s1 = toScreen(bb.x1, bb.y1);
@@ -3095,7 +3102,7 @@
    * ================================================================== */
   var pivot = null, pivotArm = false, autoJoint = null;
   // how many separate places the selection is held at, and every point held
-  var jointHeldAt = 0, pins = [], pinSet = {}, jointAllHeld = false;
+  var jointHeldAt = 0, pins = [], pinsDrawn = [], pinSet = {}, jointAllHeld = false;
 
   /* ==================================================================
    * THE JOINT IS FOUND, NOT PLACED — AND IT IS NOT ONE POINT
@@ -3144,7 +3151,8 @@
     return Math.hypot(p[0] - (a[0] + vx * t), p[1] - (a[1] + vy * t));
   }
   function clearJoint() {
-    autoJoint = null; jointHeldAt = 0; pinSet = {}; pins = []; jointAllHeld = false;
+    autoJoint = null; jointHeldAt = 0; pinSet = {};
+    pins = []; pinsDrawn = []; jointAllHeld = false;
   }
   function findJoint() {
     clearJoint();
@@ -3181,6 +3189,14 @@
     found.forEach(function (c) {
       pinSet[c.si + ':' + c.pi] = 1;
       pins.push([c.p[0], c.p[1]]);
+      /* MARKERS ONLY. A pin on a mirrored stroke is held at both shoulders, so
+       * both get a crosshair — but `pins` itself has to stay the REAL count.
+       * Doubling it would make "held at every point" compare an inflated
+       * length against the stored point count and decide a limb with one end
+       * free could not be swung at all. */
+      pinsDrawn.push([c.p[0], c.p[1]]);
+      var SL = S[c.si];
+      if (SL && SL.m && Math.abs(c.p[0]) > 0.015) pinsDrawn.push([-c.p[0], c.p[1]]);
     });
     /* The centre the free part turns about. With one pin it IS that pin, so a
      * simple limb behaves exactly as it always did; with several it is their
@@ -5345,7 +5361,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 42';
+  document.getElementById('ver').textContent = 'build 43';
 
   paintThumbs();
   applyView(viewMode);
