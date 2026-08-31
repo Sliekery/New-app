@@ -114,6 +114,39 @@ about itself** — its status line and its export — after every gesture, and t
 whole class disappears. Between them these two suites found four real bugs on
 the day they were written.
 
+## The player was the only art the tool could not see
+
+Every enemy, engraving and card icon was loadable and editable in the artist.
+The one figure you look at all game was not — `CLASS_ART` was a local `var`
+inside `render.js`, and `tools/build-assets.js` gathers art off `ns`, so there
+was simply nothing there to find. Now in **`js/playerart.js`**, where art
+belongs: a data file like every other, not inside the renderer that draws it.
+
+**Its moving parts are their own entries.** A figure's gun, halo, banner and
+tatters are not in the body's `p` because they animate apart from it — the
+weapon swings when you attack, the halo turns, the tatters drift. Welding them
+onto the body would be a lie about the model and would leave them uneditable,
+so they arrive as `Vanguard — weapon`, `Technomancer — halo` and so on. Nine
+pieces from three classes.
+
+They are told apart **by shape, not by a list of field names**: anything that is
+a list of polylines is a part, and `muzzle` — a single `[x, y]` — is a rig
+point. A part added later arrives without the collector needing an edit.
+
+**The rig points do not travel, and that is the thing to be careful about.**
+`muzzle` is where a shot leaves the barrel, `atk.pivot` is what the weapon
+swings about, `orb` and `ferrule` are the ends of the staff — all in the SAME
+coordinate space as the art. The drawing tool knows nothing about them and
+would drop them on the way back, so they stay in the data file. **Move a weapon
+in a drawing and they have to move with it**, or the muzzle flash fires out of
+the wrong place — which has happened once already and took a while to see.
+
+One thing the move exposed: `CLASS_ART` was not pure data. It called
+`cogPath`, a geometry helper in `render.js`, to build the Technomancer's cog
+halo — so the extracted file would not load at all until the helper came with
+it. It had exactly one caller, and geometry that exists to BE art belongs
+beside the art.
+
 ## Animated art: built long before anything used it
 
 An art block is normally one shape, `{ p, e }`. It may instead be

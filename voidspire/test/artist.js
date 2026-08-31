@@ -664,6 +664,48 @@ function ok(name, cond, detail) {
   }
 
 
+  console.log('\nTHE PLAYER IS IN THE LIBRARY');
+  /* The one figure you look at all game, and the only art the tool could not
+   * see: it was a local `var` inside render.js rather than a table on `ns`, so
+   * `build-assets.js` — which gathers art off `ns` — had nothing to find. Every
+   * enemy, engraving and card icon was loadable; the player was not.
+   *
+   * Its moving parts come across as their own entries. The gun, halo, banner
+   * and tatters are not in the body's `p` because they animate apart from it,
+   * so welding them on would be a lie about the model and would make them
+   * uneditable besides. */
+  {
+    await p.click('#tabAdd'); await p.waitForTimeout(600);
+    await p.evaluate(() => {
+      const box = [...document.querySelectorAll('.side .box')]
+        .find(x => /THE GAME'S ART/.test(x.querySelector('h2').textContent));
+      if (box && box.classList.contains('shut')) box.querySelector('h2').onclick();
+    });
+    await p.waitForTimeout(300);
+    ok('there is a PLAYER filter', await p.isVisible('#kPlayer'));
+    await p.click('#kPlayer'); await p.waitForTimeout(400);
+    const rows = await p.$$eval('#assetList .it .nm', e => e.map(x => x.textContent.trim()));
+    ok('all three classes are there',
+      ['Vanguard', 'Technomancer', 'Voidadept'].every(n => rows.indexOf(n) >= 0),
+      rows.join(' · '));
+    ok('and so are the parts that move on their own',
+      rows.indexOf('Vanguard — weapon') >= 0
+      && rows.indexOf('Technomancer — halo') >= 0
+      && rows.indexOf('Voidadept — tatters') >= 0, rows.join(' · '));
+
+    await p.click('#assetList .it:nth-child(1)'); await p.waitForTimeout(600);
+    const st = await p.textContent('#status');
+    ok('one loads onto the canvas', /34 strokes/.test(st), st);
+    ok('with its eyes', /e: \[\[/.test(await p.inputValue('#out')),
+      (await p.inputValue('#out')).slice(-50));
+    ok('and something is actually drawn', await p.$eval('#pad', c => {
+      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      let lit = 0;
+      for (let i = 0; i < d.length; i += 4) if (d[i + 1] > 60 && d[i + 1] > d[i] + 20) lit++;
+      return lit > 2000;
+    }));
+  }
+
   console.log('\n' + (errs.length ? 'PAGE ERRORS:\n  ' + errs.join('\n  ') : 'no page errors'));
   if (errs.length) fail += errs.length;
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
