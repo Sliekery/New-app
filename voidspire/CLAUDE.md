@@ -808,6 +808,37 @@ and the strokes you did not select are byte-identical. Four notes worth keeping:
   rounding of doing nothing on the fine one, so which side of the rounding it
   falls decides whether the test passes.
 
+## The half you can see is the half you can work with
+
+"With mirror on, then off, I cannot select the mirrored lines."
+
+A mirrored stroke is **stored once and drawn twice**, and every "is the pointer
+on this?" test looked only at the stored half. So whichever half happened to be
+the COPY could not be marqueed at all — and could not be dragged even after
+being clicked, because the press landed outside the bounds of the points it was
+stored as and started a fresh marquee instead.
+
+**Turning MIRROR off has nothing to do with it.** The flag lives on the stroke,
+so the copy is drawn either way; it was never selectable. The toggle only
+changes what the NEXT stroke does, which is right — a setting should not rewrite
+the drawing.
+
+`pickAt` already knew this, because clicking was built mirror-aware from the
+start. The other three tests did not, and they are the ones a hand reaches for:
+
+- **The marquee** now asks whether either half is in the box.
+- **Taking hold of the selection** uses `selBoundsShown` — the box round
+  everything *as drawn*. `selBounds` deliberately stays the bounds of the
+  STORED points, because it is also the centre a turn goes about, and widening
+  it would silently move every rotation to the mirror line.
+- **The end grabs** appear on both halves. A handle on the copy carries `flip`,
+  and the pointer is mirrored back before it is applied, so the end you pull is
+  the end that moves.
+
+The general shape, worth checking whenever anything is generated rather than
+stored: **a thing drawn from data the hit tests do not share is a thing you can
+see and cannot touch.**
+
 ## A mirror that lands on itself
 
 MIRROR emitted a copy of any stroke that reached away from the centre — and a

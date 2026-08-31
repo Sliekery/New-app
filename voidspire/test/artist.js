@@ -706,6 +706,73 @@ function ok(name, cond, detail) {
     }));
   }
 
+  console.log('\nTHE HALF YOU CAN SEE IS THE HALF YOU CAN WORK WITH');
+  /* "With mirror on, then off, I cannot select the mirrored lines."
+   *
+   * A mirrored stroke is stored once and drawn twice, and every "is the
+   * pointer on this?" test looked only at the stored half — so whichever half
+   * happened to be the COPY could not be marqueed, and could not be dragged
+   * even after clicking it, because the press landed outside the bounds of the
+   * points it was stored as and started a fresh marquee instead.
+   *
+   * Turning MIRROR off has nothing to do with it: the flag lives on the
+   * stroke, so the copy is drawn either way. It was never selectable. */
+  {
+    await p.click('#tabAdd'); await p.waitForTimeout(600);
+    if (!(await p.$eval('#bMirror', e => e.classList.contains('on')))) {
+      await p.click('#bMirror'); await p.waitForTimeout(150);
+    }
+    const Wf = v => (v / 1.35 + 1) / 2;
+    const mb = await p.locator('#pad').boundingBox();
+    const wdrag = async (a, c, d, e) => {
+      const x0 = mb.x + mb.width * Wf(a), y0 = mb.y + mb.height * Wf(c);
+      const x1 = mb.x + mb.width * Wf(d), y1 = mb.y + mb.height * Wf(e);
+      await p.mouse.move(x0, y0); await p.mouse.down();
+      await p.mouse.move((x0 + x1) / 2, (y0 + y1) / 2, { steps: 5 });
+      await p.mouse.move(x1, y1, { steps: 5 }); await p.mouse.up();
+      await p.waitForTimeout(170);
+    };
+    const art = async () => {
+      const m = (await p.inputValue('#out')).match(/p:\s*(\[[\s\S]*?\])\s*,\s*e:/);
+      // eslint-disable-next-line no-new-func
+      return m ? Function('return (' + m[1] + ')')() : [];
+    };
+
+    await p.click('#mLine'); await p.waitForTimeout(80);
+    await wdrag(0.3, -0.4, 0.7, -0.4);              // drawn on the RIGHT
+    ok('one stroke, drawn twice', (await art()).length === 2, JSON.stringify(await art()));
+    await p.click('#bMirror'); await p.waitForTimeout(150);   // MIRROR off
+    ok('turning MIRROR off leaves the drawing exactly as it was',
+      (await art()).length === 2, JSON.stringify(await art()));
+
+    await p.click('#mSel'); await p.waitForTimeout(150);
+    await wdrag(-0.95, -0.6, -0.15, -0.2);          // marquee the MIRRORED half
+    ok('a marquee round the mirrored half selects it',
+      /1 stroke selected/.test(await p.textContent('#selCount')),
+      await p.textContent('#selCount'));
+
+    const was = await art();
+    await wdrag(-0.5, -0.4, -0.5, 0.0);             // drag by the half you can see
+    const now = await art();
+    ok('and it can be dragged by that half rather than starting a new marquee',
+      JSON.stringify(now) !== JSON.stringify(was), JSON.stringify(now));
+    ok('both halves move together and stay symmetric',
+      Math.abs(now[0][1] - now[1][1]) < 1e-9 && Math.abs(now[0][0] + now[1][0]) < 1e-9,
+      JSON.stringify(now));
+
+    /* And the end grabs are on both halves, mirrored back so the end you pull
+     * is the end that moves. */
+    await p.click('#selNone'); await p.waitForTimeout(150);
+    await wdrag(-0.95, -0.3, -0.15, 0.3);
+    const pre = await art();
+    const y = pre[1][1];
+    await wdrag(pre[1][2], y, -0.95, y);            // pull the mirrored outer end further out
+    const post = await art();
+    ok('a handle on the mirrored half stretches the line the way you pulled it',
+      Math.abs(post[1][2] + 0.95) < 0.03 && Math.abs(post[0][2] - 0.95) < 0.03,
+      JSON.stringify(post));
+  }
+
   console.log('\n' + (errs.length ? 'PAGE ERRORS:\n  ' + errs.join('\n  ') : 'no page errors'));
   if (errs.length) fail += errs.length;
   console.log('\n' + pass + ' passed, ' + fail + ' failed');
