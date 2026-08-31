@@ -616,9 +616,10 @@
 
     <div class="box">
       <h2>THE GAME'S ART — load any of it and edit it</h2>
-      <input type="text" id="aSearch" placeholder="search 346 pieces…">
+      <input type="text" id="aSearch" placeholder="search the game's art…">
       <div class="bar" style="margin:0 0 5px">
         <button id="kAll" class="sm on">ALL</button>
+        <button id="kPlayer" class="sm">PLAYER</button>
         <button id="kEnemy" class="sm">ENEMIES</button>
         <button id="kEng" class="sm">ENGRAVINGS</button>
         <button id="kCard" class="sm">CARDS</button>
@@ -5149,10 +5150,13 @@
     if (!hits.length) host.innerHTML = '<div class="hint" style="padding:8px">nothing matches</div>';
   }
   document.getElementById('aSearch').oninput = function () { aQuery = this.value; renderAssets(); };
-  [['kAll', 'all'], ['kEnemy', 'enemy'], ['kEng', 'engraving'], ['kCard', 'card']].forEach(function (pair) {
+  [['kAll', 'all'], ['kPlayer', 'player'], ['kEnemy', 'enemy'],
+   ['kEng', 'engraving'], ['kCard', 'card']].forEach(function (pair) {
     document.getElementById(pair[0]).onclick = function () {
       aKind = pair[1];
-      ['kAll', 'kEnemy', 'kEng', 'kCard'].forEach(function (o) { document.getElementById(o).classList.remove('on'); });
+      ['kAll', 'kPlayer', 'kEnemy', 'kEng', 'kCard'].forEach(function (o) {
+        document.getElementById(o).classList.remove('on');
+      });
       this.classList.add('on'); renderAssets();
     };
   });
@@ -5282,7 +5286,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 40';
+  document.getElementById('ver').textContent = 'build 41';
 
   paintThumbs();
   applyView(viewMode);
