@@ -1106,6 +1106,45 @@
     }
     return true;
   }
+  /* ==================================================================
+   * WHERE A STROKE ACTUALLY IS
+   * ==================================================================
+   * A mirrored stroke is stored once and drawn twice, and every "is the
+   * pointer on this?" test used to look only at the stored half. So the half
+   * of a symmetrical drawing that happens to be the COPY could not be marqueed
+   * at all, and could not be dragged even after clicking it — the drag started
+   * a new marquee instead, because the pointer was outside the bounds of the
+   * points it was stored as.
+   *
+   * Reported as "with mirror on, then off, I cannot select the mirrored
+   * lines", and turning MIRROR off has nothing to do with it: the flag lives
+   * on the stroke, so the copy is drawn either way. It was never selectable.
+   * ================================================================== */
+  function shownPts(L) {
+    var out = [L.pts];
+    if (L.m && L.pts.some(function (p) { return Math.abs(p[0]) > 0.015; })) {
+      out.push(L.pts.map(function (p) { return [-p[0], p[1]]; }));
+    }
+    return out;
+  }
+  /* The box round everything selected AS DRAWN, both halves. Only for asking
+   * whether a press landed on the selection — `selBounds` stays the bounds of
+   * the STORED points, because it is also the centre a turn goes about, and
+   * widening that would silently move every rotation to the mirror line. */
+  function selBoundsShown() {
+    var xs = [], ys = [];
+    sel.forEach(function (i) {
+      var L = here().strokes[i];
+      if (!L) return;
+      shownPts(L).forEach(function (pts) {
+        pts.forEach(function (p) { xs.push(p[0]); ys.push(p[1]); });
+      });
+    });
+    if (!xs.length) return null;
+    return { x0: Math.min.apply(null, xs), x1: Math.max.apply(null, xs),
+             y0: Math.min.apply(null, ys), y1: Math.max.apply(null, ys) };
+  }
+
   function expandStrokes(strokes, extra) {
     var o = [];
     (strokes || []).concat(extra || []).forEach(function (L) {
@@ -1679,7 +1718,7 @@
         var SL = here().strokes[eh.si];
         var carried = carriedBy(eh.si, eh.pi);
         stretchFrom = {
-          si: eh.si, pi: eh.pi, pushed: false, dx: 0, dy: 0, loop: carried.loop,
+          si: eh.si, pi: eh.pi, flip: eh.flip, pushed: false, dx: 0, dy: 0, loop: carried.loop,
           at: [SL.pts[eh.pi][0], SL.pts[eh.pi][1]],
           far: SL.pts[eh.pi === 0 ? SL.pts.length - 1 : 0].slice(),
           snapshot: JSON.parse(JSON.stringify(SL.pts)),
@@ -1693,7 +1732,8 @@
         pad.setPointerCapture(ev.pointerId);
         return;
       }
-      var b = selBounds();
+      // as drawn, so the half you can see is the half you can take hold of
+      var b = selBoundsShown();
       if (b && w[0] >= b.x0 - 0.04 && w[0] <= b.x1 + 0.04 && w[1] >= b.y0 - 0.04 && w[1] <= b.y1 + 0.04) {
         var snap0 = JSON.parse(JSON.stringify(sel.map(function (i) { return here().strokes[i].pts; })));
         var pv = pivotPoint();
@@ -1767,6 +1807,8 @@
     if (marquee) { marquee.b = toWorld(ev.clientX, ev.clientY); drawPad(); return; }
     if (stretchFrom) {
       var nw = toWorld(ev.clientX, ev.clientY);
+      // a handle on the copy: work in the stored half's coordinates
+      if (stretchFrom.flip) nw = [-nw[0], nw[1]];
       if (angleLock || ev.shiftKey) nw = alongAxis(stretchFrom.far, stretchFrom.at, nw);
       var ex = nw[0] - stretchFrom.at[0], ey = nw[1] - stretchFrom.at[1];
       if (!ex && !ey) return;
@@ -1967,7 +2009,12 @@
         var y0 = Math.min(marquee.a[1], marquee.b[1]), y1 = Math.max(marquee.a[1], marquee.b[1]);
         sel = [];
         here().strokes.forEach(function (L, i) {
-          if (L.pts.some(function (p) { return p[0] >= x0 && p[0] <= x1 && p[1] >= y0 && p[1] <= y1; })) sel.push(i);
+          var hit = shownPts(L).some(function (pts) {
+            return pts.some(function (p) {
+              return p[0] >= x0 && p[0] <= x1 && p[1] >= y0 && p[1] <= y1;
+            });
+          });
+          if (hit) sel.push(i);
         });
       }
       marquee = null;
@@ -3241,11 +3288,23 @@
   }
   /* The two ends of the one selected stroke, as screen points, so the grab is
    * the same size however far in or out you are zoomed. */
+  /* ON BOTH HALVES. A grab that only appears on the stored half is a grab that
+   * is missing from whichever half you happen to be looking at, and with
+   * MIRROR on that is a coin toss. The copy's handles carry `flip`, and a drag
+   * that starts on one is mirrored back before it is applied — so pulling the
+   * end you can see moves the end you can see. */
   function endHandles() {
     if (mode !== 'select' || sel.length !== 1) return null;
     var L = here().strokes[sel[0]];
     if (!L || L.pts.length < 2) return null;
-    return [{ pi: 0, p: L.pts[0] }, { pi: L.pts.length - 1, p: L.pts[L.pts.length - 1] }];
+    var last = L.pts.length - 1;
+    var hs = [{ pi: 0, p: L.pts[0], flip: false },
+              { pi: last, p: L.pts[last], flip: false }];
+    if (L.m && L.pts.some(function (q) { return Math.abs(q[0]) > 0.015; })) {
+      hs.push({ pi: 0, p: [-L.pts[0][0], L.pts[0][1]], flip: true });
+      hs.push({ pi: last, p: [-L.pts[last][0], L.pts[last][1]], flip: true });
+    }
+    return hs;
   }
   function grabEnd(cx, cy) {
     var hs = endHandles();
@@ -3256,7 +3315,7 @@
       // toScreen is in backing-store pixels; the pointer is in CSS ones
       var k = pad.width / r.width;
       if (Math.hypot(q[0] / k - (cx - r.left), q[1] / k - (cy - r.top)) <= 11) {
-        return { si: sel[0], pi: hs[i].pi };
+        return { si: sel[0], pi: hs[i].pi, flip: hs[i].flip };
       }
     }
     return null;
@@ -5286,7 +5345,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 41';
+  document.getElementById('ver').textContent = 'build 42';
 
   paintThumbs();
   applyView(viewMode);
