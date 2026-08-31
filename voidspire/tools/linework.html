@@ -1091,6 +1091,20 @@
 
   // Mirroring is applied when drawing and exporting, never stored, so the
   // toggle stays live and a stroke keeps whatever it was drawn with.
+  /* THE SAME LINE, possibly written backwards. A mirror reverses nothing, but
+   * a stroke drawn left-to-right mirrors to one running right-to-left, so a
+   * plain array comparison misses it. */
+  function sameLine(a, b) {
+    if (a.length !== b.length) return false;
+    var i, n = a.length, ok = true;
+    for (i = 0; i < n; i++) if (Math.abs(a[i] - b[i]) > 1e-4) { ok = false; break; }
+    if (ok) return true;
+    for (i = 0; i < n; i += 2) {
+      var k = n - 2 - i;
+      if (Math.abs(a[i] - b[k]) > 1e-4 || Math.abs(a[i + 1] - b[k + 1]) > 1e-4) return false;
+    }
+    return true;
+  }
   function expandStrokes(strokes, extra) {
     var o = [];
     (strokes || []).concat(extra || []).forEach(function (L) {
@@ -1099,7 +1113,15 @@
       o.push(flat);
       if (L.m && L.pts.some(function (p) { return Math.abs(p[0]) > 0.015; })) {
         var mf = []; L.pts.forEach(function (p) { mf.push(-p[0], p[1]); });
-        o.push(mf);
+        /* A STROKE ALREADY SYMMETRIC ABOUT THE CENTRE MIRRORS ONTO ITSELF.
+         * The 0.015 test above only asks whether a stroke reaches away from
+         * the middle — a line straight across the centre does, so it was
+         * copied, and the copy landed exactly on top of the original. Free
+         * for a flat colour; not free here, because the glow is laid down
+         * twice and those lines burn brighter than the rest of the drawing.
+         * It doubled the data too: 88 of 638 paths in the first creature
+         * handed over this way. */
+        if (!sameLine(flat, mf)) o.push(mf);
       }
     });
     return o;
@@ -5260,7 +5282,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 39';
+  document.getElementById('ver').textContent = 'build 40';
 
   paintThumbs();
   applyView(viewMode);

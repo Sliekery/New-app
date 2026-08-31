@@ -775,6 +775,34 @@ and the strokes you did not select are byte-identical. Four notes worth keeping:
   rounding of doing nothing on the fine one, so which side of the rounding it
   falls decides whether the test passes.
 
+## A mirror that lands on itself
+
+MIRROR emitted a copy of any stroke that reached away from the centre — and a
+line drawn straight ACROSS the centre does, so it was copied, and the copy
+landed exactly on top of the original. Free for a flat colour; **not free here,
+because the glow is laid down twice** and those lines burn brighter than the
+rest of the drawing. It doubled the data too: **88 of the 638 paths** in the
+first creature handed over this way, 14% of its size.
+
+The test is not "are these two arrays equal". A mirror reverses nothing, but a
+stroke drawn left-to-right mirrors into one running right-to-left, so the
+comparison has to accept a line written backwards. A stroke is skipped only
+when its mirror is the same line by that test; one that crosses the centre
+without being symmetric is still mirrored, which is most of them.
+
+### A test that passed by luck
+
+Fixing it broke the eye-pip assertion in `test/artist.js`, and the cause is
+worth more than the fix: **BIG VIEW starts the animation the moment it opens**,
+so a measurement taken after a fixed wait lands on whichever frame the clock
+happened to reach. The eye was on frame 1; the test had been landing there by
+chance, and drawing fewer paths made the page quick enough to land elsewhere.
+
+The suite already carried a note about sampling a playing animation until it
+moves rather than once after a fixed wait. The same trap, the other way up:
+**pause it and scrub to the frame you mean.** A change with nothing to do with
+eyes exposed it, which is the only way that class of flake ever surfaces.
+
 ## An eye is a round pip, and its size is yours
 
 "On preview the eyes are a block for some reason." They were — and not only in

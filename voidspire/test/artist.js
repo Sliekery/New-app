@@ -397,7 +397,19 @@ function ok(name, cond, detail) {
   }
   ok('an eye is in the art', /e: \[\[/.test(await p.inputValue('#out')),
     (await p.inputValue('#out')).slice(-40));
-  await p.click('#fBig'); await p.waitForTimeout(800);
+  await p.click('#fBig'); await p.waitForTimeout(700);
+  /* STOP IT PLAYING FIRST, then scrub to the frame the eye is on. BIG VIEW
+   * starts the animation the moment it opens, so a measurement taken after a
+   * fixed wait lands on whichever frame the clock happened to reach — this
+   * passed for a while by landing on the right one, and started failing the
+   * day an unrelated change made the drawing quicker to paint. */
+  if (/PAUSE/i.test(await p.textContent('#thPlay'))) {
+    await p.click('#thPlay'); await p.waitForTimeout(150);
+  }
+  await p.$eval('#thScrub', el => { el.value = 0; el.dispatchEvent(new Event('input', { bubbles: true })); });
+  await p.waitForTimeout(250);
+  ok('parked on the frame the eye is on', /^1 \//.test(await p.textContent('#thFrame')),
+    await p.textContent('#thFrame'));
   {
     const pip = await p.$eval('#thCanvas', c => {
       const W2 = c.width, H2 = c.height;
@@ -597,6 +609,60 @@ function ok(name, cond, detail) {
       await p.click('#bUndo'); await p.waitForTimeout(40);
     }
   }
+
+  console.log('\nA MIRROR THAT LANDS ON ITSELF IS NOT DRAWN TWICE');
+  /* The 0.015 test only asks whether a stroke reaches away from the middle. A
+   * line straight ACROSS the centre does — so it was mirrored, and the copy
+   * landed exactly on top of the original. Free for a flat colour; not free
+   * here, because the glow is laid down twice and those lines burn brighter
+   * than the rest of the drawing. It doubled the data too: 88 of the 638 paths
+   * in the first creature handed over this way. */
+  {
+    await p.click('#tabAdd'); await p.waitForTimeout(600);
+    if (!(await p.$eval('#bMirror', e => e.classList.contains('on')))) {
+      await p.click('#bMirror'); await p.waitForTimeout(150);
+    }
+    await p.click('#mLine'); await p.waitForTimeout(80);
+    const mb = await p.locator('#pad').boundingBox();
+    const Wf = v => (v / 1.35 + 1) / 2;
+    const ml = async (x0, y0, x1, y1) => {
+      await p.mouse.move(mb.x + mb.width * Wf(x0), mb.y + mb.height * Wf(y0));
+      await p.mouse.down();
+      await p.mouse.move(mb.x + mb.width * Wf(x1), mb.y + mb.height * Wf(y1), { steps: 5 });
+      await p.mouse.up(); await p.waitForTimeout(140);
+    };
+    const paths = async () => {
+      const m = (await p.inputValue('#out')).match(/p:\s*(\[[\s\S]*?\])\s*,\s*e:/);
+      // eslint-disable-next-line no-new-func
+      return m ? Function('return (' + m[1] + ')')() : [];
+    };
+
+    await ml(-0.3, -0.4, 0.3, -0.4);            // straight across the centre
+    ok('a line symmetric about the centre is exported ONCE',
+      (await paths()).length === 1, JSON.stringify(await paths()));
+
+    await ml(0.2, 0.1, 0.6, 0.1);               // off to one side
+    ok('and one off to the side is still mirrored into two',
+      (await paths()).length === 3, (await paths()).length + ' paths');
+
+    await ml(-0.3, 0.5, 0.5, 0.6);              // crosses the centre, not symmetric
+    ok('a line that crosses the centre WITHOUT being symmetric is still mirrored',
+      (await paths()).length === 5, (await paths()).length + ' paths');
+
+    /* And the drawing has to be unchanged on screen — the point is that the
+     * second copy was invisible except as extra glow, so removing it must not
+     * remove any line. */
+    const lit = await p.$eval('#pad', c => {
+      const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      let n = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 1] > 60 && d[i + 1] > d[i] + 20) n++;
+      }
+      return n;
+    });
+    ok('all three lines and their mirrors are still on the canvas', lit > 2000, lit + ' lit pixels');
+  }
+
 
   console.log('\n' + (errs.length ? 'PAGE ERRORS:\n  ' + errs.join('\n  ') : 'no page errors'));
   if (errs.length) fail += errs.length;
