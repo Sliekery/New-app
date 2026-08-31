@@ -823,8 +823,16 @@ so the copy is drawn either way; it was never selectable. The toggle only
 changes what the NEXT stroke does, which is right — a setting should not rewrite
 the drawing.
 
+**And it has to LOOK selected on the side you boxed.** The highlight and the
+dashed box were drawn from the stored points too, so boxing the right arm lit
+the LEFT one — the stroke was selected and the bar said so, but every mark on
+screen pointed at the other side of the figure. Reported twice as not being
+able to select an arm at all, which is exactly what it looks like when the only
+feedback appears where you are not looking. **A fix that makes something work
+but not look like it worked has not been reported as fixed.**
+
 `pickAt` already knew this, because clicking was built mirror-aware from the
-start. The other three tests did not, and they are the ones a hand reaches for:
+start. The rest did not, and they are the ones a hand reaches for:
 
 - **The marquee** now asks whether either half is in the box.
 - **Taking hold of the selection** uses `selBoundsShown` — the box round
@@ -834,6 +842,12 @@ start. The other three tests did not, and they are the ones a hand reaches for:
 - **The end grabs** appear on both halves. A handle on the copy carries `flip`,
   and the pointer is mirrored back before it is applied, so the end you pull is
   the end that moves.
+- **The highlight and the joint markers** are drawn on every half that is shown.
+
+One trap in that last one: doubling the pin list for the markers also doubled
+the count `jointAllHeld` compares against the stored point total, which decided
+a limb with one free end was held everywhere and could not be swung. **What is
+DRAWN and what is COUNTED had to be separate lists** — `pinsDrawn` and `pins`.
 
 The general shape, worth checking whenever anything is generated rather than
 stored: **a thing drawn from data the hit tests do not share is a thing you can

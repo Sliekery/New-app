@@ -751,6 +751,30 @@ function ok(name, cond, detail) {
       /1 stroke selected/.test(await p.textContent('#selCount')),
       await p.textContent('#selCount'));
 
+    /* AND IT HAS TO LOOK SELECTED, on the side you boxed. Lighting up only the
+     * stored half meant boxing the right arm lit the LEFT one — the stroke was
+     * selected and the bar said so, but every mark on screen pointed at the
+     * other side of the figure. That is what "I still cannot select the right
+     * arm" looks like: the only feedback appears where you are not looking. */
+    const teal = await p.$eval('#pad', c => {
+      const W2 = c.width, H2 = c.height;
+      const d = c.getContext('2d').getImageData(0, 0, W2, H2).data;
+      let left = 0, right = 0;
+      for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) {
+        const i = (y * W2 + x) * 4;
+        if (d[i + 2] > 150 && d[i + 2] > d[i] + 60 && d[i + 1] > 100) {
+          if (x < W2 / 2) left++; else right++;
+        }
+      }
+      return { left: left, right: right };
+    });
+    ok('and BOTH halves are lit, not just the stored one',
+      teal.left > 200 && teal.right > 200,
+      teal.left + ' teal pixels left, ' + teal.right + ' right');
+    ok('about evenly, because it is one stroke drawn twice',
+      Math.abs(teal.left - teal.right) < Math.max(teal.left, teal.right) * 0.25,
+      teal.left + ' vs ' + teal.right);
+
     const was = await art();
     await wdrag(-0.5, -0.4, -0.5, 0.0);             // drag by the half you can see
     const now = await art();
