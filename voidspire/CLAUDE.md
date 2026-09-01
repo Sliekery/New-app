@@ -849,6 +849,36 @@ the count `jointAllHeld` compares against the stored point total, which decided
 a limb with one free end was held everywhere and could not be swung. **What is
 DRAWN and what is COUNTED had to be separate lists** — `pinsDrawn` and `pins`.
 
+### And SPLIT, for when you want them apart
+
+Making all of that work surfaced the thing actually being asked for: selecting
+either half selects the STROKE, so moving one arm moves both. That is the point
+of MIRROR while you are drawing something symmetrical, and it is exactly wrong
+the moment one arm should do what the other does not.
+
+**SPLIT ⇹** turns a mirrored stroke into two ordinary ones. Three decisions in
+it:
+
+- **It is an ACTION, not a side effect of the toggle.** Turning MIRROR off for
+  one asymmetric detail and back on again is an ordinary thing to do, and it
+  must not quietly cut every stroke in the drawing in half.
+- **The copies are APPENDED, never spliced in beside their originals.** An
+  index is what the whole rig addresses a stroke by — which points are pinned,
+  what a stretch carries, what a REPEAT replays over — and inserting would
+  renumber everything after.
+- **Both halves stay selected afterwards.** Keeping only the original would
+  leave the highlight on whichever half happened to be the stored one, so
+  pressing SPLIT while looking at the left arm would light up the right: the
+  same "feedback on the other side of the figure" as the bug above.
+
+**The drawing does not change.** The mirrored copy was already being exported
+as its own path; splitting only makes it a stored stroke rather than a
+generated one. The export is byte-identical, and the suite asserts exactly
+that.
+
+The bar says it before it surprises anyone: a selection containing a mirrored
+stroke reads *"MIRRORED, so both halves move together — SPLIT ⇹ to part them"*.
+
 The general shape, worth checking whenever anything is generated rather than
 stored: **a thing drawn from data the hit tests do not share is a thing you can
 see and cannot touch.**

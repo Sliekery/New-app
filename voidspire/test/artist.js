@@ -795,6 +795,42 @@ function ok(name, cond, detail) {
     ok('a handle on the mirrored half stretches the line the way you pulled it',
       Math.abs(post[1][2] + 0.95) < 0.03 && Math.abs(post[0][2] - 0.95) < 0.03,
       JSON.stringify(post));
+
+    /* AND WHEN YOU WANT THEM APART. Selecting either half selects the stroke,
+     * and moving it moves both — right while drawing something symmetrical,
+     * exactly wrong the moment one arm should do what the other does not.
+     * SPLIT is the way out, and the bar says so before it surprises anyone. */
+    await p.click('#selNone'); await p.waitForTimeout(150);
+    await wdrag(-0.95, -0.6, -0.15, 0.6);
+    ok('the bar warns that both halves move together',
+      /MIRRORED, so both halves move together/.test(await p.textContent('#selCount')),
+      await p.textContent('#selCount'));
+
+    const wasArt = await p.inputValue('#out');
+    await p.click('#tSplit'); await p.waitForTimeout(320);
+    ok('SPLIT says what it did', /split \d+ strokes?/.test(await p.textContent('#status')),
+      await p.textContent('#status'));
+    ok('THE DRAWING IS UNCHANGED — the copy was already an exported path',
+      (await p.inputValue('#out')) === wasArt);
+    ok('both halves are left selected, so nothing appears to jump',
+      /2 strokes selected/.test(await p.textContent('#selCount')),
+      await p.textContent('#selCount'));
+    ok('and the mirror warning is gone', !/MIRRORED/.test(await p.textContent('#selCount')),
+      await p.textContent('#selCount'));
+
+    // now one half alone
+    const cx0 = mb.x + mb.width * Wf(-0.5), cy0 = mb.y + mb.height * Wf(0.0);
+    await p.mouse.move(cx0, cy0); await p.mouse.down(); await p.mouse.up();
+    await p.waitForTimeout(220);
+    ok('clicking one half now takes just that one',
+      /1 stroke selected/.test(await p.textContent('#selCount')),
+      await p.textContent('#selCount'));
+    const pre2 = await art();
+    await wdrag(-0.5, 0.0, -0.5, 0.4);
+    const post2 = await art();
+    const moved = post2.filter(function (r, i) { return JSON.stringify(r) !== JSON.stringify(pre2[i]); });
+    ok('and moving it leaves the other one exactly where it was',
+      moved.length === 1, moved.length + ' of ' + post2.length + ' strokes moved');
   }
 
   console.log('\n' + (errs.length ? 'PAGE ERRORS:\n  ' + errs.join('\n  ') : 'no page errors'));
