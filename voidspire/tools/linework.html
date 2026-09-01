@@ -563,6 +563,7 @@
         <button id="tBig" class="sm">SCALE +</button>
         <button id="tSmall" class="sm">SCALE −</button>
         <button id="tFlip" class="sm">FLIP</button>
+        <button id="tSplit" class="sm" title="Make the two halves of a mirrored stroke into separate lines you can edit apart. The drawing does not change.">SPLIT ⇹</button>
         <button id="tDup" class="sm">DUPLICATE</button>
         <button id="tDel" class="sm warn">DELETE</button>
         <button id="selNone" class="sm">CLEAR</button>
@@ -1507,7 +1508,15 @@
               + (jointHeldAt > 1 ? ' in ' + jointHeldAt + ' places' : '')
               + ' — drag it up and down'
             : ' · touching nothing, so drag slides it')
-          + (sel.length === 1 ? ' · or drag an end ◻ to make it longer or shorter' : '');
+          + (sel.length === 1 ? ' · or drag an end ◻ to make it longer or shorter' : '')
+          /* SAY IT BEFORE IT SURPRISES YOU. Selecting one arm of a mirrored
+           * pair selects both halves, because they are one stroke — which is
+           * right while you are drawing something symmetrical and looks like a
+           * bug the moment you want one arm to move alone. */
+          + (sel.some(function (i) {
+            var L = here().strokes[i];
+            return L && L.m && L.pts.some(function (q) { return Math.abs(q[0]) > 0.015; });
+          }) ? ' · MIRRORED, so both halves move together — SPLIT ⇹ to part them' : '');
     if (mode === 'select') syncSwingBtn();
     drawPreview();
     emit();
@@ -3653,6 +3662,59 @@
               : ' — press ▶ PLAY to see it'), !!same);
   };
 
+  /* ==================================================================
+   * SPLIT — stop the two halves being one stroke
+   * ==================================================================
+   * A mirrored stroke is stored once and drawn twice, so selecting either half
+   * selects the stroke, and moving it moves both. That IS the point of MIRROR
+   * while you are drawing a symmetrical thing — and it is exactly wrong the
+   * moment you want one arm to do something the other does not.
+   *
+   * Turning MIRROR off does not help: the flag lives on the stroke, so old
+   * strokes keep their copies and only new ones come out single. This is the
+   * way out, and it is deliberately an ACTION rather than a side effect of the
+   * toggle — turning mirror off for one asymmetric detail and back on again is
+   * an ordinary thing to do, and it should not quietly cut every stroke in the
+   * drawing in half.
+   *
+   * THE DRAWING DOES NOT CHANGE. The mirrored copy was already being exported
+   * as its own path; splitting only makes it a stored stroke rather than a
+   * generated one. Same lines, same export, byte for byte.
+   * ================================================================== */
+  document.getElementById('tSplit').onclick = function () {
+    var S = here().strokes;
+    var doubled = sel.filter(function (i) {
+      var L = S[i];
+      return L && L.m && L.pts.some(function (q) { return Math.abs(q[0]) > 0.015; });
+    });
+    if (!doubled.length) {
+      return note(sel.length ? 'nothing selected is mirrored — these are already separate lines'
+                             : 'select the mirrored part first', true);
+    }
+    pushHistory();
+    /* The copies are APPENDED. Splicing them in beside their originals would
+     * renumber every stroke after them, and an index is what the whole rig
+     * addresses a stroke by — which points are pinned, what a stretch carries,
+     * what a REPEAT is replayed over. */
+    doubled.forEach(function (i) {
+      var L = S[i];
+      S.push({ pts: L.pts.map(function (q) { return [-q[0], q[1]]; }), m: false });
+      sel.push(S.length - 1);
+      L.m = false;
+    });
+    /* BOTH HALVES STAY SELECTED. Keeping only the original would leave the
+     * highlight on whichever half happened to be the stored one — so pressing
+     * SPLIT while looking at the left arm would light up the right, which is
+     * the same "the feedback is on the other side of the figure" this whole
+     * run of fixes has been about. Nothing appears to jump; you then click the
+     * half you actually want. */
+    findJoint();
+    drawPad();
+    note('split ' + doubled.length + ' stroke' + (doubled.length === 1 ? '' : 's')
+      + ' — the halves are separate lines now and both are selected.'
+      + ' Click the one you want. The drawing itself has not changed.');
+  };
+
   document.getElementById('tDup').onclick = function () {
     pushHistory();
     var copies = sel.map(function (i) { return JSON.parse(JSON.stringify(here().strokes[i])); });
@@ -5361,7 +5423,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 43';
+  document.getElementById('ver').textContent = 'build 44';
 
   paintThumbs();
   applyView(viewMode);
