@@ -1043,6 +1043,51 @@ selection bar, past the visible edge on a narrow window, so it may as well not
 have. It now sits immediately after SWING. **A control off the edge of its bar
 reads exactly like a control that was never written.**
 
+## Shipping to itch.io
+
+`tools/build-itch.js` makes three zips into `dist/` (gitignored — they are
+build outputs, and a committed binary only goes stale beside its source):
+
+| zip | what | itch "Kind of project" |
+| --- | --- | --- |
+| `linework-itch` | the drawing tool alone, 84 KB | **Tool** |
+| `voidspire-itch` | the game, 433 KB | **Game** |
+| `artist-full-itch` | the artist WITH the game's art library | not for the public |
+
+itch unzips the file and opens **`index.html` at the root** — not in a folder,
+it will not go looking — inside an **iframe on a domain of its own**. That last
+part is the whole reason this needs testing rather than assuming: it means
+everything the page stores is **third-party storage**, which browsers are
+increasingly willing to refuse.
+
+### Test it the way itch serves it, not the way you built it
+
+`scratchpad/itch-check.js` unzips each package, serves it from one port, and
+frames it from a **different** port, so cross-origin is real. Then it asks the
+page about itself — title, build stamp, pixels actually painted, whether
+`localStorage` throws — and fails on any request that 404s. A file the zip
+forgot shows up here and nowhere else, because on your own machine the missing
+file is sitting right there next to the build.
+
+**The first run reported a 404 and the package was fine.** The 404 was
+`/favicon.ico` on the *harness's own wrapper page*, which had no icon; the
+second package looked clean only because Chromium had already cached the 404
+for that origin. A test that stands in for something has to stand in for it
+completely, or it reports its own gaps as the subject's. Both pages now carry
+an inline data-URI icon anyway — these files are meant to travel alone, so a
+`<link>` to an icon file would point at nothing.
+
+### Third-party storage is the real risk, and there is already an answer
+
+Every tool keeps its work in `localStorage`. Inside itch's frame that is
+third-party storage: it works today in the browsers tested, but it is exactly
+what "block third-party cookies" turns off, and the failure is silent —
+drawings simply are not there next time. The `try/catch` around every
+`localStorage` call means the tool survives it; it does not mean the work does.
+So on an itch page the **SAVE .JSON / OPEN .JSON** pair and **BACKUP ALL** stop
+being a convenience and become the actual persistence story, and the page
+description should say so.
+
 ## Verifying UI work
 
 `test/combatfit.js` and `test/uifit.js` encode real layout invariants and have

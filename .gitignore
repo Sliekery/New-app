@@ -3,3 +3,8 @@
 # part of the game, which ships as plain HTML/JS with no build step.
 node_modules/
 package-lock.json
+
+# Packages built for upload (itch.io zips and their unpacked staging). Made
+# from committed sources by voidspire/tools/build-itch.js in one command, so
+# committing the binaries would only be a second copy going stale.
+voidspire/dist/
