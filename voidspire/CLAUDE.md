@@ -998,6 +998,51 @@ The general shape: **a bare-key shortcut and a focusable control are a hazard
 together**, and every tool here has both. Worth checking the same way whenever
 a new single-key binding is added.
 
+## SLIDE — a part that travels without changing shape
+
+> "I want to be able to drag the selected part down which would shorten it. Not
+> compress or distort but just shorten the lines where the anchor points are. I
+> want to animate the cannons going slightly up and down."
+
+SWING already had the arithmetic for this — every contact PIN stays where it
+is, everything else moves, and the strokes bridging between the two change
+length — but SWING applies it to a **rotation**, and a cannon riding down its
+mount is a **translation**. MOVE was the only translation on offer and it takes
+the joints with it, which pulls the part off the body.
+
+So the drag toggle is no longer a boolean. It cycles **SWING → SLIDE → MOVE**
+(`dragMode`, stored under `voidspire.artist.drag`, migrating anyone who had the
+old `voidspire.artist.swing` key). SLIDE is a pinned translation: `moveFrom.pin`
+is set when there is a joint, and the move skips any point `pinned(i, pi)`
+reports. The mounts shorten by exactly the push; every stroke of the box keeps
+its exact length. That last part is the request restated as an assertion, and
+it is what `test/rig.js` measures.
+
+**A pinned drag has to carry its pins into REPEAT**, or the replayed frames go
+back to being an unpinned shove. `pinsCopy()` snapshots them onto the recorded
+transform, and `markXform` fills them in for any non-pivot, non-stretch move.
+
+### Two ways to fail are two different messages
+
+REPEAT flattening a stroke to nothing has two causes that want opposite advice:
+
+- The **grid rounded it away** — a finer grid saves it.
+- The **part ran out of length** — the mount was 0.4, the step takes 0.2, and by
+  the second repeat there is no mount left. A finer grid saves nothing here, and
+  saying "take a finer grid" sends you off to fix the wrong thing. What helps is
+  a smaller step or fewer frames.
+
+They are told apart by re-measuring the raw, unsettled stroke: if it spans
+essentially zero before any rounding, the length is genuinely gone.
+
+### SPLIT was built and then hidden
+
+The other half of the same report — "it still will not let me only select one
+side" — was not a missing feature. SPLIT ⇹ existed; it sat after FLIP in the
+selection bar, past the visible edge on a narrow window, so it may as well not
+have. It now sits immediately after SWING. **A control off the edge of its bar
+reads exactly like a control that was never written.**
+
 ## Verifying UI work
 
 `test/combatfit.js` and `test/uifit.js` encode real layout invariants and have

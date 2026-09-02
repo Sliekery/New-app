@@ -298,9 +298,13 @@ const DEG = 180 / Math.PI;
   console.log('\nMOVE IS THERE FOR WHEN YOU WANT TO SLIDE IT');
   {
     const before = await armOf();
+    /* SWING -> SLIDE -> MOVE. Two presses to reach the free move; SLIDE in
+     * between holds the joints and stretches the lines into them. */
     await p.click('#tSwing'); await p.waitForTimeout(160);
-    ok('the button says MOVE', (await swingLabel()) === 'MOVE', await swingLabel());
-    ok('and the bar agrees', /drag to slide it/.test(await selBar()), await selBar());
+    ok('one press gives SLIDE', (await swingLabel()) === 'SLIDE', await swingLabel());
+    await p.click('#tSwing'); await p.waitForTimeout(160);
+    ok('a second gives MOVE', (await swingLabel()) === 'MOVE', await swingLabel());
+    ok('and the bar agrees', /drag to move the whole thing/.test(await selBar()), await selBar());
     const grip = [(before[0][0] + before[1][0]) / 2, (before[0][1] + before[1][1]) / 2];
     await haul(grip, [grip[0] + 0.3, grip[1]]);
     const after = await armOf();
@@ -310,7 +314,8 @@ const DEG = 180 / Math.PI;
       JSON.stringify(before) + ' → ' + JSON.stringify(after));
     await p.click('#bUndo'); await p.waitForTimeout(200);
     await p.click('#tSwing'); await p.waitForTimeout(160);
-    ok('and it goes back to SWING', (await swingLabel()) === 'SWING', await swingLabel());
+    ok('and one more comes back round to SWING', (await swingLabel()) === 'SWING',
+      await swingLabel());
   }
 
   console.log('\nHELD AT TWO POINTS, AND BOTH OF THEM HOLD');
@@ -1084,6 +1089,110 @@ const DEG = 180 / Math.PI;
       off.join(', ') + ' → ' + moved.join(', '));
     ok('so it is still exactly as off-grid as it was — nothing was quantised',
       moved.some(v => !onGrid(v, 0.1)), moved.join(', '));
+  }
+
+  /* ==================================================================
+   * SLIDE — the joints stay put and the lines into them change length
+   * ==================================================================
+   * "I want to be able to drag the selected part down which would shorten it.
+   * Not compress or distort but just shorten the lines where the anchor points
+   * are. I want to animate the cannons going slightly up and down."
+   *
+   * SWING turns about the joints; MOVE takes them with it. Neither of those is
+   * this. SLIDE is SWING's arithmetic with a translation: the pinned points do
+   * not move at all, everything else does, and the strokes bridging between
+   * them get shorter or longer.
+   *
+   * So the assertion is the one the request makes: the part TRAVELS, keeps its
+   * exact size, and the legs it stands on are the only things that change.
+   * ================================================================== */
+  console.log('\nSLIDE — A CANNON RIDES DOWN ITS MOUNT');
+  {
+    await p.click('#tabAdd'); await p.waitForTimeout(600);
+    if (await p.$eval('#bMirror', e => e.classList.contains('on'))) {
+      await p.click('#bMirror'); await p.waitForTimeout(150);
+    }
+    const Wf = v => (v / 1.35 + 1) / 2;
+    const wdrag = (a1, c1, d1, e1) => drag(Wf(a1), Wf(c1), Wf(d1), Wf(e1));
+    await p.click('#mLine'); await p.waitForTimeout(80);
+    await wdrag(-0.8, 0.1, 0.8, 0.1);        // 0 the shoulder it stands on
+    await wdrag(-0.3, 0.1, -0.3, -0.3);      // 1 left mount
+    await wdrag(0.3, 0.1, 0.3, -0.3);        // 2 right mount
+    await wdrag(-0.3, -0.3, 0.3, -0.3);      // 3 underside
+    await wdrag(-0.3, -0.3, -0.3, -0.6);     // 4 box left
+    await wdrag(0.3, -0.3, 0.3, -0.6);       // 5 box right
+    await wdrag(-0.3, -0.6, 0.3, -0.6);      // 6 box top
+    await p.click('#mSel'); await p.waitForTimeout(150);
+    await wdrag(-0.55, -0.75, 0.55, -0.05);  // everything above the shoulder
+    ok('the cannon is selected and held at its mounts',
+      /6 strokes selected/.test(await selBar()) && /held at 2 points/.test(await selBar()),
+      await selBar());
+
+    await p.click('#tSwing'); await p.waitForTimeout(200);
+    ok('SLIDE is one press away', (await swingLabel()) === 'SLIDE', await swingLabel());
+    ok('and the bar says what it will do',
+      /they stay put, the lines into them stretch/.test(await selBar()), await selBar());
+
+    const was = (await cur()).p;
+    const boxH = q => Math.abs(pairs(q)[0][1] - pairs(q)[1][1]);
+    const mountWas = boxH(was[1]);
+    await wdrag(0.0, -0.45, 0.0, -0.25);     // push it DOWN by 0.2
+    const now = (await cur()).p;
+
+    ok('the shoulder it stands on never moved',
+      JSON.stringify(now[0]) === JSON.stringify(was[0]), JSON.stringify(now[0]));
+    ok('both mounts stay welded to it at the top',
+      Math.abs(pairs(now[1])[0][1] - 0.1) < 0.002 && Math.abs(pairs(now[2])[0][1] - 0.1) < 0.002,
+      pairs(now[1])[0].join(',') + ' / ' + pairs(now[2])[0].join(','));
+    ok('and they are SHORTER by exactly how far it was pushed',
+      Math.abs((mountWas - boxH(now[1])) - 0.2) < 0.004,
+      mountWas.toFixed(3) + ' → ' + boxH(now[1]).toFixed(3));
+
+    /* The whole point of "not compress or distort": the cannon itself is the
+     * same cannon, moved. Every stroke of the box keeps its exact length. */
+    [3, 4, 5, 6].forEach(function (i) {
+      const a = pairs(was[i]), b = pairs(now[i]);
+      const la = dist(a[0], a[1]), lb = dist(b[0], b[1]);
+      ok('stroke ' + i + ' of the box keeps its exact length',
+        Math.abs(la - lb) < 0.003, la.toFixed(3) + ' → ' + lb.toFixed(3));
+    });
+    ok('and the box really did travel',
+      Math.abs(pairs(now[6])[0][1] - pairs(was[6])[0][1] - 0.2) < 0.004,
+      pairs(was[6])[0][1] + ' → ' + pairs(now[6])[0][1]);
+    ok('it says what it did', /joints stayed put/.test(await status()), await status());
+
+    console.log('\n  AND REPEAT SAYS WHEN IT WOULD RUN OUT');
+    /* The mount is 0.4 long and each step takes 0.2 out of it, so by the second
+     * repeat it would be nothing. That is not the grid rounding it away — a
+     * finer grid would not save it — and being told to take a finer grid would
+     * send you off to fix the wrong thing. */
+    await p.fill('#tRepeatN', '3');
+    await p.click('#tRepeat'); await p.waitForTimeout(450);
+    ok('no frames are made', (await frameCount()) === 1, (await frameCount()) + ' frames');
+    ok('and it says the part runs out of length, not that the grid is coarse',
+      /runs out of length/.test(await status()) && !/finer grid/.test(await status()),
+      await status());
+
+    console.log('\n  AND WALKS IT WHEN THE STEP FITS');
+    await p.click('#bUndo'); await p.waitForTimeout(300);      // back to the full mount
+    await wdrag(0.0, -0.45, 0.0, -0.35);                       // a slighter push: 0.1
+    /* 0.4 of mount, 0.1 already spent on the drag: two more steps leave 0.1 of
+     * it standing. A third would take the last of it and REPEAT would say so. */
+    await p.fill('#tRepeatN', '2');
+    await p.click('#tRepeat'); await p.waitForTimeout(450);
+    ok('three frames', (await frameCount()) === 3, (await frameCount()) + ' frames');
+    const fs = await frames();
+    ok('the mounts stay welded in every one of them',
+      fs.every(x => Math.abs(pairs(x.p[1])[0][1] - 0.1) < 0.003),
+      fs.map(x => pairs(x.p[1])[0][1]).join(', '));
+    ok('the box keeps its size in every one of them',
+      fs.every(x => Math.abs(boxH(x.p[4]) - boxH(was[4])) < 0.004),
+      fs.map(x => boxH(x.p[4]).toFixed(3)).join(', '));
+    ok('and the mounts shorten a step at a time',
+      (() => {
+        const h = fs.map(x => boxH(x.p[1]));
+        return h.slice(1).every((v, i) => Math.abs((h[i] - v) - 0.1) < 0.005);
+      })(), fs.map(x => boxH(x.p[1]).toFixed(3)).join(', '));
   }
 
   console.log('\n' + (errs.length ? 'PAGE ERRORS:\n  ' + errs.join('\n  ') : 'no page errors'));
