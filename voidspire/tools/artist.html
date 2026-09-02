@@ -556,14 +556,14 @@
       </div>
       <div class="bar" id="selBar" style="display:none">
         <span class="hint" id="selCount">nothing selected</span>
-        <button id="tSwing" class="sm on" title="What dragging the selection does. SWING turns it about the joint where it meets the rest of the drawing; MOVE slides it.">SWING</button>
+        <button id="tSwing" class="sm on" title="What dragging the selection does. SWING turns it about its joints; SLIDE pushes it with the joints staying put, so the lines into them change length; MOVE takes the whole thing.">SWING</button>
+        <button id="tSplit" class="sm" title="Make the two halves of a mirrored stroke into separate lines you can edit apart. The drawing itself does not change.">SPLIT ⇹</button>
         <button id="tPivot" class="sm" title="Overrule the joint that was found — tap anywhere to turn about that instead">PIVOT</button>
         <button id="tRotL" class="sm">↺ 15°</button>
         <button id="tRotR" class="sm">↻ 15°</button>
         <button id="tBig" class="sm">SCALE +</button>
         <button id="tSmall" class="sm">SCALE −</button>
         <button id="tFlip" class="sm">FLIP</button>
-        <button id="tSplit" class="sm" title="Make the two halves of a mirrored stroke into separate lines you can edit apart. The drawing does not change.">SPLIT ⇹</button>
         <button id="tDup" class="sm">DUPLICATE</button>
         <button id="tDel" class="sm warn">DELETE</button>
         <button id="selNone" class="sm">CLEAR</button>
@@ -1502,7 +1502,11 @@
     document.getElementById('selCount').textContent =
       !sel.length ? 'click a line, or drag a box round several'
         : sel.length + ' stroke' + (sel.length === 1 ? '' : 's') + ' selected'
-          + (!swingOn ? ' · drag to slide it'
+          + (dragMode === 'move' ? ' · drag to move the whole thing'
+            : dragMode === 'slide' ? (pivotPoint()
+                ? ' · held at ' + pins.length + ' point' + (pins.length === 1 ? '' : 's')
+                  + ' — drag it and they stay put, the lines into them stretch'
+                : ' · touching nothing, so there is nothing to hold — drag just moves it')
             : pivot ? ' · drag to swing it round your pivot'
             : jointAllHeld ? ' · held at every point, so there is nothing to swing'
             : autoJoint ? ' · held at ' + pins.length + ' point' + (pins.length === 1 ? '' : 's')
@@ -1761,16 +1765,19 @@
          * than work it. The angle comes off the RAW pointer, never the snapped
          * one: a cursor rounded to the grid makes the swing jump between
          * whole squares instead of following your hand. */
-        if (pv && swingOn && jointAllHeld) {
-          note('held at every point — drag an end \u25fb to make it longer or shorter', true);
+        if (pv && dragMode === 'swing' && jointAllHeld) {
+          note('held at every point, so there is nothing to swing — SLIDE pushes it'
+            + ' with the joints staying put, or drag an end \u25fb', true);
           return;
         }
-        if (pv && swingOn) {
+        if (pv && dragMode === 'swing') {
           var r0 = rawWorld(ev.clientX, ev.clientY);
           swingFrom = { pv: pv, snapshot: snap0, da: 0, pushed: false, total: 0,
                         aPrev: Math.atan2(r0[1] - pv[1], r0[0] - pv[0]) };
         } else {
-          moveFrom = { w: w, snapshot: snap0, pushed: false };
+          // SLIDE holds the pins; MOVE, and anything with nothing holding it, does not
+          moveFrom = { w: w, snapshot: snap0, pushed: false,
+                       pin: !!(pv && dragMode === 'slide') };
         }
       } else {
         marquee = { a: w, b: w };
@@ -1898,7 +1905,11 @@
       if (!moveFrom.pushed) { pushHistory(); moveFrom.pushed = true; }
       moveFrom.dx = dx; moveFrom.dy = dy;
       sel.forEach(function (i, k) {
-        here().strokes[i].pts = moveFrom.snapshot[k].map(function (p) {
+        here().strokes[i].pts = moveFrom.snapshot[k].map(function (p, pi) {
+          /* HELD MEANS HELD. In SLIDE the pinned points do not move at all, so
+           * the strokes reaching into them come out shorter or longer — the
+           * part travels and stays attached, without being scaled or skewed. */
+          if (moveFrom.pin && pinned(i, pi)) return [p[0], p[1]];
           return [+(p[0] + dx).toFixed(3), +(p[1] + dy).toFixed(3)];
         });
       });
@@ -1932,7 +1943,12 @@
     /* A drag counts as a transform too, so REPEAT can carry on a movement you
      * made by hand rather than only ones made with a button. */
     if (moveFrom && (moveFrom.dx || moveFrom.dy)) {
-      markXform({ kind: 'move', dx: moveFrom.dx, dy: moveFrom.dy });
+      // a slide carries its pins, so REPEAT keeps holding the same places
+      markXform({ kind: 'move', dx: moveFrom.dx, dy: moveFrom.dy,
+                  pins: moveFrom.pin ? pinsCopy() : null });
+      if (moveFrom.pin) {
+        note('slid it — the joints stayed put and the lines into them changed length');
+      }
     }
     /* A swing is the movement REPEAT was built for: swing the arm to where you
      * want it a few frames from now, then REPEAT walks it there one step at a
@@ -3423,24 +3439,57 @@
   /* A working preference, like MIRROR and the grid: about how you handle the
    * tool rather than about any one drawing, so it follows you between tabs and
    * is remembered. */
-  var swingOn = true;
-  try { var svv = localStorage.getItem('voidspire.artist.swing');
-        if (svv !== null) swingOn = svv === '1'; } catch (e) {}
+  /* ==================================================================
+   * WHAT A DRAG DOES: SWING, SLIDE OR MOVE
+   * ==================================================================
+   * Two of these hold the joints and one does not, and the difference is the
+   * whole point:
+   *
+   *   SWING  turns the part about the places it is held. An arm on a shoulder.
+   *   SLIDE  pushes it while those places STAY PUT, so the lines running into
+   *          them get shorter or longer. A cannon riding up and down on its
+   *          mount — "not compress or distort, just shorten the lines where
+   *          the anchor points are", which is what was asked for and which
+   *          neither of the other two does.
+   *   MOVE   takes the whole thing, joints and all, somewhere else. For
+   *          repositioning a part rather than working it.
+   *
+   * SLIDE is SWING's arithmetic with a translation instead of a rotation: the
+   * pinned points do not move, everything else does, and the strokes that
+   * bridge between them change length. It falls out of the pin machinery for
+   * nothing, which is why it is a mode rather than a new tool.
+   * ================================================================== */
+  var DRAG_MODES = ['swing', 'slide', 'move'];
+  var dragMode = 'swing';
+  try {
+    var svv = localStorage.getItem('voidspire.artist.drag');
+    if (svv && DRAG_MODES.indexOf(svv) >= 0) dragMode = svv;
+    else {
+      // the old two-state setting, so nobody's preference is thrown away
+      var old2 = localStorage.getItem('voidspire.artist.swing');
+      if (old2 === '0') dragMode = 'move';
+    }
+  } catch (e) {}
   function syncSwingBtn() {
     var el = document.getElementById('tSwing');
-    var have = !!pivotPoint() && !jointAllHeld;
-    el.textContent = swingOn ? (have ? 'SWING' : 'SWING —') : 'MOVE';
-    el.classList.toggle('on', swingOn && have);
-    el.title = !swingOn ? 'Dragging slides the selection. Press for SWING.'
-      : have ? 'Dragging turns it about the joint. Press for MOVE.'
-      : 'Nothing this selection touches, so there is nothing holding it —'
-        + ' dragging slides it. Select a part that meets the rest of the drawing.';
+    var have = !!pivotPoint();
+    var free = have && !jointAllHeld;
+    el.textContent = dragMode === 'swing' ? (free ? 'SWING' : 'SWING —')
+      : dragMode === 'slide' ? (have ? 'SLIDE' : 'SLIDE —') : 'MOVE';
+    el.classList.toggle('on', (dragMode === 'swing' && free) || (dragMode === 'slide' && have));
+    el.title = dragMode === 'swing'
+        ? 'Dragging turns it about the places it is held. Press for SLIDE.'
+      : dragMode === 'slide'
+        ? 'Dragging pushes it while those places stay put, so the lines into'
+          + ' them get shorter or longer. Press for MOVE.'
+        : 'Dragging takes the whole thing, joints and all. Press for SWING.';
   }
   document.getElementById('tSwing').onclick = function () {
-    swingOn = !swingOn;
-    try { localStorage.setItem('voidspire.artist.swing', swingOn ? '1' : '0'); } catch (e) {}
-    note(swingOn ? 'drag the selection to swing it round its joint'
-                 : 'drag the selection to slide it');
+    dragMode = DRAG_MODES[(DRAG_MODES.indexOf(dragMode) + 1) % DRAG_MODES.length];
+    try { localStorage.setItem('voidspire.artist.drag', dragMode); } catch (e) {}
+    note(dragMode === 'swing' ? 'drag the selection to swing it round its joints'
+      : dragMode === 'slide' ? 'drag it and the joints stay put — the lines into them stretch'
+      : 'drag the selection to move the whole thing, joints and all');
     syncSwingBtn(); drawPad();
   };
   document.getElementById('tPivot').onclick = function () {
@@ -3498,6 +3547,13 @@
     if (h) h.textContent = s;
   }
   function resetRepHint() { setRepHint('frames, each one step further'); }
+  /* The pins as they stand, frozen. The live set is rebuilt on every change of
+   * selection and REPEAT may run long after. */
+  function pinsCopy() {
+    var keep = {}, any = false;
+    for (var kk in pinSet) if (pinSet.hasOwnProperty(kk)) { keep[kk] = 1; any = true; }
+    return any ? keep : null;
+  }
   function markXform(x) {
     // a swing brings its own joint; anything else takes whatever is in force
     var own = x.px != null;
@@ -3516,11 +3572,7 @@
     if (x.rigid == null) x.rigid = (x.kind !== 'move') && (own || rigidNow());
     /* Which points were held while this was made. Copied, because the live set
      * is rebuilt on every change of selection and REPEAT may run long after. */
-    if (x.pins == null && x.kind !== 'move' && x.kind !== 'stretch' && !pivot) {
-      var keep = {}, any = false;
-      for (var kk in pinSet) if (pinSet.hasOwnProperty(kk)) { keep[kk] = 1; any = true; }
-      x.pins = any ? keep : null;
-    }
+    if (x.pins === undefined && x.kind !== 'stretch' && !pivot) x.pins = pinsCopy();
     lastXform = x;
     setRepHint(x.kind === 'move' ? 'frames, each moved further'
       : x.kind === 'rot' ? 'frames, each turned further'
@@ -3587,7 +3639,7 @@
      * than a frame that was never made: the limb simply disappears part way
      * through the animation, and you have N frames to undo to find out why. */
     var made = [], seen = [JSON.stringify(doc.frames[fi].cells[li].strokes)];
-    var same = 0, flattened = 0;
+    var same = 0, flattened = 0, ranOut = 0;
     for (var k = 1; k <= n; k++) {
       var fr = clone(doc.frames[fi]);
       var strokes = fr.cells[li].strokes;
@@ -3639,12 +3691,31 @@
         L.pts = lastXform.rigid
           ? raw.map(function (q) { return [+q[0].toFixed(3), +q[1].toFixed(3)]; })
           : settle(raw);
-        if (L.pts.length < 2 && was > 1) flattened++;
+        if (L.pts.length < 2 && was > 1) {
+          /* TWO DIFFERENT FAILURES, and they need different answers. If the RAW
+           * geometry already collapsed, the stroke has genuinely run out of
+           * length — a mount being slid into its own mounting point — and a
+           * finer grid would not save it, so saying "take a finer grid" would
+           * send you off to fix the wrong thing. Only when the raw is still a
+           * line and the SETTLED one is not is it the grid's doing. */
+          if (settle(raw).length < 2 && raw.length > 1) {
+            var span = 0;
+            for (var rq = 1; rq < raw.length; rq++) {
+              span = Math.max(span, Math.hypot(raw[rq][0] - raw[0][0], raw[rq][1] - raw[0][1]));
+            }
+            if (span < 1e-4) ranOut++; else flattened++;
+          } else flattened++;
+        }
       });
       var sig = JSON.stringify(strokes);
       if (sig === seen[seen.length - 1]) same++;
       seen.push(sig);
       made.push(fr);
+    }
+    if (ranOut) {
+      return note('the moving part runs out of length before the end — a stroke would'
+        + ' shrink to nothing in ' + ranOut + ' of the ' + n + ' frames.'
+        + ' Take a smaller step, or fewer frames.', true);
     }
     if (flattened) {
       return note('grid ' + gridStep + ' is too coarse for that — the moving part would'
@@ -5424,7 +5495,7 @@
     }
     location.reload();
   };
-  document.getElementById('ver').textContent = 'build 44';
+  document.getElementById('ver').textContent = 'build 45';
 
   paintThumbs();
   applyView(viewMode);
