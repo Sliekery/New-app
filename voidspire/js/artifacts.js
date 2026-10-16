@@ -209,7 +209,9 @@
       desc: 'Your BURSTs walk 2 faces further.',
       art: { p: [[-0.24,-0.7, -0.24,0.4], [0.24,-0.7, 0.24,0.4], [-0.24,0.4, -0.16,0.66, 0.16,0.66, 0.24,0.4], [-0.4,-0.7, -0.08,-0.7], [0.08,-0.7, 0.4,-0.7], [-0.66,-0.1, -0.4,-0.1], [0.66,-0.1, 0.4,-0.1]], e: [[0,0.66],[-0.72,-0.1],[0.72,-0.1]] } },
     deadeye_reticle: { name: 'Deadeye Reticle', tier: 2, cls: 'vanguard',
-      hooks: [{ k: 'rollAdv', v: 1 }, { k: 'maxHpPct', v: 0.15 }],
+      // NEGATIVE, because it is a cost. The engine honours the sign now; this
+      // read +0.15 while being applied as a 15% bill.
+      hooks: [{ k: 'rollAdv', v: 1 }, { k: 'maxHpPct', v: -0.15 }],
       desc: 'Roll twice and take the higher — paid for out of your Max HP.',
       art: { p: [[0,-0.86, 0,-0.4], [0,0.86, 0,0.4], [-0.86,0, -0.4,0], [0.86,0, 0.4,0], [-0.4,-0.4, 0.4,-0.4, 0.4,0.4, -0.4,0.4, -0.4,-0.4], [-0.16,-0.16, 0.16,-0.16, 0.16,0.16, -0.16,0.16, -0.16,-0.16], [-0.56,-0.56, -0.4,-0.4], [0.56,0.56, 0.4,0.4]], e: [[0,0]] } },
 

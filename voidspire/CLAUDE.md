@@ -69,6 +69,88 @@ Load-bearing findings so far:
 - Canvas silently drops any path containing NaN, so bad art data is invisible
   rather than loud.
 
+## The die invariant, and the three ways it was wrong at once
+
+One crash — a `TypeError` reading `faces[slot.root].id` in an event payout,
+about **one vanguard run in two thousand** — turned out to be three separate
+failures stacked, and each one deserves its own note because each is a shape
+that recurs.
+
+**1. The repair did not repair.** `dieRepair()` is the single place the
+invariant is restored, and it did ONE sweep. But the sweep both deletes
+orphans and promotes seams from underneath them, so it invalidates its own
+earlier decisions as it goes: delete face 6, and a seam at 7 pointing to 6 is
+stranded — behind the cursor, or restored a moment later from a seam map that
+was validated against a die which no longer exists. It returned a non-zero fix
+count over a die that still had a dangling root. **Broken, and reported
+sound.** It now sweeps until a pass changes nothing.
+
+**2. Nobody called it on the path that broke things.** `instabilityCommit`
+scrubs several faces in a row during the cull. Each scrub promotes seams back
+to primary, and a promoted seam can point at a root the NEXT scrub removes. It
+pruned welds and stopped there. Measured: **26 broken dies in 200 runs.**
+
+**3. The probe that was supposed to find this reported the opposite.**
+`sim.js` ends its module body with `if (require.main !== module) return`, so a
+diagnostic that did `require('./sim.js')` and then printed its tally **played
+zero runs** and announced "no verb left a dangling root" with total
+confidence. It read exactly like a clean result. The tell was a call counter
+reading 0, which is why `dieinvariant.js` now prints how many engine calls it
+checked and **fails outright if that number is zero**. A probe that cannot say
+how much it looked at cannot be believed when it says it found nothing.
+
+## The sim's own numbers need auditing too
+
+Two of the figures in the difficulty profile were not measuring what their
+labels said, and both would have caused real damage if acted on.
+
+**Units.** `sector-1 lowest HP … % finish ~unscathed [aim ~25-40%]` read **1%**
+against a target of 25-40 and looked like a catastrophe. The target is a
+per-FIGHT genre figure — what share of hallway fights cost a competent player
+nothing. The code measured per-RUN: did you cross the WHOLE of sector 1 without
+ever dropping below 97%. Nobody does that in any deckbuilder. Measured properly,
+**35% of sector-1 hallway fights cost nothing — dead centre of the target.**
+Sector 1 was never the problem. Nerfing it to chase that 1% would have been
+damage done for no reason. Both numbers are still printed; only the per-fight
+one carries the target, and the per-run one is explicitly labelled as having
+none.
+
+**The bot's own mistakes arrive as the game's.** The bot dodged `elite` nodes
+at low HP and walked into `beacon` nodes, which run `startCombat('beacon')` on
+the **elite** HP curve — only the name is gentle. Those walk-ins were 13% of
+every sector-1 death. A competent player does not take that fight on fumes, so
+that slice of the death rate was the bot's, not the game's.
+
+## What the Vanguard's numbers actually say (2000 runs, Oct 2026)
+
+    sector-1 death rate        17%        [<= ~15%]   modest, stable miss
+    hallway fight cost         35% free   [25-40%]    on target
+    median sector reached      4          [~3-4]      fine
+    reached the finale         52-55%     [40-55%]    top of band
+    deaths at elites/bosses    72-77%     [>= ~55%]   fine
+    win rate                   ~33%
+
+Two things were looked at and deliberately NOT changed:
+
+- **The 2-point sector-1 death miss.** The target has a tilde, the curve's
+  shape is right (only 7% of sector-1 deaths are in hallways — spikes kill
+  you, as intended), and a 2-point delta is at the edge of what this
+  instrument resolves. Nerfing on that basis is guessing.
+- **THE SET SHIELD looks ~5 points stronger than the other two openers**
+  (36.7% vs 31.2% / 31.8% over eight runs of 500; highest in seven of eight).
+  The direction is real; the cause is not established. LONG SHOT and RED DEBT
+  both steer a BUILD around where the die is cut, and the bot drafts greedily
+  rather than to a plan — so the mark that needs the least piloting winning by
+  five points is exactly what a crude pilot would produce whether or not the
+  marks are balanced. **That is the bot-plays-it-badly / mechanic-is-bad
+  distinction, and it is not separable from the sim alone.** Worth a human
+  playing all three before anyone touches a number.
+
+A content sweep found nothing to act on either: the build-defining cards all
+sit in a +0.38 to +0.73 band and their ORDERING shuffles between samples, so
+the spread within one card across samples is as large as the spread between
+cards.
+
 ## Setting up a situation instead of playing to one
 
 `index.html?dev=1` opens a console (`js/dev.js`) that names the enemies for a
@@ -85,6 +167,9 @@ The hooks are always present; only the panel is behind the flag.
 ## The test suites, and what each one is for
 
     node test/mechanics.js     rules that must hold
+    node test/dieinvariant.js  real runs: no verb may leave a dangling root
+    node test/refs.js          every id the content names actually exists
+    node test/hooks.js         every hook a relic pays out has a reader
     node test/combatfit.js     48 combat layout invariants
     node test/uifit.js         61 screen layout invariants
     node test/devconsole.js    the dev console sets up REAL situations

@@ -467,6 +467,55 @@ ok('a forged engraving survives the registry being dropped (the load path)', (fu
     d.faces[9] = { id: 'heat_sink', root: 17 };       // deliberately dangling
     try { E.faceCandidates(); return true; } catch (e) { return false; }
   })());
+
+  /* THE REPAIR MUST FINISH THE JOB, and for a long time it did not.
+   * One sweep both deletes orphans and restores seams underneath them, so it
+   * invalidates its own earlier decisions: deleting 6 strands a seam at 7 that
+   * points to 6, and 7 is already behind the cursor. The old code returned a
+   * non-zero fix count over a die that still had a dangling root — broken, and
+   * reported sound. It killed about one run in two thousand, through an event
+   * that paid out by reading faces[slot.root].id. */
+  (function () {
+    d = E.run.die;
+    d.faces = {}; d.seams = {}; d.welds = [];
+    d.faces[6] = { id: 'heat_sink', root: 5 };        // orphan: 5 is gone
+    d.faces[7] = { id: 'overcharge_cell', root: 9 };  // orphan: 9 is gone
+    d.seams[7] = { id: 'heat_sink', root: 6 };        // …and its seam points at 6
+    var fixed = E.dieRepair();
+    ok('a repair that strands a seam under itself keeps going', fixed > 0);
+    ok('and leaves NO dangling root behind', E.dieDangling().length === 0,
+      JSON.stringify(E.dieDangling()));
+  })();
+
+  /* A chain long enough to need several passes, to prove the loop is a loop
+   * and not two sweeps that happened to cover the one case above. */
+  (function () {
+    d = E.run.die;
+    d.faces = {}; d.seams = {}; d.welds = [];
+    for (var f = 2; f <= 12; f++) {
+      d.faces[f] = { id: 'heat_sink', root: f - 1 };  // each points at the one below
+      d.seams[f] = { id: 'heat_sink', root: f - 1 };
+    }
+    E.dieRepair();
+    ok('a chain of orphans unwinds all the way down',
+      E.dieDangling().length === 0, JSON.stringify(E.dieDangling()));
+  })();
+
+  /* A MAX-HP HOOK MEANS WHAT ITS SIGN SAYS. The engine used to Math.abs() it
+   * and always subtract, which was right for both relics that use it and a
+   * trap for the next one: a +15% bonus written the obvious way billed 15%
+   * instead, description still promising a gain. */
+  (function () {
+    function take(id) { E.newRun('vanguard'); var b = E.run.maxHp; E.addArtifact(id); return [b, E.run.maxHp]; }
+    var dr = take('deadeye_reticle'), ro = take('reckless_overdrive');
+    ok('Deadeye Reticle still bills 15% of Max HP', dr[1] === Math.round(dr[0] * 0.85), dr.join(' -> '));
+    ok('Reckless Overdrive still bills 12%', ro[1] === Math.round(ro[0] * 0.88), ro.join(' -> '));
+    VS.ARTIFACTS._signprobe = { name: 'Sign Probe', tier: 1, hooks: [{ k: 'maxHpPct', v: 0.15 }], desc: '+15% Max HP' };
+    var up = take('_signprobe');
+    delete VS.ARTIFACTS._signprobe;
+    ok('and a POSITIVE max-HP hook grants instead of billing',
+      up[1] === Math.round(up[0] * 1.15), up.join(' -> '));
+  })();
 })();
 
 /* 27. the fusion pot reads what went into it */

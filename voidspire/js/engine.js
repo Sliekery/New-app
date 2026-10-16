@@ -769,8 +769,15 @@
     if (!u || u.stage !== 'cull') return 'nothing to commit';
     if (u.chosen.length < u.required) return 'the die needs ' + u.required + ' of them';
     var tier = bidTier(u.chosen.length, u.required);
+    /* THE CULL IS THE PLACE THE DIE BREAKS. Each scrub lifts a whole band and
+     * promotes any seam underneath it back to primary — and a promoted seam
+     * can point at a root that the NEXT scrub in this same loop takes away.
+     * Pruning welds was not enough: measured over 200 runs this left a
+     * dangling root 26 times, and an event that later read faces[slot.root].id
+     * through one of them killed the run outright. */
     u.chosen.forEach(function (f) { ns.dieScrub(r.die, f); });
     ns.dieWeldPrune(r.die);
+    dieRepair();
     var pool = ns.permanentPool(tier);
     shuffle(pool);
     u.offer = pool.slice(0, 3);
@@ -4060,10 +4067,17 @@
     if (a.special === 'glassCannon') { var lose = Math.round(r.maxHp * 0.25); r.maxHp -= lose; r.hp = Math.min(r.hp, r.maxHp); }
     // Pact relics (absorbed from the old augment 'pact' kind) bill Max HP once,
     // when taken — not every time art() is read.
+    /* THE SIGN MEANS WHAT IT SAYS. This used to read Math.abs(h.v) and always
+     * subtract, which happened to be right for both relics that use the hook —
+     * one writes -0.12 and the other wrote +0.15, and both are costs. But a
+     * number whose sign is thrown away is a trap set for the next relic: write
+     * a +15% Max HP bonus in the obvious way and it silently bills you 15%
+     * instead, with the description still promising a gain. Deadeye Reticle's
+     * value is now -0.15, which is what it always meant. */
     (a.hooks || []).forEach(function (h) {
       if (h.k !== 'maxHpPct') return;
-      var cut = Math.round(r.maxHp * Math.abs(h.v));
-      r.maxHp = Math.max(1, r.maxHp - cut); r.hp = Math.min(r.hp, r.maxHp);
+      var delta = Math.round(r.maxHp * h.v);
+      r.maxHp = Math.max(1, r.maxHp + delta); r.hp = Math.min(r.hp, r.maxHp);
     });
     // slot it into the die straight away if the core has room; otherwise it waits
     // in the vault and the player chooses what to swap out.
@@ -4600,10 +4614,26 @@
    * one — and every reader that does faces[slot.root].id then throws. Rather
    * than guard eighteen call sites, the shape is repaired in one place after
    * anything mutates it. */
-  function dieRepair() {
-    var d = E.run && E.run.die;
-    if (!d || !d.faces) return 0;
-    d.seams = d.seams || {};
+  /* ONE SWEEP IS NOT ENOUGH, and for a long time this function did one.
+   *
+   * The sweep both DELETES orphans and RESTORES seams underneath them, so it
+   * invalidates its own earlier decisions as it goes. Deleting face 6 strands
+   * a seam at 7 that points to 6 — and 7 is a face the loop has already
+   * considered, or restores a moment later from a seam map validated against
+   * a die that no longer exists. The result was a shape that still had a
+   * dangling root AND a non-zero "I fixed things" count, which is the worst of
+   * both: broken, and reported sound.
+   *
+   * That is not a hypothetical. It reached a live run: an event rolled a face
+   * that read as cut, THE HONEST GAMBLER paid out through faces[slot.root].id,
+   * and the run died with a TypeError — about one run in two thousand, which
+   * is both rare enough to survive every suite and common enough to hit real
+   * players.
+   *
+   * So sweep until a pass changes nothing. Each pass removes at least one face
+   * or one seam, and there are twenty of one and at most twenty of the other,
+   * so it cannot run away — but the bound is explicit rather than trusted. */
+  function dieRepairPass(d) {
     var fixed = 0, f;
     // A SEAM'S ROOT IS ALWAYS PRIMARY — that is the whole reason seams are a
     // second map instead of a list, so it gets checked before anything else.
@@ -4620,10 +4650,32 @@
       // a passenger with no driver simply becomes the driver
       if (!d.faces[f] && d.seams[f]) { d.faces[f] = d.seams[f]; delete d.seams[f]; fixed++; }
     }
+    return fixed;
+  }
+
+  function dieRepair() {
+    var d = E.run && E.run.die;
+    if (!d || !d.faces) return 0;
+    d.seams = d.seams || {};
+    var fixed = 0, pass = 0, n;
+    do { n = dieRepairPass(d); fixed += n; } while (n && ++pass < 41);
     fixed += ns.dieWeldPrune(d);
     return fixed;
   }
   E.dieRepair = dieRepair;
+
+  /* What the invariant IS, so a test can ask rather than restate it — and so
+   * the readers that reach through a root have something to assert against. */
+  E.dieDangling = function (die) {
+    var d = die || (E.run && E.run.die), bad = [];
+    if (!d || !d.faces) return bad;
+    for (var f = 1; f <= 20; f++) {
+      var s = d.faces[f];
+      if (s && !d.faces[s.root]) bad.push(f);
+    }
+    for (var g in (d.seams || {})) if (!d.faces[d.seams[g].root]) bad.push('seam:' + g);
+    return bad;
+  };
 
   // The three rewrites of the engraving on `face`, on this die's own table.
   E.reforgeOptionsAt = function (face) {
@@ -5031,6 +5083,12 @@
   function applyDieFx(fx, gained) {
     var r = E.run, d = r.die;
     if (!d) return;
+    /* This is the one function that both READS through roots (seamCopy,
+     * fireFace, scarSpread) and writes to them, and it is reached from events,
+     * which is where the dangling-root crash actually landed. Repairing on the
+     * way in costs a loop over twenty faces and means no event has to trust
+     * that whatever last touched the die remembered to tidy up. */
+    dieRepair();
 
     function need(mode, n, meta) {
       r.pendingFace = Object.assign({ mode: mode, n: n || 1, picked: [] }, meta || {});

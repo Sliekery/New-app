@@ -264,15 +264,32 @@ function botBench() {
  * drawPerTurn x turns against deck size — which is the figure that decides
  * whether deckbuilding is a real activity. */
 var TURNS = [], TURNS_BY = { fight: [], elite: [], boss: [], beacon: [] }, SEEN = [];
+
+/* WHAT ONE FIGHT COSTS, which is not what one ACT costs.
+ *
+ * The "unscathed" target is a per-FIGHT figure borrowed from the genre: a
+ * competent player walks out of a good share of hallway fights having taken
+ * nothing. The run-level counter next to it asks something entirely different
+ * — did you get through ALL of sector 1 without ever dropping below 97% — and
+ * nobody does that in any deckbuilder, so it read 1% against a target of
+ * 25-40% and looked like a catastrophe. It was a units mismatch, and tuning
+ * sector 1 down to chase it would have been damage done for no reason.
+ *
+ * So measure the fight. Lowest HP DURING it against HP going in, because a
+ * fight that takes you to 20% and heals you back is not one you walked. */
+var S1FIGHT_COST = [];
 function botCombat() {
   var E = VS.engine;
   var guard = 0;
   var maxTurn = 0;
+  var fightStartHp = E.run ? E.run.hp : 0;
+  var fightLowHp = fightStartHp;
   botManageDie();
   botPlaceEngravings();
   while (E.run.phase === 'combat' && guard++ < 400) {
     var c = E.combat;
     if (c) maxTurn = Math.max(maxTurn, c.turn || 0);
+    if (E.run) fightLowHp = Math.min(fightLowHp, E.run.hp);
     if (c.over || aliveIdx().length === 0) break;
     var playable = [];
     for (var i = 0; i < c.hand.length; i++) if (E.canPlay(i)) playable.push(i);
@@ -383,6 +400,11 @@ function botCombat() {
   TURNS.push(maxTurn);
   var _k = (VS.engine.run && VS.engine.run.nodeType) || 'fight';
   if (TURNS_BY[_k]) TURNS_BY[_k].push(maxTurn);
+  if (VS.engine.run && VS.engine.run.sector === 1 && _k === 'fight'
+      && (VS.engine.run.loop || 1) === 1 && fightStartHp > 0) {
+    fightLowHp = Math.min(fightLowHp, VS.engine.run.hp);
+    S1FIGHT_COST.push(Math.max(0, fightStartHp - fightLowHp) / VS.engine.run.maxHp);
+  }
   // how much of the deck this fight actually showed you
   var _d = VS.engine.run && VS.engine.run.deck ? VS.engine.run.deck.length : 0;
   if (_d > 0) SEEN.push(Math.min(3, (maxTurn * VS.BALANCE.player.drawPerTurn) / _d));
@@ -684,7 +706,15 @@ function step() {
       var node = null;
       if (hurt) node = find('rest');               // heal up when low
       if (!node) node = find('treasure');          // free relics are great
-      if (!node && hurt) node = reach.filter(function (n) { return n.type !== 'elite'; })[0]; // dodge elites when low
+      /* DODGE THE SPIKES WHEN LOW — and a beacon is a spike. It is started
+       * through startCombat('beacon') and scales on the ELITE hp curve (2.4,
+       * same as an elite); only the name is gentle. The bot read the name and
+       * walked in at low HP, and those walk-ins were 13% of every sector-1
+       * death — a competent player does not take that fight on fumes, so the
+       * death rate it produced was the bot's, not the game's. */
+      if (!node && hurt) node = reach.filter(function (n) {
+        return n.type !== 'elite' && n.type !== 'beacon';
+      })[0];
       if (!node) node = find('shop') || find('event');
       if (!node) node = reach[Math.floor(rand() * reach.length)];
       E.enterNode(node);
@@ -1196,13 +1226,22 @@ var s1unscathed = s1mins.filter(function (f) { return f >= 0.97; }).length;   //
 var s1chip = s1mins.filter(function (f) { return f >= 0.80; }).length;        // never below 80%
 console.log('\n--- difficulty profile (StS targets in brackets) ---');
 console.log('sector-1 death rate: ' + Math.round(100 * s1Deaths / RUNS) + '%   [<= ~15%]');
-console.log('sector-1 lowest HP (avg): ' + Math.round(100 * s1avg) + '%   |  ' +
-  Math.round(100 * s1unscathed / Math.max(1, s1mins.length)) + '% finish ~unscathed (>=97%), ' +
-  Math.round(100 * s1chip / Math.max(1, s1mins.length)) + '% never drop below 80%   [aim ~25-40% unscathed]');
+/* PER FIGHT — the figure the genre target is actually about. */
+var fcAvg = S1FIGHT_COST.reduce(function (a, b) { return a + b; }, 0) / Math.max(1, S1FIGHT_COST.length);
+var fcClean = S1FIGHT_COST.filter(function (v) { return v < 0.03; }).length;
+var fcCheap = S1FIGHT_COST.filter(function (v) { return v < 0.10; }).length;
+console.log('sector-1 HALLWAY fight cost (avg): ' + Math.round(100 * fcAvg) + '% of max HP   |  ' +
+  Math.round(100 * fcClean / Math.max(1, S1FIGHT_COST.length)) + '% cost ~nothing (<3%), ' +
+  Math.round(100 * fcCheap / Math.max(1, S1FIGHT_COST.length)) + '% cost under 10%'
+  + '   [aim ~25-40% unscathed]   (n=' + S1FIGHT_COST.length + ' fights)');
+/* PER RUN — the same thing asked across the whole act. No deckbuilder has a
+ * quarter of its runs cross a whole act untouched, so this one carries NO
+ * target; it is here as a curve-shape reading, not a thing to hit. */
+console.log('sector-1 lowest HP across the WHOLE act (avg): ' + Math.round(100 * s1avg) + '%   |  ' +
+  Math.round(100 * s1unscathed / Math.max(1, s1mins.length)) + '% of runs never dip below 97%, ' +
+  Math.round(100 * s1chip / Math.max(1, s1mins.length)) + '% never below 80%   [no target — per-run, not per-fight]');
 var fAvg = s1fights.reduce(function (a, b) { return a + b; }, 0) / Math.max(1, s1fights.length);
-var fClean = s1fights.filter(function (f) { return f >= 0.97; }).length;
-console.log('sector-1 HALLWAY fights lowest HP (avg): ' + Math.round(100 * fAvg) + '%   |  ' +
-  Math.round(100 * fClean / Math.max(1, s1fights.length)) + '% take ~no damage in hallways');
+console.log('   …counting hallway fights only: ' + Math.round(100 * fAvg) + '%');
 console.log('median sector reached: ' + median + '   [~3-4]');
 console.log('reached the finale: ' + Math.round(100 * reachFinale / RUNS) + '%   [~40-55%]');
 if (totalDeaths) console.log('deaths at elites/bosses: ' + Math.round(100 * spikeDeaths / totalDeaths) + '%   [>= ~55%]');

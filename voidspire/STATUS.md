@@ -7,6 +7,32 @@ frozen play links).
 
 Branch: `claude/sci-fi-roguelike-cards-ycwlxz` · latest checkpoint: **v2.3-recurrence**.
 
+## RESOLVED: the die-shape crash, and two lying metrics (Oct 2026)
+**A run in two thousand died outright.** `instabilityCommit` scrubs several
+faces during the cull; each scrub promotes seams back to primary and a promoted
+seam can point at a root the next scrub removes. It never called `dieRepair()`
+— and `dieRepair()` did one sweep, which could strand a seam under itself and
+still report a fix count, so even where it ran it did not always finish. Both
+fixed; `dieRepair` now sweeps to a fixed point. `test/dieinvariant.js` plays
+real runs and fails if any engine verb leaves a dangling root (400 runs / 63M
+calls clean). The probe that first looked for this reported a false all-clear
+because `sim.js` returns early unless it is the entry point, so requiring it
+plays nothing — the suite now fails if its call counter is zero.
+
+Also: `maxHpPct` was read through `Math.abs()` and always subtracted, so a
+positive value silently billed instead of granting (both live relics were
+costs, so nothing was wrong in play — it was a trap for the next one). Two new
+audits: `test/refs.js` (163 content ids all resolve) and `test/hooks.js` (114
+relic/echo hooks all have a reader).
+
+**Balance:** the Vanguard profile is in range except a stable 2-point miss on
+the sector-1 death rate, deliberately left alone. The "1% finish sector 1
+unscathed vs aim 25-40%" alarm was a units bug — per-run measured against a
+per-fight target; measured per fight it is **35%, on target**. See CLAUDE.md
+"What the Vanguard's numbers actually say" for the one open question (THE SET
+SHIELD reads ~5 points ahead of the other two openers, cause unestablished —
+wants a human to play all three).
+
 ## RESOLVED: The Recurrence (NG+ loop) + Void Echoes (v2.3-recurrence)
 Beating THE UNMAKER now offers **ENTER THE RECURRENCE**: a 3-slide narrative
 screen → draft 1 of 3 **Void Echoes** → **equip up to `BALANCE.echoes.loadoutSlots`
