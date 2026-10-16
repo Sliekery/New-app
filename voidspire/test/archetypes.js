@@ -28,6 +28,12 @@ var GROUPS = {
   STRENGTH: { s: ['str', 'strPerTurn'], sp: [] },
 };
 
+/* THE BAND the card declares for itself. Since the marks name a region of the
+ * die and the cards are tagged to match, this is the grouping that matters —
+ * the keyword groups below stay because they say WHAT a card does, while the
+ * band says WHICH PLAN it belongs to. */
+function bandOf(def) { return def.band || null; }
+
 function groupsOf(def) {
   var hit = {};
   function scan(fx) {
@@ -60,7 +66,7 @@ pool.forEach(function (i) { CARD_GROUPS[i] = groupsOf(VS.CARDS[i]); });
  * archetype could be the bot's fault — unless the cards were never on the
  * table to begin with. Every reward screen is counted on its way past, which
  * is the ceiling a PERFECT drafter would be playing against. */
-var offered = {}, offerScreens = 0, offerCards = 0;
+var offered = {}, offerScreens = 0, offerCards = 0, bandOffered = {};
 (function () {
   var orig = sim.E.finishReward;
   sim.E.finishReward = function () {
@@ -70,6 +76,8 @@ var offered = {}, offerScreens = 0, offerCards = 0;
       rw.cards.forEach(function (cid) {
         offerCards++;
         (CARD_GROUPS[cid] || []).forEach(function (g) { offered[g] = (offered[g] || 0) + 1; });
+        var bb = VS.CARDS[cid] && VS.CARDS[cid].band;
+        if (bb) bandOffered[bb] = (bandOffered[bb] || 0) + 1;
       });
     }
     return orig.apply(this, arguments);
@@ -77,6 +85,10 @@ var offered = {}, offerScreens = 0, offerCards = 0;
 })();
 
 var RUNS = parseInt(process.argv[2] || '300', 10);
+var BANDS = { high: 'THE LONG SHOT', low: 'THE RED DEBT', mid: 'THE SET SHIELD' };
+var MARK_BAND = { the_long_shot: 'high', the_red_debt: 'low', the_set_shield: 'mid' };
+var bandTally = { high: { drafted: [], decks8: 0 }, low: { drafted: [], decks8: 0 }, mid: { drafted: [], decks8: 0 } };
+var ownBand = [], own8 = 0;
 var tally = {}, deckSizes = [], bestShare = [], payload = [];
 Object.keys(GROUPS).forEach(function (g) { tally[g] = { inPool: 0, drafted: [], decks3: 0, decks5: 0 }; });
 pool.forEach(function (i) { CARD_GROUPS[i].forEach(function (g) { tally[g].inPool++; }); });
@@ -96,6 +108,18 @@ for (var n = 0; n < RUNS; n++) {
   });
   deckSizes.push(deck.length);
   payload.push(classCards);
+  var bandCount = { high: 0, low: 0, mid: 0 };
+  deck.forEach(function (c) {
+    var b = VS.CARDS[c.id] && VS.CARDS[c.id].band;
+    if (b && bandCount[b] != null) bandCount[b]++;
+  });
+  Object.keys(bandCount).forEach(function (b) {
+    bandTally[b].drafted.push(bandCount[b]);
+    if (bandCount[b] >= 8) bandTally[b].decks8++;
+  });
+  var mine = MARK_BAND[sim.E.run.firstMark];
+  if (mine) { ownBand.push(bandCount[mine]); if (bandCount[mine] >= 8) own8++; }
+
   var top = 0, topG = null;
   Object.keys(GROUPS).forEach(function (g) {
     tally[g].drafted.push(counts[g]);
@@ -108,6 +132,7 @@ for (var n = 0; n < RUNS; n++) {
 
 function mean(a) { return a.length ? a.reduce(function (x, y) { return x + y; }, 0) / a.length : 0; }
 var N = bestShare.length;
+var meanOwn = ownBand.length ? ownBand.reduce(function (a, b) { return a + b; }, 0) / ownBand.length : 0;
 
 console.log('\n===== VANGUARD ARCHETYPE COHERENCE — ' + N + ' finished runs =====\n');
 console.log('The class has ' + pool.length + ' cards. A finished deck holds '
@@ -124,6 +149,19 @@ Object.keys(GROUPS).sort(function (a, b) {
     + (Math.round(100 * t.decks3 / N) + '%').padStart(7) + ' reach 3'
     + (Math.round(100 * t.decks5 / N) + '%').padStart(7) + ' reach 5');
 });
+
+/* --- the same question asked of the BANDS, which is what the marks declare - */
+console.log('\n--- BY DIE BAND (what the first mark actually promised) ---');
+console.log('mark                 band cards   offered/run   in deck   >=8 of it');
+Object.keys(BANDS).forEach(function (b) {
+  var t = bandTally[b], inPool = pool.filter(function (i) { return VS.CARDS[i].band === b; }).length;
+  console.log('  ' + BANDS[b].padEnd(18) + String(inPool).padStart(6)
+    + ((bandOffered[b] || 0) / N).toFixed(1).padStart(14)
+    + mean(t.drafted).toFixed(1).padStart(10)
+    + (Math.round(100 * t.decks8 / N) + '%').padStart(11));
+});
+console.log('  on OWN band only  ' + meanOwn.toFixed(1).padStart(24) + ' in deck'
+  + (Math.round(100 * own8 / N) + '%').padStart(5) + ' reach 8');
 
 console.log('\n--- THE CEILING: what a PERFECT drafter was even offered ---');
 console.log(offerScreens + ' reward screens over ' + N + ' runs ('

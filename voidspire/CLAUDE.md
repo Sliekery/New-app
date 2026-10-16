@@ -151,6 +151,78 @@ sit in a +0.38 to +0.73 band and their ORDERING shuffles between samples, so
 the spread within one card across samples is as large as the spread between
 cards.
 
+## The marks declare a plan; now the draft honours it
+
+The complaint was that the archetypes had no identity next to Slay the Spire's.
+Measured, that was right, and the shape of it was specific.
+
+`test/archetypes.js` groups the class's cards by the keyword they really touch
+and asks how much of a finished deck belongs to its own best group. **It was
+5.1 cards out of 18.9 Vanguard-specific ones** — a deck that was 27% a plan and
+73% assorted good cards. Only WALL assembled reliably. And the ceiling column
+(what a PERFECT drafter was even OFFERED) said it was not the bot's fault.
+
+The cause was not a shortage of ideas. **The die is the only thing here that is
+not in Slay the Spire, and 80% of the Vanguard's cards and 93% of the other two
+classes' would work unchanged if you deleted it.** The three FIRST_MARKS already
+make the player declare a region of the die in the first minute — a stronger
+opening statement than StS has — and then nothing downstream knew which one
+they picked.
+
+So: every live Vanguard card carries a `band` (`high` / `low` / `mid`) matching
+the mark that wants it, each mark carries the same `band`, and `rollRewardCard`
+leans toward it at `BALANCE.rewards.markAffinity` (0.55). The lean is rolled
+**per card, not per screen** — an all-on-band screen is a formality, not a
+choice — and applied at the rarity already rolled, so it changes WHICH card you
+are offered and never how good it is. Eleven cards stay neutral on purpose.
+
+Result: **the band you declared goes from 5.1 to 11.8 cards in a finished deck,
+and 71-74% of decks reach eight of it.** The screen-level theme cap had to be
+exempted on your own band, or it threw back the third precision card on exactly
+the screens the lean was meant to pay off.
+
+### Making the plans assemble is what exposed which one is broken
+
+While decks were blended, the three marks read within noise of each other. Once
+each actually assembled, THE LONG SHOT fell twenty-plus points behind:
+
+    THE LONG SHOT  ~20%      THE RED DEBT  ~48%      THE SET SHIELD  ~42%
+
+**Two of the three suspects were the instrument, and both were fixed first.**
+`estCardDamage` had no case for `aimGate` or `spendAim` — Long Shot and
+Killshot, which ARE the precision plan — so the bot scored its own payoff at
+zero. And the bot had no concept of WAITING: Long Shot fired DRY 51% of the
+time (4 damage instead of 18) and Killshot cashed out at an average of 2.4 Aim
+on a card paying 4 a point. With an estimator that can see them and a hold rule
+(`heldCashout`), that became 75% loaded and 4.3 Aim — worth about +7 points,
+and **not enough.** The gap is real.
+
+Three things have been ruled out, which is worth as much as a fix:
+
+- **It is not the cashouts, and not the piloting.** Both measured and corrected
+  above; the gap survived.
+- **It is not purely the missing wall.** The band genuinely had ZERO defensive
+  cards — eighteen of them and not one point of Shield, while MID carried
+  thirteen defensive effects and LOW sustains on `drain`. Enfilade, Defilade
+  and Cold Bore fill that real gap and are tested in `test/precision.js`, but
+  they did not close the distance.
+- **It is not Aim overflowing the d20 ceiling.** This one was wrong in an
+  instructive way: a probe measured THE LONG SHOT clamping 18% of its rolls and
+  wasting a full point of Aim each, against 9% and 0.2 for the other marks, and
+  a whole "overshoot pays as damage" mechanic was built on it. **The Vanguard
+  STEERS** — `dieRead('vanguard').steer` is true, so Aim climbs the die to the
+  highest cut face and is never added to the roll at all. The probe had
+  computed `roll + aim` against a formula this class does not use. The feature
+  was reverted; the test that caught it asserted the mechanic actually fired,
+  and it read zero.
+
+**So why THE LONG SHOT loses is still open.** What is known: it reaches a
+similar depth to the others (2.84 vs 2.97 / 3.13) on a similar HP trace (79%
+vs 82% / 80%) and in no more turns — it is not slower and it is not softer in
+the hallways — and then it dies at the boss far more often. It banks much more
+Aim than the other marks (3.6 vs 1.2-1.4) and steers with it. The next thing to
+measure is what that steering is actually worth against a boss.
+
 ## Setting up a situation instead of playing to one
 
 `index.html?dev=1` opens a console (`js/dev.js`) that names the enemies for a
@@ -167,6 +239,8 @@ The hooks are always present; only the panel is behind the flag.
 ## The test suites, and what each one is for
 
     node test/mechanics.js     rules that must hold
+    node test/archetypes.js    do the Vanguard's plans actually ASSEMBLE?
+    node test/precision.js     the three precision cards, fired on purpose
     node test/dieinvariant.js  real runs: no verb may leave a dangling root
     node test/refs.js          every id the content names actually exists
     node test/hooks.js         every hook a relic pays out has a reader

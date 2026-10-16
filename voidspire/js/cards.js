@@ -166,28 +166,28 @@
       up: { fx: [{ k: 'dmg', v: 6, all: true, scale: 'might' }, { k: 'status', s: 'vuln', v: 2, who: 'allEnemies' }] },
     },
     shield_slam: {
-      name: 'Breach the Wall', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
+      name: 'Breach the Wall', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2, band: 'mid',
       fx: [{ k: 'special', id: 'breachWall' }],
       text: 'Consume all your Bulwark: deal that much damage.',
       up: { cost: 1, fx: [{ k: 'special', id: 'breachWall' }], text: 'Consume all your Bulwark: deal that much damage.' },
     },
     bulwark: {   // heavy block + tempo (Riot Shield = thorns, Bunker Down = engine)
-      name: 'Rampart', cls: 'vanguard', type: 'skill', rarity: 2, cost: 2,
+      name: 'Rampart', cls: 'vanguard', type: 'skill', rarity: 2, cost: 2, band: 'mid',
       fx: [{ k: 'status', s: 'bulwark', v: 14, who: 'self' }, { k: 'draw', v: 1 }],
       up: { fx: [{ k: 'status', s: 'bulwark', v: 19, who: 'self' }, { k: 'draw', v: 1 }] },
     },
     combat_stims: {   // aggressive Might spike at an HP cost (War Cry = safe Str + draw)
-      name: 'Combat Stims', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
+      name: 'Combat Stims', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1, band: 'low',
       fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'stim', v: 5, who: 'self' }],
       up: { fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'stim', v: 7, who: 'self' }] },
     },
     adrenal_surge: {
-      name: 'Adrenal Surge', cls: 'vanguard', type: 'skill', rarity: 2, cost: 0, exhaust: true,
+      name: 'Adrenal Surge', cls: 'vanguard', type: 'skill', rarity: 2, cost: 0, exhaust: true, band: 'low',
       fx: [{ k: 'energy', v: 2 }, { k: 'hploss', v: 2 }],
       up: { fx: [{ k: 'energy', v: 2 }] },
     },
     executioner: {
-      name: 'Ragged Swing', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      name: 'Ragged Swing', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1, band: 'low',
       fx: [{ k: 'special', id: 'wounded', base: 5, v: 1 }, { k: 'special', id: 'drain' }],
       text: 'Deal 5 damage, plus 1 per 10% of Max HP you are missing.',
       up: { fx: [{ k: 'special', id: 'wounded', base: 7, v: 2 }, { k: 'special', id: 'drain' }], text: 'Deal 7 damage, plus 2 per 10% of Max HP you are missing.' },
@@ -335,13 +335,13 @@
 
     /* -- Vanguard: STRENGTH + EXHAUST berserker -- */
     heavy_ordnance: {
-      name: 'Ravening', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
+      name: 'Ravening', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2, band: 'low',
       fx: [{ k: 'special', id: 'stimScale', base: 8, v: 2 }, { k: 'special', id: 'drain' }],
       text: 'Deal 8 damage, plus 2 per Stim.',
       up: { fx: [{ k: 'special', id: 'stimScale', base: 10, v: 3 }, { k: 'special', id: 'drain' }], text: 'Deal 10 damage, plus 3 per Stim.' },
     },
     limit_break: {
-      name: 'Limit Break', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1, exhaust: true,
+      name: 'Limit Break', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1, exhaust: true, band: 'low',
       fx: [{ k: 'special', id: 'limitBreakStim' }],
       text: 'Double your Stim.',
       up: { cost: 0, fx: [{ k: 'special', id: 'limitBreak' }], text: 'Double your Might.' },
@@ -352,12 +352,12 @@
       up: { fx: [{ k: 'dmg', v: 8, all: true, scale: 'might', xcost: true }] },
     },
     iron_resolve: {
-      name: 'Reactive Plating', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      name: 'Reactive Plating', cls: 'vanguard', type: 'power', rarity: 2, cost: 1, band: 'mid',
       fx: [{ k: 'status', s: 'wallThorns', v: 4, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'wallThorns', v: 6, who: 'self' }] },
     },
     reckless_protocol: {   // BUILD-AROUND — bleed for Might (Blood Rage) AND armour up off your Exhausts (Resolve)
-      name: 'The Red Hour', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      name: 'The Red Hour', cls: 'vanguard', type: 'power', rarity: 3, cost: 2, band: 'low',
       fx: [{ k: 'special', id: 'stat', s: 'redHour', v: 4 }],
       text: 'Every misfire grants 4 Stim and 1 Energy.',
       up: { cost: 1, fx: [{ k: 'special', id: 'stat', s: 'redHour', v: 4 }], text: 'Every misfire grants 4 Stim and 1 Energy.' },
@@ -424,18 +424,18 @@
       up: { fx: [{ k: 'status', s: 'str', v: 3, who: 'self' }, { k: 'draw', v: 1 }] },
     },
     cluster_munitions: {   // AoE with bite — strafe the pack and drink back the spillage (Bloodforge sustain)
-      name: 'Reaping Volley', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
+      name: 'Reaping Volley', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1, band: 'low',
       fx: [{ k: 'dmg', v: 5, all: true, scale: 'might' }, { k: 'special', id: 'drain' }],
       up: { fx: [{ k: 'dmg', v: 7, all: true, scale: 'might' }, { k: 'special', id: 'drain' }] },
     },
     bunker_down: {
-      name: 'Bunker Down', cls: 'vanguard', type: 'skill', rarity: 2, cost: 2,
+      name: 'Bunker Down', cls: 'vanguard', type: 'skill', rarity: 2, cost: 2, band: 'mid',
       fx: [{ k: 'status', s: 'bulwark', v: 10, who: 'self' }, { k: 'status', s: 'wallPerTurn', v: 3, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'bulwark', v: 15, who: 'self' }, { k: 'status', s: 'wallPerTurn', v: 4, who: 'self' }] },
     },
     // --- new commons: deepen the layer you draft most (each a distinct niche) ---
     shield_bash: {   // the hybrid: only common that hits AND blocks (tempo + survivability)
-      name: 'Shield Bash', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      name: 'Shield Bash', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1, band: 'mid',
       fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'status', s: 'bulwark', v: 4, who: 'self' }],
       up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'status', s: 'bulwark', v: 7, who: 'self' }] },
     },
@@ -445,30 +445,30 @@
       up: { fx: [{ k: 'dmg', v: 10, scale: 'might' }] },
     },
     suppressing_barrage: {   // defensive suppression — hunker down while you pin the whole pack
-      name: 'Revetment', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
+      name: 'Revetment', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1, band: 'mid',
       fx: [{ k: 'special', id: 'wallFace' }],
       text: 'Gain Bulwark equal to the face you landed on.',
       up: { fx: [{ k: 'special', id: 'wallFace' }, { k: 'status', s: 'bulwark', v: 4, who: 'self' }], text: 'Gain 4 Bulwark, plus the face you landed on.' },
     },
     rallying_shout: {   // Might as defence — forge your stacked Strength into a wall
-      name: 'Spall', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      name: 'Spall', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1, band: 'mid',
       fx: [{ k: 'special', id: 'spall', v: 0.5, cost: 1 }],
       text: 'Deal damage equal to half your Bulwark, and spend it.',
       up: { fx: [{ k: 'special', id: 'spall', v: 0.75, cost: 1 }], text: 'Deal damage equal to three quarters of your Bulwark, and spend it.' },
     },
     // --- new rares: each anchors a different Vanguard build ---
     frenzy: {   // the Strength payoff — multi-hit, every hit rides your MIGHT
-      name: "Butcher's Bill", cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
+      name: "Butcher's Bill", cls: 'vanguard', type: 'attack', rarity: 2, cost: 2, band: 'low',
       fx: [{ k: 'dmg', v: 6, all: true, scale: 'might' }, { k: 'special', id: 'drain' }, { k: 'status', s: 'stim', v: 3, who: 'self' }],
       up: { fx: [{ k: 'dmg', v: 9, all: true, scale: 'might' }, { k: 'special', id: 'drain' }, { k: 'status', s: 'stim', v: 4, who: 'self' }] },
     },
     bloodlust: {   // glass-cannon engine: permanent extra energy bought with HP
-      name: 'Bloodlust', cls: 'vanguard', type: 'power', rarity: 3, cost: 1,
+      name: 'Bloodlust', cls: 'vanguard', type: 'power', rarity: 3, cost: 1, band: 'low',
       fx: [{ k: 'status', s: 'reactor', v: 1, who: 'self' }, { k: 'hploss', v: 4 }],
       up: { fx: [{ k: 'status', s: 'reactor', v: 1, who: 'self' }, { k: 'hploss', v: 3 }] },
     },
     riposte_protocol: {   // turtle-and-punish engine: block becomes offense
-      name: 'The Redoubt', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      name: 'The Redoubt', cls: 'vanguard', type: 'power', rarity: 3, cost: 2, band: 'mid',
       fx: [{ k: 'special', id: 'stat', s: 'redoubt', v: 1 }],
       text: 'End of turn: gain Bulwark equal to the highest face you reached.',
       up: { cost: 1, fx: [{ k: 'special', id: 'stat', s: 'redoubt', v: 1 }], text: 'End of turn: gain Bulwark equal to the highest face you reached.' },
@@ -476,18 +476,18 @@
     // --- FUSILLADE: the full-auto tempo engine. Cheap shots build Momentum
     //     (+1 dmg per stack to your attacks, resets each turn); spend it on a payoff. ---
     long_shot: {   // the cashout you can hold ALONGSIDE steering
-      name: 'Long Shot', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1, retain: true,
+      name: 'Long Shot', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1, retain: true, band: 'high',
       fx: [{ k: 'special', id: 'aimGate', cost: 3, v: 18, base: 4 }],
       text: 'Spend 3 Aim: deal 18. Otherwise deal 4.',
       up: { fx: [{ k: 'special', id: 'aimGate', cost: 3, v: 24, base: 6 }], text: 'Spend 3 Aim: deal 24. Otherwise deal 6.' },
     },
     firing_step: {   // BRIDGE - Marksman x Bulwark
-      name: 'Firing Step', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
+      name: 'Firing Step', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1, band: 'mid',
       fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'status', s: 'bulwark', v: 4, who: 'self' }], burst: { n: 2, dir: 1 },
       up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'status', s: 'bulwark', v: 6, who: 'self' }], burst: { n: 2, dir: 1 } },
     },
     loophole: {   // BRIDGE - Marksman x Bulwark
-      name: 'Loophole', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      name: 'Loophole', cls: 'vanguard', type: 'power', rarity: 2, cost: 1, band: 'mid',
       fx: [{ k: 'status', s: 'burstWall', v: 2, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'burstWall', v: 3, who: 'self' }] },
     },
@@ -497,12 +497,12 @@
       up: { fx: [{ k: 'dmg', v: 5, scale: 'might' }, { k: 'status', s: 'weak', v: 2, who: 'target' }], burst: { n: 3, dir: 1 } },
     },
     ranging_shot: {   // ⚡0 chain-starter — cheap shot that gets the Momentum rolling
-      name: 'Ranging Shot', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      name: 'Ranging Shot', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1, band: 'high',
       fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'status', s: 'aim', v: 1, who: 'self' }],
       up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'status', s: 'aim', v: 2, who: 'self' }] },
     },
     boresight: {   // the draw enabler — keep the chain fed
-      name: 'Boresight', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
+      name: 'Boresight', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1, band: 'high',
       fx: [{ k: 'status', s: 'aim', v: 3, who: 'self' }, { k: 'draw', v: 1 }],
       up: { fx: [{ k: 'status', s: 'aim', v: 4, who: 'self' }, { k: 'draw', v: 1 }] },
     },
@@ -512,7 +512,7 @@
       up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }], burst: { n: 4, dir: 1 } },
     },
     full_auto: {   // the engine anchor — every attack now snowballs Momentum
-      name: 'Full Auto', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      name: 'Full Auto', cls: 'vanguard', type: 'power', rarity: 3, cost: 2, band: 'high',
       fx: [{ k: 'status', s: 'burstPlus', v: 1, who: 'self' }],
       up: { cost: 1, fx: [{ k: 'status', s: 'burstPlus', v: 1, who: 'self' }] },
     },
@@ -524,61 +524,61 @@
     // --- BLOODFORGE: spend life to stoke Might; defend by parrying (deflect + riposte),
     //     not turtling. Stacked Strength powers your attacks, your parries, and the cashout. ---
     blood_rage: {   // the anchor — every drop of your own blood makes you stronger
-      name: 'Blood Rage', cls: 'vanguard', type: 'power', rarity: 3, cost: 1,
+      name: 'Blood Rage', cls: 'vanguard', type: 'power', rarity: 3, cost: 1, band: 'low',
       fx: [{ k: 'status', s: 'bloodrage', v: 1, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'bloodrage', v: 2, who: 'self' }] },
     },
     gutshot: {
-      name: 'Gutshot', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1,
+      name: 'Gutshot', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1, band: 'low',
       fx: [{ k: 'dmg', v: 7, scale: 'might' }, { k: 'special', id: 'drain' }, { k: 'status', s: 'stim', v: 1, who: 'self' }],
       up: { fx: [{ k: 'dmg', v: 10, scale: 'might' }, { k: 'special', id: 'drain' }, { k: 'status', s: 'stim', v: 2, who: 'self' }] },
     },
     overdose: {
-      name: 'Overdose', cls: 'vanguard', type: 'skill', rarity: 1, cost: 2,
+      name: 'Overdose', cls: 'vanguard', type: 'skill', rarity: 1, cost: 2, band: 'low',
       fx: [{ k: 'hploss', v: 4 }, { k: 'status', s: 'stim', v: 6, who: 'self' }],
       up: { fx: [{ k: 'hploss', v: 3 }, { k: 'status', s: 'stim', v: 9, who: 'self' }] },
     },
     field_amputation: {
-      name: 'Field Amputation', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
+      name: 'Field Amputation', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1, band: 'low',
       fx: [{ k: 'hploss', v: 3 }, { k: 'draw', v: 2 }],
       up: { fx: [{ k: 'hploss', v: 2 }, { k: 'draw', v: 3 }] },
     },
     second_wind: {
-      name: 'Second Wind', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
+      name: 'Second Wind', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1, band: 'low',
       fx: [{ k: 'heal', v: 6 }, { k: 'status', s: 'stim', v: 2, who: 'self' }],
       up: { fx: [{ k: 'heal', v: 9 }, { k: 'status', s: 'stim', v: 3, who: 'self' }] },
     },
     last_round: {
-      name: 'Last Round', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
+      name: 'Last Round', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1, band: 'low',
       fx: [{ k: 'special', id: 'lastRound', base: 6 }, { k: 'special', id: 'drain' }],
       text: 'Deal 6 damage, doubled below half your Max HP.',
       up: { fx: [{ k: 'special', id: 'lastRound', base: 9 }, { k: 'special', id: 'drain' }], text: 'Deal 9 damage, doubled below half your Max HP.' },
     },
     running_on_empty: {
-      name: 'Running on Empty', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      name: 'Running on Empty', cls: 'vanguard', type: 'power', rarity: 2, cost: 1, band: 'low',
       fx: [{ k: 'special', id: 'stat', s: 'runEmpty', v: 1 }],
       text: 'Below half your Max HP, draw 1 more card each turn.',
       up: { fx: [{ k: 'special', id: 'stat', s: 'runEmpty', v: 2 }], text: 'Below half your Max HP, draw 2 more cards each turn.' },
     },
     fever: {
-      name: 'Fever', cls: 'vanguard', type: 'power', rarity: 2, cost: 2,
+      name: 'Fever', cls: 'vanguard', type: 'power', rarity: 2, cost: 2, band: 'low',
       fx: [{ k: 'special', id: 'stat', s: 'stimHold', v: 1 }],
       text: 'Your Stim no longer burns off.',
       up: { cost: 1, fx: [{ k: 'special', id: 'stat', s: 'stimHold', v: 1 }], text: 'Your Stim no longer burns off.' },
     },
     mainline: {
-      name: 'Mainline', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
+      name: 'Mainline', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1, band: 'high',
       fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'aim', v: 3, who: 'self' }],
       up: { fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'aim', v: 4, who: 'self' }] },
     },
     steady_hands: {
-      name: 'Steady Hands', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      name: 'Steady Hands', cls: 'vanguard', type: 'power', rarity: 2, cost: 1, band: 'high',
       fx: [{ k: 'special', id: 'stat', s: 'steerDown', v: 1 }],
       text: 'Your Aim steers DOWN the die instead of up.',
       up: { cost: 0, fx: [{ k: 'special', id: 'stat', s: 'steerDown', v: 1 }], text: 'Your Aim steers DOWN the die instead of up.' },
     },
     dead_mans_trigger: {
-      name: "Dead Man's Trigger", cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      name: "Dead Man's Trigger", cls: 'vanguard', type: 'power', rarity: 3, cost: 2, band: 'high',
       fx: [{ k: 'special', id: 'stat', s: 'deadMan', v: 1 }],
       text: 'Below 40% of your Max HP, your attacks BURST 1 further.',
       up: { cost: 1, fx: [{ k: 'special', id: 'stat', s: 'deadMan', v: 1 }], text: 'Below 40% of your Max HP, your attacks BURST 1 further.' },
@@ -599,7 +599,7 @@
       up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'status', s: 'parry', v: 5, who: 'self' }] },
     },
     crimson_pact: {   // ⚡0 blood-fuelled jab — cheap, and it feeds Blood Rage
-      name: 'Crimson Pact', cls: 'vanguard', type: 'attack', rarity: 1, cost: 0,
+      name: 'Crimson Pact', cls: 'vanguard', type: 'attack', rarity: 1, cost: 0, band: 'low',
       fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 6, scale: 'might' }],
       up: { fx: [{ k: 'hploss', v: 2 }, { k: 'dmg', v: 8, scale: 'might' }] },
     },
@@ -610,12 +610,12 @@
        * with a worse price. Missing HP is itself a stat here. Its die hook is
        * the JAM: misfires and low faces, the outcomes Marksmanship cannot save
        * and every other build throws away, are what pay it. ================ */
-      name: 'Whet the Blade', cls: 'vanguard', type: 'skill', rarity: 1, cost: 0,
+      name: 'Whet the Blade', cls: 'vanguard', type: 'skill', rarity: 1, cost: 0, band: 'low',
       fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'stim', v: 2, who: 'self' }],
       up: { fx: [{ k: 'hploss', v: 1 }, { k: 'status', s: 'stim', v: 3, who: 'self' }] },
     },
     bloodbath: {   // the cashout — pour all your stacked Might into one brutal blow, and drink deep
-      name: 'Bloodbath', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2,
+      name: 'Bloodbath', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2, band: 'low',
       fx: [{ k: 'special', id: 'bloodbath', v: 5 }, { k: 'special', id: 'drain' }],
       up: { fx: [{ k: 'special', id: 'bloodbath', v: 6 }, { k: 'special', id: 'drain' }] },
     },
@@ -638,7 +638,7 @@
       up: { fx: [{ k: 'status', s: 'restock', v: 2, who: 'self' }] },
     },
     breaching_charge: {   // a heavy shell — big single shot, spent on firing
-      name: 'Breaching Charge', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1, exhaust: true,
+      name: 'Breaching Charge', cls: 'vanguard', type: 'attack', rarity: 1, cost: 1, exhaust: true, band: 'high',
       fx: [{ k: 'dmg', v: 11, scale: 'might' }, { k: 'onRoll', min: 16, fx: [{ k: 'draw', v: 1 }] }],
       up: { fx: [{ k: 'dmg', v: 15, scale: 'might' }, { k: 'onRoll', min: 14, fx: [{ k: 'draw', v: 1 }] }] },
     },
@@ -703,7 +703,7 @@
       up: { fx: [{ k: 'energy', v: 2 }, { k: 'draw', v: 2 }] },
     },
     barricade_protocol: {
-      name: 'Barricade Protocol', cls: 'vanguard', type: 'power', rarity: 3, cost: 1,
+      name: 'Barricade Protocol', cls: 'vanguard', type: 'power', rarity: 3, cost: 1, band: 'mid',
       fx: [{ k: 'special', id: 'stat', s: 'wallBoost', v: 50 }],
       text: 'Bulwark you gain is increased by half.',
       up: { fx: [{ k: 'special', id: 'stat', s: 'wallBoost', v: 80 }], text: 'Bulwark you gain is increased by four fifths.' },
@@ -715,7 +715,7 @@
        * the same pool, so every detonation is a decision to stand naked for a
        * turn. Its die hook is the FACE NUMBER — high rolls build a big wall,
        * which is why it allies with Marksmanship. ======================== */
-      name: 'Riot Shield', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1,
+      name: 'Riot Shield', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1, band: 'mid',
       fx: [{ k: 'status', s: 'bulwark', v: 5, who: 'self' }, { k: 'status', s: 'thorns', v: 3, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'bulwark', v: 8, who: 'self' }, { k: 'status', s: 'thorns', v: 4, who: 'self' }] },
     },
@@ -832,7 +832,7 @@
      * bored by the middle. All riders, no new engine code.
      * ---------------------------------------------------- */
     one_in_the_chamber: {   // MARKSMANSHIP: everything on one shot — Aim makes it a plan
-      name: 'One in the Chamber', cls: 'vanguard', type: 'attack', rarity: 3, cost: 1, exhaust: true,
+      name: 'One in the Chamber', cls: 'vanguard', type: 'attack', rarity: 3, cost: 1, exhaust: true, band: 'high',
       fx: [{ k: 'onRoll', min: 8, fx: [{ k: 'dmg', v: 24, scale: 'might' }] }],
       up: { fx: [{ k: 'onRoll', min: 6, fx: [{ k: 'dmg', v: 30, scale: 'might' }] }] },
     },
@@ -897,12 +897,12 @@
      * wholesale: chaining across cards and bursting within one are the same
      * fantasy, and only one of them uses the die we already built. ======== */
     called_high: {
-      name: 'Called High', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1,
+      name: 'Called High', cls: 'vanguard', type: 'attack', rarity: 2, cost: 1, band: 'high',
       fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'onRoll', min: 20, fx: [{ k: 'status', s: 'aim', v: 2, who: 'self' }] }],
       up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'onRoll', min: 20, fx: [{ k: 'status', s: 'aim', v: 3, who: 'self' }] }] },
     },
     empty_the_magazine: {   // the whole load turns into REACH, not one number
-      name: 'Empty the Magazine', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2, retain: true,
+      name: 'Empty the Magazine', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2, retain: true, band: 'high',
       fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'special', id: 'emptyMag', per: 2 }],
       text: 'Consume all Aim: BURST 1 further per 2 Aim.',
       up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'special', id: 'emptyMag', per: 1 }], text: 'Consume all Aim: BURST 1 further per Aim.' },
@@ -936,43 +936,43 @@
      * are deliberately weak on their own.
      * ---------------------------------------------- */
     sighting_round: {   // MARKSMANSHIP: a free shot that climbs the table
-      name: 'Sighting Round', cls: 'vanguard', type: 'attack', rarity: 2, pool: 'mark', cost: 0, retain: true,
+      name: 'Sighting Round', cls: 'vanguard', type: 'attack', rarity: 2, pool: 'mark', cost: 0, retain: true, band: 'high',
       fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'status', s: 'aim', v: 1, who: 'self' }],
       up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'status', s: 'aim', v: 1, who: 'self' }] },
     },
     red_ledger: {   // MIGHT/BLOOD: every HP you spend on yourself is paid back
-      name: 'Red Ledger', cls: 'vanguard', type: 'power', rarity: 2, pool: 'mark', cost: 1,
+      name: 'Red Ledger', cls: 'vanguard', type: 'power', rarity: 2, pool: 'mark', cost: 1, band: 'low',
       fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'bloodrage', v: 2, who: 'self' }],
       up: { fx: [{ k: 'hploss', v: 2 }, { k: 'status', s: 'bloodrage', v: 3, who: 'self' }] },
     },
     set_against_it: {   // BLOCK/THORNS: turn the turtle into a hazard
-      name: 'Set Against It', cls: 'vanguard', type: 'power', rarity: 2, pool: 'mark', cost: 1,
+      name: 'Set Against It', cls: 'vanguard', type: 'power', rarity: 2, pool: 'mark', cost: 1, band: 'mid',
       fx: [{ k: 'status', s: 'thorns', v: 2, who: 'self' }, { k: 'status', s: 'wallPerTurn', v: 2, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'thorns', v: 4, who: 'self' }, { k: 'status', s: 'wallPerTurn', v: 3, who: 'self' }] },
     },
     casemate: {   // the wall that builds itself
-      name: 'Casemate', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      name: 'Casemate', cls: 'vanguard', type: 'power', rarity: 2, cost: 1, band: 'mid',
       fx: [{ k: 'status', s: 'wallPerTurn', v: 3, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'wallPerTurn', v: 5, who: 'self' }] },
     },
     buttress: {   // held in hand until the turn you need the wall
-      name: 'Buttress', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1, retain: true,
+      name: 'Buttress', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1, retain: true, band: 'mid',
       fx: [{ k: 'status', s: 'bulwark', v: 8, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'bulwark', v: 12, who: 'self' }] },
     },
     embrasure: {   // the wall is built out of what you just hit
-      name: 'Embrasure', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2,
+      name: 'Embrasure', cls: 'vanguard', type: 'attack', rarity: 2, cost: 2, band: 'mid',
       fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'special', id: 'wallDealt' }],
       text: 'Gain Bulwark equal to the damage dealt.',
       up: { fx: [{ k: 'dmg', v: 12, scale: 'might' }, { k: 'special', id: 'wallDealt' }], text: 'Gain Bulwark equal to the damage dealt.' },
     },
     sandbag: {   // BRIDGE - Bulwark x Stim
-      name: 'Sandbag', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
+      name: 'Sandbag', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1, band: 'mid',
       fx: [{ k: 'hploss', v: 4 }, { k: 'status', s: 'bulwark', v: 12, who: 'self' }],
       up: { fx: [{ k: 'hploss', v: 4 }, { k: 'status', s: 'bulwark', v: 18, who: 'self' }] },
     },
     scar_tissue: {   // BRIDGE - Bulwark x Stim
-      name: 'Scar Tissue', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      name: 'Scar Tissue', cls: 'vanguard', type: 'power', rarity: 2, cost: 1, band: 'mid',
       fx: [{ k: 'status', s: 'scarWall', v: 2, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'scarWall', v: 3, who: 'self' }] },
     },
@@ -983,7 +983,7 @@
       up: { cost: 1, fx: [{ k: 'special', id: 'detonate' }], text: 'Consume all your Bulwark: deal that much to ALL enemies.' },
     },
     blood_cement: {   // BRIDGE - Bulwark x Stim
-      name: 'Blood Cement', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      name: 'Blood Cement', cls: 'vanguard', type: 'power', rarity: 3, cost: 2, band: 'mid',
       fx: [{ k: 'special', id: 'stat', s: 'bloodCement', v: 1 }],
       text: 'Bulwark you gain grows with how wounded you are.',
       up: { cost: 1, fx: [{ k: 'special', id: 'stat', s: 'bloodCement', v: 1 }], text: 'Bulwark you gain grows with how wounded you are.' },
@@ -1309,12 +1309,47 @@
      * out, and even a misfire can be turned into fuel.
      * ------------------------------------------------------------------------ */
     take_aim: {   // the cheap enabler — bank Aim for the shots that follow
-      name: 'Take Aim', cls: 'vanguard', type: 'skill', rarity: 1, cost: 0,
+      name: 'Take Aim', cls: 'vanguard', type: 'skill', rarity: 1, cost: 0, band: 'high',
       fx: [{ k: 'status', s: 'aim', v: 2, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'aim', v: 3, who: 'self' }] },
     },
+
+    /* ================= THE PRECISION BAND'S OTHER LEG ==================
+     * Once the reward roll started honouring the first mark, the three plans
+     * stopped blending and THE LONG SHOT fell twenty points behind the other
+     * two. The cause was not the cashouts and not the piloting — both were
+     * measured and fixed first. It was that the band had NO DEFENCE AT ALL:
+     * eighteen cards and not one point of Shield, while MID carried thirteen
+     * defensive effects and LOW sustained itself on drain. A plan that can
+     * only out-damage dies at the first elite, which is exactly where the
+     * deaths were.
+     *
+     * So: armour the precision player can actually reach, paid for out of the
+     * thing the plan already builds — and crucially NOT spending it, because a
+     * defensive card that empties the magazine is one this deck cannot play.
+     * ================================================================== */
+    enfilade: {   // the common glue — a little wall, a little bank
+      name: 'Enfilade', cls: 'vanguard', type: 'skill', rarity: 1, cost: 1, band: 'high',
+      fx: [{ k: 'status', s: 'bulwark', v: 5, who: 'self' },
+           { k: 'status', s: 'aim', v: 1, who: 'self' }],
+      up: { fx: [{ k: 'status', s: 'bulwark', v: 8, who: 'self' },
+                 { k: 'status', s: 'aim', v: 1, who: 'self' }] },
+    },
+    defilade: {   // the bank IS the armour, and the bank is not touched
+      name: 'Defilade', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1, band: 'high',
+      fx: [{ k: 'special', id: 'aimBlock', base: 3, v: 2 }],
+      text: 'Gain 3 Shield, +2 per Aim. Your Aim is not spent.',
+      up: { fx: [{ k: 'special', id: 'aimBlock', base: 5, v: 3 }],
+            text: 'Gain 5 Shield, +3 per Aim. Your Aim is not spent.' },
+    },
+    cold_bore: {  // the rule change the plan was missing
+      name: 'Cold Bore', cls: 'vanguard', type: 'power', rarity: 3, cost: 2, band: 'high',
+      fx: [{ k: 'status', s: 'coldBore', v: 1, who: 'self' }],
+      text: 'Shots read your Aim instead of spending it. Aim cannot exceed 5.',
+      up: { cost: 1 },
+    },
     steady_aim: {   // the engine — marksmanship sharpens on its own every turn
-      name: 'Steady Aim', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      name: 'Steady Aim', cls: 'vanguard', type: 'power', rarity: 2, cost: 1, band: 'high',
       fx: [{ k: 'status', s: 'aimPerTurn', v: 1, who: 'self' }, { k: 'status', s: 'aim', v: 1, who: 'self' }],
       text: 'Gain 1 more Aim at the start of each turn.',
       up: { fx: [{ k: 'status', s: 'aimPerTurn', v: 2, who: 'self' }, { k: 'status', s: 'aim', v: 1, who: 'self' }], text: 'Gain 2 more Aim at the start of each turn.' },
@@ -1326,23 +1361,23 @@
       up: { fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'onRoll', min: 12, fx: [{ k: 'status', s: 'vuln', v: 2, who: 'target' }, { k: 'draw', v: 1 }] }] },
     },
     hair_trigger: {   // ⚡0 chip that pays for itself when the die runs hot
-      name: 'Hair Trigger', cls: 'vanguard', type: 'attack', rarity: 1, cost: 0,
+      name: 'Hair Trigger', cls: 'vanguard', type: 'attack', rarity: 1, cost: 0, band: 'high',
       fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'onRoll', min: 13, fx: [{ k: 'energy', v: 1 }] }],
       up: { fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'onRoll', min: 11, fx: [{ k: 'energy', v: 1 }] }] },
     },
     deadeye_protocol: {   // BUILD-AROUND — every crit feeds the next one
-      name: 'Deadeye Protocol', cls: 'vanguard', type: 'power', rarity: 3, cost: 2,
+      name: 'Deadeye Protocol', cls: 'vanguard', type: 'power', rarity: 3, cost: 2, band: 'high',
       fx: [{ k: 'status', s: 'critFury', v: 2, who: 'self' }, { k: 'status', s: 'deadeyeDraw', v: 1, who: 'self' }],
       up: { fx: [{ k: 'status', s: 'critFury', v: 3, who: 'self' }, { k: 'status', s: 'deadeyeDraw', v: 1, who: 'self' }] },
     },
     misfire_protocol: {   // BUILD-AROUND — a jammed round becomes momentum
-      name: 'Misfire Protocol', cls: 'vanguard', type: 'power', rarity: 2, cost: 1,
+      name: 'Misfire Protocol', cls: 'vanguard', type: 'power', rarity: 2, cost: 1, band: 'high',
       fx: [{ k: 'status', s: 'misfireGuard', v: 3, who: 'self' }],
       text: 'When an attack misfires, gain 3 Aim and 1 Energy.',
       up: { fx: [{ k: 'status', s: 'misfireGuard', v: 5, who: 'self' }], text: 'When an attack misfires, gain 5 Aim and 1 Energy.' },
     },
     killshot: {   // the cashout — dump every point of banked Aim into one round
-      name: 'Killshot', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2, retain: true,
+      name: 'Killshot', cls: 'vanguard', type: 'attack', rarity: 3, cost: 2, retain: true, band: 'high',
       fx: [{ k: 'special', id: 'spendAim', base: 6, v: 4 }],
       text: 'Consume all your Aim. Deal 6 damage plus 4 for each Aim consumed.',
       up: { fx: [{ k: 'special', id: 'spendAim', base: 8, v: 5 }], text: 'Consume all your Aim. Deal 8 damage plus 5 for each Aim consumed.' },
@@ -1396,7 +1431,7 @@
 
     /* -- Vanguard -- */
     spiked_bulwark: {   // a turtle that bites — attackers gore themselves on your Might
-      name: 'Spiked Bulwark', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1,
+      name: 'Spiked Bulwark', cls: 'vanguard', type: 'skill', rarity: 2, cost: 1, band: 'mid',
       fx: [{ k: 'status', s: 'bulwark', v: 8, who: 'self' }, { k: 'status', s: 'spikeward', v: 3, who: 'self' }],
       text: 'This combat, attackers take your Might + 3 damage.',
       up: { fx: [{ k: 'block', v: 11, scale: 'pri' }, { k: 'status', s: 'spikeward', v: 5, who: 'self' }], text: 'This combat, attackers take your Might + 5 damage.' },

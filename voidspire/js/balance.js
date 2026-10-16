@@ -86,6 +86,10 @@
        * automatic weld would be a flat multiplier on cutting a lot rather than
        * on cutting deliberately. */
       weldCap: 3,
+      // COLD BORE stops cashouts spending Aim; this is the ceiling it trades
+      // for. 5 keeps Killshot's cashout (base + 4/point) at a strong but
+      // finite number and still leaves Aim's roll bonus worth +5.
+      coldBoreCap: 5,
       weldCost: 70,
       weldStep: 60,
       // a listener may set off another listener, but only this deep — the
@@ -326,6 +330,17 @@
       rareChance: 0.08,          // chance an offered card is rare
       uncommonChance: 0.32,      // chance an offered card is uncommon (else common)
       eliteRareChance: 0.25,     // rarity boost for elite rewards
+      /* HOW OFTEN AN OFFERED CARD BELONGS TO THE BAND YOU DECLARED.
+       * Measured before this existed: the largest single plan in a finished
+       * Vanguard deck averaged 5.1 cards out of 18.9 class cards, and only the
+       * WALL group was ever offered often enough to assemble. The first mark
+       * asks you to commit to a region of the die in the first minute and then
+       * nothing downstream knew which one you picked.
+       * This is a LEAN, not a filter: at 0.55 a little over half the roll comes
+       * from your band and the rest of the pool still shows up, so a run can
+       * still be pulled somewhere else by what it is offered. Vanguard only —
+       * the other two classes have no bands because they do not read the die. */
+      markAffinity: 0.55,
       bossHealPct: 0.28,         // heal option after beating a boss
       restHealPct: 0.30,         // heal at a rest node
     },

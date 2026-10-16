@@ -742,17 +742,23 @@
    * the face yourself on the die screen: the mark says what you are playing,
    * you say where on the table you want it to land. `want` is the face band it
    * was tuned for — a hint on the card, never a restriction.
+   *
+   * `band` is the same statement in a form the code can read. The Vanguard's
+   * cards are tagged with one, and the reward roll leans toward the band you
+   * declared here — so picking a mark steers the whole run's draft instead of
+   * only the first fight. The other two classes have no band because they do
+   * not read the die: only the Vanguard is built on it.
    * ------------------------------------------------------------------- */
   ns.FIRST_MARKS = {
     vanguard: [
       { id: 'the_long_shot', name: 'THE LONG SHOT', eng: 'ranging_mark', card: 'sighting_round',
-        want: 'HIGH FACES · 15–20',
+        want: 'HIGH FACES · 15–20', band: 'high',
         line: 'The top of the table pays more for the same cut. You build where the multiplier already is.' },
       { id: 'the_red_debt', name: 'THE RED DEBT', eng: 'whetstone_mark', card: 'red_ledger',
-        want: 'LOW FACES · 2–7',
+        want: 'LOW FACES · 2–7', band: 'low',
         line: 'A bad face is still a face. You give the bottom of the die something to do.' },
       { id: 'the_set_shield', name: 'THE SET SHIELD', eng: 'anvil_mark', card: 'set_against_it',
-        want: 'MIDDLE FACES · 8–14',
+        want: 'MIDDLE FACES · 8–14', band: 'mid',
         line: 'The widest band on the table, and Aim lifts every face of it at once.' },
     ],
     technomancer: [

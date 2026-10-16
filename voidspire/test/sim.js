@@ -82,6 +82,21 @@ function estCardDamage(card, target, includeDot) {
     if (f.k === 'special' && f.id === 'bloodbath') {
       total += f.v * (c.player.statuses.str || 0);        // Bloodforge cashout scales with stacked Strength
     }
+    /* THE AIM CASHOUTS. These were missing, and their absence was not a small
+     * inaccuracy: Long Shot and Killshot ARE the precision plan, and a bot
+     * that scores them at zero plays its whole magazine as if it were empty.
+     * It only showed once the reward roll started handing the plan over —
+     * THE LONG SHOT read 18.9% against 42% for the other two marks, which
+     * looked exactly like a broken archetype and was a blind estimator. */
+    if (f.k === 'special' && f.id === 'aimGate') {
+      var haveA = (c.player.statuses.aim || 0), payA = f.cost || 3;
+      total += (haveA >= payA ? (f.v || 18) : (f.base || 4)) + str;
+    }
+    if (f.k === 'special' && f.id === 'spendAim') {
+      // every banked point is worth f.v on top of the base shot
+      total += (f.base || 6) + (c.player.statuses.aim || 0) * (f.v || 4)
+             + str + attrOf('might');
+    }
   });
   if ((c.player.statuses.weak || 0) > 0) total = Math.floor(total * VS.BALANCE.status.weakMult);
   return total + dot;
@@ -321,6 +336,31 @@ function botCombat() {
       if (!E.playCard(playable[Math.floor(probeRnd() * playable.length)], pickTarget())) E.endTurn();
       continue;
     }
+    /* CASHOUT DISCIPLINE. Aim is banked and then spent, and a pilot with no
+     * concept of WAITING fires the payoff the turn it arrives. Measured over
+     * 150 forced LONG SHOT runs, the bank filled fine (peak 11.5 Aim) and was
+     * then thrown away: Long Shot fired DRY 51% of the time — 4 damage instead
+     * of 18 — and Killshot cashed out at an average of 2.4 Aim on a card that
+     * pays 4 per point. That is not an archetype failing, it is a pilot, and
+     * the two are indistinguishable in a win rate.
+     *
+     * A held card is only held: if nothing better is playable it still goes,
+     * through the fallback at the bottom. */
+    function heldCashout(idx) {
+      var cd = VS.CARDS[c.hand[idx].id];
+      var held = false;
+      VS.cardFx(cd, c.hand[idx].up).forEach(function (f) {
+        if (f.k !== 'special') return;
+        var aim = c.player.statuses.aim || 0;
+        if (f.id === 'aimGate' && aim < (f.cost || 3)) held = true;
+        // Killshot is worth holding for a deep bank; 5 is about where it beats
+        // an ordinary attack by enough to be worth the turn it waited.
+        if (f.id === 'spendAim' && aim < 5) held = true;
+        if (f.id === 'emptyMag' && aim < 4) held = true;
+      });
+      return held;
+    }
+
     var incoming = incomingDamage();
     var needBlock = Math.max(0, incoming - c.player.block);
     var hpDanger = E.run.hp < E.run.maxHp * 0.6 || needBlock >= E.run.hp * 0.25;
@@ -358,6 +398,7 @@ function botCombat() {
       playable.forEach(function (idx) {
         var cdef = VS.CARDS[c.hand[idx].id];
         if (cdef.type !== 'attack') return;
+        if (heldCashout(idx)) return;        // the bank is not deep enough yet
         // DoT-aware: lay/stack Burn proactively instead of treating it as 0 dmg
         var dmg = estCardDamage(card0(c, idx), c.enemies[target], true);
         if (dmg > bd) { bd = dmg; ba = idx; }
@@ -385,7 +426,10 @@ function botCombat() {
         var loses = fx.some(function (f) { return f.k === 'hploss'; });
         return !(loses && E.run.hp < 20);
       });
-      choice = (safe.length ? safe : playable)[0];
+      var from = safe.length ? safe : playable;
+      // a cashout is the LAST thing to reach for, not the first that fits
+      var keen = from.filter(function (idx) { return !heldCashout(idx); });
+      choice = (keen.length ? keen : from)[0];
     }
 
     var ok = E.playCard(choice, target);

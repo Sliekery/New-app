@@ -3087,11 +3087,19 @@
     n.style.overflowWrap = 'normal';          // shrink before considering a break
     var cs = parseFloat(getComputedStyle(n).fontSize) || 8.5;
     var guard = 0;
+    /* THE FLOOR IS THE READABILITY LINE, not an arbitrary small number. It was
+     * 6.5, below the 8.4px that uifit.js calls legible, so a long name was
+     * allowed to shrink itself out of readability rather than break — and
+     * "Deadeye Protocol" in a shop slot landed at 6.9px. Shrinking stops at
+     * the line and the break below takes over, which is the trade the comment
+     * underneath already argues for. */
+    var FLOOR = 8.4;
     // 2px of slack: letter-spacing leaves a trailing gap after the last glyph,
     // so scrollWidth sits a pixel or two over clientWidth even when it fits.
-    while (n.scrollWidth > n.clientWidth + 2 && cs > 6.5 && guard++ < 14) {
+    while (n.scrollWidth > n.clientWidth + 2 && cs > FLOOR && guard++ < 14) {
       cs -= 0.4; n.style.fontSize = cs.toFixed(2) + 'px';
     }
+    if (cs < FLOOR) { cs = FLOOR; n.style.fontSize = FLOOR + 'px'; }
     // A hand card's name band is only ~47px wide, and a 13-letter single word
     // (CONFLAGRATION) does not fit it at any readable size. There, breaking the
     // word beats hiding half of it — but only after shrinking has failed.

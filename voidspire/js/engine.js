@@ -1398,6 +1398,14 @@
   function addStatus(ent, s, v) {
     ent.statuses[s] = (ent.statuses[s] || 0) + v;
     if (ent.statuses[s] <= 0) delete ent.statuses[s];
+    /* COLD BORE caps the bank. The card's whole trade is that cashouts stop
+     * SPENDING Aim, which without a ceiling would compound without limit — so
+     * the ceiling is enforced here, at the one place Aim is granted, rather
+     * than at the six places that grant it. */
+    if (s === 'aim' && v > 0 && (ent.statuses.coldBore || 0) > 0) {
+      var capA = B.dice.coldBoreCap || 5;
+      if (ent.statuses[s] > capA) ent.statuses[s] = capA;
+    }
     var isEnemy = E.combat && E.combat.enemies.indexOf(ent) >= 0;
     // Status listeners hook HERE rather than at each call site: Momentum alone
     // is granted from six different places, and a listener that only caught
@@ -2736,7 +2744,11 @@
              * it is the cashout you can hold alongside steering. */
             var haveA = statN(p, 'aim'), payA = f.cost || 3;
             var shotA = (haveA >= payA) ? (f.v || 18) : (f.base || 4);
-            if (haveA >= payA) { addStatus(p, 'aim', -payA); emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') }); }
+            // COLD BORE: the sight is zeroed, so the shot READS the bank
+            // instead of taking it. The bank is capped in exchange.
+            if (haveA >= payA && !statN(p, 'coldBore')) {
+              addStatus(p, 'aim', -payA); emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') });
+            }
             var agEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             if (agEn) totalDealt += dealToEnemy(agEn, c.enemies.indexOf(agEn), shotA + attackBonus(f),
               { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
@@ -2746,7 +2758,7 @@
              * further round the ring, so it wants a long engraved run and it
              * is the only card that turns Aim into WIDTH. */
             var magA = statN(p, 'aim');
-            if (magA > 0) { addStatus(p, 'aim', -magA); emit('status', { who: 'player', s: 'aim', v: 0 }); }
+            if (magA > 0 && !statN(p, 'coldBore')) { addStatus(p, 'aim', -magA); emit('status', { who: 'player', s: 'aim', v: 0 }); }
             var extra = Math.floor(magA / (f.per || 2));
             var bm2 = B.dice.burst || [1, 0.6, 0.35];
             for (var em = 1; em <= extra && !c.over; em++) {
@@ -2815,12 +2827,22 @@
           } else if (f.id === 'dieExecute') {
             var xeT = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             if (xeT) totalDealt += dealToEnemy(xeT, c.enemies.indexOf(xeT), f.v || 8, { execute: true, noCrit: true });
+          } else if (f.id === 'aimBlock') {
+            /* DEFILADE. The precision band had no defence at all — eighteen
+             * cards and not one point of Shield, while MID had thirteen
+             * defensive effects and LOW sustained on drain. So the answer is
+             * armour the plan can actually reach, paid for by the thing the
+             * plan already builds — and it READS the bank rather than
+             * spending it, because a defensive card that empties your
+             * magazine is a card the archetype cannot afford to play. */
+            addStatus(p, 'bulwark', (f.base || 3) + statN(p, 'aim') * (f.v || 2));
+            emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') });
           } else if (f.id === 'spendAim') {
             // KILLSHOT: burn every point of banked Aim into one aimed round.
             var saT = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
             var saN = statN(p, 'aim');
             if (saT) {
-              if (saN > 0) { addStatus(p, 'aim', -saN); emit('status', { who: 'player', s: 'aim', v: 0 }); }
+              if (saN > 0 && !statN(p, 'coldBore')) { addStatus(p, 'aim', -saN); emit('status', { who: 'player', s: 'aim', v: 0 }); }
               var saD = (f.base || 6) + saN * (f.v || 4) + statN(p, 'str') + attr('might') + art('flatDmg');
               totalDealt += dealToEnemy(saT, c.enemies.indexOf(saT), saD, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
             }
@@ -3891,6 +3913,19 @@
   }
   E.rewardTheme = rewardTheme;
 
+  /* THE BAND YOU DECLARED, in a form the reward roll can read. Only the
+   * Vanguard has one: his three first marks each name a region of the die, and
+   * his cards are tagged to match. The other two classes do not read the die,
+   * so they have no band and roll exactly as they always did. */
+  function markBand() {
+    var r = E.run;
+    if (!r || r.cls !== 'vanguard' || !r.firstMark) return null;
+    var marks = (ns.firstMarks && ns.firstMarks('vanguard')) || [];
+    for (var i = 0; i < marks.length; i++) if (marks[i].id === r.firstMark) return marks[i].band || null;
+    return null;
+  }
+  E.markBand = markBand;
+
   // Normal reward/shop pool: rarity 1-3, class-legal, and NOT a special pool
   // (event-only / boss-only cards never roll here).
   function rollRewardCard(rareBoost) {
@@ -3898,14 +3933,23 @@
     var rar = 1;
     if (roll < B.rewards.rareChance + (rareBoost || 0)) rar = 3;
     else if (roll < B.rewards.rareChance + (rareBoost || 0) + B.rewards.uncommonChance) rar = 2;
-    var pool = Object.keys(ns.CARDS).filter(function (k) {
-      var c = ns.CARDS[k];
-      return c.rarity === rar && !c.pool && (c.cls === E.run.cls || c.cls === 'any');
-    });
-    if (pool.length === 0) pool = Object.keys(ns.CARDS).filter(function (k) {
-      var c = ns.CARDS[k];
-      return c.rarity === 1 && !c.pool && (c.cls === E.run.cls || c.cls === 'any');
-    });
+    function at(rr, band) {
+      return Object.keys(ns.CARDS).filter(function (k) {
+        var c = ns.CARDS[k];
+        if (c.rarity !== rr || c.pool) return false;
+        if (c.cls !== E.run.cls && c.cls !== 'any') return false;
+        return !band || c.band === band;
+      });
+    }
+    /* LEAN TOWARD THE DECLARED BAND. Rolled per card rather than per screen so
+     * a screen is usually a mix — an all-on-band screen is not a choice, it is
+     * a formality, and the point is to make the plan REACHABLE, not mandatory.
+     * The band is applied at the rarity already rolled, so this changes WHICH
+     * card you are offered and never how good it is. */
+    var band = (rnd() < (B.rewards.markAffinity || 0)) ? markBand() : null;
+    var pool = band ? at(rar, band) : [];
+    if (!pool.length) pool = at(rar, null);
+    if (!pool.length) pool = at(1, null);
     return pick(pool);
   }
   E.rollRewardCard = rollRewardCard;
@@ -4159,9 +4203,18 @@
     if (!E.hasEcho('salvage_doctrine')) {
       var nChoices = Math.max(1, B.rewards.cardChoices + (E.pressureMods().cardChoices || 0));
       for (var i = 0; i < nChoices; i++) {
-        // reject exact dupes, and never let one theme fill more than 2 of the slots
+        /* Reject exact dupes, and keep one theme off more than 2 of the slots
+         * — EXCEPT on your own band. The cap exists so a screen is a choice
+         * rather than three shades of the same card, but applied to the band
+         * you declared it was undoing the lean on the very screens it was
+         * meant to pay off: pick THE LONG SHOT, get offered three precision
+         * cards, and the cap throws one back. On-band cards still cannot
+         * duplicate each other, so a screen never repeats itself. */
+        var band = markBand();
         var cid = rollRewardCard(rareBoost), guard = 0;
-        while ((seen[cid] || (themeCount[rewardTheme(cid)] || 0) >= 2) && guard++ < 25) cid = rollRewardCard(rareBoost);
+        while ((seen[cid]
+                || (ns.CARDS[cid].band !== band && (themeCount[rewardTheme(cid)] || 0) >= 2))
+               && guard++ < 25) cid = rollRewardCard(rareBoost);
         seen[cid] = true;
         var th = rewardTheme(cid); themeCount[th] = (themeCount[th] || 0) + 1;
         cards.push(cid);

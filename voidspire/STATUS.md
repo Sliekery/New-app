@@ -7,6 +7,23 @@ frozen play links).
 
 Branch: `claude/sci-fi-roguelike-cards-ycwlxz` · latest checkpoint: **v2.3-recurrence**.
 
+## IN FLIGHT: the Vanguard's archetypes now assemble — one of them is weak
+Every live Vanguard card carries a `band` (high/low/mid) matching one of the
+three FIRST_MARKS, and `rollRewardCard` leans toward the band you declared
+(`BALANCE.rewards.markAffinity`, 0.55, rolled per card). The plan you pick now
+goes from 5.1 to **11.8 cards** in a finished deck. `test/archetypes.js`
+measures it; `test/precision.js` covers three new high-band cards (Enfilade,
+Defilade, Cold Bore) that fill a band with no defence at all.
+
+**Open:** with the plans actually assembling, THE LONG SHOT reads ~20% against
+~48% and ~42% for the other two marks. The bot's estimator (blind to `aimGate`
+and `spendAim`) and its lack of cashout discipline were both fixed first and
+are worth ~+7 — the rest is real. Three causes are ruled out in CLAUDE.md,
+including one wrong hypothesis worth reading: a probe measured Aim overflowing
+the d20 ceiling, a mechanic was built on it, and it turned out the Vanguard
+STEERS (`dieRead().steer`) so Aim is never added to the roll at all. Reverted.
+Next thing to measure: what Aim's steering is actually worth against a boss.
+
 ## RESOLVED: the die-shape crash, and two lying metrics (Oct 2026)
 **A run in two thousand died outright.** `instabilityCommit` scrubs several
 faces during the cull; each scrub promotes seams back to primary and a promoted
