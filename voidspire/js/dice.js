@@ -210,25 +210,63 @@
      *   Technomancer never steers, so his are priced for a face he cannot aim at
      *   Voidadept   is strongest at BOTH ends and bored in the middle
      * ---------------------------------------------------------------- */
+    /* EACH MARK PAYS IN ITS OWN PLAN'S CURRENCY. The Long Shot's face is Aim,
+     * the Red Debt's is Stim and the Set Shield's is Bulwark, so the first
+     * thing the run hands you says the same thing as the cards it then drafts
+     * you. Each is recut twice, at the first two boss beats (`_2`, `_3`, see
+     * growMark in the engine); `startOnly` keeps every rank off the bench. */
     ranging_mark: {
       name: 'Ranging Mark', tier: 2, span: 3, startOnly: true, cls: 'vanguard',
       fx: [{ k: 'status', s: 'aim', v: 1, who: 'self' }, { k: 'draw', v: 1 }],
       desc: 'Gain 1 Aim. Draw 1 card.',
       art: { p: [[-0.8,0, 0.8,0], [0,-0.8, 0,0.8], [0.5,-0.5, 0.5,0.5], [-0.5,-0.5, -0.5,0.5], [0.34,0, 0.2,-0.14], [0.34,0, 0.2,0.14]], e: [[0,0]] },
     },
-    /* Might scales the FACES as well as the cards, and faces fire far more often
-     * than cards do, so a face granting Might pays the die twice and compounds
-     * into itself. Printed 5 damage, measured 16.8 impact a fire. */
+    ranging_mark_2: {
+      name: 'Ranging Mark II', tier: 2, span: 3, startOnly: true, cls: 'vanguard',
+      fx: [{ k: 'status', s: 'aim', v: 2, who: 'self' }, { k: 'draw', v: 1 }],
+      desc: 'Gain 2 Aim. Draw 1 card.',
+      art: { p: [[-0.8,0, 0.8,0], [0,-0.8, 0,0.8], [0.5,-0.5, 0.5,0.5], [-0.5,-0.5, -0.5,0.5], [0.34,0, 0.2,-0.14], [0.34,0, 0.2,0.14]], e: [[0,0]] },
+    },
+    ranging_mark_3: {
+      name: 'Ranging Mark III', tier: 2, span: 3, startOnly: true, cls: 'vanguard',
+      fx: [{ k: 'status', s: 'aim', v: 2, who: 'self' }, { k: 'draw', v: 1 }, { k: 'energy', v: 1 }],
+      desc: 'Gain 2 Aim and 1 Energy. Draw 1 card.',
+      art: { p: [[-0.8,0, 0.8,0], [0,-0.8, 0,0.8], [0.5,-0.5, 0.5,0.5], [-0.5,-0.5, -0.5,0.5], [0.34,0, 0.2,-0.14], [0.34,0, 0.2,0.14]], e: [[0,0]] },
+    },
     whetstone_mark: {
       name: 'Whetstone Mark', tier: 2, span: 3, startOnly: true, cls: 'vanguard',
-      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'status', s: 'str', v: 1, who: 'self' }],
-      desc: 'Deal 4 damage. Gain 1 Might.',
+      fx: [{ k: 'dmg', v: 4, scale: 'might' }, { k: 'status', s: 'stim', v: 2, who: 'self' }],
+      desc: 'Deal 4 damage. Gain 2 Stim.',
+      art: { p: [[-0.7,0.3, 0.5,-0.5, 0.7,-0.2, -0.5,0.6, -0.7,0.3], [-0.2,0.02, 0.1,-0.2], [0.2,-0.62, 0.34,-0.8]] },
+    },
+    whetstone_mark_2: {
+      name: 'Whetstone Mark II', tier: 2, span: 3, startOnly: true, cls: 'vanguard',
+      fx: [{ k: 'dmg', v: 6, scale: 'might' }, { k: 'status', s: 'stim', v: 3, who: 'self' }],
+      desc: 'Deal 6 damage. Gain 3 Stim.',
+      art: { p: [[-0.7,0.3, 0.5,-0.5, 0.7,-0.2, -0.5,0.6, -0.7,0.3], [-0.2,0.02, 0.1,-0.2], [0.2,-0.62, 0.34,-0.8]] },
+    },
+    whetstone_mark_3: {
+      name: 'Whetstone Mark III', tier: 2, span: 3, startOnly: true, cls: 'vanguard',
+      fx: [{ k: 'dmg', v: 8, scale: 'might' }, { k: 'status', s: 'stim', v: 3, who: 'self' }, { k: 'heal', v: 2 }],
+      desc: 'Deal 8 damage. Gain 3 Stim. Heal 2 HP.',
       art: { p: [[-0.7,0.3, 0.5,-0.5, 0.7,-0.2, -0.5,0.6, -0.7,0.3], [-0.2,0.02, 0.1,-0.2], [0.2,-0.62, 0.34,-0.8]] },
     },
     anvil_mark: {
       name: 'Anvil Mark', tier: 2, span: 3, startOnly: true, cls: 'vanguard',
-      fx: [{ k: 'block', v: 11 }, { k: 'status', s: 'thorns', v: 2, who: 'self' }],
-      desc: 'Gain 11 Shield and 2 Thorns.',
+      fx: [{ k: 'status', s: 'bulwark', v: 8, who: 'self' }, { k: 'status', s: 'thorns', v: 2, who: 'self' }],
+      desc: 'Gain 8 Bulwark and 2 Thorns.',
+      art: { p: [[-0.7,-0.2, 0.7,-0.2, 0.5,0.14, -0.5,0.14, -0.7,-0.2], [-0.24,0.14, -0.34,0.62, 0.34,0.62, 0.24,0.14], [-0.5,-0.2, -0.36,-0.5], [0.5,-0.2, 0.36,-0.5], [0,-0.2, 0,-0.56]] },
+    },
+    anvil_mark_2: {
+      name: 'Anvil Mark II', tier: 2, span: 3, startOnly: true, cls: 'vanguard',
+      fx: [{ k: 'status', s: 'bulwark', v: 11, who: 'self' }, { k: 'status', s: 'thorns', v: 3, who: 'self' }],
+      desc: 'Gain 11 Bulwark and 3 Thorns.',
+      art: { p: [[-0.7,-0.2, 0.7,-0.2, 0.5,0.14, -0.5,0.14, -0.7,-0.2], [-0.24,0.14, -0.34,0.62, 0.34,0.62, 0.24,0.14], [-0.5,-0.2, -0.36,-0.5], [0.5,-0.2, 0.36,-0.5], [0,-0.2, 0,-0.56]] },
+    },
+    anvil_mark_3: {
+      name: 'Anvil Mark III', tier: 2, span: 3, startOnly: true, cls: 'vanguard',
+      fx: [{ k: 'status', s: 'bulwark', v: 14, who: 'self' }, { k: 'status', s: 'thorns', v: 3, who: 'self' }, { k: 'draw', v: 1 }],
+      desc: 'Gain 14 Bulwark and 3 Thorns. Draw 1 card.',
       art: { p: [[-0.7,-0.2, 0.7,-0.2, 0.5,0.14, -0.5,0.14, -0.7,-0.2], [-0.24,0.14, -0.34,0.62, 0.34,0.62, 0.24,0.14], [-0.5,-0.2, -0.36,-0.5], [0.5,-0.2, 0.36,-0.5], [0,-0.2, 0,-0.56]] },
     },
 
@@ -753,13 +791,13 @@
     vanguard: [
       { id: 'the_long_shot', name: 'THE LONG SHOT', eng: 'ranging_mark', card: 'sighting_round',
         want: 'HIGH FACES · 15–20', band: 'high',
-        line: 'The top of the table pays more for the same cut. You build where the multiplier already is.' },
+        line: 'Call the face and climb to it. Your payoffs read how high the shot landed.' },
       { id: 'the_red_debt', name: 'THE RED DEBT', eng: 'whetstone_mark', card: 'red_ledger',
         want: 'LOW FACES · 2–7', band: 'low',
-        line: 'A bad face is still a face. You give the bottom of the die something to do.' },
+        line: 'Every roll of 2–7 pays you Stim, and a misfire pays double. The bottom of the die is your income.' },
       { id: 'the_set_shield', name: 'THE SET SHIELD', eng: 'anvil_mark', card: 'set_against_it',
         want: 'MIDDLE FACES · 8–14', band: 'mid',
-        line: 'The widest band on the table, and Aim lifts every face of it at once.' },
+        line: 'Every roll of 8–14 lays Bulwark. You tame the die the others gamble on.' },
     ],
     technomancer: [
       { id: 'the_standing_line', name: 'THE STANDING LINE', eng: 'assembly_mark', card: 'assembly_line',

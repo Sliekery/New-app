@@ -1,0 +1,4 @@
+#!/bin/zsh
+# Run a test/sim script without Node, on macOS's built-in JavaScriptCore.
+# usage: tools/jsnode [VAR=val ...] test/sim.js 600 vanguard
+exec /System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc "${0:A:h}/jnode.js" -- JNODE_CWD="$PWD" "$@"

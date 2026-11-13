@@ -61,37 +61,34 @@ console.log('\nDEFILADE — the bank is armour, and stays in the bank');
   ok('and the Aim is NOT spent', aim(c) >= aimWas, aimWas + ' -> ' + aim(c));
 }
 
-console.log('\nCOLD BORE — the shot reads the bank instead of taking it');
+console.log('\nCOLD BORE — a longer climb, so a call from further down still lands');
 {
-  var c2 = fight(4);
+  var c2 = fight(0);
+  c2.enemies.forEach(function (e) { e.hp = e.maxHp = 1e6; });
   play(c2, 'cold_bore');
-  ok('it lands as a standing rule', (c2.player.statuses.coldBore || 0) > 0);
-  var aimWas2 = aim(c2);
-  var shot = play(c2, 'long_shot');
-  ok('Long Shot still fires LOADED, not dry', shot.dealt > 10, 'dealt ' + shot.dealt);
-  ok('and the Aim survives the shot', aim(c2) >= aimWas2, aimWas2 + ' -> ' + aim(c2));
+  ok('it lands as a standing rule', (c2.player.statuses.steerReach || 0) === 2);
+  var longest = 0;
+  for (var j = 0; j < 200; j++) {
+    c2.player.statuses.aim = 5;
+    play(c2, 'long_shot');
+    E.events.forEach(function (x) { if (x && x.type === 'steer') longest = Math.max(longest, x.spent); });
+  }
+  ok('a call walks up to 5 faces with it', longest === 5, 'longest walk ' + longest);
 }
 
-console.log('\n…and the ceiling it trades for');
+console.log('\nWITHOUT Cold Bore the walk stops at ' + VS.BALANCE.dice.steerCap);
 {
-  var c3 = fight(0);
-  play(c3, 'cold_bore');
-  for (var j = 0; j < 12; j++) play(c3, 'take_aim');
-  ok('Aim is capped at ' + VS.BALANCE.dice.coldBoreCap,
-    aim(c3) === VS.BALANCE.dice.coldBoreCap, 'aim ' + aim(c3));
-}
-
-console.log('\nWITHOUT Cold Bore the old rule is untouched');
-{
-  var c5 = fight(5);
-  var shot5 = play(c5, 'long_shot');
-  ok('Long Shot still fires loaded at 5 Aim', shot5.dealt > 10, 'dealt ' + shot5.dealt);
-  ok('and it spends its 3 Aim as before', aim(c5) <= 2, 'aim ' + aim(c5));
-  var c6 = fight(20);
-  play(c6, 'take_aim');
-  ok('Aim is uncapped without it', aim(c6) > VS.BALANCE.dice.coldBoreCap, 'aim ' + aim(c6));
-  var c7 = fight(0);
-  var dry = play(c7, 'long_shot');
+  var c5 = fight(0), longest5 = 0;
+  c5.enemies.forEach(function (e) { e.hp = e.maxHp = 1e6; });
+  for (var j5 = 0; j5 < 200; j5++) {
+    c5.player.statuses.aim = 5;
+    play(c5, 'long_shot');
+    E.events.forEach(function (x) { if (x && x.type === 'steer') longest5 = Math.max(longest5, x.spent); });
+  }
+  ok('no walk is longer than the cap', longest5 === VS.BALANCE.dice.steerCap, 'longest walk ' + longest5);
+  var c7 = fight(0), dry = { dealt: 99 };
+  // a roll that lands under 18 with no Aim to walk it: the pistol shot
+  for (var j7 = 0; j7 < 20 && dry.dealt >= 12; j7++) { c7.player.statuses.aim = 0; dry = play(c7, 'long_shot'); }
   ok('and fired dry it is still scraps', dry.dealt > 0 && dry.dealt < 12, 'dealt ' + dry.dealt);
 }
 

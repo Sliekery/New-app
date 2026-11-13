@@ -2384,6 +2384,8 @@
   function showMap(preview) {
     updateHUD();
     var r = E.run, m = r.map;
+    // THE MARK GREW at the boss you just beat: say so once, on the first map of the sector
+    if (r.markGrew && !preview) { toast('YOUR MARK IS CUT DEEPER: ' + r.markGrew.name.toUpperCase() + ' — ' + r.markGrew.desc, 4200); r.markGrew = null; }
     var s = overlayScreen(true);
     s.classList.add('map-screen', 'chartv2');
     var land = isLandscape();

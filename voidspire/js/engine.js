@@ -818,10 +818,36 @@
     return null;
   };
 
+  /* THE MARK GROWS. The engraving you chose on turn one is the archetype, so
+   * it should deepen with the run rather than stay a first-minute pick: each
+   * boss you beat recuts it one rank (`<eng>_2`, then `<eng>_3`), in place, on
+   * every face it covers. Scrubbed or forged away, there is nothing to grow. */
+  function growMark() {
+    var r = E.run;
+    if (!r || !r.firstMark || !r.die) return;
+    var m = ns.firstMarks(r.cls).filter(function (x) { return x.id === r.firstMark; })[0];
+    if (!m) return;
+    var rank = Math.min(3, r.sector);              // sector 2 -> rank 2, sector 3+ -> rank 3
+    var from = rank === 3 ? [m.eng, m.eng + '_2'] : [m.eng], to = m.eng + '_' + rank;
+    if (rank < 2 || !ns.dieEngraving(to)) return;
+    var grew = false;
+    [r.die.faces, r.die.seams || {}].forEach(function (map) {
+      Object.keys(map).forEach(function (f) {
+        if (map[f] && from.indexOf(map[f].id) >= 0) { map[f].id = to; grew = true; }
+      });
+    });
+    if (grew) {
+      var ge = ns.dieEngraving(to);
+      r.markGrew = { name: ge.name, desc: ge.desc };   // the map screen announces it once
+      emit('markGrew', { id: to, rank: rank });
+    }
+  }
+
   function newSector() {
     var r = E.run;
     r.sector++;
     E.growDieCore();   // the die is re-machined between sectors: one more core slot
+    growMark();        // and the mark you opened with is cut deeper
     var factions = Object.keys(ns.FACTIONS).filter(function (f) { return f !== r.faction; });
     r.faction = pick(factions);
     r.map = generateMap(r.sector);
@@ -1398,14 +1424,6 @@
   function addStatus(ent, s, v) {
     ent.statuses[s] = (ent.statuses[s] || 0) + v;
     if (ent.statuses[s] <= 0) delete ent.statuses[s];
-    /* COLD BORE caps the bank. The card's whole trade is that cashouts stop
-     * SPENDING Aim, which without a ceiling would compound without limit — so
-     * the ceiling is enforced here, at the one place Aim is granted, rather
-     * than at the six places that grant it. */
-    if (s === 'aim' && v > 0 && (ent.statuses.coldBore || 0) > 0) {
-      var capA = B.dice.coldBoreCap || 5;
-      if (ent.statuses[s] > capA) ent.statuses[s] = capA;
-    }
     var isEnemy = E.combat && E.combat.enemies.indexOf(ent) >= 0;
     // Status listeners hook HERE rather than at each call site: Momentum alone
     // is granted from six different places, and a listener that only caught
@@ -1467,6 +1485,8 @@
     // turn to expire, so combat-start Shield (Aegis Core / Forge Reserve) persists.
     if (c.turn > 1 && (lawTrigger('blockCarries') < 0 || (!statN(p, 'retain') && !statN(p, 'barricade')))) p.block = 0;   // THE WEIGHT overrides Retain
     if (p.statuses.parry) p.statuses.parry = 0;   // Parry is a per-turn stance (like block)
+    // DUG IN / LOW ROAD / RANGE CARD hold the die for one turn only
+    ['lineRoll', 'lowRoll', 'floorRoll'].forEach(function (s) { if (p.statuses[s]) delete p.statuses[s]; });
     // energy (with optional carry-over from Overflow Reactor)
     c.energy = maxEnergy() + (art('energyCarry') > 0 ? leftover : 0);
     if (c.turn === 1) c.energy += art('energyTurn1');
@@ -1701,6 +1721,10 @@
      * deck won 7.0% of runs against 22.0% for drafting at random. Two points of
      * damage per Stim is what makes the trade worth making. */
     var v = statN(p, 'str') + statN(p, 'momentum') + statN(p, 'stim') * 2 + art('flatDmg') + (E.combat.momentum || 0);
+    // SIGHTING IN: the banked Aim is a steadier hand on every shot, so steering
+    // spends damage to buy the band — a choice, where spending a cashout's
+    // ammunition on the steer was a conflict
+    if (statN(p, 'sightIn') > 0) v += statN(p, 'aim') * statN(p, 'sightIn');
     if (sc === 'might') v += attr('might') * B.attrs.mightDmgPerPoint * mul;
     if (sc === 'tech') v += attr('tech') * mul;
     if (sc === 'psi') v += attr('psi') * B.attrs.psiDmgPerPoint * mul + statN(p, 'psiPow');
@@ -2584,10 +2608,14 @@
           var rv = (eff != null ? eff : roll), ok;
           var low = (roll != null) && (roll === 1 || (roll < 20 && rv <= f.max));
           var high = (roll === 20) || (roll != null && roll > 1 && rv >= (f.min || 0));
-          if (f.max != null && f.min != null) ok = low || high;
+          // `band: 'mid'` is the Vanguard's middle reading: 8-14, neither end.
+          // Neither natural extreme counts, because a jam and a crit both left it.
+          if (f.band === 'mid') ok = roll != null && roll > 1 && roll < 20 && rv >= 8 && rv <= 14;
+          else if (f.max != null && f.min != null) ok = low || high;
           else if (f.max != null) ok = low;
           else ok = high;
           if (ok) totalDealt += applyCardFx(f.fx || [], ctx);
+          else if (f.else) totalDealt += applyCardFx(f.else, ctx);
           break;
         }
         case 'dmg': {
@@ -2689,7 +2717,8 @@
             var wallNow = statN(p, 'bulwark');
             var shot = (f.id === 'spall') ? Math.floor(wallNow * (f.v || 0.5)) : wallNow;
             if (f.id !== 'spall' && wallNow > 0) { addStatus(p, 'bulwark', -wallNow); emit('status', { who: 'player', s: 'bulwark', v: 0 }); }
-            else if (f.id === 'spall' && f.cost) { addStatus(p, 'bulwark', -shot); emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') }); }
+            // `keepMid`: a Spall that lands 8-14 fires the chip without spending it
+            else if (f.id === 'spall' && f.cost && !(f.keepMid && roll > 1 && roll < 20 && eff >= 8 && eff <= 14)) { addStatus(p, 'bulwark', -shot); emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') }); }
             if (shot > 0) {
               if (art('wallBurst') > 0) {          // SAPPER CHARGE
                 aliveEnemies().forEach(function (e3) {
@@ -2738,28 +2767,11 @@
              * stat and prints nothing. */
             addStatus(p, f.s, f.v || 1);
             emit('status', { who: 'player', s: f.s, v: statN(p, f.s) });
-          } else if (f.id === 'aimGate') {
-            /* LONG SHOT. Pay a fixed price for a fixed shot, or fire it dry for
-             * scraps. Unlike Killshot it does not want your whole magazine, so
-             * it is the cashout you can hold alongside steering. */
-            var haveA = statN(p, 'aim'), payA = f.cost || 3;
-            var shotA = (haveA >= payA) ? (f.v || 18) : (f.base || 4);
-            // COLD BORE: the sight is zeroed, so the shot READS the bank
-            // instead of taking it. The bank is capped in exchange.
-            if (haveA >= payA && !statN(p, 'coldBore')) {
-              addStatus(p, 'aim', -payA); emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') });
-            }
-            var agEn = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
-            if (agEn) totalDealt += dealToEnemy(agEn, c.enemies.indexOf(agEn), shotA + attackBonus(f),
-              { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
           } else if (f.id === 'emptyMag') {
-            /* EMPTY THE MAGAZINE. The whole load turns into reach rather than
-             * into one big number — every 2 Aim walks the burst one face
-             * further round the ring, so it wants a long engraved run and it
-             * is the only card that turns Aim into WIDTH. */
-            var magA = statN(p, 'aim');
-            if (magA > 0 && !statN(p, 'coldBore')) { addStatus(p, 'aim', -magA); emit('status', { who: 'player', s: 'aim', v: 0 }); }
-            var extra = Math.floor(magA / (f.per || 2));
+            /* EMPTY THE MAGAZINE. The height of the shot turns into reach:
+             * every `per` faces you land above 14 walk the burst one face
+             * further round the ring. It reads the landing, it spends nothing. */
+            var extra = Math.floor(Math.max(0, (eff || 0) - 14) / (f.per || 2));
             var bm2 = B.dice.burst || [1, 0.6, 0.35];
             for (var em = 1; em <= extra && !c.over; em++) {
               fireOneFace(ns.dieStep(eff || roll, em), tgt, bm2[Math.min(em, bm2.length - 1)], 'burst', eff || roll);
@@ -2837,13 +2849,19 @@
              * magazine is a card the archetype cannot afford to play. */
             addStatus(p, 'bulwark', (f.base || 3) + statN(p, 'aim') * (f.v || 2));
             emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') });
-          } else if (f.id === 'spendAim') {
-            // KILLSHOT: burn every point of banked Aim into one aimed round.
+          } else if (f.id === 'aimDmg') {
+            /* THE PATIENT SHOT reads the bank and leaves it standing, so Aim
+             * beyond what one steer can use is still worth having. */
+            var adT = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
+            if (adT) totalDealt += dealToEnemy(adT, c.enemies.indexOf(adT), (f.base || 4) + statN(p, 'aim') * (f.v || 2) + attackBonus(f),
+              { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
+          } else if (f.id === 'faceDmg') {
+            /* KILLSHOT reads how high the shot landed: `v` a face above 14.
+             * A cashout that SPENT the bank fought the steering for the same
+             * Aim; one that reads the landing is paid by the steering instead. */
             var saT = (tgt && tgt.alive) ? tgt : aliveEnemies()[0];
-            var saN = statN(p, 'aim');
             if (saT) {
-              if (saN > 0 && !statN(p, 'coldBore')) { addStatus(p, 'aim', -saN); emit('status', { who: 'player', s: 'aim', v: 0 }); }
-              var saD = (f.base || 6) + saN * (f.v || 4) + statN(p, 'str') + attr('might') + art('flatDmg');
+              var saD = (f.base || 6) + Math.max(0, (eff || 0) - 14) * (f.v || 3) + attackBonus(f);
               totalDealt += dealToEnemy(saT, c.enemies.indexOf(saT), saD, { crit: crit, roll: roll, misfire: misfire, bandMult: bandMult });
             }
           } else if (f.id === 'backdraft') {
@@ -3105,6 +3123,17 @@
       c.nextRoll = ri(1, _sides);
       emit('foresee', { roll: c.nextRoll });
     } else if (c.nextRoll != null) c.nextRoll = null;
+    /* THE TWO WAYS TO HANDLE A DIE YOU DO NOT TRUST. DUG IN (the Line) rolls
+     * twice and keeps the one nearer the middle, so the variance the other two
+     * plans exploit is the thing this one tames. LOW ROAD (the Debt) rolls
+     * twice and keeps the lower, because for that plan the bottom is income. */
+    if (dread && dread.steer && !FLAT_DIE) {
+      if (statN(p, 'lineRoll') > 0 || statN(p, 'dugIn') > 0) {
+        var lr2 = ri(1, _sides);
+        if (Math.abs(ns.dieScale(r.die, lr2) - 11) < Math.abs(ns.dieScale(r.die, roll) - 11)) roll = lr2;
+      }
+      if (statN(p, 'lowRoll') > 0) roll = Math.min(roll, ri(1, _sides));
+    }
     // ---- relics that shape the die itself, before anything reads it -------
     // These are the half of the marriage that was missing: 55 of 62 relics had
     // nothing to do with the die, so mounting one in it was fiction. A relic
@@ -3128,6 +3157,10 @@
     if (art('openHigh') > 0 && c.rollNo === 1) {
       for (var ohf = _sides; ohf > 1; ohf--) if (ns.dieFaceId(r.die, ohf)) { roll = ohf; break; }
     }
+    // RANGE CARD: this turn nothing lands under 8 — but a jam is still a jam
+    if (statN(p, 'floorRoll') > 0 && roll > 1) {
+      for (var flf = roll; flf <= _sides; flf++) if (ns.dieScale(r.die, flf) >= 8) { roll = flf; break; }
+    }
     /* MARKSMANSHIP STEERS. For a class whose table says `steer`, Aim is not
      * added to the roll — it MOVES the die. It climbs (or dives, under Steady
      * Hands) to the furthest ENGRAVED face it can reach, spends 1 Aim a face,
@@ -3139,11 +3172,33 @@
      * outcome into the worst, and diving off 2 onto the jam would do the same
      * in reverse — the metaphor is a table you climb, not a ring you circle. */
     var steered = null;
+    // A CALLED SHOT names the face it wants (on the d20 scale). Upgrades may call lower.
+    var callAt = (card.up && def.up && def.up.call) || def.call || 0;
+    // THE LINE pulls the die to the middle: a low roll is called up to 8
+    if (!callAt && statN(p, 'holdLine') > 0) callAt = 8;
     if (dread && dread.steer && roll > 1) {
       var aimHave = statN(p, 'aim');
-      var capF = Math.min(aimHave, (B.dice.steerCap || 3) + art('steerCap'));
-      if (capF > 0) {
-        var dive = statN(p, 'steerDown') > 0;      // STEADY HANDS inverts the climb
+      var capF = Math.min(aimHave, (B.dice.steerCap || 3) + art('steerCap') + statN(p, 'steerReach'));
+      var dive = statN(p, 'steerDown') > 0;      // STEADY HANDS inverts the climb
+      /* THE CALL. A called shot breaks the bare-face rule: the face it named is
+       * a destination whether or not you cut it, and Aim takes the cheapest walk
+       * there. Out of reach, the shot steers as any other card does. */
+      if (capF > 0 && callAt && ns.dieScale(r.die, roll) < callAt) {
+        for (var cs = 1; cs <= capF && roll + cs <= _sides; cs++) {
+          if (ns.dieScale(r.die, roll + cs) >= callAt) { steered = { face: roll + cs, spent: cs, over: false }; break; }
+        }
+      }
+      /* STEADY HANDS is the Red Debt's steer: it dives to the nearest face you
+       * cut in 2-7 and stops there. It never touches a roll that is already
+       * low, and never steps onto the jam. */
+      if (!steered && capF > 0 && dive) {
+        if (ns.dieScale(r.die, roll) > 7) {
+          for (var ds = 1; ds <= capF && roll - ds >= 2; ds++) {
+            var dfc = roll - ds;
+            if (ns.dieFaceId(r.die, dfc) && ns.dieScale(r.die, dfc) <= 7) { steered = { face: dfc, spent: ds, over: false }; break; }
+          }
+        }
+      } else if (!steered && capF > 0) {
         /* ONLY SPEND WHAT IT BUYS. Climbing blindly to the highest cut face
          * burned 3 Aim to move 15 -> 18 — both engraved, both SOLID, nothing
          * gained. Aim moves you when you are on a BARE face (anything beats
@@ -3154,7 +3209,7 @@
         // OVERRUN CAM is the one thing allowed to break the no-wrap rule above
         var wrapOK = art('wrapSteer') > 0;
         for (var st = 1; st <= capF; st++) {
-          var sf = wrapOK ? ns.dieStep(roll, dive ? -st : st, r.die) : roll + (dive ? -st : st);
+          var sf = wrapOK ? ns.dieStep(roll, st, r.die) : roll + st;
           if (wrapOK) { if (sf === 1) continue; }          // never steer onto the jam
           else if (sf > ns.dieSides(r.die) || sf < 2) break;
           if (!ns.dieFaceId(r.die, sf)) continue;
@@ -3162,7 +3217,7 @@
             var thereBand = bandFor(dread, sf, sf);
             if (!thereBand || !hereBand || thereBand.mult <= hereBand.mult) continue;
           }
-          steered = { face: sf, spent: st, over: wrapOK && (dive ? sf > roll : sf < roll) };
+          steered = { face: sf, spent: st, over: wrapOK && sf < roll };
         }
       }
       if (steered) {
@@ -3170,7 +3225,7 @@
         emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') });
         emit('steer', { from: roll, to: steered.face, spent: steered.spent });
         // OVERRUN CAM: you went over the top, so the top fires on the way past
-        if (steered.over) c.overrunFace = dive ? 2 : ns.dieSides(r.die);
+        if (steered.over) c.overrunFace = ns.dieSides(r.die);
         // TRENCH SWEEP: the wall is built by the walk, not by the destination
         if (art('steerWall') > 0) {
           addStatus(p, 'bulwark', wallGain(steered.spent * art('steerWall')));
@@ -3183,7 +3238,32 @@
     eff = (dread && dread.steer)
       ? Math.min(20, scaled + art('rollBonus'))
       : Math.min(20, scaled + statN(p, 'aim') + art('rollBonus'));
-    c.highFace = Math.max(c.highFace || 0, landed);                 // THE REDOUBT reads it at end of turn
+    /* THE THREE READINGS. Every roll, skill or attack, is read by where it
+     * landed, so each of the Vanguard's plans is paid by the same die:
+     *   THE LINE      a roll that lands 8-14 lays Bulwark
+     *   THE RED DEBT  a roll that lands 2-7 pays Stim, and a jam pays double
+     *   THE LONG SHOT a roll that lands 15-20 pays Aim, to call the next one */
+    if (dread && dread.steer) {
+      var jamNow = scaled <= Math.max(1, (E.pressureMods().misfireOn || 1) + art('misfireWiden'));
+      var holdL = statN(p, 'holdLine');
+      // THE REDOUBT banks the best middle face this turn, laid at end of turn
+      if (!jamNow && roll < _sides && scaled >= 8 && scaled <= 14) c.highMid = Math.max(c.highMid || 0, scaled);
+      if (holdL > 0 && !jamNow && roll < _sides && scaled >= 8 && scaled <= 14) {
+        addStatus(p, 'bulwark', wallGain(holdL));
+        emit('status', { who: 'player', s: 'bulwark', v: statN(p, 'bulwark') });
+      }
+      // THE LONG SHOT: a roll that lands 15-20 sights in the next one
+      var sight = statN(p, 'sightIn');
+      if (sight > 0 && !jamNow && scaled >= 15) {
+        addStatus(p, 'aim', sight);
+        emit('status', { who: 'player', s: 'aim', v: statN(p, 'aim') });
+      }
+      var debt = statN(p, 'redDebt');
+      if (debt > 0 && (jamNow || scaled <= 7)) {
+        addStatus(p, 'stim', jamNow ? debt * 2 : debt);
+        emit('status', { who: 'player', s: 'stim', v: statN(p, 'stim') });
+      }
+    }
     if (art('bankRoll') > 0) c.banked = (c.banked || 0) + roll;     // SPENT BRASS
     if (art('lowMight') > 0 && roll < 6) {                          // TRENCH LEDGER
       // the bottom of the die is Stim's territory now, not Might's
@@ -3494,14 +3574,15 @@
       emit('relic', { id: 'spent_brass', v: c.banked });
       c.banked = 0;
     }
-    /* THE REDOUBT banks the best face you reached this turn. It is the wall's
-     * die hook and the reason Bulwark wants to land high like Marksmanship
-     * does — the same roll serves both, which is what makes the pair work. */
-    if (statN(c.player, 'redoubt') > 0 && (c.highFace || 0) > 0) {
-      addStatus(c.player, 'bulwark', wallGain(c.highFace));
+
+    /* THE REDOUBT is the Line's anchor: end of turn, the best face you held
+     * in 8-14 becomes wall. It used to read the highest face of all, which
+     * paid the top of the die for a plan about the middle. */
+    if (statN(c.player, 'redoubt') > 0 && (c.highMid || 0) > 0) {
+      addStatus(c.player, 'bulwark', wallGain(c.highMid));
       emit('status', { who: 'player', s: 'bulwark', v: statN(c.player, 'bulwark') });
     }
-    c.highFace = 0;
+    c.highMid = 0;
 
     // end-of-turn: shrapnel curses in hand
     c.hand.forEach(function (card) {

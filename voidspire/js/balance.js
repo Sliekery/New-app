@@ -89,7 +89,6 @@
       // COLD BORE stops cashouts spending Aim; this is the ceiling it trades
       // for. 5 keeps Killshot's cashout (base + 4/point) at a strong but
       // finite number and still leaves Aim's roll bonus worth +5.
-      coldBoreCap: 5,
       weldCost: 70,
       weldStep: 60,
       // a listener may set off another listener, but only this deep — the

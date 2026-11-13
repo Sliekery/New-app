@@ -42,10 +42,11 @@ function attrOf(scale) {
 // ranking/priority so the Burn archetype isn't invisible to the bot; left OFF
 // for lethal detection (Burn can't kill *this* turn).
 function estCardDamage(card, target, includeDot) {
-  var def = VS.CARDS[card.id];
-  var fx = VS.cardFx(def, card.up);
+  var def = card._fx ? { fx: card._fx } : VS.CARDS[card.id];
+  var fx = card._fx || VS.cardFx(def, card.up);
   var c = VS.engine.combat;
-  var str = (c.player.statuses.str || 0);
+  var str = (c.player.statuses.str || 0) + (c.player.statuses.stim || 0) * 2
+          + (c.player.statuses.sightIn ? (c.player.statuses.aim || 0) * c.player.statuses.sightIn : 0);
   var total = 0, dot = 0;
   fx.forEach(function (f) {
     if (f.k === 'dmg') {
@@ -82,24 +83,50 @@ function estCardDamage(card, target, includeDot) {
     if (f.k === 'special' && f.id === 'bloodbath') {
       total += f.v * (c.player.statuses.str || 0);        // Bloodforge cashout scales with stacked Strength
     }
-    /* THE AIM CASHOUTS. These were missing, and their absence was not a small
-     * inaccuracy: Long Shot and Killshot ARE the precision plan, and a bot
-     * that scores them at zero plays its whole magazine as if it were empty.
-     * It only showed once the reward roll started handing the plan over —
-     * THE LONG SHOT read 18.9% against 42% for the other two marks, which
-     * looked exactly like a broken archetype and was a blind estimator. */
-    if (f.k === 'special' && f.id === 'aimGate') {
-      var haveA = (c.player.statuses.aim || 0), payA = f.cost || 3;
-      total += (haveA >= payA ? (f.v || 18) : (f.base || 4)) + str;
-    }
-    if (f.k === 'special' && f.id === 'spendAim') {
-      // every banked point is worth f.v on top of the base shot
-      total += (f.base || 6) + (c.player.statuses.aim || 0) * (f.v || 4)
-             + str + attrOf('might');
+    /* THE DIE-READING CARDS. A rider that reads the landing (Roll 18+, Roll
+     * 8-14, Killshot's face count) is worth its payload times the chance the
+     * die gets there, and a called shot raises that chance by the Aim it can
+     * spend. Scoring them at their printed best or at zero would both draft
+     * and play a plan the die cannot deliver. */
+    if (f.k === 'special' && f.id === 'aimDmg') total += (f.base || 4) + (c.player.statuses.aim || 0) * (f.v || 2) + str + attrOf('might');
+    if (f.k === 'onRoll' || (f.k === 'special' && f.id === 'faceDmg')) {
+      total += landingEV(def, card.up, f, target, str);
     }
   });
   if ((c.player.statuses.weak || 0) > 0) total = Math.floor(total * VS.BALANCE.status.weakMult);
   return total + dot;
+}
+
+/* Where the next roll lands, as a d20 histogram: uniform, then lifted by a
+ * called shot's walk. Ordinary steering onto cut faces is left out — it is a
+ * band bonus the rest of the estimator already ignores. */
+function landingDist(def, up) {
+  var c = VS.engine.combat, p = c.player, B = VS.BALANCE;
+  var callAt = (up && def.up && def.up.call) || def.call || 0;
+  var cap = Math.min(p.statuses.aim || 0, (B.dice.steerCap || 3) + (p.statuses.steerReach || 0));
+  var dist = [];
+  for (var r = 1; r <= 20; r++) {
+    var land = r;
+    if (callAt && r > 1 && r < callAt && callAt - r <= cap) land = callAt;
+    dist.push(land);
+  }
+  return dist;
+}
+function landingEV(def, up, f, target, str) {
+  var dist = landingDist(def, up), sum = 0;
+  dist.forEach(function (face) {
+    var inner = null;
+    if (f.k === 'special') {
+      sum += (f.base || 6) + Math.max(0, face - 14) * (f.v || 3) + str + attrOf('might');
+      return;
+    }
+    var ok = f.band === 'mid' ? (face >= 8 && face <= 14)
+           : (f.max != null && f.min != null) ? (face <= f.max || face >= f.min)
+           : f.max != null ? face <= f.max : face >= (f.min || 0);
+    inner = ok ? f.fx : f.else;
+    if (inner) sum += estCardDamage({ id: '__fx', up: false, _fx: inner }, target, false);
+  });
+  return sum / dist.length;
 }
 
 var PRI_ATTR = { vanguard: 'might', technomancer: 'tech', voidadept: 'psi' };
@@ -190,6 +217,11 @@ function botManageDie() {
  * Vanguard 26.1% -> 15.7% win, entirely from the harness, not the game. */
 function botFaceValue(f, lo) {
   if (f === 1) return 0.5;        // fires only on a jam; the anchor faces want it
+  /* A player who took the Red Debt or the Set Shield cuts where that plan is
+   * read, not at the top: the mark is a statement about which faces pay. */
+  var band = VS.engine.markBand && VS.engine.markBand();
+  if (band === 'low') return f <= 7 ? 20 - f : 1;
+  if (band === 'mid') return (f >= 8 && f <= 14) ? 20 - Math.abs(f - 11) : 1;
   return f >= lo ? f : 1;
 }
 function botPlaceScore(id, face) {
@@ -349,14 +381,12 @@ function botCombat() {
     function heldCashout(idx) {
       var cd = VS.CARDS[c.hand[idx].id];
       var held = false;
+      if (cd.retain && cd.call >= 17 && (c.player.statuses.aim || 0) < 2) held = true;
       VS.cardFx(cd, c.hand[idx].up).forEach(function (f) {
         if (f.k !== 'special') return;
         var aim = c.player.statuses.aim || 0;
-        if (f.id === 'aimGate' && aim < (f.cost || 3)) held = true;
-        // Killshot is worth holding for a deep bank; 5 is about where it beats
-        // an ordinary attack by enough to be worth the turn it waited.
-        if (f.id === 'spendAim' && aim < 5) held = true;
-        if (f.id === 'emptyMag' && aim < 4) held = true;
+        // the high cashouts read the landing: wait until Aim can carry a call there
+        if ((f.id === 'faceDmg' || f.id === 'emptyMag') && aim < 2) held = true;
       });
       return held;
     }

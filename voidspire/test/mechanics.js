@@ -90,7 +90,7 @@ function bigEnemies() { E.combat.enemies.forEach(function (e) { e.hp = 100; e.ma
 startFight('vanguard');
 setHand(['red_ledger']);
 playId('red_ledger');
-ok('power applies its effect', (E.combat.player.statuses.bloodrage || 0) > 0);
+ok('power applies its effect', (E.combat.player.statuses.redDebt || 0) > 0);
 ok('power does NOT go to discard', !E.combat.discard.some(function (c) { return c.id === 'red_ledger'; }));
 ok('power does NOT go to draw pile', !E.combat.drawPile.some(function (c) { return c.id === 'red_ledger'; }));
 ok('power goes to the consumed pile', E.combat.consumed.some(function (c) { return c.id === 'red_ledger'; }));
@@ -1732,22 +1732,34 @@ ok('every class opens with a starter deck of real cards',
   /* Momentum is GONE from the Vanguard — BURST replaced it, because chaining
    * across cards and bursting within one are the same fantasy and only one of
    * them uses the die. What replaces this test is that the cashout actually
-   * cashes out: Long Shot pays a fixed price for a fixed shot. */
-  flatDie(function () {
+   * cashes out: Long Shot CALLS 18, and pays only when Aim walks it there.
+   * Measured over many plays with the class table LIVE, since the call is a
+   * steer and steering is off under flatDie. */
+  (function () {
     E.seed(8); E.newRun('vanguard'); E.takeFirstMark(0);
+    E.run.die.pending = [];                           // a bare die: only the call steers
     E.run.faction = 'hierarchy'; E.run.nodeIdx = 0;
     E.startNode('fight');
     var c = E.combat, en = c.enemies[0];
-    en.hp = 9999; en.maxHp = 9999; c.energy = 30; en.platedReady = false;
-    c.player.statuses.aim = 0;
-    c.hand = [{ uid: 5001, id: 'long_shot', up: false }];
-    var hp1 = en.hp; E.playCard(0, 0); var dryShot = hp1 - en.hp;
-    c.player.statuses.aim = 3;
-    c.hand = [{ uid: 5002, id: 'long_shot', up: false }];
-    var hp2 = en.hp; E.playCard(0, 0); var loaded = hp2 - en.hp;
-    ok('Long Shot pays out only when loaded (' + dryShot + ' -> ' + loaded + ')', loaded > dryShot * 2);
-    ok('...and it spends the Aim it used', (c.player.statuses.aim || 0) === 0);
-  });
+    en.hp = 1e6; en.maxHp = 1e6; en.platedReady = false;
+    function volley(aim) {
+      var dealt = 0, overspent = 0;
+      for (var k = 0; k < 300; k++) {
+        c.energy = 9; c.player.statuses.aim = aim; c.player.statuses.str = 0;
+        c.hand = [{ uid: 6000 + k, id: 'long_shot', up: false }];
+        var h = en.hp; E.combatLog.length = 0; E.playCard(0, 0); dealt += h - en.hp;
+        var st = E.combatLog.filter(function (x) { return x.t === 'steer'; })[0];
+        var spent = aim - (c.player.statuses.aim || 0);
+        if (spent !== (st ? st.spent : 0) || (st && st.to !== 18)) overspent++;
+      }
+      return { avg: dealt / 300, bad: overspent };
+    }
+    var was = E.logging; E.logging = true;
+    var dry = volley(0), loaded = volley(3);
+    E.logging = was;
+    ok('Long Shot pays more with Aim to walk the call (' + dry.avg.toFixed(1) + ' -> ' + loaded.avg.toFixed(1) + ')', loaded.avg > dry.avg * 1.4);
+    ok('...and it spends only the walk to 18, nothing for the payoff', loaded.bad === 0);
+  })();
   E.run.phase = 'map';
 
   // Every new card must be reachable as a reward, or it is content nobody sees.

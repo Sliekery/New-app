@@ -18,10 +18,10 @@ var VS = sim.VS;
 /* The keyword each group is built on — taken from what the cards DO, not from
  * a design document, so a group that exists only on paper shows up empty. */
 var GROUPS = {
-  AIM:      { s: ['aim', 'aimPerTurn'], sp: ['aimGate', 'spendAim'] },
-  STIM:     { s: ['stim', 'stimHold'],  sp: ['stimScale', 'limitBreakStim'] },
+  AIM:      { s: ['aim', 'aimPerTurn', 'sightIn', 'steerReach', 'steerDown'], sp: ['aimDmg', 'aimBlock', 'faceDmg'] },
+  STIM:     { s: ['stim', 'stimHold', 'redDebt', 'redHour', 'lowRoll'],  sp: ['stimScale', 'limitBreakStim'] },
   BLOOD:    { s: ['bloodrage', 'reactor'], sp: ['drain', 'bloodbath', 'wounded'] },
-  WALL:     { s: ['bulwark', 'wallPerTurn', 'wallThorns', 'scarWall', 'burstWall'],
+  WALL:     { s: ['bulwark', 'wallPerTurn', 'wallThorns', 'scarWall', 'burstWall', 'holdLine', 'redoubt', 'dugIn', 'floorRoll'],
               sp: ['wallFace', 'wallDealt', 'wallBoost', 'bloodCement', 'breachWall'] },
   BURST:    { s: ['burstPlus', 'salvo', 'demoCharge'], sp: ['reload', 'emptyMag'], roll: true },
   COUNTER:  { s: ['parry', 'vengeance', 'thorns', 'spikeward'], sp: [] },
@@ -43,7 +43,7 @@ function groupsOf(def) {
         var G = GROUPS[g];
         if (f.k === 'status' && G.s.indexOf(f.s) >= 0) hit[g] = 1;
         if (f.k === 'special' && G.sp.indexOf(f.id) >= 0) hit[g] = 1;
-        if (f.k === 'special' && f.id === 'stat' && G.sp.indexOf(f.s) >= 0) hit[g] = 1;
+        if (f.k === 'special' && f.id === 'stat' && (G.sp.indexOf(f.s) >= 0 || G.s.indexOf(f.s) >= 0)) hit[g] = 1;
         if (f.k === 'onRoll' && G.roll) hit[g] = 1;
       });
       if (f.fx) scan(f.fx);

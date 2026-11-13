@@ -223,6 +223,80 @@ the hallways — and then it dies at the boss far more often. It banks much more
 Aim than the other marks (3.6 vs 1.2-1.4) and steers with it. The next thing to
 measure is what that steering is actually worth against a boss.
 
+## Every plan is a reading of the die (Nov 2026 rework)
+
+The draft lean made the plans assemble, but they were still not *about* the die:
+mid had 4 of 20 cards that touched it and low had 1 of 21. Bulwark was
+Barricade + Body Slam and Stim was Strength + self-damage; delete the die and
+both still worked. The full case and the genre comparison are in
+`docs/VANGUARD_IDENTITY.md`. What was built:
+
+- **Each mark's power is a reading of its band.** These are engine statuses read
+  on every roll, skill or attack, in the roll block of `playCard`:
+  - `sightIn` (Sighting In, LONG SHOT): a roll of 15–20 grants Aim, and banked
+    Aim adds +1 damage per point to every attack.
+  - `redDebt` (Red Ledger, RED DEBT): a roll of 2–7 grants Stim, and a misfire
+    grants double.
+  - `holdLine` (Set Against It, SET SHIELD): a roll of 8–14 lays Bulwark, and Aim
+    calls a low roll up to 8.
+- **CALL.** A card's `call: N` (on the d20 scale) makes a bare face a valid steer
+  target: Aim takes the cheapest walk to N or higher, and falls back to normal
+  steering when N is out of reach. Long Shot, Killshot, Empty the Magazine,
+  Called High and One in the Chamber call.
+- **The cashouts no longer spend Aim.**
+  - Killshot (`faceDmg`) and Empty the Magazine (`emptyMag`) read how far above
+    14 the shot landed.
+  - Long Shot is an `onRoll` with an `else` branch.
+  - Ranging Shot (`aimDmg`) reads the bank and leaves it standing.
+  - `aimGate`, `spendAim` and Cold Bore's Aim cap are gone; Cold Bore is now
+    `steerReach`, +2 faces of steering.
+- **`onRoll` grew `band: 'mid'`** (8–14, neither natural extreme) and `else`.
+  Most mid and low cards now carry a "Roll 8–14:" or "Roll 7 or less:" rider.
+- **Consistency for the Line, dives for the Debt:**
+  - `dugIn` (power, Dug In) rolls twice and keeps the roll nearer 11.
+  - `floorRoll` (Range Card, this turn) moves 2–7 up to 8.
+  - `lowRoll` (Overdose, this turn) rolls twice and keeps the lower.
+  - Steady Hands (`steerDown`) moved to low: it dives to the nearest cut face in 2–7.
+- **The Redoubt** banks the highest *8–14* face each turn (`c.highMid`). This one
+  card carried SET SHIELD: an ablation that restored the old highest-face rule
+  took the mark from ~28% back to ~40%.
+- **The engravings pay in their own plan's currency:** Ranging gives Aim,
+  Whetstone gives Stim (not Might), Anvil gives Bulwark (not Shield). Each is
+  recut at the first two boss beats (`<eng>_2` / `_3`, `growMark()` in
+  `newSector`), announced once by a toast on the map.
+- **Power text says what the power does.** "Gain 1 coldBore" and "Gain 2
+  Loophole" were status names. Limit Break+ used to double Might.
+
+Die-touch per band after the rework: high 20/20, mid 13/20, low 13/22. The
+cards left untouched are payoffs and glue.
+
+**Measured, 6×600 against 4×600 before** (run-to-run spread is ±5 per mark):
+
+    before   LONG SHOT ~24   RED DEBT ~49   SET SHIELD ~43   class ~38.7
+    after    LONG SHOT ~33   RED DEBT ~44   SET SHIELD ~37   class ~38.2
+
+**The spread halved (25 → 12) but still misses the ≤8 gate.**
+
+The probe that found LONG SHOT's real problem was per-card damage per play.
+The starter Pulse Rifle is the top damage card in every deck, and it hit 16.7 a
+play under RED DEBT against 12.1 under LONG SHOT. Stim is a global damage stat,
+like Strength; Aim was not one. Ablations backed this up:
+- Swapping LONG SHOT's engraving or mark card for RED DEBT's moved it ~+3.
+- Leaning its draft to low cards instead moved it +10.
+So the strength sits in the low pool and in Stim's reach, not in the mark.
+Sighting In's +1 damage per Aim is the answer to that, and it is what took LONG
+SHOT from ~22 to ~30.
+
+Two bot changes ride along. `estCardDamage` now counts Stim, which it used to
+ignore, and it values die-gated riders by the landing distribution
+(`landingEV`). Bot placement cuts engravings in the band its mark reads
+(`botFaceValue`); an ablation showed that placement alone does not move the
+numbers.
+
+Running the sims without Node: `tools/jsnode test/sim.js 600 vanguard` runs any
+test script on macOS's built-in JavaScriptCore (`tools/jnode.js` is a small
+require/process shim). Four 600-run sims run in parallel in about 15 s.
+
 ## Setting up a situation instead of playing to one
 
 `index.html?dev=1` opens a console (`js/dev.js`) that names the enemies for a
