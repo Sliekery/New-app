@@ -40,9 +40,18 @@
       var d = noiseBuf.getChannelData(0);
       for (var i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
     }
-    if (AC.state === 'suspended') AC.resume();
+    if (AC.state === 'suspended' && !document.hidden) AC.resume();
     return AC;
   }
+  /* A phone locked or switched away keeps a page's AudioContext running, so the
+   * music played on in a pocket. Hidden: stop the clock (the scheduler only
+   * books notes ahead of currentTime, so a stopped clock books nothing); back:
+   * start it again. ctx() above refuses to resume while hidden for the same
+   * reason, or the next scheduled call would undo this. */
+  document.addEventListener('visibilitychange', function () {
+    if (!AC) return;
+    try { if (document.hidden) AC.suspend(); else AC.resume(); } catch (e) { /* closed */ }
+  });
 
   function mtof(m) { return 440 * Math.pow(2, (m - 69) / 12); }
 

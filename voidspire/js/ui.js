@@ -28,9 +28,14 @@
     if (!AC) {
       try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { muted = true; return null; }
     }
-    if (AC.state === 'suspended') AC.resume();
+    if (AC.state === 'suspended' && !document.hidden) AC.resume();
     return AC;
   }
+  // Same as the music (music.js): a hidden page makes no sound.
+  document.addEventListener('visibilitychange', function () {
+    if (!AC) return;
+    try { if (document.hidden) AC.suspend(); else AC.resume(); } catch (e) { /* closed */ }
+  });
   function beep(freq, dur, type, vol, slide) {
     var ac = audio();
     if (!ac) return;
@@ -132,6 +137,28 @@
       setTimeout(function () { beep(top * 1.5, 0.26, 'square', 0.055); }, 90);
     },
   };
+
+  /* HAPTICS ride on the sounds, because every moment worth feeling already has
+   * one. In the iOS app the page can post to a native handler; in a browser
+   * there is none and this does nothing. They fire even when sound is muted —
+   * on a phone, muted is exactly when the hand is the only channel left. Talk
+   * (one per letter) and servo fire (enemy constructs) stay silent to the hand:
+   * a buzz per character, or for the enemy's gun, is noise. */
+  var HAPTIC = {
+    tap: 'tap', play: 'play', hit: 'hit', crit: 'crit', block: 'block', lock: 'tap', hurt: 'hurt',
+    heal: 'soft', win: 'win', lose: 'lose', dice: 'tick', coin: 'tap', chainStep: 'hit', chainBreak: 'crit',
+  };
+  var nativeHaptic = null;
+  try { nativeHaptic = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.haptic; } catch (e) { /* none */ }
+  if (nativeHaptic) {
+    Object.keys(HAPTIC).forEach(function (k) {
+      var sound = SFX[k];
+      SFX[k] = function () {
+        try { nativeHaptic.postMessage(HAPTIC[k]); } catch (e) { /* the app went away */ }
+        return sound.apply(this, arguments);
+      };
+    });
+  }
 
   /* ====================== vector art -> inline SVG ====================== */
   // Same polyline format as enemies: {p:[[x,y,...]], e:[[x,y]], m:[x,y,...]}
