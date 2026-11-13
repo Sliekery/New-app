@@ -1005,17 +1005,24 @@
    * `flare` pushes every point outward from the body on a cast. */
   function strokeLive(paths, px, py, sc, col, glow, o) {
     o = o || {};
-    var amp = o.amp || 0.03, speed = o.speed || 1.2, ph0 = o.phase || 0, flare = o.flare || 0;
+    var amp = o.amp || 0.03, speed = o.speed || 1.2, ph0 = o.phase || 0, flare = o.flare || 0, push = o.push || 0;
     ctx.save();
     ctx.strokeStyle = col; ctx.lineWidth = o.lw || 1.6; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
     ctx.shadowColor = col; ctx.shadowBlur = glow; ctx.globalAlpha = o.alpha == null ? 1 : o.alpha;
     paths.forEach(function (p, k) {
-      var n = Math.max(1, p.length / 2 - 1), tipX = null, tipY = null;
+      var n = Math.max(1, p.length / 2 - 1), tipX = null, tipY = null, reach = 1;
+      // `byLength`: weight the motion by how long the strand really is. Without it the weight runs 0..1 along
+      // EVERY strand, so a fringe a few hundredths long swings as far as a coat tail and reads as a stick.
+      if (o.byLength) {
+        var L = 0;
+        for (var j = 2; j < p.length; j += 2) L += Math.hypot(p[j] - p[j - 2], p[j + 1] - p[j - 1]);
+        reach = Math.min(1, L / 0.6);
+      }
       ctx.beginPath();
       for (var i = 0; i < p.length; i += 2) {
-        var f = (i / 2) / n, w = f * f;
+        var f = (i / 2) / n, w = f * f * reach;
         var ph = ph0 + k * 1.73 + f * 2.4;
-        var X = p[i]     + Math.sin(t * speed + ph) * amp * w + (p[i] < 0 ? -flare : flare) * w;
+        var X = p[i]     + Math.sin(t * speed + ph) * amp * w + (p[i] < 0 ? -flare : flare) * w + push * w;
         var Y = p[i + 1] + Math.cos(t * speed * 0.77 + ph) * amp * 0.6 * w + flare * 0.25 * w;
         if (i === 0) ctx.moveTo(px + X * sc, py + Y * sc); else ctx.lineTo(px + X * sc, py + Y * sc);
         if (i === p.length - 2) { tipX = px + X * sc; tipY = py + Y * sc; }
@@ -2045,7 +2052,18 @@
     // as a wireframe that happens to bob. A cast flares them outward.
     var castFlare = (aprog >= 0 && atype === 'attack') ? Math.sin(aprog * Math.PI) * 0.10 : 0;
     if (art.dendrites) strokeLive(breathe(art.dendrites, bAmt, 0), px, py, sc, col, glow, { amp: 0.045, speed: 1.35, flare: castFlare, tip: true });
-    if (art.tatters) strokeLive(breathe(art.tatters, bAmt, 0), px, py, sc, col, glow * 0.85, { amp: 0.05, speed: 0.85, flare: castFlare * 1.4, alpha: 0.9 });
+    // A cast flares cloth OUT from the centre line, which suits a psyker's hem. A gunshot does not: on the
+    // Vanguard's coat it split the tails apart and threw the fringe sideways. The shot instead sweeps the
+    // cloth BACK, away from the muzzle, riding the same envelope as the recoil so it settles as that does.
+    // Cloth lags the shot rather than snapping with it: nothing until the round leaves, then a swing back that
+    // peaks a beat later and eases out, so the coat reads as having weight.
+    var aimGun = atk && atk.type === 'aim', clothKick = 0;
+    if (aimGun && atype === 'attack' && aprog >= 0.4) {
+      var cs = (aprog - 0.4) / 0.6;
+      clothKick = Math.sin(Math.PI * Math.min(1, cs)) * (1 - cs * 0.5);
+    }
+    if (art.tatters) strokeLive(breathe(art.tatters, bAmt, 0), px, py, sc, col, glow * 0.85,
+      { amp: 0.05, speed: 0.85, flare: aimGun ? 0 : castFlare * 1.4, push: -clothKick * 0.12, byLength: aimGun, alpha: 0.9 });
 
     // weapon / attack animation per class
     var atking = atype === 'attack' && aprog >= 0, tx = R.player.atkTX, ty = R.player.atkTY;
