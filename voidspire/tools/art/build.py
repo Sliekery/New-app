@@ -18,10 +18,11 @@ def r2(v):
     v = round(v, 2)
     return 0 if v == 0 else (int(v) if v == int(v) else v)
 
-def build_one(m):
+def build_one(m, fn=None):
+    fn = fn or m.frame
     frames = []
     for i in range(m.N):
-        f = m.frame(i, m.N)
+        f = fn(i, m.N)
         frames.append({"p": [[r2(v) for v in p] for p in f["p"]],
                        "e": [[r2(e[0]), r2(e[1])] + ([round(e[2], 3)] if len(e) > 2 else []) for e in f.get("e", [])]})
     return {"fps": m.FPS, "frames": frames}
@@ -40,7 +41,7 @@ lines = ["/* ===================================================================
          " * turns its joints frame by frame, so every frame is the same creature.",
          " * Loaded after enemies.js; an entry here replaces that enemy's `art`.",
          " * ========================================================================= */",
-         "(function (ns) {", "  'use strict';", "  var A = {};"]
+         "(function (ns) {", "  'use strict';", "  var A = {}, ALT = {};"]
 total = 0
 for eid, m, doc in mods:
     data = json.dumps(build_one(m), separators=(",", ":"))
@@ -48,9 +49,15 @@ for eid, m, doc in mods:
     first = doc.split("\n")[0] if doc else eid
     lines.append("  // " + first)
     lines.append("  A." + eid + " = " + data + ";")
+    if hasattr(m, "frame_alt"):              # a second model, picked per spawn (engine.js reads artAlt)
+        alt = json.dumps(build_one(m, m.frame_alt), separators=(",", ":"))
+        total += len(alt)
+        lines.append("  ALT." + eid + " = " + alt + ";")
 lines += ["  Object.keys(A).forEach(function (id) {",
           "    var e = ns.ENEMIES && ns.ENEMIES[id];",
-          "    if (e) { e.art = A[id]; if (e.artAlt) delete e.artAlt; }",
+          "    if (!e) return;",
+          "    e.art = A[id];",
+          "    if (ALT[id]) e.artAlt = ALT[id]; else delete e.artAlt;",
           "  });",
           "  ns.ENEMY_ART = A;",
           "})(typeof window !== 'undefined' ? (window.VS = window.VS || {}) : (global.VS = global.VS || {}));", ""]

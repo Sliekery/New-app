@@ -1958,6 +1958,31 @@
     c.restore();
   }
 
+  /* BREATH. The idle bob used to move the whole figure, boots and all, so a
+   * soldier standing on the deck hovered a pixel and a half off it. Breathing
+   * does not do that: the feet stay planted and the chest takes the air. So the
+   * lift grows from nothing at the boots to its full height at the head, and
+   * the chest widens a touch at its fullest. Everything that hangs off the body
+   * (the weapon at its pivot, the eyes, the halo) rises by the lift at its own
+   * height, so nothing comes away from the figure. In art units, y down. */
+  var BREATH_FEET = 0.95, BREATH_HEAD = -1.05;
+  function breathLift(y, amt) {
+    var k = (BREATH_FEET - y) / (BREATH_FEET - BREATH_HEAD);
+    return amt * (k < 0 ? 0 : k > 1 ? 1 : k);
+  }
+  function breathe(paths, amt, widen) {
+    if (!paths || !amt) return paths;
+    return paths.map(function (p) {
+      var q = new Array(p.length);
+      for (var i = 0; i < p.length; i += 2) {
+        var y = p[i + 1], d = (y + 0.45) / 0.35;         // the chest band, around y = -0.45
+        q[i] = p[i] * (1 + widen * Math.exp(-d * d));
+        q[i + 1] = y - breathLift(y, amt);
+      }
+      return q;
+    });
+  }
+
   function drawPlayer() {
     var r = ns.engine.run;
     if (!r) return;
@@ -1965,19 +1990,26 @@
     var scale = figScale(0.098);
     // breathing at two rates so the idle never ticks like a metronome, plus a slow
     // weight shift boot-to-boot — the trooper is holding a stance, not standing still.
-    var bob = Math.sin(t * 1.6) * 1.4 + Math.sin(t * 0.83) * 0.7;
+    // The breath itself: in slow, out a little faster, about four seconds a
+    // cycle, with a second rate under it so no two breaths are quite the same.
+    var bph = t * 1.5 + 0.35 * Math.sin(t * 0.41);
+    var breath = 0.5 - 0.5 * Math.cos(bph + 0.25 * Math.sin(bph));     // 0 exhaled .. 1 full
+    var bAmt = 0.034 * breath, bWide = 0.022 * breath;
+    var bob = Math.sin(t * 0.83) * 0.25;       // the boots stay planted; the breath does the moving now
     var swayX = (r.cls === 'vanguard') ? Math.sin(t * 0.62) * 1.7 : 0;
     if (r.cls === 'voidadept') {
       // he HOVERS. A slower, deeper rise and fall than breathing, with a lateral
       // drift on a different period so the two never sync into a bounce.
       bob = Math.sin(t * 0.74) * 4.2 + Math.sin(t * 1.31) * 1.1;
       swayX = Math.sin(t * 0.45) * 2.6;
+      bAmt *= 0.8;                             // a slower, shallower breath under the hover
     } else if (r.cls === 'technomancer') {
       // a machine left running: almost no drift, but a servo hitch every few
       // seconds so he reads as powered rather than paused.
       var hitch = Math.max(0, Math.sin(t * 0.55) - 0.985) * 120;
-      bob = Math.sin(t * 1.1) * 0.8 + hitch;
+      bob = hitch;
       swayX = Math.sin(t * 0.31) * 0.7;
+      bAmt *= 0.6; bWide *= 0.4;               // a bellows rather than lungs: shallow, and it barely widens
     }
     var flash = (t - R.player.flashT < 0.15);
     var px = p.x + swayX, py = p.y + bob, sc = scale, glow = flash ? 14 : 9;
@@ -1998,19 +2030,22 @@
     // the whole soldier is shoved back off the shot (recoil), then settles
     px -= aimKick * sc * 0.13; py -= aimKick * sc * 0.02; glow += aimKick * 6;
     var col = flash ? '#ff4a5e' : art.color;
+    // what rides on the shoulders rises with them: the weapon at its pivot, the halo at its centre
+    var wpy = py - (atk && atk.pivot ? breathLift(atk.pivot[1], bAmt) : 0) * sc;
+    var hpy = py - (art.halo ? breathLift(art.halo.pivot[1], bAmt) : 0) * sc;
 
     // BEHIND the figure: the cog-halo, and the psyker's torn banner-cloth.
-    if (art.halo) strokeRot(art.halo.paths, px, py, sc, art.halo.pivot, t * art.halo.speed, col, glow * 0.7);
-    if (art.banner) strokeLive(art.banner, px, py, sc, col, glow * 0.8, { amp: 0.055, speed: 0.9, alpha: 0.75 });
+    if (art.halo) strokeRot(art.halo.paths, px, hpy, sc, art.halo.pivot, t * art.halo.speed, col, glow * 0.7);
+    if (art.banner) strokeLive(breathe(art.banner, bAmt, 0), px, py, sc, col, glow * 0.8, { amp: 0.055, speed: 0.9, alpha: 0.75 });
 
-    strokePaths(art.p, px, py, sc, col, glow, 1);
+    strokePaths(breathe(art.p, bAmt, bWide), px, py, sc, col, glow, 1);
 
     // Live parts: the mechadendrites and the frayed hem move on their OWN
     // timers, which is most of what makes these two read as alive rather than
     // as a wireframe that happens to bob. A cast flares them outward.
     var castFlare = (aprog >= 0 && atype === 'attack') ? Math.sin(aprog * Math.PI) * 0.10 : 0;
-    if (art.dendrites) strokeLive(art.dendrites, px, py, sc, col, glow, { amp: 0.045, speed: 1.35, flare: castFlare, tip: true });
-    if (art.tatters) strokeLive(art.tatters, px, py, sc, col, glow * 0.85, { amp: 0.05, speed: 0.85, flare: castFlare * 1.4, alpha: 0.9 });
+    if (art.dendrites) strokeLive(breathe(art.dendrites, bAmt, 0), px, py, sc, col, glow, { amp: 0.045, speed: 1.35, flare: castFlare, tip: true });
+    if (art.tatters) strokeLive(breathe(art.tatters, bAmt, 0), px, py, sc, col, glow * 0.85, { amp: 0.05, speed: 0.85, flare: castFlare * 1.4, alpha: 0.9 });
 
     // weapon / attack animation per class
     var atking = atype === 'attack' && aprog >= 0, tx = R.player.atkTX, ty = R.player.atkTY;
@@ -2025,12 +2060,12 @@
         else if (aprog < 0.58) { ang = atk.aim - aimKick * 0.55; firing = true; } // FIRE — muzzle climbs with the kick
         else ang = atk.aim + (rest - atk.aim) * ease((aprog - 0.58) / 0.42);       // back down to the ready carry
       }
-      strokeRot(art.weapon, px, py, sc, atk.pivot, ang, col, glow);
+      strokeRot(art.weapon, px, wpy, sc, atk.pivot, ang, col, glow);
       var mz = rotPt(atk.muzzle, atk.pivot, ang);   // live muzzle position for the idle glow
-      R.player.muzzleX = px + mz[0] * sc; R.player.muzzleY = py + mz[1] * sc;
+      R.player.muzzleX = px + mz[0] * sc; R.player.muzzleY = wpy + mz[1] * sc;
       if (firing) {
         var m = rotPt(atk.muzzle, atk.pivot, ang);
-        var mx = px + m[0] * sc, my = py + m[1] * sc;
+        var mx = px + m[0] * sc, my = wpy + m[1] * sc;
         muzzleFlash(mx, my, sc, art.color, tx, ty);
         if (!R.player.aimFired) {           // fire the shot ONCE: tracer bolt, sparks, brass, muzzle pop
           R.player.aimFired = true;
@@ -2053,8 +2088,8 @@
         else if (aprog < 0.64) { sang = atk.slam; charge = 1; discharging = true; }
         else { sang = atk.slam + (srest - atk.slam) * ease((aprog - 0.64) / 0.36); charge = Math.max(0, 1 - (aprog - 0.64) / 0.36); }
       }
-      strokeRot(art.weapon, px, py, sc, atk.pivot, sang, col, glow + charge * 8);
-      var orbP = rotPt(atk.orb, atk.pivot, sang), ox2 = px + orbP[0] * sc, oy2 = py + orbP[1] * sc;
+      strokeRot(art.weapon, px, wpy, sc, atk.pivot, sang, col, glow + charge * 8);
+      var orbP = rotPt(atk.orb, atk.pivot, sang), ox2 = px + orbP[0] * sc, oy2 = wpy + orbP[1] * sc;
       R.player.muzzleX = ox2; R.player.muzzleY = oy2;
       // the coil visibly spools up before it lets go
       if (charge > 0.02) {
@@ -2067,7 +2102,7 @@
       if (atking && !R.player.aimFired && aprog >= 0.30 && aprog < 0.42) {
         R.player.aimFired = true;                              // the SLAM, once
         var fp = rotPt(atk.ferrule, atk.pivot, sang);
-        var fx2 = px + fp[0] * sc, fy2 = py + fp[1] * sc;
+        var fx2 = px + fp[0] * sc, fy2 = wpy + fp[1] * sc;
         R.ring(fx2, fy2, art.color, sc * 0.9, 0.3);
         for (var sp = 0; sp < 9; sp++) spawn({ x: fx2, y: fy2, vx: (Math.random() - 0.5) * 180, vy: -40 - Math.random() * 110, life: 0.4 + Math.random() * 0.25, age: 0, color: '#d8f6ff', size: 1.4 + Math.random(), grav: 520 });
       }
@@ -2103,7 +2138,7 @@
     ctx.shadowColor = art.color;
     ctx.shadowBlur = 7;
     (art.e || []).forEach(function (e) {
-      var ex = px + e[0] * sc, ey = py + e[1] * sc;
+      var ex = px + e[0] * sc, ey = py + (e[1] - breathLift(e[1], bAmt)) * sc;
       var es = Math.max(1.5, sc * (e[2] || 0.04));
       ctx.beginPath(); ctx.arc(ex, ey, es / 2, 0, 7); ctx.fill();
     });
