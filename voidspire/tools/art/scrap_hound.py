@@ -1,7 +1,11 @@
 """Scrap Hound: side view, facing LEFT (toward the player). An idle prowl, 8 frames: the body breathes, the
 weight rocks between the diagonal leg pairs, the head scans and the jaw works, the tail antenna flicks.
 Built by forward kinematics so every frame is the same drawing with its joints turned."""
-import math, json, sys
+import math, json
+
+import sys
+
+ID, N, FPS = 'scrap_hound', 8, 8
 
 def R(p, c, a):
     ca, sa = math.cos(a), math.sin(a)

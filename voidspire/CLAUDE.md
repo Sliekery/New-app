@@ -1258,3 +1258,22 @@ Canvas coordinates are **not** layout coordinates: the canvas is sized by
 `getBoundingClientRect` while DOM chrome sits inside a transform-scaled
 `#game`. Converting between them needs `canvas.offsetHeight` (see
 `R.canvasToLayout`).
+
+## Enemy sprites are generated, not hand-edited
+
+`tools/art/<enemy id>.py` draws each refined sprite as code — forward
+kinematics for limbs, real 3D projection for halos and solids, or
+`original()` + `deform()` to animate an existing drawing without redrawing
+it. `python3 tools/art/build.py` writes them all to **`js/enemyart.js`**,
+which loads after `enemies.js` and replaces `art` (and drops `artAlt`) for
+every id it covers. The inline art in `enemies.js` stays as the fallback and
+as what `original()` reads; edit the generator, never `enemyart.js`.
+
+- **The player always stands to the LEFT and nothing is mirrored**, so a
+  sprite with a side (a lance, a snout, a gun) must point toward -x.
+- Coordinates are rounded to 2 decimals, which is what keeps ~16 animated
+  bosses at ~555 KB.
+- The four tributes are counter-bosses named after a deck style; their
+  sprites were redrawn as deliberately original designs (juggernaut,
+  briar-flower, derelict satellite, lantern seraph) rather than anything
+  resembling another game's characters.

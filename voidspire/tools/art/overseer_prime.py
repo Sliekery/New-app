@@ -6,6 +6,8 @@ Idle, 12 frames: the searchlight sweeps, the pistons in the legs breathe, the st
 settles, the mast pulses, the plates shift."""
 import math, json
 
+ID, N, FPS = 'overseer_prime', 12, 8
+
 def R(p, c, a):
     ca, sa = math.cos(a), math.sin(a)
     dx, dy = p[0] - c[0], p[1] - c[1]

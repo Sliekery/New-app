@@ -5,6 +5,8 @@ Idle, 10 frames: it heaves a breath (shoulders lift, chest swells), the arms swa
 the furnace flickers and the shoulder vents puff."""
 import math, json
 
+ID, N, FPS = 'rust_ogre', 10, 8
+
 def R(p, c, a):
     ca, sa = math.cos(a), math.sin(a)
     dx, dy = p[0] - c[0], p[1] - c[1]
