@@ -3001,11 +3001,18 @@
     var hb = $hand.getBoundingClientRect();
     var fs0 = $game ? ($game.getBoundingClientRect().width / Math.max(1, $game.offsetWidth)) : 1;
     if (!(fs0 > 0.01)) fs0 = 1;
+    /* Only what stands BESIDE the cards takes width from them. The belt, the
+     * Energy pip and END TURN sit in the row above the cards on a phone, yet
+     * they were reserved anyway: on a 440px iPhone the belt alone claimed 285px
+     * of the left side, the hand was given its 80px floor, and five cards
+     * squeezed into one pile with their names one letter per line. */
+    var cardTop = hb.bottom - CARD_H * fs0;
     function reserve(sels, right) {
       var need = 0;
       sels.forEach(function (sel) {
         var e = document.querySelector(sel); if (!e) return;
         var b = e.getBoundingClientRect(); if (!b.width || !b.height) return;
+        if (b.bottom <= cardTop + 4 || b.top >= hb.bottom) return;
         need = Math.max(need, right ? (hb.right - b.left) : (b.right - hb.left));
       });
       return Math.max(0, need / fs0) + 12 + fanBulge;
