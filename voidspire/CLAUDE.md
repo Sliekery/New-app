@@ -1277,3 +1277,11 @@ as what `original()` reads; edit the generator, never `enemyart.js`.
   sprites were redrawn as deliberately original designs (juggernaut,
   briar-flower, derelict satellite, lantern seraph) rather than anything
   resembling another game's characters.
+
+**The Vanguard is generated too**: `python3 tools/art/players/vanguard.py`
+rewrites the vanguard entry of `js/playerart.js` (the void corsair, chosen
+from the five directions in `tools/art/players/vanguard_concepts.py`). Its
+whole gun arm is the `weapon` part, so the arm swings from the shoulder; the
+carry is LOW (`ready` 2.15) and the shot snaps it level (`aim` 1.50). The
+pivot and muzzle are written by the same script as the drawing, so they
+cannot drift apart.
